@@ -1,0 +1,29 @@
+{# templates/administrateur/prospects/_status_badge.html.twig #}
+
+{% set map = {
+  'new':           ['ps--new',        'Nouveau',      'bi-stars'],
+  'contacted':     ['ps--contacted',  'Contacté',     'bi-chat-dots'],
+  'qualified':     ['ps--qualified',  'Qualifié',     'bi-check2-circle'],
+  'proposal_sent': ['ps--proposal',   'Devis envoyé', 'bi-file-earmark-text'],
+  'negotiation':   ['ps--nego',       'Négociation',  'bi-hand-thumbs-up'],
+  'won':           ['ps--won',        'Gagné',        'bi-trophy'],
+  'lost':          ['ps--lost',       'Perdu',        'bi-x-circle'],
+  'nurturing':     ['ps--nurture',    'À nourrir',    'bi-droplet'],
+  'converted':     ['ps--converted',  'Converti',     'bi-arrow-repeat']
+} %}
+
+{% set v = p.status ? p.status.value : 'new' %}
+{% set conf = map[v] ?? ['ps--unknown', '—', 'bi-question'] %}
+
+<div class="ps-wrap" title="{{ conf[1] }} • {{ p.isActive ? 'Actif' : 'Inactif' }}">
+  <span class="ps-badge {{ conf[0] }}">
+    <span class="ps-ico"><i class="bi {{ conf[2] }}"></i></span>
+    <span class="ps-text">{{ conf[1] }}</span>
+  </span>
+
+  {% if p.isActive %}
+    <span class="ps-mini ps-mini--on"><span class="dot"></span>Actif</span>
+  {% else %}
+    <span class="ps-mini ps-mini--off"><span class="dot"></span>Inactif</span>
+  {% endif %}
+</div>

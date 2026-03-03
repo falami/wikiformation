@@ -1,0 +1,949 @@
+{# templates/pdf/contrat_formateur.html.twig #}
+
+{% set brand = {
+  primary:   entite.couleurPrincipal  |default('#1e3a5f'),
+  secondary: entite.couleurSecondaire |default('#4ba3ff'),
+  accent:    entite.couleurSecondaire |default('#d4a574'),
+  ink:       '#0f2336',
+  text:      '#1e2d3d',
+  muted:     '#5a6b7d',
+  line:      '#dce4ed',
+  soft:      '#f8fafc',
+  paper:     '#ffffff',
+  alertBg:   '#fff9f0',
+  alertLine: '#f5d6a8'
+} %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Lettre de mission n°{{ contrat.numero }}</title>
+
+  <style>
+
+/* =========================================================
+   DOMPDF ROBUST BASE
+   - 1 seul @page (marges OK sur toutes les pages)
+   - pas de padding global multi-page
+   - tables stables (table-layout: fixed)
+   - casse des longues chaînes (email, SIRET, etc.)
+   - footer fixed sécurisé (place réservée via margin-bottom)
+   ========================================================= */
+
+@page{
+  size: A4 portrait;
+  margin: 28mm 28mm 28mm 28mm; /* +10mm partout vs 24/18/34/18 */
+}
+
+
+/* Reset minimal (évite le "tout collé" incontrôlable) */
+html, body{ margin:0; padding:0; }
+*{ box-sizing:border-box; }
+
+body{
+  font-family: DejaVu Sans, Helvetica, Arial, sans-serif;
+  color: {{ brand.text }};
+  font-size: 10.4pt;
+  line-height: 1.33;
+}
+
+
+/* Typo / helpers */
+strong{ font-weight:700; color: {{ brand.ink }}; }
+p{ margin: 0 0 6pt; }
+ul{ margin: 0; padding-left: 16pt; }
+li{ margin: 0 0 6pt; }
+.text-muted{ color: {{ brand.muted }}; }
+.text-small{ font-size: 9pt; }
+.mb-0{ margin-bottom:0 !important; }
+.mt-2{ margin-top: 6pt; }
+.mt-4{ margin-top: 10pt; }
+.mt-8{ margin-top: 16pt; }
+.text-right{ text-align:right; }
+.text-center{ text-align:center; }
+
+/* dompdf pagination */
+.page-break{ page-break-before: always; }
+
+/* utilitaire : on l’utilise seulement sur les petits blocs critiques */
+.avoid-break{ page-break-inside: avoid; }
+
+/* ne pas bloquer la coupure partout (sinon dompdf “colle” en haut page suivante) */
+.card, .table, .sign-grid{ page-break-inside: auto; }
+
+/* blocs réellement sensibles */
+.header{ page-break-inside: avoid; }
+.card-intro{ page-break-inside: avoid; }
+.signature{ page-break-inside: avoid; }
+.footer{ page-break-inside: avoid; }
+
+
+/* Respecte les retours à la ligne venant de la DB */
+.preline{ white-space: pre-line; }
+
+/* Anti débordement global (images + longues chaines) */
+img{ max-width:100%; height:auto; }
+.brand-meta, .doc-meta, .info-content, .table td, .table th{
+  word-wrap: break-word;
+  overflow-wrap: anywhere; /* crucial pour emails, siret, etc. */
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+.header{
+  width: 100%;
+  padding-bottom: 10pt;
+  margin-bottom: 10pt;
+}
+
+.header-table{
+  width:100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* évite débordement */
+}
+
+.header-left{
+  width:50%;
+  vertical-align: top;
+  padding-right: 12pt;
+}
+
+.header-right{
+  width:50%;
+  vertical-align: top;
+  text-align: right;
+}
+
+.logo{
+  height: 90pt;
+  width: auto;
+  margin-bottom: 2pt;
+}
+
+.brand-name{
+  font-size: 18pt;
+  font-weight: 800;
+  color: {{ brand.primary }};
+  letter-spacing: -0.2pt;
+  margin: 0 0 4pt 0;
+}
+
+.brand-meta{
+  font-size: 9pt;
+  color: {{ brand.muted }};
+  line-height: 1.45;
+}
+.brand-meta p{ margin:0 0 2pt; }
+
+.doc-badge{
+  display: inline-block;
+  background: {{ brand.primary }};
+  color: #fff;
+  font-weight: 900;
+  font-size: 12.2pt;
+  letter-spacing: 0.9pt;
+  padding: 7pt 12pt;
+  border-radius: 5pt;
+  text-transform: uppercase;
+  border: 1pt solid rgba(255,255,255,0.18);
+}
+
+.doc-meta{
+  margin-top: 8pt;
+  font-size: 9.3pt;
+  color: {{ brand.muted }};
+  line-height: 1.5;
+}
+.doc-meta-item{ margin-bottom: 3pt; }
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+.card{
+  background: {{ brand.paper }};
+  border: 1pt solid {{ brand.line }};
+  border-left: 3pt solid {{ brand.primary }};
+  border-radius: 7pt;
+  padding: 12pt 14pt;
+  margin: 0 0 10pt 0;
+}
+
+.card-highlight{
+  background: {{ brand.soft }};
+  border-left-color: {{ brand.accent }};
+}
+
+.card-intro{
+  background: {{ brand.primary }};
+  color: #fff;
+  border: none;
+  border-left: 3pt solid {{ brand.accent }};
+  padding: 12pt 14pt;
+  border-radius: 7pt;
+  margin: 0 0 10pt 0;
+}
+.card-intro p{
+  color:#fff;
+  font-size: 10pt;
+  line-height: 1.55;
+  margin: 0 0 7pt 0;
+}
+.card-intro p:last-child{ margin-bottom:0; }
+.card-intro strong{ color:#fff; }
+
+/* =========================================================
+   SECTION TITLES
+   ========================================================= */
+.section-title{
+  font-size: 10.2pt;
+  font-weight: 900;
+  color: {{ brand.primary }};
+  text-transform: uppercase;
+  letter-spacing: .8pt;
+  margin: 0 0 6pt 0;
+  padding-bottom: 6pt;
+}
+.section-title-accent{
+  width: 44pt;
+  height: 2pt;
+  background: {{ brand.accent }};
+  margin: -2pt 0 10pt 0;
+}
+
+/* =========================================================
+   INFO BLOCKS
+   ========================================================= */
+.info-block{ margin: 0 0 9pt 0; }
+.info-block:last-child{ margin-bottom:0; }
+
+.info-label{
+  display:block;
+  font-size: 8.5pt;
+  font-weight: 800;
+  color: {{ brand.ink }};
+  text-transform: uppercase;
+  letter-spacing: .5pt;
+  margin: 0 0 3pt 0;
+}
+.info-content{
+  font-size: 10pt;
+  color: {{ brand.text }};
+  line-height: 1.5;
+}
+
+/* =========================================================
+   TABLES (DOMPDF SAFE)
+   ========================================================= */
+table{ border-collapse: collapse; width:100%; }
+
+/* La classe .table est ton "bloc tableau" */
+.table{
+  margin: 8pt 0 10pt 0;
+  font-size: 10pt;
+  border: 1pt solid {{ brand.line }};
+  table-layout: fixed; /* SUPER IMPORTANT */
+}
+
+.table th, .table td{
+  border: 1pt solid {{ brand.line }};
+  padding: 8pt 9pt;
+  vertical-align: top;
+}
+
+.table th{
+  background: {{ brand.soft }};
+  color: {{ brand.ink }};
+  font-weight: 900;
+  font-size: 9.1pt;
+  text-transform: uppercase;
+  letter-spacing: .4pt;
+  width: 32%;
+}
+
+/* =========================================================
+   BADGES / ALERTS
+   ========================================================= */
+.pill{
+  display:inline-block;
+  padding: 2pt 7pt;
+  border-radius: 999pt;
+  border: 1pt solid {{ brand.line }};
+  background: {{ brand.soft }};
+  color: {{ brand.ink }};
+  font-size: 9pt;
+  font-weight: 800;
+}
+
+.alert-box{
+  background: {{ brand.alertBg }};
+  border: 1pt solid {{ brand.alertLine }};
+  border-left: 3pt solid {{ brand.accent }};
+  border-radius: 7pt;
+  padding: 11pt 13pt;
+  margin: 10pt 0 12pt 0;
+}
+.alert-box p{ font-size: 10pt; color:#5a4520; margin: 0 0 6pt 0; }
+.alert-box p:last-child{ margin-bottom:0; }
+
+/* =========================================================
+   SIGNATURES
+   ========================================================= */
+.signature{
+  margin-top: 14pt;
+  padding-top: 12pt;
+}
+
+.sign-grid{
+  width:100%;
+  border-collapse: collapse;
+  margin-top: 10pt;
+  table-layout: fixed;
+}
+
+.sign-grid td{
+  width:50%;
+  vertical-align: top;
+  border: 1pt solid {{ brand.line }};
+  padding: 12pt 12pt 18pt 12pt;
+}
+
+.sign-title{
+  font-size: 10pt;
+  font-weight: 900;
+  color: {{ brand.primary }};
+  text-transform: uppercase;
+  letter-spacing: .7pt;
+  margin: 0 0 8pt 0;
+}
+
+.sign-meta{ font-size: 9.5pt; color: {{ brand.muted }}; line-height: 1.5; }
+
+/* =========================================================
+   PROGRAMME
+   ========================================================= */
+.program-title{
+  font-size: 12.5pt;
+  font-weight: 900;
+  color: {{ brand.primary }};
+  text-transform: uppercase;
+  letter-spacing: 1.0pt;
+  margin: 0 0 8pt 0;
+}
+
+.program-list{ margin:0; padding-left: 16pt; font-size: 10pt; }
+.program-list li{ margin: 0 0 8pt 0; }
+.program-chapter{ font-weight: 800; color: {{ brand.ink }}; margin: 0 0 3pt 0; }
+.program-sublist{ margin: 5pt 0 0 0; padding-left: 14pt; font-size: 9.5pt; }
+.program-sublist li{ margin: 0 0 5pt 0; }
+
+/* =========================================================
+   FOOTER FIXE
+   - la place est déjà réservée via @page margin-bottom: 34mm
+   ========================================================= */
+.footer{
+  position: fixed;
+  left: 18mm;
+  right: 18mm;
+  bottom: 12mm;
+  font-size: 9pt;
+  color: {{ brand.muted }};
+}
+
+.footer-box{
+  border: 1pt solid {{ brand.line }};
+  padding: 6pt 10pt;
+  background: #fff;
+}
+
+.footer-title{
+  text-align:center;
+  font-weight: 800;
+  font-size: 9pt;
+  text-transform: uppercase;
+  color: {{ brand.primary }};
+  border-bottom: 1pt solid {{ brand.line }};
+  padding-bottom: 4pt;
+  margin-bottom: 4pt;
+}
+
+/* ====== GUTTER INTERNE (comme convocation) ====== */
+.page{
+  padding: 10mm; /* petit “gutter” visuel, pas une vraie marge */
+}
+
+
+  </style>
+</head>
+
+<body>
+<div class="page">
+
+{# ================= Vars robustes (INCHANGÉ) ================= #}
+{% set prefs = entite.preferences ?? null %}
+{% set session = session ?? contrat.session %}
+{% set formation = formation ?? (session ? session.formation : null) %}
+{% set stagiaires = stagiaires ?? [] %}
+
+{# Helper : récupère texte du contrat sinon défaut prefs sinon fallback (INCHANGÉ) #}
+{% set t_engagement = contrat.clauseEngagement ?: (prefs ? prefs.contratFormateurClauseEngagementDefault : null) %}
+{% set t_objet      = contrat.clauseObjet ?: (prefs ? prefs.contratFormateurClauseObjetDefault : null) %}
+{% set t_emploi     = contrat.clauseEmploi ?: (prefs ? prefs.contratFormateurClauseEmploiDefault : null) %}
+{% set t_oblig      = contrat.clauseObligations ?: (prefs ? prefs.contratFormateurClauseObligationsDefault : null) %}
+{% set t_nonc       = contrat.clauseNonConcurrence ?: (prefs ? prefs.contratFormateurClauseNonConcurrenceDefault : null) %}
+{% set t_inexec     = contrat.clauseInexecution ?: (prefs ? prefs.contratFormateurClauseInexecutionDefault : null) %}
+{% set t_assur      = contrat.clauseAssurance ?: (prefs ? prefs.contratFormateurClauseAssuranceDefault : null) %}
+{% set t_fin        = contrat.clauseFinContrat ?: (prefs ? prefs.contratFormateurClauseFinContratDefault : null) %}
+{% set t_pi         = contrat.clauseProprieteIntellectuelle ?: (prefs ? prefs.contratFormateurClauseProprieteIntellectuelleDefault : null) %}
+
+{% set t_cg = contrat.conditionsGenerales ?: (prefs ? prefs.contratFormateurConditionsGeneralesDefault : null) %}
+{% set t_cp = contrat.conditionsParticulieres ?: (prefs ? prefs.contratFormateurConditionsParticulieresDefault : null) %}
+
+{% set orgSigPath = contrat.signatureOrganismePath ?: (prefs ? prefs.signatureOrganismePath : null) %}
+{% set orgSigNom = contrat.signatureOrganismeNom ?: (prefs ? prefs.signatureOrganismeNom : null) %}
+{% set orgSigFonction = contrat.signatureOrganismeFonction ?: (prefs ? prefs.signatureOrganismeFonction : null) %}
+{% set orgSigAt = contrat.signatureOrganismeAt ?: (prefs ? prefs.signatureOrganismeAt : null) %}
+
+{# ================= HEADER (premium like convocation) ================= #}
+<div class="header avoid-break">
+  <table class="header-table">
+    <tr>
+      <td class="header-left">
+        {% if entite.logo %}
+          <img class="logo" src="{{ absolute_url(asset('/wkformation/public/uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom|default('') }}">
+        {% endif %}
+
+        <div class="brand-name">{{ entite.nom|default('') }}</div>
+
+        <div class="brand-meta">
+          {% if entite.adresse %}<p>{{ entite.adresse }}</p>{% endif %}
+
+          {% set entite_l2 = [] %}
+          {% if entite.codePostal %}{% set entite_l2 = entite_l2|merge([entite.codePostal]) %}{% endif %}
+          {% if entite.ville %}{% set entite_l2 = entite_l2|merge([entite.ville]) %}{% endif %}
+          {% if entite_l2 is not empty or entite.pays %}
+            <p>{{ entite_l2|join(' ') }}{% if entite.pays %} · {{ entite.pays }}{% endif %}</p>
+          {% endif %}
+
+          {% set entite_contact = [] %}
+          {% if entite.telephone %}{% set entite_contact = entite_contact|merge([entite.telephone]) %}{% endif %}
+          {% if entite.email %}{% set entite_contact = entite_contact|merge([entite.email]) %}{% endif %}
+          {% if entite_contact is not empty %}<p>{{ entite_contact|join(' · ') }}</p>{% endif %}
+
+          {% if entite.siret %}<p>SIRET : {{ entite.siret }}</p>{% endif %}
+        </div>
+      </td>
+
+      <td class="header-right">
+        <div class="doc-badge">LETTRE DE MISSION</div>
+        <div class="doc-meta">
+          <div class="doc-meta-item"><strong>N° :</strong> {{ contrat.numero }}</div>
+          <div class="doc-meta-item"><strong>Date :</strong> {{ (contrat.dateCreation ?? "now")|date('d/m/Y') }}</div>
+          {% if formation %}
+            <div class="doc-meta-item"><strong>Formation :</strong> {{ formation.titre }}</div>
+          {% endif %}
+          <div class="doc-meta-item"><strong>Exemplaires :</strong> 2</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+{# ================= INTRO ================= #}
+<div class="card-intro avoid-break">
+  <p>
+    Fait à <strong>{{ entite.ville ?? '...' }}</strong>, le <strong>{{ (contrat.dateCreation ?? "now")|date('d/m/Y') }}</strong>.
+  </p>
+  <p class="mb-0">
+    La présente <strong>lettre de mission</strong> fixe les conditions d’intervention du formateur dans le cadre
+    d’une action de formation entrant dans le champ de la formation professionnelle continue, dans le respect
+    du référentiel national qualité (Qualiopi).
+  </p>
+</div>
+
+{# ================= PARTIES (same content, premium card) ================= #}
+<div class="card card-highlight avoid-break">
+  <div class="section-title">Parties</div>
+  <div class="section-title-accent"></div>
+
+  <div class="info-block">
+    <span class="info-label">Le donneur d'ordre</span>
+    <div class="info-content">
+      <strong>{{ entite.nom }}</strong><br>
+      {% if entite.formeJuridique %}{{ entite.formeJuridique }} –{% endif %}
+      {% if entite.siret %} immatriculée sous le n°{{ entite.siret }},{% endif %}
+      dont le siège social est situé {{ entite.adresse ?? '' }} {{ entite.codePostal ?? '' }} {{ entite.ville ?? '' }}.
+      <br>
+      Représenté par
+      {% if entite.nomRepresentant %}
+        {{ entite.prenomRepresentant }} {{ entite.nomRepresentant }}
+        {% if entite.fonction %}, en qualité de {{ entite.fonction }}{% endif %}
+      {% else %}
+        son représentant légal
+      {% endif %}, dûment habilité à l’effet des présentes.
+    </div>
+  </div>
+
+  <div class="info-block mb-0">
+    <span class="info-label">L’intervenant</span>
+    <div class="info-content">
+      <strong>{{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }}</strong><br>
+      {% if contrat.formateur.adresse %}{{ contrat.formateur.adresse }}<br>{% endif %}
+      {% if contrat.formateur.siret %}
+        Formateur indépendant – SIRET n° {{ contrat.formateur.siret }}.
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ================= 1 – Engagement ================= #}
+<div class="card">
+  <div class="section-title">1 - Engagement</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_engagement %}
+    <div class="info-content preline">{{ t_engagement }}</div>
+  {% else %}
+    <p>
+      {{ entite.nom }} confie au formateur ci-dessus désigné la réalisation de la mission décrite au présent contrat.
+      L’intervenant atteste être disponible aux dates prévues et apte médicalement à assurer cette prestation.
+    </p>
+    <p class="mb-0">
+      Il déclare ne pas être engagé auprès d’un autre donneur d’ordre sur ces mêmes dates et s’engage à respecter
+      le règlement intérieur et les procédures qualité de l’organisme de formation.
+    </p>
+  {% endif %}
+</div>
+
+{# ================= 2 – Emploi, qualification, lieu ================= #}
+<div class="card">
+  <div class="section-title">2 - Emploi, qualification, lieu</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_emploi %}
+    <div class="info-content preline mt-2">{{ t_emploi }}</div>
+    <div class="mt-4"></div>
+  {% endif %}
+
+  <p>L’intervention s’inscrit dans le cadre de l’action de formation suivante :</p>
+
+  <table class="table">
+    <tr>
+      <th>Intitulé de la formation</th>
+      <td>{{ formation ? formation.titre : '-' }}</td>
+    </tr>
+    <tr>
+      <th>Client / bénéficiaire</th>
+      <td>
+        {% if session and session.clientEntreprise is defined and session.clientEntreprise %}
+          {{ session.clientEntreprise.nom }}
+        {% else %}
+          {{ entite.nom }}
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Lieu de la formation</th>
+      <td>
+        {% if session and session.site %}
+          {% set site = session.site %}
+          <strong>{{ site.nom|default('Nom du site') }}</strong><br>
+          {{ site.adresse|default('Adresse du site') }}<br>
+          {{ (site.codePostal|default('')) ~ ' ' ~ (site.ville|default('')) }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Dates et horaires</th>
+      <td>
+        {% if session and session.jours is defined and session.jours|length > 0 %}
+          <span class="pill">Durée totale : {{ session.dureeTotaleHeures ?? (session.jours|length * 7) }} h</span><br>
+          {% for jour in session.jours %}
+            • Le {{ jour.dateDebut|date('d/m/Y') }}
+            de {{ jour.dateDebut|date('H\\hi') }}
+            à {{ jour.dateFin|date('H\\hi') }}<br>
+          {% endfor %}
+        {% else %}
+          À préciser
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Effectif du stage</th>
+      <td>{{ stagiaires|length }} stagiaire(s)</td>
+    </tr>
+    <tr>
+      <th>Nom des stagiaires</th>
+      <td>
+        {% if stagiaires|length > 0 %}
+          {% for ins in stagiaires %}
+            {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        {% else %}
+          Liste jointe en annexe.
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+</div>
+
+{# ================= 3 – Objet, durée, spécificités ================= #}
+<div class="card">
+  <div class="section-title">3 - Objet, durée et spécificités</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_objet %}
+    <div class="info-content preline">{{ t_objet }}</div>
+  {% else %}
+    <p>
+      Le formateur assure l’animation de cette action de formation, conformément au programme communiqué
+      et annexé à la présente lettre de mission. Il organise ses séquences pédagogiques afin de permettre
+      l’atteinte des objectifs opérationnels fixés.
+    </p>
+    <p class="mb-0">
+      Toute adaptation demandée par le client (contenu, horaires, modalités) devra être validée par
+      {{ entite.nom }}. Les éventuelles modifications substantielles pourront faire l’objet d’un avenant.
+    </p>
+  {% endif %}
+</div>
+
+{# ================= 3 bis – Conditions (CG/CP) ================= #}
+{% if t_cg or t_cp %}
+  <div class="card card-highlight">
+    <div class="section-title">3 bis - Conditions contractuelles</div>
+    <div class="section-title-accent"></div>
+
+    {% if t_cg %}
+      <div class="info-block">
+        <span class="info-label">Conditions générales</span>
+        <div class="info-content preline">{{ t_cg }}</div>
+      </div>
+    {% endif %}
+
+    {% if t_cp %}
+      <div class="info-block mb-0">
+        <span class="info-label">Conditions particulières</span>
+        <div class="info-content preline">{{ t_cp }}</div>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
+{# ================= 4 – Rémunération ================= #}
+<div class="card">
+  <div class="section-title">4 - Rémunération</div>
+  <div class="section-title-accent"></div>
+
+  {% set honoraires = (contrat.montantPrevuCents ?? 0) / 100 %}
+  {% set frais = (contrat.fraisMissionCents ?? 0) / 100 %}
+  {% set totalHt = honoraires + frais %}
+  {% set tva = (contrat.assujettiTva and contrat.tauxTva) ? (totalHt * contrat.tauxTva / 100) : 0 %}
+  {% set totalTtc = totalHt + tva %}
+
+  <table class="table">
+    <tr>
+      <th>Honoraires pédagogiques</th>
+      <td>
+        <strong>{{ honoraires|number_format(2, ',', ' ') }} €</strong> HT
+        {% if session and session.jours is defined and session.jours|length > 0 %}
+          <br><span class="text-small text-muted">({{ session.jours|length }} jour(s) d’animation)</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Frais de déplacement / mission</th>
+      <td>
+        <strong>{{ frais|number_format(2, ',', ' ') }} €</strong> HT
+        <br><span class="text-small text-muted">(si justificatifs / modalités spécifiques : voir conditions particulières)</span>
+      </td>
+    </tr>
+    <tr>
+      <th>Total HT</th>
+      <td><strong>{{ totalHt|number_format(2, ',', ' ') }} €</strong></td>
+    </tr>
+    <tr>
+      <th>TVA</th>
+      <td>
+        {% if contrat.assujettiTva and contrat.tauxTva %}
+          {{ contrat.tauxTva|number_format(2, ',', ' ') }} % :
+          <strong>{{ tva|number_format(2, ',', ' ') }} €</strong>
+          {% if contrat.numeroTvaIntra %}
+            <div class="text-small text-muted">N° TVA : {{ contrat.numeroTvaIntra }}</div>
+          {% endif %}
+        {% else %}
+          Non applicable / exonéré.
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Total TTC</th>
+      <td><strong>{{ totalTtc|number_format(2, ',', ' ') }} €</strong></td>
+    </tr>
+    <tr>
+      <th>Modalités</th>
+      <td>
+        Le formateur adressera sa facture à {{ entite.nom }} à l’issue de la formation, accompagnée
+        des pièces justificatives (feuilles d’émargement, bilan, etc.).
+        Le règlement interviendra dans le délai précisé au présent contrat ou, à défaut,
+        dans les délais légaux en vigueur.
+      </td>
+    </tr>
+  </table>
+</div>
+
+{# ================= 5 – Obligations professionnelles ================= #}
+<div class="card">
+  <div class="section-title">5 - Obligations professionnelles</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_oblig %}
+    <div class="info-content preline">{{ t_oblig }}</div>
+  {% else %}
+    <ul>
+      <li>Respecter strictement la confidentialité des informations relatives aux stagiaires, au client et à {{ entite.nom }}.</li>
+      <li>Appliquer les prescriptions réglementaires et les consignes de sécurité du lieu d’intervention.</li>
+      <li>Préserver le matériel mis à disposition et le restituer en bon état à la fin de la mission.</li>
+      <li>Suivre les procédures Qualiopi de l’organisme (émargements, évaluations, supports remis, traçabilité…).</li>
+      <li>Remettre toutes les pièces nécessaires à la justification de la formation (émargements, évaluations, bilan, etc.).</li>
+    </ul>
+  {% endif %}
+</div>
+
+{# ================= 6 – Non-concurrence / non-sollicitation ================= #}
+<div class="card">
+  <div class="section-title">6 - Non-concurrence et non-sollicitation</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_nonc %}
+    <div class="info-content preline">{{ t_nonc }}</div>
+  {% else %}
+    <p>
+      Pendant la durée du présent contrat et pendant une période définie aux conditions particulières,
+      le formateur s’engage à ne pas traiter directement avec le client final pour des actions entrant dans le
+      domaine de compétence de {{ entite.nom }}, sans accord préalable de celle-ci.
+    </p>
+    <p class="mb-0">
+      Il s’engage également à ne pas utiliser les supports, méthodes, outils ou données de {{ entite.nom }}
+      à des fins étrangères à la mission qui lui est confiée.
+    </p>
+  {% endif %}
+</div>
+
+{# ================= 7 – Inexécution / résiliation ================= #}
+<div class="card">
+  <div class="section-title">7 - Inexécution du contrat</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_inexec %}
+    <div class="info-content preline">{{ t_inexec }}</div>
+  {% else %}
+    <p class="mb-0">
+      En cas de manquement grave à ses obligations, dûment constaté, chacune des parties pourra résilier
+      le présent contrat après mise en demeure restée sans effet dans le délai fixé aux conditions particulières,
+      sans préjudice des dommages et intérêts qui pourraient être réclamés.
+    </p>
+  {% endif %}
+</div>
+
+{# ================= 8 – Assurance ================= #}
+<div class="card">
+  <div class="section-title">8 - Assurance</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_assur %}
+    <div class="info-content preline">{{ t_assur }}</div>
+  {% else %}
+    <p class="mb-0">
+      L’intervenant atteste être couvert par une assurance responsabilité civile professionnelle pour les
+      dommages qui pourraient survenir dans le cadre de l’exécution de la présente mission et s’engage
+      à fournir une attestation sur simple demande.
+    </p>
+  {% endif %}
+</div>
+
+{# ================= 9 – Fin de contrat ================= #}
+<div class="card">
+  <div class="section-title">9 - Fin de contrat</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_fin %}
+    <div class="info-content preline">{{ t_fin }}</div>
+  {% else %}
+    <p class="mb-0">
+      Le présent contrat prend fin de plein droit à l’issue de la prestation prévue. Le formateur s’engage à
+      restituer tous les documents, fichiers, supports pédagogiques ou matériels appartenant à {{ entite.nom }}.
+    </p>
+  {% endif %}
+</div>
+
+{# ================= 10 – Propriété intellectuelle ================= #}
+<div class="card">
+  <div class="section-title">10 - Propriété intellectuelle</div>
+  <div class="section-title-accent"></div>
+
+  {% if t_pi %}
+    <div class="info-content preline">{{ t_pi }}</div>
+  {% else %}
+    <p>
+      Sauf dispositions contraires, le formateur conserve la propriété intellectuelle de ses supports et méthodes.
+      {{ entite.nom }} bénéficie d’un droit d’usage pour les besoins de la formation réalisée dans le cadre du présent contrat.
+    </p>
+    <p class="mb-0">
+      Toute reproduction ou diffusion des supports au-delà du cadre prévu devra faire l’objet d’un accord écrit
+      entre les parties.
+    </p>
+  {% endif %}
+</div>
+
+{# ================= PROGRAMME (new page) ================= #}
+<div class="page-break"></div>
+
+<div class="card card-highlight">
+  <div class="section-title">Programme</div>
+  <div class="section-title-accent"></div>
+
+  <div class="program-title">
+    {% if formation %}{{ formation.titre|upper }}{% else %}PROGRAMME DE FORMATION{% endif %}
+  </div>
+
+  <div class="info-block">
+    <span class="info-label">Programme indicatif</span>
+    <div class="info-content">
+      {% if formation and formation.contentNodes is not empty %}
+        <ul class="program-list">
+          {% for chap in formation.contentNodes %}
+            {% if chap.parent is null %}
+              <li>
+                <div class="program-chapter">{{ chap.titre }}</div>
+
+                {% if chap.children is not empty %}
+                  <ul class="program-sublist">
+                    {% for sub in chap.children %}
+                      <li>{{ sub.titre }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      {% else %}
+        <span class="text-muted text-small">Programme non renseigné.</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <table class="table">
+    <tr>
+      <th>Objectifs</th>
+      <td>{{ (formation and formation.objectifs) ? formation.objectifs|striptags : 'Permettre aux participants d’acquérir ou de consolider les compétences ciblées par la formation.' }}</td>
+    </tr>
+    <tr>
+      <th>Public</th>
+      <td>{{ (formation and formation.public) ? formation.public|striptags : 'Tout public concerné par la thématique de la formation.' }}</td>
+    </tr>
+    <tr>
+      <th>Codition Préalable</th>
+      <td>{{ (formation and formation.conditionPrealable) ? formation.conditionPrealable|striptags : 'Aucune condition préalable particulier n’est exigé, sauf indication contraire.' }}</td>
+    </tr>
+    <tr>
+      <th>Certification</th>
+      <td>
+        {% if formation and formation.codeQualiopi %}
+          Action de formation enregistrée sous le n°{{ formation.codeQualiopi }}.
+          Une attestation de fin de formation est remise au stagiaire.
+        {% else %}
+          Éventuelle certification ou attestation remise en fin de formation.
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+</div>
+
+{# ================= SIGNATURES ================= #}
+<div class="signature avoid-break">
+  <div class="section-title">Signatures</div>
+  <div class="section-title-accent"></div>
+
+  <table class="sign-grid">
+    <tr>
+      <td>
+        <div class="sign-title">Pour {{ entite.nom }}</div>
+
+        <div class="info-content">
+          {% if entite.nomRepresentant %}
+            <strong>{{ entite.prenomRepresentant }} {{ entite.nomRepresentant }}</strong><br>
+            {{ entite.fonction ?? '' }}<br>
+          {% else %}
+            Représentant légal
+          {% endif %}
+        </div>
+
+        {% if orgSigDataUri %}
+          <div class="mt-4 text-center">
+            <img src="{{ orgSigDataUri }}" alt="Signature organisme" style="max-width:250px; max-height:80px;">
+          </div>
+          <div class="mt-2 text-small text-center text-muted">
+            {% if orgSigNom %}<strong>{{ orgSigNom }}</strong><br>{% endif %}
+            {% if orgSigFonction %}{{ orgSigFonction }}<br>{% endif %}
+          </div>
+        {% else %}
+          <div class="mt-4 text-small text-muted">
+            Signature de l’organisme (si configurée dans les préférences).
+          </div>
+        {% endif %}
+      </td>
+
+      <td>
+        <div class="sign-title">L’intervenant</div>
+
+        <div class="info-content">
+          <strong>{{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }}</strong>
+        </div>
+
+        {% if contrat.signatureDataUrl %}
+          <div class="mt-4 text-center">
+            <img src="{{ contrat.signatureDataUrl }}" alt="Signature formateur" style="max-width: 250px; max-height: 80px;">
+          </div>
+          <div class="mt-2 text-small text-center text-muted">
+            Signé électroniquement le {{ contrat.signatureAt ? contrat.signatureAt|date('d/m/Y H:i') : '' }}<br>
+            IP : {{ contrat.signatureIp ?? '-' }}
+          </div>
+        {% else %}
+          <div class="mt-4 text-small text-muted">
+            Faire précéder la signature de la mention manuscrite : « Lu et approuvé »
+          </div>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+</div>
+
+{# ===== FOOTER (optionnel, comme convocation) ===== #}
+<div class="footer">
+  <div class="footer-box">
+    <div class="footer-title">Coordonnées</div>
+    <div style="text-align:center;">
+      {% set foot = [] %}
+      {% if entite.adresse|default('') %}{% set foot = foot|merge([entite.adresse]) %}{% endif %}
+      {% set foot2 = [] %}
+      {% if entite.codePostal|default('') %}{% set foot2 = foot2|merge([entite.codePostal]) %}{% endif %}
+      {% if entite.ville|default('') %}{% set foot2 = foot2|merge([entite.ville]) %}{% endif %}
+      {% if foot2 is not empty %}{% set foot = foot|merge([foot2|join(' ')]) %}{% endif %}
+      {% if entite.pays|default('') %}{% set foot = foot|merge([entite.pays]) %}{% endif %}
+      {% if foot is not empty %}{{ foot|join(' · ') }}<br>{% endif %}
+
+      {% set contact = [] %}
+      {% if entite.telephone|default('') %}{% set contact = contact|merge([entite.telephone]) %}{% endif %}
+      {% if entite.email|default('') %}{% set contact = contact|merge([entite.email]) %}{% endif %}
+      {% if contact is not empty %}{{ contact|join(' · ') }}{% endif %}
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

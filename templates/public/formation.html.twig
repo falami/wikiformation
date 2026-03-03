@@ -1,0 +1,611 @@
+{# templates/public/index.html.twig #}
+{% extends 'base_public.html.twig' %}
+
+{% block title %}Calendrier de nos formations voile{% endblock %}
+{% block meta_description %}Trouvez votre prochaine formation : initiation, perfectionnement, manœuvres, sécurité… Dates, lieux et tarifs à jour.{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<style>
+  :root{
+    --bg:#0e2a3b;
+    --panel:#0e2433;
+    --panel-2:#112a3b;
+    --glow:#1c4a66;
+    --field:#0f2230;
+    --field-border:#1e3e54;
+    --ink:#eaf6ff;
+    --muted:#a8c9da;
+    --cta:#e73d45;
+    --cta-ink:#fff;
+    --chip:#153448;
+    --chip-ink:#cfe6f3;
+    --ring: 0 0 0 3px rgba(58,160,255,.25), 0 10px 30px rgba(0,0,0,.25);
+  }
+
+  body{ overflow-x:hidden; color:var(--ink);}
+
+  /* =========================
+     ✅ NOUVEAU : GALERIE CATEGORIES
+  ========================= */
+  .cat-strip{
+    display:grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .cat-tile{
+    grid-column: span 3;
+    position:relative;
+    border-radius: 20px;
+    overflow:hidden;
+    min-height: 170px;
+    display:block;
+    text-decoration:none;
+    color:#fff;
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.06), transparent 60%),
+      var(--bgimg) center/cover no-repeat;
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow: 0 16px 45px rgba(0,0,0,.30);
+    transform: translateY(0);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .cat-tile:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 22px 60px rgba(0,0,0,.40);
+    border-color: rgba(255,193,7,.25);
+  }
+  .cat-tile__overlay{
+    position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.62));
+  }
+  .cat-tile__content{
+    position:absolute; inset:0;
+    padding: 1rem;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    gap:.45rem;
+  }
+  .cat-tile__chip{
+    align-self:flex-start;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 999px;
+    padding: .25rem .6rem;
+    font-size: .78rem;
+    backdrop-filter: blur(6px);
+  }
+  .cat-tile__title{
+    font-weight: 950;
+    letter-spacing: -.01em;
+    font-size: 1.05rem;
+    line-height: 1.1;
+  }
+  .cat-tile__sub{ font-size:.86rem; color: rgba(255,255,255,.75); }
+
+  @media (max-width: 1200px){ .cat-tile{ grid-column: span 4; } }
+  @media (max-width: 992px){ .cat-tile{ grid-column: span 6; } }
+  @media (max-width: 576px){ .cat-tile{ grid-column: span 12; min-height: 150px; } }
+
+  /* --- ton CSS existant : hero, filtres, cards ... --- */
+
+  .hero-cover{
+    /*background:url('{{ asset("uploads/photos/formation/hero.jpg") }}') center/cover no-repeat;*/
+    position:relative; color:#000;
+  }
+  .hero-cover::after{ content:""; position:absolute; inset:0; }
+  .hero-inner{ position:relative; z-index:2; padding:1rem 0 2rem; }
+
+  .filters-wrap{
+    margin-top:0;
+    background:linear-gradient(180deg, rgba(17,42,59,.80), rgba(17,42,59,.60));
+    border:1px solid rgba(120,170,200,.15);
+    border-radius:22px; backdrop-filter: blur(6px);
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    padding:1.25rem 1.25rem 1rem;
+  }
+  .filters-title{ font-size:.78rem; letter-spacing:.15em; }
+
+  .field{ position:relative; }
+  .field .field-icon{ position:absolute; left:14px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:1.05rem; }
+
+  .field .form-control,
+  .field .form-select,
+  .ts-control{
+    background:var(--field); color:var(--ink);
+    border:1px solid var(--field-border);
+    border-radius:14px; height:56px;
+    padding-left:46px;
+    font-size:1rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+  }
+  .field .form-control::placeholder{ color:#8fb3c8; }
+  .field .form-control, .field .form-select{ width:100%; }
+
+  .ts-control{ padding-left:46px !important; }
+  .ts-control .ts-placeholder{ color:#8fb3c8; }
+  .ts-dropdown{
+    background:var(--field); border:1px solid var(--field-border);
+    box-shadow:0 16px 40px rgba(0,0,0,.35);
+  }
+  .ts-dropdown .option{ color:var(--ink); }
+  .ts-dropdown .active{ background:#143043; }
+  .ts-control .item{
+    background:var(--chip); color:var(--chip-ink);
+    border:1px solid rgba(255,255,255,.06); border-radius:999px;
+    padding:.35rem .65rem; margin:.15rem .25rem .15rem 0;
+  }
+
+  .btn-apply{
+    height:56px; border-radius:14px; font-weight:800;
+    background:var(--cta); color:var(--cta-ink); border:none;
+    box-shadow:0 8px 22px rgba(231,61,69,.35);
+  }
+  .btn-apply:hover{ filter:brightness(1.06); }
+  .btn-reset{
+    height:40px; border-radius:14px; font-weight:700;
+    background:transparent; color:var(--ink);
+    border:1px solid var(--field-border);
+  }
+  .field .form-control:focus,
+  .field .form-select:focus,
+  .ts-control.is-focused{
+    border-color:var(--glow) !important;
+    box-shadow: var(--ring) !important;
+    outline:0;
+  }
+
+  .session-card{ background:#0f1b28; border:0; border-radius:18px; overflow:hidden;
+                 box-shadow:0 15px 35px rgba(0,0,0,.35); }
+  .session-media{ min-height:160px; background:
+    radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.05), transparent 60%),
+    url('{{ asset("dist/img/vitrine/voile.webp") }}') center/cover no-repeat; }
+  .session-body{ padding:1.2rem 1.4rem; }
+  .session-title{ color:#fff; font-weight:800; font-size:1.25rem; }
+  .session-meta{ color:var(--muted); }
+
+  .price-panel{ background:#0d1622; color:#cfe6f3; height:100%;
+                display:flex; flex-direction:column; justify-content:center;
+                border-left:1px solid #1f2a3a; padding:1.4rem; }
+  .price-from{ color:var(--muted); font-size:.9rem; }
+  .price-value{ color:#fff; font-weight:300; font-size:2.2rem; line-height:1; }
+  .price-value-reduit{ color:#888b93; font-weight:900; font-size:1rem; line-height:1; }
+  .cta{ background:var(--cta); border:0; color:#fff; font-weight:700; border-radius:12px; padding:.9rem 1.1rem; }
+  .cta:hover{ filter:brightness(1.05); background: var(--cta-ink) !important; color: var(--cta)}
+
+  .skeleton{ position:relative; overflow:hidden; background:#0f2130; border-radius:18px; }
+  .skeleton::after{ content:""; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+    animation:shimmer 1.2s infinite; }
+  @keyframes shimmer{ 0%{ transform:translateX(-100%);} 100%{ transform:translateX(100%);} }
+
+  .flatpickr-alt-input{
+    width:100% !important;
+    height:56px !important;
+    background:var(--field) !important;
+    color:var(--ink) !important;
+    border:1px solid var(--field-border) !important;
+    border-radius:14px !important;
+    padding-left:46px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.02) !important;
+  }
+  .flatpickr-alt-input:focus{
+    border-color:var(--glow) !important;
+    box-shadow: var(--ring) !important;
+    outline:0;
+  }
+
+  .results-count{ color:var(--muted); font-weight:600; }
+
+  .field .flatpickr-wrapper{ display:block !important; width:100% !important; }
+  .field .flatpickr-wrapper .flatpickr-alt-input{ width:100% !important; }
+  .field .flatpickr-input{ display:none !important; }
+
+  #ts-destination .ts-control { color:#fff; }
+  #ts-engin .ts-control { color:#fff; }
+  #ts-destination .ts-control input::placeholder { color:#fff !important; opacity: .95; }
+  #ts-engin .ts-control input::placeholder { color:#fff !important; opacity: .95; }
+  .flatpickr-alt-input::placeholder { color:#fff !important; opacity:.95; }
+
+  .session-media{
+    position: relative;
+    min-height: 160px;
+    background: radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.05), transparent 60%),
+              var(--cover, url('')) center/cover no-repeat;
+    border-top-left-radius: 18px;
+    border-bottom-left-radius: 18px;
+    -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 72%, rgba(0,0,0,0) 100%);
+            mask-image: linear-gradient(to right, rgba(0,0,0,1) 72%, rgba(0,0,0,0) 100%);
+  }
+  @media (max-width: 991.98px){
+    .session-media{
+      min-height: 180px;
+      -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%);
+              mask-image: linear-gradient(to right, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%);
+      border-radius: 18px 18px 0 0;
+    }
+    .filters-wrap{ padding:1rem; }
+  }
+
+  .chip-soft {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #fff;
+    border-radius: 999px;
+    padding: .25rem .6rem;
+    font-size: .8rem;
+    line-height: 1;
+  }
+  .session-body { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+  .session-title { font-size: 1.25rem; font-weight: 700; margin-bottom: .4rem !important; }
+</style>
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/fr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const resetFilters = () => {
+    const form   = document.querySelector('#filters-form');
+    if (!form) return;
+
+    const dest = document.getElementById('destination');
+    if (dest?.tomselect) { dest.tomselect.clear(true); }
+
+    const bat = document.getElementById('enginType');
+    if (bat?.tomselect) { bat.tomselect.clear(true); }
+
+    const datesEl = document.querySelector('#dates');
+    const fromEl  = document.querySelector('input[name="from"]');
+    const toEl    = document.querySelector('input[name="to"]');
+
+    if (fromEl) fromEl.value = '';
+    if (toEl)   toEl.value   = '';
+
+    if (datesEl && datesEl._fp) {
+      datesEl._fp.clear();
+      if (datesEl._fp.altInput) datesEl._fp.altInput.placeholder = 'Sélectionner une période';
+    } else if (datesEl) {
+      datesEl.value = '';
+    }
+  };
+
+  // Datepicker
+  const datesEl = document.querySelector('#dates');
+  const fromEl  = document.querySelector('input[name="from"]');
+  const toEl    = document.querySelector('input[name="to"]');
+
+  if (datesEl) {
+    const fp = flatpickr(datesEl, {
+      mode: 'range',
+      locale: 'fr',
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'j F Y',
+      altInputClass: 'flatpickr-alt-input',
+      allowInput: true,
+      disableMobile: "true",
+      rangeSeparator: ' to ',
+      minDate: 'today',
+
+      onReady(_sd, _str, instance){
+        if (fromEl?.value && toEl?.value) {
+          instance.setDate([fromEl.value, toEl.value], false);
+        } else {
+          instance.clear(false);
+          if (instance.altInput) instance.altInput.placeholder = 'Sélectionner une période';
+        }
+      },
+      onOpen(selectedDates, _str, instance){
+        const noHiddenValues   = !(fromEl?.value) && !(toEl?.value);
+        const nothingSelected  = selectedDates.length === 0;
+        if (noHiddenValues && nothingSelected) {
+          const today  = new Date();
+          const plus30 = new Date(today);
+          plus30.setDate(today.getDate() + 30);
+          instance.setDate([today, plus30], true);
+        }
+      },
+      onChange(selectedDates, _str, instance){
+        if (selectedDates.length === 2) {
+          const [d1, d2] = selectedDates;
+          if (fromEl) fromEl.value = instance.formatDate(d1, 'Y-m-d');
+          if (toEl)   toEl.value   = instance.formatDate(d2, 'Y-m-d');
+        } else {
+          if (fromEl) fromEl.value = '';
+          if (toEl)   toEl.value   = '';
+        }
+      },
+      onClear(){
+        if (fromEl) fromEl.value = '';
+        if (toEl)   toEl.value   = '';
+      }
+    });
+    datesEl._fp = fp;
+  }
+
+  // TomSelect destination
+  const destinationSelect = document.querySelector('#destination');
+  if (destinationSelect && !destinationSelect.tomselect) {
+    new TomSelect(destinationSelect, {
+      placeholder: 'Choisissez une destination',
+      create:false, persist:false, maxItems:1,
+      plugins:{ clear_button:{ title:'Effacer' } },
+      onInitialize(){
+        this.wrapper.style.width = '100%';
+        this.control.style.width = '100%';
+        this.wrapper.id = 'ts-destination';
+        this.control.setAttribute('aria-label','Destination');
+      }
+    });
+  }
+
+  // TomSelect engin
+  const enginTypeSelect = document.querySelector('#enginType');
+  if (enginTypeSelect && !enginTypeSelect.tomselect) {
+    new TomSelect(enginTypeSelect, {
+      placeholder:'Type d\'engin',
+      create:false, persist:false,
+      plugins:{ remove_button:{ title:'Supprimer' } },
+      onInitialize(){
+        this.wrapper.style.width = '100%';
+        this.control.style.width = '100%';
+        this.wrapper.id = 'ts-engin';
+        this.control.setAttribute('aria-label','Type d\'engin');
+      }
+    });
+  }
+
+  // AJAX filtering
+  const form   = document.querySelector('#filters-form');
+  const count  = document.querySelector('#results-count');
+  const list   = document.querySelector('#results');
+  if (!form || !list) return;
+
+  const toQs = (fd) => new URLSearchParams(
+    Array.from(fd.entries()).flatMap(([k,v]) => Array.isArray(v) ? v.map(x=>[k,x]) : [[k,v]])
+  ).toString();
+
+  let t=null; const debounce=(fn,d=350)=>(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),d);};
+
+  const showSkeleton = () => {
+    list.innerHTML = `
+      <div class="text-center text-muted py-5">
+        <div class="spinner-border text-light mb-3" role="status"></div>
+        <div>Chargement des formations...</div>
+      </div>`;
+  };
+
+  const refresh = async () => {
+    const fd = new FormData(form);
+    const qs = toQs(fd);
+    const url = form.getAttribute('action') + (qs ? ('?' + qs) : '');
+
+    showSkeleton();
+    try{
+      const resp = await fetch(url, { headers:{ 'X-Requested-With':'XMLHttpRequest' }});
+      const html = await resp.text();
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+
+      const newList  = tmp.querySelector('#results');
+      const newCount = tmp.querySelector('#results-count');
+
+      if (newList)  list.innerHTML  = newList.innerHTML;
+      if (newCount) count.textContent = newCount.textContent;
+
+      history.replaceState({}, '', url);
+    }catch(e){
+      form.submit();
+    }
+  };
+
+  form.querySelectorAll('select, input').forEach(el=>{
+    el.addEventListener('change', debounce(refresh, 250));
+    el.addEventListener('input',  debounce(refresh, 250));
+  });
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('#btn-reset-filters');
+    if (!btn) return;
+    e.preventDefault();
+    resetFilters();
+    refresh();
+  });
+});
+</script>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  
+
+  <header class="hero bg-light text-center">
+    <div class="container">
+      <img class="mb-1" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png')}}" alt="Logo" class="img-fluid" width="200px">
+      <h1 class="fw-bold fs-sm-2 fs-md-3 fs-lg-5 mt-5">{{ 'home.hero.h1'|trans }}</h1>
+    </div>
+  </header>
+
+
+  {# ✅ NOUVEAU : GALERIE CATEGORIES (AU-DESSUS) #}
+  {% if categoriesRoot is defined and categoriesRoot|length %}
+    {% include 'public/partials/_categories_gallery.html.twig' with { categoriesRoot: categoriesRoot } %}
+  {% endif %}
+
+
+
+  <!-- BARRE DE FILTRES -->
+  <div class="container">
+    <!-- HERO -->
+    <section class="hero-cover d-flex align-items-end">
+      <div class="container hero-inner text-center text-lg-start">
+        <h2 class="mb-2">Calendrier de nos formations</h2>
+        <p class="mb-0">Choisissez une destination, une période et trouvez votre stage idéal.</p>
+      </div>
+    </section>
+
+
+
+    <form id="filters-form" class="filters-wrap" method="get" action="{{ path('app_public') }}">
+      <input type="hidden" name="from" value="{{ activeFilters.from|default('') }}">
+      <input type="hidden" name="to"   value="{{ activeFilters.to|default('') }}">
+      <div class="row g-3 align-items-end">
+
+        <!-- Destination -->
+        <div class="col-12 col-lg-4">
+          <div class="filters-title mb-2">DESTINATION</div>
+          <div class="field">
+            <i class="bi bi-geo-alt field-icon"></i>
+            <select id="destination" name="destination" class="form-select">
+              <option value="">Choisissez une destination</option>
+              {% for d in destinations %}
+                <option value="{{ d.id }}" {{ (activeFilters.destination|default(null)) == d.id ? 'selected' : '' }}>
+                  {{ d.nom }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Dates -->
+        <div class="col-12 col-lg-4">
+          <div class="filters-title mb-2">DATES</div>
+          <div class="field">
+            <i class="bi bi-calendar3 field-icon"></i>
+            <input id="dates" class="form-control"
+                  placeholder="Sélectionner une période"
+                  value="{{ activeFilters.datesHuman|default('') }}">
+          </div>
+        </div>
+
+        <!-- Engin -->
+        <div class="col-12 col-lg-4">
+          <div class="filters-title mb-2">ENGIN</div>
+          <div class="field">
+            <i class="bi bi-life-preserver field-icon"></i>
+            <select id="enginType" name="enginType[]" multiple class="form-select">
+              {% for t in enginTypeChoices %}
+                <option value="{{ t|e('html_attr') }}" {{ t in (activeFilters.enginTypes|default([])) ? 'selected' : '' }}>
+                  {{ t }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-reset" id="btn-reset-filters" type="button">
+          <i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser
+        </button>
+      </div>
+    </form>
+
+    <!-- COMPTEUR -->
+    <div class="d-flex justify-content-center justify-content-lg-start mt-3 mb-2">
+      <div id="results-count" class="results-count">{{ formations|length }} résultats</div>
+    </div>
+
+    <div id="results" class="vstack gap-4 pb-5">
+      {% for item in formations %}
+        {% set f = item.formation %}
+        {% set s = item.nextSession %}
+        {% set cover =
+          (f is defined and f.photoBanniere ? asset('uploads/photos/formation/' ~ f.photoBanniere) :
+          asset('dist/img/vitrine/voile.webp'))
+        %}
+        <div class="session-card">
+          <div class="row g-0">
+            <div class="col-12 col-lg-3">
+              <div class="session-media h-100 w-100" style="--cover:url('{{ cover|e('html_attr') }}');"></div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+              <div class="session-body">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  {% if f and f.niveau is defined %}
+                    {% set _niv_key = 'formation.niveau.' ~ (f.niveau.value ?? f.niveau.name) %}
+                    <span class="chip-soft"><i class="bi bi-tags-fill me-2"></i>{{ _niv_key|lower|trans }}</span>
+                  {% endif %}
+                  {% if f and f.codeQualiopi %}
+                    <span class="badge rounded-pill bg-success-subtle text-success">Qualiopi {{ f.codeQualiopi }}</span>
+                  {% endif %}
+                </div>
+
+                <div class="session-title">
+                  {{ f.titre ?? 'Formation voile' }}
+                  {% if s and s.titre is defined and s.titre %}
+                    <span class="text-white-50 fw-normal">— {{ s.titre }}</span>
+                  {% endif %}
+                  {% if s and s.engin and s.engin.nom %}
+                    - {{ s.engin.nom }}
+                  {% endif %}
+                  {% if f.duree is defined and f.duree %}
+                    ({{ f.duree }} jour{% if f.duree > 1 %}s{% endif %})
+                  {% endif %}
+                </div>
+
+                <div class="small session-meta mt-2">
+                  <div class="mb-1">
+                    {{ s and s.dateDebut ? s.dateDebut|date('d/m/Y H:i') : 'Date à définir' }}
+                  </div>
+                  <div>
+                    {% if s and s.dateFin %}
+                      {{ s.dateFin|date('d/m/Y H:i') }}
+                    {% else %}
+                      {{ f.duree ? f.duree ~ ' jours' : '' }}
+                    {% endif %}
+                  </div>
+                </div>
+
+                {% if f.description %}
+                  <p class="text-white-50 mt-3 mb-0">
+                    {{ (f.description|striptags|slice(0,180)|nl2br ~ (f.description|length > 180 ? '…' : ''))|raw }}
+                  </p>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-3">
+              <div class="price-panel text-center">
+                <div class="price-from text-uppercase">À partir de</div>
+                {% set prixReduit = f.prixReduitEuros %}
+                {% if prixReduit is not null %}
+                  <div class="price-value">{{ (prixReduit ?? 0)|number_format(0, ',', ' ') }}<span class="fs-6 align-top"> €</span></div>
+                  <div class="text-white-50">HT / pers.</div>
+                  <div class="price-value-reduit mb-3">Au lieu de {{ f.prixBaseEuros|number_format(0, ',', ' ') }}<span class="fs-6 align-top"> €</span></div>
+                {% else %}
+                  <div class="price-value">{{ (f.prixBaseEuros ?? 0)|number_format(0, ',', ' ') }}<span class="fs-6 align-top"> €</span></div>
+                  <div class="text-white-50 mb-3">HT / pers.</div>
+                {% endif %}
+
+                <a class="btn cta w-100" href="{{ path('app_public_show', {slug: f.slug}) }}">Voir la formation</a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state text-center text-dark py-5">
+          <i class="bi bi-calendar-x fs-1 d-block mb-3"></i>
+          <h3 class="h5 text-dark mb-2">Aucune formation trouvée</h3>
+          <p class="mb-4">Essayez d’élargir la période, changer de destination ou retirer des critères.</p>
+
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" id="btn-reset-filters" class="btn btn-secondary">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser les filtres
+            </button>
+            <a href="{{ path('app_public') }}" class="btn btn-warning text-dark">Voir toutes les formations</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

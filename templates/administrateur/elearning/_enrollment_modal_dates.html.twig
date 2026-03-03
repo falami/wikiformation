@@ -1,0 +1,48 @@
+{# templates/administrateur/elearning/_enrollment_modal_dates.html.twig #}
+<div class="modal fade" id="modalEnrollmentDates" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px; overflow:hidden;">
+      <div class="modal-header" style="background: rgba(255,193,7,.10); border-bottom:1px solid rgba(15,23,42,.08);">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-calendar3 me-2"></i> Modifier les dates
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <form method="post"
+            action="{{ path('app_administrateur_elearning_enrollment_update_dates', { entite: entite.id, course: course.id }) }}">
+        <div class="modal-body">
+          <input type="hidden" name="id" id="enroll-id">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Début (optionnel)</label>
+            <input type="text" class="form-control dtp" name="startsAt" id="enroll-start" placeholder="YYYY-MM-DD HH:mm">
+            <div class="form-text">Vide = accès actif immédiatement (selon statut).</div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Fin (optionnel)</label>
+            <input type="text" class="form-control dtp" name="endsAt" id="enroll-end" placeholder="YYYY-MM-DD HH:mm">
+            <div class="form-text">Vide = accès sans date de fin.</div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button class="btn btn-sm btn-outline-secondary btn-pill" type="button" data-add-days="1">
+              <i class="bi bi-plus-circle"></i> +1 jour
+            </button>
+            <button class="btn btn-sm btn-outline-secondary btn-pill" type="button" data-add-days="7">
+              <i class="bi bi-plus-circle"></i> +7 jours
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="border-top:1px solid rgba(15,23,42,.08);">
+          <button type="button" class="btn btn-outline-secondary btn-pill" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning btn-pill fw-bold">
+            <i class="bi bi-check2"></i> Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

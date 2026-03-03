@@ -1,0 +1,13 @@
+{# templates/administrateur/devis/_status_badge.html.twig #}
+{% set key = d.status.value %}
+{% set conf = {
+  'draft':    { cls:'bg-secondary', icon:'fa-pen',          label:'Brouillon' },
+  'sent':     { cls:'bg-info',      icon:'fa-paper-plane',  label:'Envoyé' },
+  'accepted': { cls:'bg-success',   icon:'fa-circle-check', label:'Accepté' },
+  'invoiced': { cls:'bg-primary',   icon:'fa-receipt',      label:'Facturé' },
+  'canceled': { cls:'bg-danger',    icon:'fa-ban',          label:'Annulé' },
+}[key] ?? { cls:'bg-dark', icon:'fa-circle-question', label:d.status.label() } %}
+
+<span class="badge {{ conf.cls }}">
+  <i class="fa {{ conf.icon }} me-1"></i>{{ conf.label }}
+</span>

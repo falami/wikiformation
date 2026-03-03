@@ -1,0 +1,53 @@
+{# templates/stagiaire/sessions.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Mes sessions — Stagiaire{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css" />
+<style>
+:root{ --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};}
+.table thead th{ font-weight:800; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h3 class="mb-3">Mes sessions</h3>
+    <div class="table-responsive">
+      <table id="tab" class="table table-hover align-middle w-100">
+        <thead><tr><th>Code</th><th>Formation</th><th>Dates</th><th>Site</th><th></th></tr></thead>
+        <tbody>
+          {% for s in sessions %}
+            <tr>
+              <td><span class="badge bg-secondary">{{ s.code }}</span></td>
+              <td>{{ s.formation.titre }}</td>
+              <td>
+                {% for j in s.jours %}
+                  {{ j.dateDebut|date('d/m/Y : H:i') }} → {{ j.dateFin|date('H:i') }}<br>
+                {% endfor %}
+              </td>
+              <td>{{ s.site.nom }}</td>
+              <td class="text-end">
+                {% include 'stagiaire/_actions_session.html.twig' with { s:s, entite: entite } %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="text-muted">Aucune session.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script> new DataTable('#tab', { language:{ url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' } }); </script>
+{% endblock %}

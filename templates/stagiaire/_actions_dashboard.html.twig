@@ -1,0 +1,53 @@
+{# templates/stagiaire/_actions_dashboard.html.twig #}
+<div class="d-grid gap-2">
+
+  {# ✅ Mon dossier #}
+  {% if inscription is defined and inscription %}
+    <a class="btn btn-sm btn-outline-primary"
+       href="{{ path('app_stagiaire_dossier_edit', { entite: entite.id, id: inscription.id }) }}">
+      <i class="bi bi-folder2-open"></i> Mon dossier
+    </a>
+  {% else %}
+    <span class="btn btn-sm btn-outline-secondary disabled">
+      <i class="bi bi-folder2-open"></i> Mon dossier indisponible
+    </span>
+  {% endif %}
+
+  {# Supports #}
+  <a class="btn btn-sm btn-outline-primary"
+     href="{{ path('app_stagiaire_session_supports', { entite: entite.id, id: s.id }) }}">
+    <i class="bi bi-journal-arrow-up"></i> Supports
+  </a>
+
+  {# Émargements #}
+  <button class="btn btn-sm btn-outline-success js-emargement"
+          type="button"
+          data-session-id="{{ s.id }}"
+          data-session-label="{{ (s.formation ? s.formation.titre : 'Session') ~ ' - ' ~ (s.code ?? ('#' ~ s.id)) }}">
+    <i class="bi bi-pencil"></i> Émargements
+  </button>
+
+  {% if inscription and inscription.status and inscription.status.value == 'termine'
+   and inscription.attestation and inscription.attestation.pdfPath %}
+    <a class="dropdown-item"
+      href="{{ path('app_stagiaire_attestation_download', { entite: entite.id, inscription: inscription.id }) }}"
+      target="_blank">
+      <i class="bi bi-award"></i> Attestation PDF
+    </a>
+  {% else %}
+    <span class="dropdown-item text-muted">
+      <i class="bi bi-award"></i> Attestation PDF (indisponible)
+    </span>
+  {% endif %}
+
+
+  {# (Optionnel) Satisfaction si tu veux la mettre ici aussi #}
+  {% if satisfactionBtn is defined and satisfactionBtn %}
+    {{ satisfactionBtn|raw }}
+  {% endif %}
+
+  {# (Optionnel) QCM PDF #}
+  {% if qcmBtn is defined and qcmBtn %}
+    {{ qcmBtn|raw }}
+  {% endif %}
+</div>

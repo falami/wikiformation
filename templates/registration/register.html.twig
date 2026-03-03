@@ -1,0 +1,171 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'auth.register.meta.title'|trans }}{% endblock %}
+
+{% block stylesheets %}
+    <style>
+        body {
+            background-color: #0f1b28;
+            color: white;
+        }
+        .register-container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            color: black;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .left-panel, .right-panel {
+            padding: 30px;
+        }
+        .right-panel {
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .invalid-feedback {
+            display: block;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container d-flex justify-content-center align-items-center min-vh-100 py-5 py-md-0">
+    <div class="register-container shadow-lg row">
+        <!-- Partie gauche : Inscription -->
+        <div class="col-md-6 col-12 left-panel">
+            
+            <div class="text-center">
+                <img src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}" alt="Logo Wiki Formation" class="img-fluid" style="max-height: 40px;">
+                <h1 class="text-warning">{{ 'auth.register.title'|trans }}</h1>
+            </div>
+            
+            {{ form_start(registrationForm) }}
+                {{ form_row(registrationForm.prenom) }}
+                {{ form_row(registrationForm.nom) }}
+                {{ form_row(registrationForm.email) }}
+
+                <div class="mb-3 position-relative">
+                    {{ form_label(registrationForm.password.first) }}
+                    <div class="input-group">
+                        {{ form_widget(registrationForm.password.first, {
+                            'attr': {
+                                'class': 'form-control password-first' ~ (registrationForm.password.first.vars.errors|length > 0 ? ' is-invalid' : '')
+                            }
+                        }) }}
+                        <button type="button" class="btn btn-outline-secondary toggle-password" data-target=".password-first" aria-label="{{ 'auth.register.show_password'|trans }}">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    {% for error in registrationForm.password.first.vars.errors %}
+                        <div class="invalid-feedback">{{ error.message }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3 position-relative">
+                    {{ form_label(registrationForm.password.second) }}
+                    <div class="input-group">
+                        {{ form_widget(registrationForm.password.second, {
+                            'attr': {
+                                'class': 'form-control password-second' ~ (registrationForm.password.second.vars.errors|length > 0 ? ' is-invalid' : '')
+                            }
+                        }) }}
+                        <button type="button" class="btn btn-outline-secondary toggle-password" data-target=".password-second" aria-label="{{ 'auth.register.show_password'|trans }}">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    {% for error in registrationForm.password.second.vars.errors %}
+                        <div class="invalid-feedback">{{ error.message }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form_row(registrationForm.consentementRgpd) }}
+                    {{ form_row(registrationForm.newsletter) }}
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mt-3">{{ 'auth.register.submit'|trans }}</button>
+            {{ form_end(registrationForm) }}
+        </div>
+
+        <!-- Partie droite : Connexion -->
+        <div class="col-md-6 col-12 right-panel text-center">
+            <img class="mb-3 rounded" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}" alt="Logo" style="width: 150px;">
+            
+            <h4>{{ 'auth.register.already_account.title'|trans }}</h4>
+            <p>{{ 'auth.register.already_account.subtitle'|trans }}</p>
+            
+            <p class="text-danger">
+              <svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" fill="currentColor" class="bi bi-exclamation-triangle" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/>
+                <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/>
+              </svg>
+            </p>
+            <p class="text-danger">{{ 'auth.register.note_subscribe'|trans }}</p>
+
+            <div class="row">
+                <div class="col-12 d-flex gap-2">
+                    <a href="{{ path('app_login') }}" class="btn btn-success">{{ 'auth.register.login'|trans }}</a>
+                    <a href="{{ path('app_public') }}" class="btn btn-primary">{{ 'auth.register.home'|trans }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Afficher/masquer les mots de passe (identique visuel)
+document.querySelectorAll('.toggle-password').forEach(button => {
+  button.addEventListener('click', function () {
+    const input = document.querySelector(this.dataset.target);
+    const icon = this.querySelector('i');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.classList.remove('bi-eye');
+      icon.classList.add('bi-eye-slash');
+    } else {
+      input.type = 'password';
+      icon.classList.remove('bi-eye-slash');
+      icon.classList.add('bi-eye');
+    }
+  });
+});
+
+// Aides de complexité (identique visuel, textes traduits côté Twig)
+const passwordInput = document.querySelector('.password-first');
+const confirmPasswordInput = document.querySelector('.password-second'); // <-- correction discrète
+
+if (passwordInput) {
+  const passwordCriteria = document.createElement('div');
+  passwordCriteria.classList.add('text-muted', 'small', 'mt-2');
+  passwordCriteria.innerHTML = `
+    <ul class="mb-0">
+      <li id="length" class="text-danger">{{ 'auth.register.criteria.length'|trans }}</li>
+      <li id="uppercase" class="text-danger">{{ 'auth.register.criteria.uppercase'|trans }}</li>
+      <li id="number" class="text-danger">{{ 'auth.register.criteria.number'|trans }}</li>
+    </ul>
+  `;
+  passwordInput.parentNode.parentNode.appendChild(passwordCriteria);
+
+  passwordInput.addEventListener('input', () => {
+    const value = passwordInput.value;
+    document.getElementById('length').className = value.length >= 8 ? 'text-success' : 'text-danger';
+    document.getElementById('uppercase').className = /[A-Z]/.test(value) ? 'text-success' : 'text-danger';
+    document.getElementById('number').className = /\d/.test(value) ? 'text-success' : 'text-danger';
+  });
+}
+
+if (confirmPasswordInput && passwordInput) {
+  confirmPasswordInput.addEventListener('input', () => {
+    if (confirmPasswordInput.value !== passwordInput.value) {
+      confirmPasswordInput.classList.add('is-invalid');
+    } else {
+      confirmPasswordInput.classList.remove('is-invalid');
+    }
+  });
+}
+</script>
+{% endblock %}

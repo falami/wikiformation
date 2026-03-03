@@ -1,0 +1,196 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Charges & Taxes{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000')) }};
+      --bg:#f5f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b;
+      --stroke: rgba(15,23,42,.10); --radius:18px;
+    }
+    
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== HERO chips (style site/index) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* boutons dans le hero */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+    .cardx{ background:var(--panel); border:1px solid var(--stroke); border-radius:var(--radius); box-shadow:0 10px 28px rgba(15,23,42,.08); }
+    .cardx-h{ padding:.95rem 1.05rem; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--stroke); }
+    .cardx-title{ margin:0; font-weight:800; letter-spacing:-.01em; color:var(--ink); display:flex; align-items:center; gap:.6rem; }
+    .chip{ font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border:1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted); white-space:nowrap; }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (style site/index) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-calculator me-2" style="color:var(--theme-color-secondaire)"></i>
+            Charges & Taxes
+          </h2>
+          <div class="opacity-75 mt-1">Règles, preview par période, et projection des montants.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-receipt-cutoff"></i> Finance</span>
+            <span class="chip chip--pill"><i class="bi bi-calculator"></i> Charges & Taxes</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_charge_preview', { entite: entite.id }) }}">
+            <i class="bi bi-eye me-1"></i> Preview
+          </a>
+
+          {# remplace btn-outline-light par ton style outline du hero (plus cohérent) #}
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_charge_rule_index', { entite: entite.id }) }}">
+            <i class="bi bi-sliders me-1"></i> Règles
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-eye text-warning"></i> Preview</h5>
+          <span class="chip">Période</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <p class="text-muted mb-3">
+            Calcule un estimatif basé sur tes factures/paiements/dépenses + tes règles.
+          </p>
+          <a class="btn btn-warning fw-semibold"
+             href="{{ path('app_administrateur_charge_preview', {entite: entite.id}) }}">
+            <i class="bi bi-play-fill"></i> Lancer un preview
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-sliders text-warning"></i> Règles</h5>
+          <span class="chip">Config</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <p class="text-muted mb-3">
+            Crée des règles de contribution (URSSAF/CFP…), taxes, TVA, etc. (taux ou forfait).
+          </p>
+          <a class="btn btn-outline-primary fw-semibold"
+             href="{{ path('app_administrateur_charge_rule_index', {entite: entite.id}) }}">
+            <i class="bi bi-gear"></i> Gérer les règles
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+{% endblock %}

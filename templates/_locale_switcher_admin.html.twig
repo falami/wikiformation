@@ -1,0 +1,44 @@
+{# _locale_switcher_admin.html.twig #}
+{% set currentRoute  = app.request.attributes.get('_route') ?: 'app_public' %}
+{% set currentParams = app.request.attributes.get('_route_params') ?? {} %}
+{% set currentLocale = app.request.locale|default('fr') %}
+
+{% set locales = {
+  'fr': {'name':'Français', 'flag':'🇫🇷'},
+  'en': {'name':'English',  'flag':'🇬🇧'}
+} %}
+{% set order = ['fr','en'] %}
+
+{# Permet d’avoir un id différent si tu inclus le partial deux fois #}
+{% set toggleId = toggleId|default('langDrop') %}
+
+<a class="nav-link dropdown-toggle d-flex align-items-center gap-1 py-0 lh-1"
+   href="#"
+   id="{{ toggleId }}"
+   role="button"
+   data-bs-toggle="dropdown"
+   data-bs-display="static"
+   aria-expanded="false"
+   aria-label="Language selector">
+  <span class="lh-1" style="font-size:1.1rem">{{ locales[currentLocale].flag }}</span>
+</a>
+
+<ul class="dropdown-menu dropdown-menu-dark shadow" aria-labelledby="{{ toggleId }}">
+  {% for code in order %}
+    {% set params = currentParams|merge({'_locale': code}) %}
+    {% set url = path(currentRoute, params) %}
+    <li>
+      <a class="dropdown-item d-flex align-items-center gap-2 {{ currentLocale == code ? 'active' : '' }}"
+         hreflang="{{ code }}"
+         rel="alternate"
+         aria-current="{{ currentLocale == code ? 'true' : 'false' }}"
+         href="{{ url }}">
+        <span style="font-size:1.05rem">{{ locales[code].flag }}</span>
+        <span>{{ locales[code].name }}</span>
+        {% if currentLocale == code %}
+          <i class="bi bi-check2 ms-auto" aria-hidden="true"></i>
+        {% endif %}
+      </a>
+    </li>
+  {% endfor %}
+</ul>

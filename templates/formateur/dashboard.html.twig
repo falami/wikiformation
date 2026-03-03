@@ -1,0 +1,2215 @@
+{# templates/formateur/dashboard.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Espace formateur - Tableau de bord{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+<style>
+/* ================= THEME TOKENS ================= */
+:root{
+
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+  --teal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
+  --amber: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffb703')) }};
+  --sand: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#eef3f7')) }};
+  --ink:#0f2336; --ink-2:#28435a; --muted:#6f8897;
+  --card:#ffffff; --card-2:#f8fbfe; --line:#e6eef5;
+  --radius:1.15rem; --ring:0 14px 48px rgba(15,35,54,.12);
+  --glass:rgba(255,255,255,.18); --blur:14px;
+}
+
+/* ================= GLOBAL ================= */
+body{ color:var(--ink); }
+.round{ border-radius: var(--radius); }
+.shadow-premium{ box-shadow: var(--ring); }
+.section-card{
+  background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow: var(--ring);
+}
+.section-card .card-header{
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border-bottom:1px solid var(--line);
+  border-top-left-radius:var(--radius); border-top-right-radius:var(--radius);
+}
+.section-title{ font-weight:900; letter-spacing:.2px; }
+
+/* ================= HERO ================= */
+/* ================= HERO (comme stagiaire) ================= */
+.hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+/* ✅ HERO chips (comme QCM) */
+.hero .meta-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  padding:.28rem .65rem;
+  border-radius:999px;
+  font-size:.82rem;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.92);
+  white-space: nowrap;
+}
+.hero .meta-chip i{ color: var(--theme-color-secondaire); }
+
+/* ✅ boutons hero (comme QCM) */
+.hero .btn{
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+/* outline spécifique hero */
+.hero .btn-outline-hero{
+  border-color: rgba(255,255,255,.35);
+  color:#fff;
+}
+.hero .btn-outline-hero:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  color:#fff;
+}
+
+/* light premium (tu l'avais déjà, je le garde) */
+.hero .btn.btn-light{
+  background: rgba(255,255,255,.90);
+  border-color: rgba(0,0,0,.10);
+  box-shadow: 0 10px 22px rgba(0,0,0,.08);
+}
+.hero .btn.btn-light:hover{
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 14px 28px rgba(0,0,0,.12);
+}
+
+
+@keyframes sheen{ from{ transform:translateX(-2%)} to{ transform:translateX(2%)} }
+.quick-actions .btn{ border-radius:.8rem; font-weight:800; }
+.quick-actions .btn-outline-light{ border-color: rgba(255,255,255,.45); color:#fff; }
+.quick-actions .btn-outline-light:hover{ background:rgba(255,255,255,.14); color:#fff; }
+
+/* ================= KPI ================= */
+/* ================= KPI (ULTRA PREMIUM) ================= */
+.kpi{
+  position:relative;
+  border: 1px solid color-mix(in oklab, var(--theme-color-principal) 10%, var(--line) 90%);
+  border-radius: 1.15rem;
+  padding: 1.05rem 1.15rem;
+  box-shadow: 0 16px 50px rgba(15,35,54,.10);
+  overflow:hidden;
+}
+
+.kpi::before{
+  content:"";
+  position:absolute; inset:-1px;
+  opacity:.9;
+  pointer-events:none;
+}
+
+.kpi::after{
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  pointer-events:none;
+  opacity:.75;
+}
+
+.kpi .kpi-top{
+  position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.85rem;
+  z-index:1;
+}
+
+.kpi .kpi-ico{
+  width:44px; height:44px;
+  border-radius: 1rem;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+
+  /* glass + accent */
+  background:
+    radial-gradient(120px 60px at 30% 20%, rgba(255,255,255,.22), transparent 60%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 88%, black 12%),
+      color-mix(in oklab, var(--theme-color-principal) 55%, var(--theme-color-secondaire) 45%)
+    );
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow:
+    0 16px 30px rgba(15,35,54,.16),
+    0 0 0 6px color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+}
+
+
+.kpi .kpi-ico i{
+  color:#fff;
+  font-size: 1.25rem;
+  filter: drop-shadow(0 10px 16px rgba(0,0,0,.20));
+}
+
+.kpi .kpi-main{
+  position:relative;
+  z-index:1;
+  flex:1 1 auto;
+  min-width: 0;
+}
+
+.kpi .label{
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 900;
+  letter-spacing: .2px;
+  margin-top: .55rem;
+}
+
+.kpi .value{
+  font-weight: 950;
+  font-size: 1.85rem;
+  line-height: 1;
+  letter-spacing: .2px;
+  color: var(--ink);
+  text-shadow: 0 10px 26px rgba(15,35,54,.10);
+}
+
+.kpi .sub{
+  margin-top: .35rem;
+  font-size: .82rem;
+  color: color-mix(in oklab, var(--muted) 82%, var(--ink) 18%);
+  font-weight: 800;
+}
+
+.kpi .delta{
+  position:relative;
+  z-index:1;
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  border-radius:999px;
+  padding:.25rem .55rem;
+  font-size:.78rem;
+  font-weight: 950;
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 30%, var(--line) 70%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 10%, white 90%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 62%, black 38%);
+  white-space: nowrap;
+}
+
+.kpi:hover{
+  transform: translateY(-2px);
+  transition: transform .14s ease, box-shadow .14s ease;
+  box-shadow: 0 22px 70px rgba(15,35,54,.14);
+}
+/* ================= TOOLBAR ================= */
+.toolbar{
+  background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); padding:.8rem; box-shadow: var(--ring);
+}
+.soft-badge{
+  border:1px solid color-mix(in oklab, var(--amber) 38%, white 62%);
+  background: color-mix(in oklab, var(--amber) 10%, white 90%);
+  color: color-mix(in oklab, var(--amber) 55%, black 45%);
+  border-radius:999px; padding:.35rem .6rem; font-weight:900; font-size:.85rem;
+}
+
+/* ================= DATATABLES ================= */
+.table thead th{ font-weight:900; color:var(--ink-2); border-bottom:1px solid var(--line) !important; }
+table.dataTable tbody tr{ transition: background .15s ease; }
+table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%, white 65%); }
+.dataTables_wrapper .dataTables_filter input{
+  border:1px solid var(--line); border-radius:.65rem; padding:.45rem .75rem;
+  background:var(--card-2); color:var(--ink);
+}
+.compact td, .compact th{ padding:.6rem .75rem !important; }
+.status-pill{
+  display:inline-flex; align-items:center; gap:.35rem;
+  background: color-mix(in oklab, var(--amber) 12%, white 88%);
+  color: color-mix(in oklab, var(--amber) 60%, black 40%);
+  border:1px solid color-mix(in oklab, var(--amber) 35%, white 65%);
+  border-radius:999px; padding:.25rem .55rem; font-weight:800; font-size:.8rem;
+}
+.actions-wrap{ display:flex; justify-content:center; align-items:center; gap:.4rem; flex-wrap:wrap; }
+.btn-mini{ padding:.25rem .5rem; border-radius:.55rem; font-weight:800; }
+
+/* ================= FULLCALENDAR & TIMELINE ================= */
+#calendar{ min-height: 530px; }
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--card-2);
+  --fc-border-color: var(--line);
+  --fc-event-bg-color: color-mix(in oklab, var(--teal) 94%, white 0%);
+  --fc-event-text-color: #fff;
+  --fc-today-bg-color: color-mix(in oklab, var(--amber) 24%, transparent 76%);
+}
+.fc .fc-toolbar-title{ font-weight:900; letter-spacing:.2px; }
+.fc .fc-button{ border-radius:.6rem !important; border:1px solid var(--line) !important; box-shadow:none !important; }
+
+.timeline{ list-style:none; margin:0; padding:0; }
+.timeline li{ display:flex; align-items:flex-start; gap:.8rem; padding:.55rem .2rem; border-bottom:1px dashed var(--line); }
+.timeline .dot{ width:.7rem; height:.7rem; border-radius:999px; background: color-mix(in oklab, var(--teal) 94%, white 0%); margin-top:.25rem; flex:0 0 .7rem; }
+.timeline .when{ font-weight:900; min-width: 92px; }
+.timeline .what{ color:var(--muted); }
+
+/* ================= ASSETS ================= */
+.asset-item{ display:flex; align-items:center; gap:.75rem; padding:.55rem .65rem; border:1px solid var(--line); border-radius:.7rem; }
+.asset-icon{ width:34px; height:34px; display:grid; place-items:center; border-radius:.6rem;
+  background: color-mix(in oklab, var(--teal) 10%, white 90%); color: color-mix(in oklab, var(--teal) 85%, black 15%);
+}
+.asset-name{ font-weight:800; white-space:nowrap; overflow:hidden; text-overflow: ellipsis; }
+.asset-meta{ font-size:.8rem; color:var(--muted); }
+
+/* ================= MODALS PREMIUM ================= */
+.modal .modal-content.section-card{ border-radius: calc(var(--radius) + .2rem); overflow:hidden; }
+.modal-backdrop.show{ opacity:.55; }
+
+.modal-header-premium{
+  background:
+    radial-gradient(900px 280px at 10% -40%, rgba(255,255,255,.14), transparent 60%),
+    linear-gradient(135deg, color-mix(in oklab, var(--teal) 92%, black 8%), color-mix(in oklab, var(--amber) 55%, white 10%));
+  color:#fff;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+}
+.modal-header-premium .btn-close{ filter: invert(1) grayscale(100%); opacity:.85; }
+.modal-subtitle{ opacity:.9; font-size:.9rem; }
+
+.modal-toolbar{
+  display:flex; flex-wrap:wrap; gap:.6rem;
+  align-items:center; justify-content:space-between;
+  background: color-mix(in oklab, var(--card-2) 60%, transparent 40%);
+  border:1px solid var(--line);
+  border-radius: .95rem;
+  padding:.75rem .85rem;
+}
+.pill{
+  display:inline-flex; align-items:center; gap:.4rem;
+  border:1px solid var(--line);
+  background: var(--card);
+  border-radius:999px;
+  padding:.35rem .65rem;
+  font-weight:900; font-size:.85rem;
+}
+.fp-input{
+  background: var(--card);
+  border:1px solid var(--line);
+  border-radius:.75rem;
+  padding:.5rem .75rem;
+}
+.fp-input:focus{
+  border-color: color-mix(in oklab, var(--amber) 65%, var(--line) 35%);
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--amber) 22%, transparent 78%);
+}
+
+/* ===== Ema table ===== */
+.ema-table thead th { font-weight:900; color:var(--ink-2); border-bottom:1px solid var(--line) !important; }
+.ema-actioncell{ display:flex; align-items:center; justify-content:center; gap:.5rem; flex-wrap:wrap; }
+.pill-success{ display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .6rem;
+  border-radius:999px; font-weight:900; font-size:.85rem;
+  background:color-mix(in oklab,#22c55e 18%,white 82%);
+  color:color-mix(in oklab,#16a34a 70%,black 30%);
+  border:1px solid color-mix(in oklab,#22c55e 35%,white 65%);
+}
+.badge-trainer{
+  background:color-mix(in oklab,var(--amber) 18%,white 82%);
+  border:1px solid color-mix(in oklab,var(--amber) 35%,white 65%);
+  color:color-mix(in oklab,var(--amber) 55%,black 45%);
+  border-radius:999px; padding:.2rem .55rem; font-weight:900; font-size:.75rem;
+}
+
+/* ===== Signature pad ===== */
+.sig-pad-wrap{
+  border:1px dashed color-mix(in oklab, var(--line) 70%, transparent 30%);
+  background: color-mix(in oklab, var(--card-2) 70%, transparent 30%);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+#signatureCanvas{
+  display:block; width:100%; height:200px; touch-action:none;
+  background:#fff;
+  border-radius:.8rem;
+  border:2px solid color-mix(in oklab, var(--line) 80%, transparent 20%);
+}
+.sig-preview{
+  width:100%;
+  border:1px dashed var(--line);
+  border-radius: .9rem;
+  background: color-mix(in oklab, var(--card-2) 70%, transparent 30%);
+  padding: .75rem;
+  display:flex; align-items:center; justify-content:center;
+  min-height: 220px;
+}
+.sig-preview img{ max-width:100%; height:auto; display:block; border-radius:.6rem; }
+
+/* ===== Fix "modal dans modal" ===== */
+#emargementModal{ z-index: 1055; }
+#signatureModal{ z-index: 1065; }
+#sigPreviewModal{ z-index: 1075; }
+
+.modal-backdrop.emargement-backdrop{ z-index: 1050; }
+.modal-backdrop.signature-backdrop{  z-index: 1060; }
+.modal-backdrop.preview-backdrop{    z-index: 1070; }
+
+/* ===== Actions dropdown (secondary themed) ===== */
+.actions-wrap{ justify-content:center; } /* tu l'as déjà, ok */
+
+.action-dd .btn-action{
+  display:inline-flex; align-items:center; gap:.45rem;
+  border-radius:.75rem;
+  font-weight:900;
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 45%, white 55%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 18%, white 82%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 60%, black 40%);
+}
+.action-dd .btn-action:hover,
+.action-dd .btn-action:focus{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 26%, white 74%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 62%, black 38%);
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 24%, transparent 76%);
+}
+
+.action-dd .dropdown-menu{
+  border-radius: 1rem;
+  border:1px solid var(--line);
+  box-shadow: var(--ring);
+  overflow:hidden;
+  padding:.35rem;
+}
+.action-dd .dropdown-item{
+  border-radius:.8rem;
+  font-weight:800;
+  padding:.55rem .7rem;
+}
+.action-dd .dropdown-item i{ width:1.15rem; text-align:center; margin-right:.35rem; }
+.action-dd .dropdown-item:hover{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 12%, white 88%);
+}
+.action-dd .dropdown-divider{ margin:.35rem .2rem; }
+
+
+
+
+
+
+/* ================= FULLCALENDAR - FIX MOBILE ONLY ================= */
+@media (max-width: 576px){
+
+  /* le header */
+  .fc .fc-header-toolbar{
+    flex-wrap: wrap !important;
+    gap: .5rem !important;
+    align-items: center !important;
+  }
+
+  /* chaque “chunk” (gauche / centre / droite) passe à la ligne si besoin */
+  .fc .fc-toolbar-chunk{
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  /* le titre au centre : plus petit + autorise le retour à la ligne */
+  .fc .fc-toolbar-title{
+    font-size: 1.25rem !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
+
+  /* on évite que le bloc de droite déborde : wrap des boutons */
+  .fc .fc-button-group{
+    flex-wrap: wrap !important;
+    gap: .35rem !important;
+  }
+
+  /* boutons plus compacts sur mobile */
+  .fc .fc-button{
+    padding: .35rem .55rem !important;
+    font-size: .9rem !important;
+  }
+
+  /* aligne proprement le bloc de droite */
+  .fc .fc-toolbar-chunk:last-child{
+    display: flex !important;
+    justify-content: center !important;
+  }
+}
+
+
+
+/* ================= FULLCALENDAR - SKIN PRO ================= */
+#calendar{
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, rgba(0,0,0,.08));
+  box-shadow: var(--ring, 0 14px 48px rgba(15,35,54,.12));
+}
+
+/* Variables FullCalendar basées sur ton thème */
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 70%, transparent 30%);
+  --fc-border-color: color-mix(in oklab, var(--theme-color-principal) 12%, transparent 88%);
+  --fc-today-bg-color: color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%);
+
+  --fc-event-bg-color: color-mix(in oklab, var(--theme-color-principal) 92%, black 8%);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #fff;
+
+  --fc-list-event-hover-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 65%, white 35%);
+  --fc-highlight-color: color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+}
+
+/* Header / toolbar */
+.fc .fc-header-toolbar{
+  padding: 1rem 1rem .75rem;
+  margin: 0 !important;
+  background:
+    radial-gradient(900px 260px at 10% -40%, color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%), transparent 60%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+      color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+    );
+  border-bottom: 1px solid rgba(255,255,255,.14);
+}
+
+.fc .fc-toolbar-title{
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .2px;
+  text-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+/* Boutons toolbar */
+.fc .fc-button{
+  border: 1px solid rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.10) !important;
+  color: #fff !important;
+  border-radius: .75rem !important;
+  box-shadow: none !important;
+  padding: .45rem .7rem !important;
+  font-weight: 800 !important;
+}
+.fc .fc-button:hover{
+  background: rgba(255,255,255,.16) !important;
+}
+.fc .fc-button:focus{
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 30%, transparent 70%) !important;
+}
+.fc .fc-button.fc-button-active{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 72%, black 0%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%) !important;
+}
+
+/* Corps calendrier */
+.fc .fc-view-harness{
+  background: var(--card, #fff);
+}
+
+/* En-têtes jours semaine */
+.fc .fc-col-header-cell{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 70%, white 30%);
+}
+.fc .fc-col-header-cell-cushion{
+  padding: .75rem .25rem !important;
+  color: var(--theme-color-quaternaire);
+  font-weight: 900;
+  text-decoration: none !important;
+}
+
+/* Grille (cellules) */
+.fc .fc-daygrid-day{
+  transition: background .15s ease;
+}
+.fc .fc-daygrid-day:hover{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 55%, transparent 45%);
+}
+
+/* Numéro du jour */
+.fc .fc-daygrid-day-number{
+  padding: .45rem .55rem !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 82%, black 18%);
+  font-weight: 800;
+  text-decoration: none !important;
+}
+
+/* Today : badge discret + anneau */
+.fc .fc-day-today{
+  position: relative;
+  background: var(--fc-today-bg-color) !important;
+}
+.fc .fc-day-today .fc-daygrid-day-number{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%);
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%);
+  border-radius: 999px;
+  padding: .25rem .6rem !important;
+}
+
+/* Events : pill premium */
+.fc .fc-event{
+  border-radius: .75rem !important;
+  padding: .2rem .35rem !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,.10);
+}
+.fc .fc-event .fc-event-title{
+  font-weight: 800;
+  letter-spacing: .1px;
+}
+.fc .fc-event .fc-event-time{
+  font-weight: 800;
+  opacity: .92;
+}
+
+/* “more” link */
+.fc .fc-daygrid-more-link{
+  color: color-mix(in oklab, var(--theme-color-principal) 72%, black 28%);
+  font-weight: 800;
+}
+
+/* Vue liste */
+.fc .fc-list{
+  border: 0 !important;
+}
+.fc .fc-list-day-cushion{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 75%, white 25%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 85%, black 15%);
+  font-weight: 900;
+}
+.fc .fc-list-event:hover td{
+  background: var(--fc-list-event-hover-bg-color) !important;
+}
+
+/* ================= FULLCALENDAR - MOBILE LAYOUT ================= */
+@media (max-width: 576px){
+  .fc .fc-header-toolbar{
+    flex-wrap: wrap !important;
+    gap: .6rem !important;
+    padding: .9rem .85rem .75rem !important;
+  }
+  .fc .fc-toolbar-chunk{
+    flex: 1 1 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  /* ordre pro : nav + today, puis titre, puis vues */
+  .fc .fc-toolbar-chunk:first-child{ order: 1; justify-content: space-between !important; }
+  .fc .fc-toolbar-chunk:nth-child(2){ order: 2; }
+  .fc .fc-toolbar-chunk:last-child{ order: 3; }
+
+  .fc .fc-button-group{
+    flex-wrap: wrap !important;
+    gap: .35rem !important;
+    justify-content: center !important;
+  }
+  .fc .fc-button{
+    padding: .35rem .55rem !important;
+    font-size: .9rem !important;
+  }
+  .fc .fc-toolbar-title{
+    font-size: 1.25rem !important;
+    text-align: center;
+    white-space: normal;
+  }
+
+  /* compacte le calendrier */
+  .fc .fc-col-header-cell-cushion{ padding: .55rem .2rem !important; }
+  .fc .fc-daygrid-day-number{ padding: .35rem .45rem !important; }
+}
+
+
+
+/* ================= MAP CARD (dashboard) ================= */
+.cardx{
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--ring);
+}
+
+.map-frame{
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+}
+
+.map-frame iframe{
+  display:block;
+  width:100%;
+  height:320px;
+  border:0;
+}
+
+@media (max-width: 576px){
+  .map-frame iframe{ height: 260px; }
+}
+
+
+
+/* ===== DATATABLES - DATES PREMIUM (timeline) ===== */
+.dt-dates{ min-width: 320px; }
+.dt-dates-top{
+  display:flex;
+  gap:.35rem;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.dt-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  border:1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius:999px;
+  padding:.22rem .55rem;
+  font-weight:900;
+  font-size:.78rem;
+}
+.dt-chip i{ opacity:.85; }
+.dt-chip-primary{
+  border:1px solid color-mix(in oklab, var(--theme-color-principal) 18%, var(--line) 82%);
+  background: color-mix(in oklab, var(--theme-color-principal) 8%, white 92%);
+  color: color-mix(in oklab, var(--theme-color-principal) 72%, black 28%);
+}
+.dt-chip-days{
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 28%, var(--line) 72%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 12%, white 88%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 60%, black 40%);
+}
+
+.dt-timeline{
+  position:relative;
+  margin-top:.45rem;
+  padding-left: .9rem;
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+}
+.dt-timeline::before{
+  content:"";
+  position:absolute;
+  left:.32rem;
+  top:.15rem;
+  bottom:.15rem;
+  width:2px;
+  background: color-mix(in oklab, var(--theme-color-principal) 14%, var(--line) 86%);
+  border-radius:99px;
+}
+.dt-tl-item{
+  position:relative;
+  display:flex;
+  gap:.55rem;
+  align-items:flex-start;
+}
+.dt-tl-dot{
+  width:.55rem;
+  height:.55rem;
+  border-radius:999px;
+  margin-top:.25rem;
+  background: color-mix(in oklab, var(--theme-color-secondaire) 70%, white 30%);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--theme-color-secondaire) 12%, transparent 88%);
+  flex:0 0 auto;
+  position:relative;
+  left:-.02rem;
+}
+.dt-tl-content{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.4rem .6rem;
+  align-items:baseline;
+  line-height:1.1;
+}
+.dt-tl-date{
+  font-weight:900;
+  color: var(--ink);
+  font-size:.86rem;
+}
+.dt-tl-time{
+  font-weight:800;
+  color: var(--muted);
+  font-size:.82rem;
+}
+.dt-tl-more{
+  margin-top:.25rem;
+  align-self:flex-start;
+  font-size:.78rem;
+  font-weight:900;
+  color: var(--muted);
+  border:1px dashed color-mix(in oklab, var(--theme-color-principal) 18%, var(--line) 82%);
+  border-radius:999px;
+  padding:.12rem .5rem;
+}
+
+
+
+/* ================= EMA MODAL - MOBILE READABILITY ================= */
+@media (max-width: 576px){
+
+  /* modal plus “full screen” */
+  #emargementModal .modal-dialog{
+    margin: 0;
+    height: 100%;
+    max-width: 100%;
+  }
+  #emargementModal .modal-content{
+    height: 100%;
+    border-radius: 0;
+  }
+
+  /* toolbar en colonne */
+  #emargementModal .modal-toolbar{
+    flex-direction: column;
+    align-items: stretch;
+    gap: .6rem;
+  }
+  #emargementModal .modal-toolbar .d-flex{
+    justify-content: space-between;
+  }
+
+  /* table -> cards */
+  #emargementModal .ema-table thead{ display:none; }
+  #emargementModal .ema-table tbody tr{
+    display:block;
+    border:1px solid var(--line);
+    border-radius: 1rem;
+    padding: .8rem .85rem;
+    margin-bottom: .65rem;
+    background: var(--card);
+    box-shadow: 0 10px 24px rgba(15,35,54,.08);
+  }
+  #emargementModal .ema-table tbody td{
+    display:block;
+    width:100%;
+    border:0 !important;
+    padding: .35rem 0 !important;
+  }
+
+  /* ligne participant */
+  #emargementModal .ema-table tbody td:first-child{
+    padding-top:0 !important;
+    padding-bottom:.6rem !important;
+    border-bottom:1px dashed var(--line) !important;
+    margin-bottom:.5rem;
+  }
+
+  /* labels AM/PM */
+  #emargementModal .ema-table tbody td:nth-child(2)::before{
+    content:"Matin";
+    display:block;
+    font-weight:900;
+    color: var(--muted);
+    font-size:.78rem;
+    margin-bottom:.25rem;
+  }
+  #emargementModal .ema-table tbody td:nth-child(3)::before{
+    content:"Après-midi";
+    display:block;
+    font-weight:900;
+    color: var(--muted);
+    font-size:.78rem;
+    margin-bottom:.25rem;
+  }
+
+  /* actions : full width et bien espacées */
+  #emargementModal .ema-actioncell{
+    justify-content:flex-start;
+    gap:.45rem;
+  }
+  #emargementModal .btn-mini{
+    padding: .45rem .65rem;
+    border-radius: .75rem;
+  }
+  #emargementModal .pill-success{
+    font-size:.82rem;
+  }
+}
+
+
+
+
+/* ================= ACTIONS DROPDOWN — PREMIUM (comme stagiaire) ================= */
+
+.action-dd .btn-action{
+  display:inline-flex; align-items:center; gap:.45rem;
+  border-radius:.85rem;
+  font-weight:900;
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 45%, white 55%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 16%, white 84%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
+}
+.action-dd .btn-action:hover,
+.action-dd .btn-action:focus{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 22%, white 78%);
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 22%, transparent 78%);
+}
+
+/* menu glass */
+.action-dd .dropdown-menu{
+  border-radius: 1rem;
+  border:1px solid var(--line);
+  box-shadow: var(--ring);
+  overflow:hidden;
+  padding:.35rem;
+}
+
+/* header optionnel */
+.action-dd .dropdown-menu .dd-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: .55rem .65rem .5rem;
+  margin: -.35rem -.35rem .35rem;
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+    color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+  );
+  color:#fff;
+}
+.action-dd .dropdown-menu .dd-head .t{
+  font-weight: 950;
+  letter-spacing:.2px;
+}
+
+/* ✅ On stylise TOUS les items cliquables (a, button) y compris ceux rendus en .btn */
+.action-dd .dropdown-menu :is(a, button){
+  width: 100%;
+  display:flex !important;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.6rem;
+
+  padding:.55rem .65rem !important;
+  margin: .18rem 0 !important;
+
+  border-radius:.9rem !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  line-height: 1.15;
+  color: var(--ink) !important;
+
+  box-shadow: none !important;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.action-dd .dropdown-menu :is(a, button):hover{
+  background: color-mix(in oklab, var(--sand) 45%, white 55%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-principal) 14%, transparent 86%) !important;
+  transform: translateY(-1px);
+}
+.action-dd .dropdown-menu :is(a, button) i{
+  width: 1.25rem;
+  text-align:center;
+  font-size: 1.05rem;
+  opacity: .95;
+}
+
+/* Teintes par type (basées sur tes classes existantes) */
+.action-dd .dropdown-menu .btn-outline-success i,
+.action-dd .dropdown-menu .btn-success i{ color: #16a34a; }
+.action-dd .dropdown-menu .btn-outline-primary i,
+.action-dd .dropdown-menu .btn-primary i{ color: color-mix(in oklab, var(--theme-color-principal) 70%, black 30%); }
+.action-dd .dropdown-menu .btn-outline-warning i,
+.action-dd .dropdown-menu .btn-warning i{ color: #b45309; }
+.action-dd .dropdown-menu .btn-outline-danger i,
+.action-dd .dropdown-menu .btn-danger i{ color: #dc2626; }
+
+/* Les boutons outline du backend : on supprime l’aspect bouton */
+.action-dd .dropdown-menu .btn{
+  box-shadow: none !important;
+}
+.action-dd .dropdown-menu :is(.btn-outline-primary,.btn-outline-success,.btn-outline-warning,.btn-outline-danger){
+  border-color: transparent !important;
+}
+
+/* Fix overflow/z-index comme stagiaire */
+.section-card{ position: relative; z-index: 1; }
+#table-formateur_wrapper{ position: relative; z-index: 50; }
+#table-formateur_wrapper .dropdown-menu{ z-index: 9999 !important; }
+.section-card.is-overlay{ z-index: 999; }
+.section-card, .section-card .card-body, .section-card .table-responsive{ overflow: visible !important; }
+
+
+
+
+/* ================= DATATABLES - FIX MOBILE OVERFLOW ================= */
+
+/* Empêche le body de scroller horizontalement à cause d’un élément trop large */
+html, body{
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Le conteneur doit scroller horizontalement si besoin */
+.dt-scroll{
+  width: 100%;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Le wrapper DataTables ne doit jamais dépasser */
+.dt-scroll .dataTables_wrapper{
+  width: 100%;
+}
+
+/* La table doit pouvoir être plus large que l’écran, mais sans “pousser” le layout */
+.dt-scroll table.dataTable{
+  width: 100% !important;
+  min-width: 720px;           /* ajuste selon ton nombre de colonnes */
+}
+
+/* Le “scroll body” de DataTables doit aussi être scrollable */
+.dt-scroll .dt-scroll-body{
+  overflow-x: auto !important;
+}
+
+/* Optionnel: compacte un peu sur mobile */
+@media (max-width: 576px){
+  .actions-wrap{ justify-content:flex-end; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (style QCM) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-speedometer2 me-2" style="color:var(--theme-color-secondaire)"></i>
+            Tableau de bord
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Planifiez vos sessions, gérez vos supports et signez vos émargements.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="meta-chip"><i class="bi bi-person-badge"></i> Formateur</span>
+            <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+            <span class="meta-chip">
+              <i class="bi bi-clock-history"></i>
+              <strong>{{ 'now'|date('d/m/Y H:i') }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ path('app_formateur_dashboard', { entite: entite.id }) }}"
+            class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </a>
+
+          <a href="{{ path('app_formateur_supports_library', { entite: entite.id }) }}"
+            class="btn btn-outline-hero btn-sm fw-semibold">
+            <i class="bi bi-cloud-arrow-up me-1"></i> Bibliothèque
+          </a>
+
+          <button type="button"
+                  class="btn btn-outline-hero btn-sm fw-semibold"
+                  id="btnOpenSatisfaction"
+                  disabled
+                  title="Sélectionnez une session pour laisser votre appréciation">
+            <i class="bi bi-chat-square-heart me-1"></i> Appréciation
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {# ===== KPI (ultra premium) ===== #}
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi h-100">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-calendar2-week-fill"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-upcoming">-</div>
+            {# optionnel : <span class="delta"><i class="bi bi-arrow-up-short"></i> +2</span> #}
+            <div class="label">Sessions à venir</div>
+            <div class="sub"><i class="bi bi-clock-history me-1"></i>Prochaines dates</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi h-100">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-broadcast-pin"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-live">-</div>
+            <div class="label">Sessions en cours</div>
+            <div class="sub"><i class="bi bi-lightning-charge me-1"></i>En temps réel</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi h-100">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-people-fill"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-trainees">-</div>
+            <div class="label">Stagiaires inscrits (total)</div>
+            <div class="sub"><i class="bi bi-person-check-fill me-1"></i>Cumul sur la liste affichée</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi h-100">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-folder2-open"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-files">-</div>
+            <div class="label">Supports en bibliothèque</div>
+            <div class="sub"><i class="bi bi-cloud-arrow-up-fill me-1"></i>Documents disponibles</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== TOOLBAR ===== #}
+  <div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4">
+    <div class="input-group" style="max-width:520px;">
+      <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+      <input id="searchAll" type="text" class="form-control border-start-0" placeholder="Rechercher une session, un code, une formation…">
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      <button class="btn btn-outline-secondary" id="btnExportTable"><i class="bi bi-box-arrow-down"></i> Export</button>
+    </div>
+  </div>
+
+  {# ===== PROCHAINE SESSION ===== #}
+  {% if nextSession is defined and nextSession %}
+    <div class="col-12 mb-4">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">
+            <i class="bi bi-lightning-charge me-1"></i> Prochaine session
+          </h5>
+          <span class="text-muted small">Détails & équipements sur place</span>
+        </div>
+
+        <div class="card-body p-4">
+          <div class="row g-3">
+
+            <div class="col-12 col-lg-7">
+              <div class="p-3 rounded-4 border" style="background: var(--card-2); border-color: var(--line)!important;">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                  <span class="pill">
+                    <i class="bi bi-upc-scan"></i>
+                    <span class="fw-bold">{{ nextSession.code ?? ('Session #' ~ nextSession.id) }}</span>
+                  </span>
+                  <span class="status-pill">
+                    <i class="bi bi-journal-bookmark-fill"></i>
+                    {{ nextSession.formationTitre
+                      ?? nextSession.formationIntituleLibre
+                      ?? '-' }}
+
+                  </span>
+                  {% if nextSession.siteNom is defined and nextSession.siteNom %}
+                    <span class="pill">
+                      <i class="bi bi-geo-alt"></i> {{ nextSession.siteNom }}
+                    </span>
+                  {% endif %}
+                </div>
+
+                <div class="row g-2">
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted">Début</div>
+                    <div class="fw-bold">{{ nextSession.start ? nextSession.start|date('d/m/Y H:i') : '-' }}</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted">Fin</div>
+                    <div class="fw-bold">{{ nextSession.end ? nextSession.end|date('d/m/Y H:i') : '-' }}</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted">Capacité</div>
+                    <div class="fw-bold">{{ nextSession.capacite ?? '-' }}</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted">Inscrits</div>
+                    <div class="fw-bold">{{ nextSession.inscrits ?? 0 }}</div>
+                  </div>
+                </div>
+
+                {% set isToday = nextSession.start and nextSession.start|date('Y-m-d') == 'now'|date('Y-m-d') %}
+                {% if isToday %}
+                  {% set todayYmd = 'now'|date('Y-m-d') %}
+
+                  <div class="mt-3 p-2 rounded-4 border"
+                      style="background: var(--card); border-color: var(--line)!important;">
+                    <div class="fw-bold mb-2">
+                      <i class="bi bi-clipboard-check me-1"></i> Émargement du jour
+                      <span class="text-muted small">({{ 'now'|date('d/m/Y') }})</span>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                      <button type="button"
+                              class="btn btn-sm btn-outline-success"
+                              onclick="window.__openEma?.({ sessionId: {{ nextSession.id }}, sessionLabel: '{{ nextSession.formationTitre|e('js') }}', date: '{{ todayYmd }}', periode: 'AM' })">
+                        <i class="bi bi-sunrise me-1"></i> Matin
+                      </button>
+
+                      <button type="button"
+                              class="btn btn-sm btn-outline-success"
+                              onclick="window.__openEma?.({ sessionId: {{ nextSession.id }}, sessionLabel: '{{ nextSession.formationTitre|e('js') }}', date: '{{ todayYmd }}', periode: 'PM' })">
+                        <i class="bi bi-sunset me-1"></i> Après-midi
+                      </button>
+
+                      <button type="button"
+                              class="btn btn-sm btn-outline-secondary ms-auto"
+                              onclick="window.__openEma?.({ sessionId: {{ nextSession.id }}, sessionLabel: '{{ nextSession.formationTitre|e('js') }}', date: '{{ todayYmd }}' })">
+                        <i class="bi bi-clipboard-check me-1"></i> Ouvrir la feuille
+                      </button>
+                    </div>
+                  </div>
+                {% endif %}
+
+
+
+                <div class="fw-bold mb-2"><i class="bi bi-tools me-1"></i> Équipements sur place</div>
+
+                {% set e = nextSession.equipements ?? {} %}
+
+                {% set equipList = [
+                  {'k':'equipOrdinateurFormateur', 'label':'Ordinateur (formateur)', 'icon':'bi-laptop'},
+                  {'k':'equipVideoprojecteurEcran', 'label':'Vidéoprojecteur / écran', 'icon':'bi-projector'},
+                  {'k':'equipInternetStable', 'label':'Connexion Internet stable', 'icon':'bi-wifi'},
+                  {'k':'equipTableauPaperboard', 'label':'Tableau blanc / paperboard', 'icon':'bi-easel2'},
+                  {'k':'equipMarqueursSupportsImprimes', 'label':'Marqueurs / supports imprimés', 'icon':'bi-journal-text'},
+                  {'k':'salleAdapteeTailleGroupe', 'label':'Salle adaptée (taille du groupe)', 'icon':'bi-people'},
+                  {'k':'salleTablesChaisesErgo', 'label':'Tables / chaises ergonomiques', 'icon':'bi-grid-3x3-gap'},
+                  {'k':'salleLumiereChauffageClim', 'label':'Lumière / chauffage / clim', 'icon':'bi-sun'},
+                  {'k':'salleEauCafe', 'label':'Eau / café', 'icon':'bi-cup-hot'}
+                ] %}
+
+                {% set hasAny = false %}
+                <div class="d-flex flex-wrap gap-1">
+                  {% for it in equipList %}
+                    {% if e[it.k] is defined and e[it.k] is not null %}
+                      {% set hasAny = true %}
+                      {% set v = e[it.k] %}
+                      {% if v == true %}
+                        {% set cls = 'bg-success' %}
+                        {% set icon2 = 'bi-check2' %}
+                      {% elseif v == false %}
+                        {% set cls = 'bg-secondary' %}
+                        {% set icon2 = 'bi-x' %}
+                      {% else %}
+                        {% set cls = 'bg-light text-muted' %}
+                        {% set icon2 = 'bi-dash' %}
+                      {% endif %}
+
+                      <span class="badge {{ cls }} d-inline-flex align-items-center gap-1"
+                            style="border:1px solid var(--line); padding:.4rem .55rem; border-radius:999px;">
+                        <i class="bi {{ it.icon }} opacity-75"></i>
+                        <span class="text-truncate">{{ it.label }}</span>
+                        <i class="bi {{ icon2 }} ms-1"></i>
+                      </span>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+
+                {% if not hasAny %}
+                  <div class="text-muted">-</div>
+                {% endif %}
+
+                
+
+
+
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-5">
+                {% if nextSession and nextSession.destAddress %}
+                  <div class="cardx p-3">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                      <div class="me-2">
+                        <div class="fw-semibold">Itinéraire vers le site</div>
+                        <div class="small text-muted">{{ nextSession.destAddress }}</div>
+
+    
+
+                      {% if nextSession.distanceText or nextSession.durationText %}
+                        <div class="mt-2 d-flex gap-2 flex-wrap">
+                          {% if nextSession.distanceText %}
+                            <span class="badge text-bg-light">{{ nextSession.distanceText }}</span>
+                          {% endif %}
+                          {% if nextSession.durationText %}
+                            <span class="badge text-bg-light">{{ nextSession.durationText }}</span>
+                          {% endif %}
+                        </div>
+                      {% else %}
+                        <div class="small text-muted mt-2">
+                          <i class="bi bi-exclamation-triangle me-1"></i>
+                          Impossible de calculer distance/durée.
+                          {% if nextSession.gmapsError %}
+                            <div class="mt-1"><code>{{ nextSession.gmapsError }}</code></div>
+                          {% endif %}
+                        </div>
+                      {% endif %}
+                      </div>
+                    </div>
+
+                    {# ✅ Carte directement visible #}
+                    <div class="mt-3 map-frame">
+                      {% if nextSession.gmapsEmbedUrl is defined and nextSession.gmapsEmbedUrl %}
+                        <iframe src="{{ nextSession.gmapsEmbedUrl }}" loading="lazy"
+                                referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+
+                      {% elseif nextSession.gmapsEmbedUrlFallback is defined and nextSession.gmapsEmbedUrlFallback %}
+                        <iframe src="{{ nextSession.gmapsEmbedUrlFallback }}" loading="lazy"
+                                referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+
+                      {% else %}
+                        <iframe
+                          src="https://www.google.com/maps/embed/v1/directions?key={{ google_maps_browser_key }}&origin={{ nextSession.originAddress|url_encode }}&destination={{ nextSession.destAddress|url_encode }}&mode=driving"
+                          loading="lazy"
+                          referrerpolicy="strict-origin-when-cross-origin"
+                          allowfullscreen>
+                        </iframe>
+
+                      {% endif %}
+                    </div>
+
+
+                  </div>
+                {% endif %}
+                
+                
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="col-12 mb-4">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">
+            <i class="bi bi-lightning-charge me-1"></i> Prochaine session
+          </h5>
+          <span class="text-muted small">Détails & équipements sur place</span>
+        </div>
+        <div class="card-body p-4">
+          <div class="text-muted">
+            <i class="bi bi-info-circle me-1"></i> Aucune session à venir.
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+
+  {# ===== GRID ===== #}
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">Mes sessions</h5>
+          <span class="text-muted small">Liste compacte & actions rapides</span>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive dt-scroll p-1">
+            <table id="table-formateur" class="table table-striped align-middle compact w-100">
+              <thead>
+              <tr>
+                <th>Code</th>
+                <th>Formation</th>
+                <th>Dates</th>
+                <th class="text-center">Inscrits</th>
+                <th class="text-center">Actions</th>
+              </tr>
+              </thead>
+              <tbody><tr><td colspan="5"></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="section-card h-100">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">Calendrier & à venir</h5>
+          <span class="text-muted small">Clique sur un évènement pour ouvrir les émargements</span>
+        </div>
+        <div class="card-body p-1">
+          <div id="calendar" class="mb-4"></div>
+
+          <h6 class="fw-bold mb-2">Prochaines sessions</h6>
+          <ul class="timeline" id="upcoming-timeline">
+            <li><span class="dot"></span><span class="when">-</span><span class="what">Chargement…</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">Ma bibliothèque (aperçu rapide)</h5>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ path('app_formateur_supports_library', { entite: entite.id }) }}"><i class="bi bi-box-arrow-up-right"></i> Ouvrir</a>
+        </div>
+        <div class="card-body p-4">
+          <div id="assets-list" class="row g-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+{# ===== MODAL SIGNATURE (premium) ===== #}
+<div class="modal fade" id="signatureModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100 d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <h5 class="section-title mb-1"><i class="bi bi-pen me-1"></i> Signature formateur</h5>
+            <div class="modal-subtitle"><i class="bi bi-info-circle me-1"></i> Signez puis validez</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+      <div class="modal-body p-3 p-lg-4">
+        <div class="sig-pad-wrap">
+          <canvas id="signatureCanvas"></canvas>
+        </div>
+        <div class="small text-muted mt-2">
+          <i class="bi bi-shield-check me-1"></i> Votre signature est associée à la feuille, la session et la période sélectionnée.
+        </div>
+      </div>
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4 d-flex gap-2 justify-content-end">
+        <button type="button" class="btn btn-outline-secondary" id="btnClearSignature"><i class="bi bi-eraser"></i> Effacer</button>
+        <button type="button" class="btn btn-success" id="btnSaveSignature"><i class="bi bi-check-circle"></i> Valider</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ===== MODAL ÉMARGEMENTS (premium) ===== #}
+<div class="modal fade" id="emargementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content section-card">
+
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100">
+          <div class="d-flex align-items-start justify-content-between gap-3">
+            <div>
+              <h5 class="section-title mb-1">
+                <i class="bi bi-clipboard-check me-1"></i>
+                Feuille de présence
+                <span class="badge bg-light text-dark ms-2">Formateur</span>
+              </h5>
+              <div class="modal-subtitle">
+                <span class="me-2"><i class="bi bi-calendar3"></i> <strong id="ema-date">-</strong></span>
+                <span class="opacity-75">·</span>
+                <span class="ms-2"><i class="bi bi-easel"></i> Session : <strong id="ema-session">-</strong></span>
+              </div>
+            </div>
+
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-body p-3 p-lg-4">
+        <div class="modal-toolbar mb-3">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="pill"><i class="bi bi-calendar-week"></i> Date</span>
+            <input type="text" id="ema-date-input" class="fp-input form-control form-control-sm"
+                   placeholder="Choisir une date" style="max-width:220px">
+            <button class="btn btn-sm btn-outline-secondary" id="ema-refresh">
+              <i class="bi bi-arrow-repeat"></i> Recharger
+            </button>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="pill"><i class="bi bi-info-circle"></i> Astuce</span>
+            <span class="small text-muted">Clique sur <strong>Signer</strong> puis valide ta signature.</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle compact w-100 ema-table">
+            <thead>
+              <tr>
+                <th style="min-width:100px;">Participant</th>
+                <th class="text-center" style="min-width:100px;">Matin</th>
+                <th class="text-center" style="min-width:100px;">Après-midi</th>
+              </tr>
+            </thead>
+            <tbody id="ema-tbody">
+              <tr><td colspan="3" class="text-center text-muted py-4">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i> Fermer
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ===== MODAL APERÇU SIGNATURE ===== #}
+<div class="modal fade" id="sigPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100 d-flex align-items-start justify-content-between">
+          <div>
+            <h5 class="section-title mb-1"><i class="bi bi-eye me-1"></i> Aperçu signature</h5>
+            <div class="modal-subtitle" id="sigPreviewMeta">-</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-3 p-lg-4">
+        <div class="sig-preview">
+          <img id="sigPreviewImg" src="" alt="Signature">
+        </div>
+      </div>
+
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i> Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# URL templates SIGN/UNSIGN (formateur) #}
+<div id="sign-url-template" data-url="{{ path('app_formateur_emargement_sign', { entite: entite.id, id: '__ID__' }) }}" hidden></div>
+<div id="unsign-url-template" data-url="{{ path('app_formateur_emargement_unsign', { entite: entite.id, id: '__ID__' }) }}" hidden></div>
+
+{# URL template APPRÉCIATION / SATISFACTION (⚠️ adapte la route/param si besoin) #}
+<div id="satisfaction-url-template"
+  data-url="{{ path('app_formateur_satisfaction_fill', { entite: entite.id, session: 0 }) }}"
+  hidden>
+</div>
+
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+<script>
+// Locale FR FullCalendar (fallback)
+(function(){
+  const FC=(window.FullCalendar=window.FullCalendar||{});
+  FC.globalLocales=FC.globalLocales||[];
+  if(!FC.globalLocales.some(l=>l.code==='fr')){
+    FC.globalLocales.push({
+      code:'fr',
+      buttonText:{prev:'Préc.',next:'Suiv.',today:'Aujourd’hui',year:'Année',month:'Mois',week:'Semaine',day:'Jour',list:'Liste'},
+      weekText:'Sem.',allDayText:'Toute la journée',moreLinkText:'en plus',noEventsText:'Aucun évènement à afficher',
+      week:{dow:1,doy:4}
+    });
+  }
+})();
+</script>
+
+<script>
+$(function(){
+
+  /* ===== helpers ===== */
+  function escapeHtml(s){return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+  function stripHtml(html){ return String(html||'').replace(/<[^>]+>/g,'').trim(); }
+  function pad(n){ return n<10?('0'+n):n; }
+
+  const toFr = (ymd)=>{
+    if(!ymd) return '';
+    if(ymd.includes('/')) return ymd;
+    const [Y,M,D]=ymd.split('-').map(n=>parseInt(n,10));
+    return pad(D)+'/'+pad(M)+'/'+Y;
+  };
+
+  /* ===== Sélection session courante (pour bouton appréciation) ===== */
+  let CURRENT_SESSION_ID = null;
+  function syncSatisfactionBtn(){
+    const btn = document.getElementById('btnOpenSatisfaction');
+    if(!btn) return;
+    if(!CURRENT_SESSION_ID){
+      btn.disabled = true;
+      btn.title = 'Sélectionnez une session pour laisser votre appréciation';
+      return;
+    }
+    btn.disabled = false;
+    btn.title = 'Laisser / modifier mon appréciation pour cette session';
+  }
+
+  
+
+  /* ===== DataTables : mes sessions ===== */
+  const dt = $('#table-formateur').DataTable({
+    scrollX: true,
+    autoWidth: false,
+    responsive: false,
+  
+    ajax:{ url:"{{ path('app_formateur_dashboard_sessions_ajax', { entite: entite.id }) }}", type:'POST' },
+    columns:[
+      {data:'code'},
+      {data:'formation'},
+      {data:'dates'},
+      {data:'inscrits', className:'text-center', render:d => '<span class="status-pill"><i class="bi bi-people-fill me-1"></i>'+ (d ?? 0) +'</span>'},
+      {
+        data: 'actions',
+        className: 'text-center',
+        render: function(d, type, row){
+          const raw = (d || '').trim();
+          if(!raw) return '';
+
+          const key = String(row.code || row.sessionId || row.id || '')
+            .replace(/\W+/g,'_') || Math.random().toString(16).slice(2);
+
+          const menuId = 'act_' + key;
+
+          return `
+            <div class="actions-wrap">
+              <div class="dropdown action-dd">
+                <button class="btn btn-action btn-sm dropdown-toggle" type="button"
+                  id="${menuId}"
+                  data-bs-toggle="dropdown"
+                  data-bs-boundary="viewport"
+                  data-bs-display="static"
+                  aria-expanded="false">
+                  <i class="bi bi-three-dots-vertical"></i> Actions
+                </button>
+
+                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="${menuId}">
+                  <div class="dd-head">
+                    <div class="t"><i class="bi bi-lightning-charge me-1"></i> Actions</div>
+                  </div>
+                  ${raw}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      },
+
+      {data:'firstStartIso', visible:false, searchable:false},
+      {data:'lastEndIso', visible:false, searchable:false},
+    ],
+    order:[[5,'desc']],
+    pageLength:10,
+    language: { url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' },
+    drawCallback:function(){
+      computeKpisFromTable(this.api());
+      buildTimelineFromTable(this.api(), '#upcoming-timeline', 6);
+    },
+  });
+
+  $('#searchAll').on('input', function(){ dt.search(this.value).draw(); });
+
+  $('#btnExportTable').on('click', function(){
+    const rows = dt.rows({search:'applied'}).data().toArray();
+    const header = ['Code','Formation','Dates','Inscrits'];
+    const lines = [header.join(';')].concat(
+      rows.map(r => [r.code, stripHtml(r.formation), stripHtml(r.dates), r.inscrits]
+        .map(v => '"'+String(v ?? '').replaceAll('"','""')+'"').join(';'))
+    );
+    const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='sessions_formateur.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  /* ===== KPIs ===== */
+  function computeKpisFromTable(api){
+    const data = api.rows({search:'applied'}).data().toArray();
+    const now = new Date();
+
+    let upcoming=0, live=0, trainees=0;
+
+    data.forEach(row=>{
+      const startIso = row.firstStartIso;
+      const endIso   = row.lastEndIso;
+
+      if(startIso && endIso){
+        const start = new Date(startIso);
+        const end   = new Date(endIso);
+
+        if(now < start) upcoming++;
+        else if(now >= start && now <= end) live++;
+      }
+
+      const n = parseInt(row.inscrits || 0, 10);
+      if(!isNaN(n)) trainees += n;
+    });
+
+    $('#kpi-upcoming').text(upcoming);
+    $('#kpi-live').text(live);
+    $('#kpi-trainees').text(trainees);
+  }
+
+
+  /* ===== Timeline ===== */
+  function buildTimelineFromTable(api, selector, maxItems){
+    const data = api.rows().data().toArray();
+    const now = new Date();
+
+    const items = data
+      .filter(r => r.firstStartIso)
+      .map(r => {
+        const start = new Date(r.firstStartIso);
+        return {
+          whenDate: start,
+          when: start.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+          what: `${stripHtml(r.formation)} (${r.code||''})`,
+        };
+      })
+      .filter(it => it.whenDate > now)
+      .sort((a,b)=> a.whenDate - b.whenDate);
+
+    const ul = document.querySelector(selector);
+    ul.innerHTML = '';
+
+    if(items.length === 0){
+      ul.innerHTML = '<li><span class="dot"></span><span class="when">-</span><span class="what">Aucun évènement à venir.</span></li>';
+      return;
+    }
+
+    items.slice(0, maxItems || 6).forEach(it=>{
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="dot"></span><span class="when">${it.when}</span><span class="what">${escapeHtml(it.what)}</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+
+  /* ===== FullCalendar ===== */
+  const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    locale:'fr', height:'auto', initialView:'dayGridMonth',
+    headerToolbar:{ left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek,listWeek' },
+    events: "{{ path('app_formateur_calendar_feed', { entite: entite.id }) }}",
+    eventDidMount: (info)=>{ info.el.style.borderRadius = '.6rem'; info.el.style.boxShadow = '0 8px 20px rgba(0,0,0,.08)'; },
+    eventClick: (info) => {
+      info.jsEvent?.preventDefault();
+      const sid = info.event.extendedProps?.sessionId || info.event.id;
+      const ymd = (info.event.startStr || '').slice(0,10);
+      window.__openEma?.({ sessionId: sid, sessionLabel: info.event.title || 'Session', date: ymd });
+    }
+  });
+  calendar.render();
+
+  /* ===== Supports (aperçu) ===== */
+  fetch("{{ path('app_formateur_supports_assets_feed', { entite: entite.id }) }}")
+    .then(r=>r.json()).then(payload=>{
+      const all = (payload?.data||[]);
+      $('#kpi-files').text(all.length || 0);
+
+      const rows = all.slice(0,8);
+      const wrap = document.getElementById('assets-list'); wrap.innerHTML='';
+      if(rows.length===0){
+        wrap.innerHTML = '<div class="text-muted">Aucun support dans votre bibliothèque pour le moment.</div>';
+        return;
+      }
+      rows.forEach(a=>{
+        const col = document.createElement('div'); col.className = 'col-12 col-md-6 col-xxl-3';
+        col.innerHTML = `
+          <div class="asset-item">
+            <div class="asset-icon"><i class="bi bi-file-earmark-text-fill"></i></div>
+            <div class="flex-grow-1 text-truncate">
+              <div class="asset-name" title="${escapeHtml(a.originalName || a.titre || '')}">${escapeHtml(a.titre || a.originalName || 'Document')}</div>
+              <div class="asset-meta">${escapeHtml(a.mimeType || '')} · ${escapeHtml(a.uploadedAt || '')}</div>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary" href="${a.url}" target="_blank" title="Télécharger"><i class="bi bi-download"></i></a>
+          </div>`;
+        wrap.appendChild(col);
+      });
+    });
+
+  /* ===== Backdrops z-index helper (propre, pas en double) ===== */
+  function tagLastBackdrop(className){
+    const bds = document.querySelectorAll('.modal-backdrop');
+    const last = bds[bds.length - 1];
+    if(last) last.classList.add(className);
+  }
+  document.getElementById('emargementModal')?.addEventListener('shown.bs.modal', () => tagLastBackdrop('emargement-backdrop'));
+  document.getElementById('signatureModal')?.addEventListener('shown.bs.modal', () => tagLastBackdrop('signature-backdrop'));
+  document.getElementById('sigPreviewModal')?.addEventListener('shown.bs.modal', () => tagLastBackdrop('preview-backdrop'));
+
+  /* ===== Émargements (formateur) ===== */
+  let STATE = {
+    sessionId: null,
+    sessionLabel: '-',
+    date: (new Date()).toISOString().slice(0,10),
+    rows: [],
+    autoPeriode: null, // ✅
+    outOfSession: false
+  };
+
+
+  function setHeader(){
+    $('#ema-date').text(toFr(STATE.date));
+    $('#ema-session').text(STATE.sessionLabel||'-');
+
+    if (__fpEma) {
+      __fpEma.setDate(STATE.date, false); // n’appelle pas onChange
+    } else {
+      $('#ema-date-input').val(STATE.date);
+    }
+  }
+
+
+  function viewBtn(url, at){
+    if(!url) return '';
+    const safeAt = at ? escapeHtml(at) : '';
+    return `
+      <button type="button" class="btn btn-mini btn-outline-secondary js-view-sig"
+              data-url="${escapeHtml(url)}" data-at="${safeAt}">
+        <i class="bi bi-eye"></i>
+      </button>`;
+  }
+
+  function cellTrainer(info, periode){
+    if(!info?.signed){
+      return `<div class="ema-actioncell">
+        <button class="btn btn-mini btn-outline-success js-open-sign" data-periode="${periode}">
+          <i class="bi bi-pencil"></i> Signer
+        </button>
+      </div>`;
+    }
+    return `<div class="ema-actioncell">
+      <span class="pill-success"><i class="bi bi-check2-circle"></i> Signé</span>
+      ${viewBtn(info.url, info.at)}
+      <button class="btn btn-mini btn-outline-danger js-unsign" data-periode="${periode}">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>`;
+  }
+
+  function cellReadonly(info){
+    if(!info?.signed){
+      return `<div class="ema-actioncell"><span class="badge bg-secondary-subtle text-secondary">Non signé</span></div>`;
+    }
+    return `<div class="ema-actioncell">
+      <span class="pill-success"><i class="bi bi-check2-circle"></i> Signé</span>
+      ${viewBtn(info.url, info.at)}
+    </div>`;
+  }
+
+  function renderEma(){
+    if (STATE.outOfSession) {
+      $('#ema-tbody').html(`
+        <tr>
+          <td colspan="3" class="text-center text-muted py-4">
+            <i class="bi bi-info-circle me-1"></i>
+            Aucun émargement à faire pour cette date.
+          </td>
+        </tr>
+      `);
+      return;
+    }
+
+    const rows = STATE.rows || [];
+    if(rows.length===0){
+      $('#ema-tbody').html('<tr><td colspan="3" class="text-center text-muted py-4">Aucune ligne.</td></tr>');
+      return;
+    }
+
+    const html = rows.map(r=>{
+      const badge = r.isTrainer ? ' <span class="badge-trainer">Formateur</span>' : '';
+      const am = r.am || {signed:false}, pm = r.pm || {signed:false};
+
+      return `
+        <tr>
+          <td><strong>${escapeHtml(r.name||'-')}</strong>${badge}</td>
+          <td class="text-center">${r.isTrainer ? cellTrainer(am,'AM') : cellReadonly(am)}</td>
+          <td class="text-center">${r.isTrainer ? cellTrainer(pm,'PM') : cellReadonly(pm)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    $('#ema-tbody').html(html);
+  }
+
+
+  function buildRows(payload){
+    const out = [];
+
+    if(payload?.trainer){
+      out.push({
+        isTrainer:true,
+        name: payload.trainer.name || 'Moi',
+        am: { signed: !!payload.trainer.signed_am, url: payload.trainer.signature_am_url || null, at: payload.trainer.signed_at_am || null },
+        pm: { signed: !!payload.trainer.signed_pm, url: payload.trainer.signature_pm_url || null, at: payload.trainer.signed_at_pm || null }
+      });
+    }
+
+    (payload?.trainees || []).forEach(t=>{
+      out.push({
+        isTrainer:false,
+        name: t.name || 'Stagiaire',
+        am: { signed: !!t.signed_am, url: t.signature_am_url || null, at: t.signed_at_am || null },
+        pm: { signed: !!t.signed_pm, url: t.signature_pm_url || null, at: t.signed_at_pm || null }
+      });
+    });
+
+    return out;
+  }
+
+
+  function loadEma(){
+    $('#ema-tbody').html('<tr><td colspan="3" class="text-center text-muted py-4">⏳ Chargement…</td></tr>');
+
+    const url = "{{ path('app_formateur_emargement_feed', { entite: entite.id }) }}"
+              + "?session="+encodeURIComponent(STATE.sessionId)
+              + "&date="+encodeURIComponent(STATE.date);
+
+    return fetch(url, { headers:{'Accept':'application/json'} })
+      .then(r => r.json())
+      .then(j => {
+        if(j?.error){
+          $('#ema-tbody').html(`<tr><td colspan="3" class="text-center text-danger py-4">${escapeHtml(j.error)}</td></tr>`);
+          return;
+        }
+
+        STATE.outOfSession = !!j.outOfSession;
+
+        if (j?.allowedDays && __fpEma) {
+          // ✅ n'autorise que les jours de formation
+          __fpEma.set('enable', j.allowedDays);
+
+          // si la date courante n'est pas autorisée, on ne force pas forcément,
+          // mais tu peux choisir de la remettre sur le 1er jour :
+          if (STATE.outOfSession && j.allowedDays.length) {
+            // optionnel : auto-repositionner sur le 1er jour valide
+            // STATE.date = j.allowedDays[0];
+            // __fpEma.setDate(STATE.date, true);
+          }
+        }
+
+        if (j?.sessionLabel) STATE.sessionLabel = j.sessionLabel;
+        setHeader();
+
+        STATE.rows = buildRows(j); // sera vide si outOfSession
+        renderEma();
+      })
+
+      .catch(e=>{
+        console.error(e);
+        $('#ema-tbody').html('<tr><td colspan="3" class="text-center text-danger py-4">Erreur de chargement</td></tr>');
+      });
+  }
+
+  /* ===== Flatpickr (ema date) ===== */
+  let __fpEma = null;
+  function initEmaDatepicker(){
+    const input = document.getElementById('ema-date-input');
+    if(!input || typeof flatpickr !== 'function') return;
+
+    if(__fpEma){ try{ __fpEma.destroy(); }catch(e){} __fpEma=null; }
+
+    __fpEma = flatpickr(input, {
+      locale: 'fr',
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd/m/Y',
+      defaultDate: STATE?.date || new Date(),
+      allowInput: true,
+      onChange: function(selectedDates, dateStr){
+        if(dateStr){
+          STATE.date = dateStr;
+          setHeader();
+          loadEma();
+        }
+      }
+    });
+  }
+
+  /* ===== Open ema modal ===== */
+  window.__openEma = ({ sessionId, sessionLabel, date, periode })=>{
+    if(!sessionId){ alert('ID session manquant'); return; }
+
+    STATE.sessionId = String(sessionId);
+    STATE.sessionLabel = sessionLabel || STATE.sessionLabel;
+    if(date) STATE.date = String(date);
+
+    // ✅ si on appelle depuis “Matin/Après-midi”
+    STATE.autoPeriode = periode || null;
+
+    // sync "session sélectionnée" pour appréciation
+    CURRENT_SESSION_ID = STATE.sessionId;
+    syncSatisfactionBtn();
+
+    setHeader();
+
+    return loadEma().then(()=>{
+      const modalEl = document.getElementById('emargementModal');
+      modalEl.addEventListener('shown.bs.modal', () => initEmaDatepicker(), { once:true });
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+      // ✅ auto-open signature AM/PM si demandé
+      if (STATE.autoPeriode) {
+        setTimeout(() => {
+          const btn = document.querySelector(`#ema-tbody .js-open-sign[data-periode="${STATE.autoPeriode}"]`);
+          if (btn) btn.click(); // pas signé -> ouvre le pad
+          STATE.autoPeriode = null;
+        }, 120);
+      }
+    });
+  };
+
+
+  $('#ema-refresh').on('click', ()=>{
+    const v = $('#ema-date-input').val();
+    if(v) STATE.date = v;
+    setHeader();
+    loadEma();
+  });
+
+  /* ===== Click DataTable: ouvrir émargement ===== */
+  $(document).on('click', '.js-emargement', function(e){
+    e.preventDefault();
+    const sid = this.dataset.sessionId;
+    const label = this.dataset.sessionLabel || 'Session';
+    const today = (new Date()).toISOString().slice(0,10);
+    window.__openEma?.({ sessionId: sid, sessionLabel: label, date: today });
+  });
+
+  /* ===== Appréciation formation (formateur) ===== */
+  function goSatisfaction(sessionId){
+    const tpl = document.getElementById('satisfaction-url-template')?.dataset?.url || '';
+    if(!tpl){ alert('URL template manquante.'); return; }
+
+    // tpl ressemble à : .../satisfaction/session/0/fill
+    const url = String(tpl).replace(/\/session\/\d+\/fill\b/, `/session/${sessionId}/fill`);
+
+    window.location.href = url;
+  }
+
+
+
+
+  $('#btnOpenSatisfaction').on('click', function(){
+    if(!CURRENT_SESSION_ID) return;
+    goSatisfaction(CURRENT_SESSION_ID);
+  });
+
+  $(document).on('click', '.js-satisfaction', function(e){
+    e.preventDefault();
+    const sid = this.dataset.sessionId;
+    if(!sid) return;
+    CURRENT_SESSION_ID = String(sid);
+    syncSatisfactionBtn();
+    goSatisfaction(CURRENT_SESSION_ID);
+  });
+
+  /* ===== Signature: open modal ===== */
+  window.CURRENT_PERIODE = null;
+
+  $(document).on('click', '.js-open-sign', function(e){
+    e.preventDefault();
+    window.CURRENT_PERIODE = this.dataset.periode || null;
+
+    const el = document.getElementById('signatureModal');
+    el.addEventListener('shown.bs.modal', () => {
+      window.initSignaturePad?.();
+      window.__signaturePad?.clear();
+    }, { once:true });
+
+    bootstrap.Modal.getOrCreateInstance(el, { backdrop:'static', focus:false }).show();
+  });
+
+  $('#btnClearSignature').on('click', ()=> window.__signaturePad?.clear());
+
+  $('#btnSaveSignature').on('click', async function(){
+    if (!window.__signaturePad || window.__signaturePad.isEmpty()) { alert('Veuillez signer.'); return; }
+    if (!window.CURRENT_PERIODE) { alert('Période inconnue.'); return; }
+
+    const dataUrl = window.__signaturePad.toDataURL('image/png');
+    const tpl = document.getElementById('sign-url-template')?.dataset?.url || '';
+    const url = String(tpl).replace('__ID__', String(STATE.sessionId || ''));
+
+    const form = new FormData();
+    form.append('signatureData', dataUrl);
+    form.append('periode', window.CURRENT_PERIODE);
+    form.append('date', toFr(STATE.date)); // endpoint attend FR
+
+    const res = await fetch(url, {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest'},
+      body: form
+    });
+
+    const json = await res.json().catch(()=>null);
+    if (!res.ok || !json || json.success !== true) {
+      alert((json && (json.message||json.error)) || ('HTTP '+res.status));
+      return;
+    }
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('signatureModal')).hide();
+    await loadEma();
+  });
+
+  /* ===== Preview signature ===== */
+  $(document).on('click', '.js-view-sig', function(){
+    const url = this.dataset.url;
+    const at  = this.dataset.at || '';
+    if(!url) return;
+
+    $('#sigPreviewImg').attr('src', url);
+    $('#sigPreviewMeta').text(at ? ('Signé le ' + at) : 'Signature');
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('sigPreviewModal')).show();
+  });
+
+  /* ===== Unsign ===== */
+  $(document).on('click', '.js-unsign', async function(e){
+    e.preventDefault();
+    const periode = this.dataset.periode;
+    if (!confirm('Supprimer votre signature '+periode+' ?')) return;
+
+    const tpl = document.getElementById('unsign-url-template')?.dataset?.url || '';
+    const url = String(tpl).replace('__ID__', String(STATE.sessionId || ''));
+
+    const form = new FormData();
+    form.append('periode', periode);
+    form.append('date', toFr(STATE.date));
+
+    const res = await fetch(url, {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest'},
+      body: form
+    });
+
+    const json = await res.json().catch(()=>null);
+    if (!res.ok || !json || json.success !== true) {
+      alert((json && (json.message||json.error)) || ('HTTP '+res.status));
+      return;
+    }
+
+    await loadEma();
+  });
+
+  // init bouton appréciation au chargement
+  syncSatisfactionBtn();
+
+});
+</script>
+
+<script>
+// SignaturePad init (robuste: canvas visible uniquement après "shown")
+window.initSignaturePad = function(){
+  const canvas = document.getElementById('signatureCanvas');
+  if (!canvas) return;
+
+  if (window.__signaturePad) { try{ window.__signaturePad.off(); }catch(_){ } window.__signaturePad=null; }
+
+  const wrap = canvas.parentElement;
+  const cssWidth  = wrap ? wrap.clientWidth : (canvas.clientWidth || 600);
+  const cssHeight = 200;
+
+  canvas.style.width  = cssWidth + 'px';
+  canvas.style.height = cssHeight + 'px';
+
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  canvas.width  = Math.floor(cssWidth * ratio);
+  canvas.height = Math.floor(cssHeight * ratio);
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  if (typeof window.SignaturePad !== 'function') { console.error('SignaturePad non chargé'); return; }
+  window.__signaturePad = new SignaturePad(canvas, {
+    throttle:16,
+    minWidth:.5,
+    maxWidth:2.5,
+    backgroundColor:'rgb(255,255,255)'
+  });
+};
+</script>
+{% endblock %}

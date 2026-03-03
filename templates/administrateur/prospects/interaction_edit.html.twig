@@ -1,0 +1,136 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Éditer une interaction — Prospect #{{ p.id }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid" style="max-width:1100px">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <div>
+      <div class="text-muted small">Prospect #{{ p.id }}</div>
+      <h3 class="mb-0 fw-bold">Modifier l’interaction</h3>
+    </div>
+
+    <a class="btn btn-light fw-semibold"
+       href="{{ path('app_administrateur_prospect_show', { entite: entite.id, prospect: p.id }) }}">
+      <i class="bi bi-arrow-left"></i> Retour
+    </a>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="card" style="border-radius:18px;">
+    <div class="card-body">
+      {{ form_start(form) }}
+        <div class="row g-2">
+
+          <div class="col-12">
+            {# ✅ TomSelect via classe js-tomselect #}
+            {{ form_row(form.actorMixed, {
+              attr: { class: (form.actorMixed.vars.attr.class|default('') ~ ' form-select js-tomselect')|trim }
+            }) }}
+          </div>
+
+          <div class="col-12">
+            {# ✅ idem pour channel #}
+            {{ form_row(form.channel, {
+              attr: { class: (form.channel.vars.attr.class|default('') ~ ' form-select js-tomselect')|trim }
+            }) }}
+          </div>
+
+          <div class="col-12">
+            {{ form_row(form.title) }}
+          </div>
+
+          <div class="col-12">
+            {{ form_row(form.occurredAt, {
+              attr: {
+                class: (form.occurredAt.vars.attr.class|default('') ~ ' form-control js-flatpickr-dt')|trim,
+                placeholder: 'JJ/MM/AAAA HH:MM',
+                autocomplete: 'off'
+              }
+            }) }}
+          </div>
+
+          <div class="col-12">
+            {{ form_row(form.content) }}
+          </div>
+
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-warning fw-semibold">
+            <i class="bi bi-save"></i> Enregistrer
+          </button>
+          <a class="btn btn-outline-secondary"
+             href="{{ path('app_administrateur_prospect_show', { entite: entite.id, prospect: p.id }) }}">
+            Annuler
+          </a>
+        </div>
+      {{ form_end(form) }}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // ===== Flatpickr =====
+      if (window.flatpickr) {
+        flatpickr.localize(flatpickr.l10ns.fr);
+
+        const occurredId = {{ form.occurredAt.vars.id|json_encode|raw }};
+        const occurredEl = document.getElementById(occurredId);
+
+        if (occurredEl && !occurredEl._flatpickr) {
+          flatpickr(occurredEl, {
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: "d/m/Y H:i",
+            allowInput: true,
+            disableMobile: true
+          });
+        }
+      }
+
+      // ===== TomSelect =====
+      if (window.TomSelect) {
+        document.querySelectorAll('select.js-tomselect').forEach((el) => {
+          if (el.tomselect) return;
+
+          new TomSelect(el, {
+            dropdownParent: 'body',
+            create: false,
+            allowEmptyOption: true,
+            maxItems: 1,
+            plugins: ['clear_button']
+          });
+        });
+      }
+
+    });
+  </script>
+{% endblock %}

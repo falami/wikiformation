@@ -1,0 +1,610 @@
+{# templates/administrateur/formation/categorie/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Catégories{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+  --ink:#0f2336; --muted:rgba(0,0,0,.60);
+  --card:#fff; --stroke:rgba(0,0,0,.08);
+  --radius:18px;
+}
+
+/* ===== HERO premium ===== */
+.hero{
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+
+  /* Ombre douce premium */
+  box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+  /* Fond piloté par les couleurs de l'entité */
+  background:
+    /* halo clair (tertiaire) */
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    /* halo accent (secondaire) */
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    /* voile subtil (quaternaire) pour la profondeur */
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    /* dégradé principal (principal -> plus clair) */
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
+}
+
+/* léger glass highlight */
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  opacity:.85;
+}
+
+/* barre accent = secondaire (et glow basé sur secondaire) */
+.hero .accent{
+  width: 12px;
+  border-radius: 999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+}
+/* ===== Chips HERO (comme facture) ===== */
+.hero .chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.32rem .7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size:.82rem;
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.hero .chip i{
+  color: var(--theme-color-secondaire);
+}
+
+/* Chip “highlight” (équivalent à ton pill) */
+.hero .chip--pill{
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+  color: #fff;
+}
+.hero .cta{
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+/* ===== KPI ===== */
+.kpi-card{
+  background: var(--card);
+  border:1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(0,0,0,.06);
+}
+
+.kpi-label{ color: rgba(0,0,0,.55); font-size:.82rem; text-transform:uppercase; letter-spacing:.06em; font-weight:800; }
+.kpi-value{ font-weight:900; font-size:1.55rem; letter-spacing:-.02em; }
+.kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem; }
+
+/* ===== Toolbar ===== */
+.toolbar{
+  background: var(--card);
+  border:1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 24px rgba(0,0,0,.05);
+  overflow:hidden;
+}
+.toolbar__top{
+  padding: .9rem 1rem;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+  display:flex;
+  align-items:center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.toolbar__title{
+  font-weight: 950;
+  letter-spacing: -.02em;
+  margin: 0;
+}
+.toolbar__hint{ color: rgba(0,0,0,.55); font-size:.88rem; }
+.toolbar__body{ padding: 1rem; }
+
+.searchbox{
+  display:flex;
+  align-items:center;
+  gap:.6rem;
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 14px;
+  padding: .55rem .7rem;
+  background:#fff;
+  box-shadow: 0 8px 18px rgba(0,0,0,.04);
+}
+.searchbox:focus-within{
+  border-color: rgba(255,193,7,.55);
+  box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+}
+.searchbox input{
+  border:0; outline:0;
+  width: 100%;
+  background: transparent;
+}
+
+/* Toggle pills */
+.filter-pill{
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.12);
+  padding: .35rem .65rem;
+  background:#fff;
+  font-weight: 800;
+  font-size:.85rem;
+  display:inline-flex; align-items:center; gap:.5rem;
+  cursor:pointer;
+  user-select:none;
+}
+
+.kpi-ico{
+  width:44px; height:44px;
+  border-radius:14px;
+  display:grid; place-items:center;
+  background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+  color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+  flex: 0 0 auto;
+}
+
+.filter-icon{
+  width:38px; height:38px;
+  border-radius:14px;
+  display:grid; place-items:center;
+  background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+  color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+  flex: 0 0 auto;
+}
+.filter-pill.active{
+  border-color: rgba(255,193,7,.35);
+  background: rgba(255,193,7,.10);
+}
+
+/* ===== Grid responsive fluide (fixe les soucis de span/12 colonnes) ===== */
+.grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+/* la carte n’a plus besoin de grid-column */
+.cat-card{
+  grid-column: auto;
+}
+.cat-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 48px rgba(0,0,0,.10);
+}
+.cat-card{ min-width: 0; }
+.cat-title, .cat-sub, .badge-count{ overflow-wrap:anywhere; }
+
+.thumb{
+  height: 150px;
+  background:#0f2230;
+  position:relative;
+}
+.thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+.thumb:after{
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.55));
+  pointer-events:none;
+}
+
+.badge-top{
+  position:absolute;
+  left:.75rem; top:.75rem;
+  z-index:2;
+  display:flex; gap:.5rem; align-items:center;
+}
+.badge-chip{
+  background: rgba(0,0,0,.52);
+  border: 1px solid rgba(255,255,255,.16);
+  color:#fff;
+  padding:.28rem .58rem;
+  border-radius: 999px;
+  font-size:.78rem;
+  backdrop-filter: blur(6px);
+}
+
+.badge-count{
+  position:absolute;
+  right:.75rem; top:.75rem;
+  z-index:2;
+  background: rgba(255,193,7,.18);
+  border: 1px solid rgba(255,193,7,.28);
+  color:#ffe59a;
+  padding:.28rem .58rem;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size:.78rem;
+  backdrop-filter: blur(6px);
+}
+
+.cat-body{ padding: .95rem 1rem; }
+.cat-title{ font-weight: 950; margin:0; font-size:1.05rem; letter-spacing:-.01em; }
+.cat-sub{ color: rgba(0,0,0,.58); font-size:.88rem; margin-top:.2rem; }
+
+.meta-row{
+  margin-top:.7rem;
+  display:flex; gap:.5rem; flex-wrap:wrap;
+}
+.meta-badge{
+  display:inline-flex; align-items:center; gap:.4rem;
+  font-size:.80rem;
+  padding:.28rem .55rem;
+  border-radius: 999px;
+  background: rgba(0,0,0,.04);
+  border: 1px solid rgba(0,0,0,.06);
+  color: rgba(0,0,0,.72);
+}
+
+.actions{
+  padding: .85rem 1rem;
+  border-top: 1px solid rgba(0,0,0,.06);
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap:.6rem;
+}
+.actions .btn{
+  border-radius: 12px;
+}
+.action-group{ display:flex; gap:.45rem; }
+
+.empty{
+  background:#fff;
+  border:1px dashed rgba(0,0,0,.16);
+  border-radius: 20px;
+  padding: 1.25rem;
+  color: rgba(0,0,0,.62);
+}
+
+.small-muted{ color: rgba(0,0,0,.55); }
+
+</style>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO (comme facture) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-diagram-3 me-2" style="color:var(--theme-color-secondaire)"></i>
+            Catégories du catalogue
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Structure : <strong>Bureautique</strong> → <strong>Excel</strong> → formations (1j, 3j…)
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-diagram-3"></i> Catégories</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? ('Entité #' ~ entite.id) }}</span>
+            <span class="chip chip--pill"><i class="bi bi-stars"></i> Organisation premium</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-light btn-sm fw-semibold cta"
+            href="{{ path('app_administrateur_formation_index', { entite: entite.id }) }}">
+            <i class="bi bi-mortarboard me-1"></i> Voir les formations
+          </a>
+
+          <a class="btn btn-light btn-sm fw-semibold cta"
+            href="{{ path('app_administrateur_formation_categorie_ajouter', { entite: entite.id }) }}">
+            <i class="bi bi-plus-circle me-1"></i> Nouvelle catégorie
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== KPIs ===== #}
+  {% set total = categories|length %}
+  {% set mains = 0 %}
+  {% set subs = 0 %}
+  {% for c in categories %}
+    {% if c.parent %}{% set subs = subs + 1 %}{% else %}{% set mains = mains + 1 %}{% endif %}
+  {% endfor %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3 d-flex gap-3 align-items-center">
+          <div class="kpi-ico"><i class="bi bi-collection fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Total</div>
+            <div class="kpi-value" id="kpi-total">{{ total }}</div>
+            <div class="kpi-sub">Catégories enregistrées</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3 d-flex gap-3 align-items-center">
+          <div class="kpi-ico"><i class="bi bi-folder fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Principales</div>
+            <div class="kpi-value" id="kpi-mains">{{ mains }}</div>
+            <div class="kpi-sub">Niveau 1</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3 d-flex gap-3 align-items-center">
+          <div class="kpi-ico"><i class="bi bi-folder2-open fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Sous-catégories</div>
+            <div class="kpi-value" id="kpi-subs">{{ subs }}</div>
+            <div class="kpi-sub">Niveau 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3 d-flex gap-3 align-items-center">
+          <div class="kpi-ico"><i class="bi bi-lightning-charge fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Recherche</div>
+            <div class="kpi-value" id="kpi-visible">{{ total }}</div>
+            <div class="kpi-sub">Résultats affichés</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== TOOLBAR ===== #}
+  <div class="toolbar mb-3">
+    <div class="toolbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="kpi-ico" style="width:40px;height:40px;border-radius:14px;">
+          <i class="bi bi-funnel"></i>
+        </div>
+        <div>
+          <p class="toolbar__title mb-0">Exploration</p>
+          <div class="toolbar__hint">Recherche + filtres (principales / sous-catégories)</div>
+        </div>
+      </div>
+
+      <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
+        <div class="filter-pill active" id="pill-all"><i class="bi bi-grid"></i> Tout</div>
+        <div class="filter-pill" id="pill-main"><i class="bi bi-folder"></i> Principales</div>
+        <div class="filter-pill" id="pill-sub"><i class="bi bi-folder2-open"></i> Sous-catégories</div>
+      </div>
+    </div>
+
+    <div class="toolbar__body">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-9">
+          <label class="form-label small fw-bold text-uppercase small-muted mb-1">Recherche</label>
+          <div class="searchbox">
+            <i class="bi bi-search small-muted"></i>
+            <input id="q" type="text" placeholder="Nom, slug, parent…" autocomplete="off">
+            <button class="btn btn-sm btn-outline-secondary" id="btnClear" type="button" title="Effacer">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-3 d-flex gap-2 justify-content-lg-end">
+          <button class="btn btn-outline-secondary w-100 w-lg-auto" id="btnReset" type="button">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset filtres
+          </button>
+
+          <a class="btn btn-warning fw-semibold w-100 w-lg-auto"
+             href="{{ path('app_administrateur_formation_categorie_ajouter', { entite: entite.id }) }}">
+            <i class="bi bi-plus-circle"></i> Créer
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== GRID ===== #}
+  <div class="grid" id="gridCats">
+
+    {% for c in categories %}
+      {% set isSub = c.parent ? 1 : 0 %}
+      {% set parentName = c.parent ? c.parent.nom : '' %}
+
+      <div class="cat-card js-cat"
+           data-type="{{ isSub ? 'sub' : 'main' }}"
+           data-search="{{ (c.nom ~ ' ' ~ c.slug ~ ' ' ~ parentName)|lower }}">
+
+        <div class="thumb">
+          {% if c.photo %}
+            <img src="{{ asset('uploads/photos/categorie/' ~ c.photo) }}" alt="{{ c.nom }}">
+          {% else %}
+            <img src="{{ asset('dist/img/placeholder-cat.png') }}" alt="{{ c.nom }}">
+          {% endif %}
+
+          <div class="badge-top">
+            {% if c.parent %}
+              <span class="badge-chip"><i class="bi bi-folder2-open me-1"></i>{{ c.parent.nom }}</span>
+            {% else %}
+              <span class="badge-chip"><i class="bi bi-folder me-1"></i>Principale</span>
+            {% endif %}
+          </div>
+
+          <div class="badge-count" title="Slug">
+            <i class="bi bi-hash me-1"></i>{{ c.slug }}
+          </div>
+        </div>
+
+        <div class="cat-body">
+          <div class="d-flex align-items-start justify-content-between gap-2">
+            <div>
+              <p class="cat-title mb-0">{{ c.nom }}</p>
+              <div class="cat-sub">
+                {% if c.parent %}
+                  Sous-catégorie de <span class="fw-semibold">{{ c.parent.nom }}</span>
+                {% else %}
+                  Catégorie racine (niveau 1)
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="meta-row">
+            <span class="meta-badge"><i class="bi bi-link-45deg"></i> {{ c.slug }}</span>
+            <span class="meta-badge"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            {% if c.photo %}
+              <span class="meta-badge"><i class="bi bi-image"></i> Photo</span>
+            {% else %}
+              <span class="meta-badge"><i class="bi bi-image-alt"></i> Sans photo</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="actions">
+          <div class="small-muted">
+            <i class="bi bi-gear me-1"></i> Gestion
+          </div>
+
+          <div class="action-group">
+            <a class="btn btn-outline-primary btn-sm"
+               href="{{ path('app_administrateur_formation_categorie_modifier', { entite: entite.id, id: c.id }) }}"
+               title="Modifier">
+              <i class="bi bi-pencil"></i>
+            </a>
+
+            <form method="post"
+                  action="{{ path('app_administrateur_formation_categorie_supprimer', { entite: entite.id, id: c.id }) }}"
+                  onsubmit="return confirm('Supprimer cette catégorie ?');">
+              <input type="hidden" name="_token" value="{{ csrf_token('delete_categorie_' ~ c.id) }}">
+              <button class="btn btn-outline-danger btn-sm" type="submit" title="Supprimer">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    {% endfor %}
+
+    {% if categories|length == 0 %}
+      <div class="empty">
+        <div class="fw-bold mb-1"><i class="bi bi-info-circle me-1"></i>Aucune catégorie</div>
+        <div class="small">Commence par “Bureautique”, puis “Excel”, “Word”…</div>
+        <div class="mt-3">
+          <a class="btn btn-warning fw-semibold"
+             href="{{ path('app_administrateur_formation_categorie_ajouter', { entite: entite.id }) }}">
+            <i class="bi bi-plus-circle"></i> Créer une catégorie
+          </a>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const q = document.getElementById('q');
+  const btnClear = document.getElementById('btnClear');
+  const btnReset = document.getElementById('btnReset');
+
+  const pillAll  = document.getElementById('pill-all');
+  const pillMain = document.getElementById('pill-main');
+  const pillSub  = document.getElementById('pill-sub');
+
+  const cards = Array.from(document.querySelectorAll('.js-cat'));
+  const kpiVisible = document.getElementById('kpi-visible');
+
+  let mode = 'all'; // all|main|sub
+
+  function setPill(active){
+    [pillAll, pillMain, pillSub].forEach(p => p.classList.remove('active'));
+    active.classList.add('active');
+  }
+
+  function apply(){
+    const term = (q.value || '').trim().toLowerCase();
+    let visible = 0;
+
+    cards.forEach(el => {
+      const type = el.dataset.type;
+      const hay  = el.dataset.search || '';
+      const okType = (mode === 'all') || (mode === type);
+      const okText = !term || hay.includes(term);
+
+      const show = okType && okText;
+      el.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    if (kpiVisible) kpiVisible.textContent = String(visible);
+  }
+
+  pillAll.addEventListener('click', () => { mode='all'; setPill(pillAll); apply(); });
+  pillMain.addEventListener('click', () => { mode='main'; setPill(pillMain); apply(); });
+  pillSub.addEventListener('click', () => { mode='sub'; setPill(pillSub); apply(); });
+
+  q.addEventListener('input', apply);
+
+  btnClear.addEventListener('click', () => {
+    q.value = '';
+    q.focus();
+    apply();
+  });
+
+  btnReset.addEventListener('click', () => {
+    mode = 'all';
+    setPill(pillAll);
+    q.value = '';
+    apply();
+  });
+
+  apply();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,3464 @@
+{# templates/administrateur/session/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Session {{ session.code }}{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
+<link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  --bg:#f5f7fb;
+  --panel:#ffffff;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --stroke: rgba(15, 23, 42, .10);
+  --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+  --radius: 18px;
+}
+
+
+.hero{
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,.14);
+  background:
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  opacity:.85;
+}
+.hero .accent{
+  width: 12px;
+  border-radius: 999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+}
+.hero .chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.32rem .7rem;
+  border-radius:999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size:.82rem;
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.hero .chip i{ color: var(--theme-color-secondaire); }
+.hero .chip--pill{
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+  color:#fff;
+}
+.hero .btn{ border-radius: 14px; font-weight: 800; }
+.hero .btn-outline-theme{
+  border-color: rgba(255,255,255,.35);
+  color:#fff;
+}
+.hero .btn-outline-theme:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  color:#fff;
+}
+
+body{ overflow-x:hidden; }
+.cardx, .doc-mini, .accordion, .accordion-item{ min-width:0; }
+
+/* ===== Premium Card ===== */
+.cardx{
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(15,23,42,.08);
+  overflow:hidden;
+}
+.cardx-h{
+  padding: .95rem 1.05rem;
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+  border-bottom: 1px solid var(--stroke);
+}
+.cardx-title{
+  margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+  display:flex; align-items:center; gap:.6rem;
+}
+.cardx-sub{
+  margin:.15rem 0 0;
+  color: var(--muted);
+  font-size:.9rem;
+}
+
+/* chips / badges premium */
+.chip{
+  font-size:.78rem; padding:.3rem .6rem; border-radius:999px;
+  border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+  background: color-mix(in srgb, var(--theme-color-principal) 9%, transparent);
+  color: var(--ink);
+  white-space:nowrap;
+}
+.badge-soft{
+  border-radius:999px;
+  padding:.35rem .65rem;
+  border:1px solid var(--stroke);
+  background: rgba(255,255,255,.65);
+  color: var(--ink);
+}
+
+/* ===== Accordion premium ===== */
+.premium-accordion .premium-item{
+  border:1px solid var(--stroke);
+  border-radius: 20px;
+  overflow:hidden;
+  margin-bottom:.85rem;
+  background: rgba(255,255,255,.86);
+  box-shadow: 0 10px 28px rgba(15,23,42,.06);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.premium-accordion .premium-item:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 18px 46px rgba(15,23,42,.10);
+  border-color: color-mix(in srgb, var(--theme-color-principal) 20%, var(--stroke));
+}
+.premium-accordion .accordion-button{
+  padding: 1rem 1.1rem;
+  background: transparent;
+  box-shadow:none !important;
+}
+.premium-accordion .accordion-button::after{
+  opacity:.65;
+  transform: scale(.92);
+}
+.premium-accordion .accordion-button:not(.collapsed){
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.012), transparent),
+    radial-gradient(800px 240px at 20% 0%, color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent), transparent 60%);
+}
+
+/* header stagiaire */
+.stag-head{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  width:100%;
+}
+.stag-left{
+  display:flex; align-items:center; gap:.85rem;
+}
+.stag-avatar{
+  width:44px;height:44px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--stroke);
+  background: color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent);
+  color: color-mix(in srgb, var(--theme-color-secondaire) 95%, #000);
+  flex:0 0 auto;
+}
+.stag-name{
+  font-weight: 900;
+  line-height:1.1;
+}
+.stag-meta{
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+/* pills stats */
+.pill{
+  border-radius:999px;
+  padding:.45rem .75rem;
+  border:1px solid var(--stroke);
+  display:inline-flex;
+  align-items:center;
+  gap:.4rem;
+  background: rgba(255,255,255,.7);
+  font-weight:700;
+  font-size:.82rem;
+}
+.pill-ok{
+  background: rgba(16,185,129,.10);
+}
+.pill-wait{
+  background: rgba(245,158,11,.12);
+}
+.pill-danger{
+  background: rgba(239,68,68,.10);
+}
+
+/* actions header */
+.stag-actions{
+  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; justify-content:flex-end;
+}
+.btn-soft{
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.75);
+}
+.btn-soft:hover{ background: rgba(255,255,255,.95); }
+
+/* ===== Grid pièces ===== */
+.docs-mini-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: .85rem;
+}
+@media (min-width: 992px){
+  .docs-mini-grid{ grid-template-columns: 1fr 1fr; }
+}
+.doc-mini{
+  border:1px solid var(--stroke);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+  padding: .95rem;
+  display:flex;
+  gap:.9rem;
+  align-items:flex-start;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.doc-mini:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(15,23,42,.10);
+  border-color: color-mix(in srgb, var(--theme-color-principal) 22%, var(--stroke));
+}
+.doc-ico{
+  width: 44px; height: 44px;
+  border-radius: 16px;
+  display:flex; align-items:center; justify-content:center;
+  border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 26%, var(--stroke));
+  background: color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent);
+  flex: 0 0 auto;
+}
+.doc-main{ flex:1 1 auto; min-width:0; }
+.doc-title{
+  font-weight: 900;
+  margin: 0;
+  color: var(--ink);
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  flex-wrap:wrap;
+}
+.doc-meta{
+  margin-top: .3rem;
+  color: var(--muted);
+  font-size: .9rem;
+  display:flex;
+  gap:.85rem;
+  flex-wrap:wrap;
+}
+.doc-actions{
+  flex: 0 0 auto;
+  display:flex;
+  gap:.45rem;
+  align-items:center;
+}
+.doc-actions .btn{ border-radius: 14px; }
+
+/* empty */
+.empty-docs{
+  display:flex;
+  align-items:center;
+  gap: .9rem;
+  padding: 1.05rem;
+  border-radius: 18px;
+  border: 1px dashed var(--stroke);
+  background:
+    radial-gradient(900px 240px at 15% 0%, color-mix(in srgb, var(--theme-color-principal) 10%, transparent), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,.7), rgba(255,255,255,.55));
+}
+.empty-ico{
+  width: 46px; height: 46px;
+  border-radius: 16px;
+  display:flex; align-items:center; justify-content:center;
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 28%, var(--stroke));
+  flex: 0 0 auto;
+}
+
+
+
+
+
+
+
+.badge-status{
+  font-size: .75rem;
+  border-radius: 999px;
+  padding: .25rem .6rem;
+}
+.card-session{
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+}
+.card-session .card-header{
+  border-bottom: 1px solid #e2e8f0;
+}
+.avatar{
+  width:48px;height:48px;border-radius:999px;object-fit:cover;
+}
+.table-sm td, .table-sm th{
+  padding:.35rem .5rem;
+}
+#session-map{
+  width:100%;height:260px;border-radius:12px;
+}
+.timeline{
+  border-left:2px solid #e2e8f0;
+  padding-left:1rem;
+}
+.timeline-item{
+  position:relative;
+  margin-bottom:.75rem;
+}
+.timeline-item::before{
+  content:'';
+  position:absolute;
+  left:-11px;
+  top:3px;
+  width:10px;height:10px;
+  background:var(--theme-color-secondaire);
+  border-radius:999px;
+}
+
+.session-meta{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:.75rem;
+}
+@media (min-width: 768px){
+  .session-meta{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+.session-meta-item{
+  padding:.6rem .8rem;
+  border-radius:.75rem;
+  background: #f8fafc;
+  border:1px solid #e2e8f0;
+}
+.session-meta-label{
+  font-size:.75rem;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:#64748b;
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+  margin-bottom:.15rem;
+}
+.session-meta-value{
+  font-weight:500;
+  color:#0f172a;
+}
+
+/* timeline plus lisible */
+.timeline-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:.1rem;
+}
+.timeline-badge{
+  font-size:.7rem;
+  border-radius:999px;
+  padding:.1rem .5rem;
+  background:#e2e8f0;
+  color:#475569;
+}
+.timeline-date{
+  font-size:.8rem;
+  font-weight:500;
+}
+
+/* carte formateur */
+.trainer-card{
+  align-items:center;
+}
+.trainer-meta{
+  font-size:.85rem;
+}
+.trainer-meta .badge{
+  font-size:.7rem;
+}
+
+/* lieu de formation */
+.site-header-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+}
+.site-name{
+  font-weight:600;
+}
+.site-address{
+  font-size:.85rem;
+  color:#475569;
+}
+
+.map-frame{
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.map-frame iframe{
+  display:block;
+  width:100%;
+  height:240px;
+  border:0;
+}
+@media (max-width: 576px){
+  .map-frame iframe{ height: 220px; }
+}
+.travel-badges .badge{ border-radius:999px; }
+
+
+
+
+.docs-pill-ok{
+  border:1px solid var(--stroke);
+  background: rgba(16,185,129,.12);
+  color: var(--ink);
+}
+.docs-pill-wait{
+  border:1px solid var(--stroke);
+  background: rgba(245,158,11,.14);
+  color: var(--ink);
+}
+
+.empty-docs{
+  display:flex;
+  align-items:center;
+  gap: .9rem;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px dashed var(--stroke);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 7%, transparent), transparent);
+}
+.empty-ico{
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  display:flex; align-items:center; justify-content:center;
+  background: color-mix(in srgb, var(--theme-color-secondaire) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 28%, var(--stroke));
+  flex: 0 0 auto;
+}
+.empty-ico i{ color: color-mix(in srgb, var(--theme-color-secondaire) 95%, #000); font-size: 1.15rem; }
+
+.docs-mini-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: .75rem;
+}
+
+.doc-mini{
+  border:1px solid var(--stroke);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+  padding: .85rem;
+  display:flex;
+  gap:.85rem;
+  align-items:flex-start;
+}
+
+.doc-mini .doc-ico{
+  width: 42px; height: 42px;
+  border-radius: 14px;
+  display:flex; align-items:center; justify-content:center;
+  background: color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 26%, var(--stroke));
+  flex: 0 0 auto;
+}
+.doc-mini .doc-ico i{
+  color: color-mix(in srgb, var(--theme-color-secondaire) 95%, #000);
+}
+
+.doc-mini .doc-main{ flex:1 1 auto; min-width:0; }
+.doc-mini .doc-title{
+  font-weight: 900;
+  margin: 0;
+  color: var(--ink);
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  flex-wrap:wrap;
+}
+.doc-mini .doc-meta{
+  margin-top: .25rem;
+  color: var(--muted);
+  font-size: .9rem;
+  display:flex;
+  gap:.75rem;
+  flex-wrap:wrap;
+}
+
+.doc-mini .doc-actions{
+  flex: 0 0 auto;
+  display:flex;
+  gap:.35rem;
+  align-items:center;
+}
+.doc-mini .doc-actions .btn{
+  border-radius: 12px;
+}
+
+@media (min-width: 992px){
+  .docs-mini-grid{
+    grid-template-columns: 1fr 1fr; /* 2 colonnes desktop */
+  }
+}
+
+
+.doc-mini{
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.doc-mini:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 35px rgba(15,23,42,.10);
+  border-color: color-mix(in srgb, var(--theme-color-principal) 22%, var(--stroke));
+}
+
+
+
+
+.premium-accordion .premium-item{
+  border:1px solid var(--stroke);
+  border-radius: 18px;
+  overflow:hidden;
+  margin-bottom:.8rem;
+  box-shadow: 0 10px 28px rgba(15,23,42,.06);
+}
+.premium-accordion .premium-btn{
+  background:
+    radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.14), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.010), transparent);
+}
+.stag-avatar{
+  width:42px;height:42px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--stroke);
+  background: color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent);
+}
+
+
+
+/* ===== Confirm modal (premium) ===== */
+.confirmx{
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 28px 80px rgba(15,23,42,.20);
+  background:
+    radial-gradient(900px 220px at 10% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.86));
+  backdrop-filter: blur(10px);
+}
+
+.confirmx-ico{
+  width: 46px; height: 46px;
+  border-radius: 16px;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(239,68,68,.10);
+  border: 1px solid rgba(239,68,68,.18);
+  color: rgba(239,68,68,.95);
+  flex: 0 0 auto;
+}
+
+.confirmx-title{
+  font-weight: 950;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.confirmx-sub{
+  color: var(--muted);
+  font-size: .92rem;
+  margin-top: .15rem;
+}
+
+.confirmx-card{
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: 1rem;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+}
+
+.confirmx-pill{
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.65);
+  color: var(--ink);
+  padding: .38rem .65rem;
+}
+
+.modal-backdrop.show{ opacity:.55; }
+
+
+
+
+
+</style>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs5/jszip-2.5.0/dt-1.10.25/b-1.7.1/b-html5-1.7.1/b-print-1.7.1/date-1.1.1/fh-3.1.9/r-2.2.9/rg-1.1.3/sc-2.0.4/sp-1.3.0/datatables.min.js"></script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+{% endblock %}
+
+{% block body %}
+
+
+<div class="hero p-3 mb-4 d-flex gap-3">
+  <div class="accent"></div>
+
+  <div class="flex-grow-1">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+      <div>
+        <h2 class="m-0 fw-bold">
+          <i class="fa fa-calendar text-theme-secondaire me-2"></i>
+          {{ session.formation ? session.formation.titre : session.formationIntituleLibre }}
+        </h2>
+
+          <div class="opacity-75 mt-1">ID Session : {{ session.code }} - Site : {{ session.site ? session.site.nom : '-' }}</div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <span class="chip"><i class="bi bi-easel2"></i> Sessions</span>
+          <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+          <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">-</span></span>
+        </div>
+      </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ path('app_administrateur_session_index', {entite: entite.id}) }}" class="btn btn-outline-light btn-sm fw-semibold">
+            <i class="fa fa-arrow-left"></i> Retour
+          </a>
+          <a href="{{ path('app_administrateur_session_modifier', {entite: entite.id, id: session.id}) }}"
+            class="btn btn-light btn-sm fw-semibold">
+            <i class="fa fa-pen"></i> Modifier
+          </a>
+        </div>
+    </div>
+  </div>
+</div>
+
+
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ================== LIGNE DE RÉSUMÉ ================== #}
+  <div class="row g-3 mb-4">
+    {# INFOS SESSION #}
+    <div class="col-md-4">
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <span>
+            <i class="fa fa-info-circle text-theme-secondaire me-2"></i> Infos session
+          </span>
+          <span class="badge badge-status bg-light text-dark">
+            {{ session.status ? session.status.label : '-' }}
+          </span>
+        </div>
+        <div class="p-3 p-md-3">
+
+          {# calcul min/max #}
+          {% set min = null %}
+          {% set max = null %}
+          {% for j in session.jours %}
+            {% if min is null or j.dateDebut < min %}{% set min = j.dateDebut %}{% endif %}
+            {% if max is null or j.dateFin > max %}{% set max = j.dateFin %}{% endif %}
+          {% endfor %}
+
+          <div class="session-meta">
+            <div class="session-meta-item">
+              <div class="session-meta-label">
+                <i class="fa fa-graduation-cap text-theme-secondaire"></i>
+                Formation
+              </div>
+              <div class="session-meta-value">
+                {{ session.formation ? session.formation.titre : session.formationIntituleLibre }}
+              </div>
+            </div>
+
+            <div class="session-meta-item">
+              <div class="session-meta-label">
+                <i class="fa fa-users text-theme-secondaire"></i>
+                Capacité
+              </div>
+              <div class="session-meta-value">
+                {{ session.capacite }} place{{ session.capacite > 1 ? 's' : '' }}
+              </div>
+            </div>
+
+            <div class="session-meta-item">
+              <div class="session-meta-label">
+                <i class="fa fa-calendar-day text-theme-secondaire"></i>
+                Période
+              </div>
+              <div class="session-meta-value">
+                {% if min and max %}
+                  {{ min|date('d/m/Y H:i') }} <br />au<br /> {{ max|date('d/m/Y H:i') }}<br>
+                  <span class="text-muted small">
+                    {{ session.jours|length }} jour{{ session.jours|length > 1 ? 's' : '' }} planifié{{ session.jours|length > 1 ? 's' : '' }}
+                  </span>
+                {% else %}
+                  <span class="text-muted">Non planifiée</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="session-meta-item">
+              <div class="session-meta-label">
+                <i class="fa fa-euro-sign text-theme-secondaire"></i>
+                Tarif
+              </div>
+              <div class="session-meta-value">
+                {% set tarif = session.tarifEffectifCents() %}
+                {% if tarif %}
+                  {{ (tarif/100)|number_format(2, ',', ' ') }} € TTC
+                  <div class="small text-muted">par stagiaire</div>
+                {% else %}
+                  <span class="text-muted small">Utilise le prix de base de la formation</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cardx">
+        <div class="cardx-h">
+        <span>
+          <i class="fa fa-location-dot text-theme-secondaire me-2"></i> Lieu de formation
+        </span>
+        </div>
+        <div class="p-3 p-md-4">
+          {% if session.site %}
+            <div class="site-header-line mb-2">
+              <div class="site-name">{{ session.site.nom }}</div>
+              {% if session.site.ville %}
+                <span class="badge bg-light text-dark">{{ session.site.ville }}</span>
+              {% endif %}
+            </div>
+
+            <div class="site-address mb-3">
+              {% if session.site.adresse %}{{ session.site.adresse }}<br>{% endif %}
+              {% if session.site.codePostal or session.site.ville %}
+                {{ session.site.codePostal }} {{ session.site.ville }}<br>
+              {% endif %}
+              {% if session.site.region or session.site.pays %}
+                {{ session.site.region }} {{ session.site.pays }}
+              {% endif %}
+            </div>
+
+            <div id="session-map"></div>
+          {% else %}
+            <p class="text-muted mb-0">Aucun site associé.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+
+    {# PLANNING / EMARGEMENTS #}
+    <div class="col-lg-4">
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <span>
+            <i class="fa fa-clock text-theme-secondaire me-2"></i> Planning & émargements
+          </span>
+          
+        </div>
+        <div class="p-3 p-md-4">
+          {% if session.jours|length > 0 %}
+            <div class="timeline">
+              {% for j in session.jours %}
+                {% set totalEmarg = 0 %}
+                  {% set signedEmarg = 0 %}
+                  {% set dayKey = j.dateDebut|date('Y-m-d') %}
+
+                  {% for e in session.emargements %}
+                    {% if e.dateJour and e.dateJour|date('Y-m-d') == dayKey %}
+                      {% set totalEmarg = totalEmarg + 1 %}
+
+                      {% set isSigned =
+                        (e.signedAt is not null)
+                        or (e.signatureDataUrl is defined and e.signatureDataUrl)
+                        or (e.signaturePath is defined and e.signaturePath)
+                      %}
+
+                      {% if isSigned %}
+                        {% set signedEmarg = signedEmarg + 1 %}
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+
+
+                <div class="timeline-item">
+                  <div class="timeline-header">
+                    <span class="timeline-badge">Jour {{ loop.index }}</span>
+                    <span class="small text-muted">{{ j.dateDebut|date('d/m/Y') }}</span>
+                  </div>
+                  <div class="timeline-date">
+                    <i class="fa fa-clock me-1 text-theme-secondaire"></i>
+                    {{ j.dateDebut|date('H:i') }} → {{ j.dateFin|date('H:i') }}
+                  </div>
+                  <div class="small text-muted mt-1">
+                    Émargements :
+                    {% if totalEmarg > 0 %}
+                      {% if signedEmarg == totalEmarg %}
+                        <span class="text-success">
+                          <i class="fa fa-check-circle me-1"></i>{{ signedEmarg }}/{{ totalEmarg }} signé(s)
+                        </span>
+                      {% else %}
+                        <span class="text-warning">
+                          <i class="fa fa-pen-nib me-1"></i>{{ signedEmarg }}/{{ totalEmarg }} signé(s)
+                        </span>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </div>
+
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">Aucune journée planifiée pour le moment.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# FORMATEUR + LIEU #}
+    <div class="col-md-4">
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <span><i class="fa fa-user-tie text-theme-secondaire me-2"></i> Formateur(s)</span>
+          {% if session.formateur %}
+            <span class="badge bg-light text-dark">Référent :
+              {{ session.formateur.utilisateur ? session.formateur.utilisateur.prenom ~ ' ' ~ session.formateur.utilisateur.nom : '-' }}
+            </span>
+          {% endif %}
+        </div>
+
+        <div class="p-3 p-md-2">
+          {% if formateursSession is defined and formateursSession|length > 0 %}
+            <ul class="list-group list-group-flush">
+              {% for f in formateursSession %}
+                {% set u = f.utilisateur %}
+                {% set contrat = contratsByFormateur[f.id] ?? null %}
+                {% set travel = travelByFormateurId[f.id] ?? null %}
+
+
+                <li class="list-group-item">
+                  <div class="d-flex align-items-center justify-content-between trainer-card">
+                    <div class="d-flex align-items-center">
+                      <img class="avatar me-3"
+                          src="{{ u and u.photo ? asset('uploads/photos/utilisateur/' ~ u.photo) : 'https://via.placeholder.com/96x96?text=F' }}"
+                          alt="Photo formateur">
+
+                      <div class="trainer-meta">
+                        <h6 class="mb-1">
+                          {{ u ? u.prenom ~ ' ' ~ u.nom : 'Formateur #' ~ f.id }}
+                          {% if session.formateur and f.id == session.formateur.id %}
+                            <span class="badge bg-theme-tertiaire text-dark ms-2">Référent</span>
+                          {% endif %}
+                        </h6>
+
+                        {% if u %}
+                          <div class="text-muted mb-1">
+                            {{ u.email }}<br>
+                            {{ u.telephone ?: '' }}
+                          </div>
+                        {% endif %}
+
+                        {% if f.certifications %}
+                          <div class="small mb-1">
+                            <span class="fw-semibold d-block mb-1">Certifications</span>
+                            <span>{{ f.certifications }}</span>
+                          </div>
+                        {% endif %}
+
+                        <div class="small text-muted mt-1">
+                          {{ session.getNombreJoursPourFormateur(f) }} jour(s) d’intervention -
+                          {{ session.getNombreHeuresPourFormateur(f)|number_format(1, ',', ' ') }} h
+                        </div>
+                        
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="text-center mt-2">
+                    <div class="btn-group btn-group-sm" role="group">
+                      <a href="{{ path('app_administrateur_session_contrat_formateur', { entite: entite.id, id: session.id, formateur: f.id }) }}"
+                        class="btn btn-outline-primary"
+                        title="{{ contrat ? 'Regénérer le contrat formateur (PDF mis à jour)' : 'Créer un nouveau contrat pré-rempli' }}">
+                        <i class="fa fa-file-signature"></i>
+                        {{ contrat ? 'Regénérer le contrat' : 'Préparer un contrat' }}
+                      </a>
+
+                      {% if contrat %}
+                        <a href="{{ path('app_administrateur_formateurs_contrats_edit', { entite: entite.id, id: contrat.id }) }}"
+                          class="btn btn-outline-secondary"
+                          title="Modifier les informations du contrat">
+                          <i class="fa fa-pen"></i>
+                        </a>
+                      {% endif %}
+
+                      {% if contrat and contrat.pdfPath %}
+                        <a href="{{ asset(contrat.pdfPath) }}"
+                          class="btn btn-outline-success"
+                          target="_blank"
+                          title="Voir le contrat PDF">
+                          <i class="fa fa-file-pdf"></i>
+                        </a>
+                      {% endif %}
+                    </div>
+
+                    {% if contrat %}
+                      <div class="small text-muted mt-1">
+                        Contrat n° {{ contrat.numero }}<br>
+                        {{ contrat.status.label }}
+                      </div>
+                    {% endif %}
+                  </div>
+
+                {% if travel %}
+                    <div class="mt-3 p-3 rounded-4 border" style="background:#f8fafc; border-color:#e2e8f0!important;">
+                      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                          <div class="fw-semibold">
+                            <i class="fa fa-route text-theme-secondaire me-1"></i>
+                            Itinéraire formateur → site
+                          </div>
+                          <div class="small text-muted">
+                            {{ travel.originAddress ?: 'Adresse formateur non renseignée' }}
+                            <br>
+                            → {{ travel.destAddress ?: 'Adresse site non renseignée' }}
+                          </div>
+
+                          <div class="travel-badges mt-2 d-flex gap-2 flex-wrap">
+                            {% if travel.distanceText %}
+                              <span class="badge text-bg-light">{{ travel.distanceText }}</span>
+                            {% endif %}
+                            {% if travel.durationText %}
+                              <span class="badge text-bg-light">{{ travel.durationText }}</span>
+                            {% endif %}
+                            {% if travel.costText %}
+                              <span class="badge text-bg-light">
+                                Frais estimés : <strong>{{ travel.costText }}</strong>
+                                <span class="text-muted">({{ kmRate|number_format(2, ',', ' ') }} €/km)</span>
+                              </span>
+                            {% endif %}
+                          </div>
+
+                          {% if travel.gmapsError %}
+                            <div class="small text-muted mt-2">
+                              <i class="fa fa-triangle-exclamation me-1"></i>
+                              {{ travel.gmapsError }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <div class="mt-3 map-frame">
+                        {% if travel.gmapsEmbedUrl %}
+                          <iframe src="{{ travel.gmapsEmbedUrl }}"
+                                  loading="lazy"
+                                  referrerpolicy="no-referrer-when-downgrade"
+                                  allowfullscreen></iframe>
+                        {% else %}
+                          <div class="text-muted small p-3">
+                            <i class="fa fa-info-circle me-1"></i>
+                            Carte indisponible (clé navigateur manquante ou adresses incomplètes).
+                          </div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted mb-0">Aucun formateur associé à cette session.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      
+    </div>
+  </div>
+
+  {# --- Statistiques globales dossiers / pièces obligatoires --- #}
+  {% set piecesObligGlobal = session.piecesObligatoires|default([]) %}
+  {% set totalIns = session.inscriptions|length %}
+  {% set dossiersNonRequis = 0 %}
+  {% set dossiersNonCrees = 0 %}
+  {% set dossiersComplets = 0 %}
+  {% set dossiersIncomplets = 0 %}
+
+  {% for ins in session.inscriptions %}
+    {% if piecesObligGlobal is empty %}
+      {% set dossiersNonRequis = dossiersNonRequis + 1 %}
+    {% else %}
+      {% if ins.dossier is null %}
+        {% set dossiersNonCrees = dossiersNonCrees + 1 %}
+      {% else %}
+        {% set manquantes = ins.piecesManquantes is defined ? ins.piecesManquantes : ins.dossier.getPiecesManquantesPourSession(session) %}
+        {% if manquantes is empty %}
+          {% set dossiersComplets = dossiersComplets + 1 %}
+        {% else %}
+          {% set dossiersIncomplets = dossiersIncomplets + 1 %}
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% set inscriptionsAvecPieces = totalIns - dossiersNonRequis %}
+  {% set pourcentageComplets = inscriptionsAvecPieces > 0 ? (dossiersComplets / inscriptionsAvecPieces * 100) : 0 %}
+
+  {# ================== PARTICIPANTS / DOSSIERS ================== #}
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <span><i class="fa fa-users text-theme-secondaire me-2"></i> Participants</span>
+          <div class="text-end small">
+            <div>{{ totalIns }} inscrit(s) / {{ session.capacite }} places</div>
+
+            {% if piecesObligGlobal is not empty and inscriptionsAvecPieces > 0 %}
+              <div class="mt-1">
+                <div class="d-flex justify-content-between mb-1">
+                  <span class="text-muted">Dossiers complets</span>
+                  <span class="fw-semibold">{{ dossiersComplets }}/{{ inscriptionsAvecPieces }}</span>
+                </div>
+                <div class="progress" style="height:6px;">
+                  <div class="progress-bar bg-success"
+                      role="progressbar"
+                      style="width: {{ pourcentageComplets|round(0, 'floor') }}%;"
+                      aria-valuenow="{{ pourcentageComplets|round(0, 'floor') }}"
+                      aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="text-muted mt-1">
+                  <span class="me-2">{{ dossiersIncomplets }} dossier(s) incomplet(s)</span>
+                  <span class="me-2">{{ dossiersNonCrees }} dossier(s) non créé(s)</span>
+                </div>
+              </div>
+            {% else %}
+              <div class="text-muted mt-1">Aucune pièce obligatoire définie pour cette session.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card-body p-0">
+          {% if session.inscriptions|length > 0 %}
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:36px">
+                      <input class="form-check-input" type="checkbox" id="bulkAll">
+                    </th>
+                    <th>Stagiaire</th>
+                    <th>Entreprise</th>
+                    <th>Statut</th>
+                    <th>Assiduité</th>
+                    <th>Convention</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+
+
+                <tbody>
+                  {% for ins in session.inscriptions %}
+                    {% set s = ins.stagiaire %}
+                    {% set mode = ins.modeFinancement ?? ins.mode ?? null %}
+                    {% set entreprise = ins.entreprise ?? null %}
+
+                    {# IMPORTANT : Inscription n'a PAS "convention". On la retrouve via session.conventionContrats + entreprise #}
+                    {% set conv = (entreprise and conventionsByEntrepriseId[entreprise.id] is defined) ? conventionsByEntrepriseId[entreprise.id] : null %}
+
+
+
+                    <tr>
+                      <td>
+                        <input class="form-check-input bulk-one"
+                              type="checkbox"
+                              value="{{ ins.id }}"
+                              data-entreprise-id="{{ ins.entreprise ? ins.entreprise.id : '' }}">
+                      </td>
+
+                      <td>
+                        {% if s %}
+                          <strong>{{ s.prenom }} {{ s.nom }}</strong><br>
+                          <span class="text-muted small">{{ s.email }}</span>
+                          {% if entreprise and entreprise.raisonSociale %}
+                            <div class="small text-muted mt-1">
+                              <i class="fa fa-building me-1"></i>{{ entreprise.raisonSociale }}
+                            </div>
+                          {% endif %}
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if entreprise %}
+                          <div class="fw-semibold">{{ entreprise.raisonSociale ?: '-' }}</div>
+                          <div class="small text-muted">
+                            {% if entreprise.siret %}SIRET : {{ entreprise.siret }}{% endif %}
+                          </div>
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+
+                      <td>
+                        <span class="badge bg-light text-dark">
+                          {{ ins.status ? ins.status.label : '-' }}
+                        </span>
+                      </td>
+
+                      <td>
+                        {% if ins.tauxAssiduite is not null %}
+                          {{ ins.tauxAssiduite|number_format(0, ',', ' ') }}%
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+
+                      <td>
+                        {% set entreprise = ins.entreprise ?? null %}
+                        {% set stagiaire  = ins.stagiaire ?? null %}
+                        {% set mode       = ins.modeFinancement ?? ins.mode ?? null %}
+
+                        {# retrouver la convention (entreprise OU stagiaire) #}
+                        {% set conv = null %}
+                        {% if entreprise and conventionsByEntrepriseId[entreprise.id] is defined %}
+                          {% set conv = conventionsByEntrepriseId[entreprise.id] %}
+                        {% elseif stagiaire and conventionsByStagiaireId[stagiaire.id] is defined %}
+                          {% set conv = conventionsByStagiaireId[stagiaire.id] %}
+                        {% endif %}
+
+                        {# si mode non renseigné #}
+                        {% if mode is null %}
+                          <span class="text-muted small">-</span>
+
+                        {# cas convention entreprise requise #}
+                        {% elseif mode.requiresConvention() %}
+                          {% if entreprise is null %}
+                            <span class="badge bg-warning-subtle text-warning" title="Le mode de financement nécessite une entreprise.">
+                              <i class="fa fa-building me-1"></i> Entreprise requise
+                            </span>
+                          {% else %}
+                            {% if conv %}
+                              {% set isSigned =
+                                (conv.signatureDataUrlStagiaire is defined and conv.signatureDataUrlStagiaire)
+                                or (conv.signatureDataUrlEntreprise is defined and conv.signatureDataUrlEntreprise)
+                                or (conv.dateSignatureOf is defined and conv.dateSignatureOf)
+                              %}
+
+                              <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
+                                  class="btn {{ isSigned ? 'btn-outline-success' : 'btn-outline-warning' }}"
+                                  title="{{ isSigned ? 'Convention signée' : 'Convention à signer' }}">
+                                  <i class="fa {{ isSigned ? 'fa-check-circle' : 'fa-pen-nib' }}"></i>
+                                  {{ isSigned ? 'Signée' : 'À signer' }}
+                                </a>
+
+                                <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
+                                  class="btn btn-outline-secondary" title="Ouvrir">
+                                  <i class="fa fa-eye"></i>
+                                </a>
+
+                                {% if conv.pdfPath %}
+                                  <a href="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: conv.id }) }}"
+                                    class="btn btn-outline-primary" target="_blank" title="PDF">
+                                    <i class="fa fa-file-pdf"></i>
+                                  </a>
+                                {% else %}
+                                  <form method="post"
+                                        action="{{ path('app_administrateur_convention_generate_pdf', { entite: entite.id, id: conv.id }) }}"
+                                        class="d-inline"
+                                        onsubmit="return confirm('Générer le PDF de cette convention ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('genpdf' ~ conv.id) }}">
+                                    <button class="btn btn-outline-primary" type="submit" title="Générer PDF">
+                                      <i class="fa fa-gears"></i>
+                                    </button>
+                                  </form>
+                                {% endif %}
+                              </div>
+                            {% else %}
+                              <a href="{{ path('app_administrateur_convention_from_inscription', { entite: entite.id, id: ins.id }) }}"
+                                class="btn btn-outline-primary btn-sm">
+                                <i class="fa fa-file-contract"></i> Préparer
+                              </a>
+                            {% endif %}
+                          {% endif %}
+
+                        {# cas contrat stagiaire (financement individuel) #}
+                        {% elseif mode.requiresContratStagiaire() %}
+                          {% if conv %}
+                            {% set isSigned =
+                              (conv.signatureDataUrlStagiaire is defined and conv.signatureDataUrlStagiaire)
+                              or (conv.dateSignatureOf is defined and conv.dateSignatureOf)
+                            %}
+
+                            <div class="btn-group btn-group-sm" role="group">
+                              <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
+                                class="btn {{ isSigned ? 'btn-outline-success' : 'btn-outline-warning' }}">
+                                <i class="fa {{ isSigned ? 'fa-check-circle' : 'fa-pen-nib' }}"></i>
+                                {{ isSigned ? 'Signé' : 'À signer' }}
+                              </a>
+
+                              <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
+                                class="btn btn-outline-secondary" title="Ouvrir">
+                                <i class="fa fa-eye"></i>
+                              </a>
+                            </div>
+                          {% else %}
+                            <a href="{{ path('app_administrateur_convention_from_inscription', { entite: entite.id, id: ins.id }) }}"
+                              class="btn btn-outline-primary btn-sm">
+                              <i class="fa fa-file-contract"></i> Préparer
+                            </a>
+                          {% endif %}
+
+                        {% else %}
+                          <span class="text-muted small">-</span>
+                        {% endif %}
+                      </td>
+
+
+
+
+
+                      <td class="text-end">
+                        <div class="btn-group btn-group-sm" role="group">
+                          <a href="{{ path('app_administrateur_inscription_show', {entite: entite.id, id: ins.id}) }}"
+                             class="btn btn-outline-secondary"
+                             title="Voir l’inscription">
+                            <i class="fa fa-eye"></i>
+                          </a>
+                          <a href="{{ path('app_administrateur_inscription_edit', {entite: entite.id, id: ins.id}) }}"
+                             class="btn btn-outline-secondary"
+                             title="Modifier l’inscription">
+                            <i class="fa fa-pen"></i>
+                          </a>
+
+                          <a href="{{ path('app_administrateur_pdf_convocation', {entite: entite.id, id: ins.id}) }}"
+                             class="btn btn-outline-primary"
+                             title="Convocation PDF"
+                             target="_blank">
+                            <i class="fa fa-file-lines"></i>
+                          </a>
+
+                          {% if ins.attestation is defined and ins.attestation and ins.attestation.id is defined %}
+                            <a href="{{ path('app_administrateur_pdf_attestation', {entite: entite.id, id: ins.id}) }}"
+                               class="btn btn-outline-success"
+                               title="Attestation PDF"
+                               target="_blank">
+                              <i class="fa fa-file-circle-check"></i>
+                            </a>
+                          {% endif %}
+
+                          {% set statusValue = ins.status.value %}
+                          {% if statusValue not in ['termine', 'annule', 'absent'] %}
+                            <form id="close-ins-{{ ins.id }}"
+                                  method="post"
+                                  action="{{ path('app_administrateur_inscription_close', { entite: entite.id, id: ins.id }) }}"
+                                  class="d-none">
+                              <input type="hidden" name="_token" value="{{ csrf_token('close' ~ ins.id) }}">
+                            </form>
+
+                            <a href="#"
+                              class="btn btn-outline-success"
+                              title="Clôturer l’inscription (calculer l’assiduité)"
+                              onclick="event.preventDefault();
+                                        if (confirm('Clôturer cette inscription ? Le taux d’assiduité sera calculé et la réussite mise à jour.')) {
+                                          document.getElementById('close-ins-{{ ins.id }}').submit();
+                                        }">
+                              <i class="fa fa-flag-checkered"></i>
+                            </a>
+                          {% endif %}
+
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+
+              </table>
+            </div>
+          {% else %}
+            <p class="text-muted m-3">Aucun participant pour cette session.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+{# ================== DOCUMENTS STAGIAIRES (PREMIUM) ================== #}
+{% set requiredPiecesGlobal = session.piecesObligatoires|default([]) %}
+{% set uploadCsrf = csrf_token('stagiaire_piece_upload_' ~ session.id) %}
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="cardx">
+      <div class="cardx-h">
+        <div>
+          <h5 class="cardx-title">
+            <i class="fa fa-id-card text-warning"></i>
+            Documents stagiaires
+          </h5>
+          <div class="cardx-sub">Contrôle des pièces déposées et complétude du dossier par inscription.</div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+          <span class="chip">
+            <i class="fa fa-users me-1"></i> {{ inscriptionsAll|length }} inscription(s)
+          </span>
+          <span class="badge-soft">
+            <i class="fa fa-list-check me-1"></i> Pièces obligatoires : <strong>{{ requiredPiecesGlobal|length ?: '-' }}</strong>
+          </span>
+        </div>
+      </div>
+
+      <div class="p-3 p-md-4">
+        {% if inscriptionsAll is empty %}
+          <div class="empty-docs">
+            <div class="empty-ico"><i class="fa fa-users-slash"></i></div>
+            <div>
+              <div class="fw-bold">Aucun stagiaire</div>
+              <div class="text-muted small">Ajoute des inscriptions pour commencer.</div>
+            </div>
+          </div>
+        {% else %}
+
+          <div class="accordion premium-accordion" id="accStagPieces">
+            {% for ins in inscriptionsAll %}
+              {% set s = ins.stagiaire %}
+              {% set dossier = ins.dossier %}
+              {% set pieces = dossier ? dossier.pieces : [] %}
+
+              {% set nTotal = pieces|length %}
+              {% set nOk = pieces|filter(p => p.valide)|length %}
+              {% set nWait = nTotal - nOk %}
+
+              {% set missing = ins.piecesManquantes|default([]) %}
+              {% set dossierComplet = ins.dossierComplet|default(false) %}
+              {% set blockId = 'ins_' ~ ins.id %}
+
+              <div class="accordion-item premium-item">
+                <h2 class="accordion-header" id="h_{{ blockId }}">
+                  <button class="accordion-button collapsed" type="button"
+                          data-bs-toggle="collapse" data-bs-target="#c_{{ blockId }}"
+                          aria-expanded="false" aria-controls="c_{{ blockId }}">
+
+                    <span class="stag-head w-100">
+                      <span class="stag-left">
+                        <span class="stag-avatar"><i class="fa fa-user"></i></span>
+
+                        <span class="d-flex flex-column">
+                          <span class="stag-name">
+                            {{ s ? (s.prenom ~ ' ' ~ s.nom) : ('Stagiaire #' ~ ins.id) }}
+                          </span>
+                          <span class="stag-meta">
+                            <span class="me-2">Inscription n°{{ ins.id }} • {{ s and s.email ? s.email : '-' }}</span>
+                          </span>
+                        </span>
+                      </span>
+
+                      <span class="stag-actions">
+                        <span class="pill pill-ok js-ins-ok" data-ins="{{ ins.id }}">
+                          <i class="fa fa-check"></i> <span class="js-nok">{{ nOk }}</span> validé(s)
+                        </span>
+                        <span class="pill pill-wait js-ins-wait" data-ins="{{ ins.id }}">
+                          <i class="fa fa-hourglass"></i> <span class="js-nwait">{{ nWait }}</span> à valider
+                        </span>
+
+                        {% if requiredPiecesGlobal is not empty %}
+                          {% if dossierComplet %}
+                            <span class="pill pill-ok">
+                              <i class="fa fa-shield-check"></i> Dossier complet
+                            </span>
+                          {% else %}
+                            <span class="pill pill-danger"
+                                  title="{% if missing is not empty %}Manquantes : {{ missing|map(m => m.label)|join(', ') }}{% endif %}">
+                              <i class="fa fa-triangle-exclamation"></i> À compléter
+                            </span>
+                          {% endif %}
+                        {% endif %}
+
+                        <span class="btn btn-primary btn-sm fw-semibold js-upload-open"
+                              role="button" tabindex="0"
+                              data-inscription-id="{{ ins.id }}"
+                              data-stagiaire-label="{{ s ? (s.prenom ~ ' ' ~ s.nom)|e('html_attr') : ('Inscription #' ~ ins.id) }}"
+                              title="Ajouter une pièce">
+                          <i class="fa fa-plus me-1"></i> Ajouter
+                        </span>
+
+                        <a class="btn btn-soft btn-sm"
+                          href="{{ path('app_administrateur_inscription_show', {entite: entite.id, id: ins.id}) }}"
+                          title="Ouvrir la fiche inscription">
+                          <i class="fa fa-up-right-from-square"></i>
+                        </a>
+                      </span>
+                    </span>
+
+                  </button>
+                </h2>
+
+
+                <div id="c_{{ blockId }}" class="accordion-collapse collapse"
+                    aria-labelledby="h_{{ blockId }}" data-bs-parent="#accStagPieces">
+                  <div class="accordion-body">
+
+                    {% if pieces is empty %}
+                      <div class="empty-docs">
+                        <div class="empty-ico"><i class="fa fa-file-circle-xmark"></i></div>
+                        <div>
+                          <div class="fw-bold">Aucune pièce déposée</div>
+                          <div class="text-muted small">Le stagiaire peut déposer, ou tu peux ajouter via “Ajouter”.</div>
+                        </div>
+                      </div>
+                    {% else %}
+                      <div class="docs-mini-grid js-piece-grid" data-ins="{{ ins.id }}">
+                        {% for p in pieces %}
+                          <div class="doc-mini js-piece-card" data-piece-id="{{ p.id }}">
+                            <div class="doc-ico">
+                              {% if p.valide %}<i class="fa fa-check"></i>{% else %}<i class="fa fa-hourglass-half"></i>{% endif %}
+                            </div>
+
+                            <div class="doc-main">
+                              <div class="doc-title">
+                                <span class="badge badge-soft">{{ p.type.label() }}</span>
+
+                                {% if p.valide %}
+                                  <span class="badge rounded-pill bg-success-subtle text-success">
+                                    <i class="fa fa-check me-1"></i>Validé
+                                  </span>
+                                {% else %}
+                                  <span class="badge rounded-pill bg-warning-subtle text-warning">
+                                    <i class="fa fa-hourglass me-1"></i>À valider
+                                  </span>
+                                {% endif %}
+                              </div>
+
+                              <div class="doc-meta">
+                                <span><i class="fa fa-clock me-1"></i>{{ p.uploadedAt|date('d/m/Y H:i') }}</span>
+                                {% if p.commentaireControle %}
+                                  <span class="text-muted js-comment-span">
+                                    <i class="fa fa-comment-dots me-1"></i>{{ p.commentaireControle }}
+                                  </span>
+                                {% endif %}
+                              </div>
+                            </div>
+
+                            <div class="doc-actions">
+                              <button type="button"
+                                      class="btn btn-soft btn-sm js-stag-piece-open"
+                                      title="Voir / Contrôler"
+                                      data-piece-id="{{ p.id }}"
+                                      data-inscription-id="{{ ins.id }}"
+                                      data-piece-type="{{ p.type.label() }}"
+                                      data-piece-date="{{ p.uploadedAt|date('d/m/Y H:i') }}"
+                                      data-piece-valide="{{ p.valide ? '1' : '0' }}"
+                                      data-piece-comment="{{ p.commentaireControle|default('')|e('html_attr') }}"
+                                      data-view-url="{{ path('app_administrateur_session_stagiaire_piece_view', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                                      data-update-url="{{ path('app_administrateur_session_stagiaire_piece_update', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                                      data-download-url="{{ path('app_administrateur_session_stagiaire_piece_download', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                                      data-csrf="{{ csrf_token('upd_piece_' ~ p.id) }}">
+                                <i class="fa fa-eye"></i>
+                              </button>
+
+                              <a class="btn btn-outline-primary btn-sm"
+                                title="Télécharger"
+                                href="{{ path('app_administrateur_session_stagiaire_piece_download', {entite: entite.id, session: session.id, piece: p.id}) }}">
+                                <i class="fa fa-download"></i>
+                              </a>
+                            </div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+{# ================== DOCUMENTS SESSION (premium + modal) ================== #}
+{% set sessionPieces = session.pieces ?? [] %}
+{% set nTotal = sessionPieces|length %}
+{% set nOk = sessionPieces|filter(p => p.valide)|length %}
+{% set nWait = nTotal - nOk %}
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="cardx">
+      <div class="cardx-h">
+        <h5 class="cardx-title">
+          <i class="fa fa-folder-open text-warning"></i>
+          Documents session
+          {% if nTotal > 0 %}
+            <span class="chip ms-2">{{ nTotal }} doc(s)</span>
+          {% endif %}
+        </h5>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          {% if nTotal > 0 %}
+            <span class="badge rounded-pill px-3 py-2 docs-pill-ok">
+              <i class="fa fa-check me-1"></i>{{ nOk }} validé(s)
+            </span>
+            <span class="badge rounded-pill px-3 py-2 docs-pill-wait">
+              <i class="fa fa-hourglass me-1"></i>{{ nWait }} à valider
+            </span>
+          {% endif %}
+
+          <a class="btn btn-outline-primary btn-sm fw-semibold"
+            href="{{ path('app_administrateur_session_pieces_index', {entite: entite.id, session: session.id}) }}">
+            <i class="fa fa-gear me-1"></i> Gérer
+          </a>
+        </div>
+      </div>
+
+      <div class="p-3 p-md-4">
+
+        {% if nTotal == 0 %}
+          <div class="empty-docs">
+            <div class="empty-ico"><i class="fa fa-file-circle-xmark"></i></div>
+            <div class="empty-txt">
+              <div class="fw-bold">Aucun document déposé</div>
+              <div class="text-muted small">Ajoute des pièces depuis “Gérer” (upload + contrôle).</div>
+            </div>
+          </div>
+        {% else %}
+
+          <div class="docs-mini-grid">
+            {% for p in sessionPieces %}
+              <div class="doc-mini">
+                <div class="doc-ico">
+                  {% if p.valide %}
+                    <i class="fa fa-check"></i>
+                  {% else %}
+                    <i class="fa fa-hourglass-half"></i>
+                  {% endif %}
+                </div>
+
+                <div class="doc-main">
+                  <div class="doc-title">
+                    <span class="badge badge-soft">{{ p.type.label }}</span>
+
+                    {% if p.valide %}
+                      <span class="badge rounded-pill bg-success-subtle text-success">
+                        <i class="fa fa-check me-1"></i>Validé
+                      </span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-warning-subtle text-warning">
+                        <i class="fa fa-hourglass me-1"></i>À valider
+                      </span>
+                    {% endif %}
+                  </div>
+
+                  <div class="doc-meta">
+                    <span><i class="fa fa-clock me-1"></i>{{ p.uploadedAt|date('d/m/Y H:i') }}</span>
+                    {% if p.commentaireControle %}
+                      <span class="text-muted">
+                        <i class="fa fa-comment-dots me-1"></i>{{ p.commentaireControle }}
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="doc-actions">
+                  <button type="button"
+                          class="btn btn-outline-secondary btn-sm js-piece-open"
+                          title="Voir / Contrôler"
+                          data-piece-id="{{ p.id }}"
+                          data-piece-type="{{ p.type.label }}"
+                          data-piece-date="{{ p.uploadedAt|date('d/m/Y H:i') }}"
+                          data-piece-valide="{{ p.valide ? '1' : '0' }}"
+                          data-piece-comment="{{ p.commentaireControle|default('')|e('html_attr') }}"
+                          data-view-url="{{ path('app_administrateur_session_pieces_view', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                          data-update-url="{{ path('app_administrateur_session_pieces_update', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                          data-download-url="{{ path('app_administrateur_session_pieces_download', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                          data-csrf="{{ csrf_token('upd_session_piece_' ~ p.id) }}">
+                    <i class="fa fa-eye"></i>
+                  </button>
+
+                  <a class="btn btn-outline-primary btn-sm"
+                    title="Télécharger"
+                    href="{{ path('app_administrateur_session_pieces_download', {entite: entite.id, session: session.id, piece: p.id}) }}">
+                    <i class="fa fa-download"></i>
+                  </a>
+                  <button type="button"
+                          class="btn btn-outline-danger btn-sm js-confirm-delete"
+                          title="Supprimer"
+                          data-bs-toggle="tooltip"
+                          data-url="{{ path('app_administrateur_session_pieces_delete', { entite: entite.id, session: session.id, piece: p.id }) }}"
+                          data-token="{{ csrf_token('del_session_piece_' ~ p.id) }}"
+                          data-label="{{ (p.type.label ?? p.type.label() ?? 'Document')|e('html_attr') }}"
+                          data-sub="{{ ('Déposé le ' ~ (p.uploadedAt ? p.uploadedAt|date('d/m/Y H:i') : ''))|e('html_attr') }}">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+            <div class="text-muted small">Affichage des {{ nTotal }} document(s).</div>
+
+            <a class="btn btn-light btn-sm fw-semibold"
+              href="{{ path('app_administrateur_session_pieces_index', {entite: entite.id, session: session.id}) }}">
+              <i class="fa fa-folder-open me-1"></i> Gérer / Voir tout
+            </a>
+          </div>
+
+
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+{% set pre = assignmentsByPhase.pre|default([]) %}
+{% set post = assignmentsByPhase.post|default([]) %}
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="cardx mb-4">
+      <div class="cardx-h">
+        <h5 class="cardx-title">
+          <i class="fa fa-clipboard-list text-warning"></i>
+          Questionnaires (Pré / Post)
+        </h5>
+        <span class="chip">{{ pre|length + post|length }} assignment(s)</span>
+      </div>
+
+      <div class="p-3 p-md-4">
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="fw-bold mb-2">Pré</div>
+
+            {% if pre is empty %}
+              <div class="text-muted small">Aucun QCM pré-test assigné sur cette session.</div>
+            {% else %}
+              <div class="d-grid gap-2">
+                {% for a in pre %}
+                  <div class="doc-mini">
+                    <div class="doc-ico"><i class="fa fa-circle-question"></i></div>
+                    <div class="doc-main">
+                      <div class="doc-title">
+                        {{ a.qcm.titre }}
+                        <span class="badge badge-soft">Pré</span>
+                      </div>
+                      <div class="doc-meta">
+                        <span><i class="fa fa-user me-1"></i>{{ a.inscription.stagiaire ? (a.inscription.stagiaire.prenom ~ ' ' ~ a.inscription.stagiaire.nom) : '-' }}</span>
+                      </div>
+                    </div>
+                    <div class="doc-actions">
+                      <a class="btn btn-outline-primary btn-sm"
+                        target="_blank"
+                        href="{{ path('app_administrateur_session_qcm_questionnaire_pdf', {
+                            entite: entite.id, session: session.id, qcm: a.qcm.id, phase: a.phase.value
+                        }) }}">
+                        <i class="fa fa-file-pdf"></i>
+                      </a>
+
+                      {% if a.attempt and a.attempt.submittedAt %}
+                        <a class="btn btn-outline-success btn-sm"
+                          target="_blank"
+                          href="{{ path('app_administrateur_qcm_assignment_result_pdf', {
+                              entite: entite.id, assignment: a.id
+                          }) }}"
+                          title="Résultat PDF">
+                          <i class="fa fa-check"></i>
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="col-lg-6">
+            <div class="fw-bold mb-2">Post</div>
+
+            {% if post is empty %}
+              <div class="text-muted small">Aucun QCM post-test assigné sur cette session.</div>
+            {% else %}
+              <div class="d-grid gap-2">
+                {% for a in post %}
+                  <div class="doc-mini">
+                    <div class="doc-ico"><i class="fa fa-circle-question"></i></div>
+                    <div class="doc-main">
+                      <div class="doc-title">
+                        {{ a.qcm.titre }}
+                        <span class="badge badge-soft">Post</span>
+                      </div>
+                      <div class="doc-meta">
+                        <span><i class="fa fa-user me-1"></i>{{ a.inscription.stagiaire ? (a.inscription.stagiaire.prenom ~ ' ' ~ a.inscription.stagiaire.nom) : '-' }}</span>
+                      </div>
+                    </div>
+                    <div class="doc-actions">
+                      <a class="btn btn-outline-primary btn-sm"
+                        target="_blank"
+                        href="{{ path('app_administrateur_session_qcm_questionnaire_pdf', {
+                            entite: entite.id, session: session.id, qcm: a.qcm.id, phase: a.phase.value
+                        }) }}">
+                        <i class="fa fa-file-pdf"></i>
+                      </a>
+
+                      {% if a.attempt and a.attempt.submittedAt %}
+                        <a class="btn btn-outline-success btn-sm"
+                          target="_blank"
+                          href="{{ path('app_administrateur_qcm_assignment_result_pdf', {
+                              entite: entite.id, assignment: a.id
+                          }) }}"
+                          title="Résultat PDF">
+                          <i class="fa fa-check"></i>
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  {# ====== Conventions entreprise (bulk) ====== #}
+ <div class="row g-3 mb-4">
+    <div class="col-lg-12">
+      <div class="cardx card-session">
+        <div class="cardx-h">
+          <div>
+            <div class="fw-semibold">Conventions - financement entreprise</div>
+            <div class="text-muted small">Tout est coché par défaut. Tu peux décocher avant de générer.</div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          {% if byEntreprise is empty %}
+            <div class="alert alert-info mb-0">
+              Aucun stagiaire “financement entreprise” sur cette session.
+            </div>
+          {% else %}
+
+            <div class="accordion" id="accConvEntreprise">
+              {% for group in byEntreprise %}
+                {% set entreprise = group.entreprise %}
+                {% set inscs = group.inscriptions|default([]) %}
+                {% set blockId = 'ent_' ~ entreprise.id %}
+
+                <div class="accordion-item">
+                  <h2 class="accordion-header" id="h_{{ blockId }}">
+                    <button class="accordion-button collapsed" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#c_{{ blockId }}"
+                            aria-expanded="false" aria-controls="c_{{ blockId }}">
+                      <div class="w-100 d-flex align-items-center justify-content-between">
+                        <div class="d-flex flex-column">
+                          <span class="fw-semibold">{{ entreprise.raisonSociale }}</span>
+                          <span class="text-muted small">{{ inscs|length }} stagiaire(s)</span>
+                        </div>
+                        <span class="badge bg-secondary ms-3">{{ inscs|length }}</span>
+                      </div>
+                    </button>
+                  </h2>
+
+                  <div id="c_{{ blockId }}" class="accordion-collapse collapse" aria-labelledby="h_{{ blockId }}"
+                      data-bs-parent="#accConvEntreprise">
+                    <div class="accordion-body">
+
+                      {# Actions (select all + generate) #}
+                      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm js-select-all"
+                                data-scope="{{ blockId }}">
+                          <i class="bi bi-check2-square me-1"></i>Tout cocher
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm js-unselect-all"
+                                data-scope="{{ blockId }}">
+                          <i class="bi bi-square me-1"></i>Tout décocher
+                        </button>
+
+                        <form method="post"
+                              action="{{ path('app_administrateur_convention_from_session_entreprise', { entite: entite.id }) }}"
+                              class="ms-auto js-bulk-form"
+                              data-scope="{{ blockId }}">
+                          <input type="hidden" name="_token" value="{{ csrf_token('conv_bulk_' ~ entite.id) }}">
+                          <input type="hidden" name="sessionId" value="{{ session.id }}">
+                          <input type="hidden" name="entrepriseId" value="{{ entreprise.id }}">
+
+                          {# On injecte les ids cochés via JS avant submit #}
+                          <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                              <i class="bi bi-file-earmark-text me-1"></i>Générer / mettre à jour la convention
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+
+                      {# Liste stagiaires #}
+                      <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                          <thead>
+                            <tr>
+                              <th style="width:38px;"></th>
+                              <th>Stagiaire</th>
+                              <th class="text-muted">Email</th>
+                              <th class="text-muted">Inscription</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for i in inscs %}
+                              {% set u = i.stagiaire %}
+                              <tr>
+                                <td>
+                                  <input class="form-check-input js-insc"
+                                        type="checkbox"
+                                        data-scope="{{ blockId }}"
+                                        value="{{ i.id }}"
+                                        checked>
+                                </td>
+                                <td class="fw-semibold">
+                                  {{ (u.prenom ~ ' ' ~ u.nom)|trim ?: '-' }}
+                                </td>
+                                <td class="text-muted small">
+                                  {{ u.email ?? '-' }}
+                                </td>
+                                <td class="text-muted small">
+                                  #{{ i.id }}
+                                </td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div class="text-muted small mt-2">
+                        Astuce : ce bouton met à jour la convention entreprise de cette session (il remplace la liste des stagiaires rattachés).
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+
+
+{# ================== DOCUMENTS / SUPPORTS (ICÔNES) ================== #}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-12">
+      <div class="cardx card-session">
+        <div class="cardx-h">
+          <span>
+            <i class="fa fa-folder-tree text-theme-secondaire me-2"></i> Documents liés à la session
+          </span>
+
+          <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-light btn-sm fw-semibold"
+              href="#"
+              onclick="event.preventDefault(); document.getElementById('accStagPieces')?.scrollIntoView({behavior:'smooth', block:'start'});">
+              <i class="fa fa-id-card me-1"></i> Pièces stagiaires
+            </a>
+
+            <a class="btn btn-light btn-sm fw-semibold"
+              href="#"
+              onclick="event.preventDefault(); document.querySelector('[data-bs-target*=sessionPieces]')?.scrollIntoView({behavior:'smooth', block:'start'});">
+              <i class="fa fa-folder-open me-1"></i> Pièces session
+            </a>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+
+          <div class="docs-mini-grid">
+
+            {# 1) Émargements #}
+            <div class="doc-mini">
+              <div class="doc-ico"><i class="fa fa-file-pen"></i></div>
+              <div class="doc-main">
+                <div class="doc-title">
+                  Émargements (PDF)
+                  <span class="badge badge-soft">Session</span>
+                </div>
+                <div class="doc-meta">
+                  <span class="text-muted">Synthèse à faire signer (stagiaires + formateur)</span>
+                </div>
+              </div>
+              <div class="doc-actions">
+                <a class="btn btn-outline-secondary btn-sm"
+                  target="_blank"
+                  href="{{ path('app_formateur_emargement_pdf', {entite: entite.id}) ~ '?session=' ~ session.id }}"
+                  title="Ouvrir">
+                  <i class="fa fa-eye"></i>
+                </a>
+                <a class="btn btn-outline-primary btn-sm"
+                  target="_blank"
+                  href="{{ path('app_formateur_emargement_pdf', {entite: entite.id}) ~ '?session=' ~ session.id }}"
+                  title="Télécharger">
+                  <i class="fa fa-download"></i>
+                </a>
+              </div>
+            </div>
+
+            {# 2) Documents session (tes pièces session existantes) #}
+            <div class="doc-mini">
+              <div class="doc-ico"><i class="fa fa-folder-open"></i></div>
+              <div class="doc-main">
+                <div class="doc-title">
+                  Documents session (dépôts / contrôles)
+                  <span class="badge badge-soft">{{ (session.pieces ?? [])|length }} doc(s)</span>
+                </div>
+                <div class="doc-meta">
+                  <span class="text-muted">Pièces déposées côté session (upload + validation)</span>
+                </div>
+              </div>
+              <div class="doc-actions">
+                <a class="btn btn-outline-secondary btn-sm"
+                  href="{{ path('app_administrateur_session_pieces_index', {entite: entite.id, session: session.id}) }}"
+                  title="Voir / gérer">
+                  <i class="fa fa-eye"></i>
+                </a>
+              </div>
+            </div>
+
+            {# 3) Pièces stagiaires (ancre vers ton accordéon premium) #}
+            <div class="doc-mini">
+              <div class="doc-ico"><i class="fa fa-id-card"></i></div>
+              <div class="doc-main">
+                <div class="doc-title">
+                  Documents stagiaires (dossiers)
+                  <span class="badge badge-soft">{{ inscriptionsAll|length }} inscription(s)</span>
+                </div>
+                <div class="doc-meta">
+                  <span class="text-muted">CNI, justificatif, OPCO, règlement, etc.</span>
+                </div>
+              </div>
+              <div class="doc-actions">
+                <a class="btn btn-outline-secondary btn-sm"
+                  href="#"
+                  onclick="event.preventDefault(); document.getElementById('accStagPieces')?.scrollIntoView({behavior:'smooth', block:'start'});"
+                  title="Voir">
+                  <i class="fa fa-eye"></i>
+                </a>
+              </div>
+            </div>
+
+            {# 4) QCM (PDF questionnaire + résultats) #}
+            {% set pre = assignmentsByPhase.pre|default([]) %}
+            {% set post = assignmentsByPhase.post|default([]) %}
+            {% set nQcm = pre|length + post|length %}
+            <div class="doc-mini">
+              <div class="doc-ico"><i class="fa fa-clipboard-list"></i></div>
+              <div class="doc-main">
+                <div class="doc-title">
+                  QCM (Pré / Post)
+                  <span class="badge badge-soft">{{ nQcm }} assignment(s)</span>
+                </div>
+                <div class="doc-meta">
+                  <span class="text-muted">Accès aux questionnaires PDF + résultats si soumis</span>
+                </div>
+              </div>
+              <div class="doc-actions">
+                <a class="btn btn-outline-secondary btn-sm"
+                  href="#"
+                  onclick="event.preventDefault(); document.querySelector('.fa-clipboard-list')?.closest('.cardx')?.scrollIntoView({behavior:'smooth', block:'start'});"
+                  title="Voir">
+                  <i class="fa fa-eye"></i>
+                </a>
+              </div>
+            </div>
+
+            {# 5) Factures (lien vers index factures) #}
+            <div class="doc-mini">
+              <div class="doc-ico"><i class="fa fa-file-invoice-dollar"></i></div>
+              <div class="doc-main">
+                <div class="doc-title">
+                  Factures & avoirs
+                  <span class="badge badge-soft">Finance</span>
+                </div>
+                <div class="doc-meta">
+                  <span class="text-muted">Liste des factures / avoirs liés aux inscriptions</span>
+                </div>
+              </div>
+              <div class="doc-actions">
+                <a class="btn btn-outline-secondary btn-sm"
+                  href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"
+                  title="Ouvrir la liste">
+                  <i class="fa fa-eye"></i>
+                </a>
+              </div>
+            </div>
+
+            {# 6) Conventions (scroll vers bloc bulk conventions) #}
+            <div class="doc-mini">
+              <div class="doc-ico"><i class="fa fa-file-signature"></i></div>
+              <div class="doc-main">
+                <div class="doc-title">
+                  Conventions / contrats
+                  <span class="badge badge-soft">Stagiaires / Entreprises</span>
+                </div>
+                <div class="doc-meta">
+                  <span class="text-muted">Génération / signature / PDF depuis les participants</span>
+                </div>
+              </div>
+              <div class="doc-actions">
+                <a class="btn btn-outline-secondary btn-sm"
+                  href="#"
+                  onclick="event.preventDefault(); document.getElementById('accConvEntreprise')?.scrollIntoView({behavior:'smooth', block:'start'});"
+                  title="Voir">
+                  <i class="fa fa-eye"></i>
+                </a>
+              </div>
+            </div>
+
+          </div>
+
+            {# ================== SUPPORTS (Assets) ================== #}
+            {% set sas = supportAssignSessions|default([]) %}
+            {% set sauByUser = supportAssignUsersByUserId|default({}) %}
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+              <h6 class="mb-0">
+                <i class="fa fa-paperclip text-theme-secondaire me-1"></i>
+                Supports de cours (assets)
+              </h6>
+
+              <span class="chip">
+                {{ sas|length }} pour la session •
+                {{ sauByUser|length }} stagiaire(s) avec supports dédiés
+              </span>
+            </div>
+
+            {# -------- A) Supports assignés à la session (tout le monde) -------- #}
+            <div class="mb-3">
+              <div class="fw-bold mb-2">Pour tous les stagiaires (assignés à la session)</div>
+
+              {% if sas|length > 0 %}
+                <div class="docs-mini-grid">
+                  {% for assign in sas %}
+                    {% set a = assign.asset %}
+
+                    <div class="doc-mini">
+                      <div class="doc-ico"><i class="fa fa-paperclip"></i></div>
+
+                      <div class="doc-main">
+                        <div class="doc-title">
+                          {{ a ? (a.titre ?? ('Asset #' ~ a.id)) : 'Asset supprimé' }}
+
+                          {% if a and a.mimeType %}
+                            <span class="badge badge-soft">{{ a.mimeType }}</span>
+                          {% endif %}
+
+                          {% if assign.isVisibleToTrainee %}
+                            <span class="badge rounded-pill bg-success-subtle text-success">Visible stagiaire</span>
+                          {% else %}
+                            <span class="badge rounded-pill bg-secondary-subtle text-secondary">Masqué</span>
+                          {% endif %}
+                        </div>
+
+                        <div class="doc-meta">
+                          <span class="text-muted">
+                            Ajouté le {{ (assign.createdAt ?? assign.dateCreation)|date('d/m/Y H:i') }}
+                          </span>
+
+                          {% if assign.visibleFrom or assign.visibleUntil %}
+                            <span class="text-muted">
+                              <i class="fa fa-calendar me-1"></i>
+                              {% if assign.visibleFrom %}du {{ assign.visibleFrom|date('d/m/Y H:i') }}{% endif %}
+                              {% if assign.visibleUntil %} au {{ assign.visibleUntil|date('d/m/Y H:i') }}{% endif %}
+                            </span>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <div class="doc-actions">
+                        {% if a and a.filename %}
+                          {# ✅ ADAPTE LE DOSSIER SELON TON SupportAsset (ex: uploads/support_assets/) #}
+                          {% set url = asset('uploads/supports/library/' ~ a.filename) %}
+
+                          <a class="btn btn-outline-secondary btn-sm" target="_blank" href="{{ url }}" title="Ouvrir">
+                            <i class="fa fa-eye"></i>
+                          </a>
+                          <a class="btn btn-outline-primary btn-sm" href="{{ url }}" download title="Télécharger">
+                            <i class="fa fa-download"></i>
+                          </a>
+                        {% else %}
+                          <span class="text-muted small">Fichier indisponible</span>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="empty-docs">
+                  <div class="empty-ico"><i class="fa fa-file-circle-xmark"></i></div>
+                  <div>
+                    <div class="fw-bold">Aucun support assigné à la session</div>
+                    <div class="text-muted small">Assigne des assets à la session pour les rendre accessibles à tous.</div>
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+
+            {# -------- B) Supports assignés par stagiaire -------- #}
+            <div class="mt-4">
+              <div class="fw-bold mb-2">Supports dédiés par stagiaire (assignés à l’utilisateur)</div>
+
+              {% if inscriptionsAll is empty %}
+                <div class="text-muted small">Aucun stagiaire.</div>
+              {% else %}
+                <div class="accordion" id="accSupportUser">
+                  {% for ins in inscriptionsAll %}
+                    {% set u = ins.stagiaire %}
+                    {% set list = (u and sauByUser[u.id] is defined) ? sauByUser[u.id] : [] %}
+                    {% set blockId = 'su_' ~ ins.id %}
+
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="h_{{ blockId }}">
+                        <button class="accordion-button collapsed" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#c_{{ blockId }}"
+                                aria-expanded="false" aria-controls="c_{{ blockId }}">
+                          <div class="w-100 d-flex align-items-center justify-content-between">
+                            <div class="d-flex flex-column">
+                              <span class="fw-semibold">
+                                {{ u ? (u.prenom ~ ' ' ~ u.nom) : ('Inscription #' ~ ins.id) }}
+                              </span>
+                              <span class="text-muted small">{{ u and u.email ? u.email : '-' }}</span>
+                            </div>
+                            <span class="badge bg-secondary ms-3">{{ list|length }}</span>
+                          </div>
+                        </button>
+                      </h2>
+
+                      <div id="c_{{ blockId }}" class="accordion-collapse collapse" aria-labelledby="h_{{ blockId }}"
+                          data-bs-parent="#accSupportUser">
+                        <div class="accordion-body">
+
+                          {% if list|length == 0 %}
+                            <div class="text-muted small">Aucun support dédié.</div>
+                          {% else %}
+                            <div class="docs-mini-grid">
+                              {% for assign in list %}
+                                {% set a = assign.asset %}
+
+                                <div class="doc-mini">
+                                  <div class="doc-ico"><i class="fa fa-user-tag"></i></div>
+
+                                  <div class="doc-main">
+                                    <div class="doc-title">
+                                      {{ a ? (a.titre ?? ('Asset #' ~ a.id)) : 'Asset supprimé' }}
+
+                                      {% if a and a.mimeType %}
+                                        <span class="badge badge-soft">{{ a.mimeType }}</span>
+                                      {% endif %}
+
+                                      {% if assign.isVisibleToTrainee %}
+                                        <span class="badge rounded-pill bg-success-subtle text-success">Visible</span>
+                                      {% else %}
+                                        <span class="badge rounded-pill bg-secondary-subtle text-secondary">Masqué</span>
+                                      {% endif %}
+                                    </div>
+
+                                    <div class="doc-meta">
+                                      <span class="text-muted">
+                                        Ajouté le {{ (assign.createdAt ?? assign.dateCreation)|date('d/m/Y H:i') }}
+                                      </span>
+
+                                      {% if assign.visibleFrom or assign.visibleUntil %}
+                                        <span class="text-muted">
+                                          <i class="fa fa-calendar me-1"></i>
+                                          {% if assign.visibleFrom %}du {{ assign.visibleFrom|date('d/m/Y H:i') }}{% endif %}
+                                          {% if assign.visibleUntil %} au {{ assign.visibleUntil|date('d/m/Y H:i') }}{% endif %}
+                                        </span>
+                                      {% endif %}
+                                    </div>
+                                  </div>
+
+                                  <div class="doc-actions">
+                                    {% if a and a.filename %}
+                                      {% set url = asset('uploads/supports/' ~ a.filename) %}
+
+                                      <a class="btn btn-outline-secondary btn-sm" target="_blank" href="{{ url }}" title="Ouvrir">
+                                        <i class="fa fa-eye"></i>
+                                      </a>
+                                      <a class="btn btn-outline-primary btn-sm" href="{{ url }}" download title="Télécharger">
+                                        <i class="fa fa-download"></i>
+                                      </a>
+                                    {% else %}
+                                      <span class="text-muted small">Fichier indisponible</span>
+                                    {% endif %}
+                                  </div>
+                                </div>
+
+                              {% endfor %}
+                            </div>
+                          {% endif %}
+
+                        </div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+ {# ================== ACTIONS & PDF DE LA SESSION ================== #}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-12">
+      <div class="cardx card-session">
+        <div class="cardx-h">
+          <span><i class="fa fa-gears text-theme-secondaire me-2"></i> Actions & PDF pour cette session</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <h6 class="mb-2"><i class="fa fa-file-pen me-1 text-theme-secondaire"></i> Émargements</h6>
+              <p class="small text-muted mb-2">
+                Feuilles d’émargement à faire signer par les stagiaires et le formateur.
+              </p>
+              <div class="d-grid gap-2">
+                <a href="{{ path('app_formateur_emargement_pdf', {entite: entite.id}) ~ '?session=' ~ session.id }}"
+                  class="btn btn-outline-primary btn-sm"
+                  target="_blank">
+                  <i class="fa fa-file-pdf"></i> Feuille d’émargement (synthèse)
+                </a>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <h6 class="mb-2"><i class="fa fa-file-signature me-1 text-theme-secondaire"></i> Convention & contrats</h6>
+              <p class="small text-muted mb-2">
+                Génération / gestion des conventions individuelles par stagiaire.
+              </p>
+              <ul class="small mb-0">
+                <li>
+                  Depuis le tableau des participants, clique sur
+                  <i class="fa fa-file-contract text-primary"></i>
+                  pour générer ou visualiser la convention PDF d’un stagiaire.
+                </li>
+                <li>
+                  Tu peux aussi accéder aux formulaires depuis l’inscription :
+                  <code>Inscription &gt; Convention / contrat</code>.
+                </li>
+              </ul>
+            </div>
+
+            <div class="col-md-4">
+              <h6 class="mb-2"><i class="fa fa-file-invoice-dollar me-1 text-theme-secondaire"></i> Factures & finances</h6>
+              <p class="small text-muted mb-2">
+                Création / consultation des factures et avoirs liés aux inscriptions de la session.
+              </p>
+              <ul class="small mb-0">
+                <li>
+                  Depuis chaque fiche inscription, tu peux créer et visualiser les
+                  factures / avoirs associés.
+                </li>
+                <li class="mt-1">
+                  <a href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"
+                    class="link-secondary">
+                    <i class="fa fa-list-ul"></i> Aller à la liste des factures
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  {# ================== ÉQUIPEMENTS (LOGISTIQUE) ================== #}
+  <div class="row g-3 mb-4">
+    <div class="col-lg-12">
+      <div class="cardx card-session">
+        <div class="cardx-h">
+          <span>
+            <i class="fa fa-chalkboard-teacher text-theme-secondaire me-2"></i>
+            Équipements & logistique
+          </span>
+
+          {# petit résumé #}
+          {% set equipList = [
+            ['equipOrdinateurFormateur', 'Ordinateur (formateur)', 'bi-laptop'],
+            ['equipVideoprojecteurEcran', 'Vidéoprojecteur / écran', 'bi-projector'],
+            ['equipInternetStable', 'Connexion Internet stable', 'bi-wifi'],
+            ['equipTableauPaperboard', 'Tableau blanc / paperboard', 'bi-easel2'],
+            ['equipMarqueursSupportsImprimes', 'Marqueurs / supports imprimés', 'bi-journal-text'],
+            ['salleAdapteeTailleGroupe', 'Salle adaptée (taille du groupe)', 'bi-people'],
+            ['salleTablesChaisesErgo', 'Tables / chaises ergonomiques', 'bi-grid-3x3-gap'],
+            ['salleLumiereChauffageClim', 'Lumière / chauffage / clim', 'bi-sun'],
+            ['salleEauCafe', 'Eau / café', 'bi-cup-hot'],
+          ] %}
+
+          {% set okCount = 0 %}
+          {% set totalCount = 0 %}
+          {% for it in equipList %}
+            {% set prop = it[0] %}
+            {% if attribute(session, prop) is defined %}
+              {% set totalCount = totalCount + 1 %}
+              {% if attribute(session, prop) %}
+                {% set okCount = okCount + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+
+          <span class="badge bg-light text-dark">
+            {{ okCount }}/{{ totalCount }} validé{{ totalCount > 1 ? 's' : '' }}
+          </span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            {% for it in equipList %}
+              {% set prop  = it[0] %}
+              {% set label = it[1] %}
+              {% set icon  = it[2] %}
+
+              {% if attribute(session, prop) is defined %}
+                {% set val = attribute(session, prop) %}
+                <div class="col-12 col-md-6 col-lg-4">
+                  <div class="session-meta-item d-flex align-items-start justify-content-between gap-2">
+                    <div>
+                      <div class="session-meta-label">
+                        <i class="bi {{ icon }} text-theme-secondaire"></i>
+                        {{ label }}
+                      </div>
+                      <div class="small text-muted">
+                        {{ val ? 'Présent' : 'Non' }}
+                      </div>
+                    </div>
+
+                    <span class="badge {{ val ? 'bg-success' : 'bg-secondary' }}">
+                      <i class="bi {{ val ? 'bi-check2' : 'bi-x' }}"></i>
+                    </span>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          {# fallback si rien n'existe #}
+          {% if totalCount == 0 %}
+            <p class="text-muted mb-0">Aucun champ “logistique” n’est disponible sur cette session.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="modal fade" id="pieceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1" id="pieceModalTitle">Document</h5>
+          <div class="small text-muted" id="pieceModalSub">-</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-lg-8">
+            <div class="border rounded-4 overflow-hidden" style="border-color: var(--stroke); min-height: 520px;">
+              <div id="pieceModalPreview" class="w-100" style="min-height:520px; background:#0b1621;"></div>
+            </div>
+
+            <div class="d-flex gap-2 mt-2">
+              <a id="pieceModalDownload" class="btn btn-outline-primary btn-sm" href="#" target="_blank">
+                <i class="fa fa-download me-1"></i> Télécharger
+              </a>
+              <a id="pieceModalOpenNew" class="btn btn-outline-secondary btn-sm" href="#" target="_blank">
+                <i class="fa fa-up-right-from-square me-1"></i> Ouvrir
+              </a>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="cardx card-session">
+              <div class="cardx-h">
+                <h6 class="cardx-title"><i class="fa fa-pen-to-square text-warning"></i> Contrôle</h6>
+                <span class="chip" id="pieceModalPill">-</span>
+              </div>
+
+              <div class="p-3">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Statut</label>
+                  <select id="pieceModalValide" class="form-select">
+                    <option value="0">À valider</option>
+                    <option value="1">Validé</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Commentaire</label>
+                  <textarea id="pieceModalComment" class="form-control" rows="6"
+                            placeholder="Commentaire de contrôle…"></textarea>
+                </div>
+
+                <div class="d-grid gap-2">
+                  <button type="button" class="btn btn-primary" id="pieceModalSave">
+                    <i class="fa fa-floppy-disk me-1"></i> Enregistrer
+                  </button>
+                  <div class="small text-muted" id="pieceModalMsg" role="status" aria-live="polite"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+<div class="modal fade" id="stagPieceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1" id="stagPieceModalTitle">Document</h5>
+          <div class="small text-muted" id="stagPieceModalSub">-</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-lg-8">
+            <div class="border rounded-4 overflow-hidden" style="border-color: var(--stroke); min-height: 520px;">
+              <div id="stagPieceModalPreview" class="w-100" style="min-height:520px; background:#0b1621;"></div>
+            </div>
+
+            <div class="d-flex gap-2 mt-2">
+              <a id="stagPieceModalDownload" class="btn btn-outline-primary btn-sm" href="#" target="_blank">
+                <i class="fa fa-download me-1"></i> Télécharger
+              </a>
+              <a id="stagPieceModalOpenNew" class="btn btn-outline-secondary btn-sm" href="#" target="_blank">
+                <i class="fa fa-up-right-from-square me-1"></i> Ouvrir
+              </a>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="cardx">
+              <div class="cardx-h">
+                <h6 class="cardx-title"><i class="fa fa-pen-to-square text-warning"></i> Contrôle</h6>
+                <span class="chip" id="stagPieceModalPill">-</span>
+              </div>
+
+              <div class="p-3">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Statut</label>
+                  <select id="stagPieceModalValide" class="form-select">
+                    <option value="0">À valider</option>
+                    <option value="1">Validé</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">Commentaire</label>
+                  <textarea id="stagPieceModalComment" class="form-control" rows="6"
+                            placeholder="Commentaire de contrôle…"></textarea>
+                </div>
+
+                <div class="d-grid gap-2">
+                  <button type="button" class="btn btn-primary" id="stagPieceModalSave">
+                    <i class="fa fa-floppy-disk me-1"></i> Enregistrer
+                  </button>
+                  <div class="small text-muted" id="stagPieceModalMsg" role="status" aria-live="polite"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+<div class="modal fade" id="stagUploadModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Ajouter une pièce</h5>
+          <div class="small text-muted" id="stagUploadSub">-</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="stagUploadForm">
+          <input type="hidden" name="_token" value="{{ uploadCsrf }}">
+          <input type="hidden" name="inscriptionId" id="stagUploadInscriptionId" value="">
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Type de pièce</label>
+              <select class="form-select" name="type" id="stagUploadType" required>
+                <option value="">- Choisir -</option>
+                {% for t in pieceTypes %}
+                  <option value="{{ t.value }}">{{ t.label() }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Astuce : choisis le type, puis dépose le fichier.</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fichier</label>
+              <input type="file" class="form-control" name="file" id="stagUploadFile" required>
+              <div class="form-text">PDF, image…</div>
+            </div>
+
+            <div class="col-12">
+              <div class="alert alert-info small mb-0">
+                La pièce sera ajoutée “À valider”. Tu peux la valider ensuite en 1 clic.
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <div class="small text-muted mt-2" id="stagUploadMsg" aria-live="polite"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="stagUploadSubmit">
+          <i class="fa fa-cloud-arrow-up me-1"></i> Upload
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content confirmx">
+      <div class="modal-header border-0 pb-0">
+        <div class="d-flex align-items-start gap-3">
+          <div class="confirmx-ico">
+            <i class="fa fa-triangle-exclamation"></i>
+          </div>
+          <div style="min-width:0">
+            <div class="confirmx-title">Suppression définitive</div>
+            <div class="confirmx-sub text-truncate" id="confirmDeleteSub">Ce document sera supprimé.</div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body pt-3">
+        <div class="confirmx-card">
+          <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <div>
+              <div class="fw-bold" id="confirmDeleteLabel">Document</div>
+              <div class="text-muted small" id="confirmDeleteMeta">Cette action est irréversible.</div>
+            </div>
+
+            <span class="badge rounded-pill confirmx-pill">
+              <i class="fa fa-lock me-1"></i> Définitif
+            </span>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="d-flex gap-2 align-items-start">
+            <i class="fa fa-circle-info mt-1" style="opacity:.75"></i>
+            <div class="small">
+              <div class="fw-semibold">Conséquences</div>
+              <div class="text-muted">
+                Le fichier et ses informations de contrôle seront supprimés. Aucun retour arrière possible.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+          Annuler
+        </button>
+
+        <form method="post" id="confirmDeleteForm" class="m-0">
+          <input type="hidden" name="_token" id="confirmDeleteToken" value="">
+          <button type="submit" class="btn btn-danger px-3">
+            <i class="fa fa-trash me-1"></i> Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+{% if session.site and session.site.latitude is defined and session.site.longitude is defined and session.site.latitude and session.site.longitude %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const lat = {{ session.site.latitude|default(0)|json_encode|raw }};
+  const lng = {{ session.site.longitude|default(0)|json_encode|raw }};
+  if (!lat || !lng) return;
+  const map = L.map('session-map').setView([lat, lng], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+  L.marker([lat, lng]).addTo(map)
+    .bindPopup('{{ session.site.nom|e('js') }}')
+    .openPopup();
+});
+</script>
+{% endif %}
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  $('#hero-last-refresh').text('Maj : ' + nowLabel());
+
+  const modalEl = document.getElementById('pieceModal');
+  if (!modalEl) return;
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  const titleEl = document.getElementById('pieceModalTitle');
+  const subEl   = document.getElementById('pieceModalSub');
+  const pillEl  = document.getElementById('pieceModalPill');
+  const previewEl = document.getElementById('pieceModalPreview');
+
+  const selValide = document.getElementById('pieceModalValide');
+  const taComment = document.getElementById('pieceModalComment');
+  const btnSave   = document.getElementById('pieceModalSave');
+  const msgEl     = document.getElementById('pieceModalMsg');
+
+  const aDownload = document.getElementById('pieceModalDownload');
+  const aOpenNew  = document.getElementById('pieceModalOpenNew');
+
+  let current = null;
+
+  function setPill(valide){
+    if (!pillEl) return;
+    pillEl.textContent = valide ? '✅ Validé' : '⏳ À valider';
+  }
+
+  function renderPreview(url){
+    if (!previewEl) return;
+    previewEl.innerHTML = '';
+
+    const u = (url || '').toLowerCase();
+    const isImage = u.match(/\.(jpg|jpeg|png|webp)(\?|$)/);
+
+    if (isImage){
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Aperçu';
+      img.style.width = '100%';
+      img.style.height = '520px';
+      img.style.objectFit = 'contain';
+      img.style.background = '#0b1621';
+      previewEl.appendChild(img);
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.width = '100%';
+    iframe.style.height = '520px';
+    iframe.style.border = '0';
+    previewEl.appendChild(iframe);
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-piece-open');
+    if (!btn) return;
+
+    current = {
+      id: btn.dataset.pieceId,
+      viewUrl: btn.dataset.viewUrl,
+      updateUrl: btn.dataset.updateUrl,
+      csrf: btn.dataset.csrf,
+      downloadUrl: btn.dataset.downloadUrl,
+      cardEl: btn.closest('.doc-mini'),
+      openBtn: btn
+    };
+
+    const type = btn.dataset.pieceType || 'Document';
+    const date = btn.dataset.pieceDate || '';
+    const valide = btn.dataset.pieceValide === '1';
+    const comment = btn.dataset.pieceComment || '';
+
+    titleEl.textContent = type;
+    subEl.textContent = `Déposé le ${date}`;
+    selValide.value = valide ? '1' : '0';
+    taComment.value = comment;
+    setPill(valide);
+
+    msgEl.textContent = '';
+    btnSave.disabled = false;
+
+    aOpenNew.href = current.viewUrl;
+    aDownload.href = current.downloadUrl || current.viewUrl;
+
+    renderPreview(current.viewUrl);
+    modal.show();
+  });
+
+  btnSave.addEventListener('click', async () => {
+    if (!current) return;
+
+    btnSave.disabled = true;
+    msgEl.textContent = 'Enregistrement…';
+
+    try{
+      const body = new URLSearchParams();
+      body.set('_token', current.csrf);
+      body.set('valide', selValide.value);
+      body.set('commentaire', taComment.value || '');
+
+      const res = await fetch(current.updateUrl, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With':'XMLHttpRequest',
+          'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'
+        },
+        body: body.toString()
+      });
+
+      const json = await res.json().catch(()=>null);
+      if (!res.ok || !json || !json.ok){
+        throw new Error(json?.message || ('HTTP ' + res.status));
+      }
+
+      msgEl.textContent = '✅ Enregistré';
+      setPill(!!json.valide);
+
+      /* MAJ visuelle dans la mini-card */
+      if (current.cardEl){
+        // update badge validé / à valider
+        const title = current.cardEl.querySelector('.doc-title');
+        if (title){
+          const pills = title.querySelectorAll('.badge.rounded-pill');
+          pills.forEach(b => b.remove());
+
+          const status = document.createElement('span');
+          status.className = json.valide
+            ? 'badge rounded-pill bg-success-subtle text-success'
+            : 'badge rounded-pill bg-warning-subtle text-warning';
+          status.innerHTML = json.valide
+            ? '<i class="fa fa-check me-1"></i>Validé'
+            : '<i class="fa fa-hourglass me-1"></i>À valider';
+          title.appendChild(status);
+        }
+
+        // update icône
+        const ico = current.cardEl.querySelector('.doc-ico i');
+        if (ico){
+          ico.className = json.valide ? 'fa fa-check' : 'fa fa-hourglass-half';
+        }
+
+        // update commentaire meta
+        const meta = current.cardEl.querySelector('.doc-meta');
+        if (meta){
+          let commentSpan = meta.querySelector('.js-comment-span');
+          if (!commentSpan){
+            commentSpan = document.createElement('span');
+            commentSpan.className = 'text-muted js-comment-span';
+            meta.appendChild(commentSpan);
+          }
+          if (json.commentaire){
+            commentSpan.innerHTML = `<i class="fa fa-comment-dots me-1"></i>${json.commentaire}`;
+          } else {
+            commentSpan.remove();
+          }
+        }
+
+        // update dataset pour prochaine ouverture
+        if (current.openBtn){
+          current.openBtn.dataset.pieceValide = json.valide ? '1' : '0';
+          current.openBtn.dataset.pieceComment = json.commentaire || '';
+        }
+      }
+
+      setTimeout(()=> { msgEl.textContent = ''; }, 1200);
+    } catch(err){
+      console.error(err);
+      msgEl.textContent = '❌ ' + (err?.message || 'Erreur');
+    } finally {
+      btnSave.disabled = false;
+    }
+  });
+
+});
+</script>
+
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ✅ tooltips bootstrap (sur tout le document)
+  const initTooltips = () => {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+      if (!bootstrap.Tooltip.getInstance(el)) new bootstrap.Tooltip(el);
+    });
+  };
+
+  initTooltips();
+
+  // ✅ Event delegation : marche même après redraw DataTables
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-delete-session');
+    if (!btn) return;
+
+    const url   = btn.getAttribute('data-url') || '';
+    const token = btn.getAttribute('data-token') || '';
+    const label = btn.getAttribute('data-label') || 'cette session';
+
+    const form  = document.getElementById('deleteSessionForm');
+    const tok   = document.getElementById('deleteSessionToken');
+    const labEl = document.getElementById('deleteSessionLabel');
+
+    if (form) form.setAttribute('action', url);
+    if (tok) tok.value = token;
+    if (labEl) labEl.textContent = label;
+  });
+
+  // ✅ Si tu as un DataTable, ré-init tooltips après chaque redraw
+  // (adapte "table#sessionsTable" à ton id réel)
+  const tableEl = document.querySelector('table#sessionsTable');
+  if (tableEl && window.jQuery && jQuery.fn.dataTable) {
+    jQuery(tableEl).on('draw.dt', () => initTooltips());
+  }
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const bulkAll = document.getElementById('bulkAll');
+  if (!bulkAll) return;
+
+  const getBoxes = () => Array.from(document.querySelectorAll('input.bulk-one'));
+
+  const refreshBulkAllState = () => {
+    const boxes = getBoxes();
+    const enabled = boxes.filter(b => !b.disabled);
+    const checked = enabled.filter(b => b.checked);
+
+    if (enabled.length === 0) {
+      bulkAll.checked = false;
+      bulkAll.indeterminate = false;
+      bulkAll.disabled = true;
+      return;
+    }
+
+    bulkAll.disabled = false;
+    bulkAll.checked = checked.length === enabled.length;
+    bulkAll.indeterminate = checked.length > 0 && checked.length < enabled.length;
+  };
+
+  // ✅ Click sur "tout"
+  bulkAll.addEventListener('change', () => {
+    const boxes = getBoxes();
+    boxes.forEach(b => {
+      if (!b.disabled) b.checked = bulkAll.checked;
+    });
+    refreshBulkAllState();
+  });
+
+  // ✅ Click sur une ligne
+  document.addEventListener('change', (e) => {
+    if (!e.target.matches('input.bulk-one')) return;
+    refreshBulkAllState();
+  });
+
+  // init
+  refreshBulkAllState();
+
+
+
+
+
+
+
+
+  // Tout cocher / décocher par entreprise
+  document.querySelectorAll('.js-select-all').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const scope = btn.dataset.scope;
+      document.querySelectorAll('.js-insc[data-scope="'+scope+'"]').forEach(cb => cb.checked = true);
+    });
+  });
+
+  document.querySelectorAll('.js-unselect-all').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const scope = btn.dataset.scope;
+      document.querySelectorAll('.js-insc[data-scope="'+scope+'"]').forEach(cb => cb.checked = false);
+    });
+  });
+
+  // Avant submit : ajouter des inputs inscriptionIds[]
+  document.querySelectorAll('.js-bulk-form').forEach(form => {
+    form.addEventListener('submit', (e) => {
+      const scope = form.dataset.scope;
+
+      // nettoyer les anciens inputs
+      form.querySelectorAll('input[name="inscriptionIds[]"]').forEach(n => n.remove());
+
+      const checked = Array.from(document.querySelectorAll('.js-insc[data-scope="'+scope+'"]:checked'))
+        .map(cb => cb.value);
+
+      if (checked.length === 0) {
+        e.preventDefault();
+        alert("Aucune inscription sélectionnée.");
+        return;
+      }
+
+      checked.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'inscriptionIds[]';
+        input.value = id;
+        form.appendChild(input);
+      });
+    });
+  });
+});
+</script>
+
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ---------------------------
+  // PREVIEW / VALIDATION MODAL
+  // ---------------------------
+  const modalEl = document.getElementById('stagPieceModal');
+  const uploadEl = document.getElementById('stagUploadModal');
+  if (!modalEl || !uploadEl) return;
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  const uploadModal = bootstrap.Modal.getOrCreateInstance(uploadEl);
+
+  const titleEl = document.getElementById('stagPieceModalTitle');
+  const subEl   = document.getElementById('stagPieceModalSub');
+  const pillEl  = document.getElementById('stagPieceModalPill');
+  const previewEl = document.getElementById('stagPieceModalPreview');
+
+  const selValide = document.getElementById('stagPieceModalValide');
+  const taComment = document.getElementById('stagPieceModalComment');
+  const btnSave   = document.getElementById('stagPieceModalSave');
+  const msgEl     = document.getElementById('stagPieceModalMsg');
+
+  const aDownload = document.getElementById('stagPieceModalDownload');
+  const aOpenNew  = document.getElementById('stagPieceModalOpenNew');
+
+  let current = null;
+
+  function setPill(valide){
+    pillEl.textContent = valide ? '✅ Validé' : '⏳ À valider';
+  }
+
+  function renderPreview(url){
+    previewEl.innerHTML = '';
+
+    const u = (url || '').toLowerCase();
+    // images : on laisse l'iframe aussi marcher, mais img est plus clean
+    const isImage = u.match(/\.(jpg|jpeg|png|webp)(\?|$)/);
+
+    if (isImage){
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Aperçu';
+      img.style.width = '100%';
+      img.style.height = '520px';
+      img.style.objectFit = 'contain';
+      img.style.background = '#0b1621';
+      previewEl.appendChild(img);
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.width = '100%';
+    iframe.style.height = '520px';
+    iframe.style.border = '0';
+    previewEl.appendChild(iframe);
+  }
+
+  function refreshCounters(insId){
+    const grid = document.querySelector('.js-piece-grid[data-ins="'+insId+'"]');
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll('.js-piece-card'));
+    const total = cards.length;
+    const ok = cards.filter(c => {
+      const icon = c.querySelector('.doc-ico i');
+      return icon && icon.classList.contains('fa-check');
+    }).length;
+    const wait = Math.max(0, total - ok);
+
+    const okBadge = document.querySelector('.js-ins-ok[data-ins="'+insId+'"] .js-nok');
+    const waitBadge = document.querySelector('.js-ins-wait[data-ins="'+insId+'"] .js-nwait');
+    if (okBadge) okBadge.textContent = ok;
+    if (waitBadge) waitBadge.textContent = wait;
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-stag-piece-open');
+    if (!btn) return;
+
+    current = {
+      pieceId: btn.dataset.pieceId,
+      insId: btn.dataset.inscriptionId,
+      viewUrl: btn.dataset.viewUrl,
+      updateUrl: btn.dataset.updateUrl,
+      csrf: btn.dataset.csrf,
+      downloadUrl: btn.dataset.downloadUrl,
+      cardEl: btn.closest('.js-piece-card'),
+      openBtn: btn
+    };
+
+    const type = btn.dataset.pieceType || 'Document';
+    const date = btn.dataset.pieceDate || '';
+    const valide = btn.dataset.pieceValide === '1';
+    const comment = btn.dataset.pieceComment || '';
+
+    titleEl.textContent = type;
+    subEl.textContent = `Déposé le ${date}`;
+    selValide.value = valide ? '1' : '0';
+    taComment.value = comment;
+    setPill(valide);
+
+    msgEl.textContent = '';
+    btnSave.disabled = false;
+
+    aOpenNew.href = current.viewUrl;
+    aDownload.href = current.downloadUrl || current.viewUrl;
+
+    renderPreview(current.viewUrl);
+    modal.show();
+  });
+
+  btnSave.addEventListener('click', async () => {
+    if (!current) return;
+
+    btnSave.disabled = true;
+    msgEl.textContent = 'Enregistrement…';
+
+    try{
+      const body = new URLSearchParams();
+      body.set('_token', current.csrf);
+      body.set('valide', selValide.value);
+      body.set('commentaire', taComment.value || '');
+
+      const res = await fetch(current.updateUrl, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With':'XMLHttpRequest',
+          'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'
+        },
+        body: body.toString()
+      });
+
+      const json = await res.json().catch(()=>null);
+      if (!res.ok || !json || !json.ok){
+        throw new Error(json?.message || ('HTTP ' + res.status));
+      }
+
+      msgEl.textContent = '✅ Enregistré';
+      setPill(!!json.valide);
+
+      // MAJ card visuelle
+      if (current.cardEl){
+        const title = current.cardEl.querySelector('.doc-title');
+        if (title){
+          const pills = title.querySelectorAll('.badge.rounded-pill');
+          pills.forEach(b => b.remove());
+
+          const status = document.createElement('span');
+          status.className = json.valide
+            ? 'badge rounded-pill bg-success-subtle text-success'
+            : 'badge rounded-pill bg-warning-subtle text-warning';
+          status.innerHTML = json.valide
+            ? '<i class="fa fa-check me-1"></i>Validé'
+            : '<i class="fa fa-hourglass me-1"></i>À valider';
+          title.appendChild(status);
+        }
+
+        const ico = current.cardEl.querySelector('.doc-ico i');
+        if (ico){
+          ico.className = json.valide ? 'fa fa-check' : 'fa fa-hourglass-half';
+        }
+
+        const meta = current.cardEl.querySelector('.doc-meta');
+        if (meta){
+          let commentSpan = meta.querySelector('.js-comment-span');
+          if (json.commentaire){
+            if (!commentSpan){
+              commentSpan = document.createElement('span');
+              commentSpan.className = 'text-muted js-comment-span';
+              meta.appendChild(commentSpan);
+            }
+            commentSpan.innerHTML = `<i class="fa fa-comment-dots me-1"></i>${json.commentaire}`;
+          } else if (commentSpan){
+            commentSpan.remove();
+          }
+        }
+
+        if (current.openBtn){
+          current.openBtn.dataset.pieceValide = json.valide ? '1' : '0';
+          current.openBtn.dataset.pieceComment = json.commentaire || '';
+        }
+      }
+
+      refreshCounters(current.insId);
+      setTimeout(()=> { msgEl.textContent = ''; }, 1200);
+    } catch(err){
+      console.error(err);
+      msgEl.textContent = '❌ ' + (err?.message || 'Erreur');
+    } finally {
+      btnSave.disabled = false;
+    }
+  });
+
+  // ---------------------------
+  // UPLOAD MODAL
+  // ---------------------------
+  const uploadSub = document.getElementById('stagUploadSub');
+  const upForm = document.getElementById('stagUploadForm');
+  const upInsId = document.getElementById('stagUploadInscriptionId');
+  const upType = document.getElementById('stagUploadType');
+  const upFile = document.getElementById('stagUploadFile');
+  const upMsg = document.getElementById('stagUploadMsg');
+  const upBtn = document.getElementById('stagUploadSubmit');
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-upload-open');
+    if (!btn) return;
+
+    upMsg.textContent = '';
+    upForm.reset();
+    upInsId.value = btn.dataset.inscriptionId || '';
+    uploadSub.textContent = `Pour : ${btn.dataset.stagiaireLabel || ('Inscription #' + upInsId.value)}`;
+
+    uploadModal.show();
+  });
+
+  upBtn.addEventListener('click', async () => {
+    if (!upInsId.value) return;
+
+    upBtn.disabled = true;
+    upMsg.textContent = 'Upload…';
+
+    try{
+      const fd = new FormData(upForm);
+
+      const url = "{{ path('app_administrateur_session_stagiaire_piece_upload', {entite: entite.id, session: session.id}) }}";
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {'X-Requested-With':'XMLHttpRequest'},
+        body: fd
+      });
+
+      const json = await res.json().catch(()=>null);
+      if (!res.ok || !json || !json.ok){
+        throw new Error(json?.message || ('HTTP ' + res.status));
+      }
+
+      // injecter la nouvelle card dans la bonne grid
+      const insId = upInsId.value;
+      let grid = document.querySelector('.js-piece-grid[data-ins="'+insId+'"]');
+
+      // si pas de grid (aucune pièce avant), on remplace le empty-docs par une grid
+      if (!grid){
+        const accBody = document.querySelector('#c_ins_'+insId+' .accordion-body');
+        if (accBody){
+          const empty = accBody.querySelector('.empty-docs');
+          if (empty) empty.remove();
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'docs-mini-grid js-piece-grid';
+          wrapper.setAttribute('data-ins', insId);
+          accBody.prepend(wrapper);
+          grid = wrapper;
+        }
+      }
+
+      if (grid){
+        const p = json.piece;
+
+        const card = document.createElement('div');
+        card.className = 'doc-mini js-piece-card';
+        card.setAttribute('data-piece-id', p.id);
+
+        card.innerHTML = `
+          <div class="doc-ico"><i class="fa fa-hourglass-half"></i></div>
+          <div class="doc-main">
+            <div class="doc-title">
+              <span class="badge badge-soft">${p.type.label}</span>
+              <span class="badge rounded-pill bg-warning-subtle text-warning">
+                <i class="fa fa-hourglass me-1"></i>À valider
+              </span>
+            </div>
+            <div class="doc-meta">
+              <span><i class="fa fa-clock me-1"></i>${p.uploadedAt}</span>
+            </div>
+          </div>
+          <div class="doc-actions">
+            <button type="button"
+              class="btn btn-outline-secondary btn-sm js-stag-piece-open"
+              title="Voir / Contrôler"
+              data-piece-id="${p.id}"
+              data-inscription-id="${insId}"
+              data-piece-type="${p.type.label}"
+              data-piece-date="${p.uploadedAt}"
+              data-piece-valide="0"
+              data-piece-comment=""
+              data-view-url="${p.viewUrl}"
+              data-update-url="${p.updateUrl}"
+              data-download-url="${p.downloadUrl}"
+              data-csrf="${p.csrfUpdate}">
+              <i class="fa fa-eye"></i>
+            </button>
+            <a class="btn btn-outline-primary btn-sm" title="Télécharger" href="${p.downloadUrl}">
+              <i class="fa fa-download"></i>
+            </a>
+          </div>
+        `;
+
+        // on insère en tête (plus récent)
+        grid.prepend(card);
+      }
+
+      refreshCounters(insId);
+
+      upMsg.textContent = '✅ Ajouté';
+      setTimeout(() => uploadModal.hide(), 450);
+    } catch(err){
+      console.error(err);
+      upMsg.textContent = '❌ ' + (err?.message || 'Erreur');
+    } finally {
+      upBtn.disabled = false;
+    }
+  });
+
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modalEl = document.getElementById('confirmDeleteModal');
+  if (!modalEl) return;
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  const form = document.getElementById('confirmDeleteForm');
+  const tok  = document.getElementById('confirmDeleteToken');
+  const lab  = document.getElementById('confirmDeleteLabel');
+  const sub  = document.getElementById('confirmDeleteSub');
+  const meta = document.getElementById('confirmDeleteMeta');
+
+  // Event delegation (fonctionne même si redraw DataTables)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-confirm-delete');
+    if (!btn) return;
+
+    const url   = btn.getAttribute('data-url') || '';
+    const token = btn.getAttribute('data-token') || '';
+    const label = btn.getAttribute('data-label') || 'Document';
+    const subTxt = btn.getAttribute('data-sub') || 'Ce document sera supprimé.';
+
+    if (form) form.setAttribute('action', url);
+    if (tok) tok.value = token;
+
+    if (lab) lab.textContent = label;
+    if (sub) sub.textContent = subTxt;
+
+    if (meta) meta.textContent = 'Cette action est irréversible.';
+    modal.show();
+  });
+
+  // petit confort : focus bouton danger à l’ouverture
+  modalEl.addEventListener('shown.bs.modal', () => {
+    modalEl.querySelector('button.btn-danger')?.focus();
+  });
+});
+</script>
+
+
+
+{% endblock %}

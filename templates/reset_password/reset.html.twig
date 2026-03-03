@@ -1,0 +1,56 @@
+
+{% extends 'base.html.twig' %}
+
+{% block title %}Réinitialisation du mot de passe{% endblock %}
+{% block stylesheets %}
+     <!-- ===============================================-->
+    <!--    Stylesheets-->
+    <!-- ===============================================-->
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <style>
+
+        body {
+            background-color: #0f1b28;
+            color: white;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%;">
+        <div class="text-center">
+            <img class="mb-3 rounded" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}" alt="Logo" style="width: 100px;">
+            <h4 class="text-warning">Wikiformation</h4>
+        </div>
+
+        <h5 class="text-center mb-3">Définir un nouveau mot de passe</h5>
+        <p class="text-center text-muted">Entrez votre nouveau mot de passe ci-dessous pour réinitialiser votre compte.</p>
+
+        {% for message in app.flashes('reset_password_success') %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+
+        {{ form_start(resetForm) }}
+            <div class="mb-3">
+                <label for="password" class="form-label">Nouveau mot de passe</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    {{ form_widget(resetForm.password, { 'attr': {'class': 'form-control', 'placeholder': 'Nouveau mot de passe'} }) }}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Réinitialiser</button>
+
+            <div class="text-center mt-3">
+                <small><a href="{{ path('app_login') }}" class="text-muted">Retour à la connexion</a></small>
+            </div>
+        {{ form_end(resetForm) }}
+    </div>
+</div>
+{% endblock %}
+
+
+
+

@@ -1,0 +1,2415 @@
+{# templates/administrateur/session/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d'une session{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+      --modal-radius: 22px;
+      --modal-stroke: color-mix(in srgb, var(--theme-color-principal) 14%, rgba(15,23,42,.12));
+      --modal-shadow: 0 30px 90px rgba(2, 6, 23, .25);
+    }
+
+
+    body{ background: var(--bg); }
+
+    /* ===== HERO (copié de session/index) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Chips HERO (comme facture) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ===== Form polish ===== */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect polish + FIX dropdown */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown{ z-index: 9999 !important; }
+    .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
+    .card, .card-body, .container, .container-fluid, .cardx, .cardx *{ overflow: visible; }
+
+    /* ===== Sticky actions ===== */
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ===== Sections / items ===== */
+    .jour-item{
+      border:1px dashed color-mix(in srgb, var(--theme-color-principal) 16%, var(--stroke));
+      background: linear-gradient(180deg, rgba(0,0,0,.01), transparent);
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 16px;
+    }
+    .inscription-item{
+      border:1px dashed color-mix(in srgb, var(--theme-color-principal) 16%, var(--stroke));
+      background: linear-gradient(180deg, rgba(0,0,0,.01), transparent);
+      padding: 12px;
+      border-radius: 16px;
+    }
+
+    /* ===== Pièces obligatoires (tes cartes) ===== */
+    .pieces-obligatoires-group{ margin-top:.5rem; }
+    .pieces-obligatoires-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      gap:.75rem;
+    }
+    .piece-check-card{
+      position:relative;
+      padding:.65rem .75rem .65rem 2.4rem;
+      border-radius:.75rem;
+      border:1px solid #e2e8f0;
+      background:#f8fafc;
+      cursor:pointer;
+      transition:all .15s ease-in-out;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      min-height:56px;
+    }
+    .piece-check-card:hover{
+      border-color:var(--theme-color-secondaire);
+      box-shadow:0 0 0 2px rgba(255,193,7,.15);
+      background:#ffffff;
+    }
+    .piece-check-card .form-check-input{
+      position:absolute;
+      left:.8rem;
+      top:50%;
+      transform:translateY(-50%);
+      width:1.1rem;
+      height:1.1rem;
+    }
+    .piece-check-card .form-check-label{ margin-left:0; font-size:.85rem; line-height:1.3; }
+    .piece-check-card-title{ font-weight:600; display:block; }
+    .piece-check-card-sub{ font-size:.75rem; color:#6b7280; }
+    .piece-check-card .form-check-input:checked{
+      background-color:var(--theme-color-secondaire);
+      border-color:var(--theme-color-secondaire);
+    }
+    .piece-check-card.checked{
+      border-color:var(--theme-color-secondaire);
+      background:rgba(255,193,7,.05);
+    }
+
+    /* ====== NE PAS CHANGER : switches boolean (on garde EXACTEMENT ton look) ====== */
+    .soft-box{
+      border-radius: 16px;
+      border: 1px dashed rgba(15,35,54,.18);
+      background: rgba(248,251,254,.75);
+      padding: 1rem;
+    }
+    .switch-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 1rem;
+      padding:.8rem .9rem;
+      border-radius:14px;
+      border:1px solid rgba(15,35,54,.08);
+      background:#fff;
+    }
+    .switch-row + .switch-row{ margin-top:.65rem; }
+    .switch-row .title{ font-weight:700; line-height:1.15; }
+    .switch-row .desc{
+      margin-top:.25rem;
+      font-size:.85rem;
+      color:#6b7280;
+    }
+    .switch-row .form-check.form-switch{ margin:0; }
+    .switch-row .form-check-input{ width:2.6em; height:1.35em; }
+    .switch-row .form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+    /* Google Places dropdown MUST be above Bootstrap modal */
+    .pac-container{
+      z-index: 20000 !important;
+    }
+
+
+
+    /* Backdrop un peu + “ciné” */
+    .modal-backdrop.show{ opacity:.55; }
+
+    .modal.modal-ultra .modal-dialog{ max-width: 560px; }
+    .modal.modal-ultra .modal-content{
+      border-radius: var(--modal-radius);
+      border: 1px solid var(--modal-stroke);
+      box-shadow: var(--modal-shadow);
+      overflow:hidden;
+      background:
+        radial-gradient(900px 420px at 10% 0%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 60%),
+        radial-gradient(700px 360px at 92% 10%,
+          color-mix(in srgb, var(--theme-color-secondaire) 25%, transparent),
+          transparent 60%),
+        linear-gradient(180deg, #ffffff, #fbfdff);
+    }
+
+    /* Header glass + accent */
+    .modal.modal-ultra .modal-header{
+      position:relative;
+      border-bottom: 1px solid color-mix(in srgb, var(--modal-stroke) 70%, transparent);
+      padding: 1.05rem 1.15rem;
+      background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.72));
+      backdrop-filter: blur(10px);
+    }
+    .modal.modal-ultra .modal-header::before{
+      content:"";
+      position:absolute; left:0; top:0; bottom:0;
+      width: 10px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .modal.modal-ultra .modal-title{
+      font-weight: 900;
+      letter-spacing: -.02em;
+      color: var(--ink);
+      display:flex; align-items:center; gap:.65rem;
+      margin-left:.4rem;
+    }
+    .modal.modal-ultra .modal-title .ico{
+      width: 38px; height: 38px;
+      border-radius: 14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--theme-color-principal);
+    }
+
+    .modal.modal-ultra .btn-close{ opacity:.75; }
+    .modal.modal-ultra .btn-close:hover{ opacity:1; }
+
+    .modal.modal-ultra .modal-body{ padding: 1rem 1.15rem 1.1rem; }
+    .modal.modal-ultra .modal-footer{
+      padding: .85rem 1.15rem 1.05rem;
+      border-top: 1px solid color-mix(in srgb, var(--modal-stroke) 70%, transparent);
+      background: linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.92));
+    }
+
+    /* Petite “carte” interne pour le formulaire */
+    .ultra-panel{
+      border-radius: 18px;
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 12%, var(--stroke));
+      background: rgba(255,255,255,.78);
+      box-shadow: 0 10px 26px rgba(15,23,42,.06);
+      padding: .95rem;
+    }
+
+    /* Inputs with icon */
+    .ultra-field{
+      position:relative;
+    }
+    .ultra-field .fi{
+      position:absolute;
+      left:.85rem; top:50%;
+      transform: translateY(-50%);
+      width: 34px; height: 34px;
+      border-radius: 12px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 22%, var(--stroke));
+      color: color-mix(in srgb, var(--theme-color-secondaire) 85%, #000 15%);
+      pointer-events:none;
+    }
+    .ultra-field .form-control,
+    .ultra-field .form-select,
+    .ultra-field textarea{
+      padding-left: 3.2rem !important;
+    }
+
+    /* Hint / helper */
+    .ultra-hint{
+      display:flex; gap:.6rem; align-items:flex-start;
+      padding:.65rem .75rem;
+      border-radius: 16px;
+      background: linear-gradient(180deg,
+        color-mix(in srgb, var(--theme-color-principal) 7%, transparent),
+        rgba(255,255,255,.65));
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 12%, var(--stroke));
+      color: var(--muted);
+      font-size: .86rem;
+    }
+    .ultra-hint i{ color: var(--theme-color-secondaire); margin-top:.1rem; }
+
+    /* Footer buttons */
+    .modal.modal-ultra .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .modal.modal-ultra .btn-ultra-cancel{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.75);
+    }
+    .modal.modal-ultra .btn-ultra-cancel:hover{
+      background: #fff;
+    }
+
+    /* CTA glass gradient (si tu utilises déjà .btn-gradient tu peux garder) */
+    .modal.modal-ultra .btn-ultra-primary{
+      color:#fff;
+      border: 0;
+      background:
+        radial-gradient(900px 220px at 10% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 45%, transparent),
+          transparent 60%),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%));
+      box-shadow: 0 14px 34px color-mix(in srgb, var(--theme-color-principal) 20%, transparent);
+    }
+    .modal.modal-ultra .btn-ultra-primary:hover{
+      filter: brightness(1.03);
+      transform: translateY(-1px);
+    }
+    .modal.modal-ultra .btn-ultra-primary:active{
+      transform: translateY(0);
+    }
+
+    /* Error alert un peu plus chic */
+    .modal.modal-ultra .alert{
+      border-radius: 16px;
+      border: 1px solid rgba(220,53,69,.25);
+      background: rgba(220,53,69,.08);
+    }
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  {# Flatpickr local #}
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+  window.initGmpPlaces = function(){ /* vide : on initialise dans le JS plus bas */ };
+</script>
+
+<script
+  src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&language=fr&region=FR&loading=async&callback=initGmpPlaces"
+  async>
+</script>
+
+
+
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO (même style que session/index) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-calendar-event me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ modeEdition ? 'Modifier une session' : 'Ajouter une session' }}
+          </h2>
+          <div class="opacity-75 mt-1">Références, journées, stagiaires, pièces et logistique.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-calendar-event"></i> Session</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-pencil-square"></i> {{ modeEdition ? 'Modification' : 'Création' }}</span>
+            {% if form.vars.value and form.vars.value.id %}
+              <span class="chip"><i class="bi bi-hash"></i> #{{ form.vars.value.id }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold" href="javascript:history.back()">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+            <i class="bi bi-check2"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate', name: 'session_administrateur' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ====================== COL LEFT ====================== #}
+    <div class="col-lg-8">
+
+      {# ===== Liens & Références ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-link-45deg text-warning"></i> Liens & Références</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            {# Formation (interne) + Intitulé (OF) #}
+            <div class="col-md-12">{{ form_row(form.typeFinancement) }}</div>
+            <div class="col-md-6">
+              
+              
+              <div id="wrap-formation">
+                {{ form_row(form.formation) }}
+              </div>
+
+              <div id="wrap-formation-libre" class="d-none mt-2">
+                {{ form_row(form.formationIntituleLibre) }}
+              </div>
+
+
+            </div>
+
+
+            <div class="col-md-6">
+              
+
+              <div id="wrap-organisme-formation" class="d-none mt-2">
+                {{ form_row(form.organismeFormation) }}
+              </div>
+
+            </div>
+
+
+            <div class="col-md-6">
+              <div class="d-flex align-items-end gap-2">
+                <div class="flex-grow-1">{{ form_row(form.site) }}</div>
+                <button type="button" class="btn btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#modal-new-site" title="Créer un site">
+                  <i class="fa fa-plus"></i>
+                </button>
+              </div>
+            </div>
+
+            
+
+            <div class="col-md-6">
+              <div class="d-flex align-items-end gap-2">
+                <div class="flex-grow-1">{{ form_row(form.formateur) }}</div>
+                <button type="button" class="btn btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#modal-new-formateur" title="Créer un formateur">
+                  <i class="fa fa-user-plus"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="col-md-6">{{ form_row(form.status) }}</div>
+            <div class="col-md-6">{{ form_row(form.engin) }}</div>
+            <div class="col-md-6">{{ form_row(form.code) }}</div>
+          </div>
+
+          <div class="form-text mt-2">
+            Formation / site / engin / formateur + code et statut.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Capacité ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-people text-warning"></i> Capacité & Tarif</h5>
+          <span class="chip">Paramètres</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.capacite) }}</div>
+            <div class="col-md-6">{{ form_row(form.montantCents) }}</div>
+          </div>
+          <div class="form-text mt-2">
+            Le tarif effectif = montant personnalisé, sinon le prix de base de la formation.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Pièces obligatoires ===== #}
+      {% if form.piecesObligatoires is defined %}
+        <div class="cardx mb-4">
+          <div class="cardx-h">
+            <h5 class="cardx-title"><i class="bi bi-file-earmark-check text-warning"></i> Pièces obligatoires</h5>
+            <span class="chip">Dossier</span>
+          </div>
+          <div class="p-3 p-md-4">
+            <p class="small text-muted mb-3">
+              Coche les pièces qui doivent être présentes <strong>et validées</strong> pour considérer un stagiaire
+              comme « dossier complet ».
+            </p>
+
+            <div class="pieces-obligatoires-group">
+              {{ form_label(form.piecesObligatoires, null, { label_attr: {'class': 'form-label fw-semibold'} }) }}
+              {{ form_errors(form.piecesObligatoires) }}
+
+              <div class="pieces-obligatoires-grid">
+                {% for child in form.piecesObligatoires %}
+                  <div class="form-check piece-check-card">
+                    {{ form_widget(child, {'attr': {'class': 'form-check-input'}}) }}
+                    <label class="form-check-label" for="{{ child.vars.id }}">
+                      <span class="piece-check-card-title">{{ child.vars.label }}</span>
+                      {% set val = child.vars.value %}
+                      <span class="piece-check-card-sub">
+                        {% if val == 'cni_recto' %}
+                          Carte nationale d’identité (recto) ou passeport en cours de validité.
+                        {% elseif val == 'cni_verso' %}
+                          Carte nationale d’identité (verso) ou passeport en cours de validité.
+                        {% elseif val == 'convocation_signee' %}
+                          Convocation signée par le stagiaire.
+                        {% elseif val == 'reglement_interieur_signee' %}
+                          Règlement intérieur daté et signé.
+                        {% elseif val == 'opco_prise_en_charge' %}
+                          Justificatif de prise en charge OPCO.
+                        {% elseif val == 'justificatif_domicile' %}
+                          Justificatif de domicile de moins de 3 mois.
+                        {% else %}
+                          Pièce justificative obligatoire pour ce dossier.
+                        {% endif %}
+                      </span>
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {# ===== Journées ===== #}
+      {% set jourPrototype %}
+        <div class='row g-3 mb-2 jour-item'>
+          <div class='col-md-4'>
+            {{ form_row(form.jours.vars.prototype.dateDebut) }}
+          </div>
+          <div class='col-md-4'>
+            {{ form_row(form.jours.vars.prototype.dateFin) }}
+          </div>
+          <div class='col-md-3'>
+            {{ form_row(form.jours.vars.prototype.formateur) }}
+          </div>
+          <div class='col-md-1 d-flex align-items-end justify-content-end'>
+            <button type='button' class='btn btn-outline-danger btn-remove-jour'>
+              <i class='fa fa-trash'></i>
+            </button>
+          </div>
+        </div>
+      {% endset %}
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-calendar-week text-warning"></i> Journées</h5>
+          <span class="chip" id="chip-jours">{{ form.jours|length }} jour{{ form.jours|length > 1 ? 's' : '' }}</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div id="jours-collection" data-prototype="{{ jourPrototype|e('html_attr') }}">
+            {% for jour in form.jours %}
+              <div class="row g-3 mb-2 jour-item">
+                <div class="col-md-4">{{ form_row(jour.dateDebut) }}</div>
+                <div class="col-md-4">{{ form_row(jour.dateFin) }}</div>
+                <div class="col-md-3">{{ form_row(jour.formateur) }}</div>
+                <div class="col-md-1 d-flex align-items-end justify-content-end">
+                  <button type="button" class="btn btn-outline-danger btn-remove-jour">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <button type="button" class="btn btn-outline-primary mt-2" id="btn-add-jour">
+            <i class="fa fa-plus"></i> Ajouter une journée
+          </button>
+        </div>
+      </div>
+
+      {# ===== Stagiaires ===== #}
+      {% set insPrototype %}
+        <div class='row g-3 mb-4 inscription-item align-items-end'>
+          <div class='col-md-5'>
+            {{ form_row(form.inscriptions.vars.prototype.stagiaire) }}
+          </div>
+          <div class='col-md-5'>
+            {{ form_row(form.inscriptions.vars.prototype.status) }}
+          </div>
+          <div class='col-md-2 d-flex align-items-end justify-content-end'>
+            <button type='button' class='btn btn-outline-danger btn-remove-inscription'>
+              <i class='fa fa-trash'></i>
+            </button>
+          </div>
+        </div>
+      {% endset %}
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-people-fill text-warning"></i> Stagiaires</h5>
+          <span class="chip" id="chip-ins">{{ form.inscriptions|length }} inscrit{{ form.inscriptions|length > 1 ? 's' : '' }}</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div id="inscriptions-collection" data-prototype="{{ insPrototype|e('html_attr') }}">
+            {% for ins in form.inscriptions %}
+              <div class="row g-3 mb-4 inscription-item align-items-end">
+                <div class="col-md-5">{{ form_row(ins.stagiaire) }}</div>
+                <div class="col-md-5">{{ form_row(ins.status) }}</div>
+                <div class="col-md-2 d-flex align-items-end justify-content-end">
+                  <button type="button" class="btn btn-outline-danger btn-remove-inscription">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <button type="button" class="btn btn-outline-primary" id="btn-add-inscription">
+              <i class="fa fa-plus"></i> Ajouter un stagiaire existant
+            </button>
+
+            <button type="button" class="btn btn-link"
+                    data-bs-toggle="modal" data-bs-target="#modal-new-stagiaire">
+              <i class="fa fa-user-plus"></i> Créer un nouveau stagiaire
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Logistique (switches) ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-tools text-warning"></i> Logistique - animation</h5>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-logistique-uncheck">
+              <i class="bi bi-x-square"></i> Tout décocher
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-logistique-check">
+              <i class="bi bi-check2-square"></i> Tout cocher
+            </button>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+
+            <div class="col-lg-6">
+              <div class="fw-semibold mb-2">
+                <i class="fa fa-desktop me-2 text-theme-secondaire"></i> Équipements pédagogiques
+              </div>
+              <div class="soft-box">
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Ordinateur (formateur)</div>
+                    <div class="desc">Le formateur dispose d’un ordinateur opérationnel.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.equipOrdinateurFormateur, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.equipOrdinateurFormateur) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Vidéoprojecteur / écran</div>
+                    <div class="desc">Projection possible (écran ou mur adapté).</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.equipVideoprojecteurEcran, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.equipVideoprojecteurEcran) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Connexion Internet stable</div>
+                    <div class="desc">Wi-Fi / réseau fiable pour démos et outils.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.equipInternetStable, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.equipInternetStable) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Tableau blanc / paperboard</div>
+                    <div class="desc">Pour les explications et ateliers.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.equipTableauPaperboard, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.equipTableauPaperboard) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Marqueurs, post-its, supports imprimés</div>
+                    <div class="desc">Matériel d’animation prêt (atelier, exercices…).</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.equipMarqueursSupportsImprimes, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.equipMarqueursSupportsImprimes) }}
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="fw-semibold mb-2">
+                <i class="fa fa-chair me-2 text-theme-secondaire"></i> Salle et confort
+              </div>
+              <div class="soft-box">
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Salle adaptée à la taille du groupe</div>
+                    <div class="desc">Espace suffisant + disposition possible (U, îlots…).</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.salleAdapteeTailleGroupe, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.salleAdapteeTailleGroupe) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Tables, chaises ergonomiques</div>
+                    <div class="desc">Confort OK pour une journée complète.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.salleTablesChaisesErgo, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.salleTablesChaisesErgo) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Lumière, chauffage / climatisation</div>
+                    <div class="desc">Conditions agréables (luminosité/temp.).</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.salleLumiereChauffageClim, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.salleLumiereChauffageClim) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Eau / café</div>
+                    <div class="desc">Petit confort qui change tout 😄</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.salleEauCafe, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.salleEauCafe) }}
+              </div>
+            </div>
+
+          </div>
+
+          <div class="form-text mt-2">
+            Ces informations servent à préparer la salle et éviter les “surprises” le jour J.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Actions bas (mobile friendly) ===== #}
+      <div class="d-flex justify-content-end gap-2 mt-3 mb-4">
+        <a href="javascript:history.back()" class="btn btn-secondary">
+          <i class="fa fa-arrow-left"></i> Retour
+        </a>
+        <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
+          <i class="fa fa-check"></i> {{ modeEdition ? 'Modifier' : 'Ajouter & Terminer' }}
+        </button>
+      </div>
+
+    </div>
+
+    {# ====================== COL RIGHT ====================== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="border rounded-4 p-3 mb-3" style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Session</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Formation</span>
+                <span class="fw-semibold text-end" id="resume-formation">-</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Site</span>
+                <span class="fw-semibold text-end" id="resume-site">-</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Engin</span>
+                <span class="fw-semibold text-end" id="resume-engin">-</span>
+              </div>
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Type de financement</span>
+                <span class="fw-semibold text-end" id="resume-type-financement">-</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Formateur</span>
+                <span class="fw-semibold text-end" id="resume-formateur">-</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Code</span>
+                <span class="fw-semibold text-end" id="resume-code">-</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Statut</span>
+                <span class="fw-semibold text-end" id="resume-statut">-</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Capacité</span>
+                <span class="fw-semibold text-end" id="resume-capacite">-</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Montant</span>
+                <span class="fw-semibold text-end" id="resume-montant">-</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Journées</span>
+                <span class="fw-semibold text-end" id="resume-jours">{{ form.jours|length }}</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Stagiaires</span>
+                <span class="fw-semibold text-end" id="resume-stagiaires">{{ form.inscriptions|length }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="javascript:history.back()">Annuler</a>
+            <button type="submit" class="btn btn-gradient w-50" id="btnRightSubmit">
+              <i class="fa fa-check"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> ajoute au moins 1 journée + 1 stagiaire.
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-check2"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# ✅ Empêche Symfony de re-rendre les collections via form_rest #}
+{% do form.jours.setRendered %}
+{% do form.inscriptions.setRendered %}
+
+{# si tu as d'autres champs custom rendus, idem : #}
+{% if form.piecesObligatoires is defined %}
+  {% do form.piecesObligatoires.setRendered %}
+{% endif %}
+
+{{ form_end(form) }}
+
+{# ================== MODALES (identiques à ta version) ================== #}
+{# ===== NOUVEAU STAGIAIRE (ULTRA) ===== #}
+<div class="modal fade modal-ultra" id="modal-new-stagiaire" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <form id="form-new-stagiaire">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <span class="ico"><i class="bi bi-person-plus"></i></span>
+            Nouveau stagiaire
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="ultra-hint mb-3">
+            <i class="bi bi-shield-check"></i>
+            <div>
+              <div class="fw-semibold" style="color:var(--ink)">Création + association en 1 clic</div>
+              <div>On crée le stagiaire, puis on l’ajoute automatiquement dans la session.</div>
+            </div>
+          </div>
+
+          <div class="ultra-panel">
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label class="form-label">Civilité *</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-person-badge"></i></span>
+                  <select name="civilite" class="form-select" required>
+                    <option value="">— Choisir —</option>
+                    <option value="M">Monsieur</option>
+                    <option value="MME">Madame</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="col-md-7">
+                <label class="form-label">Téléphone</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-telephone"></i></span>
+                  <input type="text" name="telephone" class="form-control" placeholder="06 12 34 56 78">
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Prénom *</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-person"></i></span>
+                  <input type="text" name="prenom" class="form-control" required placeholder="Jean">
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Nom *</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-person"></i></span>
+                  <input type="text" name="nom" class="form-control" required placeholder="Dupont">
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Email *</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-envelope"></i></span>
+                  <input type="email" name="email" class="form-control" required placeholder="jean.dupont@mail.com">
+                </div>
+                <div class="form-text">Cet email servira d’identifiant et de contact.</div>
+              </div>
+            </div>
+
+            <div class="alert alert-danger d-none mt-3 mb-0" id="new-stagiaire-error"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ultra-cancel" data-bs-dismiss="modal">
+            <i class="bi bi-x-lg me-1"></i> Annuler
+          </button>
+
+          <button type="submit" class="btn btn-ultra-primary">
+            <i class="fa fa-save me-1"></i> Créer & associer
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{# ===== NOUVEAU FORMATEUR (ULTRA) ===== #}
+<div class="modal fade modal-ultra" id="modal-new-formateur" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <form id="form-new-formateur">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <span class="ico"><i class="bi bi-mortarboard"></i></span>
+            Nouveau formateur
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="ultra-hint mb-3">
+            <i class="bi bi-stars"></i>
+            <div>
+              <div class="fw-semibold" style="color:var(--ink)">Profil formateur</div>
+              <div>Renseigne les infos essentielles, le reste pourra être complété plus tard.</div>
+            </div>
+          </div>
+
+          <div class="ultra-panel">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Prénom *</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-person"></i></span>
+                  <input type="text" name="prenom" class="form-control" required placeholder="Marie">
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Nom *</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-person"></i></span>
+                  <input type="text" name="nom" class="form-control" required placeholder="Martin">
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Email *</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-envelope"></i></span>
+                  <input type="email" name="email" class="form-control" required placeholder="marie.martin@mail.com">
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Téléphone</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-telephone"></i></span>
+                  <input type="text" name="telephone" class="form-control" placeholder="06 12 34 56 78">
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Certifications (optionnel)</label>
+                <div class="ultra-field">
+                  <span class="fi"><i class="bi bi-patch-check"></i></span>
+                  <textarea name="certifications" class="form-control" rows="2" placeholder="CACES R4xx, SST, Titre pro…"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="alert alert-danger d-none mt-3 mb-0" id="new-formateur-error"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ultra-cancel" data-bs-dismiss="modal">
+            <i class="bi bi-x-lg me-1"></i> Annuler
+          </button>
+
+          <button type="submit" class="btn btn-ultra-primary">
+            <i class="fa fa-save me-1"></i> Créer & associer
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{# ===== NOUVEAU SITE ===== #}
+<div class="modal fade" id="modal-new-site" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form id="form-new-site">
+        <div class="modal-header">
+          <h5 class="modal-title">Nouveau site de formation</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nom du site *</label>
+              <input type="text" name="nom" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fuseau horaire</label>
+              <input type="text" name="timezone" class="form-control" value="Europe/Paris">
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label">Adresse</label>
+
+              <gmp-place-autocomplete id="new-site-autocomplete"></gmp-place-autocomplete>
+
+              <input type="hidden" name="adresse" id="new-site-adresse">
+              <div class="form-text">Astuce : commence à taper, l’auto-pin placera le point.</div>
+              
+
+
+
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Complément</label>
+              <input type="text" name="complement" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Code postal</label>
+              <input type="text" name="codePostal" class="form-control" id="new-site-cp">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Ville</label>
+              <input type="text" name="ville" class="form-control" id="new-site-ville">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Département</label>
+              <input type="text" name="departement" class="form-control" id="new-site-dept">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Région</label>
+              <input type="text" name="region" class="form-control" id="new-site-region">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Pays</label>
+              <input type="text" name="pays" class="form-control" value="France" id="new-site-pays">
+            </div>
+          </div>
+
+          {# Hidden geo fields envoyés au serveur #}
+          <input type="hidden" name="latitude" id="new-site-lat">
+          <input type="hidden" name="longitude" id="new-site-lng">
+          <input type="hidden" name="googlePlaceId" id="new-site-placeId">
+          <input type="hidden" name="formattedAddress" id="new-site-formatted">
+
+          <hr class="my-3">
+
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <div class="map-hint">
+              <i class="bi bi-cursor-fill"></i>
+              Clique sur la carte pour poser le point, puis déplace le marqueur.
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-newsite-geoloc">
+                <i class="bi bi-crosshair"></i> Me localiser
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-newsite-clear">
+                <i class="bi bi-x-circle"></i> Effacer
+              </button>
+            </div>
+          </div>
+
+          <div id="new-site-map" style="height:300px;border-radius:16px;border:1px solid var(--stroke);"></div>
+
+          <div class="mt-2 small text-muted">
+            Coordonnées : <span id="new-site-latlng-display">-</span>
+          </div>
+
+          <div class="alert alert-danger d-none mt-3" id="new-site-error"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa fa-save"></i> Créer & associer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+{# ===== PRECHECK FULL MODAL (identique) ===== #}
+<div class="modal fade" id="precheckFullModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
+          Confirmation - Passage en “Complète”
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="small text-muted mb-3">
+          Avant de basculer la session en <strong>Complète</strong>, voici les vérifications et les conséquences.
+        </div>
+
+        <div id="precheckFullBlocks" class="d-flex flex-column gap-3"></div>
+
+        <hr class="my-3">
+
+        <div>
+          <div class="fw-semibold mb-2"><i class="bi bi-lightning-charge me-1"></i> Conséquences</div>
+          <ul class="mb-0" id="precheckFullConsequences"></ul>
+        </div>
+
+        <div class="alert alert-warning mt-3 mb-0">
+          <div class="fw-semibold">Important</div>
+          <div class="small">
+            Cette action peut déclencher des créations automatiques (affectations, tentatives, notifications selon ton workflow).
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">
+          Annuler
+        </button>
+
+        <button class="btn btn-warning fw-semibold" type="button" id="btnConfirmFull">
+          <i class="bi bi-check2-circle me-1"></i> Confirmer le passage en complète
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================== JS (reprend ton existant + dropdownParent body + résumé live) ================== #}
+
+
+<script>
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+// Parse "d/m/Y H:i" -> Date (local)
+function parseFRDateTime(str){
+  const m = (str || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  const dd = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10) - 1;
+  const yyyy = parseInt(m[3], 10);
+  const HH = parseInt(m[4], 10);
+  const ii = parseInt(m[5], 10);
+  const d = new Date(yyyy, mm, dd, HH, ii, 0, 0);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function setTime(dateObj, hh, mm){
+  const d = new Date(dateObj);
+  d.setHours(hh, mm, 0, 0);
+  return d;
+}
+
+function bindFlatpickr(scope) {
+  const root = scope || document;
+  if (!window.flatpickr) return;
+
+  // Locale FR
+  if (window.flatpickr?.l10ns?.fr) {
+    flatpickr.localize(flatpickr.l10ns.fr);
+  }
+
+  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  // Marque les champs que l'utilisateur a modifiés manuellement
+  root.querySelectorAll('.flatpickr-datetime').forEach((el) => {
+    if (!el.dataset) return;
+    if (!el.dataset.userTouched) {
+      el.dataset.userTouched = "0";
+      el.addEventListener('input', () => el.dataset.userTouched = "1");
+      el.addEventListener('change', () => el.dataset.userTouched = "1");
+    }
+  });
+
+  root.querySelectorAll('.flatpickr-datetime').forEach((el) => {
+    if (el._flatpickr) return;
+
+    flatpickr(el, {
+      enableTime: true,
+      time_24hr: true,
+      dateFormat: "d/m/Y H:i",
+      allowInput: true,
+      minuteIncrement: 5,
+
+      onOpen: function(selectedDates, dateStr, instance) {
+        if (isDark) instance.calendarContainer.classList.add('flatpickr-dark');
+      },
+
+      onChange: function(selectedDates, dateStr, instance) {
+        if (instance.__autoApplying) return;
+
+        const current = selectedDates && selectedDates[0] ? selectedDates[0] : parseFRDateTime(el.value);
+        if (!current) return;
+
+        const row = el.closest('.jour-item') || el.closest('.row') || el.parentElement;
+        if (!row) return;
+
+        const inputs = Array.from(row.querySelectorAll('.flatpickr-datetime'));
+        if (inputs.length < 2) return;
+
+        const startInput = inputs[0];
+        const endInput   = inputs[1];
+        const isStartField = (el === startInput);
+
+        const startFp = startInput?._flatpickr || null;
+        const endFp   = endInput?._flatpickr || null;
+
+        function safeSet(fp, dateObj) {
+          if (!fp) return;
+          fp.__autoApplying = true;
+          try { fp.setDate(dateObj, false); } finally { fp.__autoApplying = false; }
+        }
+
+        // --- init flags
+        if (endInput.dataset.endLinked == null) endInput.dataset.endLinked = "1";
+
+        // Si l'utilisateur modifie la FIN -> on "délie" (endLinked=0)
+        if (!isStartField) {
+          endInput.dataset.endLinked = "0";
+        }
+
+        // ----- DEBUT
+        if (isStartField) {
+          const startTouched = startInput.dataset.userTouched === "1";
+          const hh = current.getHours(), mi = current.getMinutes();
+
+          // Début à 08:30 si pas touché OU si click date (00:00)
+          const newStart = setTime(current, 8, 30);
+          const shouldForceStartTime = (!startTouched) || (hh === 0 && mi === 0);
+
+          if (shouldForceStartTime && startFp) {
+            safeSet(startFp, newStart);
+            startInput.dataset.userTouched = "0";
+          }
+
+          // 🔥 ICI : fin suit la date de début
+          const existingEnd = parseFRDateTime(endInput.value);
+          const endTouched  = endInput.dataset.userTouched === "1";
+          const endLinked   = endInput.dataset.endLinked === "1";
+
+          // heure de fin à conserver si déjà existante, sinon 17:00
+          const endHour = existingEnd ? existingEnd.getHours() : 17;
+          const endMin  = existingEnd ? existingEnd.getMinutes() : 0;
+
+          // nouvelle fin = même jour que début (newStart), heure = conservée
+          const desiredEnd = setTime(newStart, endHour, endMin);
+
+          // On met à jour la fin si :
+          // - elle est "liée" (endLinked=1)  ✅ (cas normal)
+          // OU
+          // - elle n'a pas été touchée par l'utilisateur
+          // OU
+          // - elle est vide
+          const endEmpty = !endInput.value || !existingEnd;
+
+          if ((endLinked || !endTouched || endEmpty)) {
+            if (endFp) safeSet(endFp, desiredEnd);
+            else {
+              endInput.value =
+                `${pad2(desiredEnd.getDate())}/${pad2(desiredEnd.getMonth()+1)}/${desiredEnd.getFullYear()} ` +
+                `${pad2(desiredEnd.getHours())}:${pad2(desiredEnd.getMinutes())}`;
+            }
+            endInput.dataset.userTouched = "0";
+            endInput.dataset.endLinked = "1"; // reste lié
+          }
+
+          // Sécurité : fin >= début
+          const endVal = parseFRDateTime(endInput.value);
+          if (endVal && endVal.getTime() < newStart.getTime()) {
+            const corrected = setTime(newStart, 17, 0);
+            if (endFp) safeSet(endFp, corrected);
+            else endInput.value =
+              `${pad2(corrected.getDate())}/${pad2(corrected.getMonth()+1)}/${corrected.getFullYear()} ` +
+              `${pad2(corrected.getHours())}:${pad2(corrected.getMinutes())}`;
+            endInput.dataset.endLinked = "1";
+            endInput.dataset.userTouched = "0";
+          }
+        }
+
+        // ----- FIN : sécurité fin >= début (si l'utilisateur met une fin avant)
+        if (!isStartField) {
+          const startVal = parseFRDateTime(startInput.value);
+          const endVal   = parseFRDateTime(endInput.value);
+
+          if (startVal && endVal && endVal.getTime() < startVal.getTime()) {
+            const corrected = setTime(startVal, 17, 0);
+            if (endFp) safeSet(endFp, corrected);
+            else endInput.value =
+              `${pad2(corrected.getDate())}/${pad2(corrected.getMonth()+1)}/${corrected.getFullYear()} ` +
+              `${pad2(corrected.getHours())}:${pad2(corrected.getMinutes())}`;
+
+            // Comme on corrige automatiquement, on peut relier à nouveau
+            endInput.dataset.endLinked = "1";
+            endInput.dataset.userTouched = "0";
+          }
+        }
+      }
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+
+  const idFormation = '#{{ form.formation.vars.id }}';
+  const idSite      = '#{{ form.site.vars.id }}';
+  const idEngin     = '#{{ form.engin.vars.id }}';
+  const idTypeFinancement = '#{{ form.typeFinancement.vars.id }}';
+  const idFormateur = '#{{ form.formateur.vars.id }}';
+  const idStatus    = '#{{ form.status.vars.id }}';
+  const idCode      = '#{{ form.code.vars.id }}';
+  const idCapacite  = '#{{ form.capacite.vars.id }}';
+  const idMontant   = '#{{ form.montantCents.vars.id }}';
+
+  const $formation = document.querySelector(idFormation);
+  const $site      = document.querySelector(idSite);
+  const $engin     = document.querySelector(idEngin);
+  const $typeFinancement = document.querySelector(idTypeFinancement);
+  const $formateur = document.querySelector(idFormateur);
+  const $status    = document.querySelector(idStatus);
+  const $code      = document.querySelector(idCode);
+  const $capacite  = document.querySelector(idCapacite);
+  const $montant   = document.querySelector(idMontant);
+
+  const idFormationLibre = '#{{ form.formationIntituleLibre.vars.id }}';
+  const $formationLibre = document.querySelector(idFormationLibre);
+
+  const idOrganisme = '#{{ form.organismeFormation.vars.id }}';
+  const $organisme = document.querySelector(idOrganisme);
+  const wrapOrganisme = document.getElementById('wrap-organisme-formation');
+
+
+  const wrapFormation = document.getElementById('wrap-formation');
+  const wrapFormationLibre = document.getElementById('wrap-formation-libre');
+
+  // valeur Enum Symfony -> adapte si ta value n'est pas "OF"
+  const OF_VALUE = $typeFinancement?.dataset?.ofValue || '';
+
+
+
+
+  // Résumé DOM
+  const $r = {
+    formation: document.getElementById('resume-formation'),
+    site: document.getElementById('resume-site'),
+    engin: document.getElementById('resume-engin'),
+    typeFinancement: document.getElementById('resume-type-financement'),
+    formateur: document.getElementById('resume-formateur'),
+    code: document.getElementById('resume-code'),
+    statut: document.getElementById('resume-statut'),
+    capacite: document.getElementById('resume-capacite'),
+    montant: document.getElementById('resume-montant'),
+    jours: document.getElementById('resume-jours'),
+    stagiaires: document.getElementById('resume-stagiaires'),
+    pill: document.getElementById('resume-valid-pill')
+  };
+
+  const chipJours = document.getElementById('chip-jours');
+  const chipIns   = document.getElementById('chip-ins');
+
+  const formMain = document.querySelector('form[name="session_administrateur"]');
+  const submitButtons = formMain ? [...formMain.querySelectorAll('button[type="submit"]')] : [];
+
+  function selectedText(selectEl){
+    if (!selectEl || !selectEl.value) return '';
+    const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+    return (opt ? opt.textContent : '').trim();
+  }
+
+  function initTomSelectOn(el) {
+    if (el && !el.tomselect) {
+      new TomSelect(el, {
+        dropdownParent: 'body',   // ✅ FIX overflow/z-index
+        create: false,
+        allowEmptyOption: true,
+        sortField: { field: 'text', direction: 'asc' },
+        plugins: ['remove_button'],
+        onChange: refreshResume
+      });
+    } else if (el?.tomselect) {
+      el.tomselect.on('change', refreshResume);
+    }
+  }
+
+  // ✅ OF helper
+  function isOFSelected(){
+    return ($typeFinancement?.value || '') === OF_VALUE;
+  }
+
+  // ✅ Toggle formation/intitulé + required (pour ton initFormValidation inchangé)
+  function syncFormationMode(){
+    const isOF = isOFSelected();
+
+    if (wrapFormation) wrapFormation.classList.toggle('d-none', isOF);
+    if (wrapFormationLibre) wrapFormationLibre.classList.toggle('d-none', !isOF);
+
+    // ✅ organismeFormation visible en même temps que formationIntituleLibre
+    if (wrapOrganisme) wrapOrganisme.classList.toggle('d-none', !isOF);
+
+    // formation (interne)
+    if ($formation) {
+      $formation.disabled = isOF;
+      if (isOF) $formation.removeAttribute('required');
+      else $formation.setAttribute('required', 'required');
+
+      if (isOF) {
+        if ($formation.tomselect) $formation.tomselect.clear(true);
+        else $formation.value = '';
+      }
+    }
+
+    // intitulé libre (OF)
+    if ($formationLibre) {
+      $formationLibre.disabled = !isOF;
+      if (isOF) $formationLibre.setAttribute('required', 'required');
+      else $formationLibre.removeAttribute('required');
+      if (!isOF) $formationLibre.value = '';
+    }
+
+    // ✅ organismeFormation (OF)
+    if ($organisme) {
+      $organisme.disabled = !isOF;
+
+      // Si tu veux obliger le choix d’une entreprise quand OF :
+      if (isOF) $organisme.setAttribute('required', 'required');
+      else $organisme.removeAttribute('required');
+
+      if (!isOF) {
+        if ($organisme.tomselect) $organisme.tomselect.clear(true);
+        else $organisme.value = '';
+      }
+    }
+
+    refreshResume();
+  }
+
+
+  // TomSelect champs principaux
+  [$formation, $site, $engin, $formateur, $status, $typeFinancement, $organisme].forEach(el => el && initTomSelectOn(el));
+
+
+  // Flatpickr FR
+  if (window.flatpickr && window.flatpickr.l10ns && window.flatpickr.l10ns.fr) {
+    flatpickr.localize(flatpickr.l10ns.fr);
+  }
+  bindFlatpickr(document);
+
+  // ========== Validation (ton code) ==========
+  initFormValidation({
+    formName: 'session_administrateur',
+    tomSelectFields: [
+      { id: '{{ form.formation.vars.id }}', label: '*Formation' },
+      { id: '{{ form.site.vars.id }}',      label: '*Site' },
+      { id: '{{ form.organismeFormation.vars.id }}', label: '*Organisme de formation' },
+    ]
+  });
+
+
+  // ================== JOURNÉES ==================
+  const wrapJours = document.getElementById('jours-collection');
+  const protoJours = wrapJours ? wrapJours.dataset.prototype : null;
+  let indexJour = {{ form.jours|length }};
+
+  function countJours(){
+    return wrapJours ? wrapJours.querySelectorAll('.jour-item').length : 0;
+  }
+  function updateChipJours(){
+    const n = countJours();
+    if (chipJours) chipJours.textContent = `${n} jour${n>1?'s':''}`;
+    if ($r.jours) $r.jours.textContent = String(n);
+  }
+
+  if (wrapJours && protoJours) {
+    document.getElementById('btn-add-jour').addEventListener('click', () => {
+      const html = protoJours.replace(/__name__/g, indexJour++);
+      const div  = document.createElement('div');
+      div.innerHTML = html;
+      const item = div.firstElementChild;
+      wrapJours.appendChild(item);
+      bindFlatpickr(item);
+
+      item.querySelectorAll('.formateur-jour-select, select').forEach(el => {
+        if (el.tagName === 'SELECT') initTomSelectOn(el);
+      });
+
+      updateChipJours();
+      refreshResume();
+    });
+
+    wrapJours.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-remove-jour')) {
+        e.preventDefault();
+        e.target.closest('.jour-item').remove();
+        updateChipJours();
+        refreshResume();
+      }
+    });
+
+    bindFlatpickr(wrapJours);
+    updateChipJours();
+  }
+
+  // ================== INSCRIPTIONS ==================
+  const wrapIns = document.getElementById('inscriptions-collection');
+  const protoIns = wrapIns ? wrapIns.dataset.prototype : null;
+  let indexIns = {{ form.inscriptions|length }};
+
+  function countIns(){
+    return wrapIns ? wrapIns.querySelectorAll('.inscription-item').length : 0;
+  }
+  function updateChipIns(){
+    const n = countIns();
+    if (chipIns) chipIns.textContent = `${n} inscrit${n>1?'s':''}`;
+    if ($r.stagiaires) $r.stagiaires.textContent = String(n);
+  }
+
+  function initTomSelectInscriptions(scope) {
+    (scope || document).querySelectorAll('select.tom-select-inscription, #inscriptions-collection select').forEach(el => {
+      initTomSelectOn(el);
+    });
+  }
+  initTomSelectInscriptions(document);
+  updateChipIns();
+
+  if (wrapIns && protoIns) {
+    document.getElementById('btn-add-inscription').addEventListener('click', ()=>{
+      const html = protoIns.replace(/__name__/g, indexIns++);
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      const row = div.firstElementChild;
+      wrapIns.appendChild(row);
+      initTomSelectInscriptions(row);
+      updateChipIns();
+      refreshResume();
+    });
+
+    wrapIns.addEventListener('click', (e)=>{
+      if (e.target.closest('.btn-remove-inscription')) {
+        e.preventDefault();
+        e.target.closest('.inscription-item').remove();
+        updateChipIns();
+        refreshResume();
+      }
+    });
+  }
+
+  // ================== MODALES AJAX ==================
+  // (tout ton code inchangé ici - je ne touche à rien)
+
+  // ================== PRECHECK FULL ==================
+  // (tout ton code inchangé ici - je ne touche à rien)
+
+  // ================== RÉSUMÉ LIVE + complétude ==================
+  const parseEuros = v => {
+    if (typeof v !== 'string') v = String(v ?? '');
+    v = v.replace(/\s/g,'').replace(',', '.').replace(/[^\d.]/g,'');
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  };
+  const formatMoney = n => new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR' }).format(n);
+
+  function refreshResume(){
+    // ✅ Formation dans résumé : select OU intitulé libre si OF
+    const isOF = isOFSelected();
+    if ($r.formation) {
+      $r.formation.textContent = isOF
+        ? (($formationLibre?.value || '').trim() || '-')
+        : (selectedText($formation) || '-');
+    }
+
+    if ($r.site)      $r.site.textContent      = selectedText($site) || '-';
+    if ($r.engin)     $r.engin.textContent     = selectedText($engin) || '-';
+    if ($r.formateur) $r.formateur.textContent = selectedText($formateur) || '-';
+    if ($r.typeFinancement) $r.typeFinancement.textContent = selectedText($typeFinancement) || '-';
+    if ($r.statut)    $r.statut.textContent    = selectedText($status) || '-';
+    if ($r.code)      $r.code.textContent      = ($code?.value || '').trim() || '-';
+
+    const cap = ($capacite?.value || '').toString().trim();
+    if ($r.capacite) $r.capacite.textContent = cap ? cap : '-';
+
+    const m = parseEuros($montant?.value || '');
+    if ($r.montant) $r.montant.textContent = m ? formatMoney(m) : '-';
+
+    updateChipJours();
+    updateChipIns();
+
+    // ✅ complétude formation selon OF
+    const hasFormation = isOF
+      ? !!(($formationLibre?.value || '').trim())
+      : !!($formation?.value && $formation.value.trim());
+
+    const hasSite      = !!($site?.value && $site.value.trim());
+    const hasJour      = countJours() >= 1;
+    const hasIns       = countIns() >= 1;
+
+    const ok = hasFormation && hasSite && hasJour && hasIns && (formMain ? formMain.checkValidity() : true);
+
+    submitButtons.forEach(b => b.disabled = !ok);
+
+    if ($r.pill) {
+      if (ok) {
+        $r.pill.textContent = '✅ Complet';
+        $r.pill.style.background = 'rgba(25,135,84,.15)';
+        $r.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $r.pill.style.color = 'var(--ink)';
+      } else {
+        $r.pill.textContent = '⚠️ Incomplet';
+        $r.pill.style.background = 'rgba(255,193,7,.15)';
+        $r.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $r.pill.style.color = 'var(--ink)';
+      }
+    }
+  }
+
+  [$code,$capacite,$montant].forEach(el => el && el.addEventListener('input', refreshResume));
+  [$code,$capacite,$montant].forEach(el => el && el.addEventListener('change', refreshResume));
+
+  // ✅ rafraîchit résumé si l’intitulé libre change
+  $formationLibre?.addEventListener('input', refreshResume);
+  $formationLibre?.addEventListener('change', refreshResume);
+
+  // ✅ toggle OF au changement + init
+  $typeFinancement?.addEventListener('change', syncFormationMode);
+  syncFormationMode();
+
+  refreshResume();
+});
+</script>
+
+
+{# ========== Validation formulaire principal (ton code, inchangé) ========== #}
+<script>
+function initFormValidation({ formName, tomSelectFields=[] }){
+  const form = document.querySelector(`form[name="${formName}"]`);
+  if (!form) return;
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (!submitButton) return;
+
+  let errorAlert = document.getElementById('form-error-alert');
+  if (!errorAlert) {
+    errorAlert = document.createElement('div');
+    errorAlert.className = 'alert alert-danger d-none';
+    errorAlert.id = 'form-error-alert';
+    submitButton.parentElement.prepend(errorAlert);
+  }
+
+  form.addEventListener('submit', e=>{
+    const messages = new Set();
+    let first = null;
+
+    tomSelectFields.forEach(({id,label})=>{
+      const f = document.getElementById(id);
+      if (f && f.hasAttribute('required') && (!f.value || !f.value.trim())) {
+        f.classList.add('is-invalid');
+        messages.add(`- ${label}`);
+        if(!first) first=f;
+      }
+    });
+
+    const items = form.querySelectorAll('#jours-collection .jour-item');
+    if (items.length === 0) {
+      messages.add('- Ajouter au moins une journée');
+    } else {
+      items.forEach((row, i) => {
+        const inputs = row.querySelectorAll('.flatpickr-datetime');
+        const debut  = inputs[0]?.value?.trim();
+        const fin    = inputs[1]?.value?.trim();
+        if (!debut || !fin) {
+          messages.add(`- Journée #${i+1}: début et fin obligatoires`);
+          if (!first) first = inputs[0] || inputs[1];
+        }
+      });
+    }
+
+    form.querySelectorAll(':invalid').forEach(el=>{
+      el.classList.add('is-invalid');
+      if(!first) first=el;
+      const l = form.querySelector(`label[for="${el.id}"]`);
+      if (l) messages.add(`- ${l.textContent.trim()}`);
+    });
+
+    if (messages.size) {
+      e.preventDefault();
+      errorAlert.innerHTML = `<strong>Champs requis manquants :</strong><br>${[...messages].join('<br>')}`;
+      errorAlert.classList.remove('d-none');
+      if (first && first.scrollIntoView) first.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>errorAlert.classList.add('d-none'), 6000);
+    }
+  });
+}
+</script>
+
+
+{# ========== Boutons "Tout cocher/décocher" logistique (inchangé) ========== #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  function getLogistiqueSwitches() {
+    return document.querySelectorAll('input[type="checkbox"][data-logistique-switch]');
+  }
+
+  const btnUncheck = document.getElementById('btn-logistique-uncheck');
+  const btnCheck   = document.getElementById('btn-logistique-check');
+
+  if (btnUncheck) {
+    btnUncheck.addEventListener('click', () => {
+      getLogistiqueSwitches().forEach(cb => {
+        cb.checked = false;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  }
+
+  if (btnCheck) {
+    btnCheck.addEventListener('click', () => {
+      getLogistiqueSwitches().forEach(cb => {
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  }
+});
+</script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // … ton code existant …
+
+  // ================== MODALE : NOUVEAU SITE ==================
+  const formNewSite = document.getElementById('form-new-site');
+  const siteSelect  = document.getElementById('{{ form.site.vars.id }}');
+  const siteError   = document.getElementById('new-site-error');
+
+  // URL Symfony (POST)
+  const newSiteUrl = "{{ path('app_administrateur_session_site_new', { entite: entite.id }) }}";
+
+  if (formNewSite && siteSelect) {
+    formNewSite.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (siteError) {
+        siteError.classList.add('d-none');
+        siteError.textContent = '';
+      }
+
+      const fd = new FormData(formNewSite);
+
+      try {
+        const resp = await fetch(newSiteUrl, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        const data = await resp.json().catch(() => null);
+
+        if (!resp.ok || !data || data.success === false) {
+          const msg = data?.message || `Erreur serveur (${resp.status}).`;
+          if (siteError) {
+            siteError.textContent = msg;
+            siteError.classList.remove('d-none');
+          }
+          return;
+        }
+
+        // ✅ Ajoute l’option au select + sélectionne
+        const opt = new Option(data.label, String(data.id), true, true);
+        siteSelect.add(opt);
+
+        // ✅ Si TomSelect est actif, il faut aussi l’informer
+        if (siteSelect.tomselect) {
+          siteSelect.tomselect.addOption({ value: String(data.id), text: data.label });
+          siteSelect.tomselect.addItem(String(data.id), true);
+        } else {
+          siteSelect.value = String(data.id);
+          siteSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // ✅ Ferme la modale
+        const modalEl = document.getElementById('modal-new-site');
+        if (modalEl) {
+          const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+          modal.hide();
+        }
+
+        // ✅ Reset form
+        formNewSite.reset();
+
+      } catch (err) {
+        if (siteError) {
+          siteError.textContent = "Erreur réseau / JS : " + (err?.message || err);
+          siteError.classList.remove('d-none');
+        }
+      }
+    });
+  }
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // ================== MODALE : NOUVEAU STAGIAIRE ==================
+  const formNewStagiaire = document.getElementById('form-new-stagiaire');
+  const errEl = document.getElementById('new-stagiaire-error');
+
+  const newStagiaireUrl = "{{ path('app_administrateur_session_stagiaire_new', { entite: entite.id }) }}";
+
+  // Collection inscriptions (déjà utilisée dans ton code)
+  const wrapIns = document.getElementById('inscriptions-collection');
+  const protoIns = wrapIns ? wrapIns.dataset.prototype : null;
+
+  // ⚠️ indexIns existe déjà dans ton script principal, mais ici on le recalcule “safe”
+  let localIndexIns = wrapIns ? wrapIns.querySelectorAll('.inscription-item').length : 0;
+
+  function showErr(msg){
+    if (!errEl) return;
+    errEl.textContent = msg || 'Erreur.';
+    errEl.classList.remove('d-none');
+  }
+
+  function clearErr(){
+    if (!errEl) return;
+    errEl.textContent = '';
+    errEl.classList.add('d-none');
+  }
+
+  // Heuristique : dans une inscription-item, le 1er <select> = stagiaire, le 2e = status
+  function getStagiaireSelectFromRow(row){
+    if (!row) return null;
+    const selects = row.querySelectorAll('select');
+    return selects.length ? selects[0] : null;
+  }
+
+  function addOptionAndSelect(selectEl, id, label){
+    if (!selectEl) return;
+
+    const value = String(id);
+
+    // TomSelect
+    if (selectEl.tomselect) {
+      selectEl.tomselect.addOption({ value, text: label });
+      selectEl.tomselect.addItem(value, true);
+      return;
+    }
+
+    // Select natif
+    const opt = new Option(label, value, true, true);
+    selectEl.add(opt);
+    selectEl.value = value;
+    selectEl.dispatchEvent(new Event('change', { bubbles:true }));
+  }
+
+  // Ajoute l’option dans TOUS les selects stagiaire déjà présents
+  function addOptionToAllStagiaireSelects(id, label){
+    if (!wrapIns) return;
+
+    wrapIns.querySelectorAll('.inscription-item').forEach(row => {
+      const s = getStagiaireSelectFromRow(row);
+      if (!s) return;
+
+      // évite doublon
+      const exists = Array.from(s.options || []).some(o => String(o.value) === String(id));
+      if (!exists) {
+        if (s.tomselect) s.tomselect.addOption({ value: String(id), text: label });
+        else s.add(new Option(label, String(id)));
+      }
+    });
+  }
+
+  function addInscriptionRow(){
+    if (!wrapIns || !protoIns) return null;
+
+    const html = protoIns.replace(/__name__/g, localIndexIns++);
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const row = div.firstElementChild;
+    wrapIns.appendChild(row);
+
+    // Important : ton initTomSelectOn/initTomSelectInscriptions existe déjà dans ton gros script.
+    // Ici on “ré-initialise” proprement sans casser :
+    row.querySelectorAll('select').forEach(el => {
+      if (window.TomSelect && el && !el.tomselect) {
+        new TomSelect(el, {
+          dropdownParent: 'body',
+          create: false,
+          allowEmptyOption: true,
+          sortField: { field: 'text', direction: 'asc' },
+          plugins: ['remove_button'],
+        });
+      }
+    });
+
+    // Mets à jour chips/résumé si tes fonctions existent
+    if (typeof updateChipIns === 'function') updateChipIns();
+    if (typeof refreshResume === 'function') refreshResume();
+
+    return row;
+  }
+
+  if (formNewStagiaire) {
+    formNewStagiaire.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErr();
+
+      const fd = new FormData(formNewStagiaire);
+
+      try {
+        const resp = await fetch(newStagiaireUrl, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        const data = await resp.json().catch(() => null);
+
+        if (!resp.ok || !data || data.success === false) {
+          showErr(data?.message || `Erreur serveur (${resp.status}).`);
+          return;
+        }
+
+        // ✅ 1) Ajoute l’option partout (pour les selects déjà existants)
+        addOptionToAllStagiaireSelects(data.id, data.label);
+
+        // ✅ 2) Ajoute une ligne “inscription” et sélectionne automatiquement le nouveau stagiaire
+        const row = addInscriptionRow();
+        if (row) {
+          const stagSel = getStagiaireSelectFromRow(row);
+          addOptionAndSelect(stagSel, data.id, data.label);
+
+          // status: si tu veux forcer un status par défaut, tu peux le faire ici
+          // ex: row.querySelectorAll('select')[1]?.tomselect?.setValue('preinscrit', true);
+        }
+
+        // ✅ 3) Ferme modale + reset
+        const modalEl = document.getElementById('modal-new-stagiaire');
+        if (modalEl) {
+          const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+          modal.hide();
+        }
+
+        formNewStagiaire.reset();
+        clearErr();
+
+      } catch (err) {
+        showErr("Erreur réseau / JS : " + (err?.message || err));
+      }
+    });
+  }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const modalEl = document.getElementById('modal-new-site');
+  if (!modalEl) return;
+
+  // --- DOM
+  const acEl   = document.getElementById('new-site-autocomplete');
+  const addrEl = document.getElementById('new-site-adresse');
+  const cpEl   = document.getElementById('new-site-cp');
+  const villeEl= document.getElementById('new-site-ville');
+  const deptEl = document.getElementById('new-site-dept');
+  const regEl  = document.getElementById('new-site-region');
+  const paysEl = document.getElementById('new-site-pays');
+
+  const latEl  = document.getElementById('new-site-lat');
+  const lngEl  = document.getElementById('new-site-lng');
+  const placeEl= document.getElementById('new-site-placeId');
+  const fmtEl  = document.getElementById('new-site-formatted');
+  const dispEl = document.getElementById('new-site-latlng-display');
+
+  const mapDiv = document.getElementById('new-site-map');
+
+  // --- Leaflet state
+  let map = null;
+  let marker = null;
+  let geocodeTimer = null;
+  let lastQueryKey = null;
+  let lastLatLngSource = 'auto'; // auto|manual
+  let pendingLatLng = null;
+
+  function pad6(n){ return Number(n).toFixed(6); }
+  function normalize(s){ return (s || '').toString().trim(); }
+
+  function setLatLng(lat, lng, { pan=true, source='manual' } = {}){
+    lastLatLngSource = source;
+
+    const latF = pad6(lat), lngF = pad6(lng);
+    if (latEl) latEl.value = latF;
+    if (lngEl) lngEl.value = lngF;
+    if (dispEl) dispEl.textContent = `${latF} / ${lngF}`;
+
+    if (!map) {
+      pendingLatLng = { lat, lng, source, pan };
+      return;
+    }
+
+    if (!marker){
+      marker = L.marker([lat, lng], { draggable:true }).addTo(map);
+      marker.on('dragend', () => {
+        const p = marker.getLatLng();
+        setLatLng(p.lat, p.lng, { pan:false, source:'manual' });
+      });
+    } else {
+      marker.setLatLng([lat, lng]);
+    }
+
+    if (pan) {
+      const targetZoom = Math.max(map.getZoom(), 16);
+      map.setView([lat, lng], targetZoom, { animate:true });
+    }
+  }
+
+  function initMapIfNeeded(){
+    if (map || !mapDiv) return;
+
+    map = L.map('new-site-map', { scrollWheelZoom: true }).setView([46.603354, 1.888334], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+    map.on('click', (e) => setLatLng(e.latlng.lat, e.latlng.lng, { source:'manual' }));
+
+    if (pendingLatLng) {
+      const { lat, lng, source, pan } = pendingLatLng;
+      pendingLatLng = null;
+      setLatLng(lat, lng, { source, pan });
+    }
+  }
+
+  function clearLatLng(){
+    lastLatLngSource = 'auto';
+    if (latEl) latEl.value = '';
+    if (lngEl) lngEl.value = '';
+    if (placeEl) placeEl.value = '';
+    if (fmtEl) fmtEl.value = '';
+    if (dispEl) dispEl.textContent = '-';
+    if (map && marker){
+      map.removeLayer(marker);
+      marker = null;
+    }
+  }
+
+  function buildQuery(){
+    const a  = normalize(addrEl?.value);
+    const cp = normalize(cpEl?.value);
+    const v  = normalize(villeEl?.value);
+    const p  = normalize(paysEl?.value);
+    const d  = normalize(deptEl?.value);
+
+    if (!a || !cp || !v) return null;
+    return [a, cp, v, d, p].filter(Boolean).join(', ');
+  }
+
+  async function geocodeAndPlace(){
+    const latFilled = !!normalize(latEl?.value);
+    const lngFilled = !!normalize(lngEl?.value);
+    if (lastLatLngSource === 'manual' && latFilled && lngFilled) return;
+    if ((placeEl?.value || '').trim()) return;
+
+    const q = buildQuery();
+    if (!q) return;
+
+    const key = q.toLowerCase();
+    if (key === lastQueryKey) return;
+    lastQueryKey = key;
+
+    try{
+      const url = new URL('https://nominatim.openstreetmap.org/search');
+      url.searchParams.set('format', 'json');
+      url.searchParams.set('limit', '1');
+      url.searchParams.set('q', q);
+
+      const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (!Array.isArray(data) || !data.length) return;
+
+      const lat = parseFloat(data[0].lat);
+      const lon = parseFloat(data[0].lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+      setLatLng(lat, lon, { source:'auto', pan:true });
+    } catch(e){}
+  }
+
+  function scheduleGeocode(){
+    clearTimeout(geocodeTimer);
+    geocodeTimer = setTimeout(geocodeAndPlace, 650);
+  }
+
+  // ✅ Bootstrap modal hooks
+  modalEl.addEventListener('shown.bs.modal', () => {
+    initMapIfNeeded();
+    setTimeout(() => map && map.invalidateSize(true), 180);
+    scheduleGeocode();
+  });
+
+  document.getElementById('btn-newsite-clear')?.addEventListener('click', clearLatLng);
+
+  const btnGeoloc = document.getElementById('btn-newsite-geoloc');
+  btnGeoloc?.addEventListener('click', () => {
+    if (!navigator.geolocation){
+      alert("La géolocalisation n'est pas disponible sur ce navigateur.");
+      return;
+    }
+    btnGeoloc.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatLng(pos.coords.latitude, pos.coords.longitude, { source:'manual', pan:true });
+        btnGeoloc.disabled = false;
+      },
+      () => { alert("Impossible de récupérer ta position."); btnGeoloc.disabled = false; },
+      { enableHighAccuracy:true, timeout:8000 }
+    );
+  });
+
+  [addrEl, cpEl, villeEl].forEach(el=>{
+    el?.addEventListener('input', scheduleGeocode);
+    el?.addEventListener('change', scheduleGeocode);
+  });
+  [paysEl, deptEl].forEach(el=> el?.addEventListener('change', scheduleGeocode));
+
+  // =================== GOOGLE PLACES (gmp-place-autocomplete) ===================
+  function comp(components, type){
+    const c = (components || []).find(x => (x.types || []).includes(type));
+    return (c?.longText || c?.long_name || c?.text || '') || '';
+  }
+
+  function waitForGoogle(cb){
+    const t = setInterval(()=>{
+      if (window.google?.maps?.places?.PlaceAutocompleteElement){
+        clearInterval(t); cb();
+      }
+    }, 50);
+    setTimeout(()=>clearInterval(t), 8000);
+  }
+
+  function initPlaces(){
+    if (!acEl || !window.google?.maps?.places?.PlaceAutocompleteElement) return;
+
+    acEl.addEventListener('gmp-select', async ({ placePrediction }) => {
+      try{
+        const place = placePrediction.toPlace();
+        await place.fetchFields({ fields: ['id','formattedAddress','location','addressComponents'] });
+
+        const comps = place.addressComponents || [];
+        const streetNumber = comp(comps, 'street_number');
+        const route        = comp(comps, 'route');
+        const postalCode   = comp(comps, 'postal_code');
+        const locality     = comp(comps, 'locality') || comp(comps, 'postal_town');
+        const region       = comp(comps, 'administrative_area_level_1');
+        const departement  = comp(comps, 'administrative_area_level_2');
+        const country      = comp(comps, 'country');
+
+        const adresse = [streetNumber, route].filter(Boolean).join(' ').trim();
+
+        if (addrEl) addrEl.value = adresse || '';
+        if (cpEl && postalCode) cpEl.value = postalCode;
+        if (villeEl && locality) villeEl.value = locality;
+        if (regEl && region) regEl.value = region;
+        if (deptEl && departement) deptEl.value = departement;
+        if (paysEl && country) paysEl.value = country;
+
+        if (placeEl) placeEl.value = place.id || '';
+        if (fmtEl) fmtEl.value = place.formattedAddress || '';
+
+        const loc = place.location;
+        if (loc) {
+          const lat = loc.lat();
+          const lng = loc.lng();
+          if (latEl) latEl.value = String(lat);
+          if (lngEl) lngEl.value = String(lng);
+
+          // ✅ si la modale n'est pas ouverte, on mémorise, sinon on place direct
+          setLatLng(lat, lng, { source:'auto', pan:true });
+        }
+      } catch(e){
+        console.warn('PlaceAutocompleteElement error:', e);
+      }
+    });
+  }
+
+  waitForGoogle(initPlaces);
+});
+</script>
+
+
+
+
+
+{% endblock %}

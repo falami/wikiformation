@@ -1,0 +1,65 @@
+{# templates/administrateur/formation/_actions.html.twig #}
+
+<div class="hover-actions">
+  <div class="btn-group btn-group-sm formation-actions" role="group">
+
+    {# ✅ Bouton principal (gauche) #}
+    <a class="btn btn-light formation-main"
+      data-bs-toggle="tooltip" title="Voir la formation"
+        href="{{ path('app_administrateur_formation_modifier', {
+          id: formation.id,
+          entite: entite.id
+        }) }}">
+      <i class="bi bi-pencil"></i> Modifier
+    </a>
+
+    {# ✅ Split dropdown (droite) #}
+    <button type="button"
+            class="btn btn-light dropdown-toggle dropdown-toggle-split formation-split"
+            data-bs-toggle="dropdown"
+            aria-expanded="false">
+      <span class="visually-hidden">Actions</span>
+    </button>
+
+    <ul class="dropdown-menu dropdown-menu-end formation-menu">
+
+      <li>
+        <a class="dropdown-item d-flex align-items-center"
+           href="{{ path('app_administrateur_formation_dupliquer', {
+             id: formation.id,
+             entite: entite.id
+           }) }}">
+          <i class="bi bi-files me-2"></i> Dupliquer
+        </a>
+      </li>
+
+      <li>
+        <a class="dropdown-item d-flex align-items-center"
+          href="{{ path('app_administrateur_formation_content_index', {
+            formation: formation.id,
+            entite: entite.id
+          }) }}">
+          <i class="bi bi-eye me-2"></i>
+        </a>
+      </li>
+
+      <li><hr class="dropdown-divider"></li>
+
+      <li>
+        <button type="button"
+                class="dropdown-item d-flex align-items-center text-danger delete-btn"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
+                data-url="{{ path('app_administrateur_formation_supprimer', {
+                  id: formation.id,
+                  entite: entite.id
+                }) }}"
+                data-token="{{ csrf_token('delete_formation_' ~ formation.id) }}"
+                data-name="{{ formation.titre|e('html_attr') }}">
+          <i class="bi bi-trash me-2"></i> Supprimer
+        </button>
+      </li>
+
+    </ul>
+  </div>
+</div>

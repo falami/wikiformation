@@ -1,0 +1,600 @@
+{# templates/public/engin/show.html.twig #}
+{% extends 'base_public.html.twig' %}
+
+{% block title %}{{ metaTitle|default(engin.nom ~ ' — Notre flotte') }}{% endblock %}
+{% block meta_description %}{{ metaDesc|default('Découvrez notre flotte : type, capacités, cabines, douches, couchages et formateurs qualifiés.') }}{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+<style>
+  :root{
+    --bg:#0e2a3b; --panel:#0f1b28; --ink:#eaf6ff; --muted:#a8c9da;
+    --cta:#e73d45; --ring:0 0 0 3px rgba(58,160,255,.25), 0 10px 30px rgba(0,0,0,.35);
+    --card:#0f1b28; --card-2:#0d1622; --stroke:#18324a; --glass-stroke:rgba(120,170,200,.18);
+    --ok:#27d17f; --ko:#e83e3e; --dash:#8aa7bd;
+  }
+  body{ color:var(--ink); }
+
+  /* ---------- HERO ---------- */
+  .hero-wrap{ position:relative; isolation:isolate; }
+  .hero-media{
+    position:relative; min-height:52vh; max-height:52vh; overflow:hidden;
+    border-bottom-left-radius:22px; border-bottom-right-radius:22px; background:#0c1a26;
+  }
+  .hero-img{ width:100%; height:100%; object-fit:cover; object-position:center; filter:saturate(1.05) contrast(1.02); transform:scale(1.01); }
+  .hero-img.is-blur{ filter:blur(18px) saturate(1.1); transform:scale(1.04); }
+  .hero-media::after{
+    content:""; position:absolute; inset:0;
+    background:
+      radial-gradient(120% 120% at 10% 10%, rgba(0,0,0,.25) 0%, transparent 55%),
+      linear-gradient(180deg, rgba(0,0,0,.00) 20%, rgba(0,0,0,.55) 100%);
+    pointer-events:none;
+  }
+  .hero-wave{ position:absolute; bottom:-1px; left:0; width:100%; height:80px; z-index:2; }
+  .hero-inner{ position:absolute; inset:0; display:flex; align-items:end; }
+  .hero-content{ position:relative; z-index:3; padding: clamp(1.5rem, 4vw, 3rem) 0; }
+  .hero-title{ font-weight:800; font-size: clamp(1.6rem, 3.6vw, 3rem); line-height:1.1; margin-bottom:.25rem; }
+  .hero-sub{ color:rgba(255,255,255,.8); }
+
+  /* Breadcrumb */
+  .crumbs{ position:absolute; top: clamp(.75rem, 2.2vw, 1.25rem); left:50%; transform:translateX(-50%); z-index:3; }
+  .crumbs a, .crumbs span{ color:rgba(255,255,255,.85); font-size:.9rem; }
+  .crumbs .sep{ opacity:.6; margin:0 .35rem; }
+
+  /* Badges / KPI */
+  .badge-soft{ border-radius:999px; padding:.30rem .9rem; background:var(--card);
+    border:1px solid var(--glass-stroke); color:#fff; backdrop-filter:saturate(1.2) blur(6px); }
+  .badges-row{ gap:.5rem; flex-wrap:wrap; }
+  .kpi-row{ gap:.65rem; flex-wrap:wrap; justify-content:flex-end; }
+  .kpi-glass{
+    background:var(--card); border:1px solid var(--glass-stroke); border-radius:16px;
+    backdrop-filter:saturate(1.3) blur(6px); padding:.8rem .95rem; text-align:center; min-width:124px;
+  }
+  .kpi-label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.8); }
+  .kpi-value{ font-weight:800; font-size:1.25rem; white-space:nowrap; }
+
+  /* Cartes */
+  .card-premium{ background:var(--card); border:1px solid var(--stroke); border-radius:18px; box-shadow:0 14px 36px rgba(0,0,0,.35); }
+  .subcard{ background:var(--card-2); border:1px solid var(--stroke); border-radius:14px; }
+  .section-h{ font-weight:700; letter-spacing:.01em; }
+
+  /* CTA */
+  .btn-cta{ background:var(--cta); border:none; border-radius:12px; color:#fff; font-weight:700; padding:.8rem 1.1rem; }
+  .btn-cta:hover{ filter:brightness(1.05); }
+
+  /* Tables */
+  .table-sessions td, .table-sessions th{ vertical-align:middle; }
+  .table-slim td, .table-slim th{ padding:.45rem .65rem; }
+
+  /* Feature/Specs grid */
+  .feature{ display:flex; align-items:center; gap:.5rem; font-size:.95rem; }
+  .feature i{ opacity:.9; }
+  .dot-ok{ color:var(--ok); } .dot-ko{ color:var(--ko); } .dot-dash{ color:var(--dash); }
+
+  @media (max-width:991.98px){
+    .hero-media{ min-height:46vh; }
+    .kpi-row{ justify-content:flex-start; }
+  }
+
+
+  .tableau{
+    background: var(--card) !important;
+  }
+
+
+
+
+  /* ===== Sessions (≤575.98px): premium cards with grid ===== */
+@media (max-width: 575.98px){
+  .table-sessions thead{ display:none; }
+  .table-sessions{ border-collapse:separate; border-spacing:0 1rem; }
+
+  /* Card container */
+  .table-sessions tbody tr{
+    display:grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "dates  dates"
+      "route  route"
+      "code   code"
+      "places   price"
+      "action action";
+    gap:.65rem 1rem;
+    padding:1rem .95rem;
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.00));
+    border:1px solid var(--stroke);
+    border-radius:16px;
+    box-shadow:0 10px 24px rgba(0,0,0,.28);
+  }
+
+  /* Reset TD stripes + spacing */
+  .table-sessions tbody td{
+    background:transparent !important;
+    border:0 !important;
+    padding:0 !important;
+    margin:0;
+  }
+
+  /* Areas (no Twig change needed) */
+  .table-sessions tbody td:nth-child(1){ grid-area:dates; color: #ffffff !important;}
+  .table-sessions tbody td:nth-child(2){ grid-area:route; color: #ffffff !important;}
+  .table-sessions tbody td:nth-child(3){ grid-area:code; color: #ffffff !important;}
+  .table-sessions tbody td:nth-child(4){ grid-area:price; text-align:right; }
+  .table-sessions tbody td:nth-child(5){ grid-area:places; color: #ffffff !important;}
+  .table-sessions tbody td:nth-child(6){ grid-area:action; color: #ffffff !important;}
+
+  /* Section labels */
+  .table-sessions tbody td::before{
+    content:attr(data-label);
+    display:block;
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--muted);
+    margin-bottom:.25rem;
+  }
+
+  /* Dates / Route */
+  .table-sessions tbody td:nth-child(1){ font-weight:600; color: }
+  .table-sessions tbody td:nth-child(2) .text-white-50{ opacity:.85; color: #ffffff !important;}
+
+  /* Code chip — wraps nicely, never overflows */
+  .table-sessions .badge-soft{
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);
+    padding:.38rem .7rem;
+    border-radius:999px;
+    display:inline-block;
+    overflow-wrap:anywhere;          /* casse SK-HYERES-… proprement */
+  }
+
+  /* Price emphasis */
+  .table-sessions tbody td:nth-child(4){
+    font-weight:800; font-size:1.05rem; line-height:1;color: #ffffff !important;
+  }
+
+  /* Places badge */
+  .table-sessions tbody td:nth-child(5) .text-success{
+    display:inline-block; padding:.15rem .5rem; border-radius:999px;
+    background:rgba(25,135,84,.15);
+  }
+  .table-sessions tbody td:nth-child(5) .text-danger{
+    display:inline-block; padding:.15rem .5rem; border-radius:999px;
+    background:rgba(220,53,69,.15);
+  }
+
+  /* CTA full width, well grounded */
+  .table-sessions tbody td.text-end{ text-align:unset !important; }
+  .table-sessions .btn{
+    width:100%; border-radius:999px; padding:.78rem 1rem;
+    box-shadow:0 8px 18px rgba(231,61,69,.25);
+    align-self:end;
+  }
+}
+
+
+
+/* ===== MOBILE-ONLY polish for the top hero ===== */
+@media (max-width: 575.98px){
+
+  .badges-row{
+    margin-bottom: 2.5rem;
+  }
+
+  /* Visuel plus compact et lisible */
+  .hero-media{
+    min-height: 38vh;
+    max-height: 38vh;
+    
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+  }
+  .hero-media::after{
+    /* gradient un peu plus couvrant pour le texte */
+    background:
+      radial-gradient(120% 120% at 10% 10%, rgba(0,0,0,.35) 0%, transparent 55%),
+      linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.65) 100%);
+  }
+  .hero-wave{ height: 42px; }
+
+  /* Contenu resserré */
+  .hero-content{ padding: 1rem 0 1.1rem; }
+  .hero-title{
+    font-size: clamp(1.28rem, 5.2vw, 1.7rem);
+    margin-bottom: .15rem;
+    padding: 0 1rem 0;
+
+    text-shadow: 0 2px 10px rgba(0,0,0,.35);
+  }
+  .hero-sub{ font-size:.85rem; opacity:.9; padding: 0 1rem 0; }
+
+  /* Breadcrumb : on libère de la place */
+  .crumbs{ display:none; }
+
+  /* Badges défilants (pas de retour à la ligne = gain de place) */
+  .badges-row{
+    padding: 0 1rem 0;
+    gap:.4rem;
+    overflow-x:auto;
+    white-space:nowrap;
+    padding-bottom:.2rem;
+    -webkit-overflow-scrolling: touch;
+    /* fondu aux bords */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .badge-soft{
+    padding:.34rem .65rem;
+    font-size:.85rem;
+    backdrop-filter: saturate(1.2) blur(8px);
+  }
+
+  /* KPIs en bandeau défilant au bas du visuel */
+  .kpi-row{
+    position:absolute;
+    left:.75rem; right:.75rem; bottom:.6rem;
+    justify-content:flex-start;
+    gap:.5rem;
+    overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kpi-glass{
+    min-width: 112px;
+    padding:.55rem .7rem;
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.35);
+    border:1px solid rgba(255,255,255,.14);
+    background: rgba(15,27,40,.85);
+  }
+  .kpi-label{ font-size:.64rem; letter-spacing:.05em; }
+  .kpi-value{ font-size:1.02rem; }
+
+  /* Marges de la section suivante pour “coller” visuellement */
+  .card-premium:first-of-type{ margin-top: .35rem; }
+}
+
+
+
+</style>
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  {# ---------- HERO ---------- #}
+  {% set coverUrl = (engin.photoCouverture
+      ? asset('uploads/photos/engin/' ~ engin.photoCouverture)
+      : (engin.photoBanniere ? asset('uploads/photos/engin/' ~ engin.photoBanniere) : asset('dist/img/vitrine/voile.webp'))) %}
+
+  <section class="hero-wrap">
+    <div class="crumbs">
+      <a href="{{ path('app_public_engin') }}">Notre flotte</a>
+      <span class="sep">/</span>
+      <span>{{ engin.nom|u.truncate(60, '…') }}</span>
+    </div>
+
+    <div class="hero-media">
+      <img src="{{ coverUrl }}" alt="{{ engin.nom }}" class="hero-img is-blur"
+           loading="eager" fetchpriority="high" onload="this.classList.remove('is-blur')" />
+
+      <svg class="hero-wave" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0,32 C240,80 480,0 720,32 C960,64 1200,64 1440,16 L1440,80 L0,80 Z" fill="rgba(14,26,38,1)"></path>
+      </svg>
+
+      <div class="hero-inner">
+        <div class="container hero-content">
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg-8">
+              <h1 class="hero-title mb-1">{{ engin.nom }}</h1>
+              <div class="hero-sub small">
+                {{ (engin.annee ?? '—') }} • {{ (engin.longueurHt ? engin.longueurHt ~ ' m' : '—') }}
+              </div>
+              <div class="d-flex badges-row mt-2">
+                {% if engin.type %}
+                  <span class="badge-soft"><i class="bi bi-life-preserver me-1"></i>{{ engin.type.value ?? engin.type.name ?? engin.type }}</span>
+                {% endif %}
+                {% if engin.site %}
+                  <span class="badge-soft"><i class="bi bi-geo-alt me-1"></i>{{ engin.site.nom }}</span>
+                {% endif %}
+                {% set nbFormateurs = engin.formateurQualifications|length %}
+                {% if nbFormateurs > 0 %}
+                  <span class="badge-soft"><i class="bi bi-person-check me-1"></i>{{ nbFormateurs }} formateur{{ nbFormateurs>1?'s':'' }} qualifié{{ nbFormateurs>1?'s':'' }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+              <div class="d-flex kpi-row">
+                <div class="kpi-glass">
+                  <div class="kpi-label">Capacité</div>
+                  <div class="kpi-value">{{ engin.capacite ?? '—' }}<span class="ms-1">pers.</span></div>
+                </div>
+                <div class="kpi-glass">
+                  <div class="kpi-label">Couchages</div>
+                  <div class="kpi-value">{{ engin.capaciteCouchage ?? '—' }}</div>
+                </div>
+                <div class="kpi-glass">
+                  <div class="kpi-label">Cabines</div>
+                  <div class="kpi-value">{{ engin.cabine ?? '—' }}</div>
+                </div>
+              </div>
+            </div>
+          </div><!-- row -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="container my-5">
+    {# ---------- À propos / Caractéristiques ---------- #}
+    <div class="card-premium p-4 p-lg-5 mb-4">
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <h2 class="h4 section-h mb-3">À propos du engin</h2>
+          {% if engin.caracteristique %}
+            <p class="mb-0 text-white-75">{{ engin.caracteristique|nl2br }}</p>
+          {% else %}
+            <p class="mb-0 text-white-50">Les caractéristiques détaillées seront bientôt disponibles.</p>
+          {% endif %}
+
+          <hr class="border-secondary-subtle my-4">
+
+          <div class="row g-2">
+            <div class="col-6 col-md-4"><div class="subcard p-2 small"><i class="bi bi-people-fill me-1"></i> Capacité : <strong>{{ engin.capacite ?? '—' }}</strong></div></div>
+            <div class="col-6 col-md-4"><div class="subcard p-2 small"><i class="bi bi-moon-stars me-1"></i> Couchages : <strong>{{ engin.capaciteCouchage ?? '—' }}</strong></div></div>
+            <div class="col-6 col-md-4"><div class="subcard p-2 small"><i class="bi bi-door-open-fill me-1"></i> Cabines : <strong>{{ engin.cabine ?? '—' }}</strong></div></div>
+            <div class="col-6 col-md-4"><div class="subcard p-2 small"><i class="bi bi-shower me-1"></i> Douches : <strong>{{ engin.douche ?? '—' }}</strong></div></div>
+            {% if engin.chambre is not null %}
+              <div class="col-6 col-md-4"><div class="subcard p-2 small"><i class="bi bi-house-door me-1"></i> Chambres : <strong>{{ engin.chambre }}</strong></div></div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="subcard p-3 p-lg-4 h-100">
+            <div class="d-flex align-items-center mb-3">
+              <i class="bi bi-compass me-2"></i>
+              <strong>Basé à</strong>
+            </div>
+            {% if engin.site %}
+              <div class="mb-2"><i class="bi bi-geo me-2"></i>{{ engin.site.nom }}</div>
+              {% if engin.site.ville or engin.site.pays %}
+                <div class="text-white-50 small">
+                  {{ engin.site.ville ?? '' }}{{ (engin.site.ville and engin.site.pays) ? ', ' : '' }}{{ engin.site.pays ?? '' }}
+                </div>
+              {% endif %}
+            {% else %}
+              <div class="text-white-50">Site à confirmer.</div>
+            {% endif %}
+            <hr class="border-secondary-subtle">
+            <div class="small text-white-50">Pour toute demande d’affrètement ou de disponibilité, contactez-nous.</div>
+            <a class="btn btn-cta w-100 mt-3" href="{{ path('app_public_engin') }}">Voir toute la flotte</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ---------- Équipements / Confort & Énergie ---------- #}
+    {% set features = [
+      {'icon':'bi-lightning-charge','label':'Prises 220V','value': engin.isPrise() },
+      {'icon':'bi-sun','label':'Panneaux solaires','value': engin.isPanneauxSolaires() },
+      {'icon':'bi-droplet','label':'Dessalinisateur','value': engin.isDessalinisateur() },
+      {'icon':'bi-snow','label':'Réfrigérateur','value': engin.isRefrigerateur() },
+      {'icon':'bi-geo-alt','label':'GPS / Traceur','value': engin.isGps() },
+      {'icon':'bi-arrow-up-circle','label':'Propulseur d’étrave','value': engin.isPropulseurEtrave() },
+    ] %}
+    <div class="card-premium p-4 p-lg-5 mb-4">
+      <h2 class="h5 section-h mb-3"><i class="bi bi-stars me-2"></i>Équipements</h2>
+      <div class="row g-2">
+        {% for f in features %}
+          <div class="col-12 col-md-4">
+            <div class="subcard p-2 feature">
+              <i class="bi {{ f.icon }} me-1"></i>
+              <span>{{ f.label }}</span>
+              {% if f.value is same as(true) %}
+                <i class="bi bi-check-circle-fill ms-auto dot-ok" title="Oui"></i>
+              {% elseif f.value is same as(false) %}
+                <i class="bi bi-x-circle-fill ms-auto dot-ko" title="Non"></i>
+              {% else %}
+                <i class="bi bi-dash-circle-fill ms-auto dot-dash" title="—"></i>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ---------- Fiche technique ---------- #}
+    <div class="card-premium p-4 p-lg-5 mb-4">
+      <h2 class="h5 section-h mb-3"><i class="bi bi-card-checklist me-2"></i>Fiche technique</h2>
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <div class="subcard p-3">
+            <table class="table table-borderless table-slim mb-0">
+              <tbody class="text-white-75">
+              <tr><th class="text-white-50 fw-normal tableau">Année</th><td class="text-white-50 fw-normal tableau">{{ engin.annee ?? '—' }}</td></tr>
+              <tr><th class="text-white-50 fw-normal tableau">Longueur HT</th><td class="text-white-50 fw-normal tableau">{{ engin.longueurHt ? engin.longueurHt ~ ' m' : '—' }}</td></tr>
+              <tr><th class="text-white-50 fw-normal tableau">Largeur max.</th><td class="text-white-50 fw-normal tableau">{{ engin.largeurMax ? engin.largeurMax ~ ' m' : '—' }}</td></tr>
+              <tr><th class="text-white-50 fw-normal tableau">Tirant d’eau</th><td class="text-white-50 fw-normal tableau">{{ engin.tirantEau ?? '—' }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="subcard p-3">
+            <table class="table table-borderless table-slim mb-0">
+              <tbody class="text-white-75">
+              <tr><th class="text-white-50 fw-normal tableau">Réservoir fuel</th><td class="text-white-50 fw-normal tableau">{{ engin.reservoirFuel ?? '—' }}</td></tr>
+              <tr><th class="text-white-50 fw-normal tableau">Réservoir eau</th><td class="text-white-50 fw-normal tableau">{{ engin.reservoirEau ?? '—' }}</td></tr>
+              <tr><th class="text-white-50 fw-normal tableau">Couchages carré</th><td class="text-white-50 fw-normal tableau">{{ engin.couchagesCarres ?? '—' }}</td></tr>
+              <tr><th class="text-white-50 fw-normal tableau">Couchages recommandés</th><td class="text-white-50 fw-normal tableau">{{ engin.couchagesRecommandes ?? '—' }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ---------- Formateurs qualifiés ---------- #}
+    <div class="card-premium p-4 p-lg-5 mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h5 section-h mb-0"><i class="bi bi-person-workspace me-2"></i>Formateurs qualifiés</h2>
+            <div class="small text-white-50">{{ engin.formateurQualifications|length }} formateur{{ (engin.formateurQualifications|length) > 1 ? 's' : '' }}</div>
+        </div>
+
+        {% if engin.formateurQualifications|length > 0 %}
+            <div class="row g-3">
+            {% for sk in engin.formateurQualifications %}
+                <div class="col-12 col-md-6 col-lg-4">
+                <div class="subcard p-3 h-100">
+                    <div class="d-flex align-items-center gap-3">
+                    {# Avatar rond avec fallback #}
+                    <div class="rounded-circle overflow-hidden flex-shrink-0" style="width:56px;height:56px;">
+                        <img
+                        src="{% if sk.photo %}
+                                {{ asset('uploads/photos/formateur/' ~ sk.photo) }}
+                                {% else %}
+                                {{ asset('images/photos/formateur/formateur-placeholder.jpg') }}
+                                {% endif %}"
+                        alt="Photo de profil {{ (sk.utilisateur.nom ?? 'formateur') }}"
+                        class="w-100 h-100 object-fit-cover"
+                        loading="lazy" decoding="async"
+                        >
+                    </div>
+
+                    <div class="min-w-0">
+                        <div class="fw-semibold text-truncate">
+                        {{ sk.utilisateur.prenom ?? '' }} {{ sk.utilisateur.nom ?? '' }}
+                        </div>
+                        {% if sk.certifications %}
+                        <div class="text-white-50 small text-truncate">{{ sk.certifications }}</div>
+                        {% endif %}
+                    </div>
+                    </div>
+                </div>
+                </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-white-50">Aucun formateur qualifié renseigné pour le moment.</div>
+        {% endif %}
+    </div>
+
+
+    {# ---------- Sessions de ce engin ---------- #}
+    {% set sessionsArray = engin.sessions ? engin.sessions|filter(s => s is not null)|sort((a,b) => a.dateDebut <=> b.dateDebut) : [] %}
+    {% set now = "now"|date_modify("midnight") %}
+    {% set upcoming = sessionsArray|filter(s => s.dateFin >= now) %}
+    {% set past     = sessionsArray|filter(s => s.dateFin <  now) %}
+
+    <div id="sessions" class="card-premium p-4 p-lg-5 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="h4 section-h mb-0"><i class="bi bi-calendar-week me-2"></i>Sessions</h2>
+        <div class="small text-white-50">{{ upcoming|length }} à venir • {{ past|length }} passées</div>
+      </div>
+
+      {% if upcoming|length > 0 %}
+        <h3 class="h6 text-white-50 text-uppercase mt-2 mb-2">À venir</h3>
+        <div class="table-responsive">
+          <table class="table table-sessions align-middle mb-4">
+            <thead>
+              <tr class="text-white-50">
+                <th>Dates</th>
+                <th>Code</th>
+                <th>Tarif</th>
+                <th>Places</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for s in upcoming %}
+              {% set places = (s.capacite|default(0)) - ((s.reservations|default([]))|length) %}
+              <tr>
+                <td>{{ s.dateDebut|date('d/m/Y') }} → {{ s.dateFin|date('d/m/Y') }}</td>
+                <td><span class="badge-soft">{{ s.code ?? '—' }}</span></td>
+                <td>
+                  {% set price = (s.tarifEffectifCents|default(null)) %}
+                    {{ price is not null ? (price/100)|number_format(0, ',', ' ') ~ ' €' : '—' }}
+                </td>
+                <td>
+                  {% if places > 0 %}
+                    <span class="text-success fw-semibold">{{ places }} place{% if places > 1 %}s{% endif %}</span>
+                  {% else %}
+                    <span class="text-danger">Complet</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-cta btn-sm"
+                     href="{{ path('app_public_show', {'slug': s.formation.slug}) }}?session={{ s.id }}">
+                    Détails / Réserver
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      {% if past|length > 0 %}
+        <h3 class="h6 text-white-50 text-uppercase mt-3">Passées</h3>
+        <div class="table-responsive">
+          <table class="table table-sessions align-middle mb-0">
+            <thead>
+              <tr class="text-white-50">
+                <th>Dates</th>
+                <th>Code</th>
+                <th>Tarif</th>
+                <th>Capacité</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for s in past %}
+              <tr class="text-white-50">
+                <td>{{ s.dateDebut|date('d/m/Y') }} → {{ s.dateFin|date('d/m/Y') }}</td>
+                <td>{{ s.code ?? '—' }}</td>
+                <td>
+                  {% set price = (s.tarifEffectifCents|default(null)) %}
+                  {{ price is not null ? (price/100)|number_format(0, ',', ' ') ~ ' €' : '—' }}
+                </td>
+                <td>{{ s.capacite ?? '—' }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      {% if upcoming|length == 0 and past|length == 0 %}
+        <div class="text-white-50">Aucune session enregistrée pour ce engin.</div>
+      {% endif %}
+    </div>
+
+    {# ---------- Galerie ---------- #}
+    <div class="card-premium p-4 p-lg-5 mb-5">
+      <h2 class="h4 section-h mb-3"><i class="bi bi-images me-2"></i>Galerie</h2>
+      <div class="row g-3">
+        {% for p in engin.photos %}
+          <div class="col-12 col-md-6 col-lg-4">
+            <a data-fancybox="gal" href="{{ asset('uploads/photos/engin/' ~ p.filename) }}">
+              <img class="img-fluid rounded-3" src="{{ asset('uploads/photos/engin/' ~ p.filename) }}" alt="{{ engin.nom }}">
+            </a>
+          </div>
+        {% else %}
+          <div class="col-12">
+            <div class="text-white-50">Pas encore de photos publiées.</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ---------- Disclaimer ---------- #}
+    <div class="card-premium p-3">
+      <small class="text-white-50">Les informations de cette page sont fournies à titre indicatif et peuvent évoluer.</small>
+    </div>
+  </div>
+{% endblock %}

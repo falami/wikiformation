@@ -1,0 +1,160 @@
+{# templates/administrateur/qcm/_question_item.html.twig #}
+{% set idx = loopIndex|default(1) %}
+
+{# ✅ IMPORTANT :
+   On enveloppe TOUT l’item (carte + champs hidden) dans un wrapper.
+   Comme ça, quand tu supprimes en JS, tu supprimes aussi qForm.ordre (et tout le reste),
+   sinon Symfony reçoit encore une “question” partielle -> champs manquants -> null -> crash.
+#}
+<div class="q-item" data-role="question-item">
+
+  {# ✅ Hidden(s) à garder DANS le wrapper #}
+  {% if qForm.ordre is defined %}
+    {{ form_widget(qForm.ordre) }}
+  {% endif %}
+
+  <div class="q-card" data-role="question-card">
+    <div class="q-head">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" class="btn btn-sm btn-light border q-handle" title="Déplacer" aria-label="Déplacer">
+          <i class="bi bi-grip-vertical"></i>
+        </button>
+
+        <span class="q-badge">
+          <i class="bi bi-question-circle"></i> Question #{{ idx }}
+        </span>
+
+        <span class="chip">
+          Réponses:
+          <span data-role="opt-count">
+            {{ qForm.options is defined ? qForm.options|length : 0 }}
+          </span>
+        </span>
+      </div>
+
+      <div class="q-actions d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" data-action="qcm-add-option">
+          <i class="bi bi-plus-circle"></i>
+        </button>
+
+        {# ✅ le JS doit maintenant supprimer le wrapper [data-role="question-item"] (voir note ci-dessous) #}
+        <button type="button"
+                class="btn btn-sm btn-outline-danger"
+                data-action="qcm-remove-question"
+                title="Supprimer la question">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <div class="row g-3">
+
+        {% if qForm.titre is defined %}
+          <div class="col-12">{{ form_row(qForm.titre) }}</div>
+        {% elseif qForm.enonce is defined %}
+          <div class="col-12">{{ form_row(qForm.enonce) }}</div>
+        {% endif %}
+
+        <div class="col-md-4">
+          {% if qForm.mode is defined %}
+            {{ form_row(qForm.mode) }}
+          {% elseif qForm.type is defined %}
+            {{ form_row(qForm.type) }}
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          {% if qForm.pointsMax is defined %}
+            {{ form_row(qForm.pointsMax) }}
+          {% endif %}
+        </div>
+
+        <div class="col-12">
+          {% if qForm.imageFile is defined %}
+            {% set existingQImg = (qForm.vars.value and qForm.vars.value.image)
+              ? asset('uploads/qcm/questions/' ~ qForm.vars.value.image)
+              : null
+            %}
+
+            <div class="media-dropzone js-media-dropzone"
+                 data-input-id="{{ qForm.imageFile.vars.id }}"
+                 data-preview-id="prev-{{ qForm.imageFile.vars.id }}"
+                 data-remove-id="rm-{{ qForm.imageFile.vars.id }}">
+              <div class="media-preview" id="prev-{{ qForm.imageFile.vars.id }}">
+                {% if existingQImg %}
+                  <img src="{{ existingQImg }}" alt="Image question">
+                {% else %}
+                  <div class="media-placeholder"><i class="bi bi-image"></i></div>
+                {% endif %}
+              </div>
+
+              <div class="media-meta flex-grow-1">
+                <div class="title">Image de la question</div>
+                <div class="sub">PNG/JPG/WebP • 8 Mo max</div>
+
+                <div class="media-actions">
+                  <button type="button" class="btn btn-sm btn-outline-secondary js-media-browse">
+                    <i class="bi bi-upload"></i> Parcourir
+                  </button>
+                  <button type="button"
+                          class="btn btn-sm btn-outline-danger js-media-remove {% if not existingQImg %}d-none{% endif %}"
+                          id="rm-{{ qForm.imageFile.vars.id }}">
+                    <i class="bi bi-trash"></i> Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {{ form_widget(qForm.imageFile, { attr: { class: 'd-none' } }) }}
+            {{ form_errors(qForm.imageFile) }}
+          {% endif %}
+        </div>
+
+        <div class="col-12">
+          {% if qForm.videoUrl is defined %}
+            {{ form_row(qForm.videoUrl) }}
+          {% endif %}
+        </div>
+      </div>
+
+      <hr class="my-3" style="border-color: var(--stroke);">
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-semibold" style="color: var(--ink);">
+          <i class="bi bi-ui-checks me-1 text-warning"></i> Réponses
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" data-action="qcm-add-option">
+          <i class="bi bi-plus-circle"></i> Ajouter une réponse
+        </button>
+      </div>
+
+      <div class="vstack gap-2"
+           data-role="options-wrap"
+           data-index="{{ qForm.options is defined ? qForm.options|length : 0 }}"
+           data-prototype="{% if qForm.options is defined and qForm.options.vars.prototype is defined %}
+              {{ include('administrateur/qcm/_option_prototype.html.twig', { form: qForm.options.vars.prototype })|e('html_attr') }}
+            {% endif %}">
+        {% if qForm.options is defined %}
+          {% for opt in qForm.options %}
+            {% include 'administrateur/qcm/_option_item.html.twig' with { optForm: opt } %}
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="form-text mt-2">
+        Coche « correcte » pour la/les bonne(s) réponse(s). Pour “multiple”, tu peux en cocher plusieurs.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ✅ NOTE JS (à faire dans ton form.html.twig) :
+   Remplace :
+     const card = btnRemoveQ.closest('[data-role="question-card"]');
+     if (card) card.remove();
+   Par :
+     const item = btnRemoveQ.closest('[data-role="question-item"]');
+     if (item) item.remove();
+#}

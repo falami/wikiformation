@@ -1,0 +1,857 @@
+{# templates/administrateur/inscription/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Inscription #{{ ins.id }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f6f8fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:rgba(15,23,42,.62);
+      --stroke:rgba(15,23,42,.10);
+      --shadow: 0 18px 55px rgba(0,0,0,.08);
+      --r: 22px;
+    }
+
+    body{ background: var(--bg); }
+
+    /* ===== HERO premium ===== */
+    .hero{
+      position:relative; overflow:hidden;
+      border-radius: calc(var(--r) + 6px);
+      padding: 22px;
+      color:#fff;
+      box-shadow: 0 24px 70px rgba(0,0,0,.18);
+      background:
+        radial-gradient(1100px 420px at 12% 0%, rgba(255,255,255,.16), transparent 60%),
+        radial-gradient(900px 360px at 88% 12%, rgba(255,193,7,.22), transparent 56%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+    }
+    .hero:before{
+      content:""; position:absolute; inset:0;
+      background:
+        radial-gradient(900px 220px at 18% 0%, rgba(255,255,255,.10), transparent 60%),
+        linear-gradient(90deg, rgba(255,255,255,.08), transparent 70%);
+      pointer-events:none;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.38rem .72rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.16);
+      backdrop-filter: blur(7px);
+      font-size:.85rem;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero h1{
+      position:relative; z-index:2;
+      font-weight: 950;
+      letter-spacing: -.02em;
+      font-size: 1.65rem;
+      margin: .6rem 0 .25rem;
+    }
+    .hero .sub{
+      position:relative; z-index:2;
+      color: rgba(255,255,255,.82);
+      font-size:.95rem;
+    }
+
+    .hero-actions{
+      position:relative; z-index:2;
+      display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end;
+    }
+    .btn-pill{
+      border-radius:999px !important;
+      font-weight:800;
+      padding: .52rem .85rem;
+      box-shadow: 0 10px 24px rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.18);
+      backdrop-filter: blur(6px);
+    }
+    .btn-ghost{
+      background: rgba(255,255,255,.10) !important;
+      color:#fff !important;
+    }
+    .btn-ghost:hover{ background: rgba(255,255,255,.16) !important; }
+
+    /* ===== Panels glass ===== */
+    .panel{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel-hd{
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      border-bottom: 1px solid var(--stroke);
+      background: var(--panel);
+    }
+    .panel-title{
+      display:flex; align-items:center; gap:.65rem;
+      font-weight:900; color: var(--ink);
+      letter-spacing: -.01em;
+      margin:0;
+    }
+    .panel-title i{
+      width: 40px; height:40px; display:grid; place-items:center;
+      border-radius: 14px;
+      background: rgba(15,23,42,.04);
+      border: 1px solid rgba(15,23,42,.08);
+    }
+    .panel-bd{ padding: 16px; }
+
+    /* ===== KPI row ===== */
+    .kpi{
+      display:flex; align-items:center; gap:12px;
+      padding: 14px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: var(--panel);
+    }
+    .kpi .ico{
+      width: 46px; height:46px; border-radius: 16px;
+      display:grid; place-items:center;
+      background: rgba(15,23,42,.04);
+      border: 1px solid rgba(15,23,42,.08);
+      color: var(--ink);
+    }
+    .kpi .label{ color: rgba(15,23,42,.60); font-size:.86rem; }
+    .kpi .val{ font-weight: 950; font-size: 1.35rem; letter-spacing:-.02em; color: var(--ink); }
+    .kpi .sub{ color: rgba(15,23,42,.55); font-size:.82rem; }
+
+    .mono{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+    .badge-soft{
+      border-radius: 999px;
+      border: 1px solid rgba(15,23,42,.12);
+      background: rgba(15,23,42,.04);
+      padding: .3rem .55rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .pill-success{ background: rgba(25,135,84,.10); border-color: rgba(25,135,84,.22); color:#146c43; }
+    .pill-danger{  background: rgba(220,53,69,.10); border-color: rgba(220,53,69,.22); color:#b02a37; }
+    .pill-warn{    background: rgba(255,193,7,.16); border-color: rgba(255,193,7,.30); color:#8a6a00; }
+    .pill-muted{   background: rgba(108,117,125,.10); border-color: rgba(108,117,125,.20); color:#495057; }
+    .pill-info{    background: rgba(13,110,253,.10); border-color: rgba(13,110,253,.22); color:#0b5ed7; }
+
+    .info-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 992px){ .info-grid{ grid-template-columns: 1fr; } }
+
+    .info{
+      border:1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 12px 12px;
+      background: #fff;
+    }
+    .info .k{ color: rgba(15,23,42,.55); font-size:.82rem; }
+    .info .v{ font-weight: 850; color: var(--ink); margin-top:.15rem; }
+
+    /* ===== Dossier progress ===== */
+    .dossier-progress{
+      height: .65rem;
+      border-radius: 999px;
+      background: rgba(15,23,42,.08);
+      overflow: hidden;
+    }
+    .dossier-progress-bar{
+      height: 100%;
+      background: var(--theme-color-secondaire);
+    }
+
+    /* ===== Tables premium ===== */
+    .table-premium thead th{
+      background: #f7f8fb !important;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-size: .76rem;
+      color: rgba(15,23,42,.58);
+      border-bottom: 1px solid rgba(15,23,42,.10) !important;
+      white-space: nowrap;
+    }
+    .table-premium tbody td{
+      border-bottom: 1px solid rgba(15,23,42,.08);
+      vertical-align: middle;
+      font-size: .92rem;
+    }
+    .table-premium tbody tr:hover > *{
+      background: rgba(255,193,7,.08) !important;
+    }
+
+    pre.pretty-pre{
+      background:#f8f9fa;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:12px 14px;
+      white-space:pre-wrap;
+      margin:0;
+    }
+
+    /* Mobile sticky actions */
+    @media (max-width: 768px){
+      .sticky-actions{
+        position: sticky;
+        bottom: 10px;
+        z-index: 20;
+        display:flex; gap:.5rem; flex-wrap:wrap;
+        padding: 10px;
+        border-radius: 18px;
+        background: rgba(255,255,255,.86);
+        border: 1px solid rgba(15,23,42,.10);
+        box-shadow: 0 18px 55px rgba(0,0,0,.10);
+        backdrop-filter: blur(10px);
+      }
+      td.action-column{
+        position: sticky;
+        right:0;
+        background:#fff;
+        z-index:5;
+        box-shadow:-8px 0 12px -8px rgba(0,0,0,.08);
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  {# ⚠️ évite de recharger jQuery si déjà chargé dans base_admin #}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+
+  <script>
+    // DataTable optionnel (liste des pièces)
+    document.addEventListener('DOMContentLoaded', () => {
+      const table = document.getElementById('pieces-table');
+      if (!table || !window.jQuery || !$.fn?.DataTable) return;
+
+      $('#pieces-table').DataTable({
+        paging: false,
+        searching: false,
+        info: false,
+        order: [[3, 'desc']],
+        language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json' }
+      });
+    });
+  </script>
+{% endblock %}
+
+{% block body %}
+
+{% set dossier        = ins.dossier %}
+{% set requiredPieces = ins.session.piecesObligatoires|default([]) %}
+{% set totalRequired  = requiredPieces|length %}
+{% set allPieces      = dossier ? dossier.pieces : [] %}
+{% set totalPieces    = allPieces|length %}
+
+{# Source de vérité = Inscription #}
+{% set manquantes     = ins.piecesManquantes %}
+{% set dossierComplet = ins.dossierComplet %}
+{% set validRequired  = totalRequired > 0 ? (totalRequired - (manquantes|length)) : 0 %}
+
+{# Montants en € #}
+{% set montantDu     = ins.montantDuCents     is not null ? (ins.montantDuCents / 100) : null %}
+{% set montantRegle  = ins.montantRegleCents  is not null ? (ins.montantRegleCents / 100) : 0 %}
+{% set resteAPayer   = montantDu is not null ? (montantDu - montantRegle) : null %}
+
+{% set st = ins.status.value ?? '' %}
+{% set isPaid = (montantDu is not null and resteAPayer is not null and resteAPayer <= 0) %}
+
+
+  {# ===== HERO ===== #}
+  <div class="hero mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <span class="chip"><i class="bi bi-person-badge"></i> Inscription n°{{ ins.id }}</span>
+      <span class="chip"><i class="bi bi-mortarboard"></i> 
+        {% if ins.session.formation is defined and ins.session.formation %}
+          {{ ins.session.formation.titre }}
+        {% else %}
+        {{ ins.session.formationIntituleLibre }}
+        {% endif %}
+        
+      </span>
+      <span class="chip"><i class="bi bi-calendar3"></i>{{ ins.session.code }}</span>
+
+      {% if st == 'termine' %}
+        <span class="chip" style="border-color: rgba(25,135,84,.35); background: rgba(25,135,84,.16);">
+          <i class="bi bi-check2-circle"></i> {{ ins.status.label() }}
+        </span>
+      {% elseif st == 'confirme' %}
+        <span class="chip" style="border-color: rgba(13,110,253,.35); background: rgba(13,110,253,.16);">
+          <i class="bi bi-patch-check"></i> {{ ins.status.label() }}
+        </span>
+      {% elseif st == 'en_cours' %}
+        <span class="chip" style="border-color: rgba(13,202,240,.40); background: rgba(13,202,240,.18); color:#fff;">
+          <i class="bi bi-lightning-charge"></i> {{ ins.status.label() }}
+        </span>
+      {% elseif st == 'annule' or st == 'absent' %}
+        <span class="chip" style="border-color: rgba(220,53,69,.35); background: rgba(220,53,69,.16);">
+          <i class="bi bi-x-circle"></i> {{ ins.status.label() }}
+        </span>
+      {% else %}
+        <span class="chip" style="border-color: rgba(108,117,125,.35); background: rgba(108,117,125,.16);">
+          <i class="bi bi-question-circle"></i> {{ ins.status.label() }}
+        </span>
+      {% endif %}
+
+      {% if ins.reussi %}
+        <span class="chip" style="border-color: rgba(25,135,84,.35); background: rgba(25,135,84,.16);">
+          <i class="bi bi-award"></i> Réussite
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="d-flex flex-wrap gap-3 align-items-start justify-content-between mt-2">
+      <div>
+        <h1 class="mb-0">Inscription #{{ ins.id }}</h1>
+        <div class="sub">
+          Stagiaire :
+          <span class="fw-semibold text-white">
+            {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}
+          </span>
+          {% if ins.stagiaire.email %}
+            <span class="ms-2 chip"><i class="bi bi-envelope"></i> {{ ins.stagiaire.email }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <a class="btn btn-pill btn-ghost btn-sm"
+           href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">
+          <i class="bi bi-receipt"></i> Facturation
+        </a>
+
+        <a class="btn btn-pill btn-ghost btn-sm"
+           href="{{ path('app_administrateur_dossier_edit', {entite: entite.id, id: ins.id}) }}">
+          <i class="bi bi-folder-check"></i> Dossier Qualiopi
+        </a>
+
+        <a class="btn btn-pill btn-ghost btn-sm"
+           href="{{ path('app_administrateur_pdf_convocation', {entite: entite.id, id: ins.id}) }}"
+           target="_blank">
+          <i class="bi bi-file-earmark-text"></i> Convocation PDF
+        </a>
+
+        <form method="post"
+              action="{{ path('app_administrateur_inscription_close', { entite: entite.id, id: ins.id }) }}"
+              onsubmit="return confirm('Clôturer cette inscription ?');">
+          <input type="hidden" name="_token" value="{{ csrf_token('close' ~ ins.id) }}">
+          <button class="btn btn-pill btn-sm"
+                  style="background: rgba(25,135,84,.20); color:#fff;">
+            <i class="bi bi-check2-square"></i> Clôturer
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== KPIs ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-cash-coin fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">Montant dû</div>
+          <div class="val mono">
+            {{ montantDu is not null ? (montantDu|number_format(2, ',', ' ') ~ ' €') : '-' }}
+          </div>
+          <div class="sub">Total inscription</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-check2-circle fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">Payé</div>
+          <div class="val mono">{{ montantRegle|number_format(2, ',', ' ') }} €</div>
+          <div class="sub">Encaissements</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-exclamation-circle fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">Reste</div>
+          <div class="val mono">
+            {{ resteAPayer is not null ? (resteAPayer|number_format(2, ',', ' ') ~ ' €') : '-' }}
+          </div>
+          <div class="sub">Dû − payé</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-shield-check fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">Dossier</div>
+          <div class="val mono">
+            {% if totalRequired > 0 %}
+              {{ validRequired }}/{{ totalRequired }}
+            {% else %}
+              -
+            {% endif %}
+          </div>
+          <div class="sub">
+            {% if dossierComplet %}
+              <span class="badge-soft pill-success">Complet</span>
+            {% elseif totalRequired > 0 %}
+              <span class="badge-soft pill-warn">À compléter</span>
+            {% else %}
+              <span class="badge-soft pill-muted">Aucune exigence</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== Main grid ===== #}
+  <div class="row g-3">
+
+    {# ===== LEFT ===== #}
+    <div class="col-lg-8">
+
+      {# ===== Résumé ===== #}
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-person-vcard"></i>
+            Résumé de l’inscription
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap">
+            {% if ins.tauxAssiduite is not null %}
+              <span class="badge-soft pill-info">Assiduité {{ ins.tauxAssiduite|number_format(1, ',', ' ') }}%</span>
+            {% endif %}
+            {% if isPaid %}
+              <span class="badge-soft pill-success">Payée</span>
+            {% elseif montantDu is not null %}
+              <span class="badge-soft pill-warn">En attente</span>
+            {% else %}
+              <span class="badge-soft pill-muted">Montant non défini</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="panel-bd">
+          <div class="info-grid">
+            <div class="info">
+              <div class="k">Stagiaire</div>
+              <div class="v">{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}</div>
+              <div class="small text-muted mt-1">
+                <i class="bi bi-envelope me-1"></i>{{ ins.stagiaire.email }}
+                {% if ins.stagiaire.telephone is defined and ins.stagiaire.telephone %}
+                  <span class="ms-2"><i class="bi bi-telephone me-1"></i>{{ ins.stagiaire.telephone }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info">
+              <div class="k">Session</div>
+              <div class="v">{{ ins.session.code }} - 
+                {% if ins.session.formation is defined and ins.session.formation %}
+                  {{ ins.session.formation.titre }}
+                {% else %}
+                  {{ ins.session.formationIntituleLibre }}
+                {% endif %}
+              </div>
+              <div class="small text-muted mt-1">
+                {% if ins.session.site is defined and ins.session.site %}
+                  <i class="bi bi-geo-alt me-1"></i>{{ ins.session.site.nom }}
+                {% endif %}
+                {% if ins.session.dateDebut is defined and ins.session.dateDebut %}
+                  <span class="ms-2">
+                    <i class="bi bi-calendar-event me-1"></i>
+                    Du {{ ins.session.dateDebut|date('d/m/Y') }}
+                    {% if ins.session.dateFin is defined and ins.session.dateFin %}
+                      au {{ ins.session.dateFin|date('d/m/Y') }}
+                    {% endif %}
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info">
+              <div class="k">Prise en charge</div>
+              <div class="v">
+                {% if ins.dossier and (ins.dossier.employeur or ins.dossier.opco or ins.dossier.numDossierOpco) %}
+                  {% if ins.dossier.employeur %}Employeur : {{ ins.dossier.employeur }}<br>{% endif %}
+                  {% if ins.dossier.opco %}OPCO : {{ ins.dossier.opco }}<br>{% endif %}
+                  {% if ins.dossier.numDossierOpco %}N° OPCO : {{ ins.dossier.numDossierOpco }}{% endif %}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info">
+              <div class="k">Handicap / aménagement</div>
+              <div class="v">
+                {% if ins.dossier and ins.dossier.amenagementHandicap is not null %}
+                  {{ ins.dossier.amenagementHandicap ? 'Oui' : 'Non' }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+              {% if ins.dossier and ins.dossier.detailsAmenagement %}
+                <div class="small text-muted mt-1">{{ ins.dossier.detailsAmenagement|nl2br }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Dossier & pièces ===== #}
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-folder2-open"></i>
+            Dossier & pièces justificatives
+          </div>
+
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if totalRequired > 0 %}
+              <span class="badge-soft pill-muted">
+                {{ validRequired }}/{{ totalRequired }} obligatoire{{ totalRequired>1 ? 's' : '' }}
+              </span>
+              <div class="dossier-progress" style="width: 160px;">
+                <div class="dossier-progress-bar"
+                     style="width: {{ (validRequired / totalRequired * 100)|round(0, 'floor') }}%;"></div>
+              </div>
+
+              {% if dossierComplet %}
+                <span class="badge-soft pill-success"><i class="bi bi-shield-check me-1"></i>Complet</span>
+              {% else %}
+                <span class="badge-soft pill-warn"><i class="bi bi-exclamation-triangle me-1"></i>À compléter</span>
+              {% endif %}
+            {% else %}
+              <span class="badge-soft pill-muted">Aucune pièce obligatoire</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="panel-bd">
+          {% if totalPieces == 0 %}
+            <div class="text-center text-muted py-4">
+              <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+              <div>Aucune pièce déposée pour le moment.</div>
+              <div class="small">Ajoute-les depuis « Dossier & pièces Qualiopi ».</div>
+
+              <a class="btn btn-outline-primary btn-sm mt-3"
+                 href="{{ path('app_administrateur_dossier_edit', {entite: entite.id, id: ins.id}) }}">
+                <i class="bi bi-folder-plus me-1"></i> Ouvrir le dossier
+              </a>
+            </div>
+          {% else %}
+
+            {% if totalRequired > 0 and manquantes is not empty %}
+              {% set labelsManquantes = [] %}
+              {% for p in manquantes %}
+                {% set labelsManquantes = labelsManquantes|merge([p.label]) %}
+              {% endfor %}
+              <div class="alert alert-warning py-2 small mb-3">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Pièces obligatoires manquantes : <strong>{{ labelsManquantes|join(', ') }}</strong>.
+              </div>
+            {% endif %}
+
+            <div class="table-responsive">
+              <table id="pieces-table" class="table table-premium align-middle mb-0">
+                <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Contrôle</th>
+                  <th>Fichier</th>
+                  <th>Date dépôt</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for piece in allPieces %}
+                  {% set isObligatoire = piece.type.value in requiredPieces %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ piece.type.label() }}</div>
+                      {% if isObligatoire %}
+                        <span class="badge-soft pill-warn mt-1 d-inline-block">Obligatoire</span>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if piece.valide %}
+                        <span class="badge-soft pill-success"><i class="bi bi-check-circle me-1"></i>Valide</span>
+                      {% else %}
+                        <span class="badge-soft pill-danger"><i class="bi bi-hourglass-split me-1"></i>À contrôler</span>
+                      {% endif %}
+
+                      {% if piece.commentaireControle %}
+                        <div class="small text-muted mt-1">
+                          <i class="bi bi-chat-left-text me-1"></i>{{ piece.commentaireControle }}
+                        </div>
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      <a class="link-primary fw-semibold"
+                         href="{{ path('app_administrateur_dossier_piece_download', {entite: entite.id, piece: piece.id}) }}"
+                         target="_blank">
+                        <i class="bi bi-paperclip me-1"></i>{{ piece.filename }}
+                      </a>
+                    </td>
+
+                    <td class="mono">
+                      {{ piece.uploadedAt|date('d/m/Y H:i') }}
+                    </td>
+
+                    <td class="text-end action-column">
+                      <div class="btn-group btn-group-sm">
+                        <a href="{{ path('app_administrateur_dossier_piece_download', {entite: entite.id, piece: piece.id}) }}"
+                           class="btn btn-outline-secondary"
+                           title="Télécharger">
+                          <i class="bi bi-download"></i>
+                        </a>
+
+                        <form method="post"
+                              action="{{ path('app_administrateur_dossier_piece_toggle_valid', {entite: entite.id, piece: piece.id}) }}"
+                              class="d-inline">
+                          <input type="hidden" name="_token" value="{{ csrf_token('toggle_piece' ~ piece.id) }}">
+                          <button class="btn btn-outline-success"
+                                  title="{{ piece.valide ? 'Marquer comme non valide' : 'Marquer comme valide' }}">
+                            <i class="bi {{ piece.valide ? 'bi-x-circle' : 'bi-check-circle' }}"></i>
+                          </button>
+                        </form>
+
+                        <form method="post"
+                              action="{{ path('app_administrateur_dossier_piece_delete', {entite: entite.id, piece: piece.id}) }}"
+                              onsubmit="return confirm('Supprimer cette pièce du dossier ?');">
+                          <input type="hidden" name="_token" value="{{ csrf_token('del_piece' ~ piece.id) }}">
+                          <button class="btn btn-outline-danger" title="Supprimer">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mt-3">
+              <div class="small text-muted">
+                {{ totalPieces }} fichier{{ totalPieces>1 ? 's' : '' }} dans le dossier.
+              </div>
+              <a class="btn btn-outline-primary btn-sm"
+                 href="{{ path('app_administrateur_dossier_edit', {entite: entite.id, id: ins.id}) }}">
+                <i class="bi bi-folder-check me-1"></i> Gérer le dossier
+              </a>
+            </div>
+
+          {% endif %}
+        </div>
+      </div>
+
+      {# ===== Suivi pédagogique ===== #}
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-mortarboard"></i>
+            Suivi pédagogique & Qualiopi
+          </div>
+        </div>
+        <div class="panel-bd">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="info">
+                <div class="k">Assiduité</div>
+                <div class="v mono">
+                  {{ ins.tauxAssiduite is not null ? (ins.tauxAssiduite|number_format(1, ',', ' ') ~ '%') : '-' }}
+                </div>
+                <div class="small text-muted mt-1">Calculée sur les émargements</div>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="info">
+                <div class="k">Quiz</div>
+                <div class="v mono">{{ ins.quizAttempts|length }}</div>
+                <div class="small text-muted mt-1">Tentatives</div>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="info">
+                <div class="k">Satisfaction</div>
+                <div class="v mono">{{ ins.questionnaireSatisfactions|length }}</div>
+                <div class="small text-muted mt-1">Questionnaires</div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="info">
+                <div class="k">Documents finaux</div>
+                <div class="v">
+                  Convention / contrat :
+                  {% if convention %}
+                    <span class="badge-soft pill-success ms-1">Générée</span>
+                  {% else %}
+                    <span class="badge-soft pill-muted ms-1">Non générée</span>
+                  {% endif %}
+                  <span class="mx-2"> - </span>
+                  Attestation :
+                  {% if ins.attestation %}
+                    <span class="badge-soft pill-success ms-1">Générée</span>
+                  {% else %}
+                    <span class="badge-soft pill-muted ms-1">Non générée</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    {# ===== RIGHT ===== #}
+    <div class="col-lg-4">
+
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-cash-stack"></i>
+            Finance & paiements
+          </div>
+          {% if montantDu is not null %}
+            {% if isPaid %}
+              <span class="badge-soft pill-success"><i class="bi bi-check2-circle me-1"></i>Payé</span>
+            {% else %}
+              <span class="badge-soft pill-warn"><i class="bi bi-clock-history me-1"></i>En attente</span>
+            {% endif %}
+          {% else %}
+            <span class="badge-soft pill-muted">Non défini</span>
+          {% endif %}
+        </div>
+
+        <div class="panel-bd">
+          {% if montantDu is not null %}
+            <div class="info-grid">
+              <div class="info">
+                <div class="k">Montant dû</div>
+                <div class="v mono">{{ montantDu|number_format(2, ',', ' ') }} €</div>
+              </div>
+              <div class="info">
+                <div class="k">Réglé</div>
+                <div class="v mono">{{ montantRegle|number_format(2, ',', ' ') }} €</div>
+              </div>
+              <div class="info" style="grid-column: 1 / -1;">
+                <div class="k">Reste à payer</div>
+                <div class="v mono {{ resteAPayer is not null and resteAPayer > 0 ? 'text-danger' : 'text-success' }}">
+                  {{ resteAPayer|number_format(2, ',', ' ') }} €
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <p class="small text-muted mb-3">
+              Aucun montant défini pour cette inscription.
+            </p>
+          {% endif %}
+
+          <div class="d-grid gap-2 mt-3">
+            <a class="btn btn-outline-primary btn-pill"
+               href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">
+              <i class="bi bi-receipt me-1"></i> Gérer factures & paiements
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-shield-check"></i>
+            Raccourcis
+          </div>
+        </div>
+        <div class="panel-bd d-grid gap-2">
+          <a class="btn btn-outline-secondary btn-pill"
+             href="{{ path('app_administrateur_pdf_convocation', {entite: entite.id, id: ins.id}) }}"
+             target="_blank">
+            <i class="bi bi-file-earmark-text me-1"></i> Convocation PDF
+          </a>
+
+          <a class="btn btn-outline-secondary btn-pill"
+             href="{{ path('app_administrateur_dossier_edit', {entite: entite.id, id: ins.id}) }}">
+            <i class="bi bi-folder-check me-1"></i> Dossier & pièces Qualiopi
+          </a>
+        </div>
+      </div>
+
+      <div class="panel border-danger">
+        <div class="panel-hd" style="background:rgba(220,53,69,.08)">
+          <div class="panel-title text-danger">
+            <i class="bi bi-trash"></i> Zone sensible
+          </div>
+        </div>
+        <div class="panel-bd">
+          <form method="post"
+                action="{{ path('app_administrateur_inscription_delete', {entite: entite.id, id: ins.id}) }}"
+                onsubmit="return confirm('Supprimer définitivement cette inscription et l’ensemble du dossier associé ?');">
+            <input type="hidden" name="_token" value="{{ csrf_token('del' ~ ins.id) }}">
+            <button class="btn btn-outline-danger btn-pill w-100">
+              <i class="bi bi-trash me-1"></i> Supprimer l’inscription
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# Mobile sticky actions #}
+  <div class="sticky-actions mt-3 d-md-none">
+    <a class="btn btn-outline-secondary btn-pill btn-sm flex-grow-1"
+       href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">
+      <i class="bi bi-receipt"></i> Facturation
+    </a>
+    <a class="btn btn-outline-primary btn-pill btn-sm flex-grow-1"
+       href="{{ path('app_administrateur_dossier_edit', {entite: entite.id, id: ins.id}) }}">
+      <i class="bi bi-folder-check"></i> Dossier
+    </a>
+    <a class="btn btn-outline-danger btn-pill btn-sm flex-grow-1"
+       href="{{ path('app_administrateur_pdf_convocation', {entite: entite.id, id: ins.id}) }}"
+       target="_blank">
+      <i class="bi bi-file-earmark-text"></i> PDF
+    </a>
+  </div>
+
+{% endblock %}

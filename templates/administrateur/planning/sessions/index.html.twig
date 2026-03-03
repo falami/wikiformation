@@ -1,0 +1,1296 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Planning sessions{% endblock %}
+
+{# stylesheets + javascripts : identiques à ton planning stagiaires (TomSelect, Flatpickr, FullCalendar Scheduler) #}
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+  :root{
+    --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+    --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+    --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+    --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+    /* tokens premium */
+    --bg: #f6f8fb;
+    --card: #ffffff;
+    --card2: #fbfcfe;
+    --ink: #0f2336;
+    --muted: rgba(15,35,54,.58);
+    --line: rgba(15,35,54,.10);
+    --shadow: 0 18px 55px rgba(15,35,54,.10);
+    --shadow2: 0 10px 25px rgba(15,35,54,.08);
+    --radius: 20px;
+    --radius-lg: 26px;
+    --ring: 0 0 0 .22rem rgba(255,193,7,.18);
+  }
+
+
+  body{ background: var(--bg); }
+
+
+  /* ===== HERO (unifié — comme Sessions) ===== */
+  .hero{
+    border-radius: 22px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+    background:
+      radial-gradient(1200px 420px at 12% -10%,
+        color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+        transparent 58%
+      ),
+      radial-gradient(900px 380px at 92% 0%,
+        color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(700px 260px at 55% 115%,
+        color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+        transparent 62%
+      ),
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+        color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+      );
+  }
+
+  /* léger glass highlight */
+  .hero::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+    opacity:.85;
+  }
+
+  /* barre accent */
+  .hero .accent{
+    width: 12px;
+    border-radius: 999px;
+    background: var(--theme-color-secondaire);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  }
+
+  /* ✅ Chips HERO (comme Sessions) */
+  .hero .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:.5rem;
+    padding:.32rem .7rem;
+    border-radius:999px;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.14);
+    font-size:.82rem;
+    color: rgba(255,255,255,.92);
+    backdrop-filter: blur(6px);
+    white-space: nowrap;
+  }
+  .hero .chip i{ color: var(--theme-color-secondaire); }
+  .hero .chip--pill{
+    background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+    color:#fff;
+  }
+
+  /* FILTER BAR premium */
+  .filterbar{
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow2);
+    overflow: visible;
+    margin-bottom: 1rem;
+  }
+  .filterbar__top{
+    padding: .95rem 1.05rem;
+    border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+    display:flex; align-items:center; gap:.8rem;
+  }
+  .filterbar__title{ font-weight:900; letter-spacing:-.01em; margin:0; font-size:1.02rem; color: var(--ink); }
+  .filterbar__hint{ color: var(--muted); font-size:.86rem; margin-left:.25rem; }
+
+  .filterbar__body{ padding: 1rem; }
+
+  .filter-icon{
+    width:38px; height:38px;
+    border-radius:14px;
+    display:grid; place-items:center;
+    background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+    flex: 0 0 auto;
+  }
+
+  .filtergrid{
+    display:grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: .8rem;
+    align-items:end;
+  }
+  .fcol-period{ grid-column: span 4; }
+  .fcol-formation{ grid-column: span 4; }
+  .fcol-entreprise{ grid-column: span 3; }
+  .fcol-actions{ grid-column: span 1; }
+
+  @media (max-width: 1200px){
+    .fcol-period, .fcol-formation{ grid-column: span 6; }
+    .fcol-entreprise{ grid-column: span 6; }
+    .fcol-actions{ grid-column: span 12; }
+  }
+  @media (max-width: 768px){
+    .fcol-period, .fcol-formation, .fcol-entreprise, .fcol-actions{ grid-column: span 12; }
+    .hero{ border-radius: 18px; }
+  }
+
+  .filter-control .form-label{
+    font-size:.72rem;
+    font-weight:900;
+    color: color-mix(in srgb, var(--ink) 55%, transparent);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin-bottom:.35rem;
+  }
+
+  .filterbox{
+    border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+    border-radius: 16px;
+    padding: .6rem .7rem;
+    background: linear-gradient(180deg, var(--card2), var(--card));
+    box-shadow: 0 10px 22px rgba(0,0,0,.04);
+    transition: .16s ease;
+  }
+  .filterbox:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(0,0,0,.06);
+  }
+  .filterbox:focus-within{
+    border-color: rgba(255,193,7,.55);
+    box-shadow: var(--ring), 0 14px 28px rgba(0,0,0,.06);
+  }
+  .filterrow{ display:flex; gap:.65rem; align-items:center; }
+
+  .filterbox .form-select,
+  .filterbox .form-control{
+    border:0 !important;
+    box-shadow:none !important;
+    padding-left:0 !important;
+    padding-right:0 !important;
+    background:transparent !important;
+    color: var(--ink);
+  }
+  .filterbox .form-control::placeholder{ color: color-mix(in srgb, var(--ink) 35%, transparent); }
+
+  .resetbox{
+    border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+    border-radius: 16px;
+    padding: .62rem .7rem;
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--theme-color-secondaire) 18%, var(--card)),
+      var(--card)
+    );
+    box-shadow: 0 10px 22px rgba(0,0,0,.05);
+    cursor:pointer;
+    user-select:none;
+    transition: .16s ease;
+    width: 100%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight: 900;
+    color: var(--ink);
+  }
+  .resetbox:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(0,0,0,.08);
+  }
+
+  /* CALENDAR card */
+  .calendar-card{
+    background: var(--card);
+    border-radius: var(--radius);
+    border:1px solid var(--line);
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+  #calendar{ padding: 12px; }
+
+  /* FullCalendar skin premium */
+  .fc{
+    --fc-border-color: var(--line);
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: transparent;
+    --fc-today-bg-color: color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent);
+  }
+
+  .fc .fc-toolbar{
+    padding: 8px 6px 4px;
+    gap: .5rem;
+  }
+  .fc .fc-toolbar-title{
+    font-weight: 1000;
+    letter-spacing: -.02em;
+    color: var(--ink);
+  }
+
+  .fc .fc-button{
+    border-radius: 14px;
+    border:1px solid color-mix(in srgb, var(--ink) 12%, transparent) !important;
+    background: linear-gradient(180deg, var(--card2), var(--card)) !important;
+    color: var(--ink) !important;
+    box-shadow: 0 8px 18px rgba(0,0,0,.06);
+    font-weight: 900;
+    padding: .42rem .7rem;
+    transition: .16s ease;
+  }
+  .fc .fc-button:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(0,0,0,.08);
+  }
+  .fc .fc-button:focus{ box-shadow: var(--ring) !important; }
+
+  .fc .fc-button-primary.fc-button-active{
+    border-color: transparent !important;
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 90%, #000 10%),
+      color-mix(in srgb, var(--theme-color-principal) 65%, #000 35%)
+    ) !important;
+    color:#fff !important;
+  }
+
+  .fc .fc-col-header-cell{
+    background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+  }
+  .fc .fc-col-header-cell-cushion{
+    padding: .6rem .45rem;
+    font-weight: 950;
+    color: var(--ink);
+  }
+
+  /* Resource area */
+  .fc .fc-datagrid-cell-cushion{
+    font-weight: 950;
+    color: var(--ink);
+  }
+  .fc .fc-datagrid-cell{
+    background: transparent;
+  }
+  .fc .soc-badge{
+    display:inline-flex; align-items:center;
+    padding:.18rem .5rem;
+    border-radius: 999px;
+    font-size:.72rem;
+    background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+    border:1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    margin-left:.45rem;
+    font-weight: 900;
+    color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+  }
+
+  /* Timeline cells */
+  .fc .fc-timeline-slot{
+    transition: background .12s ease;
+  }
+  .fc .fc-timeline-slot:hover{
+    background: rgba(255,255,255,.06);
+  }
+
+  /* Events premium */
+  .fc .fc-event{
+    border: 1px solid rgba(255,255,255,.14) !important;
+    border-radius: 14px !important;
+    overflow:hidden;
+    box-shadow: 0 14px 30px rgba(0,0,0,.10);
+  }
+  .fc .fc-event .fc-event-main{
+    padding: .35rem .55rem;
+  }
+  .fc .fc-event-title{
+    font-weight: 950;
+    letter-spacing: -.01em;
+  }
+
+  /* TomSelect premium */
+  .ts-control{
+    border:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    padding: 0 !important;
+  }
+  .ts-control input{ color: var(--ink) !important; }
+  .ts-dropdown{
+    border-radius: 16px !important;
+    border: 1px solid var(--line) !important;
+    box-shadow: var(--shadow) !important;
+    overflow:hidden;
+  }
+  .filterbar .ts-dropdown{ z-index: 2500 !important; }
+  .ts-dropdown .option{
+    padding: .55rem .7rem;
+    font-weight: 800;
+  }
+  .ts-dropdown .active{
+    background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent) !important;
+  }
+
+  /* ================= FULLCALENDAR — FIX MOBILE ONLY ================= */
+@media (max-width: 576px){
+
+  .fc .fc-header-toolbar{
+    flex-wrap: wrap !important;
+    gap: .6rem !important;
+    padding: .9rem .85rem .75rem !important;
+    align-items: center !important;
+  }
+
+  .fc .fc-toolbar-chunk{
+    flex: 1 1 100% !important;
+    display:flex !important;
+    justify-content:center !important;
+    min-width:0 !important;
+  }
+
+  /* ordre pro : nav+today -> titre -> vues */
+  .fc .fc-toolbar-chunk:first-child{ order: 1; justify-content: space-between !important; }
+  .fc .fc-toolbar-chunk:nth-child(2){ order: 2; }
+  .fc .fc-toolbar-chunk:last-child{ order: 3; }
+
+  .fc .fc-toolbar-title{
+    font-size: 1.25rem !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
+
+  .fc .fc-button-group{
+    flex-wrap: wrap !important;
+    gap: .35rem !important;
+    justify-content:center !important;
+  }
+
+  .fc .fc-button{
+    padding: .35rem .55rem !important;
+    font-size: .9rem !important;
+  }
+
+  /* compacte l’affichage timeline */
+  .fc .fc-datagrid-cell-cushion{ font-size: .92rem !important; }
+  .fc .fc-timeline-slot-cushion{ font-size: .85rem !important; }
+}
+
+
+/* ================= FULLCALENDAR — SKIN PRO (SCHEDULER / TIMELINE) ================= */
+#calendar{
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, rgba(0,0,0,.08));
+  box-shadow: var(--ring, 0 14px 48px rgba(15,35,54,.12));
+}
+
+/* Variables FullCalendar basées sur ton thème */
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 70%, transparent 30%);
+  --fc-border-color: color-mix(in oklab, var(--theme-color-principal) 12%, transparent 88%);
+  --fc-today-bg-color: color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+
+  --fc-highlight-color: color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+}
+
+/* Header / toolbar */
+.fc .fc-header-toolbar{
+  padding: 1rem 1rem .75rem;
+  margin: 0 !important;
+  background:
+    radial-gradient(900px 260px at 10% -40%, color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%), transparent 60%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+      color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+    );
+  border-bottom: 1px solid rgba(255,255,255,.14);
+}
+
+.fc .fc-toolbar-title{
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .2px;
+  text-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+/* Boutons toolbar */
+.fc .fc-button{
+  border: 1px solid rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.10) !important;
+  color: #fff !important;
+  border-radius: .75rem !important;
+  box-shadow: none !important;
+  padding: .45rem .7rem !important;
+  font-weight: 800 !important;
+}
+.fc .fc-button:hover{
+  background: rgba(255,255,255,.16) !important;
+}
+.fc .fc-button:focus{
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 30%, transparent 70%) !important;
+}
+.fc .fc-button.fc-button-active{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 72%, black 0%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%) !important;
+}
+
+/* Corps calendrier */
+.fc .fc-view-harness{
+  background: var(--card, #fff);
+}
+
+
+.fc .fc-timeline-slot-cushion{
+  padding: .75rem .25rem !important;
+  
+  color: var(--theme-color-quaternaire);
+  font-weight: 900;
+  text-decoration: none !important;
+}
+
+
+.fc .fc-datagrid-header .fc-datagrid-cell-cushion{
+  padding: .75rem .5rem !important;
+  font-weight: 900;
+  color: var(--theme-color-quaternaire);
+}
+.fc .fc-datagrid-cell-cushion{
+  font-weight: 900;
+  color: color-mix(in oklab, var(--theme-color-principal) 82%, black 18%);
+}
+
+/* Today dans timeline */
+.fc .fc-timeline-slot.fc-today{
+  background: var(--fc-today-bg-color) !important;
+}
+
+
+  .fc .fc-timeline-header-row .fc-timeline-slot{
+    background: color-mix(in oklab, var(--theme-color-tertiaire) 70%, white 30%);
+  }
+
+  .fc .fc-datagrid-header{
+    background: color-mix(in oklab, var(--theme-color-tertiaire) 72%, white 28%);
+  }
+
+/* Events : pill premium */
+.fc .fc-event{
+  border-radius: .75rem !important;
+  padding: .15rem .25rem !important;
+  border: 0 !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,.10);
+  overflow: hidden;
+}
+.fc .fc-event .fc-event-main{
+  padding: .25rem .35rem !important;
+}
+.fc .fc-event .fc-event-title{
+  font-weight: 900;
+  letter-spacing: .1px;
+}
+.fc .fc-event .fc-event-time{
+  font-weight: 900;
+  opacity: .92;
+}
+
+/* Variante visuelle "matin / aprem" (via classNames côté JS) */
+.fc .fc-event.ev-am{
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--theme-color-principal) 86%, black 14%),
+    color-mix(in oklab, var(--theme-color-secondaire) 40%, var(--theme-color-principal) 60%)
+  ) !important;
+  color:#fff !important;
+}
+.fc .fc-event.ev-pm{
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--theme-color-principal) 76%, black 24%),
+    color-mix(in oklab, var(--theme-color-secondaire) 70%, var(--theme-color-principal) 30%)
+  ) !important;
+  color:#fff !important;
+}
+
+/* TomSelect dropdown au-dessus */
+.filterbar .ts-dropdown{ z-index: 2500 !important; }
+
+
+
+
+
+
+/* =================== RESPONSIVE CALENDAR LAYOUT =================== */
+.calendar-card{ overflow: hidden; }
+#calendar{ padding: 0 !important; }
+
+.fc .fc-view-harness{ min-height: 70vh; }
+@media (max-width: 992px){
+  .fc .fc-view-harness{ min-height: 68vh; }
+}
+
+/* Toolbar mobile vraiment utilisable */
+@media (max-width: 576px){
+  .fc .fc-header-toolbar{
+    padding: .75rem .75rem .65rem !important;
+  }
+  .fc .fc-toolbar-title{
+    font-size: 1.05rem !important;
+  }
+  .fc .fc-button{
+    padding: .34rem .55rem !important;
+    font-size: .88rem !important;
+    border-radius: .7rem !important;
+  }
+  /* évite le “wrap” dégueu des boutons */
+  .fc .fc-button-group{ gap:.35rem !important; }
+}
+
+/* Events plus "cards" et lisibles */
+.fc .fc-event{
+  border-radius: 14px !important;
+}
+@media (max-width: 576px){
+  .fc .fc-event{
+    border-radius: 12px !important;
+    box-shadow: 0 10px 20px rgba(0,0,0,.10) !important;
+  }
+  .fc .fc-event .fc-event-main{
+    padding: .25rem .45rem !important;
+  }
+  .fc .fc-event-title{
+    font-size: .92rem !important;
+    font-weight: 900 !important;
+  }
+}
+
+/* Modal : full width sur mobile */
+@media (max-width: 576px){
+  .modal-dialog.modal-xl{ max-width: 100% !important; margin: 0 !important; }
+  .modal-content{ border-radius: 0 !important; height: 100vh; }
+  .modal-body{ padding: 1rem; }
+}
+
+
+</style>
+
+{% endblock %}
+
+
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  {# FullCalendar Scheduler (Premium bundle) en globals #}
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler/index.global.min.js"></script>
+  {# locales : depuis @fullcalendar/core (v6) #}
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.20/locales/fr.global.min.js"></script>
+  {# UI #}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+{% endblock %}
+
+
+{% block body %}
+
+  {# ✅ HERO (unifié Sessions-like) #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-calendar3 me-2" style="color:var(--theme-color-secondaire)"></i>
+            Planning sessions
+          </h2>
+          <div class="opacity-75 mt-1">Vue timeline : sessions (lignes) et jours (barres).</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-journal-bookmark"></i> Sessions × Jours</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="filterbar">
+    <div class="filterbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
+        <div>
+          <div class="filterbar__title">Filtres</div>
+          <div class="filterbar__hint">Période, formation, site, formateur, statut…</div>
+        </div>
+      </div>
+
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm fw-semibold d-md-none"
+                type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+          <i class="bi bi-sliders"></i> Filtres
+        </button>
+      </div>
+    </div>
+
+    <div class="collapse d-md-block" id="filtersCollapse">
+      <div class="filterbar__body">
+        <div class="filtergrid">
+
+          <div class="filter-control fcol-period">
+            <div class="form-label">Période</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-calendar-range"></i></div>
+                <input id="periodFilter" class="form-control form-control-sm" placeholder="Choisir une période" />
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-formation">
+            <div class="form-label">Formation</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-journal-bookmark"></i></div>
+                <select id="formationFilter" class="form-select form-select-sm">
+                  <option value="0">Toutes</option>
+                  {% for f in formations %}
+                    <option value="{{ f.id }}">{{ f.titre }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-entreprise">
+            <div class="form-label">Site</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-geo-alt"></i></div>
+                <select id="siteFilter" class="form-select form-select-sm">
+                  <option value="0">Tous</option>
+                  {% for s in sites %}
+                    <option value="{{ s.id }}">{{ s.nom }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-formation">
+            <div class="form-label">Formateur</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-person-workspace"></i></div>
+                <select id="formateurFilter" class="form-select form-select-sm">
+                  <option value="0">Tous</option>
+                  {% for fo in formateurs %}
+                    <option value="{{ fo.id }}">{{ fo.utilisateur.nom }} {{ fo.utilisateur.prenom }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-entreprise">
+            <div class="form-label">Statut</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-flag"></i></div>
+                <select id="statusFilter" class="form-select form-select-sm">
+                  <option value="">Tous</option>
+                  <option value="draft">Brouillon</option>
+                  <option value="published">Publiée</option>
+                  <option value="canceled">Annulée</option>
+                  <option value="done">Terminée</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-actions">
+            <div class="form-label">&nbsp;</div>
+            <button id="btnReset" type="button" class="resetbox" title="Réinitialiser">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>
+              <span class="fw-bold">Reset</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="calendar-card">
+    <div id="calendar"></div>
+  </div>
+
+
+<div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px; overflow:hidden;">
+      <div class="modal-header" style="background: linear-gradient(135deg, var(--theme-color-principal), var(--theme-color-secondaire)); color:#fff;">
+        <div>
+          <h5 class="modal-title mb-0 fw-bold">Détails session</h5>
+          <div class="small opacity-75" id="eventDetailsModalSub">—</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="eventDetailsBody">
+          <div class="text-muted small">Chargement…</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $period      = document.getElementById('periodFilter');
+  const $formation   = document.getElementById('formationFilter');
+  const $site        = document.getElementById('siteFilter');
+  const $formateur   = document.getElementById('formateurFilter');
+  const $status      = document.getElementById('statusFilter');
+  const $lastRefresh = document.getElementById('hero-last-refresh');
+  const $btnReset    = document.getElementById('btnReset');
+
+  let lastKey = null;
+  let lastPromise = null;
+
+  let currentRange = { start: null, end: null };
+  let refetchTimer = null;
+
+  function refetchDebounced(ms = 80){
+    clearTimeout(refetchTimer);
+    refetchTimer = setTimeout(refetch, ms);
+  }
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  // ====== Helpers responsive ======
+  function isMobile(){ return window.matchMedia('(max-width: 576px)').matches; }
+  function isTablet(){ return window.matchMedia('(max-width: 992px)').matches; }
+
+  // ====== TomSelect ======
+  let tsFormation=null, tsSite=null, tsFormateur=null, tsStatus=null;
+
+  function initTomSelect(){
+    const common = { create:false, allowEmptyOption:true, maxItems:1, plugins:['clear_button'] };
+
+    tsFormation?.destroy(); tsSite?.destroy(); tsFormateur?.destroy(); tsStatus?.destroy();
+
+    tsFormation = new TomSelect('#formationFilter', {...common, placeholder:'Toutes'});
+    tsSite      = new TomSelect('#siteFilter',      {...common, placeholder:'Tous'});
+    tsFormateur = new TomSelect('#formateurFilter', {...common, placeholder:'Tous'});
+    tsStatus    = new TomSelect('#statusFilter',    {...common, placeholder:'Tous'});
+
+    tsFormation.on('change', () => refetchDebounced());
+    tsSite.on('change',      () => refetchDebounced());
+    tsFormateur.on('change', () => refetchDebounced());
+    tsStatus.on('change',    () => refetchDebounced());
+  }
+
+  // ====== Flatpickr ======
+  let fp = null;
+  function initPeriodPicker(calendar){
+    fp = flatpickr($period, {
+      mode: 'range',
+      dateFormat: 'Y-m-d',
+      locale: 'fr',
+      allowInput: true,
+      onClose: function(selectedDates){
+        if (selectedDates && selectedDates.length >= 1 && selectedDates[0]) {
+          calendar.gotoDate(selectedDates[0]);
+          refetchDebounced();
+        }
+      }
+    });
+  }
+
+  function getRangeOrFallback(){
+    if (currentRange.start && currentRange.end) return currentRange;
+    const d = new Date();
+    return { start: new Date(d.getFullYear(), d.getMonth(), 1), end: new Date(d.getFullYear(), d.getMonth() + 1, 1) };
+  }
+
+  function getFilters(){
+    const fid = parseInt(tsFormation?.getValue() || $formation.value || '0', 10) || 0;
+    const sid = parseInt(tsSite?.getValue()      || $site.value      || '0', 10) || 0;
+    const fo  = parseInt(tsFormateur?.getValue() || $formateur.value || '0', 10) || 0;
+    const st  = (tsStatus?.getValue() || $status.value || '').toString();
+    return { fid, sid, fo, st };
+  }
+
+  function buildUrl(){
+    const { start, end } = getRangeOrFallback();
+    const { fid, sid, fo, st } = getFilters();
+
+    const url = new URL("{{ path('app_administrateur_planning_sessions_data', { entite: entite.id }) }}", window.location.origin);
+    url.searchParams.set('start', start.toISOString());
+    url.searchParams.set('end', end.toISOString());
+    if (fid > 0) url.searchParams.set('formation', String(fid));
+    if (sid > 0) url.searchParams.set('site', String(sid));
+    if (fo  > 0) url.searchParams.set('formateur', String(fo));
+    if (st)      url.searchParams.set('status', st);
+    return url.toString();
+  }
+
+  function computeKey(){
+    const { start, end } = getRangeOrFallback();
+    const { fid, sid, fo, st } = getFilters();
+    return [start.toISOString(), end.toISOString(), fid, sid, fo, st].join('|');
+  }
+
+  function loadData(){
+    const key = computeKey();
+    if (key === lastKey && lastPromise) return lastPromise;
+
+    lastKey = key;
+    lastPromise = fetch(buildUrl(), { headers: { 'Accept':'application/json' } })
+      .then(async r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(payload => {
+        $lastRefresh.textContent = 'Maj : ' + nowLabel();
+        return (!payload || !Array.isArray(payload.resources) || !Array.isArray(payload.events))
+          ? { resources: [], events: [] }
+          : payload;
+      })
+      .catch(err => {
+        console.error('[Planning sessions] loadData error:', err);
+        return { resources: [], events: [] };
+      });
+
+    return lastPromise;
+  }
+
+  // ====== Modal ======
+  const modalEl  = document.getElementById('eventDetailsModal');
+  const modalSub = document.getElementById('eventDetailsModalSub');
+  const modalBody= document.getElementById('eventDetailsBody');
+  const modal    = modalEl ? new bootstrap.Modal(modalEl) : null;
+
+  function esc(s){
+    return (s ?? '').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  }
+  function money(cents){
+    const n = (parseInt(cents || 0, 10) || 0) / 100;
+    return n.toLocaleString('fr-FR', { style:'currency', currency:'EUR' });
+  }
+  function fmtDT(iso){
+    if(!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleString('fr-FR', { dateStyle:'full', timeStyle:'short' });
+  }
+
+  function renderDetails(data){
+    const s  = data.session || {};
+    const equips = (s.equipements && typeof s.equipements === 'object') ? s.equipements : {};
+    const j  = data.jour || {};
+    const st = data.stats || {};
+    const form = s.formation || {};
+    const site = s.site || {};
+    const fo = s.formateur || null;
+    const en = s.engin || null;
+    const stagiaires = Array.isArray(data.stagiaires) ? data.stagiaires : [];
+
+    modalSub.textContent =
+      `${form.titre || ''}${s.code ? ' — ' + s.code : ''} • ${j.date || ''}`;
+
+    const badge = (txt, cls) => `<span class="badge ${cls}">${esc(txt)}</span>`;
+
+    const pieces = Array.isArray(s.piecesObligatoires) && s.piecesObligatoires.length
+    ? `
+      <div class="d-flex flex-wrap gap-1">
+        ${s.piecesObligatoires.map(label => `
+          <span class="badge d-inline-flex align-items-center gap-1"
+                style="
+                  background: var(--card2);
+                  color: var(--ink);
+                  border:1px solid var(--line);
+                  padding:.45rem .6rem;
+                  border-radius:999px;
+                  font-weight:600;
+                ">
+            <i class="bi bi-file-earmark-text opacity-75"></i>
+            ${esc(label)}
+          </span>
+        `).join('')}
+      </div>
+    `
+    : '<span class="text-muted">—</span>';
+
+
+    const list = stagiaires.length ? `
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Stagiaire</th>
+              <th>Société</th>
+              <th>Statut</th>
+              <th>Financement</th>
+              <th>OPCO</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stagiaires.map(u => `
+              <tr>
+                <td class="fw-semibold">${esc((u.nom||'') + ' ' + (u.prenom||''))}</td>
+                <td>${esc(u.entreprise || '—')}</td>
+                <td>${badge(u.statusLabel || u.status || '—', 'bg-primary')}</td>
+                <td>${badge(u.modeFinancement || '—', 'bg-dark')}</td>
+                <td>${u.opco ? badge('OPCO', 'bg-info text-dark') : badge('Hors OPCO', 'bg-light text-muted')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : `<div class="text-muted">Aucun inscrit sur cette session.</div>`;
+
+
+    function ynBadge(v){
+      if (v === true)  return `<span class="badge bg-success"><i class="bi bi-check2"></i></span>`;
+      if (v === false) return `<span class="badge bg-secondary"><i class="bi bi-x"></i></span>`;
+      return `<span class="badge bg-light text-muted">—</span>`;
+    }
+
+    const equipList = [
+      ['equipOrdinateurFormateur', 'Ordinateur (formateur)', 'bi-laptop'],
+      ['equipVideoprojecteurEcran', 'Vidéoprojecteur / écran', 'bi-projector'],
+      ['equipInternetStable', 'Connexion Internet stable', 'bi-wifi'],
+      ['equipTableauPaperboard', 'Tableau blanc / paperboard', 'bi-easel2'],
+      ['equipMarqueursSupportsImprimes', 'Marqueurs / supports imprimés', 'bi-journal-text'],
+      ['salleAdapteeTailleGroupe', 'Salle adaptée (taille du groupe)', 'bi-people'],
+      ['salleTablesChaisesErgo', 'Tables / chaises ergonomiques', 'bi-grid-3x3-gap'],
+      ['salleLumiereChauffageClim', 'Lumière / chauffage / clim', 'bi-sun'],
+      ['salleEauCafe', 'Eau / café', 'bi-cup-hot'],
+    ];
+
+    const equipChips = equipList
+    // ✅ on garde uniquement ceux qui sont "présents" (= true)
+    .filter(([k]) => equips[k] === true)
+    .map(([k, label, icon]) => {
+      return `
+        <span class="badge bg-success d-inline-flex align-items-center gap-1"
+              style="border:1px solid var(--line); padding:.4rem .55rem; border-radius:999px;">
+          <i class="bi ${icon} opacity-75"></i>
+          <span class="text-truncate">${esc(label)}</span>
+          <i class="bi bi-check2 ms-1"></i>
+        </span>
+      `;
+    })
+    .join('');
+
+
+    const equipZone = equipChips
+      ? `
+        <div class="d-flex flex-wrap gap-1">${equipChips}</div>
+      `
+      : `<div class="text-muted">Aucun matériel disponible</div>`;
+
+
+
+    modalBody.innerHTML = `
+      <div class="row g-3">
+        <div class="col-lg-6"> ... Session ... </div>
+
+        <div class="col-lg-6">
+          <div class="p-3 rounded-4 border" style="background: var(--card2); border-color: var(--line)!important;">
+            <div class="fw-bold mb-2"><i class="bi bi-bar-chart"></i> Capacité & inscriptions</div>
+
+            <div class="d-flex flex-wrap gap-2">
+              ${badge('Capacité : ' + (s.capacite ?? '—'), 'bg-secondary')}
+              ${badge('Inscrits : ' + (st.inscrits ?? 0), 'bg-success')}
+              ${badge('Restantes : ' + (st.placesRestantes ?? 0), 'bg-warning text-dark')}
+            </div>
+
+            <div class="small text-muted mt-3">Tarif</div>
+            <div class="fw-semibold">${money(s.montantCents || 0)}</div>
+
+            <div class="small text-muted mt-3">Pièces obligatoires</div>
+            <div class="d-flex flex-wrap gap-1">${pieces}</div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-4 border" style="background: var(--card2); border-color: var(--line)!important;">
+          <div class="fw-bold mb-2"><i class="bi bi-tools"></i> Équipements & logistique</div>
+          ${equipZone}
+        </div>
+
+
+        <div class="col-12"> ... Stagiaires ... </div>
+      </div>
+    `;
+
+
+
+
+
+    modalBody.innerHTML = `
+      <div class="row g-3">
+
+        <!-- Colonne gauche -->
+        <div class="col-lg-6">
+          <div class="p-3 rounded-4 border" style="background: var(--card2); border-color: var(--line)!important;">
+            <div class="fw-bold mb-2"><i class="bi bi-collection"></i> Session</div>
+
+            <div class="small text-muted">Code</div>
+            <div class="fw-semibold">${esc(s.code || '—')}</div>
+
+            <div class="small text-muted mt-2">Statut</div>
+            <div class="fw-semibold">${esc(s.statusLabel || s.status || '—')}</div>
+
+            <div class="small text-muted mt-2">Créneau</div>
+            <div class="fw-semibold">${esc(fmtDT(j.start))} → ${esc(fmtDT(j.end))}</div>
+
+            <div class="small text-muted mt-2">Formation</div>
+            <div class="fw-semibold">${esc(form.titre || '—')}</div>
+
+            <div class="small text-muted mt-2">Site</div>
+            <div class="fw-semibold">${esc(site.nom || '—')}</div>
+
+            <div class="small text-muted mt-2">Formateur</div>
+            <div class="fw-semibold">${fo ? esc((fo.nom||'') + ' ' + (fo.prenom||'')) : '—'}</div>
+
+            <div class="small text-muted mt-2">Engin</div>
+            <div class="fw-semibold">${en ? esc(en.nom || '—') : '—'}</div>
+          </div>
+        </div>
+
+        <!-- Colonne droite : pile de cartes -->
+        <div class="col-lg-6">
+          <div class="d-flex flex-column gap-3">
+
+            <!-- Capacité -->
+            <div class="p-3 rounded-4 border" style="background: var(--card2); border-color: var(--line)!important;">
+              <div class="fw-bold mb-2"><i class="bi bi-bar-chart"></i> Capacité & inscriptions</div>
+
+              <div class="d-flex flex-wrap gap-2">
+                ${badge('Capacité : ' + (s.capacite ?? '—'), 'bg-secondary')}
+                ${badge('Inscrits : ' + (st.inscrits ?? 0), 'bg-success')}
+                ${badge('Restantes : ' + (st.placesRestantes ?? 0), 'bg-warning text-dark')}
+              </div>
+
+              <div class="small text-muted mt-3">Tarif</div>
+              <div class="fw-semibold">${money(s.montantCents || 0)}</div>
+
+              <div class="small text-muted mt-3">Pièces obligatoires</div>
+              <div class="d-flex flex-wrap gap-1">${pieces}</div>
+            </div>
+
+            <!-- Équipements : JUSTE EN DESSOUS, même colonne -->
+            <div class="p-3 rounded-4 border" style="background: var(--card2); border-color: var(--line)!important;">
+              <div class="fw-bold mb-2"><i class="bi bi-tools"></i> Équipements & logistique</div>
+              ${equipZone}
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Stagiaires : pleine largeur -->
+        <div class="col-12">
+          <div class="p-3 rounded-4 border" style="background: var(--card); border-color: var(--line)!important;">
+            <div class="fw-bold mb-2"><i class="bi bi-people"></i> Stagiaires</div>
+            ${list}
+          </div>
+        </div>
+
+      </div>
+    `;
+
+
+  }
+
+  // ====== FullCalendar (responsive) ======
+  const calendarEl = document.getElementById('calendar');
+  const schedulerKey = {{ schedulerKey ? schedulerKey|json_encode|raw : '""' }};
+
+  function getInitialView(){
+    return isMobile() ? 'timeGridDay' : 'resourceTimelineMonth';
+  }
+
+  function getHeaderToolbar(){
+    if (isMobile()){
+      return { left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek' };
+    }
+    return { left: 'prev,next today', center: 'title', right: 'resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth' };
+  }
+
+  function getResourceColumns(){
+    if (isTablet()){
+      return [
+        { field: 'title', headerContent: 'Session', width: 210 },
+        { field: 'site', headerContent: 'Site', width: 150 },
+      ];
+    }
+    return [
+      { field: 'title',     headerContent: 'Session',   width: 200 },
+      { field: 'formation', headerContent: 'Formation', width: 220 },
+      { field: 'site',      headerContent: 'Site',      width: 170 },
+      { field: 'range',     headerContent: 'Dates',     width: 120 }
+    ];
+  }
+
+  function getResourceAreaWidth(){
+    if (isTablet()) return '360px';
+    return '520px';
+  }
+
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    schedulerLicenseKey: schedulerKey || 'CC-Attribution-NonCommercial-NoDerivatives',
+    locale: 'fr',
+
+    initialView: getInitialView(),
+    headerToolbar: getHeaderToolbar(),
+
+    height: 'auto',
+    expandRows: true,
+    nowIndicator: true,
+    editable: false,
+    selectable: false,
+    stickyHeaderDates: true,
+
+    resourceAreaWidth: getResourceAreaWidth(),
+    resourceAreaColumns: getResourceColumns(),
+    slotMinWidth: isTablet() ? 62 : 70,
+    resourceOrder: 'title',
+
+    views: {
+      resourceTimelineDay:   { buttonText: 'Jour' },
+      resourceTimelineWeek:  { buttonText: 'Semaine' },
+      resourceTimelineMonth: { buttonText: 'Mois' },
+      timeGridDay:  { buttonText: 'Jour' },
+      timeGridWeek: { buttonText: 'Semaine' }
+    },
+
+    datesSet: function(arg){
+      currentRange.start = arg.start;
+      currentRange.end   = arg.end;
+      refetchDebounced();
+    },
+
+    resources: function(fetchInfo, success, failure){
+      loadData().then(({resources}) => success(resources)).catch(failure);
+    },
+    events: function(fetchInfo, success, failure){
+      loadData().then(({events}) => success(events)).catch(failure);
+    },
+
+    eventClick: function(info){
+      info.jsEvent.preventDefault();
+      const p = info.event.extendedProps || {};
+      if(!p.sessionId || !p.jourId || !modal) return;
+
+      modalSub.textContent = '—';
+      modalBody.innerHTML = `<div class="text-muted small">Chargement…</div>`;
+      modal.show();
+
+      const url = new URL("{{ path('app_administrateur_planning_sessions_event_details', { entite: entite.id, session: 0, jour: 0 }) }}", window.location.origin);
+      url.pathname = url.pathname
+        .replace('/0/', '/' + encodeURIComponent(p.sessionId) + '/')
+        .replace('/0', '/' + encodeURIComponent(p.jourId));
+
+      fetch(url.toString(), { headers: { 'Accept': 'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+          if(!data || !data.ok){
+            modalBody.innerHTML = `<div class="alert alert-danger mb-0">Impossible de charger les détails.</div>`;
+            return;
+          }
+          renderDetails(data);
+        })
+        .catch(err => {
+          console.error(err);
+          modalBody.innerHTML = `<div class="alert alert-danger mb-0">Erreur réseau.</div>`;
+        });
+    },
+
+    eventDidMount: function(info){
+      const p = info.event.extendedProps || {};
+      const parts = [];
+      if (p.formation) parts.push(p.formation);
+      if (p.code) parts.push(p.code);
+      if (p.site) parts.push('Site: ' + p.site);
+      if (p.statusLabel) parts.push('Statut: ' + p.statusLabel);
+      info.el.title = parts.join(' • ');
+
+      const bg1 = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-principal').trim();
+      const bg2 = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-secondaire').trim();
+      info.el.style.background = `linear-gradient(135deg, ${bg1}, ${bg2})`;
+      info.el.style.color = '#fff';
+    }
+  });
+
+  function refetch(){
+    lastKey = null;
+    lastPromise = null;
+    calendar.refetchResources();
+    calendar.refetchEvents();
+    $lastRefresh.textContent = 'Maj : ' + nowLabel();
+  }
+
+  $btnReset?.addEventListener('click', function(){
+    tsFormation?.setValue('0', true);
+    tsSite?.setValue('0', true);
+    tsFormateur?.setValue('0', true);
+    tsStatus?.setValue('', true);
+    fp?.clear();
+    calendar.today();
+    refetchDebounced(20);
+  });
+
+  // Rebuild options on breakpoint change (mobile/tablet/desktop)
+  let lastMode = isMobile() ? 'm' : (isTablet() ? 't' : 'd');
+  window.addEventListener('resize', () => {
+    const mode = isMobile() ? 'm' : (isTablet() ? 't' : 'd');
+    if (mode === lastMode) return;
+    lastMode = mode;
+
+    calendar.setOption('headerToolbar', getHeaderToolbar());
+
+    if (isMobile()){
+      calendar.changeView('timeGridDay');
+    }else{
+      calendar.changeView('resourceTimelineMonth');
+      calendar.setOption('resourceAreaWidth', getResourceAreaWidth());
+      calendar.setOption('resourceAreaColumns', getResourceColumns());
+      calendar.setOption('slotMinWidth', isTablet() ? 62 : 70);
+    }
+
+    refetchDebounced(60);
+  });
+
+  // Init
+  initTomSelect();
+  calendar.render();
+  initPeriodPicker(calendar);
+  $lastRefresh.textContent = 'Maj : ' + nowLabel();
+  refetchDebounced(50);
+})();
+</script>
+
+{% endblock %}

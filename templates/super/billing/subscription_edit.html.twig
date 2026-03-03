@@ -1,0 +1,103 @@
+{# templates/super/billing/subscription_edit.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Super — {{ isNew ? 'Créer' : 'Éditer' }} abonnement{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --ink:#0f2336;
+    }
+    .panel{
+      border-radius:18px; background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .panel .head{
+      padding:1rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: radial-gradient(900px 180px at 15% 0%, rgba(255,193,7,.10), transparent 55%), #fff;
+    }
+    .grid{ display:grid; gap: 1rem; grid-template-columns: repeat(12, 1fr); }
+    .col-12{ grid-column: span 12; }
+    .col-6{ grid-column: span 6; }
+    @media (max-width: 768px){ .col-6{ grid-column: span 12; } }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <div class="text-muted small">SUPER / {{ entite.nom }}</div>
+      <h1 class="h4 mb-0">{{ isNew ? 'Créer un abonnement' : 'Éditer abonnement' }}</h1>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ path('app_super_billing_subscription_show', { entite: entite.id }) }}">
+        <i class="bi bi-arrow-left"></i> Retour
+      </a>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="panel">
+    <div class="head d-flex justify-content-between align-items-center">
+      <div class="fw-bold">Paramètres abonnement</div>
+      <span class="badge text-bg-warning">Super</span>
+    </div>
+
+    <div class="p-3">
+      {{ form_start(form) }}
+
+      <div class="grid">
+        <div class="col-12 col-6">
+          {{ form_row(form.plan) }}
+        </div>
+        <div class="col-12 col-6">
+          {{ form_row(form.status) }}
+        </div>
+
+        <div class="col-12 col-6">
+          {{ form_row(form.intervale) }}
+        </div>
+        <div class="col-12 col-6">
+          {{ form_row(form.currentPeriodEnd) }}
+        </div>
+
+        <div class="col-12 col-6">
+          {{ form_row(form.trialEndsAt) }}
+        </div>
+        <div class="col-12 col-6">
+          {{ form_row(form.stripeCustomerId) }}
+        </div>
+
+        <div class="col-12 col-6">
+          {{ form_row(form.stripeSubscriptionId) }}
+        </div>
+
+        <div class="col-12">
+          {{ form_row(form.addons) }}
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <button class="btn btn-warning fw-semibold" type="submit">
+          <i class="bi bi-check2-circle"></i> Enregistrer
+        </button>
+
+        <a class="btn btn-outline-secondary" href="{{ path('app_super_billing_subscription_show', { entite: entite.id }) }}">
+          Annuler
+        </a>
+      </div>
+
+      {{ form_end(form) }}
+    </div>
+  </div>
+
+{% endblock %}

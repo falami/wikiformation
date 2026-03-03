@@ -1,0 +1,52 @@
+<div class="modal fade" id="emailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title fw-bold mb-0"><i class="bi bi-envelope"></i> Envoyer un email</h5>
+          <div class="small text-muted">Prospect #{{ p.id }} — {{ p.prenom }} {{ p.nom|upper }}</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        {{ form_start(emailForm, { attr: { id: 'sendEmailForm', novalidate:'novalidate' } }) }}
+          <div class="row g-3">
+            <div class="col-12 col-lg-4">
+              <div class="border rounded-4 p-3 bg-light">
+                <div class="fw-bold mb-2"><i class="bi bi-sliders"></i> Paramètres</div>
+
+                <div class="mb-2">{{ form_row(emailForm.toEmail) }}</div>
+                <div class="mb-2">{{ form_row(emailForm.template) }}</div>
+                <div class="mb-2">{{ form_row(emailForm.subject) }}</div>
+                <div class="mb-2">{{ form_row(emailForm.message) }}</div>
+
+                <div class="d-grid gap-2 mt-3">
+                  <button type="button" class="btn btn-outline-secondary fw-semibold" id="btnPreview">
+                    <i class="bi bi-eye"></i> Prévisualiser
+                  </button>
+
+                  <button type="button" class="btn btn-warning fw-semibold" id="btnSend">
+                    <i class="bi bi-send"></i> Envoyer
+                  </button>
+
+                  <div id="emailSendStatus" class="small text-muted"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-8">
+              <div id="emailPreviewZone">
+                <div class="border rounded-4 p-3 bg-white text-muted">
+                  Choisis un modèle puis clique sur <b>Prévisualiser</b>.
+                </div>
+              </div>
+            </div>
+          </div>
+          {{ form_widget(emailForm.idemKey) }}
+
+        {{ form_end(emailForm) }}
+      </div>
+    </div>
+  </div>
+</div>

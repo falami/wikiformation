@@ -1,0 +1,27 @@
+{# templates/administrateur/prospects/_contact_cell.html.twig #}
+
+<div class="d-flex flex-column gap-1 text-start">
+  {% if p.email %}
+    <div class="d-flex align-items-center gap-2">
+      <span class="chip"><i class="bi bi-envelope"></i> {{ p.email }}</span>
+      <a class="btn btn-sm btn-outline-secondary py-0 px-2"
+         href="mailto:{{ p.email|e }}">
+        <i class="bi bi-send"></i>
+      </a>
+    </div>
+  {% endif %}
+
+  {% if p.telephone %}
+    <div class="d-flex align-items-center gap-2">
+      <span class="chip"><i class="bi bi-telephone"></i> {{ p.telephone }}</span>
+      <a class="btn btn-sm btn-outline-secondary py-0 px-2"
+         href="tel:{{ p.telephone|replace({' ':'','.' :'','-':''})|e }}">
+        <i class="bi bi-telephone-outbound"></i>
+      </a>
+    </div>
+  {% endif %}
+
+  {% if not p.email and not p.telephone %}
+    <span class="text-muted">—</span>
+  {% endif %}
+</div>

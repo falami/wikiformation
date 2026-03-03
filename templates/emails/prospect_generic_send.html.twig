@@ -1,0 +1,105 @@
+{# templates/emails/prospect_generic_send.html.twig #}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ subject|default('Message') }}</title>
+</head>
+
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#0f2336;">
+  {% set nomProspect = ((prospect.civilite ?? '') ~ ' ' ~ (prospect.prenom ?? '') ~ ' ' ~ (prospect.nom ?? ''))|trim %}
+  {% set toEmail = to|default(prospect.email|default('')) %}
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fb;padding:24px 12px;">
+    <tr>
+      <td align="center">
+
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;width:100%;background:#ffffff;border:1px solid #e8eef6;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.06);">
+          {# ================= HEADER (copié du devis) ================= #}
+          <tr>
+            <td style="padding:18px 18px 12px 18px;background:linear-gradient(135deg, rgba(15,35,54,.98), rgba(15,35,54,.86));color:#ffffff;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellspacing="0" cellpadding="0">
+                      <tr>
+                        {% if entite.logo %}
+                          <td style="vertical-align:middle;padding-right:12px;">
+                            <img
+                              src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}"
+                              alt="Logo {{ entite.nom|default('') }}"
+                              style="height:40px;width:auto;display:block;object-fit:contain;border:0;outline:none;text-decoration:none;"
+                            >
+                          </td>
+                        {% endif %}
+                        <td style="vertical-align:middle;">
+                          <div style="font-weight:800;letter-spacing:.2px;font-size:16px;line-height:1.15;margin:0;">
+                            {{ entite.nom|default('Wiki Formation') }}
+                          </div>
+                          <div style="opacity:.88;font-size:12px;margin-top:4px;line-height:1.3;">
+                            {% if entite.email %}{{ entite.email }}{% endif %}
+                            {% if entite.telephone %}{% if entite.email %} — {% endif %}{{ entite.telephone }}{% endif %}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                  <td align="right" style="vertical-align:middle;">
+                    <div style="font-size:12px;opacity:.92;">{{ subject|default('Message') }}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          {# ================= BODY ================= #}
+          <tr>
+            <td style="padding:18px;">
+              <div style="font-size:16px;font-weight:800;margin:0 0 8px 0;">
+                Bonjour {{ nomProspect ?: (prospect.email|default('')) }},
+              </div>
+
+              
+              <div style="border:1px solid #e8eef6;border-radius:14px;background:#fbfcff;padding:14px;font-size:14px;line-height:1.55;color:#0f2336;">
+                {{ message|raw }}
+              </div>
+
+              <div style="margin-top:12px;font-size:12px;color:#6b7b8a;line-height:1.45;">
+                Cet email a été envoyé à <strong>{{ toEmail }}</strong>.
+              </div>
+
+              <div style="height:1px;background:#edf2f7;margin:16px 0;"></div>
+
+              <div style="font-size:11px;color:#9ca3af;line-height:1.4;">
+                Si vous ne souhaitez plus recevoir ces messages, contactez l’expéditeur.
+              </div>
+            </td>
+          </tr>
+
+          {# ================= FOOTER ================= #}
+          <tr>
+            <td style="padding:14px 18px;background:#fbfcff;border-top:1px solid #edf2f7;font-size:12px;color:#6b7b8a;line-height:1.4;">
+              <div><strong>{{ entite.nom|default('Wiki Formation') }}</strong></div>
+              <div>
+                {% if entite.adresse %}{{ entite.adresse }}{% endif %}
+                {% if entite.codePostal or entite.ville %}
+                  {% if entite.adresse %} — {% endif %}{{ entite.codePostal ?? '' }} {{ entite.ville ?? '' }}
+                {% endif %}
+                {% if entite.pays %} — {{ entite.pays }}{% endif %}
+              </div>
+              <div>
+                {% if entite.email %}{{ entite.email }}{% endif %}
+                {% if entite.telephone %}{% if entite.email %} — {% endif %}{{ entite.telephone }}{% endif %}
+              </div>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

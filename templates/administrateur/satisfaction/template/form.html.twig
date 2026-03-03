@@ -1,0 +1,787 @@
+{# templates/administrateur/satisfaction/template/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }} — Satisfaction{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ===== HERO (standard admin premium) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      flex: 0 0 auto;
+    }
+
+    /* Chips (comme Sessions) */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* Boutons hero */
+    .hero .btn{ border-radius: 14px; font-weight: 800; }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+    .cardx{ background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 12px 30px rgba(0,0,0,.06); overflow:hidden; }
+    .cardx-h{ padding:.9rem 1rem; border-bottom:1px solid rgba(0,0,0,.06); font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:.75rem; background: linear-gradient(180deg, rgba(0,0,0,.015), transparent); }
+    .cardx-b{ padding:1rem; }
+
+    .chapter{ border:1px dashed rgba(0,0,0,.18); border-radius:16px; padding:12px; background:rgba(0,0,0,.015); }
+    .qbox{ border:1px solid rgba(0,0,0,.08); border-radius:14px; padding:12px; background:#fff; box-shadow:0 10px 20px rgba(0,0,0,.04); }
+
+    .drag-handle{ cursor: grab; user-select:none; }
+    .drag-handle:active{ cursor: grabbing; }
+    .sortable-ghost{ opacity:.45; }
+    .sortable-chosen{ box-shadow:0 14px 40px rgba(0,0,0,.12); }
+
+    .pos-hidden{ display:none!important; }
+    .help-muted{ color: rgba(0,0,0,.55); font-size:.92rem; }
+
+    /* champs conditionnels */æ
+    .js-fields{ margin-top:.35rem; }
+    .js-fields .js-field{ display:none; }
+    .js-field .form-text{ margin-top:.25rem; }
+
+    .type-pill{
+      display:inline-flex; align-items:center; gap:.4rem;
+      border-radius:999px; padding:.25rem .55rem;
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(0,0,0,.02);
+      font-size:.78rem; font-weight:700;
+      color: rgba(0,0,0,.65);
+      white-space: nowrap;
+    }
+    .kpi-note{
+      border-left:3px solid var(--theme-color-secondaire);
+      padding-left:.6rem;
+      margin-top:.25rem;
+    }
+
+    /* ================= Switchs (style Session) ================= */
+.soft-box{
+  border-radius: 16px;
+  border: 1px dashed rgba(0,0,0,.18);
+  background: rgba(0,0,0,.015);
+  padding: .9rem;
+}
+
+.switch-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 1rem;
+  padding:.85rem .95rem;
+  border-radius:14px;
+  border:1px solid rgba(0,0,0,.08);
+  background:#fff;
+  box-shadow: 0 10px 20px rgba(0,0,0,.04);
+}
+
+.switch-row .title{
+  font-weight:800;
+  line-height:1.15;
+}
+.switch-row .desc{
+  margin-top:.25rem;
+  font-size:.86rem;
+  color: rgba(0,0,0,.55);
+}
+
+.switch-row .form-check.form-switch{ margin:0; }
+.switch-row .form-check-input{ width:2.6em; height:1.35em; cursor:pointer; }
+
+/* couleur secondaire quand ON */
+.switch-row .form-check-input:checked{
+  background-color: var(--theme-color-secondaire);
+  border-color: var(--theme-color-secondaire);
+}
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-stars me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ title }}
+          </h2>
+          <div class="opacity-75 mt-1">Questionnaire de satisfaction (chapitres & questions)</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-journal-text"></i> Satisfaction</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_satisfaction_template_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {% form_theme form 'bootstrap_5_layout.html.twig' %}
+  {{ form_start(form, { attr: { id: 'tplForm', novalidate:'novalidate' } }) }}
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="cardx">
+        <div class="cardx-h">
+          <span><i class="bi bi-journal-text"></i> Questionnaire</span>
+        </div>
+
+        <div class="cardx-b">
+          <div class="mb-3">
+            {{ form_row(form.titre, { attr:{class:'form-control', placeholder:'Ex: Évaluation à chaud'} }) }}
+          </div>
+
+          {% if form.formations is defined %}
+            <div class="mb-3">
+              {{ form_row(form.formations, { attr:{class:'form-select js-tomselect', multiple:'multiple'} }) }}
+              <div class="help-muted mt-1"><i class="bi bi-info-circle"></i> Vide = générique (toutes les formations).</div>
+            </div>
+          {% endif %}
+
+          {% if form.isActive is defined %}
+            <div class="soft-box mb-3">
+              <div class="switch-row">
+                <div class="flex-grow-1">
+                  <div class="title">{{ form_label(form.isActive) }}</div>
+                  <div class="desc">
+                    Active le questionnaire dans l’application (sélectionnable pour les sessions / formulaires).
+                  </div>
+                  {{ form_errors(form.isActive) }}
+                </div>
+
+                <div class="form-check form-switch">
+                  {{ form_widget(form.isActive, { attr:{ class:'form-check-input' } }) }}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+
+          <div class="d-grid">
+            <button class="btn btn-warning fw-semibold" type="submit">
+              <i class="bi bi-save"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <div class="cardx">
+        <div class="cardx-h">
+          <span><i class="bi bi-layers"></i> Structure</span>
+          <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="btnAddChapter">
+            <i class="bi bi-plus-lg"></i> Ajouter un chapitre
+          </button>
+        </div>
+
+        <div class="cardx-b">
+          <div class="help-muted mb-3">
+            <i class="bi bi-arrows-move"></i> Drag & drop possible. Les positions sont recalculées à l’enregistrement.
+          </div>
+
+          {# ===== Prototype QUESTION (custom) ===== #}
+          {% set questionProto %}
+            {% set q = form.chapters.vars.prototype.questions.vars.prototype %}
+
+            <div class="qbox mb-2" data-question>
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="d-flex align-items-start gap-2">
+                  <div class="drag-handle pt-1" title="Déplacer">
+                    <i class="bi bi-grip-vertical fs-5 text-muted"></i>
+                  </div>
+                  <div class="text-muted small">Question</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger js-remove-question">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+
+              <div class="row g-2 mt-2">
+                <div class="col-12">
+                  {{ form_row(q.libelle, { attr:{class:'form-control'} }) }}
+                </div>
+
+                <div class="col-md-5">
+                  {{ form_row(q.type, { attr:{class:'form-select js-qtype'} }) }}
+                  <div class="mt-1">
+                    <span class="type-pill js-typepill">Type</span>
+                  </div>
+                </div>
+
+                <div class="col-md-3">
+                  {{ form_row(q.required) }}
+                </div>
+
+                <div class="col-md-4">
+                  {{ form_row(q.metricKey, { attr:{class:'form-select js-metrickey'} }) }}
+                  <div class="form-text kpi-note js-metric-help"></div>
+                </div>
+
+                <div class="col-12">
+                  {{ form_row(q.help, { attr:{class:'form-control', rows:2} }) }}
+                </div>
+
+                {# Champs conditionnels #}
+                <div class="col-12 js-fields">
+                  <div class="row g-2">
+
+                    <div class="col-12 js-field js-for-scale">
+                      <div class="alert alert-light mb-0">
+                        <i class="bi bi-bar-chart-steps"></i>
+                        <span class="fw-semibold">Échelle 0 → 10</span>
+                        <span class="text-muted"> (fixée automatiquement pour l’utilisateur)</span>
+                      </div>
+                    </div>
+
+                    <div class="col-12 js-field js-for-choice js-for-multichoice">
+                      {# IMPORTANT: ce champ doit exister dans le FormType (voir plus bas) #}
+                      {{ form_row(q.choicesText, { attr:{class:'form-control', rows:4} }) }}
+                      <div class="form-text">
+                        <i class="bi bi-lightbulb"></i>
+                        Une ligne = une option. Exemple :<br>
+                        <code>Très satisfait</code><br>
+                        <code>Satisfait</code><br>
+                        <code>Peu satisfait</code>
+                      </div>
+                    </div>
+
+                    <div class="col-12 js-field js-for-text js-for-textarea">
+                      {{ form_row(q.placeholder, { attr:{class:'form-control'} }) }}
+                    </div>
+
+                  </div>
+                </div>
+
+                <div class="pos-hidden">{{ form_widget(q.position) }}</div>
+              </div>
+            </div>
+          {% endset %}
+
+          {# ===== Prototype CHAPITRE (custom) ===== #}
+          {% set chapterProto %}
+            {% set c = form.chapters.vars.prototype %}
+
+            <div class="chapter mb-3" data-chapter>
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="d-flex align-items-start gap-2">
+                  <div class="drag-handle pt-1" title="Déplacer">
+                    <i class="bi bi-grip-vertical fs-4 text-muted"></i>
+                  </div>
+                  <div class="fw-bold">Chapitre</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger js-remove-chapter">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+
+              <div class="mt-2">
+                {{ form_row(c.titre, { attr:{class:'form-control'} }) }}
+                <div class="pos-hidden">{{ form_widget(c.position) }}</div>
+              </div>
+
+              <div class="d-flex align-items-center justify-content-between mt-2">
+                <div class="fw-semibold">Questions</div>
+                <button type="button" class="btn btn-sm btn-outline-secondary js-add-question">
+                  <i class="bi bi-plus-lg"></i> Ajouter une question
+                </button>
+              </div>
+
+              <div class="mt-2 questions"
+                   data-index="0"
+                   data-question-prototype="{{ questionProto|e('html_attr') }}">
+              </div>
+            </div>
+          {% endset %}
+
+          <div id="chapters"
+               data-index="{{ form.chapters|length }}"
+               data-prototype="{{ chapterProto|e('html_attr') }}">
+
+            {% for c in form.chapters %}
+              <div class="chapter mb-3" data-chapter>
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div class="d-flex align-items-start gap-2">
+                    <div class="drag-handle pt-1" title="Déplacer">
+                      <i class="bi bi-grip-vertical fs-4 text-muted"></i>
+                    </div>
+                    <div class="fw-bold">Chapitre</div>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-danger js-remove-chapter">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+
+                <div class="mt-2">
+                  {{ form_row(c.titre, { attr:{class:'form-control'} }) }}
+                  <div class="pos-hidden">{{ form_widget(c.position) }}</div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                  <div class="fw-semibold">Questions</div>
+                  <button type="button" class="btn btn-sm btn-outline-secondary js-add-question">
+                    <i class="bi bi-plus-lg"></i> Ajouter une question
+                  </button>
+                </div>
+
+                <div class="mt-2 questions"
+                     data-index="{{ c.questions|length }}"
+                     data-question-prototype="{{ questionProto|e('html_attr') }}">
+
+                  {% for q in c.questions %}
+                    <div class="qbox mb-2" data-question>
+                      <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="d-flex align-items-start gap-2">
+                          <div class="drag-handle pt-1" title="Déplacer">
+                            <i class="bi bi-grip-vertical fs-5 text-muted"></i>
+                          </div>
+                          <div class="text-muted small">Question</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger js-remove-question">
+                          <i class="bi bi-x-lg"></i>
+                        </button>
+                      </div>
+
+                      <div class="row g-2 mt-2">
+                        <div class="col-12">
+                          {{ form_row(q.libelle, { attr:{class:'form-control'} }) }}
+                        </div>
+
+                        <div class="col-md-5">
+                          {{ form_row(q.type, { attr:{class:'form-select js-qtype'} }) }}
+                          <div class="mt-1">
+                            <span class="type-pill js-typepill">Type</span>
+                          </div>
+                        </div>
+
+                        <div class="col-md-3">
+                          {{ form_row(q.required) }}
+                        </div>
+
+                        <div class="col-md-4">
+                          {{ form_row(q.metricKey, { attr:{class:'form-select js-metrickey'} }) }}
+                          <div class="form-text kpi-note js-metric-help"></div>
+                        </div>
+
+                        <div class="col-12">
+                          {{ form_row(q.help, { attr:{class:'form-control', rows:2} }) }}
+                        </div>
+
+                        <div class="col-12 js-fields">
+                          <div class="row g-2">
+
+                            <div class="col-12 js-field js-for-scale">
+                              <div class="alert alert-light mb-0">
+                                <i class="bi bi-bar-chart-steps"></i>
+                                <span class="fw-semibold">Échelle 0 → 10</span>
+                                <span class="text-muted"> (fixée automatiquement pour l’utilisateur)</span>
+                              </div>
+                            </div>
+
+                            <div class="col-12 js-field js-for-choice js-for-multichoice">
+                              {{ form_row(q.choicesText, { attr:{class:'form-control', rows:4} }) }}
+                              <div class="form-text">
+                                <i class="bi bi-lightbulb"></i>
+                                Une ligne = une option.
+                              </div>
+                            </div>
+
+                            <div class="col-12 js-field js-for-text js-for-textarea">
+                              {{ form_row(q.placeholder, { attr:{class:'form-control'} }) }}
+                            </div>
+
+                          </div>
+                        </div>
+
+                        <div class="pos-hidden">{{ form_widget(q.position) }}</div>
+                      </div>
+                    </div>
+                  {% endfor %}
+
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          {# IMPORTANT: surtout PAS de form_rest(form) ici, sinon Symfony ré-affiche des champs en doublon #}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pos-hidden">{{ form_rest(form) }}</div>
+  {{ form_end(form, { render_rest:false }) }}
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+  <script>
+  (function(){
+    const CHAPTER_TOKEN = '__chapter__';
+
+    function qs(sel, root=document){ return root.querySelector(sel); }
+    function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+
+    function getIndex(container){
+      const v = parseInt(container?.dataset?.index || '0', 10);
+      return Number.isFinite(v) ? v : 0;
+    }
+    function bumpIndex(container){
+      const i = getIndex(container);
+      container.dataset.index = String(i + 1);
+      return i;
+    }
+
+    function createFromPrototype(container, token){
+      const proto = container.dataset.prototype;
+      if(!proto) return null;
+      const idx = bumpIndex(container);
+      const html = proto.replace(new RegExp(token, 'g'), String(idx));
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      return tpl.content.firstElementChild;
+    }
+
+    function createQuestionFromPrototype(qWrap){
+      const proto = qWrap.dataset.questionPrototype;
+      if(!proto) return null;
+
+      // index du wrapper question = data-index
+      const idx = bumpIndex(qWrap);
+      const html = proto.replace(/__question__/g, String(idx)); // IMPORTANT: ton prototype_name côté QuestionType doit être __question__
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      return tpl.content.firstElementChild;
+    }
+
+    function renumberAll(){
+      qsa('#chapters [data-chapter]').forEach((ch, i)=>{
+        const pos = qs('input[name$="[position]"]', ch);
+        if(pos) pos.value = String(i + 1);
+
+        const qWrap = qs('.questions', ch);
+        if(!qWrap) return;
+        qsa('[data-question]', qWrap).forEach((q, j)=>{
+          const qPos = qs('input[name$="[position]"]', q);
+          if(qPos) qPos.value = String(j + 1);
+        });
+      });
+    }
+
+    function initTomSelect(){
+      qsa('.js-tomselect').forEach(el=>{
+        if(el.tomselect) return;
+        new TomSelect(el, { plugins:['remove_button'], create:false });
+      });
+    }
+
+    function describeType(type){
+      switch(type){
+        case 'scale': return {icon:'bi-bar-chart-steps', text:'Échelle 0 → 10 (fixe) — recommandation / NPS'};
+        case 'yes_no': return {icon:'bi-check2-circle', text:'Oui / Non'};
+        case 'text': return {icon:'bi-input-cursor-text', text:'Texte court'};
+        case 'textarea': return {icon:'bi-card-text', text:'Texte long / commentaire'};
+        case 'choice': return {icon:'bi-ui-radios', text:'Choix unique'};
+        case 'multichoice': return {icon:'bi-ui-checks-grid', text:'Choix multiple'};
+        case 'multi_formations': return {icon:'bi-mortarboard', text:'Sélection de formations'};
+        default: return {icon:'bi-info-circle', text:'Type'};
+      }
+    }
+
+    const metricMap = {
+      '': { text: 'Optionnel : alimente une statistique (formateur, site, contenu…).', max: 10 },
+      'overall_rating': { text: '📊 Note globale (dashboard).', max: 10 },
+      'trainer_rating': { text: '👤 Note formateur (dashboard).', max: 10 },
+      'site_rating': { text: '📍 Note lieu / site (dashboard).', max: 10 },
+      'content_rating': { text: '🎓 Note contenu / formation (dashboard).', max: 10 },
+      'recommendation': { text: '⭐ Recommandation (NPS 0–10).', max: 10 },
+      'organism_rating': { text: '🏢 Note organisme (centre de formation).', max: 10 }
+      
+    };
+
+    function applyQuestionUI(qBox){
+      const sel = qs('.js-qtype', qBox) || qs('select[name$="[type]"]', qBox);
+      if(!sel) return;
+
+      const pill = qs('.js-typepill', qBox);
+      if(pill){
+        const d = describeType(sel.value);
+        pill.innerHTML = `<i class="bi ${d.icon}"></i> ${d.text}`;
+      }
+
+      // cacher tous les champs conditionnels
+      qsa('.js-fields .js-field', qBox).forEach(el => el.style.display = 'none');
+
+      // afficher ceux du type
+      qsa(`.js-fields .js-field.js-for-${CSS.escape(sel.value)}`, qBox).forEach(el => el.style.display = '');
+
+      // ✅ KPI: uniquement si scale
+      const metricSel  = qs('.js-metrickey', qBox);
+      const metricHelp = qs('.js-metric-help', qBox);
+
+      if(metricSel){
+        const isScale = (sel.value === 'scale');
+
+        // masque le bloc KPI complet (col-md-4)
+        const metricCol = metricSel.closest('.col-md-4') || metricSel.parentElement;
+        if(metricCol) metricCol.style.display = isScale ? '' : 'none';
+
+        // si pas scale: on vide la valeur (évite conserver un KPI au changement de type)
+        if(!isScale && metricSel.value){
+          metricSel.value = '';
+        }
+
+        // optionnel: disable (si tu préfères laisser visible mais grisé)
+        metricSel.disabled = !isScale;
+      }
+
+      // KPI help (si visible)
+      if(metricSel && metricHelp){
+        const info = metricMap[metricSel.value || ''] || metricMap[''];
+        metricHelp.textContent = info.text;
+      }
+    }
+
+
+    function hookQuestionBox(qBox){
+      if(qBox.dataset.hooked === '1') return;
+      qBox.dataset.hooked = '1';
+
+      qs('.js-remove-question', qBox)?.addEventListener('click', ()=>{
+        qBox.remove();
+        renumberAll();
+      });
+
+      const typeSel = qs('.js-qtype', qBox);
+      if(typeSel){
+        typeSel.addEventListener('change', ()=> applyQuestionUI(qBox));
+      }
+      const metricSel = qs('.js-metrickey', qBox);
+      if(metricSel){
+        metricSel.addEventListener('change', ()=> applyQuestionUI(qBox));
+      }
+
+      applyQuestionUI(qBox);
+    }
+
+    function hookChapter(chEl){
+      if(chEl.dataset.hooked === '1') return;
+      chEl.dataset.hooked = '1';
+
+      qs('.js-remove-chapter', chEl)?.addEventListener('click', ()=>{
+        chEl.remove();
+        renumberAll();
+      });
+
+      qs('.js-add-question', chEl)?.addEventListener('click', ()=>{
+        const qWrap = qs('.questions', chEl);
+        if(!qWrap) return;
+
+        // init index si absent
+        qWrap.dataset.index = qWrap.dataset.index || String(qsa('[data-question]', qWrap).length);
+
+        const qEl = createQuestionFromPrototype(qWrap);
+        if(!qEl) return;
+
+        qWrap.appendChild(qEl);
+        hookQuestionBox(qEl);
+        initSortables(true);
+        renumberAll();
+      });
+
+      qsa('[data-question]', chEl).forEach(hookQuestionBox);
+    }
+
+    function initSortables(force){
+      if(typeof Sortable === 'undefined') return;
+
+      const chapters = qs('#chapters');
+      if(!chapters) return;
+
+      if(force || !chapters.dataset.sortableInit){
+        chapters.dataset.sortableInit = '1';
+        new Sortable(chapters, {
+          handle: '.drag-handle',
+          draggable: '[data-chapter]',
+          animation: 150,
+          ghostClass: 'sortable-ghost',
+          chosenClass: 'sortable-chosen',
+          onEnd: renumberAll
+        });
+      }
+
+      qsa('#chapters .questions').forEach(qWrap=>{
+        if(!force && qWrap.dataset.sortableInit === '1') return;
+        qWrap.dataset.sortableInit = '1';
+        new Sortable(qWrap, {
+          handle: '.drag-handle',
+          draggable: '[data-question]',
+          animation: 150,
+          ghostClass: 'sortable-ghost',
+          chosenClass: 'sortable-chosen',
+          onEnd: renumberAll
+        });
+      });
+    }
+
+    function boot(){
+      initTomSelect();
+
+      const chapters = qs('#chapters');
+      const btnAddChapter = qs('#btnAddChapter');
+      if(!chapters || !btnAddChapter) return;
+
+      chapters.dataset.index = chapters.dataset.index || String(qsa('[data-chapter]', chapters).length);
+
+      qsa('[data-chapter]', chapters).forEach(hookChapter);
+
+      btnAddChapter.addEventListener('click', ()=>{
+        const chEl = createFromPrototype(chapters, CHAPTER_TOKEN);
+        if(!chEl) return;
+        chapters.appendChild(chEl);
+        hookChapter(chEl);
+        initSortables(true);
+        renumberAll();
+      });
+
+      initSortables(false);
+      renumberAll();
+
+      const form = qs('#tplForm');
+      if(form && !form.dataset.bound){
+        form.dataset.bound = '1';
+        form.addEventListener('submit', renumberAll);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', boot);
+    document.addEventListener('turbo:load', boot);
+  })();
+  </script>
+
+  <script>
+(function(){
+  function formatNow(){
+    const d = new Date();
+    const date = d.toLocaleDateString('fr-FR');
+    const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return `Maj : ${date} ${time}`;
+  }
+
+  function initHeroClock(){
+    const el = document.getElementById('hero-last-refresh');
+    if(!el) return;
+
+    // évite les doubles timers si Turbo re-render
+    if(el.dataset.clockInit === '1') return;
+    el.dataset.clockInit = '1';
+
+    const tick = () => { el.textContent = formatNow(); };
+
+    tick(); // immédiat
+    setInterval(tick, 30000); // refresh (30s)
+  }
+
+  // classique
+  document.addEventListener('DOMContentLoaded', initHeroClock);
+
+  // Turbo (si présent)
+  document.addEventListener('turbo:load', initHeroClock);
+  document.addEventListener('turbo:render', initHeroClock);
+})();
+</script>
+{% endblock %}

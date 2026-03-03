@@ -1,0 +1,25 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+
+framework:
+  secret: "%env(APP_SECRET)%"
+  default_locale: fr
+  translator:
+    default_path: "%kernel.project_dir%/translations"
+    fallbacks: [fr]
+
+  router:
+    default_uri: "https://wikiformation.fr"
+
+  session:
+    name: WKFORMATIONSESSID # <-- important : nom de session dédié à ton app
+    handler_id: null # stockage natif fichier
+    cookie_secure: auto
+    cookie_samesite: lax
+    cookie_lifetime: 604800 # 7 jours
+    gc_maxlifetime: 86400 # 24h
+
+when@test:
+  framework:
+    test: true
+    session:
+      storage_factory_id: session.storage.factory.mock_file

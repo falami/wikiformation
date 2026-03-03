@@ -1,0 +1,655 @@
+{# templates/administrateur/formateur/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% set is_edit = modeEdition ?? false %}
+
+{% block title %}{{ is_edit ? 'Modifier un formateur' : 'Ajouter un formateur' }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+
+    body{ background: var(--bg); }
+
+
+
+    .hero{
+      border-radius:22px;
+      padding: 1.2rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem; border-radius:999px; font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .chip i{ color: var(--theme-color-secondaire); }
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow: visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+
+
+
+    /* chips dans les headers de cards (comme utilisateur/form) */
+    .cardx-h .chip{
+      background: rgba(255,193,7,.12);
+      border: 1px solid var(--stroke);
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .cardx-h .chip i{ color: var(--theme-color-secondaire); }
+    .cardx-title{
+      margin:0; font-weight:900; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .icon-pill{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .cardx-body{ padding: 1rem 1.05rem; }
+
+    .aside-card{
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border:1px solid var(--stroke);
+      padding: 1rem;
+      height:100%;
+      box-shadow: 0 10px 28px rgba(15,23,42,.06);
+    }
+    .aside-row{
+      display:flex; justify-content:space-between; gap:1rem;
+      padding:.5rem 0;
+      border-top:1px dashed color-mix(in srgb, var(--ink) 18%, transparent);
+      font-size:.92rem;
+      color: var(--muted);
+    }
+    .aside-row:first-child{ border-top:0; }
+    .aside-row strong{ font-weight:900; color: var(--ink); }
+    .pill-status{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      border:1px solid var(--stroke);
+      background: rgba(255,193,7,.15);
+      color: var(--ink);
+      font-size: .82rem;
+      white-space: nowrap;
+    }
+
+    label.form-label{ font-weight: 800; color: var(--ink); }
+    .muted, .form-text, .text-muted, .small{ color: var(--muted) !important; }
+
+    .form-control, .form-select, textarea{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus, textarea:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown{ border-radius: 14px !important; overflow:hidden; border-color: var(--stroke) !important; z-index: 9999 !important; }
+    .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
+
+    .tva-panel[hidden], .remu-panel[hidden]{ display:none !important; }
+
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 10;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+      margin-top: 1rem;
+    }
+
+
+    /* ===== Switch rows (même style que prospect/session) ===== */
+.switch-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 1rem;
+  padding:.8rem .9rem;
+  border-radius:14px;
+  border:1px solid rgba(15,35,54,.08);
+  background:#fff;
+}
+.switch-row + .switch-row{ margin-top:.65rem; }
+.switch-row .title{ font-weight:800; line-height:1.15; color: var(--ink); }
+.switch-row .desc{
+  margin-top:.25rem;
+  font-size:.85rem;
+  color: var(--muted);
+}
+.switch-row .form-check.form-switch{ margin:0; }
+.switch-row .form-check-input{ width:2.6em; height:1.35em; }
+.switch-row .form-check-input:checked{
+  background-color: var(--theme-color-secondaire);
+  border-color: var(--theme-color-secondaire);
+}
+
+.soft-box{
+  border-radius: 16px;
+  border: 1px dashed rgba(15,35,54,.18);
+  background: rgba(248,251,254,.75);
+  padding: 1rem;
+}
+
+  </style>
+{% endblock %}
+
+{% block body %}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="fa fa-user-tie me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ is_edit ? 'Modifier le formateur' : 'Créer un formateur' }}
+          </h2>
+          <div class="opacity-75 mt-1">
+            {{ is_edit
+              ? 'Mettre à jour le profil, les qualifications et les paramètres de rémunération.'
+              : 'Associer un utilisateur, définir les qualifications, TVA et paramètres de rémunération.'
+            }}
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="fa fa-user-plus"></i> Créer formateur</span>
+            <span class="chip"><i class="fa fa-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="fa fa-clock"></i> {{ is_edit ? 'Mode édition' : 'Mode création' }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ path('app_administrateur_formateur_index', { entite: entite.id }) }}" class="btn btn-outline-light btn-sm fw-semibold">
+            <i class="fa fa-arrow-left me-1"></i> Retour
+          </a>
+          <button type="button" class="btn btn-light btn-sm fw-semibold" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">
+            <i class="fa fa-arrow-down me-1"></i> Actions
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, {'attr': {'novalidate':'novalidate', 'id': form.vars.id|default('formateur_form')}}) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4 align-items-start">
+    <div class="col-12 col-lg-8">
+
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-camera text-warning"></i> Photo</h5>
+          <span class="chip">Optionnel</span>
+        </div>
+        <div class="cardx-body">
+          {{ form_row(form.photo) }}
+
+          {% if is_edit and formateur.photo %}
+            <div class="mt-2 small muted">Photo actuelle :</div>
+            <img src="{{ asset('uploads/photos/formateur/' ~ formateur.photo) }}" class="img-fluid rounded" style="max-height:160px;">
+          {% endif %}
+        </div>
+      </div>
+
+
+      {# ===== Utilisateur ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-person-check text-warning"></i> Utilisateur associé</h5>
+          <span class="pill-status" id="pill_user">⚠️ Obligatoire</span>
+        </div>
+        <div class="cardx-body">
+          {{ form_row(form.utilisateur, {'attr': {'class': 'form-select js-ts', 'data-ts': 'user'}}) }}
+          <div class="small muted">Recherche rapide par nom/prénom/email. (Tom Select)</div>
+        </div>
+      </div>
+
+      {# ===== Qualifications ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-award text-warning"></i> Qualifications & sites</h5>
+          <span class="chip">Multi-sélection</span>
+        </div>
+        <div class="cardx-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              {{ form_row(form.qualificationEngins, {'attr': {'class': 'form-select js-ts', 'data-ts': 'engin', 'multiple': 'multiple'}}) }}
+            </div>
+            <div class="col-12 col-md-6">
+              {{ form_row(form.sitePreferes, {'attr': {'class': 'form-select js-ts', 'data-ts': 'site', 'multiple': 'multiple'}}) }}
+            </div>
+          </div>
+          <div class="mt-3">
+            {{ form_row(form.certifications, {'attr': {'class': 'form-control', 'rows': 4, 'placeholder': 'STCW, Médical, etc.'}}) }}
+          </div>
+        </div>
+      </div>
+
+      {# ===== TVA ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-receipt text-warning"></i> TVA</h5>
+          <span class="pill-status" id="pill_tva">—</span>
+        </div>
+        <div class="cardx-body">
+          <div class="soft-box">
+            <div class="switch-row" id="wrap-formateur-tva">
+              <div class="flex-grow-1">
+                <div class="title">Assujetti à la TVA</div>
+                <div class="desc">
+                  Active si le formateur facture avec TVA. Sinon, la TVA et le numéro intra restent masqués.
+                </div>
+              </div>
+
+              <div class="form-check form-switch">
+                {{ form_widget(form.assujettiTva, {
+                  attr: {
+                    class: 'form-check-input',
+                    id: 'assujetti_tva_toggle'
+                  }
+                }) }}
+              </div>
+            </div>
+
+            {{ form_errors(form.assujettiTva) }}
+          </div>
+
+          <div class="tva-panel mt-2" id="tva_panel">
+            <div class="row g-3 align-items-end">
+              <div class="col-12 col-md-4">
+                {{ form_row(form.tauxTvaParDefaut, {'attr': {'class': 'form-select'}}) }}
+              </div>
+              <div class="col-12 col-md-8">
+                {{ form_row(form.numeroTvaIntra, {'attr': {'class': 'form-control', 'placeholder': 'FR00000000000'}}) }}
+              </div>
+            </div>
+            <div class="small muted mt-1">Ces infos sont celles du formateur. Elles peuvent ensuite être recopiées dans un contrat.</div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Rémunération ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-cash-coin text-warning"></i> Rémunération par défaut</h5>
+          <span class="pill-status" id="pill_remu">—</span>
+        </div>
+
+        <div class="cardx-body">
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-6">
+              {{ form_row(form.modeRemuneration, {'attr': {'class': 'form-select', 'id': 'mode_remu'}}) }}
+              <div class="small muted">Rémunération à l'heure ou à la journée.</div>
+            </div>
+
+            {# PANEL "HEURE" #}
+            <div class="col-12 col-md-6 remu-panel" id="panel_remu_heure">
+              {{ form_row(form.tauxHoraireCents, {'attr': {'class': 'form-control', 'inputmode':'decimal', 'placeholder':'Ex : 60,00'}}) }}
+              <div class="small muted">Saisi en euros (stocké en cents via divisor).</div>
+            </div>
+
+            {# PANEL "JOUR" #}
+            <div class="col-12 col-md-6 remu-panel" id="panel_remu_jour">
+              {{ form_row(form.tauxJournalierCents, {'attr': {'class': 'form-control', 'inputmode':'decimal', 'placeholder':'Ex : 400,00'}}) }}
+              <div class="small muted">Saisi en euros (stocké en cents via divisor).</div>
+            </div>
+          </div>
+
+          <div class="small muted mt-2">
+            Le champ horaire/journalier s’affiche automatiquement selon le mode choisi.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    {# ===== ASIDE résumé ===== #}
+    <div class="col-12 col-lg-4">
+      <div class="aside-card mb-4">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="fw-bold">
+            <i class="fa fa-clipboard-check me-1" style="color:var(--theme-color-secondaire)"></i>
+            Résumé
+          </div>
+          <span class="pill-status" id="resume_status">⚠️ Incomplet</span>
+        </div>
+
+        <div class="aside-row"><span>Entité</span><strong>{{ entite.nom }}</strong></div>
+        <div class="aside-row"><span>Mode</span><strong>{{ is_edit ? 'Édition' : 'Création' }}</strong></div>
+        <div class="aside-row"><span>Utilisateur</span><strong id="resume_user">—</strong></div>
+        <div class="aside-row"><span>TVA</span><strong id="resume_tva">—</strong></div>
+        <div class="aside-row"><span>Rémunération</span><strong id="resume_remu">—</strong></div>
+
+        <div class="mt-3 small muted">
+          Astuce : l’enregistrement est désactivé tant que l’utilisateur n’est pas sélectionné.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sticky-actions">
+    <div class="d-flex justify-content-end gap-2">
+      <a href="{{ path('app_administrateur_formateur_index', { entite: entite.id }) }}" class="btn btn-secondary">
+        <i class="fa fa-arrow-left me-1"></i> Retour
+      </a>
+
+      <button type="submit" class="btn btn-gradient" id="submit_btn">
+        <i class="fa fa-check me-1"></i>
+        {{ is_edit ? 'Enregistrer' : 'Créer le formateur' }}
+      </button>
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // ===== TomSelect helper (avec dropdownParent body => même fix que session) =====
+      function initTomSelect(selector, opts){
+        document.querySelectorAll(selector).forEach((el) => {
+          if (el.tomselect) return;
+          new TomSelect(el, Object.assign({ dropdownParent: 'body' }, opts || {}));
+        });
+      }
+
+      initTomSelect('select.js-ts[data-ts="user"]', {
+        create: false,
+        plugins: ['dropdown_input', 'clear_button'],
+        maxOptions: 3000,
+        placeholder: 'Rechercher un utilisateur...',
+        render: {
+          option: function(data, escape) { return '<div class="py-1">' + escape(data.text) + '</div>'; },
+          item: function(data, escape) { return '<div>' + escape(data.text) + '</div>'; }
+        }
+      });
+
+      initTomSelect('select.js-ts[data-ts="engin"]', {
+        plugins: ['remove_button', 'clear_button'],
+        persist: false,
+        create: false,
+        placeholder: 'Sélectionner un ou plusieurs engins...'
+      });
+
+      initTomSelect('select.js-ts[data-ts="site"]', {
+        plugins: ['remove_button', 'clear_button'],
+        persist: false,
+        create: false,
+        placeholder: 'Sélectionner un ou plusieurs sites...'
+      });
+
+      // ===== TVA panel =====
+      const toggle = document.getElementById('assujetti_tva_toggle');
+      const panel  = document.getElementById('tva_panel');
+      const resumeTva = document.getElementById('resume_tva');
+      const pillTva = document.getElementById('pill_tva');
+
+      const wrapTva = document.getElementById('wrap-formateur-tva');
+
+      function refreshTvaPanel(){
+        if (!toggle || !panel) return;
+        const checked = !!toggle.checked;
+
+        panel.hidden = !checked;
+
+        // (optionnel) effet visuel
+        panel.style.opacity = checked ? '1' : '.75';
+
+        const txt = checked ? 'Assujetti' : 'Non assujetti';
+        if (resumeTva) resumeTva.textContent = txt;
+        if (pillTva) pillTva.textContent = checked ? 'TVA: oui' : 'TVA: non';
+      }
+      toggle && (toggle.addEventListener('change', () => { refreshTvaPanel(); refreshGlobal(); }), refreshTvaPanel());
+
+      // ===== Rémunération: afficher uniquement le bon champ =====
+      const modeEl = document.getElementById('mode_remu') || document.getElementById('{{ form.modeRemuneration.vars.id }}');
+      const panelH = document.getElementById('panel_remu_heure');
+      const panelJ = document.getElementById('panel_remu_jour');
+
+      const thEl   = document.getElementById('{{ form.tauxHoraireCents.vars.id }}');
+      const tjEl   = document.getElementById('{{ form.tauxJournalierCents.vars.id }}');
+      const resumeRemu = document.getElementById('resume_remu');
+      const pillRemu = document.getElementById('pill_remu');
+
+      function val(el){ return (el && el.value) ? el.value.trim() : ''; }
+
+      function normalizeMode(v){
+        v = (v || '').toString().trim().toUpperCase();
+        // selon tes valeurs enum, on couvre large
+        if (['HEURE','HORAIRE','HOURLY','H'].includes(v)) return 'HEURE';
+        if (['JOUR','JOURNEE','JOURNÉE','DAILY','D'].includes(v)) return 'JOUR';
+        return v; // fallback
+      }
+
+      function refreshRemuPanels(){
+        const mode = normalizeMode(val(modeEl));
+
+        // par défaut: on cache tout
+        if (panelH) panelH.hidden = true;
+        if (panelJ) panelJ.hidden = true;
+
+        // si mode = HEURE => montre horaire ; si mode = JOUR => montre journalier
+        if (mode === 'HEURE'){
+          if (panelH) panelH.hidden = false;
+          if (tjEl) tjEl.value = ''; // optionnel: vider l'autre champ
+        } else if (mode === 'JOUR'){
+          if (panelJ) panelJ.hidden = false;
+          if (thEl) thEl.value = ''; // optionnel: vider l'autre champ
+        }
+      }
+
+      function refreshRemuResume(){
+        const mode = normalizeMode(val(modeEl));
+        const th = val(thEl);
+        const tj = val(tjEl);
+
+        let txt = '—';
+        if (mode === 'HEURE') txt = th ? (th + ' €/h') : '—';
+        else if (mode === 'JOUR') txt = tj ? (tj + ' €/j') : '—';
+        else if (mode || th || tj) txt = [mode, th ? (th+' €/h') : '', tj ? (tj+' €/j') : ''].filter(Boolean).join(' · ') || '—';
+
+        if (resumeRemu) resumeRemu.textContent = txt;
+        if (pillRemu) pillRemu.textContent = txt === '—' ? 'HT' : txt;
+      }
+
+      // ===== Résumé utilisateur + validation globale (comme session: disable submit si incomplet) =====
+      const userEl = document.querySelector('select.js-ts[data-ts="user"]') || document.getElementById('{{ form.utilisateur.vars.id }}');
+      const resumeUser = document.getElementById('resume_user');
+      const pillUser = document.getElementById('pill_user');
+      const submitBtn = document.getElementById('submit_btn');
+      const statusPill = document.getElementById('resume_status');
+
+      function getUserLabel(){
+        if (!userEl) return '';
+        if (userEl.tomselect) {
+          const v = userEl.tomselect.getValue();
+          if (!v) return '';
+          const opt = userEl.tomselect.options[v];
+          return (opt && opt.text) ? String(opt.text).trim() : '';
+        }
+        const opt = userEl.selectedOptions && userEl.selectedOptions[0];
+        return opt ? opt.textContent.trim() : '';
+      }
+      function userSelected(){
+        if (!userEl) return false;
+        if (userEl.tomselect) return !!userEl.tomselect.getValue();
+        return !!userEl.value;
+      }
+
+      function refreshGlobal(){
+        const okUser = userSelected();
+        const uLabel = getUserLabel();
+        if (resumeUser) resumeUser.textContent = uLabel || '—';
+
+        if (pillUser) {
+          pillUser.textContent = okUser ? '✅ OK' : '⚠️ Obligatoire';
+          pillUser.style.background = okUser ? 'rgba(25,135,84,.15)' : 'rgba(255,193,7,.15)';
+          pillUser.style.borderColor = okUser ? 'rgba(25,135,84,.35)' : 'rgba(255,193,7,.35)';
+        }
+
+        // règles de complétude: user obligatoire + (si mode choisi, le taux correspondant doit être rempli)
+        const mode = normalizeMode(val(modeEl));
+        let okRemu = true;
+        if (mode === 'HEURE') okRemu = !!val(thEl);
+        if (mode === 'JOUR')  okRemu = !!val(tjEl);
+
+        const ok = okUser && okRemu;
+
+        if (submitBtn) submitBtn.disabled = !ok;
+        if (statusPill){
+          if (ok){
+            statusPill.textContent = '✅ Complet';
+            statusPill.style.background = 'rgba(25,135,84,.15)';
+            statusPill.style.borderColor = 'rgba(25,135,84,.35)';
+          } else {
+            statusPill.textContent = '⚠️ Incomplet';
+            statusPill.style.background = 'rgba(255,193,7,.15)';
+            statusPill.style.borderColor = 'rgba(255,193,7,.35)';
+          }
+        }
+      }
+
+      // hooks
+      if (userEl){
+        if (userEl.tomselect) userEl.tomselect.on('change', () => { refreshGlobal(); });
+        else userEl.addEventListener('change', refreshGlobal);
+      }
+
+      modeEl && modeEl.addEventListener('change', () => {
+        refreshRemuPanels();
+        refreshRemuResume();
+        refreshGlobal();
+      });
+
+      [thEl, tjEl].forEach(el => el && el.addEventListener('input', () => {
+        refreshRemuResume();
+        refreshGlobal();
+      }));
+
+      // init
+      refreshRemuPanels();
+      refreshRemuResume();
+      refreshTvaPanel();
+      refreshGlobal();
+    });
+  </script>
+{% endblock %}

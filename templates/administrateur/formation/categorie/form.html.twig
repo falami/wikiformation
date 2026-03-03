@@ -1,0 +1,334 @@
+{# templates/administrateur/formation/categorie/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d'une catégorie{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+  --ink:#0f2336; --muted:#6f8897; --line:#e6eef5;
+}
+
+.card{ border-radius:18px; border:1px solid rgba(15,35,54,.08); }
+.card-header{ border-radius:18px 18px 0 0 !important; }
+.section-title{ font-weight:800; letter-spacing:.2px; }
+.bg-theme-tertiaire{ background: var(--theme-color-tertiaire) !important; }
+.text-theme-secondaire{ color: var(--theme-color-secondaire) !important; }
+
+/* Hero */
+.hero{
+  border-radius:22px;
+  background:
+    radial-gradient(800px 260px at 15% 0%, rgba(255,255,255,.18), transparent 60%),
+    linear-gradient(135deg, rgba(35,51,66,.98), rgba(15,27,40,.98));
+  color:#eaf6ff;
+  box-shadow:0 18px 50px rgba(15,35,54,.18);
+  border:1px solid rgba(255,255,255,.10);
+}
+.hero .badge-soft{
+  background: rgba(255,193,7,.14);
+  border: 1px solid rgba(255,193,7,.24);
+  color: #ffe59a;
+}
+
+/* Upload zone (comme ta formation) */
+.upload-zone{
+  position: relative;
+  background: #0f2230;
+  border: 1.5px dashed rgba(255,193,7,.75);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  text-align: center;
+  color: #cfe8f6;
+  transition: .2s ease;
+  cursor: pointer;
+}
+.upload-zone:hover{ box-shadow: 0 0 0 .25rem rgba(255,193,7,.14); }
+.upload-zone.dragover{
+  background: #102a3a;
+  border-color: #ffd24d;
+  box-shadow: 0 0 0 .25rem rgba(255,210,77,.18);
+}
+.upload-zone .hint{ font-size: .92rem; opacity: .86; }
+.upload-zone .preview img{
+  max-height: 220px;
+  border-radius: .85rem;
+  border: 1px solid rgba(255,255,255,.15);
+}
+.file-hidden{
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+
+
+/* ===== Switch row (même design que session/form) ===== */
+.soft-box{
+  border-radius: 16px;
+  border: 1px dashed rgba(15,35,54,.18);
+  background: rgba(248,251,254,.75);
+  padding: 1rem;
+}
+
+.switch-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 1rem;
+  padding:.8rem .9rem;
+  border-radius:14px;
+  border:1px solid rgba(15,35,54,.08);
+  background:#fff;
+}
+
+.switch-row + .switch-row{ margin-top:.65rem; }
+
+.switch-row .title{
+  font-weight:700;
+  line-height:1.15;
+}
+.switch-row .desc{
+  margin-top:.25rem;
+  font-size:.85rem;
+  color:#6b7280;
+}
+
+.switch-row .form-check.form-switch{ margin:0; }
+.switch-row .form-check-input{ width:2.6em; height:1.35em; }
+.switch-row .form-check-input:checked{
+  background-color: var(--theme-color-secondaire);
+  border-color: var(--theme-color-secondaire);
+}
+
+</style>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# HERO #}
+  <div class="hero p-4 mb-4">
+    <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
+      <div>
+        <div class="small opacity-75">
+          <i class="bi bi-diagram-3 me-2 text-theme-secondaire"></i>
+          Organisation du catalogue
+        </div>
+        <h2 class="mb-1">{{ modeEdition ? 'Modifier' : 'Créer' }} une catégorie</h2>
+        <div class="small opacity-75">Ex : Bureautique → Excel → (formations Excel 1j, 3j, …)</div>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge badge-soft px-3 py-2 rounded-pill">
+          <i class="bi bi-building me-1"></i> {{ entite.nom ?? ('Entité #' ~ entite.id) }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {% set actionPath = modeEdition
+    ? path('app_administrateur_formation_categorie_modifier', { entite: entite.id, id: categorie.id })
+    : path('app_administrateur_formation_categorie_ajouter',  { entite: entite.id })
+  %}
+
+  {{ form_start(form, { action: actionPath, attr: { novalidate: 'novalidate' } }) }}
+  {{ form_errors(form) }}
+
+  {# INFOS #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-theme-tertiaire section-title">
+      <i class="bi bi-info-circle text-theme-secondaire me-2"></i> Informations
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <div class="form-floating">
+            {{ form_widget(form.nom, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Nom'}}) }}
+            <label for="{{ form.nom.vars.id }}">*Nom</label>
+          </div>
+          {{ form_errors(form.nom) }}
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-floating">
+            {{ form_widget(form.slug, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Slug'}}) }}
+            <label for="{{ form.slug.vars.id }}">*Slug</label>
+          </div>
+          {{ form_errors(form.slug) }}
+        </div>
+        <div class="col-12">
+          <div class="soft-box">
+            <div class="switch-row">
+              <div class="flex-grow-1">
+                <div class="title">
+                  <i class="bi bi-house-door me-2 text-theme-secondaire"></i>
+                  Afficher sur la page d’accueil
+                </div>
+                <div class="desc">
+                  Active ce switch pour afficher cette catégorie dans la galerie “Explorer par matière” sur la home.
+                </div>
+
+                {# Si tu as un help Symfony, tu peux le garder ici #}
+                {% if form.showOnHome.vars.help %}
+                  <div class="form-text mt-2">{{ form.showOnHome.vars.help }}</div>
+                {% endif %}
+              </div>
+
+              <div class="form-check form-switch">
+                {{ form_widget(form.showOnHome, {
+                  attr: { class: 'form-check-input' }
+                }) }}
+              </div>
+            </div>
+            {{ form_errors(form.showOnHome) }}
+          </div>
+        </div>
+
+
+
+        <div class="col-12">
+          <div class="form-floating">
+            {# parent déjà stylé via attr dans le FormType #}
+            {{ form_widget(form.parent) }}
+            <label for="{{ form.parent.vars.id }}">Catégorie parente</label>
+          </div>
+          <div class="form-text">
+            Laisse vide pour une catégorie principale (ex: Bureautique). Mets une parente pour une sous-catégorie (ex: Excel).
+          </div>
+          {{ form_errors(form.parent) }}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# PHOTO #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-theme-tertiaire section-title">
+      <i class="bi bi-image text-theme-secondaire me-2"></i> Photo de catégorie
+    </div>
+    <div class="card-body">
+      <label class="form-label fw-semibold">Image</label>
+
+      <div class="upload-zone" id="photo-zone" data-input-id="{{ form.photo.vars.id }}">
+        <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block"></i>
+        <div class="hint">Glissez une image ici ou cliquez pour choisir un fichier</div>
+
+        {{ form_widget(form.photo, {'attr': {'class':'file-hidden', 'accept':'image/*'}}) }}
+
+        <div class="preview mt-3 d-flex flex-column align-items-center gap-2">
+          {% if categorie.photo %}
+            <img class="img-fluid" src="{{ asset('uploads/photos/categorie/' ~ categorie.photo) }}" alt="Photo catégorie">
+          {% else %}
+            <img class="img-fluid d-none" alt="Aperçu">
+          {% endif %}
+        </div>
+
+        <div class="small text-muted mt-2">
+          Conseil : image large (recadrée automatiquement en 1200×600).
+        </div>
+      </div>
+
+      {{ form_errors(form.photo) }}
+    </div>
+  </div>
+
+  {# ACTIONS #}
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    <a href="{{ path('app_administrateur_formation_categorie', { entite: entite.id }) }}" class="btn btn-secondary">
+      <i class="fa fa-arrow-left me-1"></i> Retour
+    </a>
+    <button type="submit" class="btn btn-gradient">
+      <i class="fa fa-check me-1"></i>{{ modeEdition ? 'Modifier' : 'Ajouter & Terminer' }}
+    </button>
+  </div>
+
+  {{ form_end(form) }}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // TomSelect
+  document.querySelectorAll('select.js-ts').forEach((sel) => {
+    if (sel.tomselect) return;
+    new TomSelect(sel, {
+      create:false,
+      allowEmptyOption:true,
+      plugins:['clear_button'],
+      closeAfterSelect:true,
+      placeholder: sel.dataset.tsPlaceholder || '— Sélectionner —'
+    });
+  });
+
+  // Upload zone (drag&drop + preview)
+  function initUploadZone(wrapperId){
+    const zone = document.getElementById(wrapperId);
+    if (!zone) return;
+
+    const inputId = zone.dataset.inputId;
+    const input = document.getElementById(inputId) || zone.querySelector('input[type="file"]');
+    const previewImg = zone.querySelector('.preview img');
+
+    const openPicker = () => {
+      if (!input) return;
+      if (typeof input.showPicker === 'function') input.showPicker();
+      else input.click();
+    };
+
+    zone.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      openPicker();
+    });
+
+    input?.addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (!files || !files.length) return;
+      const file = files[0];
+
+      const rdr = new FileReader();
+      rdr.onload = ev => {
+        previewImg.src = ev.target.result;
+        previewImg.classList.remove('d-none');
+      };
+      rdr.readAsDataURL(file);
+    });
+
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      if (!input) return;
+
+      const dropped = e.dataTransfer?.files || [];
+      if (!dropped.length) return;
+
+      const dt = new DataTransfer();
+      dt.items.add(dropped[0]);
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change', { bubbles:true }));
+    });
+  }
+
+  initUploadZone('photo-zone');
+});
+</script>
+{% endblock %}

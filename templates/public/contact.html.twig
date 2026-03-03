@@ -1,0 +1,255 @@
+{# templates/public/contact.html.twig #}
+{% extends 'base_public.html.twig' %}
+
+{% block title %}{{ 'contact.meta.title'|trans }}{% endblock %}
+{% block meta_description %}{{ 'contact.meta.description'|trans }}{% endblock %}
+
+{% block stylesheets %}
+<style>
+  :root{
+    --glass-bg: rgba(255,255,255,.92);
+    --glass-border: rgba(0,0,0,.06);
+    --glass-shadow: 0 12px 40px rgba(0,0,0,.08);
+    --radius-lg: 22px;
+  }
+
+  .hero {
+    position: relative;
+    background: url("{{ asset('dist/img/accueil.jpg') }}") center/cover no-repeat;
+    min-height: 44vh;
+    display: grid; place-items: center;
+    text-align: center;
+  }
+  .hero::after{ content:""; position:absolute; inset:0;
+    background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.35));
+  }
+  .hero-inner{ position:relative; z-index:1; color:#fff; }
+
+  .card-glass{
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(6px);
+  }
+
+  .contact-stack{ margin-top:-84px; }
+
+  /* ===== Floating + icônes ===== */
+  .ff { position: relative; }
+  .ff .fi{ position:absolute; left: .9rem; top: 50%; transform: translateY(-50%); opacity: .65; pointer-events: none; }
+  .form-floating > .form-control,
+  .form-floating > .form-select,
+  .form-floating > textarea.form-control{
+    padding-left: 2.6rem;
+  }
+  .form-floating > label{
+    left: 2.6rem;
+  }
+  @supports (-webkit-touch-callout: none) {
+    .form-floating > label { -webkit-transform-origin: 0 0; }
+  }
+
+  .form-floating textarea.form-control {
+    min-height: 160px;
+    height: 160px;
+    resize: vertical;
+  }
+
+  .btn-primary-dive{
+    border-radius: 999px;
+    padding: .8rem 1.5rem;
+    font-weight: 600;
+  }
+
+  .meta-chip{
+    display:inline-flex; align-items:center; gap:.45rem;
+    padding:.4rem .75rem; border-radius:999px; font-size:.9rem;
+    background: rgba(13,110,253,.1);
+  }
+
+  .hp-row{ position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
+</style>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  <!-- Hero -->
+  <header class="hero mb-5">
+    <div class="hero-inner container px-3">
+      <span class="meta-chip mb-3"><i class="bi bi-life-preserver"></i> {{ 'contact.hero.chip'|trans }}</span>
+      <h1 class="fw-bold display-6 mb-2">{{ 'contact.hero.title'|trans }}</h1>
+      <p class="lead mb-0">{{ 'contact.hero.subtitle'|trans }}</p>
+    </div>
+  </header>
+
+  <div class="container contact-stack">
+    <div class="row g-4 align-items-stretch">
+      <!-- Formulaire -->
+      <div class="col-lg-7">
+        <div class="card-glass p-4 p-md-5 h-100">
+          <h2 class="fw-bold mb-1">{{ 'contact.form.title'|trans }}</h2>
+          <p class="text-muted mb-4">{{ 'contact.form.subtitle'|trans }}</p>
+
+          {% include 'flagMessage.html.twig' %}
+
+          {{ form_start(form, {
+            attr: { novalidate: 'novalidate', name: 'contact', class: 'needs-validation' }
+          }) }}
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="form-floating ff">
+                <i class="bi bi-person fi"></i>
+                {{ form_widget(form.nom, {'attr': {'class':'form-control', 'placeholder':' '}}) }}
+                {{ form_label(form.nom, 'contact.form.fields.name'|trans) }}
+                {{ form_errors(form.nom) }}
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-floating ff">
+                <i class="bi bi-envelope fi"></i>
+                {{ form_widget(form.email, {'attr': {'class':'form-control', 'placeholder':' '}}) }}
+                {{ form_label(form.email, 'contact.form.fields.email'|trans) }}
+                {{ form_errors(form.email) }}
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="form-floating ff">
+                <i class="bi bi-chat-dots fi"></i>
+                {{ form_widget(form.message, {'attr': {'class':'form-control', 'placeholder':' '}}) }}
+                {{ form_label(form.message, 'contact.form.fields.message'|trans) }}
+                {{ form_errors(form.message) }}
+              </div>
+            </div>
+
+            <div class="d-none">{{ form_row(form.captcha) }}</div>
+
+            <div class="hp-row" aria-hidden="true">
+              {{ form_row(form.website) }}
+              {{ form_row(form.startedAt) }}
+            </div>
+
+            <div class="col-12 d-flex align-items-center gap-3 mt-2">
+              <button type="submit" class="btn btn-primary-dive" id="contact-submit">
+                <span class="btn-text">{{ 'contact.form.submit'|trans }}</span>
+                <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+              </button>
+              <small class="text-muted">
+                <i class="bi bi-shield-check me-1"></i>{{ 'contact.form.privacy'|trans }}
+              </small>
+            </div>
+          </div>
+
+          {{ form_end(form) }}
+        </div>
+      </div>
+
+      <!-- Informations -->
+      <div class="col-lg-5">
+        <div class="card-glass p-4 p-md-5 h-100 d-flex flex-column">
+          <h3 class="fw-semibold mb-3"><i class="bi bi-compass me-2"></i>{{ 'contact.info.title'|trans }}</h3>
+
+          <ul class="list-unstyled mb-4">
+            <li class="mb-2 d-flex align-items-start">
+              <i class="bi bi-envelope text-primary me-2"></i><span>support@wikiformation.fr</span>
+            </li>
+            <li class="mb-2 d-flex align-items-start">
+              <i class="bi bi-clock text-primary me-2"></i><span>{{ 'contact.info.hours'|trans }}</span>
+            </li>
+            <li class="mb-2 d-flex align-items-start">
+              <i class="bi bi-shield-lock text-primary me-2"></i><span>{{ 'contact.info.rgpd'|trans }}</span>
+            </li>
+          </ul>
+
+          <h6 class="text-muted mb-2">{{ 'contact.info.why.title'|trans }}</h6>
+          <ul class="mb-4">
+            <li>{{ 'contact.info.why.demo'|trans }}</li>
+            <li>{{ 'contact.info.why.migration'|trans }}</li>
+            <li>{{ 'contact.info.why.tech'|trans }}</li>
+          </ul>
+
+          <div class="mt-auto d-flex gap-2 flex-wrap">
+            <span class="meta-chip"><i class="bi bi-speedometer2"></i> {{ 'contact.chips.fast'|trans }}</span>
+            <span class="meta-chip"><i class="bi bi-star"></i> {{ 'contact.chips.support'|trans }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="my-5 text-center">
+      <i class="bi bi-info-circle"></i>
+      <span class="ms-1">{{ 'contact.bottom.note'|trans }}</span>
+    </div>
+  </div>
+
+
+  <script>
+(function () {
+  // Si le consentement n'est pas accepté (ou si le script est bloqué), on "shim" grecaptcha
+  var hasConsent = document.cookie.indexOf('cookieConsent=accepted') !== -1;
+  var greNotLoaded = (typeof window.grecaptcha === 'undefined');
+
+  if (!hasConsent || greNotLoaded) {
+    // Shim minimal : évite les erreurs et renvoie une Promise résolue
+    window.grecaptcha = {
+      ready: function (cb) { try { cb && cb(); } catch (e) {} },
+      execute: function () { return Promise.resolve(''); }
+    };
+  }
+
+  // Catch global pour éviter l'erreur console "Uncaught (in promise) null"
+  window.addEventListener('unhandledrejection', function (e) {
+    // Beaucoup d'implémentations reCAPTCHA rejettent avec null : on neutralise proprement
+    if (e && (e.reason === null || typeof e.reason === 'undefined')) {
+      e.preventDefault();
+    }
+  });
+})();
+</script>
+
+
+  <script>
+(function () {
+  // Fallback léger si initFormValidation est absent
+  function simpleValidate(form) {
+    if (!form) return;
+    form.setAttribute('novalidate', 'novalidate');
+    form.addEventListener('submit', function (e) {
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        form.classList.add('was-validated');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('form[name="contact"]');
+    const btn  = document.getElementById('contact-submit');
+
+    // Si ta fonction globale existe, on l’utilise. Sinon, fallback.
+    if (typeof initFormValidation === 'function') {
+      initFormValidation({ formName: 'contact', tomSelectFields: [] });
+    } else {
+      simpleValidate(form);
+    }
+
+    // Gestion du spinner / disable identique à avant
+    if (form && btn) {
+      form.addEventListener('submit', function () {
+        if (form.checkValidity()) {
+          btn.disabled = true;
+          btn.querySelector('.btn-text').textContent = '{{ "contact.form.sending"|trans }}';
+          btn.querySelector('.spinner-border').classList.remove('d-none');
+        }
+      });
+    }
+  });
+})();
+</script>
+
+
+{% endblock %}

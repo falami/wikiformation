@@ -1,0 +1,813 @@
+{# templates/administrateur/utilisateur/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% set is_edit = modeEdition ?? false %}
+
+{% block title %}{{ is_edit ? 'Modification' : 'Ajout' }} d’un utilisateur{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+    --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+    --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+    --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+    --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+    --bg:#f5f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b;
+    --stroke: rgba(15, 23, 42, .10);
+    --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+    --radius: 18px;
+  }
+
+
+  body{ background: var(--bg); }
+
+  /* ===== HERO (copie du Formateur) ===== */
+  .hero{
+    border-radius:22px;
+    padding: 1.2rem 1.2rem;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+    background:
+      radial-gradient(1200px 420px at 12% -10%,
+        color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+        transparent 58%
+      ),
+      radial-gradient(900px 380px at 92% 0%,
+        color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(700px 260px at 55% 115%,
+        color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+        transparent 62%
+      ),
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+        color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+      );
+  }
+
+  .hero::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+    opacity:.85;
+  }
+
+  .hero .accent{
+    width: 12px;
+    border-radius: 999px;
+    background: var(--theme-color-secondaire);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    flex: 0 0 auto;
+  }
+
+  .chip{
+    display:inline-flex; align-items:center; gap:.45rem;
+    padding:.28rem .65rem; border-radius:999px; font-size:.82rem;
+    background: rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.14);
+    color: rgba(255,255,255,.92);
+    white-space: nowrap;
+  }
+  .chip i{ color: var(--theme-color-secondaire); }
+  .hero .btn{
+    border-radius: 14px;
+    font-weight: 800;
+  }
+  .hero .btn-outline-theme{
+    border-color: rgba(255,255,255,.35);
+    color:#fff;
+  }
+  .hero .btn-outline-theme:hover{
+    background: rgba(255,255,255,.10);
+    border-color: rgba(255,255,255,.55);
+    color:#fff;
+  }
+
+  @media (max-width:768px){
+    .hero{ border-radius:16px; }
+  }
+  .btn-outline-theme{
+    border-color: rgba(255,255,255,.35);
+    color:#fff;
+  }
+  .btn-outline-theme:hover{
+    background: rgba(255,255,255,.10);
+    border-color: rgba(255,255,255,.55);
+    color:#fff;
+  }
+
+  /* ===== Cards premium ===== */
+  .cardx{
+    background: var(--panel);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 28px rgba(15,23,42,.08);
+    overflow:hidden;
+  }
+  .cardx-h{
+    padding: .95rem 1.05rem;
+    display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+    border-bottom: 1px solid var(--stroke);
+  }
+  .cardx-title{
+    margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+    display:flex; align-items:center; gap:.6rem;
+  }
+  /* ===== Form polish ===== */
+  label.form-label{ font-weight: 700; color: var(--ink); }
+  .form-text, .text-muted, .small{ color: var(--muted) !important; }
+  .form-control, .form-select{
+    border-radius: 14px;
+    border: 1px solid var(--stroke);
+    padding: .65rem .85rem;
+    min-height: 44px;
+  }
+  .form-control:focus, .form-select:focus{
+    border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+  }
+
+  /* TomSelect polish + FIX dropdown */
+  .ts-wrapper .ts-control{
+    border-radius: 14px !important;
+    padding: .55rem .75rem !important;
+    border-color: var(--stroke) !important;
+    min-height: 44px !important;
+  }
+  .ts-wrapper.focus .ts-control{
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+    border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+  }
+  .ts-dropdown{ z-index: 9999 !important; }
+  .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
+  .card, .card-body, .container, .container-fluid, .cardx, .cardx *{ overflow: visible; }
+
+  /* ===== Sticky actions (col droite) ===== */
+  .sticky-actions{
+    position: sticky; bottom: 14px; z-index: 5;
+    background: color-mix(in srgb, var(--panel) 82%, transparent);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    padding: .75rem;
+    box-shadow: var(--shadow);
+  }
+
+  /* ===== Soft blocks (comme Session switches) ===== */
+  .soft-box{
+    border-radius: 16px;
+    border: 1px dashed rgba(15,35,54,.18);
+    background: rgba(248,251,254,.75);
+    padding: 1rem;
+  }
+
+  /* ===== Profile dropzone (on garde ton look, juste harmonisé) ===== */
+  .profile-dropzone{
+    display:flex; align-items:center; gap:1rem;
+    padding:1rem;
+    border-radius:16px;
+    border:2px dashed rgba(15,35,54,.25);
+    background: rgba(248,251,254,.75);
+    cursor:pointer;
+    transition:.25s ease;
+  }
+  .profile-dropzone:hover{
+    background: rgba(255,193,7,.08);
+    border-color: rgba(255,193,7,.6);
+  }
+  .profile-dropzone.dragover{
+    background: rgba(59,130,246,.10);
+    border-color:#3b82f6;
+  }
+  .profile-preview{
+    width:88px; height:88px; border-radius:50%;
+    overflow:hidden;
+    background:#eef2f6;
+    display:grid; place-items:center;
+    flex-shrink:0;
+    border:1px solid rgba(15,35,54,.15);
+  }
+  .profile-img{ width:100%; height:100%; object-fit:cover; }
+  .profile-placeholder{ font-size:2.4rem; color:#9aa9b7; }
+
+  @media (max-width:768px){
+    .hero{ border-radius:16px; }
+  }
+
+
+    /* ===== TomSelect (roles) ===== */
+  .ts-wrapper{
+    position: relative;
+  }
+
+  .ts-wrapper .ts-control{
+    border-radius: 14px !important;
+    min-height: 44px !important;
+    padding: .55rem .75rem !important;
+    border-color: var(--stroke) !important;
+  }
+
+  .ts-wrapper.focus .ts-control{
+    border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+  }
+
+  .ts-dropdown{
+    z-index: 9999 !important;
+    border-radius: 14px !important;
+  }
+
+  /* empêche les parents de couper le dropdown */
+  .card, .card-body, .container, .cardx, .cardx *{
+    overflow: visible;
+  }
+
+  
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+
+{% block body %}
+
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-people me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ is_edit ? 'Modifier un utilisateur' : 'Créer un utilisateur' }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            {{ is_edit
+              ? 'Mettre à jour l’identité, les rôles et les préférences.'
+              : 'Créer un utilisateur, définir ses rôles et ses informations.'
+            }}
+          </div>
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="bi bi-shield-check"></i> Admin</span>
+            <span class="chip"><i class="bi bi-clock"></i> {{ is_edit ? 'Mode édition' : 'Mode création' }}</span>
+          </div>
+
+          
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ path('app_administrateur_utilisateur_index',{entite:entite.id}) }}" class="btn btn-outline-light btn-sm fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          {% if is_edit and utilisateur is defined %}
+            <form method="post"
+                  action="{{ path('app_administrateur_utilisateur_reset_password',{entite:entite.id,id:utilisateur.id}) }}">
+              <input type="hidden" name="_token" value="{{ csrf_token('reset_password_' ~ utilisateur.id) }}">
+              <button class="btn btn-light btn-sm fw-semibold" type="submit">
+                <i class="bi bi-key me-1"></i> Reset password
+              </button>
+            </form>
+          {% endif %}
+
+          <button type="button" class="btn btn-light btn-sm fw-semibold"
+                  onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">
+            <i class="bi bi-arrow-down me-1"></i> Actions
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, {attr:{novalidate:'novalidate', id:'userForm'}}) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ====================== COL LEFT ====================== #}
+    <div class="col-lg-8">
+
+      {# ===== Photo profil ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-camera text-warning"></i> Photo de profil</h5>
+          <span class="chip">Optionnel</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="profile-dropzone" id="profileDropzone">
+            <input type="file"
+                   id="profileInput"
+                   name="{{ form.photo.vars.full_name }}"
+                   accept="image/*"
+                   hidden>
+
+            <div class="profile-preview" id="profilePreview">
+              {% if is_edit and utilisateur.photo is defined and utilisateur.photo %}
+                <img src="{{ asset('uploads/photos/utilisateur/' ~ utilisateur.photo) }}"
+                     alt="Photo de profil"
+                     class="profile-img">
+              {% else %}
+                <div class="profile-placeholder"><i class="bi bi-person-circle"></i></div>
+              {% endif %}
+            </div>
+
+            <div class="flex-grow-1">
+              <div class="fw-semibold">Déposer une photo</div>
+              <div class="small text-muted">PNG, JPG, WebP — 8 Mo max</div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="profileBrowseBtn">
+              <i class="bi bi-upload"></i> Parcourir
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger d-none" id="profileRemoveBtn">
+              <i class="bi bi-trash"></i> Supprimer
+            </button>
+          </div>
+
+          {{ form_widget(form.photo, { attr: { class: 'd-none' } }) }}
+          {{ form_errors(form.photo) }}
+        </div>
+      </div>
+
+      {# ===== Identité ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-person-vcard text-warning"></i> Identité</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-3">{{ form_row(form.civilite) }}</div>
+            <div class="col-12 col-md-4">{{ form_row(form.prenom) }}</div>
+            <div class="col-12 col-md-5">{{ form_row(form.nom) }}</div>
+
+            <div class="col-12 col-md-6">{{ form_row(form.email) }}</div>
+            <div class="col-12 col-md-3">
+              {{ form_row(form.dateNaissance, {
+                attr: {
+                  class: (form.dateNaissance.vars.attr.class|default('') ~ ' js-flatpickr-date')|trim,
+                  placeholder: 'JJ/MM/AAAA'
+                }
+              }) }}
+            </div>
+
+            <div class="col-12 col-md-3">{{ form_row(form.telephone) }}</div>
+          </div>
+          <div class="form-text mt-2">Les champs marqués requis contrôlent la complétude du résumé.</div>
+        </div>
+      </div>
+
+      {# ===== Rôles ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-shield-lock text-warning"></i> Rôles</h5>
+          <span class="chip">Étape 2</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="soft-box">
+            {{ form_row(form.ueRoles, {
+              attr: { class: 'form-select js-ts-ueroles' }
+            }) }}
+
+            <div class="form-text">
+              <b>Formateur</b> → affiche le bloc formateur • <b>Entreprise</b> → affiche le bloc entreprise.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Bloc Formateur ===== #}
+      <div class="cardx mb-4 d-none" id="formateur-card">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-easel2 text-warning"></i> Informations formateur</h5>
+          <span class="chip">Conditionnel</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="soft-box">
+            <div class="row g-3">
+              <div class="col-12">{{ form_row(form.formateurData.qualificationEngins) }}</div>
+              <div class="col-12">{{ form_row(form.formateurData.sitePreferes) }}</div>
+
+              <div class="col-12 col-md-6">
+                {{ form_row(form.formateurData.assujettiTva) }}
+                <div class="form-text">Active si le formateur facture avec TVA.</div>
+              </div>
+
+              <div class="col-12">{{ form_row(form.formateurData.certifications) }}</div>
+
+              <div class="col-12 col-md-4">{{ form_row(form.formateurData.tauxTvaParDefaut) }}</div>
+              <div class="col-12 col-md-4">{{ form_row(form.formateurData.numeroTvaIntra) }}</div>
+              <div class="col-12 col-md-4">{{ form_row(form.formateurData.modeRemuneration) }}</div>
+
+              <div class="col-12 col-md-4">{{ form_row(form.formateurData.tauxHoraireCents) }}</div>
+              <div class="col-12 col-md-4">{{ form_row(form.formateurData.tauxJournalierCents) }}</div>
+              <div class="col-12 col-md-4">{{ form_row(form.formateurData.siret) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Lien entreprise (select) ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-link-45deg text-warning"></i> Lien entreprise</h5>
+          <span class="chip">Étape 3</span>
+        </div>
+        <div class="p-3 p-md-4">
+          {{ form_row(form.entreprise) }}
+          <div class="form-text">
+            Si tu crées une entreprise via le bloc “Informations entreprise”, tu peux laisser ce champ vide.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Bloc Entreprise ===== #}
+      <div class="cardx mb-4 d-none" id="entreprise-card">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Informations entreprise</h5>
+          <span class="chip">Conditionnel</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="soft-box">
+            <div class="row g-3">
+
+              {# --- Identité entreprise --- #}
+              <div class="col-12 col-md-6">{{ form_row(form.entrepriseData.raisonSociale) }}</div>
+              <div class="col-12 col-md-6">{{ form_row(form.entrepriseData.siret) }}</div>
+
+              {# --- Emails --- #}
+              <div class="col-12 col-md-6">
+                {{ form_row(form.entrepriseData.emailFacturation) }}
+                <div class="form-text">Email utilisé pour la facturation.</div>
+              </div>
+              <div class="col-12 col-md-6">
+                {{ form_row(form.entrepriseData.email) }}
+                <div class="form-text">Email général (contact entreprise).</div>
+              </div>
+
+              {# --- Adresse --- #}
+              <div class="col-12">{{ form_row(form.entrepriseData.adresse) }}</div>
+              <div class="col-12">{{ form_row(form.entrepriseData.complement) }}</div>
+
+              <div class="col-12 col-md-4">{{ form_row(form.entrepriseData.codePostal) }}</div>
+              <div class="col-12 col-md-8">{{ form_row(form.entrepriseData.ville) }}</div>
+
+              <div class="col-12 col-md-4">{{ form_row(form.entrepriseData.departement) }}</div>
+              <div class="col-12 col-md-4">{{ form_row(form.entrepriseData.region) }}</div>
+              <div class="col-12 col-md-4">{{ form_row(form.entrepriseData.pays) }}</div>
+
+              {# --- TVA --- #}
+              <div class="col-12 col-md-6">
+                {{ form_row(form.entrepriseData.numeroTVA) }}
+                <div class="form-text">Format intracommunautaire (si applicable).</div>
+              </div>
+
+              {# --- Représentant --- #}
+              <div class="col-12">
+                {{ form_row(form.entrepriseData.representant) }}
+                <div class="form-text">Personne de contact principale pour cette entreprise.</div>
+              </div>
+
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      
+
+      {# ===== Coordonnées ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-geo-alt text-warning"></i> Coordonnées</h5>
+          <span class="chip">Étape 4</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12">{{ form_row(form.adresse) }}</div>
+            <div class="col-12">{{ form_row(form.complement) }}</div>
+            <div class="col-12 col-md-4">{{ form_row(form.codePostal) }}</div>
+            <div class="col-12 col-md-8">{{ form_row(form.ville) }}</div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Préférences (switches comme Session) ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-toggles text-warning"></i> Préférences</h5>
+          <span class="chip">Options</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="soft-box">
+                <div class="d-flex align-items-start justify-content-between gap-3">
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold">Compte vérifié</div>
+                    <div class="text-muted small mt-1">À activer quand tu es sûr des infos.</div>
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    {{ form_widget(form.isVerified, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.isVerified) }}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="soft-box">
+                <div class="d-flex align-items-start justify-content-between gap-3">
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold">Newsletter</div>
+                    <div class="text-muted small mt-1">Autorisation de communication.</div>
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    {{ form_widget(form.newsletter, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.newsletter) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Actions bas ===== #}
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <a href="{{ path('app_administrateur_utilisateur_index',{entite:entite.id}) }}" class="btn btn-secondary">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+        <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
+          <i class="bi bi-check"></i> {{ is_edit ? 'Modifier & Terminer' : 'Créer & Terminer' }}
+        </button>
+      </div>
+
+    </div>
+
+    {# ====================== COL RIGHT ====================== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="border rounded-4 p-3 mb-3"
+               style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Utilisateur</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Nom</span>
+                <span class="fw-semibold text-end" id="resume-nom">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Email</span>
+                <span class="fw-semibold text-end" id="resume-email">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Téléphone</span>
+                <span class="fw-semibold text-end" id="resume-tel">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Rôles</span>
+                <span class="fw-semibold text-end" id="resume-roles">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Entreprise</span>
+                <span class="fw-semibold text-end" id="resume-entreprise">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Ville</span>
+                <span class="fw-semibold text-end" id="resume-ville">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Vérifié</span>
+                <span class="fw-semibold text-end" id="resume-verified">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="{{ path('app_administrateur_utilisateur_index',{entite:entite.id}) }}">Annuler</a>
+            <button type="submit" class="btn btn-gradient w-50" id="btnRightSubmit">
+              <i class="bi bi-check"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> nom + email + au moins 1 rôle.
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-check2"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# important : garder le token CSRF #}
+  {{ form_widget(form._token) }}
+  {{ form_end(form, { render_rest: false }) }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // ----- Flatpickr -----
+  if (window.flatpickr && window.flatpickr.l10ns?.fr) {
+    flatpickr.localize(flatpickr.l10ns.fr);
+  }
+  document.querySelectorAll('.js-flatpickr-date').forEach(el => {
+    if (el._flatpickr) return;
+    flatpickr(el, { locale: 'fr', dateFormat: 'd/m/Y', allowInput: true });
+  });
+
+  // ----- TomSelect helper -----
+  function initTomSelectOn(el, opts){
+    if (!el) return null;
+    if (el.tomselect) return el.tomselect;
+
+    return new TomSelect(el, Object.assign({
+      dropdownParent: 'body',
+      create: false,
+      allowEmptyOption: true,
+    }, opts || {}));
+  }
+
+  // ----- DOM -----
+  const prenomEl = document.getElementById('{{ form.prenom.vars.id }}');
+  const nomEl    = document.getElementById('{{ form.nom.vars.id }}');
+  const emailEl  = document.getElementById('{{ form.email.vars.id }}');
+  const telEl    = document.getElementById('{{ form.telephone.vars.id }}');
+  const villeEl  = document.getElementById('{{ form.ville.vars.id }}');
+
+  const ueRolesEl = document.getElementById('{{ form.ueRoles.vars.id }}');         // MULTI
+  const entrepriseEl = document.getElementById('{{ form.entreprise.vars.id }}');   // SINGLE
+  const verifiedEl = document.getElementById('{{ form.isVerified.vars.id }}');
+
+  const formateurCard  = document.getElementById('formateur-card');
+  const entrepriseCard = document.getElementById('entreprise-card');
+
+  const $r = {
+    nom: document.getElementById('resume-nom'),
+    email: document.getElementById('resume-email'),
+    tel: document.getElementById('resume-tel'),
+    roles: document.getElementById('resume-roles'),
+    entreprise: document.getElementById('resume-entreprise'),
+    ville: document.getElementById('resume-ville'),
+    verified: document.getElementById('resume-verified'),
+    pill: document.getElementById('resume-valid-pill')
+  };
+
+  // Init TomSelect
+  const rolesTS = initTomSelectOn(ueRolesEl, {
+    plugins: ['remove_button'],
+    maxItems: null,
+  });
+
+  const entrepriseTS = initTomSelectOn(entrepriseEl, {
+    plugins: ['clear_button'],
+  });
+
+  function getSelectedTenantRoles(){
+    if (!ueRolesEl) return [];
+    if (ueRolesEl.tomselect) return ueRolesEl.tomselect.items || [];
+    return Array.from(ueRolesEl.selectedOptions).map(o => o.value);
+  }
+
+  function getSelectedTenantRoleLabels(){
+    if (!ueRolesEl) return [];
+    if (ueRolesEl.tomselect) {
+      return (ueRolesEl.tomselect.items || [])
+        .map(v => ueRolesEl.tomselect.options[v]?.text)
+        .filter(Boolean);
+    }
+    return Array.from(ueRolesEl.selectedOptions).map(o => o.textContent.trim());
+  }
+
+  function refreshBlocks(){
+    const roles = getSelectedTenantRoles();
+
+    // ⚠️ ICI tu dois tester les VRAIES values de ton select
+    const hasFormateur  = roles.includes('TENANT_FORMATEUR');
+    const hasEntreprise = roles.includes('TENANT_ENTREPRISE');
+
+    formateurCard?.classList.toggle('d-none', !hasFormateur);
+    entrepriseCard?.classList.toggle('d-none', !hasEntreprise);
+
+    if (hasFormateur) {
+      document.querySelectorAll('#formateur-card select').forEach(s => s.tomselect?.refreshOptions(false));
+    }
+    if (hasEntreprise) {
+      document.querySelectorAll('#entreprise-card select').forEach(s => s.tomselect?.refreshOptions(false));
+    }
+  }
+
+  function selectedText(selectEl){
+    if (!selectEl) return '';
+    if (selectEl.tomselect) {
+      const items = selectEl.tomselect.items || [];
+      return items.map(v => (selectEl.tomselect.options[v]?.text || '')).filter(Boolean).join(', ');
+    }
+    return Array.from(selectEl.selectedOptions).map(o => o.textContent.trim()).join(', ');
+  }
+
+  function refreshResume(){
+    const fullName = `${(prenomEl?.value||'').trim()} ${(nomEl?.value||'').trim()}`.trim();
+    $r.nom && ($r.nom.textContent = fullName || '—');
+    $r.email && ($r.email.textContent = (emailEl?.value||'').trim() || '—');
+    $r.tel && ($r.tel.textContent = (telEl?.value||'').trim() || '—');
+    $r.ville && ($r.ville.textContent = (villeEl?.value||'').trim() || '—');
+
+    const rolesTxt = getSelectedTenantRoleLabels().join(', ');
+    $r.roles && ($r.roles.textContent = rolesTxt || '—');
+
+    const entTxt = selectedText(entrepriseEl);
+    $r.entreprise && ($r.entreprise.textContent = entTxt || '—');
+
+    $r.verified && ($r.verified.textContent = verifiedEl?.checked ? 'Oui' : 'Non');
+
+    const ok =
+      !!((prenomEl?.value||'').trim()) &&
+      !!((nomEl?.value||'').trim()) &&
+      !!((emailEl?.value||'').trim()) &&
+      getSelectedTenantRoles().length > 0;
+
+    if ($r.pill) {
+      $r.pill.textContent = ok ? '✅ Complet' : '⚠️ Incomplet';
+      $r.pill.style.background = ok ? 'rgba(25,135,84,.15)' : 'rgba(255,193,7,.15)';
+      $r.pill.style.borderColor = ok ? 'rgba(25,135,84,.35)' : 'rgba(255,193,7,.35)';
+      $r.pill.style.color = 'var(--ink)';
+    }
+  }
+
+  rolesTS?.on('change', () => { refreshBlocks(); refreshResume(); });
+  entrepriseTS?.on('change', refreshResume);
+
+  [prenomEl, nomEl, emailEl, telEl, villeEl].forEach(el => {
+    el?.addEventListener('input', refreshResume);
+    el?.addEventListener('change', refreshResume);
+  });
+  verifiedEl?.addEventListener('change', refreshResume);
+
+  refreshBlocks();
+  refreshResume();
+});
+</script>
+
+
+
+
+
+{% endblock %}

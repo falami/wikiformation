@@ -1,0 +1,448 @@
+{# templates/administrateur/positioning/questionnaire/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ is_edit ? 'Modifier' : 'Nouveau' }} questionnaire{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* ===== HERO (premium / couleurs entité) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      flex: 0 0 auto;
+    }
+
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius:16px; }
+    }
+    .cardx{ background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 12px 30px rgba(0,0,0,.06); overflow:hidden; }
+    .chapter{ border:1px dashed rgba(0,0,0,.15); border-radius:16px; padding:12px; background:rgba(0,0,0,.015); }
+    .item{ border:1px solid rgba(0,0,0,.06); border-radius:14px; padding:10px 12px; background:#fff; }
+    .muted{ color:rgba(0,0,0,.55); }
+
+
+    .drag-handle-chapter, .drag-handle-item{ cursor: grab; user-select:none; }
+    .drag-handle-chapter:active, .drag-handle-item:active{ cursor: grabbing; }
+
+    .sortable-ghost{ opacity:.45; }
+    .sortable-chosen{ box-shadow:0 14px 40px rgba(0,0,0,.12); }
+    /* ================= Switch rows (style session) ================= */
+.soft-box{
+  border-radius: 16px;
+  border: 1px dashed rgba(15,35,54,.18);
+  background: rgba(248,251,254,.75);
+  padding: 1rem;
+}
+
+.switch-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 1rem;
+  padding:.8rem .9rem;
+  border-radius:14px;
+  border:1px solid rgba(15,35,54,.08);
+  background:#fff;
+}
+
+.switch-row + .switch-row{ margin-top:.65rem; }
+
+.switch-row .title{
+  font-weight:700;
+  line-height:1.15;
+}
+.switch-row .desc{
+  margin-top:.25rem;
+  font-size:.85rem;
+  color: rgba(0,0,0,.55); /* cohérent avec ton .muted */
+}
+
+.switch-row .form-check.form-switch{ margin:0; }
+.switch-row .form-check-input{ width:2.6em; height:1.35em; }
+.switch-row .form-check-input:checked{
+  background-color: var(--theme-color-secondaire);
+  border-color: var(--theme-color-secondaire);
+}
+
+
+  </style>
+{% endblock %}
+
+
+
+{% block body %}
+
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-ui-checks-grid me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ is_edit ? 'Modifier' : 'Nouveau' }} questionnaire
+          </h2>
+          <div class="opacity-75 mt-1">
+            Titre, logiciel, publication, structure (chapitres & items).
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-journal-text"></i> Positionnement</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill">
+              <i class="bi {{ is_edit ? 'bi-pencil-square' : 'bi-plus-circle' }}"></i>
+              {{ is_edit ? 'Mode édition' : 'Création' }}
+            </span>
+
+            {% if is_edit %}
+              <span class="chip">
+                <i class="bi bi-hash"></i> ID : {{ q.id }}
+              </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_positioning_questionnaire_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          {% if is_edit %}
+            <a class="btn btn-light btn-sm fw-semibold"
+              href="{{ path('app_administrateur_positioning_questionnaire_new', { entite: entite.id }) }}">
+              <i class="bi bi-plus-circle me-1"></i> Nouveau
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="cardx">
+        <div class="p-3 border-bottom fw-bold"><i class="bi bi-ui-checks"></i> Questionnaire</div>
+        <div class="p-3">
+          {{ form_start(form) }}
+            <div class="mb-3">
+              <label class="form-label fw-bold">Titre</label>
+              {{ form_widget(form.title, { attr: { class:'form-control' }}) }}
+              {{ form_errors(form.title) }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold">Logiciel</label>
+              {{ form_widget(form.software, { attr: { class:'form-control', placeholder:'Optionnel' }}) }}
+            </div>
+
+            <div class="soft-box mb-3">
+              <div class="switch-row">
+                <div class="flex-grow-1">
+                  <div class="title">Publier le questionnaire</div>
+                  <div class="desc">Visible et utilisable dans le module de positioning (désactive-le pour le masquer).</div>
+                </div>
+                <div class="form-check form-switch">
+                  {{ form_widget(form.isPublished, { attr: { class:'form-check-input' }}) }}
+                </div>
+              </div>
+              {{ form_errors(form.isPublished) }}
+            </div>
+
+
+            <div class="d-grid">
+              <button class="btn btn-warning fw-semibold" type="submit">
+                <i class="bi bi-save"></i> Enregistrer
+              </button>
+            </div>
+          {{ form_end(form) }}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+      <div class="cardx">
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+          <div class="fw-bold"><i class="bi bi-layers"></i> Structure</div>
+          {% if is_edit %}
+            <a class="btn btn-sm btn-outline-primary fw-semibold"
+               href="{{ path('app_administrateur_positioning_chapter_new', { entite: entite.id, questionnaire: q.id }) }}">
+              <i class="bi bi-plus-circle"></i> Ajouter un chapitre
+            </a>
+          {% endif %}
+        </div>
+
+        <div class="p-3">
+          {% if is_edit %}
+            <div id="chapters-sortable"
+                data-reorder-url="{{ path('app_administrateur_positioning_questionnaire_chapter_reorder', { entite: entite.id, questionnaire: q.id }) }}">
+              {% for ch in q.chapters %}
+                <div class="chapter mb-3" data-id="{{ ch.id }}">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="d-flex align-items-start gap-2">
+                      <div class="drag-handle-chapter pt-1" title="Déplacer le chapitre">
+                        <i class="bi bi-grip-vertical fs-4 text-muted"></i>
+                      </div>
+                      <div>
+                        <div class="fw-bold">
+                          <span class="pos-badge badge bg-light text-dark border me-2">{{ ch.position }}</span>
+                          {{ ch.title }}
+                        </div>
+                        <div class="muted small">
+                          Parent: {{ ch.parent ? ch.parent.title : '—' }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="text-end">
+                      <a class="btn btn-sm btn-outline-primary"
+                        href="{{ path('app_administrateur_positioning_chapter_edit', { entite: entite.id, questionnaire: q.id, id: ch.id }) }}">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <form method="post" class="d-inline"
+                            action="{{ path('app_administrateur_positioning_chapter_delete', { entite: entite.id, questionnaire: q.id, id: ch.id }) }}"
+                            onsubmit="return confirm('Supprimer ce chapitre (et ses items) ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('del_ch_' ~ ch.id) }}">
+                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                      </form>
+                      <a class="btn btn-sm btn-outline-success"
+                        href="{{ path('app_administrateur_positioning_item_new', { entite: entite.id, questionnaire: q.id, chapter: ch.id }) }}">
+                        <i class="bi bi-plus"></i> Item
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 items-sortable-wrap">
+                    <div class="items-sortable"
+                        data-chapter-id="{{ ch.id }}"
+                        data-reorder-url="{{ path('app_administrateur_positioning_questionnaire_item_reorder', { entite: entite.id, questionnaire: q.id, chapter: ch.id }) }}">
+                      {% for it in ch.items %}
+                        <div class="item mb-2" data-id="{{ it.id }}">
+                          <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="d-flex align-items-start gap-2">
+                              <div class="drag-handle-item pt-1" title="Déplacer l'item">
+                                <i class="bi bi-grip-vertical fs-5 text-muted"></i>
+                              </div>
+                              <div>
+                                <div class="fw-semibold">
+                                  <span class="pos-badge badge bg-light text-dark border me-2">Position : {{ it.position }}</span>- 
+                                  Niveau : <span class="badge text-bg-warning">{{ it.level }}</span>
+                                </div>
+                                <div>{{ it.label|nl2br }}</div>
+                              </div>
+                            </div>
+
+                            <div class="text-end">
+                              <a class="btn btn-sm btn-outline-primary"
+                                href="{{ path('app_administrateur_positioning_item_edit', { entite: entite.id, questionnaire: q.id, chapter: ch.id, id: it.id }) }}">
+                                <i class="bi bi-pencil"></i>
+                              </a>
+                              <form method="post" class="d-inline"
+                                    action="{{ path('app_administrateur_positioning_item_delete', { entite: entite.id, questionnaire: q.id, chapter: ch.id, id: it.id }) }}"
+                                    onsubmit="return confirm('Supprimer cet item ?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('del_it_' ~ it.id) }}">
+                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                      {% else %}
+                        <div class="text-muted small">Aucun item dans ce chapitre.</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              {% else %}
+                <div class="text-muted">Aucun chapitre.</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+  
+
+
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+  <script>
+    (function () {
+      const csrfToken = '{{ csrf_token("reorder_positioning") }}';
+
+      async function postOrder(url, orderedIds){
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify({ _token: csrfToken, orderedIds })
+        });
+
+        if(!res.ok){
+          const txt = await res.text();
+          console.error('Reorder error:', res.status, txt);
+          throw new Error(txt || 'Erreur reorder');
+        }
+        return res.json();
+      }
+
+      function initSortable(){
+        // si pas de structure, on sort
+        const chaptersWrap = document.getElementById('chapters-sortable');
+        if (!chaptersWrap) return;
+
+        // évite double init (Turbo)
+        if (chaptersWrap.dataset.sortableInit === '1') return;
+        chaptersWrap.dataset.sortableInit = '1';
+
+        if (typeof Sortable === 'undefined') {
+          console.error('SortableJS non chargé (script CDN bloqué/404/CSP).');
+          return;
+        }
+
+        // -------- CHAPITRES --------
+        new Sortable(chaptersWrap, {
+          handle: '.drag-handle-chapter',
+          draggable: '.chapter',      // ✅ pas de :scope
+          animation: 150,
+          ghostClass: 'sortable-ghost',
+          chosenClass: 'sortable-chosen',
+          onEnd: async () => {
+            const url = chaptersWrap.dataset.reorderUrl;
+
+            // ✅ récupérer l'ordre via children directs
+            const ids = Array.from(chaptersWrap.children)
+              .filter(el => el.classList.contains('chapter') && el.dataset.id)
+              .map(el => parseInt(el.dataset.id, 10));
+
+            try { await postOrder(url, ids); }
+            catch(e){ alert('Impossible de réordonner les chapitres'); }
+          }
+        });
+
+        // -------- ITEMS (par chapitre) --------
+        document.querySelectorAll('.items-sortable').forEach(list => {
+          if (list.dataset.sortableInit === '1') return;
+          list.dataset.sortableInit = '1';
+
+          new Sortable(list, {
+            handle: '.drag-handle-item',
+            draggable: '.item',       // ✅ pas de :scope
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: async () => {
+              const url = list.dataset.reorderUrl;
+
+              const ids = Array.from(list.children)
+                .filter(el => el.classList.contains('item') && el.dataset.id)
+                .map(el => parseInt(el.dataset.id, 10));
+
+              try { await postOrder(url, ids); }
+              catch(e){ alert('Impossible de réordonner les items'); }
+            }
+          });
+        });
+
+        console.log('✅ Sortable initialisé');
+      }
+
+      // ✅ classique
+      document.addEventListener('DOMContentLoaded', initSortable);
+
+      // ✅ Turbo (si présent)
+      document.addEventListener('turbo:load', initSortable);
+      document.addEventListener('turbo:render', initSortable);
+    })();
+  </script>
+{% endblock %}

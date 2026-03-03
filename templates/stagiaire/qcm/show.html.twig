@@ -1,0 +1,418 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}QCM — {{ a.qcm.titre }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ===== HERO (copie du style Sessions) ===== */
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+      overflow:hidden;
+      position:relative;
+    }
+    .hero .accent{
+      width:12px;
+      background:var(--theme-color-secondaire);
+      border-radius:999px;
+      box-shadow:0 0 0 6px rgba(255,193,7,.10);
+    }
+    .meta-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.35rem .65rem;
+      border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+    }
+
+    /* ===== Cards (même ADN que kpi/table-card) ===== */
+    .q-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .q-head{
+      padding: .95rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: .75rem;
+    }
+
+    .q-index{
+      width:42px;height:42px;
+      border-radius:16px;
+      display:grid;place-items:center;
+      font-weight:900;
+      background: rgba(0,0,0,.03);
+      border:1px solid rgba(0,0,0,.06);
+      color: rgba(0,0,0,.75);
+      flex:0 0 auto;
+    }
+    .q-enonce{ margin:0; font-weight:850; color: rgba(0,0,0,.85); line-height:1.35; }
+    .q-desc{ color: rgba(0,0,0,.55); font-size:.9rem; margin-top:.15rem; }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      padding:.22rem .55rem;
+      font-weight:800;
+      font-size:.78rem;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      white-space: nowrap;
+      color: rgba(0,0,0,.75);
+    }
+    .pill-strong{
+      background: rgba(255,193,7,.14);
+      border-color: rgba(255,193,7,.28);
+      color: rgba(0,0,0,.80);
+    }
+
+    .q-body{ padding: 1rem; }
+
+    /* Media box (comme tes cards admin) */
+    .media-box{
+      border-radius: 16px;
+      border:1px solid rgba(0,0,0,.08);
+      overflow:hidden;
+      background:#fff;
+      box-shadow: 0 10px 18px rgba(0,0,0,.06);
+    }
+
+    /* ===== Options: look "filterbox" premium ===== */
+    .opt{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.75rem .8rem;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.04);
+      display:flex;
+      gap:.75rem;
+      align-items:flex-start;
+      cursor:pointer;
+      user-select:none;
+      transition: all .16s ease;
+    }
+    .opt:hover{
+      border-color: rgba(0,0,0,.14);
+      box-shadow: 0 10px 20px rgba(0,0,0,.06);
+      transform: translateY(-1px);
+    }
+    .opt:active{ transform:none; }
+
+    .opt input.form-check-input{
+      width: 1.15rem; height: 1.15rem;
+      margin-top: .15rem;
+      border-color: rgba(0,0,0,.20);
+    }
+    .opt input.form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+    }
+    .opt:has(input:checked){
+      border-color: rgba(255,193,7,.35);
+      background: rgba(255,193,7,.06);
+    }
+
+    .opt-title{ font-weight:900; color: rgba(0,0,0,.85); margin:0; }
+    .opt-sub{ color: rgba(0,0,0,.55); font-weight:650; font-size:.92rem; }
+
+    /* ===== Buttons (admin style) ===== */
+    .btn-soft{
+      border:1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.10);
+      color:#fff;
+      border-radius:14px;
+      font-weight:800;
+    }
+    .btn-soft:hover{ background: rgba(255,255,255,.14); color:#fff; }
+
+    /* ===== Submit sticky (plus “admin”) ===== */
+    .submitbar{
+      position: sticky;
+      bottom: 14px;
+      z-index: 5;
+      margin-top: 16px;
+      display:flex;
+      justify-content:flex-end;
+    }
+    .submitbar-inner{
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+      padding:.55rem .7rem;
+      border-radius: 999px;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 18px 45px rgba(0,0,0,.08);
+      backdrop-filter: blur(10px);
+    }
+    .hint{
+      font-size:.9rem;
+      font-weight:800;
+      color: rgba(0,0,0,.55);
+      display:flex;
+      align-items:center;
+      gap:.45rem;
+      padding-left:.25rem;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius:16px; }
+      .submitbar{ bottom: 10px; }
+      .submitbar-inner{ width: 100%; justify-content:space-between; }
+    }
+    /* ===== Progress (sticky, admin-like) ===== */
+    .progress-wrap{
+      position: sticky;
+      top: 10px; /* reste visible sous le header */
+      z-index: 20;
+      margin-bottom: 12px;
+    }
+    .progress-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      padding:.8rem 1rem;
+      display:flex;
+      align-items:center;
+      gap: 1rem;
+    }
+    .progress-title{
+      font-weight:900;
+      color: rgba(0,0,0,.75);
+      white-space: nowrap;
+    }
+    .progress-sub{
+      font-size:.85rem;
+      color: rgba(0,0,0,.55);
+      font-weight:800;
+      white-space: nowrap;
+    }
+    .progress{
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .progress-bar{
+      transition: width .35s ease;
+    }
+
+    @media (max-width: 768px){
+      .progress-card{
+        flex-wrap: wrap;
+        gap: .6rem;
+      }
+    }
+</style>
+
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (structure identique à Sessions) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="meta-chip"><i class="bi bi-ui-checks"></i> QCM</span>
+        <span class="meta-chip"><i class="bi bi-flag"></i> {{ a.phase.label }}</span>
+        <span class="meta-chip"><i class="bi bi-calendar3"></i> {{ a.session.label }}</span>
+        <span class="meta-chip"><i class="bi bi-list-check"></i> {{ a.qcm.questions|length }} question{{ a.qcm.questions|length>1?'s':'' }}</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">{{ a.qcm.titre }}</h2>
+          <div class="opacity-75">Réponds à toutes les questions puis valide.</div>
+        </div>
+
+        <a class="btn btn-soft btn-sm fw-semibold"
+           href="{{ path('app_stagiaire_qcm_index', { entite: entite.id }) }}">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% set totalQuestions = a.qcm.questions|length %}
+
+  <div class="progress-wrap">
+    <div class="progress-card">
+      <div class="me-auto">
+        <div class="progress-title">
+          <i class="bi bi-graph-up"></i> Progression
+        </div>
+        <div class="progress-sub">
+          <span id="qcm-progress-count">0</span> / {{ totalQuestions }} répondues • <span id="qcm-progress-pct">0</span>%
+        </div>
+      </div>
+
+      <div class="flex-grow-1" style="min-width: 220px;">
+        <div class="progress">
+          <div id="qcm-progress-bar" class="progress-bar bg-warning" role="progressbar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <form method="post" class="pb-4">
+    <input type="hidden" name="_token" value="{{ csrf_token('qcm_submit_'~a.id) }}">
+
+    {% for q in a.qcm.questions %}
+      <div class="q-card mb-3">
+        <div class="q-head">
+          <div class="d-flex gap-3">
+            <div class="q-index">{{ loop.index }}</div>
+            <div>
+              <p class="q-enonce mb-1">{{ q.enonce|nl2br }}</p>
+              {% if q.description is defined and q.description %}
+                <div class="q-desc">{{ q.description }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 justify-content-end">
+            <span class="pill pill-strong"><i class="bi bi-award"></i> {{ q.pointsMax }} pt{{ q.pointsMax>1?'s':'' }}</span>
+            <span class="pill"><i class="bi bi-toggles"></i> {{ q.type.label }}</span>
+          </div>
+        </div>
+
+        <div class="q-body">
+          {% if q.image %}
+            <div class="media-box mb-3">
+              <img class="img-fluid" src="{{ asset('uploads/qcm/questions/' ~ q.image) }}" alt="">
+            </div>
+          {% endif %}
+
+          {% if q.videoUrl %}
+            <div class="media-box mb-3">
+              <div class="ratio ratio-16x9">
+                <iframe src="{{ q.videoUrl }}" title="Video" allowfullscreen></iframe>
+              </div>
+            </div>
+          {% endif %}
+
+          {% set inputType = (q.type.value == 'multiple') ? 'checkbox' : 'radio' %}
+          <div class="mt-2">
+            {% for o in q.options %}
+              <label class="opt mb-2">
+                <input class="form-check-input"
+                       type="{{ inputType }}"
+                       name="q[{{ q.id }}]{{ inputType == 'checkbox' ? '[]' : '' }}"
+                       value="{{ o.id }}">
+
+                <div class="flex-grow-1">
+                  <div class="opt-title">{{ o.label }}</div>
+
+                  {% if o.image %}
+                    <div class="media-box mt-2">
+                      <img class="img-fluid" src="{{ asset('uploads/qcm/options/' ~ o.image) }}" alt="">
+                    </div>
+                  {% endif %}
+
+                  {% if o.videoUrl %}
+                    <div class="media-box mt-2">
+                      <div class="ratio ratio-16x9">
+                        <iframe src="{{ o.videoUrl }}" title="Video" allowfullscreen></iframe>
+                      </div>
+                    </div>
+                  {% endif %}
+                </div>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="submitbar">
+      <div class="submitbar-inner">
+        <div class="hint d-none d-sm-flex">
+          <i class="bi bi-shield-check"></i>
+          Pense à vérifier avant d’envoyer
+        </div>
+
+        <button class="btn btn-warning btn-sm fw-semibold px-3" type="submit">
+          <i class="bi bi-check2-circle"></i> Valider mes réponses
+        </button>
+      </div>
+    </div>
+  </form>
+
+
+
+<script>
+  (function(){
+    const total = {{ totalQuestions|default(0) }};
+    if(!total) return;
+
+    // Chaque q-card correspond à une question => on lit les inputs dedans
+    const cards = Array.from(document.querySelectorAll('.q-card'));
+    const bar   = document.getElementById('qcm-progress-bar');
+    const elCnt = document.getElementById('qcm-progress-count');
+    const elPct = document.getElementById('qcm-progress-pct');
+
+    function countAnswered(){
+      let answered = 0;
+      for(const card of cards){
+        const inputs = card.querySelectorAll('input[type="radio"], input[type="checkbox"]');
+        if(!inputs.length) continue;
+        const checked = Array.from(inputs).some(i => i.checked);
+        if(checked) answered++;
+      }
+      return answered;
+    }
+
+    function refresh(){
+      const answered = countAnswered();
+      const pct = Math.round((answered / total) * 100);
+
+      elCnt.textContent = String(answered);
+      elPct.textContent = String(pct);
+      bar.style.width = pct + '%';
+      bar.setAttribute('aria-valuenow', String(pct));
+    }
+
+    // Initial + écoute changements
+    document.addEventListener('change', (e)=>{
+      if(e.target && (e.target.matches('input[type="radio"]') || e.target.matches('input[type="checkbox"]'))){
+        refresh();
+      }
+    });
+
+    refresh();
+  })();
+</script>
+
+{% endblock %}

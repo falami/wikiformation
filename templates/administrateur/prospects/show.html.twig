@@ -1,0 +1,915 @@
+{# templates/administrateur/prospects/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Prospect #{{ p.id }} — {{ p.prenom }} {{ p.nom|upper }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+      --ink:#0f2336;
+      --muted:#6b7b8a;
+      --line:rgba(15,35,54,.10);
+      --radius:20px;
+      --shadow: 0 18px 50px rgba(0,0,0,.10);
+      --shadow-soft: 0 12px 28px rgba(0,0,0,.06);
+    }
+
+    /* ✅ IMPORTANT : pas de margin-left ici. Le layout (.content) gère le décalage sidebar. */
+    .pageWrap{
+      width:100%;
+      padding: 0;
+    }
+
+    /* ================== STICKY HERO ================== */
+    .stickyHero{
+      position: sticky;
+      top: 12px;                 /* si ta navbar est fixed, mets plutôt 74px */
+      z-index: 10;               /* assez pour rester au-dessus du contenu, pas au-dessus de la navbar */
+      border-radius:24px;
+      overflow:hidden;
+      color:#fff;
+      background:
+        radial-gradient(900px 420px at 15% 15%, rgba(255,255,255,.16), transparent 55%),
+        radial-gradient(760px 320px at 85% 20%, rgba(255,193,7,.20), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(15,35,54,.86));
+      box-shadow: var(--shadow);
+      border:1px solid rgba(255,255,255,.08);
+      margin: 10px 0 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .stickyRow{
+      display:flex;
+      gap:14px;
+      padding:14px 16px;
+      align-items:center;
+      flex-wrap: wrap;
+    }
+    .avatar{
+      width:44px; height:44px; border-radius:14px;
+      background: rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:900;
+      box-shadow: 0 10px 26px rgba(0,0,0,.18);
+      backdrop-filter: blur(8px);
+      flex: 0 0 auto;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.08);
+      font-size:12px; white-space:nowrap;
+      backdrop-filter: blur(8px);
+    }
+    .btn-ghost{
+      background: rgba(255,255,255,.10) !important;
+      border: 1px solid rgba(255,255,255,.14) !important;
+      color: #fff !important;
+      border-radius: 14px !important;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+      transition: .15s ease;
+    }
+    .btn-ghost:hover{ transform: translateY(-1px); }
+
+    /* ================== TABS ================== */
+    .tabsWrap{
+      background: var(--bs-body-bg);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      overflow:hidden;
+    }
+   /* ===== Sticky hero & tabs: empilement propre ===== */
+    .stickyHero{
+      z-index: 20;          /* hero au-dessus */
+    }
+
+    /* barre des tabs sticky (premium) */
+    :root{ --heroH: 0px; }
+
+    .tabsHead{
+      position: sticky;
+      top: calc(12px + var(--heroH));
+      z-index: 15;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    .tabsWrap{
+      overflow: visible; /* important : évite des effets chelous avec sticky dans un parent overflow hidden */
+    }
+
+
+    /* si ton hero est sticky, on décale les tabs juste en dessous du hero */
+    .stickyHero + .tabsWrap .tabsHead{
+      top: calc(50px + 86px); /* ≈ hauteur du hero (tu ajustes si besoin) */
+    }
+
+    /* IMPORTANT: réserve la place du sticky header pour éviter qu'il recouvre le contenu */
+    .tabsWrap .tab-content{
+      padding-top: 12px;          /* petit confort */
+    }
+
+    /* Option premium: petite ombre quand ça colle */
+    .tabsHead{
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+
+    @media (max-width: 992px){
+      .tabsHead{ top: 88px; }
+    }
+
+    .nav-pills .nav-link{
+      border-radius: 14px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .nav-pills .nav-link.active{
+      background: var(--theme-color-principal);
+      box-shadow: 0 10px 24px rgba(0,0,0,.10);
+      color: #fff;
+    }
+
+    /* ================== CARDS ================== */
+    .cardX{
+      background: var(--bs-body-bg);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+    }
+    .cardX-h{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+    }
+    .cardX-b{ padding:16px; }
+    .titleX{ display:flex; align-items:center; gap:10px; font-weight:900; margin:0; }
+    .titleX i{ color: var(--theme-color-secondaire); }
+    .cardX-h .actionsRight{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+    /* ================== TIMELINE ================== */
+    .timeline{ position:relative; padding-left: 18px; }
+    .timeline::before{
+      content:'';
+      position:absolute; left:7px; top:6px; bottom:6px; width:2px;
+      background: linear-gradient(to bottom, rgba(255,193,7,.55), rgba(15,35,54,.10));
+      border-radius:999px;
+    }
+    .tItem{
+      position:relative;
+      padding: 12px 12px 12px 14px;
+      border-radius: 16px;
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.70), rgba(255,255,255,.55));
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    .tItem:hover{
+      transform: translateY(-1px);
+      border-color: rgba(15,35,54,.16);
+      box-shadow: 0 14px 30px rgba(0,0,0,.08);
+    }
+    .tDot{
+      position:absolute; left:-18px; top:18px;
+      width:12px; height:12px; border-radius:999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px rgba(255,193,7,.18);
+    }
+    .tMeta{ font-size:12px; color: var(--muted); white-space:nowrap; }
+    .tBody{ margin-top:6px; color: var(--muted); }
+    .tActions .btn{ border-radius: 12px !important; }
+
+    /* ================== PLUGINS (z-index modals) ================== */
+    .ts-dropdown{ z-index: 2060 !important; }
+    .flatpickr-calendar{
+      border-radius:16px;
+      box-shadow:0 18px 40px rgba(0,0,0,.12);
+      border:1px solid rgba(0,0,0,.08);
+      z-index:2070 !important;
+    }
+
+    /* ================== MODALS PREMIUM ================== */
+    .modal-premium .modal-content{
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(15,35,54,.10);
+      box-shadow: 0 28px 80px rgba(0,0,0,.22);
+    }
+    .modal-premium .modal-header{
+      background: linear-gradient(135deg, rgba(35,51,66,.98), rgba(15,35,54,.86));
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .modal-premium .btn-close{ filter: invert(1); opacity:.9; }
+
+
+
+
+
+    /* Actions devis — version compacte */
+.devis-actions-compact .btn{
+  border-width: 1px;
+  padding: .35rem .55rem;
+  font-size: .85rem;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.devis-actions-compact .btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(0,0,0,.08);
+}
+
+.devis-actions-compact .btn:active{
+  transform: translateY(0);
+}
+
+/* Coins arrondis élégants */
+.devis-actions-compact .btn:first-child{
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+.devis-actions-compact .btn:last-child{
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+  </style>
+{% endblock %}
+
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3 px-lg-4 pageWrap">
+  {% set initials = ((p.prenom|default('')|slice(0,1)) ~ (p.nom|default('')|slice(0,1)))|upper %}
+
+
+  <div class="stickyHero">
+    <div class="stickyRow">
+      <div class="avatar">{{ initials ?: 'P' }}</div>
+
+      <div class="flex-grow-1">
+        <div class="small opacity-75">Prospect #{{ p.id }}</div>
+        <div class="fw-bold" style="font-size:18px;">{{ p.prenom }} {{ p.nom|upper }}</div>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          {% include 'administrateur/prospects/_status_badge.html.twig' with { p:p } %}
+          {% include 'administrateur/prospects/_score_chip.html.twig' with { p:p } %}
+          {% if p.nextActionAt %}
+            <span class="chip"><i class="bi bi-alarm"></i> {{ p.nextActionAt|date('d/m/Y H:i') }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-ghost btn-sm" href="{{ path('app_administrateur_prospect_index',{entite:entite.id}) }}">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+
+        <button class="btn btn-success btn-sm fw-semibold" type="button" id="btnOpenEmail">
+          <i class="bi bi-envelope"></i> Envoyer
+        </button>
+
+        <button class="btn btn-success btn-sm fw-semibold" type="button" onclick="prospectCreateDevis({{ p.id }})">
+          <i class="bi bi-file-earmark-text"></i> Devis
+        </button>
+          <input type="hidden" name="_token" value="{{ csrf_token('convert_prospect_' ~ p.id) }}">
+          {% if p.linkedUser %}
+            <span class="btn btn-success btn-sm fw-semibold">
+              <i class="bi bi-person-check"></i> Converti
+            </span>
+          {% else %}
+
+            {# ✅ Bouton -> ouvre la modale #}
+            <button
+              type="button"
+              class="btn btn-danger btn-sm fw-semibold"
+              data-bs-toggle="modal"
+              data-bs-target="#convertProspectModal"
+              {% if not p.email and not p.societe %}disabled{% endif %}
+            >
+              <i class="bi bi-arrow-repeat"></i> Convertir
+            </button>
+
+            {# ✅ Form réel (soumis depuis la modale) #}
+            <form id="convertProspectForm"
+                  method="post"
+                  action="{{ path('app_administrateur_prospect_convert', { entite: entite.id, id: p.id }) }}"
+                  class="d-none">
+              <input type="hidden" name="_token" value="{{ csrf_token('convert_prospect_' ~ p.id) }}">
+            </form>
+
+          {% endif %}
+
+        </form>
+
+        <a class="btn btn-ghost btn-sm" href="{{ path('app_administrateur_email_template_index',{entite:entite.id}) }}">
+          <i class="bi bi-envelope-check-fill"></i> Templates
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="tabsWrap mb-3">
+    <div class="tabsHead">
+      <ul class="nav nav-pills gap-2" id="prospectTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-histo" data-bs-toggle="pill" data-bs-target="#pane-histo" type="button" role="tab">
+            <i class="bi bi-clock-history me-1"></i> Intéractions
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-devis" data-bs-toggle="pill" data-bs-target="#pane-devis" type="button" role="tab">
+            <i class="bi bi-file-earmark-text me-1"></i> Devis
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-resume" data-bs-toggle="pill" data-bs-target="#pane-resume" type="button" role="tab">
+            <i class="bi bi-layout-text-window-reverse me-1"></i> Résumé
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="tab-content p-3">
+      {# ============ Intéractions ============ #}
+      <div class="tab-pane fade show active" id="pane-histo" role="tabpanel" aria-labelledby="tab-histo">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-clock-history"></i> Intéractions</h5>
+
+            <div class="actionsRight">
+              <span class="badge bg-light text-dark">{{ p.interactions|length }} entrée(s)</span>
+
+              <button class="btn btn-sm btn-warning fw-semibold" type="button" id="btnOpenInteractionModal">
+                <i class="bi bi-plus-circle"></i> Nouvelle interaction
+              </button>
+            </div>
+          </div>
+
+          <div class="cardX-b">
+            {% if p.interactions|length == 0 %}
+              <div class="text-muted">Aucune interaction.</div>
+            {% else %}
+              <div class="timeline d-flex flex-column gap-2">
+                {% for i in p.interactions %}
+                  <div class="tItem">
+                    <span class="tDot"></span>
+
+                    <div class="d-flex justify-content-between gap-2 align-items-start">
+                      <div class="fw-semibold d-flex flex-wrap align-items-center gap-2">
+                        <span class="badge {{ i.channel.badgeClass() }} me-1">
+                          <i class="bi {{ i.channel.icon() }} me-1"></i>
+                          {{ i.channel.label() }}
+                        </span>
+
+                        <span>{{ i.title }}</span>
+
+                        {% if i.actor or i.actorProspect %}
+                          <span class="badge bg-light text-dark border">
+                            <i class="bi bi-person-circle me-1"></i>
+                            {{ i.actor ? (i.actor.prenom ~ ' ' ~ i.actor.nom|upper) : i.actorProspect.fullName }}
+                          </span>
+                        {% endif %}
+
+                      </div>
+
+
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="tMeta">{{ i.occurredAt|date('d/m/Y H:i') }}</div>
+                        <div class="tActions d-flex gap-2">
+                          <a class="btn btn-sm btn-outline-primary"
+                             href="{{ path('app_administrateur_prospect_interaction_edit', { entite: entite.id, prospect: p.id, interaction: i.id }) }}">
+                            <i class="bi bi-pencil"></i>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    {% if i.content %}
+                      <div class="tBody">{{ i.content|nl2br }}</div>
+                    {% endif %}
+
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                      {% if i.emailLog %}
+                        <button class="btn btn-sm btn-outline-secondary"
+                                type="button"
+                                data-email-view-url="{{ path('app_administrateur_prospect_email_log_show', { entite: entite.id, prospect: p.id, id: i.emailLog.id }) }}"
+                                onclick="openEmailLog(this)">
+                          <i class="bi bi-eye"></i> Voir l’email
+                        </button>
+                      {% endif %}
+                      {% if i.devis %}
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{{ path('app_administrateur_devis_edit', { entite: entite.id, id: i.devis.id }) }}">
+                          <i class="bi bi-file-earmark-text"></i> Ouvrir le devis
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# ============ Devis ============ #}
+      <div class="tab-pane fade" id="pane-devis" role="tabpanel" aria-labelledby="tab-devis">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-file-earmark-text"></i> Devis envoyés</h5>
+            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> liés au prospect</span>
+          </div>
+          <div class="cardX-b">
+            <div class="table-responsive">
+              <table id="tableauProspectDevis" class="table table-hover align-middle mb-0" style="width:100%">
+                <thead>
+                <tr>
+                  <th style="width:70px">#</th>
+                  <th>Numéro</th>
+                  <th style="width:160px">Émis le</th>
+                  <th class="text-end" style="width:150px">TTC</th>
+                  <th style="width:160px">Statut</th>
+                  <th class="text-end" style="width:220px">Actions</th>
+                </tr>
+                </thead>
+                <tbody><tr><td colspan="6"></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ============ Résumé ============ #}
+      <div class="tab-pane fade" id="pane-resume" role="tabpanel" aria-labelledby="tab-resume">
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="cardX">
+              <div class="cardX-h">
+                <h5 class="titleX"><i class="bi bi-person-lines-fill"></i> Coordonnées</h5>
+              </div>
+              <div class="cardX-b">
+                <div class="mb-2">{% include 'administrateur/prospects/_contact_cell.html.twig' with { p:p } %}</div>
+                <div class="small text-muted">
+                  Créé le {{ p.createdAt|date('d/m/Y') }} — Maj {{ p.updatedAt|date('d/m/Y') }}
+                </div>
+                {% if p.notes %}
+                  <hr>
+                  <div class="fw-semibold mb-1">Notes</div>
+                  <div class="text-muted">{{ p.notes|nl2br }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="cardX">
+              <div class="cardX-h">
+                <h5 class="titleX"><i class="bi bi-info-circle"></i> Actions rapides</h5>
+              </div>
+              <div class="cardX-b">
+                <div class="d-grid gap-2">
+                  <button class="btn btn-warning fw-semibold" type="button" id="btnOpenInteractionModal2">
+                    <i class="bi bi-plus-circle"></i> Nouvelle interaction
+                  </button>
+                  <button class="btn btn-success fw-semibold" type="button" id="btnOpenEmail2">
+                    <i class="bi bi-envelope"></i> Envoyer un email
+                  </button>
+                </div>
+                <div class="small text-muted mt-2">
+                  Ajoute une interaction sans quitter la page.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# Zone où on injecte la modale email #}
+<div id="emailModalHost"></div>
+
+{# Modal email log #}
+<div class="modal fade" id="emailLogModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-envelope"></i> Email envoyé</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0" style="height:75vh;">
+        <iframe id="emailLogFrame" style="border:0; width:100%; height:100%;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Modal Nouvelle interaction #}
+<div class="modal fade modal-premium" id="interactionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-1"></i> Nouvelle interaction</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="interactionModalAlert" class="alert alert-danger d-none"></div>
+
+        <form id="interactionModalForm"
+              method="post"
+              action="{{ path('app_administrateur_prospect_interaction_create', { entite: entite.id, prospect: p.id }) }}">
+
+          {{ form_row(interactionForm._token) }}
+
+          <div class="col-12">
+            {{ form_row(interactionForm.actorMixed, {
+              attr: {
+                class: (interactionForm.actorMixed.vars.attr.class|default('') ~ ' js-tomselect-modal')|trim,
+                'data-default': interactionForm.actorMixed.vars.value|default('')
+              }
+            }) }}
+          </div>
+
+
+
+          <div class="row g-2">
+            <div class="col-12">
+              {{ form_row(interactionForm.channel, { attr: { class: (interactionForm.channel.vars.attr.class|default('')) ~ ' js-tomselect-modal' } }) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(interactionForm.title) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(interactionForm.occurredAt, { attr: { class: (interactionForm.occurredAt.vars.attr.class|default('')) ~ ' js-flatpickr-dt-modal' } }) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(interactionForm.content) }}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-warning fw-semibold" id="btnSaveInteraction">
+              <i class="bi bi-check2-circle"></i> Enregistrer
+            </button>
+          </div>
+        </form>
+
+        <div class="small text-muted mt-2">Après enregistrement, la timeline se met à jour.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+{% if not p.linkedUser %}
+<div class="modal fade modal-premium" id="convertProspectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-person-check me-2"></i> Convertir le prospect en client
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-3 align-items-start">
+          <div class="flex-shrink-0"
+               style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                      background: rgba(255,193,7,.18); border:1px solid rgba(255,193,7,.25);">
+            <i class="bi bi-exclamation-triangle" style="font-size:20px; color: var(--theme-color-secondaire);"></i>
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-semibold mb-1">
+              Tu es sur le point de convertir <span class="text-dark">{{ p.prenom }} {{ p.nom|upper }}</span>.
+            </div>
+
+            <ul class="small text-muted mb-0 ps-3">
+              <li>Le prospect sera marqué comme <strong>converti</strong> et désactivé.</li>
+              <li>L’historique (interactions, emails, devis) est <strong>conservé</strong>.</li>
+              <li>Si un client existe déjà, il pourra être <strong>associé</strong>.</li>
+            </ul>
+
+            {% if not p.email and not p.societe %}
+              <div class="alert alert-warning mt-3 mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                Conversion indisponible : il manque un email ou une société.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" value="1" id="confirmConvertCheck">
+          <label class="form-check-label small" for="confirmConvertCheck">
+            Je confirme vouloir convertir ce prospect.
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger fw-semibold" id="btnConfirmConvert"
+                {% if not p.email and not p.societe %}disabled{% endif %}>
+          <i class="bi bi-arrow-repeat me-1"></i> Convertir maintenant
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+<script>
+window.prospectCreateDevis = async function(id){
+  const url = "{{ path('app_administrateur_prospect_devis_create', { entite: entite.id, id: 0 }) }}".replace('/0/', '/' + id + '/');
+  const res = await fetch(url, { method:'POST', headers:{ 'X-Requested-With':'XMLHttpRequest' }});
+  const json = await res.json().catch(() => null);
+  if(json && json.redirect) window.location.href = json.redirect;
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+
+
+
+
+  const btnConfirmConvert = document.getElementById('btnConfirmConvert');
+  const chkConfirmConvert = document.getElementById('confirmConvertCheck');
+  const convertForm       = document.getElementById('convertProspectForm');
+
+  if (btnConfirmConvert && chkConfirmConvert && convertForm) {
+    const initiallyDisabled = btnConfirmConvert.disabled;
+
+    const syncBtn = () => {
+      if (initiallyDisabled) return; // conversion impossible -> on ne touche pas
+      btnConfirmConvert.disabled = !chkConfirmConvert.checked;
+    };
+
+    chkConfirmConvert.addEventListener('change', syncBtn);
+    syncBtn();
+
+    btnConfirmConvert.addEventListener('click', () => {
+      if (btnConfirmConvert.disabled) return;
+      convertForm.submit();
+    });
+  }
+
+
+
+  async function openEmailModal(){
+    const url = "{{ path('app_administrateur_prospect_email_modal', { entite: entite.id, prospect: p.id }) }}";
+    const res = await fetch(url, { headers: { 'X-Requested-With':'XMLHttpRequest' }});
+    const html = await res.text();
+    document.getElementById('emailModalHost').innerHTML = html;
+
+    const modalEl = document.getElementById('emailModal');
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+
+    modalEl.querySelectorAll('.js-tomselect').forEach(el => {
+      if (!el || el.tomselect) return;
+      new TomSelect(el, { create:false, allowEmptyOption:true, maxItems:1, plugins:['clear_button'] });
+    });
+
+    const templateSel = modalEl.querySelector('select[name$="[template]"]');
+    const toInput     = modalEl.querySelector('input[name$="[toEmail]"]');
+    const subjectInput= modalEl.querySelector('input[name$="[subject]"]');
+    const msgInput    = modalEl.querySelector('textarea[name$="[message]"]');
+
+    const previewZone = document.getElementById('emailPreviewZone');
+    const statusEl    = document.getElementById('emailSendStatus');
+
+    async function doPreview(){
+      const tplId = templateSel?.value;
+      if(!tplId){ previewZone.innerHTML = '<div class="text-muted">Choisis un modèle.</div>'; return; }
+
+      const fd = new URLSearchParams();
+      fd.set('templateId', tplId);
+      fd.set('subject', subjectInput?.value || '');
+      fd.set('message', msgInput?.value || '');
+      fd.set('to', toInput?.value || '');
+
+      const urlPreview = "{{ path('app_administrateur_prospect_email_preview', { entite: entite.id, prospect: p.id }) }}";
+      const r = await fetch(urlPreview, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' }});
+      const j = await r.json().catch(() => null);
+
+      if(!j || !j.ok){ previewZone.innerHTML = '<div class="text-danger">'+((j && j.error) ? j.error : 'Erreur preview')+'</div>'; return; }
+      if (j.subject && subjectInput) subjectInput.value = j.subject;
+      previewZone.innerHTML = j.html;
+    }
+
+    modalEl.querySelector('#btnPreview')?.addEventListener('click', doPreview);
+    templateSel?.addEventListener('change', doPreview);
+
+    let sendingEmail = false;
+    modalEl.querySelector('#btnSend')?.addEventListener('click', async (e) => {
+      const btnSend = e.currentTarget;
+      if (sendingEmail) return;
+      sendingEmail = true;
+
+      const oldHtml = btnSend.innerHTML;
+      btnSend.disabled = true;
+      btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Envoi…';
+      statusEl.textContent = '';
+
+      try{
+        const tplId = templateSel?.value;
+        if(!tplId){ statusEl.textContent = 'Choisis un modèle.'; return; }
+
+        const fd = new URLSearchParams();
+        fd.set('templateId', tplId);
+        fd.set('to', toInput?.value || '');
+        fd.set('subject', subjectInput?.value || '');
+        fd.set('message', msgInput?.value || '');
+        fd.set('idemKey', modalEl.querySelector('input[name$="[idemKey]"]')?.value || '');
+
+        const urlSend = "{{ path('app_administrateur_prospect_email_send', { entite: entite.id, prospect: p.id }) }}";
+        const r = await fetch(urlSend, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' }});
+        const j = await r.json().catch(() => null);
+
+        if(!j || !j.ok){ statusEl.textContent = (j && j.error) ? j.error : 'Erreur envoi'; return; }
+
+        statusEl.textContent = '✅ Email envoyé.';
+        setTimeout(() => bsModal.hide(), 600);
+        setTimeout(() => window.location.reload(), 900);
+      } finally {
+        sendingEmail = false;
+        btnSend.disabled = false;
+        btnSend.innerHTML = oldHtml;
+      }
+    });
+
+    await doPreview();
+  }
+
+  document.getElementById('btnOpenEmail')?.addEventListener('click', openEmailModal);
+  document.getElementById('btnOpenEmail2')?.addEventListener('click', openEmailModal);
+
+  // DataTable Devis (lazy init)
+  let devisDT = null;
+  const tabDevisBtn = document.getElementById('tab-devis');
+
+  function initDevisDT(){
+    if (devisDT) return;
+    const $table = $('#tableauProspectDevis');
+    if (!$table.length) return;
+
+    devisDT = $table.DataTable({
+      processing:true,
+      serverSide:true,
+      autoWidth:false,
+      searching:true,
+      lengthChange:true,
+      pageLength:10,
+      order:[[0,'desc']],
+      language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+      ajax:{ url:"{{ path('app_administrateur_prospect_devis_ajax', { entite: entite.id, prospect: p.id }) }}", type:"POST" },
+      columns:[ {data:'id'}, {data:'numero'}, {data:'dateEmission'}, {data:'ttc'}, {data:'status'}, {data:'actions'} ],
+      columnDefs:[
+        { targets:[0,1,2,3], render: $.fn.dataTable.render.text() },
+        { targets:[4,5], orderable:false, searchable:false, render: function(data, type){
+          if (type === 'display') return data || '';
+          return (data || '').toString().replace(/<[^>]*>/g,'').trim();
+        }},
+        { targets:3, className:'text-end' },
+        { targets:5, className:'text-end' },
+      ]
+    });
+  }
+
+  tabDevisBtn?.addEventListener('shown.bs.tab', initDevisDT);
+  if (tabDevisBtn?.classList.contains('active')) initDevisDT();
+
+  // Modal interaction
+  const btnOpenInteraction1 = document.getElementById('btnOpenInteractionModal');
+  const btnOpenInteraction2 = document.getElementById('btnOpenInteractionModal2');
+  const interactionModalEl  = document.getElementById('interactionModal');
+  const interactionModal    = interactionModalEl ? new bootstrap.Modal(interactionModalEl) : null;
+
+  let modalPluginsInitialized = false;
+
+  function resetInteractionModal(){
+    const alert = document.getElementById('interactionModalAlert');
+    if (alert){ alert.classList.add('d-none'); alert.textContent = ''; }
+
+    const formEl = document.getElementById('interactionModalForm');
+    formEl?.reset(); // ✅ remet les valeurs HTML initiales
+
+    // ✅ TomSelect : on remet la valeur par défaut (data-default) après reset
+    interactionModalEl?.querySelectorAll('.js-tomselect-modal').forEach(el => {
+      const ts = el?.tomselect;
+      if (!ts) return;
+
+      const def = (el.getAttribute('data-default') || '').trim();
+
+      ts.clear(true);
+      if (def !== '') ts.setValue(def, true); // true = silent
+    });
+
+    interactionModalEl?.querySelectorAll('.js-flatpickr-dt-modal').forEach(el => el?._flatpickr?.clear());
+  }
+
+
+  function initModalPluginsOnce(){
+    if (modalPluginsInitialized) return;
+
+    interactionModalEl?.querySelectorAll('.js-tomselect-modal').forEach(el => {
+      if (!el || el.tomselect) return;
+      new TomSelect(el, { create:false, allowEmptyOption:true, maxItems:1, plugins:['clear_button'] });
+    });
+
+    if (window.flatpickr) {
+      flatpickr.localize(flatpickr.l10ns.fr);
+      interactionModalEl?.querySelectorAll('.js-flatpickr-dt-modal').forEach(el => {
+        if (!el || el._flatpickr) return;
+        flatpickr(el, { enableTime:true, time_24hr:true, dateFormat:"d/m/Y H:i", allowInput:true, disableMobile:true });
+      });
+    }
+
+    modalPluginsInitialized = true;
+  }
+
+  function openInteractionModal(){
+    initModalPluginsOnce();
+    resetInteractionModal();
+    interactionModal?.show();
+  }
+
+  btnOpenInteraction1?.addEventListener('click', openInteractionModal);
+  btnOpenInteraction2?.addEventListener('click', openInteractionModal);
+
+  document.getElementById('interactionModalForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btnSave = document.getElementById('btnSaveInteraction');
+    const alert  = document.getElementById('interactionModalAlert');
+
+    const old = btnSave?.innerHTML;
+    btnSave.disabled = true;
+    btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    if (alert){ alert.classList.add('d-none'); alert.textContent = ''; }
+
+    try{
+      const fd = new FormData(e.currentTarget);
+      const res = await fetch(e.currentTarget.action, { method:'POST', body:fd, headers:{ 'X-Requested-With':'XMLHttpRequest' } });
+
+      if(!res.ok){
+        if (alert){ alert.textContent = 'Erreur lors de l’enregistrement.'; alert.classList.remove('d-none'); }
+        return;
+      }
+
+      interactionModal?.hide();
+      window.location.reload();
+    } catch(err){
+      if (alert){ alert.textContent = 'Erreur réseau. Réessaie.'; alert.classList.remove('d-none'); }
+    } finally {
+      btnSave.disabled = false;
+      btnSave.innerHTML = old || '<i class="bi bi-check2-circle"></i> Enregistrer';
+    }
+  });
+});
+
+window.openEmailLog = function(btn){
+  const url = btn.getAttribute('data-email-view-url');
+  document.getElementById('emailLogFrame').src = url;
+  new bootstrap.Modal(document.getElementById('emailLogModal')).show();
+};
+</script>
+{% endblock %}

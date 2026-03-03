@@ -1,0 +1,353 @@
+{# templates/administrateur/satisfaction/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Mes questionnaires de satisfaction{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .cardx{ background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 12px 30px rgba(0,0,0,.06); overflow:hidden; }
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme Sessions/facture) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* (optionnel) boutons comme Sessions */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+
+
+
+
+
+    /* =========================
+      ✅ Actions satisfaction (pill + split) — aligné avec questionnaires
+      ========================= */
+
+    .satisfaction-actions .btn{
+      padding: .28rem .50rem;
+    }
+
+    .satisfaction-actions .satisfaction-main{
+      background: rgba(255,255,255,.85);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    .satisfaction-actions .satisfaction-main:hover{
+      box-shadow: 0 14px 28px rgba(0,0,0,.10);
+      border-color: rgba(0,0,0,.18);
+    }
+
+    .satisfaction-actions .satisfaction-split{
+      padding-left: .50rem;
+      padding-right: .50rem;
+      border-color: rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+    }
+
+    .satisfaction-actions.btn-group .satisfaction-main{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .satisfaction-actions.btn-group .satisfaction-split{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      margin-left: -1px;
+      position: relative;
+    }
+    .satisfaction-actions.btn-group .satisfaction-split:before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:20%;
+      bottom:20%;
+      width:1px;
+      background: rgba(0,0,0,.10);
+    }
+
+    /* dropdown premium */
+    .satisfaction-actions .satisfaction-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .55rem;
+      background:
+        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        #fff;
+      overflow: hidden;
+    }
+    .satisfaction-actions .satisfaction-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .50rem .60rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+    }
+    .satisfaction-actions .satisfaction-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.22);
+    }
+
+    /* anti-clipping (menu flottant au-dessus des scrolls) */
+    body .satisfaction-floating-dropdown{ z-index: 20000 !important; }
+
+  </style>
+{% endblock %}
+
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+{% endblock %}
+
+
+{% block body %}
+
+
+  {# ===== HERO (comme Sessions/facture) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-emoji-smile me-2" style="color:var(--theme-color-secondaire)"></i>
+            Mes questionnaires de satisfaction
+          </h2>
+          <div class="opacity-75 mt-1">À compléter après la session (statut “Complété”).</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-emoji-smile"></i> Satisfaction</span>
+            <span class="chip"><i class="bi bi-ui-checks"></i> Questionnaires</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        {# Optionnel : zone actions (comme Sessions). Tu peux la supprimer si tu veux #}
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold" href="{{ path('app_administrateur_session_index', { entite: entite.id }) }}">
+            <i class="bi bi-easel2 me-1"></i> Sessions
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="cardx">
+    <div class="p-3 border-bottom fw-bold"><i class="bi bi-list-check"></i> Mes affectations</div>
+    <div class="p-3">
+      <table id="tableauSatisfaction" class="table align-middle mb-0 w-100">
+        <thead class="table-light">
+          <tr>
+            <th>Session</th>
+            <th>Formation</th>
+            <th>Statut</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+
+
+
+
+<script>
+$(function(){
+  $('#tableauSatisfaction').DataTable({
+    serverSide: true,
+    processing: true,
+    autoWidth: false,
+    scrollX: true,
+    scrollCollapse: true,
+    deferRender: true,
+
+    ajax: {
+      url: "{{ path('app_administrateur_satisfaction_ajax', { entite: entite.id }) }}",
+      type: "POST"
+    },
+
+    order: [[0,'asc']],
+
+    columns: [
+      { data: 'session' },
+      { data: 'formation' },
+      { data: 'status' },
+      { data: 'actions' },
+    ],
+
+    columnDefs: [
+      { targets: 3, className: 'text-end', orderable:false, searchable:false },
+      { targets: 2, className: 'text-center', searchable:false }
+    ],
+
+    language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' }
+  });
+});
+</script>
+
+
+
+
+<script>
+/* ✅ Dropdown actions satisfaction : menu flottant hors du scroll (anti-clipping) */
+(function enableSatisfactionActionsFloatingDropdown(){
+  document.addEventListener('show.bs.dropdown', function(e){
+    const toggle = e.target;
+    if (!toggle.closest('.satisfaction-actions')) return;
+
+    const dd = toggle.closest('.dropdown, .btn-group');
+    if (!dd) return;
+
+    const menu = dd.querySelector('.dropdown-menu');
+    if (!menu) return;
+
+    if (!menu.__originalParent) menu.__originalParent = dd;
+
+    document.body.appendChild(menu);
+    menu.classList.add('satisfaction-floating-dropdown');
+
+    const rect = toggle.getBoundingClientRect();
+
+    menu.style.position = 'absolute';
+    menu.style.top = '0px';
+    menu.style.left = '0px';
+    menu.style.display = 'block';
+
+    const menuRect = menu.getBoundingClientRect();
+    const top = rect.bottom + window.scrollY + 6;
+
+    let left = rect.right + window.scrollX - menuRect.width;
+    left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+  }, true);
+
+  document.addEventListener('hidden.bs.dropdown', function(e){
+    const toggle = e.target;
+    if (!toggle.closest('.satisfaction-actions')) return;
+
+    const dd = toggle.closest('.dropdown, .btn-group');
+    if (!dd) return;
+
+    document.querySelectorAll('body .satisfaction-floating-dropdown').forEach(menu => {
+      if (menu.__originalParent === dd) {
+        dd.appendChild(menu);
+        menu.classList.remove('satisfaction-floating-dropdown');
+        menu.style.position = '';
+        menu.style.top = '';
+        menu.style.left = '';
+        menu.style.display = '';
+      }
+    });
+  }, true);
+
+  window.addEventListener('scroll', () => {
+    document.querySelectorAll('.satisfaction-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+      .forEach(btn => btn.click());
+  }, true);
+
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.satisfaction-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+      .forEach(btn => btn.click());
+  }, true);
+})();
+</script>
+
+{% endblock %}

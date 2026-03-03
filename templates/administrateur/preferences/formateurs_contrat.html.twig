@@ -1,0 +1,612 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Préférences - Contrat formateur{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* look & feel identique à “formation/ajouter” */
+    .section-title{ font-weight:600; }
+    .text-theme-secondaire{ color: var(--theme-color-secondaire) !important; }
+    .bg-theme-tertiaire{ background: var(--theme-color-tertiaire) !important; }
+    .text-theme-quaternaire{ color: var(--theme-color-quaternaire) !important; }
+
+
+    /* form-floating + icon (safe for textarea) */
+    .form-icon{
+      pointer-events:none;
+      position:absolute;
+      left: .9rem;
+      top: .95rem;               /* ✅ en haut (pas top-50) */
+      z-index: 3;
+      opacity:.75;
+    }
+    .with-icon{
+      padding-left: 2.55rem !important;
+    }
+    .form-floating > .with-icon ~ label{
+      padding-left: 2.55rem !important;
+    }
+
+    /* textarea premium */
+    .pref-textarea{
+      min-height: 240px !important;
+      resize: vertical;
+    }
+
+    /* aide */
+    .help-card{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius: 1rem;
+      background: linear-gradient(180deg, rgba(35,51,66,.04), rgba(35,51,66,.01));
+    }
+    .help-kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:.85rem;
+      padding:.15rem .4rem;
+      border-radius:.4rem;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.7);
+    }
+
+    /* petits séparateurs visuels */
+    .subtle-divider{
+      border:0;
+      height:1px;
+      background: rgba(0,0,0,.08);
+      margin: 1rem 0;
+    }
+
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+{% endblock %}
+
+{% block body %}
+
+  {# Header #}
+  <div class="d-flex flex-wrap gap-2 justify-content-between align-items-start mb-3">
+    <div>
+      <h2 class="mb-1">
+        <i class="fa-solid fa-sliders text-theme-secondaire me-2"></i>
+        Préférences - Contrat formateur
+      </h2>
+      <div class="text-muted">
+        Formateurs → Contrat <span class="mx-1">•</span> <strong>{{ entite.nom }}</strong>
+      </div>
+    </div>
+
+    <a class="btn btn-secondary"
+       href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}">
+      <i class="fa fa-arrow-left me-1"></i> Retour contrats
+    </a>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { novalidate: 'novalidate' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-3 align-items-start">
+
+    {# =================== Col principale =================== #}
+    <div class="col-lg-8">
+
+      {# ====== CLAUSES (tous les nouveaux champs) ====== #}
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+          <i class="fa-solid fa-paragraph text-theme-secondaire me-2"></i>
+          Clauses par défaut (sections du PDF)
+        </div>
+
+        <div class="card-body">
+          <div class="row g-3">
+
+            {# Conditions générales #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-regular fa-file-lines text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurConditionsGeneralesDefault, {
+                  attr: {
+                    class: 'form-control rounded-3 shadow-sm with-icon pref-textarea',
+                    placeholder: 'Conditions générales (par défaut)'
+                  }
+                }) }}
+                <label for="{{ form.contratFormateurConditionsGeneralesDefault.vars.id }}">
+                  Conditions générales (par défaut)
+                </label>
+              </div>
+              <div class="form-text">
+                Ce texte pré-remplira automatiquement les nouveaux contrats formateur.
+              </div>
+              {{ form_errors(form.contratFormateurConditionsGeneralesDefault) }}
+            </div>
+
+            {# Conditions particulières #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-pen-nib text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurConditionsParticulieresDefault, {
+                  attr: {
+                    class: 'form-control rounded-3 shadow-sm with-icon pref-textarea',
+                    placeholder: 'Conditions particulières (par défaut)'
+                  }
+                }) }}
+                <label for="{{ form.contratFormateurConditionsParticulieresDefault.vars.id }}">
+                  Conditions particulières (par défaut)
+                </label>
+              </div>
+              <div class="form-text">
+                Pré-rempli à la création, puis modifiable contrat par contrat.
+              </div>
+              {{ form_errors(form.contratFormateurConditionsParticulieresDefault) }}
+            </div>
+
+
+      
+
+            {# 1 – Engagement #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-handshake text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseEngagementDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 1 – Engagement' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseEngagementDefault.vars.id }}">Clause 1 – Engagement</label>
+              </div>
+              <div class="form-text">Texte affiché dans la section “1 – Engagement”.</div>
+              {{ form_errors(form.contratFormateurClauseEngagementDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 2 – Emploi - Qualification - Lieu #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-bullseye text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseEmploiDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 2 – EMPLOI - QUALIFICATION - LIEU' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseEmploiDefault.vars.id }}">Clause 2 – Emploi - Qualification - Lieu</label>
+              </div>
+              <div class="form-text">Texte affiché dans la section “2 – Emploi - Qualification - Lieu”.</div>
+              {{ form_errors(form.contratFormateurClauseEmploiDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 3 – Objet / durée / spécificités #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-bullseye text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseObjetDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 3 – Objet, durée, spécificités' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseObjetDefault.vars.id }}">Clause 3 – Objet, durée et spécificités</label>
+              </div>
+              <div class="form-text">Texte affiché dans la section “3 – Objet, durée et spécificités du contrat”.</div>
+              {{ form_errors(form.contratFormateurClauseObjetDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 5 – Obligations #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-list-check text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseObligationsDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 5 – Obligations professionnelles' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseObligationsDefault.vars.id }}">Clause 5 – Obligations professionnelles</label>
+              </div>
+              <div class="form-text">Si tu mets du texte ici, il remplace la liste par défaut dans le PDF.</div>
+              {{ form_errors(form.contratFormateurClauseObligationsDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 6 – Non concurrence #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-shield-halved text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseNonConcurrenceDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 6 – Non-concurrence / non-sollicitation' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseNonConcurrenceDefault.vars.id }}">Clause 6 – Non-concurrence et non-sollicitation</label>
+              </div>
+              {{ form_errors(form.contratFormateurClauseNonConcurrenceDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 7 – Inexécution #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-triangle-exclamation text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseInexecutionDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 7 – Inexécution / résiliation' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseInexecutionDefault.vars.id }}">Clause 7 – Inexécution / résiliation</label>
+              </div>
+              {{ form_errors(form.contratFormateurClauseInexecutionDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 8 – Assurance #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-file-shield text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseAssuranceDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 8 – Assurance' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseAssuranceDefault.vars.id }}">Clause 8 – Assurance</label>
+              </div>
+              {{ form_errors(form.contratFormateurClauseAssuranceDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 9 – Fin de contrat #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-flag-checkered text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseFinContratDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 9 – Fin de contrat' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseFinContratDefault.vars.id }}">Clause 9 – Fin de contrat</label>
+              </div>
+              {{ form_errors(form.contratFormateurClauseFinContratDefault) }}
+            </div>
+
+            <hr class="subtle-divider">
+
+            {# 10 – Propriété intellectuelle #}
+            <div class="col-12">
+              <div class="form-floating position-relative">
+                <i class="fa-solid fa-copyright text-muted form-icon"></i>
+                {{ form_widget(form.contratFormateurClauseProprieteIntellectuelleDefault, {
+                  attr: { class: 'form-control rounded-3 shadow-sm with-icon pref-textarea', placeholder: 'Clause 10 – Propriété intellectuelle' }
+                }) }}
+                <label for="{{ form.contratFormateurClauseProprieteIntellectuelleDefault.vars.id }}">Clause 10 – Propriété intellectuelle</label>
+              </div>
+              {{ form_errors(form.contratFormateurClauseProprieteIntellectuelleDefault) }}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# ====== ACTIONS ====== #}
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <a href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}" class="btn btn-secondary">
+          <i class="fa fa-arrow-left me-1"></i> Retour
+        </a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa fa-check me-1"></i> Enregistrer
+        </button>
+      </div>
+
+    </div>
+
+    {# =================== Sidebar aide =================== #}
+    <div class="col-lg-4">
+      {% set prefs = entite.preferences ?? null %}
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title d-flex justify-content-between align-items-center">
+            <div>
+              <i class="fa-solid fa-signature text-theme-secondaire me-2"></i>
+              Signature organisme
+            </div>
+
+            {% if prefs and prefs.signatureOrganismePath %}
+              <span class="badge text-bg-success">Configurée</span>
+            {% else %}
+              <span class="badge text-bg-warning">Manquante</span>
+            {% endif %}
+          </div>
+
+          <div class="card-body">
+            <div class="small text-muted mb-2">
+              Cette signature sera injectée automatiquement dans le PDF “Lettre de mission”.
+            </div>
+
+            <div id="sigPreviewWrap" class="border rounded-3 p-2 bg-white">
+              {% if prefs and prefs.signatureOrganismePath %}
+                <img id="sigPreviewImg"
+                  src="{{ app.request.basePath ~ prefs.signatureOrganismePath }}"
+                  alt="Signature organisme"
+                  style="max-width:100%; max-height:120px; display:block; margin:0 auto;">
+
+                <div class="small text-muted mt-2 text-center">
+                  {% if prefs.signatureOrganismeNom %}<strong>{{ prefs.signatureOrganismeNom }}</strong>{% endif %}
+                  {% if prefs.signatureOrganismeFonction %}<div>{{ prefs.signatureOrganismeFonction }}</div>{% endif %}
+                  {% if prefs.signatureOrganismeAt %}
+                    <div>Configurée le {{ prefs.signatureOrganismeAt|date('d/m/Y H:i') }}</div>
+                  {% endif %}
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-4">
+                  <i class="fa-regular fa-pen-to-square fa-2x mb-2"></i>
+                  <div>Aucune signature enregistrée</div>
+                </div>
+                <img id="sigPreviewImg" src="" alt="" style="display:none;">
+              {% endif %}
+            </div>
+
+            <div class="d-grid gap-2 mt-3">
+              <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signatureOrganismeModal">
+                <i class="fa-solid fa-pen-nib me-1"></i> Signer / Mettre à jour
+              </button>
+            </div>
+          </div>
+        </div>
+
+
+      
+
+      <div class="help-card p-3 shadow-sm mb-3">
+        <div class="fw-semibold mb-2">
+          <i class="fa-solid fa-circle-info text-theme-secondaire me-2"></i>
+          Conseils de rédaction
+        </div>
+
+        <ul class="mb-0 small">
+          <li class="mb-2">
+            Structure tes textes avec des titres : <span class="help-kbd">1 – …</span>, <span class="help-kbd">2 – …</span>.
+          </li>
+          <li class="mb-2">
+            Évite le copier-coller Word : préfère du texte simple (les sauts de ligne seront conservés dans le PDF).
+          </li>
+          <li class="mb-2">
+            Les clauses “variables” (frais, non-concurrence, délais…) → mets-les plutôt en “conditions particulières”.
+          </li>
+          <li>
+            Ces champs servent de base : chaque contrat pourra être ajusté ensuite.
+          </li>
+        </ul>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+          <i class="fa-solid fa-wand-magic-sparkles text-theme-secondaire me-2"></i>
+          Où ça s’affiche ?
+        </div>
+        <div class="card-body small">
+          <p class="mb-2">
+            Dans le PDF “Lettre de mission”, tes textes seront injectés dans les sections correspondantes :
+          </p>
+          <ul class="mb-0">
+            <li><strong>Conditions générales</strong> / <strong>Conditions particulières</strong></li>
+            <li><strong>Engagement</strong>, <strong>Objet</strong>, <strong>Obligations</strong>…</li>
+          </ul>
+          <div class="mt-2 text-muted">
+            Si un champ est vide, le PDF garde le texte “par défaut” codé dans le template.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+
+
+<div class="modal fade" id="signatureOrganismeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-signature text-theme-secondaire me-2"></i>
+          Signature organisme
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-lg-7">
+            <div class="border rounded-3 p-2 bg-light">
+              <canvas id="sigCanvas" style="width:100%; height:220px; background:white; border-radius:12px;"></canvas>
+            </div>
+
+            <div class="d-flex gap-2 mt-2">
+              <button type="button" class="btn btn-outline-secondary" id="sigClearBtn">
+                <i class="fa-solid fa-eraser me-1"></i> Effacer
+              </button>
+              <div class="ms-auto small text-muted d-flex align-items-center">
+                Signe à la souris / tactile
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-5">
+            <div class="form-floating mb-2">
+              <input type="text" class="form-control" id="sigNom" placeholder="Nom" value="{{ prefs ? (prefs.signatureOrganismeNom ?? '') : '' }}">
+              <label for="sigNom">Nom affiché</label>
+            </div>
+
+            <div class="form-floating mb-2">
+              <input type="text" class="form-control" id="sigFonction" placeholder="Fonction" value="{{ prefs ? (prefs.signatureOrganismeFonction ?? '') : '' }}">
+              <label for="sigFonction">Fonction affichée</label>
+            </div>
+
+            <div class="alert alert-info small mb-0">
+              <div class="fw-semibold mb-1">Astuce</div>
+              La signature est enregistrée dans les préférences de l’entité et sera utilisée par défaut
+              sur tous les contrats (sauf si tu mets une signature spécifique dans le contrat).
+            </div>
+          </div>
+        </div>
+
+        <div id="sigError" class="alert alert-danger mt-3 d-none"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Annuler
+        </button>
+        <button type="button" class="btn btn-primary" id="sigSaveBtn">
+          <i class="fa-solid fa-floppy-disk me-1"></i> Enregistrer la signature
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('sigCanvas');
+  if (!canvas) return;
+
+  // canvas "retina"
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let last = null;
+
+  function resizeCanvas() {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * ratio);
+    canvas.height = Math.floor(rect.height * ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+    // style
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#111';
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches && e.touches[0] ? e.touches[0] : null;
+    const clientX = touch ? touch.clientX : e.clientX;
+    const clientY = touch ? touch.clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
+  function start(e) {
+    drawing = true;
+    last = getPos(e);
+  }
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last = p;
+  }
+  function stop() {
+    drawing = false;
+    last = null;
+  }
+
+  // events
+  const modalEl = document.getElementById('signatureOrganismeModal');
+  modalEl.addEventListener('shown.bs.modal', () => {
+    resizeCanvas();
+  });
+
+  window.addEventListener('resize', () => {
+    // si modal ouvert, on resize
+    if (modalEl.classList.contains('show')) resizeCanvas();
+  });
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', stop);
+
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  window.addEventListener('touchend', stop);
+
+  document.getElementById('sigClearBtn').addEventListener('click', () => {
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    hideError();
+  });
+
+  function showError(msg) {
+    const box = document.getElementById('sigError');
+    box.textContent = msg;
+    box.classList.remove('d-none');
+  }
+  function hideError() {
+    document.getElementById('sigError').classList.add('d-none');
+  }
+
+  function isCanvasEmpty() {
+    // check pixels
+    const w = canvas.width, h = canvas.height;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] !== 0) return false;
+    }
+    return true;
+  }
+
+  document.getElementById('sigSaveBtn').addEventListener('click', async () => {
+    hideError();
+
+    if (isCanvasEmpty()) {
+      showError("Merci de signer dans la zone avant d'enregistrer.");
+      return;
+    }
+
+    // Export en PNG (dataURL)
+    const dataUrl = canvas.toDataURL('image/png');
+
+    const nom = (document.getElementById('sigNom').value || '').trim();
+    const fonction = (document.getElementById('sigFonction').value || '').trim();
+
+    const body = new URLSearchParams();
+    body.set('dataUrl', dataUrl);
+    body.set('nom', nom);
+    body.set('fonction', fonction);
+
+    try {
+      const res = await fetch("{{ path('app_administrateur_preferences_formateurs_contrat_signature', { entite: entite.id }) }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body.toString()
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        showError(json.message || "Erreur lors de l'enregistrement.");
+        return;
+      }
+
+      // update preview
+      const img = document.getElementById('sigPreviewImg');
+      img.src = (json.publicUrl || json.publicPath) + '?v=' + Date.now();
+      img.style.display = 'block';
+
+      const wrap = document.getElementById('sigPreviewWrap');
+      // si tu veux, tu peux reconstruire le bloc de texte proprement, mais on fait simple :
+      // on force un reload partiel : au minimum l'image se met à jour
+
+      // close modal
+      const bsModal = bootstrap.Modal.getInstance(modalEl);
+      bsModal.hide();
+
+    } catch (e) {
+      showError("Erreur réseau lors de l'enregistrement.");
+    }
+  });
+})();
+</script>
+
+{% endblock %}

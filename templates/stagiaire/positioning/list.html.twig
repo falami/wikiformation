@@ -1,0 +1,440 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Mes positionnements{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+
+<style>
+/* ================= THEME TOKENS ================= */
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  --ink:#0f2336; --ink-2:#28435a; --muted:#6f8897;
+  --card:#ffffff; --card-2:#f8fbfe; --line:#e6eef5;
+  --radius:1.15rem; --ring:0 14px 48px rgba(15,35,54,.12);
+  --sand: color-mix(in oklab, var(--theme-color-tertiaire) 70%, white 30%);
+}
+
+/* ================= GLOBAL ================= */
+body{ color:var(--ink); }
+.section-card{
+  background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow: var(--ring);
+}
+.section-card .card-header{
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border-bottom:1px solid var(--line);
+  border-top-left-radius:var(--radius); border-top-right-radius:var(--radius);
+}
+.section-title{ font-weight:900; letter-spacing:.2px; }
+
+/* ================= HERO (comme tes pages) ================= */
+.hero{
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,.14);
+  background:
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  opacity:.85;
+}
+.hero .accent{
+  width: 12px;
+  border-radius: 999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+}
+.hero .chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.32rem .7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size:.82rem;
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.hero .chip i{ color: var(--theme-color-secondaire); }
+.hero .chip--pill{
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+  color:#fff;
+}
+.hero .btn-outline-theme{
+  border-color: rgba(255,255,255,.35);
+  color:#fff;
+}
+.hero .btn-outline-theme:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  color:#fff;
+}
+
+/* ================= KPI ================= */
+.kpi{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:1rem 1.1rem;
+  box-shadow: var(--ring);
+}
+.kpi-ico{
+  width:44px; height:44px;
+  border-radius:14px;
+  display:grid; place-items:center;
+  flex:0 0 auto;
+  background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+  color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+  font-size:1.15rem;
+}
+.kpi .label{ color:var(--muted); font-size:.82rem; font-weight:800; }
+.kpi .value{ font-weight:950; font-size:1.65rem; line-height:1.05; }
+
+/* ================= TOOLBAR ================= */
+.toolbar{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:.85rem;
+  box-shadow: var(--ring);
+}
+.pill{
+  display:inline-flex; align-items:center; gap:.4rem;
+  border:1px solid var(--line);
+  background: var(--card);
+  border-radius:999px;
+  padding:.35rem .65rem;
+  font-weight:900; font-size:.85rem;
+}
+.pill i{ opacity:.9; }
+.soft-badge{
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 38%, white 62%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 10%, white 90%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
+  border-radius:999px; padding:.32rem .6rem; font-weight:900; font-size:.82rem;
+}
+
+/* ================= DATATABLES PREMIUM ================= */
+.table-card{
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--ring);
+  overflow: hidden;
+}
+table.dataTable{ margin:0 !important; width:100% !important; }
+table.dataTable thead th{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, var(--card-2), var(--card)) !important;
+  border-bottom:1px solid var(--line) !important;
+  color: var(--ink-2) !important;
+  font-weight:950 !important;
+  letter-spacing:.06em;
+  text-transform: uppercase;
+  font-size:.78rem;
+}
+table.dataTable tbody tr{ transition: background .15s ease; }
+table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%, white 65%); }
+table.dataTable tbody td{ padding:.85rem .85rem !important; vertical-align: middle; }
+
+.dataTables_wrapper .dataTables_filter input{
+  border:1px solid var(--line) !important;
+  border-radius:999px !important;
+  padding:.45rem .85rem !important;
+  background:var(--card-2) !important;
+}
+.dataTables_wrapper .dataTables_length select{
+  border:1px solid var(--line) !important;
+  border-radius:999px !important;
+  padding:.35rem .7rem !important;
+  background:var(--card) !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button{
+  border-radius: .75rem !important;
+}
+
+.dt-top{
+  padding: .9rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+.dt-bottom{
+  padding: .9rem 1rem;
+  border-top: 1px solid var(--line);
+  background: var(--card);
+}
+
+/* badges */
+.badge-pill{
+  display:inline-flex; align-items:center; gap:.35rem;
+  border-radius:999px;
+  padding:.28rem .6rem;
+  font-weight:900;
+  font-size:.8rem;
+}
+.badge-success{
+  background: color-mix(in oklab,#22c55e 18%,white 82%);
+  color: color-mix(in oklab,#16a34a 70%,black 30%);
+  border:1px solid color-mix(in oklab,#22c55e 35%,white 65%);
+}
+.badge-muted{
+  background: color-mix(in oklab,#64748b 14%,white 86%);
+  color: color-mix(in oklab,#334155 70%,black 30%);
+  border:1px solid color-mix(in oklab,#64748b 28%,white 72%);
+}
+.badge-warn{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 18%, white 82%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 35%, white 65%);
+}
+
+/* actions button */
+.btn-action{
+  display:inline-flex; align-items:center; gap:.45rem;
+  border-radius:.9rem;
+  font-weight:900;
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 45%, white 55%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 18%, white 82%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
+}
+.btn-action:hover{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 24%, white 76%);
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+{# ================= HERO ================= #}
+<div class="hero p-3 mb-4 d-flex gap-3">
+  <div class="accent"></div>
+
+  <div class="flex-grow-1">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+      <div>
+        <h2 class="m-0 fw-bold">
+          <i class="bi bi-ui-checks-grid me-2" style="color:var(--theme-color-secondaire)"></i>
+          Mes positionnements
+        </h2>
+        <div class="opacity-75 mt-1">Questionnaires disponibles pour vos sessions (ou assignés directement).</div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <span class="chip"><i class="bi bi-ui-checks-grid"></i> Positionnements</span>
+          <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+          <span class="chip"><i class="bi bi-mortarboard"></i> Stagiaire</span>
+          <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ path('app_stagiaire_positioning_list', { entite: entite.id }) }}"
+           class="btn btn-outline-theme btn-sm fw-semibold">
+          <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include 'flagMessage.html.twig' %}
+
+{# ================= KPI ================= #}
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico"><i class="bi bi-files"></i></div>
+      <div>
+        <div class="label">Questionnaires</div>
+        <div class="value" id="kpi-total">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico"><i class="bi bi-hourglass-split"></i></div>
+      <div>
+        <div class="label">À faire</div>
+        <div class="value" id="kpi-todo">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico"><i class="bi bi-check2-circle"></i></div>
+      <div>
+        <div class="label">Soumis</div>
+        <div class="value" id="kpi-done">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico"><i class="bi bi-exclamation-triangle"></i></div>
+      <div>
+        <div class="label">Requis</div>
+        <div class="value" id="kpi-required">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================= TOOLBAR ================= #}
+<div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4">
+  <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+    <span class="pill"><i class="bi bi-funnel"></i> Statut</span>
+    <select id="statusFilter" class="form-select form-select-sm" style="max-width:220px;">
+      <option value="all">Tous</option>
+      <option value="todo">À faire</option>
+      <option value="done">Soumis</option>
+    </select>
+
+    <span class="soft-badge ms-1"><i class="bi bi-search"></i> Recherche dans la table</span>
+  </div>
+
+  <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
+    <i class="bi bi-arrow-counterclockwise"></i> Reset
+  </button>
+</div>
+
+{# ================= TABLE ================= #}
+<div class="table-card">
+  <div class="table-responsive">
+    <table id="table-positioning" class="table table-hover align-middle mb-0 w-100">
+      <thead>
+        <tr>
+          <th style="width:140px;">Session</th>
+          <th>Questionnaire</th>
+          <th style="width:190px;">Début</th>
+          <th style="width:220px;">Soumis</th>
+          <th class="text-end" style="width:170px;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+
+<script>
+$(function(){
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' +
+      d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  $('#hero-last-refresh').text('Maj : ' + nowLabel());
+
+  const table = $('#table-positioning').DataTable({
+    serverSide: true,
+    processing: true,
+    ajax: { url: "{{ path('app_stagiaire_positioning_ajax', { entite: entite.id }) }}", type:'POST' },
+    columns: [
+      { data:'session' },
+      { data:'questionnaire' },
+      { data:'startedAt' },
+      { data:'submitted' },
+      { data:'action', orderable:false, searchable:false, className:'text-end' },
+    ],
+    order: [[2,'desc']],
+    language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+  });
+
+  function updateKpis(){
+    const nodes = table.rows({ filter: 'applied' }).nodes().toArray();
+
+    let total = 0, todo = 0, done = 0, required = 0;
+
+    nodes.forEach(tr=>{
+      total++;
+      const isDone = Number(tr.dataset.done || 0);
+      const isReq  = Number(tr.dataset.required || 0);
+
+      if(isDone) done++; else todo++;
+      if(isReq) required++;
+    });
+
+    $('#kpi-total').text(total);
+    $('#kpi-todo').text(todo);
+    $('#kpi-done').text(done);
+    $('#kpi-required').text(required);
+  }
+
+  updateKpis();
+
+  // filtre statut
+  $('#statusFilter').on('change', function(){
+    const v = this.value;
+
+    // on remet le filtre custom
+    $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(fn => !fn.__posFilter);
+
+    if(v !== 'all'){
+      const fn = function(settings, data, dataIndex){
+        const tr = table.row(dataIndex).node();
+        const isDone = Number(tr.dataset.done || 0);
+        return (v === 'done') ? (isDone === 1) : (isDone === 0);
+      };
+      fn.__posFilter = true;
+      $.fn.dataTable.ext.search.push(fn);
+    }
+
+    table.draw();
+  });
+
+  $('#btnReset').on('click', function(){
+    $('#statusFilter').val('all');
+    table.search('').draw();
+  });
+
+});
+</script>
+{% endblock %}

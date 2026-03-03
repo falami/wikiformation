@@ -1,0 +1,1473 @@
+{# templates/public/formation/show.html.twig #}
+{% extends 'base_public.html.twig' %}
+
+{% block title %}{{ metaTitle|default(formation.titre ~ ' — Formation voile') }}{% endblock %}
+{% block meta_description %}{{ metaDesc|default('Découvrez nos formations voile : niveaux, pédagogie, formateur, engin et prochaines sessions.') }}{% endblock %}
+
+
+{% block stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  :root{
+    --bg:#f3f6fb;
+    --panel:#ffffff;
+    --ink:#111827;
+    --muted:#6b7280;
+    --cta:#2563eb;              /* bleu bouton */
+    --cta-soft:#eff6ff;
+    --badge:#f3f4ff;
+    --card:#ffffff;
+    --card-2:#f9fafb;
+    --stroke:#e2e8f0;
+    --stroke-strong:#d1d5db;
+  }
+
+  body{
+    background:var(--bg);
+    color:var(--ink);
+  }
+
+  /* ---------- HERO GLOBAL ---------- */
+  .hero-shell{
+    padding-top:2rem;
+    padding-bottom:1rem;
+  }
+
+  .hero-breadcrumb{
+    font-size:.9rem;
+    color:var(--muted);
+    margin-bottom:.75rem;
+  }
+  .hero-breadcrumb a{
+    color:inherit;
+    text-decoration:none;
+  }
+  .hero-breadcrumb a:hover{
+    text-decoration:underline;
+  }
+
+  /* ---------- CARTE HERO GAUCHE ---------- */
+  .hero-main-card{
+    position:relative;
+    border-radius:18px;
+    overflow:hidden;
+    background:radial-gradient(circle at 0 0,#1d4ed8 0,#1e293b 35%,#020617 90%);
+    color:#f9fafb;
+    box-shadow:0 18px 40px rgba(15,23,42,.28);
+    padding:1.25rem 1.5rem 1.5rem;
+  }
+
+  .hero-main-top{
+    display:flex;
+    align-items:flex-start;
+    gap:1.25rem;
+  }
+
+  .hero-main-logo{
+    flex:0 0 72px;
+    height:72px;
+    border-radius:18px;
+    overflow:hidden;
+    background:#ffffff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .hero-main-logo img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:cover;
+  }
+
+  .hero-main-meta small{
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    font-size:.72rem;
+    color:rgba(248,250,252,.8);
+  }
+
+  .hero-title{
+    font-weight:800;
+    font-size:clamp(1.6rem,3vw,2.4rem);
+    line-height:1.1;
+    margin-bottom:.25rem;
+  }
+
+  .hero-sub{
+    font-size:.95rem;
+    color:rgba(226,232,240,.9);
+  }
+
+  .hero-main-bottom{
+    display:flex;
+    flex-wrap:wrap;
+    gap:.75rem 1.25rem;
+    margin-top:1.1rem;
+    padding-top:.9rem;
+    border-top:1px solid rgba(148,163,184,.45);
+    font-size:.82rem;
+  }
+
+  .hero-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:.4rem;
+    padding:.25rem .7rem;
+    border-radius:999px;
+    background:rgba(15,23,42,.75);
+    color:#e5e7eb;
+  }
+  .hero-pill i{font-size:.9rem;}
+
+  /* ---------- CARTE PRIX DROITE ---------- */
+  .hero-price-card{
+    position:relative;
+    border-radius:18px;
+    background:var(--panel);
+    box-shadow:0 18px 40px rgba(15,23,42,.12);
+    border:1px solid var(--stroke);
+    padding:1.4rem 1.5rem;
+  }
+
+  .hero-price-title{
+    font-weight:600;
+    font-size:1.05rem;
+    margin-bottom:.4rem;
+  }
+
+  .hero-price{
+    font-size:1.9rem;
+    font-weight:800;
+    color:#dc2626;
+  }
+  .hero-price small{
+    font-size:.85rem;
+    font-weight:500;
+    color:var(--muted);
+  }
+
+  .hero-price-card .btn-primary{
+    background:var(--cta);
+    border-color:var(--cta);
+    font-weight:600;
+    border-radius:999px;
+    padding:.8rem 1.1rem;
+    width:100%;
+    margin:.9rem 0 .8rem;
+  }
+  .hero-price-card .btn-primary:hover{
+    filter:brightness(1.05);
+  }
+
+  .hero-price-help{
+    font-size:.8rem;
+    color:var(--muted);
+    margin-bottom:.6rem;
+  }
+
+  .hero-price-list{
+    list-style:none;
+    padding:0;
+    margin:0 0 .5rem;
+    font-size:.85rem;
+  }
+  .hero-price-list li{
+    display:flex;
+    align-items:flex-start;
+    gap:.4rem;
+    padding:.2rem 0;
+  }
+  .hero-price-list i{
+    color:#16a34a;
+    margin-top:.15rem;
+  }
+
+  .hero-tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:.25rem;
+    margin-top:.4rem;
+  }
+  .hero-tag{
+    border-radius:999px;
+    padding:.15rem .6rem;
+    font-size:.75rem;
+    background:var(--cta-soft);
+    color:#1d4ed8;
+    border:1px solid #bfdbfe;
+  }
+
+  /* ---------- 3 CARTES AVANTAGES ---------- */
+  .benefits-row{
+    margin-top:1.75rem;
+  }
+  .benefit-card{
+    border-radius:16px;
+    background:var(--panel);
+    border:1px solid var(--stroke);
+    padding:1.1rem 1.2rem;
+    box-shadow:0 10px 26px rgba(15,23,42,.06);
+    height:100%;
+  }
+  .benefit-icon{
+    width:40px;
+    height:40px;
+    border-radius:999px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--badge);
+    color:#1d4ed8;
+    margin-bottom:.6rem;
+  }
+  .benefit-title{
+    font-weight:600;
+    margin-bottom:.15rem;
+  }
+  .benefit-text{
+    font-size:.9rem;
+    color:var(--muted);
+  }
+
+  /* ===== Cartes globales + contenu ===== */
+  .card-premium{
+    background:var(--card);
+    border:1px solid var(--stroke);
+    border-radius:18px;
+    box-shadow:0 12px 30px rgba(15,23,42,.04);
+  }
+
+  .subcard{
+    background:var(--card-2);
+    border:1px solid var(--stroke);
+    border-radius:14px;
+  }
+
+  .section-title{
+    font-weight:600;
+    margin-bottom:.25rem;
+  }
+  .section-subtitle{
+    font-size:.9rem;
+    color:var(--muted);
+  }
+
+  .btn-cta{
+    background:var(--cta);
+    border:none;
+    border-radius:999px;
+    color:#fff;
+    font-weight:600;
+    padding:.8rem 1.1rem;
+  }
+
+  .gallery-img{
+    border-radius:12px;
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .gallery-img:hover{
+    transform:translateY(-2px);
+    box-shadow:0 8px 18px rgba(15,23,42,.18);
+  }
+
+  .table-sessions td,
+  .table-sessions th{
+    vertical-align:middle;
+  }
+
+  .badge-soft-code{ font-size: x-small !important; }
+
+  /* ===== Sessions (≤575.98px): cards claires ===== */
+  @media (max-width: 575.98px){
+    .hero-main-card,
+    .hero-price-card{
+      border-radius:16px;
+    }
+
+    .table-sessions thead{ display:none; }
+    .table-sessions{ border-collapse:separate; border-spacing:0 1rem; }
+
+    .table-sessions tbody tr{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "dates  dates"
+        "route  route"
+        "code   code"
+        "places price"
+        "action action";
+      gap:.65rem 1rem;
+      padding:1rem .95rem;
+      background:#ffffff;
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      box-shadow:0 10px 24px rgba(15,23,42,.06);
+    }
+
+    .table-sessions tbody td{
+      background:transparent !important;
+      border:0 !important;
+      padding:0 !important;
+      margin:0;
+      color:var(--ink) !important;
+    }
+
+    .table-sessions tbody td:nth-child(1){ grid-area:dates; }
+    .table-sessions tbody td:nth-child(2){ grid-area:route; }
+    .table-sessions tbody td:nth-child(3){ grid-area:code; }
+    .table-sessions tbody td:nth-child(4){ grid-area:price; text-align:right; }
+    .table-sessions tbody td:nth-child(5){ grid-area:places; }
+    .table-sessions tbody td:nth-child(6){ grid-area:action; }
+
+    .table-sessions tbody td::before{
+      content:attr(data-label);
+      display:block;
+      font-size:.72rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color:var(--muted);
+      margin-bottom:.25rem;
+    }
+
+    .table-sessions .badge-soft{
+      background:#f3f4f6;
+      border:1px solid var(--stroke);
+      padding:.38rem .7rem;
+      border-radius:999px;
+      display:inline-block;
+      overflow-wrap:anywhere;
+    }
+
+    .table-sessions tbody td:nth-child(4){
+      font-weight:800;
+      font-size:1.05rem;
+      line-height:1;
+    }
+
+    .table-sessions tbody td:nth-child(5) .text-success{
+      display:inline-block;
+      padding:.15rem .5rem;
+      border-radius:999px;
+      background:rgba(22,163,74,.08);
+      color:#15803d;
+    }
+    .table-sessions tbody td:nth-child(5) .text-danger{
+      display:inline-block;
+      padding:.15rem .5rem;
+      border-radius:999px;
+      background:rgba(220,38,38,.06);
+      color:#b91c1c;
+    }
+
+    .table-sessions tbody td.text-end{ text-align:unset !important; }
+    .table-sessions .btn{
+      width:100%;
+      border-radius:999px;
+      padding:.78rem 1rem;
+      box-shadow:0 8px 18px rgba(37,99,235,.18);
+      align-self:end;
+    }
+  }
+
+  /* ===== Programme / Chapitres ===== */
+  .program-card-title{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+  }
+  .program-card-title h2{ color:var(--ink); }
+  .program-card-title small{ color:var(--muted); }
+
+  .program-index{
+    font-size:.8rem;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    color:var(--muted);
+    font-weight:600;
+  }
+
+  .program-title{
+    font-weight:600;
+    color:var(--ink);
+  }
+
+  .program-preview{
+    margin-top:.35rem;
+    font-size:.9rem;
+    color:#4b5563;
+  }
+
+  .program-sublist{
+    margin-top:.5rem;
+    border-left:1px dashed #e5e7eb;
+    padding-left:.9rem;
+  }
+
+  .program-subitem{
+    font-size:.85rem;
+    color:#4b5563;
+    margin-bottom:.25rem;
+  }
+
+  /* Accordéon plus clair */
+  .accordion-program .accordion-item{
+    background:#ffffff;
+    border:1px solid var(--stroke);
+    border-radius:14px;
+    overflow:hidden;
+    margin-bottom:.8rem;
+  }
+
+  .accordion-program .accordion-item:last-child{
+    margin-bottom:0;
+  }
+
+  .accordion-program .accordion-button{
+    background:#ffffff;
+    color:var(--ink);
+    box-shadow:none;
+    padding:.85rem 1rem;
+  }
+
+  .accordion-program .accordion-button:not(.collapsed){
+    background:#eef2ff;
+    color:#111827;
+    box-shadow:0 0 0 1px #c7d2fe;
+  }
+
+  .accordion-program .accordion-body{
+    background:#f9fafb;
+    color:var(--ink);
+    border-top:1px solid var(--stroke);
+  }
+
+  .program-badge{
+    border-radius:999px;
+    padding:.2rem .7rem;
+    background:#f3f4f6;
+    border:1px solid #e5e7eb;
+    font-size:.75rem;
+    color:#4b5563;
+  }
+
+
+  .hero-tags-line{
+  display:flex;
+  align-items:flex-start;
+  gap:.5rem;
+  margin-top:.6rem;
+}
+
+.hero-tags-label{
+  flex:0 0 auto;
+  font-size:.85rem;
+}
+
+.hero-tags-line .hero-tags{
+  margin-top:0; /* on annule le margin-top de .hero-tags dans ce contexte */
+}
+
+.hero-tag-success{
+  background:rgba(16,185,129,.12);
+  border:1px solid rgba(16,185,129,.28);
+  color:#065f46;
+}
+
+
+
+  /* ====== MODAL ULTRA PREMIUM ====== */
+  .wf-modal .modal-content{
+    border:1px solid rgba(226,232,240,.9);
+    border-radius:22px;
+    overflow:hidden;
+    box-shadow:0 28px 80px rgba(15,23,42,.22);
+    background:
+      radial-gradient(1200px 420px at 10% 0%, rgba(37,99,235,.10), transparent 60%),
+      radial-gradient(900px 380px at 95% 10%, rgba(99,102,241,.10), transparent 55%),
+      linear-gradient(180deg, #ffffff, #fbfdff);
+  }
+
+  .wf-modal .modal-header{
+    border:0;
+    padding:1.15rem 1.25rem 0.85rem;
+    position:relative;
+  }
+
+  .wf-modal .modal-header:after{
+    content:"";
+    position:absolute;
+    left:1.25rem; right:1.25rem; bottom:0;
+    height:1px;
+    background:linear-gradient(90deg, transparent, rgba(226,232,240,.9), transparent);
+  }
+
+  .wf-modal .wf-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:.5rem;
+    padding:.35rem .65rem;
+    border-radius:999px;
+    font-size:.78rem;
+    background:rgba(37,99,235,.08);
+    border:1px solid rgba(37,99,235,.18);
+    color:#1d4ed8;
+    font-weight:600;
+  }
+
+  .wf-modal .modal-title{
+    font-weight:850;
+    letter-spacing:-.02em;
+    line-height:1.1;
+  }
+
+  .wf-modal .wf-subtitle{
+    color:var(--muted, #6b7280);
+    font-size:.92rem;
+    margin:.35rem 0 0;
+  }
+
+  .wf-modal .modal-body{
+    padding:1.1rem 1.25rem 1.25rem;
+  }
+
+  .wf-modal .wf-grid{
+    display:grid;
+    gap:.9rem;
+  }
+
+  @media (min-width: 576px){
+    .wf-modal .wf-grid{
+      grid-template-columns: 1fr 1fr;
+      gap:1rem;
+    }
+    .wf-modal .wf-grid .wf-span-2{ grid-column:1 / -1; }
+  }
+
+  .wf-modal .wf-field{
+    background:rgba(248,250,252,.75);
+    border:1px solid rgba(226,232,240,.95);
+    border-radius:16px;
+    padding:.9rem .95rem;
+    transition:box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+  }
+
+  .wf-modal .wf-field:focus-within{
+    border-color:rgba(37,99,235,.40);
+    box-shadow:0 0 0 4px rgba(37,99,235,.10);
+    transform:translateY(-1px);
+    background:#fff;
+  }
+
+  .wf-modal .wf-label-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    margin-bottom:.45rem;
+  }
+
+  .wf-modal .wf-label{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    font-weight:700;
+    font-size:.92rem;
+    color:#0f172a;
+    margin:0;
+  }
+
+  .wf-modal .wf-hint{
+    font-size:.78rem;
+    color:rgba(100,116,139,.95);
+  }
+
+  .wf-modal .wf-input :is(input, textarea, select){
+    border:0 !important;
+    background:transparent !important;
+    padding:0 !important;
+    box-shadow:none !important;
+  }
+
+  .wf-modal .wf-input input.form-control,
+  .wf-modal .wf-input textarea.form-control{
+    font-size:.98rem;
+    color:#0f172a;
+  }
+
+  .wf-modal .wf-input textarea.form-control{ resize:vertical; }
+
+  .wf-modal .wf-footer{
+    padding:0 1.25rem 1.2rem;
+    display:flex;
+    flex-direction:column;
+    gap:.65rem;
+  }
+
+  .wf-modal .wf-cta{
+    width:100%;
+    border-radius:999px;
+    padding:.85rem 1rem;
+    font-weight:800;
+    border:0;
+    background:
+      linear-gradient(135deg, rgba(37,99,235,1), rgba(99,102,241,1));
+    box-shadow:0 14px 30px rgba(37,99,235,.22);
+  }
+
+  .wf-modal .wf-cta:hover{ filter:brightness(1.03); }
+
+  .wf-modal .wf-secondary{
+    width:100%;
+    border-radius:999px;
+    padding:.75rem 1rem;
+    font-weight:700;
+    border:1px solid rgba(226,232,240,.95);
+    background:#fff;
+  }
+
+  .wf-modal .wf-footnote{
+    display:flex;
+    gap:.5rem;
+    align-items:flex-start;
+    color:rgba(100,116,139,.95);
+    font-size:.82rem;
+    line-height:1.25rem;
+  }
+
+  /* Flatpickr: léger polish */
+  .flatpickr-calendar{
+    border-radius:16px !important;
+    box-shadow:0 24px 60px rgba(15,23,42,.18) !important;
+    border:1px solid rgba(226,232,240,.95) !important;
+    overflow:hidden;
+  }
+  .flatpickr-day.selected,
+  .flatpickr-day.startRange,
+  .flatpickr-day.endRange{
+    background:#2563eb !important;
+    border-color:#2563eb !important;
+  }
+  
+
+</style>
+{% endblock %}
+
+
+{% block javascripts %}
+<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  {% set coverUrl = (formation.photoBanniere
+      ? asset('uploads/photos/formation/' ~ formation.photoBanniere)
+      : asset('dist/img/vitrine/voile.webp')) %}
+
+  <section class="hero-shell">
+    <div class="container">
+
+      {# Fil d’Ariane #}
+      <div class="hero-breadcrumb">
+        <a href="{{ path('app_public') }}">Catalogue</a>
+        <span class="mx-1">/</span>
+        <span>{{ formation.titre|u.truncate(80, '…') }}</span>
+      </div>
+
+      <div class="row g-4 align-items-stretch">
+
+        {# --- CARTE HERO GAUCHE --- #}
+        <div class="col-12 col-lg-8">
+
+          <div class="hero-main-card mb-3">
+            <div class="hero-main-top">
+              <div class="hero-main-logo">
+                <img src="{{ coverUrl }}" alt="{{ formation.titre }}">
+              </div>
+
+              <div class="hero-main-meta flex-grow-1">
+                {% if formation.formateur %}
+                  <small>
+                    Formateur certifié&nbsp;
+                    <strong>{{ formation.formateur.utilisateur.prenom }} {{ formation.formateur.utilisateur.nom }}</strong>
+                  </small>
+                {% endif %}
+
+                <h1 class="hero-title mt-1">
+                  {{ formation.titre }}
+                  {% if formation.niveau is defined and formation.niveau is not null %}
+                    - {{ formation.niveau.label() }}
+                  {% endif %}
+                  {% if formation.duree %}
+                    - {{ formation.duree }}j
+                  {% endif %}
+                </h1>
+
+                {% if formation.description %}
+                  <p class="hero-sub mb-0">
+                    {{ formation.description|striptags|u.truncate(200, '…') }}
+                  </p>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="hero-main-bottom">
+              {% if formation.niveau %}
+                {% set niv_key = (formation.niveau.value ?? formation.niveau.name) %}
+                <span class="hero-pill">
+                  <i class="bi bi-graph-up"></i>
+                  {{ niv_key|lower|trans }}
+                </span>
+              {% endif %}
+
+              {% if formation.duree %}
+                <span class="hero-pill">
+                  <i class="bi bi-clock-history"></i>
+                  {{ formation.duree }} jour{{ formation.duree>1?'s':'' }}
+                </span>
+              {% endif %}
+
+              <span class="hero-pill">
+                <i class="bi bi-people-fill"></i>
+                {{ formation.sessions|length }} session{{ formation.sessions|length>1?'s':'' }} planifiée{{ formation.sessions|length>1?'s':'' }}
+              </span>
+
+              <span class="hero-pill">
+                <i class="bi bi-translate"></i> Français
+              </span>
+            </div>
+          </div>
+
+          {# 3 cartes bénéfices #}
+          <div class="row">
+            <div class="col-md-4 mb-3 mb-md-0">
+              <div class="benefit-card">
+                <div class="benefit-icon"><i class="bi bi-magic"></i></div>
+                <div class="benefit-title">Améliorer vos compétences</div>
+                <div class="benefit-text">
+                  Progressez rapidement grâce à un enseignement structuré et orienté pratique.
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3 mb-md-0">
+              <div class="benefit-card">
+                <div class="benefit-icon"><i class="bi bi-people"></i></div>
+                <div class="benefit-title">Accompagnement formateur</div>
+                <div class="benefit-text">
+                  Profitez de l’expertise de votre formateur pour poser vos questions et valider vos acquis.
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="benefit-card">
+                <div class="benefit-icon"><i class="bi bi-mortarboard"></i></div>
+                <div class="benefit-title">Parcours certifiant</div>
+                <div class="benefit-text">
+                  Une formation alignée avec les exigences Qualiopi et les besoins des financeurs.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# --- CARTE TARIF / INSCRIPTION --- #}
+        <div class="col-12 col-lg-4">
+          <div class="hero-price-card h-100">
+            <div class="hero-price-title">
+              Planifiez la carrière de vos rêves
+            </div>
+
+            <div class="hero-price mb-1">
+              {% if formation.prixReduitEuros %}
+                {{ formation.prixReduitEuros|number_format(0,',',' ') }} €
+              {% else %}
+                {{ formation.prixBaseEuros|number_format(0,',',' ') }} €
+              {% endif %}
+              <small class="ms-1">HT</small>
+            </div>
+
+            {% if upcoming|length > 0 %}
+              <a href="{{ path('app_public_reservation_new', {
+                    slug: formation.slug
+                }) }}"
+                class="btn btn-primary">
+                Pré-réserver une place
+              </a>
+              <div class="hero-price-help">
+                Vous réservez maintenant et vous pourrez régler l’inscription ultérieurement.
+              </div>
+            {% else %}
+              <button type="button"
+                      class="btn btn-outline-primary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#requestSessionModal">
+                Demander l’ouverture d’une session
+              </button>
+              <div class="hero-price-help">
+                Nous vous contactons dès qu’un créneau est disponible.
+              </div>
+            {% endif %}
+
+
+            <div class="hero-price-help">
+              Annulation gratuite jusqu’à 14 jours avant le début de la formation.
+            </div>
+
+            <ul class="hero-price-list">
+              {% if formation.codeQualiopi %}
+                <li><i class="bi bi-check-circle-fill"></i>
+                  Certification Qualiopi : {{ formation.codeQualiopi }}
+                </li>
+              {% endif %}
+              {% if formation.duree %}
+                <li><i class="bi bi-check-circle-fill"></i>
+                  Durée : {{ formation.duree }} jour{{ formation.duree>1?'s':'' }}
+                </li>
+              {% endif %}
+              <li><i class="bi bi-check-circle-fill"></i>
+                Sessions : {{ upcoming|length }} à venir, {{ past|length }} passées
+              </li>
+            </ul>
+
+
+
+            <div class="hero-tags mb-2">
+              {% if formation.public %}
+                <span class="hero-tag hero-tag-success">
+                  <i class="bi bi-people me-1"></i> {{ formation.public }}
+                </span>
+              {% endif %}
+
+              {% if formation.modalitesPratiques %}
+                <span class="hero-tag hero-tag-success">
+                  <i class="bi bi-info-circle me-1"></i> {{ formation.modalitesPratiques }}
+                </span>
+              {% endif %}
+              {% if formation.modalitesEvaluation %}
+                <span class="hero-tag hero-tag-success">
+                  <i class="bi bi-info-circle me-1"></i> {{ formation.modalitesEvaluation }}
+                </span>
+              {% endif %}
+            </div>
+
+
+            {% set hasFunding =
+              formation.financementIndividuel
+              or formation.financementCpf
+              or formation.financementEntreprise
+              or formation.financementOpco
+            %}
+
+            {% if hasFunding %}
+              <div class="hero-tags-block">
+                <span class="hero-tags-label">
+                  <i class="bi bi-cash-coin"></i> Financement
+                </span>
+
+                <div class="hero-tags">
+                  {% if formation.financementIndividuel %}
+                    <span class="hero-tag"><i class="bi bi-person-circle me-1"></i> Individuel</span>
+                  {% endif %}
+                  {% if formation.financementCpf %}
+                    <span class="hero-tag"><i class="bi bi-wallet2 me-1"></i> CPF</span>
+                  {% endif %}
+                  {% if formation.financementEntreprise %}
+                    <span class="hero-tag"><i class="bi bi-building me-1"></i> Entreprise</span>
+                  {% endif %}
+                  {% if formation.financementOpco %}
+                    <span class="hero-tag"><i class="bi bi-shield-check me-1"></i> OPCO</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+
+
+
+
+
+
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+
+  <div class="container my-2">
+
+    {# ===== Intro / Pédagogie / Conditions ===== #}
+    <div class="card-premium p-4 p-lg-5 mb-4">
+      <div class="row g-4">
+        <div class="col-lg-8">
+          {% if formation.description %}
+            <h2 class="h4 fw-bold mb-3">À propos de la formation</h2>
+            <p class="mb-0 text-body-secondary">{{ formation.description|raw|nl2br }}</p>
+          {% endif %}
+          {% if formation.pedagogie %}
+            <hr class="border-secondary-subtle my-4">
+            <h3 class="h5 fw-semibold mb-2">Pédagogie</h3>
+            <div class="text-body-secondary">{{ formation.pedagogie|raw }}</div>
+          {% endif %}
+          {% if formation.conditionPrealable %}
+            <hr class="border-secondary-subtle my-4">
+            <h3 class="h5 fw-semibold mb-2">Conditions préalables</h3>
+            <div class="text-body-secondary">{{ formation.conditionPrealable|raw }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+          <div class="subcard p-3 p-lg-4 h-100">
+            <div class="d-flex align-items-center mb-3">
+              <i class="bi bi-flag me-2"></i>
+              <strong>Prochaine session</strong>
+            </div>
+            {% if next %}
+              <div class="mb-2">
+                <i class="bi bi-calendar2-week me-2"></i>
+                {{ next.dateDebut|date('d/m/Y') }} → {{ next.dateFin|date('d/m/Y') }}
+              </div>
+              <div class="mb-3">
+                {% set places = next.capacite - next.reservations|length %}
+                <i class="bi bi-people me-2"></i>
+                {{ places }} place{{ places > 1 ? 's' : '' }} restante{{ places > 1 ? 's' : '' }}
+              </div>
+              <a class="btn btn-cta w-100" href="{{ path('app_public_show', {'slug': formation.slug}) }}#sessions">
+                S’inscrire / Détails
+              </a>
+            {% else %}
+              <div class="text-muted">Aucune session planifiée pour le moment.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    {# ===== Sessions ===== #}
+    <div class="col-lg-12 px-0 mb-4">
+      <div id="sessions" class="card-premium p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h2 class="h4 fw-bold mb-0"><i class="bi bi-calendar-week me-2"></i>Sessions</h2>
+          <div class="small text-muted">{{ upcoming|length }} à venir • {{ past|length }} passées</div>
+        </div>
+
+        {% if upcoming|length > 0 %}
+          <h3 class="h6 text-muted text-uppercase mt-2 mb-2">À venir</h3>
+          <div class="table-responsive">
+            <table class="table table-sessions align-middle mb-4">
+              <thead>
+                <tr class="text-muted">
+                  <th>Dates</th>
+                  <th>Départ → Arrivée</th>
+                  <th>Code</th>
+                  <th>Tarif</th>
+                  <th>Places</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for s in upcoming %}
+                {% set places = s.capacite - s.reservations|length %}
+                <tr>
+                  <td data-label="Dates" class="nowrap">
+                    {{ s.dateDebut|date('d/m/Y') }} → {{ s.dateFin|date('d/m/Y') }}
+                  </td>
+                  <td data-label="Code" class="nowrap">
+                    <span class="badge-soft badge-soft-code">{{ s.code }}</span>
+                  </td>
+
+                  <td data-label="Tarif" class="nowrap">
+                    {{ (s.tarifEffectifCents/100)|number_format(0, ',', ' ') }} €
+                  </td>
+
+                  <td data-label="Places" class="text-center">
+                    {% if places > 0 %}
+                      <span class="text-success fw-semibold">{{ places }}</span>
+                    {% else %}
+                      <span class="text-danger">Complet</span>
+                    {% endif %}
+                  </td>
+
+                  <td data-label="Action" class="text-end">
+                    <a class="btn btn-cta btn-sm"
+                      href="{{ path('app_public_reservation_new', {
+                            slug: formation.slug,
+                            session: s.id
+                      }) }}">
+                      Pré-réserver
+                    </a>
+
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        {% if past|length > 0 %}
+          <h3 class="h6 text-muted text-uppercase mt-3">Passées</h3>
+          <div class="table-responsive">
+            <table class="table table-sessions align-middle mb-0">
+              <thead>
+                <tr class="text-muted">
+                  <th>Dates</th><th>Lieu</th><th>Code</th><th>Tarif</th><th>Capacité</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for s in past %}
+                <tr class="text-muted">
+                  <td>{{ s.dateDebut|date('d/m/Y') }} → {{ s.dateFin|date('d/m/Y') }}</td>
+                  <td>
+                      {% set _site = s.site ?? null %}
+                      {{ _site ? (_site.ville ?? _site.nom ?? '—') : '—' }}
+                  </td>
+                  <td>{{ s.code }}</td>
+                  <td>{{ (s.tarifEffectifCents/100)|number_format(0, ',', ' ') }} €</td>
+                  <td>{{ s.capacite }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+        
+        {% if upcoming|length == 0 and past|length == 0 %}
+          <div class="text-muted">Aucune session enregistrée pour le moment.</div>
+        {% endif %}
+      </div>
+    </div>
+
+
+    {# ===== Programme de la formation (Chapîtres) ===== #}
+    {% if contentTree is defined and contentTree|length > 0 %}
+      <div class="card-premium p-4 p-lg-5 mb-4">
+        <div class="program-card-title">
+          <div>
+            <h2 class="h4 fw-bold mb-1">
+              <i class="bi bi-journal-text me-2"></i>Programme de la formation ({{ contentTree|length }} chapitre{% if contentTree|length > 1 %}s{% endif %})
+            </h2>
+            <small>Parcours structuré en chapitres et sous-chapitres.</small>
+          </div>
+          <div class="text-end d-none d-md-block">
+            <span class="badge-soft">
+              <i class="bi bi-mortarboard me-1"></i>
+              Parcours pédagogique
+            </span>
+          </div>
+        </div>
+
+        <div class="accordion accordion-program mt-3" id="programAccordion">
+          {% for node in contentTree %}
+            {% set chapterIndex = loop.index %}
+            {% set itemId = 'chapter' ~ chapterIndex %}
+
+            {% set chapterTitle =
+              node.titre
+                ?? node.title
+                ?? node.label
+                ?? ('Chapitre ' ~ chapterIndex)
+            %}
+
+            {% set children = node.children|default([]) %}
+
+            {% set preview = null %}
+            {% if node.blocks is defined and node.blocks|length > 0 %}
+              {% for block in node.blocks %}
+                {% if preview is null and block.content %}
+                  {% set preview = block.content %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="{{ itemId }}-header">
+                <button class="accordion-button {% if not loop.first %}collapsed{% endif %} program-accordion-btn"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#{{ itemId }}-body"
+                        aria-expanded="{{ loop.first ? 'true' : 'false' }}"
+                        aria-controls="{{ itemId }}-body">
+
+                  <div class="d-flex flex-column flex-md-row w-100 justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="program-index">Chapitre {{ chapterIndex }}</div>
+                      <div class="program-title">{{ chapterTitle }}</div>
+
+                      {% if preview %}
+                        <div class="program-preview d-none d-md-block mt-1">
+                          {{ preview|striptags|u.truncate(140, '…') }}
+                        </div>
+                      {% endif %}
+                    </div>
+
+                    <div class="program-badges ms-md-3">
+                      {% if node.isMandatory is defined and node.isMandatory %}
+                        <span class="program-badge">
+                          <i class="bi bi-shield-check me-1"></i>Obligatoire
+                        </span>
+                      {% endif %}
+
+                      {% if node.estimatedDuration is defined and node.estimatedDuration %}
+                        <span class="program-badge">
+                          <i class="bi bi-clock me-1"></i>{{ node.estimatedDuration }} min
+                        </span>
+                      {% endif %}
+
+                      {% if children is not empty %}
+                        <span class="program-badge">
+                          <i class="bi bi-diagram-3 me-1"></i>{{ children|length }} sous-chapitre{{ children|length>1?'s':'' }}
+                        </span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </button>
+              </h2>
+
+              <div id="{{ itemId }}-body"
+                   class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                   aria-labelledby="{{ itemId }}-header"
+                   data-bs-parent="#programAccordion">
+
+                <div class="accordion-body">
+                  {% if children is not empty %}
+                    <div class="program-sublist">
+                      {% for sub in children %}
+                        {% set subTitle =
+                          sub.titre
+                            ?? sub.title
+                            ?? sub.label
+                            ?? ('Sous-chapitre ' ~ loop.index)
+                        %}
+
+                        {% set subPreview = null %}
+                      
+
+                        <div class="program-subitem mb-3">
+                          <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-dot mt-1"></i>
+                            <div>
+                              <div class="fw-semibold text-dark">{{ subTitle }}</div>
+                              {% if subPreview %}
+                                <div class="small text-muted">
+                                  {{ subPreview|striptags|u.truncate(220, '…') }}
+                                </div>
+                              {% endif %}
+                            </div>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    {% if preview %}
+                      <div class="program-preview">
+                        {{ preview|striptags|u.truncate(260, '…') }}
+                      </div>
+                    {% else %}
+                      <div class="text-muted small">
+                        Contenu en cours de rédaction pour ce chapitre.
+                      </div>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+
+    {# ===== Formateur & Engin ===== #}
+    {% if formation.formateur or formation.engin %}
+    <div class="row g-4 mb-4">
+      <div class="col-lg-6">
+        <div class="card-premium p-4 h-100">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="bi bi-person-workspace me-2"></i>Formateur</h2>
+          </div>
+          {% if formation.formateur %}
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle overflow-hidden" style="width:64px;height:64px;">
+                <div class="rounded-circle overflow-hidden d-flex align-items-center justify-content-center bg-light"
+                    style="width:64px;height:64px;">
+                  {% if formation.formateur and formation.formateur.photo %}
+                    <img
+                      src="{{ asset('uploads/photos/formateur/' ~ formation.formateur.photo) }}"
+                      alt="Photo de profil {{ formation.formateur.utilisateur.nom }}"
+                      class="w-100 h-100"
+                      style="object-fit:cover;"
+                    >
+                  {% else %}
+                    <i class="bi bi-person-circle text-secondary" style="font-size:2.2rem; line-height:1;"></i>
+                  {% endif %}
+                </div>
+
+              </div>
+
+              <div>
+                <div class="fw-semibold">
+                  {{ formation.formateur.utilisateur.prenom ?? '' }} {{ formation.formateur.utilisateur.nom ?? '' }}
+                </div>
+                {% if formation.formateur.certifications %}
+                  <div class="text-muted small">{{ formation.formateur.certifications }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if formation.formateur.qualificationEngins|length > 0 %}
+              <hr class="border-secondary-subtle">
+              <div class="small text-muted mb-1">Qualifié sur :</div>
+              <div class="d-flex flex-wrap gap-2">
+
+
+              
+                {% for boat in formation.formateur.qualificationEngins %}
+                  <span class="badge-soft"><i class="fa-solid fa-ship me-2"></i>{{ boat.nom }} ({{ boat.type.value ?? boat.type.name }})</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="text-muted">Formateur à confirmer.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card-premium p-4 h-100">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h5 fw-bold mb-0"><i class="fa-solid fa-ship me-2"></i>Engin</h2>
+          </div>
+
+          {% if formation.engin %}
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle overflow-hidden" style="width:64px;height:64px;">
+                <img 
+                  src="{% if formation.engin.photoBanniere %}
+                          {{ asset('uploads/photos/engin/' ~ formation.engin.photoBanniere) }}
+                        {% else %}
+                          {{ asset('images/photos/engin/engin-placeholder.jpg') }}
+                        {% endif %}"
+                  alt="Photo du engin {{ formation.engin.nom }}"
+                  class="w-100 h-100 object-fit-cover"
+                >
+              </div>
+
+              <div>
+                <div class="fw-semibold">
+                  {{ formation.engin.nom }}
+                </div>
+                <div class="text-muted small">
+                  Type : {{ formation.engin.type.value ?? formation.engin.type.name }}
+                </div>
+              </div>
+            </div>
+
+            <hr class="border-secondary-subtle">
+            <div class="d-flex flex-wrap gap-2">
+              {% if formation.engin.capacite is not null %}
+                <span class="badge-soft"><i class="bi bi-people-fill me-2"></i>Capacité : {{ formation.engin.capacite }}</span>
+              {% endif %}
+              {% if formation.engin.capaciteCouchage is not null %}
+                <span class="badge-soft"><i class="fa-solid fa-bed me-2"></i>Couchages : {{ formation.engin.capaciteCouchage }}</span>
+              {% endif %}
+              {% if formation.engin.cabine is not null %}
+                <span class="badge-soft"><i class="bi bi-door-open-fill me-2"></i>Cabines : {{ formation.engin.cabine }}</span>
+              {% endif %}
+              {% if formation.engin.douche is not null %}
+                <span class="badge-soft"><i class="fa-solid fa-shower me-2"></i>Douches : {{ formation.engin.douche }}</span>
+              {% endif %}
+            </div>
+
+            {% if formation.engin.caracteristique %}
+              <hr class="border-secondary-subtle">
+              <div class="small text-body-secondary">
+                {{ formation.engin.caracteristique|nl2br }}
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="text-muted">Engin à confirmer.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div> {# <-- fermeture de la row g-4 mb-4 #}
+    {% endif %}
+
+    
+
+    {# ===== Galerie ===== #}
+    {% if formation.photos|length > 0 %}
+    <div class="col-lg-12 px-0 mt-4">
+      <div class="card-premium p-4 p-lg-5 mb-5">
+        <h2 class="h4 fw-bold mb-3"><i class="bi bi-images me-2"></i>Galerie</h2>
+        <div class="row g-3">
+          {% for p in formation.photos %}
+            <div class="col-12 col-md-6 col-lg-4">
+              <a data-fancybox="gal" href="{{ asset('uploads/photos/formation/' ~ p.filename) }}">
+                <img class="img-fluid gallery-img" src="{{ asset('uploads/photos/formation/' ~ p.filename) }}" alt="Formation">
+              </a>
+            </div>
+          {% else %}
+            <div class="col-12">
+              <div class="text-muted">Pas encore de photos publiées.</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ===== Avertissement / Disclaimer ===== #}
+    <div class="col-lg-12 px-0 mt-4">
+      <div class="card-premium p-3">
+        <small class="text-muted">
+          Les informations de cette page sont fournies à titre indicatif. Naviguez toujours dans les limites de votre formation
+          et respectez les réglementations locales.
+        </small>
+      </div>
+    </div>
+
+  </div>
+
+
+{# ===== Modale demande d’ouverture de session — ULTRA PREMIUM ===== #}
+<div class="modal fade wf-modal" id="requestSessionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    {{ form_start(formReservationDemande, {
+      action: path('app_public_reservation_new', { slug: formation.slug }),
+      method: 'POST',
+      attr: { class: 'modal-content needs-validation', novalidate: 'novalidate' }
+    }) }}
+
+      <div class="modal-header">
+        <div class="w-100">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <span class="wf-badge">
+              <i class="bi bi-calendar2-plus"></i>
+              Demande de session
+            </span>
+
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+
+          <h5 class="modal-title mt-2 mb-0">
+            Demander l’ouverture d’une session
+          </h5>
+
+          <p class="wf-subtitle">
+            Donne-nous tes préférences : on te recontacte rapidement avec des créneaux possibles.
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="wf-grid">
+
+          {# PLACES #}
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <label class="wf-label" for="{{ formReservationDemande.places.vars.id }}">
+                <i class="bi bi-people-fill"></i> {{ formReservationDemande.places.vars.label }}
+              </label>
+              <span class="wf-hint">Obligatoire</span>
+            </div>
+            <div class="wf-input">
+              {{ form_widget(formReservationDemande.places) }}
+              {{ form_errors(formReservationDemande.places) }}
+            </div>
+          </div>
+
+          {# DATE SOUHAITÉE #}
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <label class="wf-label" for="{{ formReservationDemande.dateSouhaitee.vars.id }}">
+                <i class="bi bi-calendar2-week"></i> {{ formReservationDemande.dateSouhaitee.vars.label }}
+              </label>
+              <span class="wf-hint">Optionnel</span>
+            </div>
+            <div class="wf-input">
+              {{ form_widget(formReservationDemande.dateSouhaitee) }}
+              {{ form_errors(formReservationDemande.dateSouhaitee) }}
+            </div>
+            <div class="wf-footnote mt-2">
+              <i class="bi bi-info-circle mt-1"></i>
+              <span>Tu peux laisser vide si tu n’as pas de date précise.</span>
+            </div>
+          </div>
+
+          {# COMMENTAIRE #}
+          <div class="wf-field wf-span-2">
+            <div class="wf-label-row">
+              <label class="wf-label" for="{{ formReservationDemande.commentaire.vars.id }}">
+                <i class="bi bi-chat-left-text"></i> {{ formReservationDemande.commentaire.vars.label }}
+              </label>
+              <span class="wf-hint">Optionnel</span>
+            </div>
+            <div class="wf-input">
+              {{ form_widget(formReservationDemande.commentaire) }}
+              {{ form_errors(formReservationDemande.commentaire) }}
+            </div>
+            <div class="wf-footnote mt-2">
+              <i class="bi bi-shield-check mt-1"></i>
+              <span>Ces informations nous aident à te proposer un créneau adapté.</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="wf-footer">
+        <button type="submit" class="btn btn-primary wf-cta">
+          <i class="bi bi-send me-2"></i> Envoyer la demande
+        </button>
+
+        <button type="button" class="btn wf-secondary" data-bs-dismiss="modal">
+          Annuler
+        </button>
+
+        <div class="wf-footnote">
+          <i class="bi bi-lock mt-1"></i>
+          <span>On utilise tes données uniquement pour traiter ta demande (pas de spam).</span>
+        </div>
+      </div>
+
+      {# important : champs cachés / token #}
+      {{ form_rest(formReservationDemande) }}
+
+    {{ form_end(formReservationDemande) }}
+  </div>
+</div>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+<script>
+  // Init quand la modale s’ouvre (évite les bugs d’affichage)
+  document.addEventListener('shown.bs.modal', function (event) {
+    const modal = event.target;
+    if (!modal || modal.id !== 'requestSessionModal') return;
+
+    modal.querySelectorAll('.flatpickr-date').forEach((input) => {
+      if (input._flatpickr) return;
+
+      flatpickr(input, {
+        locale: 'fr',
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        disableMobile: true,
+        minDate: 'today'
+      });
+    });
+  });
+</script>
+
+
+{% endblock %}
+

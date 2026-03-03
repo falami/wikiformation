@@ -1,0 +1,186 @@
+{# templates/administrateur/formation/content/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Contenu pédagogique - {{ formation.titre }}{% endblock %}
+
+
+
+
+
+{% block stylesheets %}
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+}
+@media (max-width: 768px){
+  table.dataTable td.action-column{
+    position: sticky; right:0; background:#fff; z-index:5;
+    box-shadow:-8px 0 12px -8px rgba(0,0,0,.08);
+  }
+}
+</style>
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css" />
+<link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.css">
+<style>
+.tree{ list-style:none; padding-left:0; }
+.tree > li{ margin-bottom:.6rem; }
+.node-card{ background:#0f2230; border:1px solid rgba(255,255,255,.08); border-radius:.8rem; padding:.75rem; }
+.node-header{ display:flex; align-items:center; gap:.6rem; justify-content:space-between; color: #FFFFFF; }
+.node-meta{ font-size:.9rem; opacity:.8; }
+.blocks{ margin-top:.5rem; }
+.block-item{ background:#0b1a27; border:1px dashed rgba(255,255,255,.08); border-radius:.6rem; padding:.5rem .65rem; margin:.35rem 0; display:flex; justify-content:space-between; align-items:center; }
+.drag{ cursor:grab; opacity:.9; }
+.add-btns .btn{ margin-right:.4rem; }
+.child-list{ list-style:none; margin:.4rem 0 0 1.2rem; padding-left:0; }
+</style>
+{% endblock %}
+
+
+{% block body %}
+
+  <h2 class="mb-3"><i class="fa fa-sitemap me-2"></i>Contenu pédagogique - {{ formation.titre }}</h2>
+
+  <div class="mb-3">
+    <a class="btn btn-primary"
+       href="{{ path('app_administrateur_formation_content_node_add', {entite: entite.id, formation: formation.id}) }}">
+      <i class="fa fa-plus me-1"></i> Ajouter un chapitre racine
+    </a>
+    <a class="btn btn-secondary"
+       href="{{ path('app_administrateur_formation_index', {entite: entite.id}) }}">
+      <i class="fa fa-arrow-left me-1"></i> Retour aux formations
+    </a>
+  </div>
+
+  {# 1) changer la signature du macro #}
+{% macro renderNode(node, entite, formation) %}
+  <li class="node-card" data-node-id="{{ node.id }}">
+    <div class="node-header">
+      <div>
+        <span class="drag"><i class="fa fa-grip-vertical me-2"></i></span>
+        <strong>{{ node.titre }}</strong>
+        <span class="node-meta ms-2">[{{ node.type.value }} · pos {{ node.position }} · {{ node.dureeMinutes ?? '-' }} min]</span>
+        {% if not node.isPublished %}<span class="badge bg-warning text-dark ms-2">Brouillon</span>{% endif %}
+      </div>
+      <div>
+        <div class="add-btns d-inline-block">
+          {# ✅ Sous-chapitre uniquement si node est un chapitre racine #}
+          {% if node.parent is null %}
+            <a class="btn btn-sm btn-outline-success"
+              href="{{ path('app_administrateur_formation_content_node_add', {
+                entite: entite.id,
+                formation: formation.id,
+                parentId: node.id,
+                copyFromId: node.id
+              }) }}"
+              title="Ajouter un sous-chapitre"
+            >
+              <i class="fa fa-plus"></i>
+            </a>
+          {% endif %}
+        </div>
+
+        <a class="btn btn-sm btn-outline-secondary"
+          href="{{ path('app_administrateur_formation_content_node_edit', {entite: entite.id, formation: formation.id, node: node.id}) }}">
+          <i class="fa fa-pen"></i>
+        </a>
+
+        <form action="{{ path('app_administrateur_formation_content_node_delete', {entite: entite.id, formation: formation.id, node: node.id}) }}"
+              method="post" class="d-inline">
+          <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce chapitre ?')">
+            <i class="fa fa-trash"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+
+
+    {% if node.children|length %}
+      <ul class="child-list">
+        {% for c in node.children %}
+          {{ _self.renderNode(c, entite, formation) }}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+{% endmacro %}
+
+{# 2) appels : passer entite et formation #}
+<ul class="tree" id="tree-root" data-reorder-url="{{ path('app_administrateur_formation_content_node_reorder', {entite: entite.id, formation: formation.id}) }}">
+  {% for r in roots %}
+    {{ _self.renderNode(r, entite, formation) }}
+  {% else %}
+    <li class="text-muted">Aucun chapitre pour le moment.</li>
+  {% endfor %}
+</ul>
+
+
+
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs5/jszip-2.5.0/dt-1.10.25/b-1.7.1/b-html5-1.7.1/b-print-1.7.1/date-1.1.1/fh-3.1.9/r-2.2.9/rg-1.1.3/sc-2.0.4/sp-1.3.0/datatables.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+
+
+  // Réordonnancement chapitres/sous-chapitres
+  const tree = document.getElementById('tree-root');
+  if (!tree) {
+    // Rien à initialiser (section absente ou non rendue)
+    return;
+  }
+  makeSortableRecursive(tree);
+
+  function makeSortableRecursive(ul){
+    if (!(ul instanceof HTMLElement)) return;
+    new Sortable(ul, {
+      group: 'nodes',
+      animation: 150,
+      handle: '.drag',
+      fallbackOnBody: true,
+      swapThreshold: 0.65,
+      onEnd: sendOrder
+    });
+
+    // Ne cibler que les UL enfant qui portent la classe .child-list
+    ul.querySelectorAll(':scope > li > .child-list').forEach(function(childList){
+      if (childList instanceof HTMLElement) makeSortableRecursive(childList);
+    });
+  }
+
+  async function sendOrder(){
+    const payload = collectNodes(tree, null);
+    await fetch(tree.dataset.reorderUrl, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+      body: JSON.stringify(payload)
+    });
+  }
+
+  function collectNodes(ul, parentId){
+    const out = [];
+    if (!(ul instanceof HTMLElement)) return out;
+    [...ul.children].forEach((li, idx)=>{
+      if (!li.matches('li[data-node-id]')) return;
+      const id = parseInt(li.dataset.nodeId, 10);
+      out.push({ id, position: idx, parentId });
+      const child = li.querySelector(':scope > .child-list');
+      if (child) out.push(...collectNodes(child, id));
+    });
+    return out;
+  }
+
+});
+</script>
+
+{% endblock %}

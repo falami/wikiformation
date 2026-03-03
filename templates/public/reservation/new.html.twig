@@ -1,0 +1,132 @@
+{# templates/public/reservation/new.html.twig #}
+{% extends 'base_public.html.twig' %}
+
+{% block title %}
+  {% if session is defined and session %}
+    Pré-réservation – {{ formation.titre }} (session {{ session.code }})
+  {% else %}
+    Demande d’ouverture de session – {{ formation.titre }}
+  {% endif %}
+{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  <section class="py-5">
+    <div class="container">
+
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <div class="mb-4">
+            <a href="{{ path('app_public_show', { slug: formation.slug }) }}" class="text-decoration-none small text-muted">
+              <i class="bi bi-arrow-left me-1"></i> Retour à la fiche formation
+            </a>
+          </div>
+
+          <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body p-4 p-lg-5">
+
+              <h1 class="h4 fw-bold mb-3">
+                {% if session is defined and session %}
+                  Pré-réserver une place
+                {% else %}
+                  Demander l’ouverture d’une session
+                {% endif %}
+              </h1>
+
+              <p class="text-muted mb-4">
+                Formation : <strong>{{ formation.titre }}</strong><br>
+                {% if session is defined and session %}
+                  Session : <strong>{{ session.code }}</strong><br>
+                  Dates : {{ session.dateDebut|date('d/m/Y') }} → {{ session.dateFin|date('d/m/Y') }}<br>
+                {% else %}
+                  Aucune session planifiée actuellement pour cette formation. Remplissez ce formulaire pour nous
+                  indiquer vos besoins, nous reviendrons vers vous rapidement.
+                {% endif %}
+              </p>
+
+              <hr class="mb-4">
+
+              {# Formulaire de réservation #}
+              {{ form_start(form, {
+                attr: {
+                  class: 'row g-3'
+                }
+              }) }}
+
+                <div class="col-12 col-md-6">
+                  {{ form_row(form.places) }}
+                </div>
+
+                <div class="col-12 col-md-6">
+                  {{ form_row(form.dateSouhaitee) }}
+                </div>
+
+                <div class="col-12">
+                  {{ form_row(form.commentaire) }}
+                </div>
+
+                <div class="col-12 mt-2">
+                  <button type="submit" class="btn btn-primary px-4">
+                    {% if session is defined and session %}
+                      Valider ma pré-réservation
+                    {% else %}
+                      Envoyer ma demande
+                    {% endif %}
+                  </button>
+                </div>
+
+              {{ form_end(form) }}
+
+              <p class="small text-muted mt-3 mb-0">
+                Cette démarche ne vaut pas inscription définitive. Vous recevrez une confirmation et, le cas échéant,
+                les informations pour finaliser votre inscription et le règlement.
+              </p>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+{% endblock %}
+
+
+{% block javascripts %}
+  {{ parent() }} {# très important pour garder tes JS globaux #}
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+  <script>
+    window.addEventListener("load", function () {
+      if (typeof flatpickr === 'undefined') {
+        console.error('Flatpickr n\'est pas chargé');
+        return;
+      }
+
+      const inputs = document.querySelectorAll('.flatpickr-date');
+      if (!inputs.length) {
+        console.warn('Aucun champ .flatpickr-date trouvé sur la page');
+      }
+
+      flatpickr(".flatpickr-date", {
+        dateFormat: "d/m/Y",
+        allowInput: true,
+        locale: flatpickr.l10ns.fr,
+        minDate: "today",
+        disableMobile: true,
+      });
+    });
+  </script>
+{% endblock %}
+
+

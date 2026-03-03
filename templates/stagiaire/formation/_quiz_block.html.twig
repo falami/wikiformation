@@ -1,0 +1,121 @@
+{# templates/stagiaire/formation/_quiz_block.html.twig #}
+
+{% set q = attribute(b, 'quiz') %}
+
+{% if q %}
+  {% set questions = attribute(q, 'questions')|default([]) %}
+
+  {% if questions is iterable and questions|length %}
+    {% if attribute(q, 'title') %}
+      <div class="fw-semibold mb-2">{{ attribute(q, 'title') }}</div>
+    {% endif %}
+
+    <form class="quiz-form vstack gap-3" data-quiz-id="{{ attribute(q,'id')|default(b.id) }}">
+      {% for qu in questions %}
+        {% set qtype = (qu.type.value ?? qu.type.name ?? qu.type)|lower %}
+        <section class="quiz-q block p-3"
+                 data-qid="{{ attribute(qu,'id')|default(loop.index) }}"
+                 data-qtype="{{ qtype }}">
+
+          <div class="fw-semibold mb-1">{{ attribute(qu, 'text') }}</div>
+
+          {# récupérer la liste des choix #}
+          {% set choices = attribute(qu, 'choices') is defined
+            ? attribute(qu, 'choices')
+            : (attribute(qu, 'reponses')|default([]))
+          %}
+
+          {% if qtype in ['single','multiple','boolean'] %}
+            <ul class="list-unstyled ms-2">
+              {% if qtype == 'boolean' %}
+                {% set expectedBool = attribute(qu,'expectedBoolean')|default(attribute(qu,'expected')|default(null)) %}
+
+                <li class="mb-1">
+                  <label class="d-flex align-items-center gap-2">
+                    <input type="radio"
+                           name="q{{ attribute(qu,'id')|default(loop.index) }}"
+                           value="true"
+                           class="form-check-input">
+                    <span>Vrai</span>
+                  </label>
+                </li>
+                <li class="mb-1">
+                  <label class="d-flex align-items-center gap-2">
+                    <input type="radio"
+                           name="q{{ attribute(qu,'id')|default(loop.index) }}"
+                           value="false"
+                           class="form-check-input">
+                    <span>Faux</span>
+                  </label>
+                </li>
+
+                {% if expectedBool is not null %}
+                  <input type="hidden" class="expected-boolean" value="{{ expectedBool ? 'true' : 'false' }}">
+                {% endif %}
+
+              {% else %}
+                {% for ch in choices %}
+                  {% set isCorrect =
+                    attribute(ch,'isCorrect') is not null
+                      ? attribute(ch,'isCorrect')
+                      : (attribute(ch,'correct') is not null
+                          ? attribute(ch,'correct')
+                          : (attribute(ch,'bonne')|default(false)))
+                  %}
+
+                  <li class="mb-1">
+                    <label class="d-flex align-items-center gap-2">
+                      {% if qtype == 'multiple' %}
+                        <input type="checkbox"
+                               name="q{{ attribute(qu,'id')|default(loop.parent.loop.index) }}[]"
+                               value="{{ attribute(ch,'id')|default(loop.index) }}"
+                               class="form-check-input"
+                               data-correct="{{ isCorrect ? '1' : '0' }}">
+                      {% else %}
+                        <input type="radio"
+                               name="q{{ attribute(qu,'id')|default(loop.parent.loop.index) }}"
+                               value="{{ attribute(ch,'id')|default(loop.index) }}"
+                               class="form-check-input"
+                               data-correct="{{ isCorrect ? '1' : '0' }}">
+                      {% endif %}
+                      <span class="quiz-choice-label">{{ attribute(ch,'label')|default(ch)|raw }}</span>
+                    </label>
+                  </li>
+                {% endfor %}
+              {% endif %}
+            </ul>
+
+          {% elseif qtype == 'text' %}
+            {% set expectedText = attribute(qu,'expectedText')|default(attribute(qu,'reponseAttendue')|default(null)) %}
+            <input type="text"
+                   class="form-control quiz-text"
+                   name="q{{ attribute(qu,'id')|default(loop.index) }}"
+                   placeholder="Votre réponse">
+            {% if expectedText %}
+              <input type="hidden" class="expected-text" value="{{ expectedText }}">
+            {% endif %}
+          {% endif %}
+
+          {% if attribute(qu,'explanation') %}
+            <div class="small text-muted mt-1 quiz-explanation d-none">{{ attribute(qu,'explanation')|raw }}</div>
+          {% endif %}
+
+          <div class="mt-2 small fw-semibold quiz-feedback d-none"></div>
+        </section>
+      {% endfor %}
+
+      <div class="d-flex align-items-center gap-2">
+        <button type="submit" class="btn btn-sm btn-light">Valider le quiz</button>
+        <button type="button" class="btn btn-sm btn-outline-light quiz-reset">Réinitialiser</button>
+        <div class="ms-auto small">
+          <span class="quiz-score">Score : 0/{{ questions|length }}</span>
+        </div>
+      </div>
+    </form>
+
+  {% else %}
+    <div class="text-muted">Aucune question configurée.</div>
+  {% endif %}
+{% else %}
+  <div class="text-muted">Quiz non configuré.</div>
+{% endif %}

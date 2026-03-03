@@ -1,0 +1,29 @@
+{# templates/administrateur/elearning/_enrollment_actions.html.twig #}
+<div class="d-inline-flex gap-1 align-items-center justify-content-end">
+
+  <button type="button"
+          class="btn btn-sm btn-light btn-pill btn-edit-dates"
+          title="Modifier les dates"
+          data-id="{{ enroll.id }}"
+          data-start="{{ enroll.startsAt ? enroll.startsAt|date('Y-m-d H:i') : '' }}"
+          data-end="{{ enroll.endsAt ? enroll.endsAt|date('Y-m-d H:i') : '' }}">
+    <i class="bi bi-clock"></i>
+  </button>
+
+  <button type="button"
+          class="btn btn-sm btn-light btn-pill btn-toggle-status"
+          title="Activer / Suspendre"
+          data-url="{{ path('app_administrateur_elearning_enrollment_toggle_status', { entite: entite.id, course: course.id, enrollment: enroll.id }) }}"
+          data-csrf="{{ csrf_token('toggle_enroll_' ~ enroll.id) }}">
+    <i class="bi bi-toggle2-on"></i>
+  </button>
+
+  <button type="button"
+          class="btn btn-sm btn-danger btn-pill btn-del-enroll"
+          title="Retirer l'accès"
+          data-url="{{ path('app_administrateur_elearning_enrollment_delete', { entite: entite.id, course: course.id, enrollment: enroll.id }) }}"
+          data-csrf="{{ csrf_token('del_enroll_' ~ enroll.id) }}">
+    <i class="bi bi-trash"></i>
+  </button>
+
+</div>

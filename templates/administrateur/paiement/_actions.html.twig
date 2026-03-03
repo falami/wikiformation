@@ -1,0 +1,43 @@
+{# templates/administrateur/paiement/_actions.html.twig (ou rendu actions) #}
+
+<div class="btn-group btn-group-sm paiement-actions" role="group">
+
+  {# ✅ Action principale : éditer #}
+  <a class="btn btn-light paiement-main"
+     data-bs-toggle="tooltip" title="Éditer"
+     href="{{ path('app_administrateur_paiement_edit', { entite: entite.id, id: p.id }) }}">
+    <i class="bi bi-pencil-square"></i>
+  </a>
+
+  {# ✅ Split dropdown #}
+  <button type="button"
+          class="btn btn-light dropdown-toggle dropdown-toggle-split paiement-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Actions</span>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end paiement-menu">
+
+    {% if p.justificatif %}
+      <li>
+        <a class="dropdown-item"
+           href="{{ asset('uploads/proofs/' ~ p.justificatif) }}" target="_blank">
+          <i class="bi bi-paperclip me-2"></i> Justificatif
+        </a>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+    {% endif %}
+
+    <li>
+      <form method="post"
+            action="{{ path('app_administrateur_paiement_delete', { entite: entite.id, id: p.id }) }}"
+            onsubmit="return confirm('Supprimer ce paiement ?');">
+        <input type="hidden" name="_token" value="{{ csrf_token('paiement_delete_' ~ p.id) }}">
+        <button class="dropdown-item text-danger d-flex align-items-center" type="submit">
+          <i class="bi bi-trash me-2"></i> Supprimer
+        </button>
+      </form>
+    </li>
+
+  </ul>
+</div>

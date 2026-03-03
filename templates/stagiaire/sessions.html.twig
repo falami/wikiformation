@@ -1,0 +1,633 @@
+{# templates/stagiaire/sessions.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Mes sessions{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme facture) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== KPI ===== */
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 26px rgba(0,0,0,.06);
+      border-radius: 18px;
+      overflow:hidden;
+      background: #fff;
+      position:relative;
+    }
+    .kpi-card:before{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(700px 120px at 20% 0%, rgba(255,193,7,.12), transparent 55%);
+      pointer-events:none;
+    }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight: 800; font-size: 1.6rem; letter-spacing:-.02em }
+    .kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem }
+    .kpi-bar{
+      height: 6px; border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .kpi-bar > span{
+      display:block; height:100%;
+      width: 0%;
+      background: var(--theme-color-secondaire);
+      border-radius: 999px;
+      transition: width .35s ease;
+    }
+
+    /* ===== TOOLBAR ===== */
+    .toolbar{
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .85rem;
+    }
+    .toolbar .hint{ font-size:.85rem; color: rgba(0,0,0,.55); }
+    .chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .7rem;
+      border-radius:999px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size:.85rem;
+      color: rgba(0,0,0,.65);
+    }
+
+    /* ===== TABLE CARD ===== */
+    .table-card{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      position: sticky; top: 0; z-index: 2;
+      background: #f7f8fa !important;
+      border-bottom: 1px solid rgba(0,0,0,.08) !important;
+      text-transform: uppercase;
+      font-size: .78rem;
+      letter-spacing:.06em;
+      color: rgba(0,0,0,.55);
+    }
+    .dt-top{
+      padding: .75rem .85rem;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+    }
+    .dt-bottom-internal{
+      padding: 1rem .85rem !important;
+      border-top: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+      margin-top: .75rem !important;
+    }
+    .dt-actions .btn{
+      border-radius: 999px;
+      font-weight: 700;
+      padding: .40rem .75rem;
+    }
+    .dataTables_wrapper .dataTables_filter input{
+      border-radius: 999px !important;
+      padding: .45rem .85rem !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      padding: .35rem .7rem !important;
+    }
+
+    #tableauSessions tbody tr:nth-child(even) > *{ background-color: rgba(35,51,66,.035) !important; }
+    #tableauSessions tbody tr:nth-child(odd)  > *{ background-color: #fff !important; }
+    #tableauSessions tbody tr:hover > *{ background-color: rgba(255,193,7,.08) !important; }
+    #tableauSessions tbody td{ padding-top: .75rem !important; padding-bottom: .75rem !important; }
+
+    @media (max-width:768px){
+      table.dataTable td.action-column{
+        position: sticky; right:0; background:#fff; z-index:5;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+      .hero{ border-radius: 16px; }
+    }
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO ===== #}
+  {# ===== HERO (comme administrateur/session) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-journal-bookmark-fill me-2" style="color:var(--theme-color-secondaire)"></i>
+            Mes sessions
+          </h2>
+          <div class="opacity-75 mt-1">Liste, statut, exports & accès rapide.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-journal-bookmark-fill"></i> Mes sessions</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+            <span class="chip"><i class="bi bi-mortarboard"></i> Stagiaire</span>
+            <span class="chip chip--pill">
+              <i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_stagiaire_sessions', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </a>
+
+          {# Optionnel (si tu as une route dashboard stagiaire) #}
+          {# 
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_stagiaire_dashboard', { entite: entite.id }) }}">
+            <i class="bi bi-speedometer2 me-1"></i> Tableau de bord
+          </a>
+          #}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ===== KPI ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-files fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Sessions</div>
+              <div class="kpi-value" id="kpi-count">—</div>
+              <div class="kpi-sub">Total</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-count"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-clock fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">À venir</div>
+              <div class="kpi-value" id="kpi-upcoming">—</div>
+              <div class="kpi-sub">Futures</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-upcoming"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-play-circle fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">En cours</div>
+              <div class="kpi-value" id="kpi-ongoing">—</div>
+              <div class="kpi-sub">Maintenant</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-ongoing"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-check2-circle fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Terminées</div>
+              <div class="kpi-value" id="kpi-done">—</div>
+              <div class="kpi-sub">Passées</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-done"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== TOOLBAR ===== #}
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+        <span class="chip">
+          <i class="bi bi-funnel"></i>
+          Statut
+          <select id="sessionStateFilter" class="form-select form-select-sm ms-2" style="width:auto">
+            <option value="all">Toutes</option>
+            <option value="upcoming">À venir</option>
+            <option value="ongoing">En cours</option>
+            <option value="done">Terminées</option>
+          </select>
+        </span>
+
+        <span class="hint d-none d-lg-inline">
+          Recherche : code, formation, site.
+        </span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== TABLE ===== #}
+  <div class="table-card mb-4 p-3">
+    <table id="tableauSessions" class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+      <tr>
+        <th style="width:90px">Code</th>
+        <th>Formation</th>
+        <th>Dates</th>
+        <th>Site</th>
+        <th style="width:150px">Statut</th>
+        <th class="text-end" style="width:320px">Actions</th>
+      </tr>
+      </thead>
+      <tbody>
+        {% for i in sessions %}
+          {% set s = i.session %}
+          {% set f = s.formation %}
+          {% set start = s.dateDebut %}
+          {% set end = s.dateFin %}
+
+          <tr data-start="{{ start ? start|date('c') : '' }}"
+              data-end="{{ end ? end|date('c') : '' }}">
+            <td class="fw-semibold">{{ s.code ?? '—' }}</td>
+
+            <td>
+              <div class="fw-semibold">{{ f.titre ?? '—' }}</div>
+              {% if f.niveau is not null %}
+                <div class="text-muted small">Niveau : {{ f.niveau.value ?? f.niveau }}</div>
+              {% endif %}
+            </td>
+
+            <td>
+              {% if start %}
+                <div class="fw-semibold">{{ start|date('d/m/Y') }}</div>
+                {% if end %}
+                  <div class="text-muted small">→ {{ end|date('d/m/Y') }}</div>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
+            <td>{{ s.site ? (s.site.nom ?? '—') : '—' }}</td>
+
+            <td class="col-status">
+              <span class="badge text-bg-secondary">—</span>
+            </td>
+
+            <td class="text-end action-column">
+              <a class="btn btn-outline-primary btn-sm fw-semibold"
+                href="{{ path('app_stagiaire_session_show', { entite: entite.id, id: s.id }) }}">
+                <i class="bi bi-eye"></i> Détails
+              </a>
+
+              <a class="btn btn-outline-secondary btn-sm fw-semibold"
+                href="{{ path('app_stagiaire_session_supports', { entite: entite.id, id: s.id }) }}">
+                <i class="bi bi-folder2-open"></i> Supports
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+
+    </table>
+  </div>
+
+
+<script>
+$(function(){
+  const $filter = $('#sessionStateFilter');
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function parseDateAttr(v){
+    if(!v) return null;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function computeState($tr){
+    const start = parseDateAttr($tr.data('start'));
+    const end   = parseDateAttr($tr.data('end'));
+    const now = new Date();
+
+    // si pas de dates : inconnu
+    if(!start && !end) return 'unknown';
+
+    // Si start existe et now < start => à venir
+    if(start && now < start) return 'upcoming';
+
+    // Si end existe et now > end => terminée
+    if(end && now > end) return 'done';
+
+    // Sinon : en cours (start passé, end pas passé)
+    if(start && (!end || now <= end)) return 'ongoing';
+
+    return 'unknown';
+  }
+
+  function stateBadge(state){
+    if(state === 'upcoming') return '<span class="badge text-bg-info">À venir</span>';
+    if(state === 'ongoing')  return '<span class="badge text-bg-warning">En cours</span>';
+    if(state === 'done')     return '<span class="badge text-bg-success">Terminée</span>';
+    return '<span class="badge text-bg-secondary">—</span>';
+  }
+
+  function applyStateAndFilter(tableApi){
+    const wanted = $filter.val() || 'all';
+
+    tableApi.rows().every(function(){
+      const $tr = $(this.node());
+
+      const state = computeState($tr);
+      $tr.attr('data-state', state);
+      $tr.find('.col-status').html(stateBadge(state));
+
+      const show = (wanted === 'all') || (state === wanted);
+      $tr.toggle(show);
+    });
+  }
+
+  function updateKpis(){
+    const $rows = $('#tableauSessions tbody tr').filter(function(){
+      return $(this).find('td').length > 1;
+    });
+
+    let count = 0, upcoming = 0, ongoing = 0, done = 0;
+
+    $rows.each(function(){
+      const $tr = $(this);
+      if($tr.css('display') === 'none') return;
+
+      const st = $tr.attr('data-state') || 'unknown';
+      count++;
+      if(st === 'upcoming') upcoming++;
+      if(st === 'ongoing') ongoing++;
+      if(st === 'done') done++;
+    });
+
+    $('#kpi-count').text(count);
+    $('#kpi-upcoming').text(upcoming);
+    $('#kpi-ongoing').text(ongoing);
+    $('#kpi-done').text(done);
+
+    const pct = (n) => count > 0 ? Math.min(100, Math.round((n / count) * 100)) : 0;
+    $('#kpi-bar-count').css('width', count ? '100%' : '0%');
+    $('#kpi-bar-upcoming').css('width', pct(upcoming) + '%');
+    $('#kpi-bar-ongoing').css('width', pct(ongoing) + '%');
+    $('#kpi-bar-done').css('width', pct(done) + '%');
+
+    $('#hero-last-refresh').text('Maj : ' + nowLabel());
+  }
+
+  const table = $('#tableauSessions').DataTable({
+    paging: true,
+    pageLength: 10,
+    lengthMenu: [[10,25,50,100,500],[10,25,50,100,500]],
+    order: [[2,'desc']],
+    deferRender: true,
+
+    dom:
+      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+        + '<"dt-actions d-flex gap-2 align-items-center"B>'
+        + '<"dt-search"f>'
+      + '>'
+      + 'rt'
+      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+    buttons: [
+      { extend: 'copy',  title: 'Mes sessions', text: 'Copier' },
+      { extend: 'csv',   title: 'Mes sessions', text: 'CSV' },
+      { extend: 'excel', title: 'Mes sessions', text: 'Excel' },
+      { extend: 'pdf',   title: 'Mes sessions', text: 'PDF' },
+      { extend: 'print', title: 'Mes sessions', text: 'Imprimer' },
+    ],
+
+    language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+
+    initComplete: function(){
+      const api = this.api();
+      const container = api.buttons().container();
+      const $btns = $(container).find('button');
+
+      $('#exportMenu').empty();
+      $btns.each(function(){
+        const $b = $(this);
+        const label = $b.text().trim();
+
+        const icon = label === 'Excel' ? 'bi-file-earmark-excel' :
+                     label === 'PDF' ? 'bi-file-earmark-pdf' :
+                     label === 'CSV' ? 'bi-filetype-csv' :
+                     label === 'Imprimer' ? 'bi-printer' :
+                     label === 'Copier' ? 'bi-clipboard' : 'bi-download';
+
+        const $item = $(`
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+              <i class="bi ${icon}"></i> <span>${label}</span>
+            </a>
+          </li>
+        `);
+
+        $item.on('click', function(e){ e.preventDefault(); $b.trigger('click'); });
+        $('#exportMenu').append($item);
+      });
+
+      $(container).hide();
+
+      applyStateAndFilter(api);
+      updateKpis();
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    }
+  });
+
+  table.on('draw.dt', function(){
+    applyStateAndFilter(table);
+    updateKpis();
+  });
+
+  $filter.on('change', function(){
+    table.draw(false);
+  });
+
+  $('#btnReset').on('click', function(){
+    $filter.val('all');
+    table.search('').draw();
+  });
+});
+</script>
+{% endblock %}

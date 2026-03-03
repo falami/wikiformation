@@ -1,0 +1,25 @@
+{# templates/formateur/_contrat_status_badge.html.twig #}
+
+{% set s = c.status ?? null %}
+
+{% if not s %}
+  <span class="badge bg-secondary">-</span>
+{% else %}
+  {# enum -> value/name ou string #}
+  {% set key = (s.value ?? s.name ?? s)|lower %}
+
+  {# ✅ mapping “facture-style” #}
+  {% set map = {
+    'brouillon': { cls: 'bg-secondary',          icon: 'fa-pencil',        label: 'Brouillon' },
+    'envoye':    { cls: 'bg-warning text-dark', icon: 'fa-envelope',      label: 'À signer' },
+    'signe':     { cls: 'bg-success',           icon: 'fa-circle-check',  label: 'Signé' },
+    'annule':    { cls: 'bg-danger',            icon: 'fa-ban',           label: 'Annulé' },
+    'archive':   { cls: 'bg-dark',              icon: 'fa-box-archive',   label: 'Archivé' },
+  } %}
+
+  {% set conf = map[key] ?? { cls:'bg-dark', icon:'fa-circle-question', label:(s.label ?? 'Statut') } %}
+
+  <span class="badge {{ conf.cls }}">
+    <i class="fa {{ conf.icon }} me-1"></i>{{ conf.label }}
+  </span>
+{% endif %}

@@ -1,0 +1,369 @@
+{# templates/administrateur/elearning/assign.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Attribuer un accès — {{ course.titre }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  {# Optionnel : thème “airbnb” sympa #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --p: var(--theme-color-principal);
+      --s: var(--theme-color-secondaire);
+
+      --bg: #f5f7fb;
+      --panel: #fff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 50px rgba(0,0,0,.10);
+      --r: 18px;
+    }
+
+
+    /* HERO (même esprit que ton index) */
+    .hero{
+      position: relative;
+      border-radius: 22px;
+      overflow: hidden;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      color:#fff;
+    }
+    .hero:after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, rgba(255,255,255,.08), transparent 60%);
+      pointer-events:none;
+    }
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--s);
+      box-shadow: 0 0 0 6px rgba(255,193,7,.10);
+    }
+    .hero .meta-chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .65rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.825rem;
+    }
+    .hero .subtitle{ opacity:.86 }
+
+    /* Cards */
+    .cardx{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow: hidden;
+    }
+    .cardx .head{
+      padding: .85rem 1rem;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+    }
+    .cardx .head .ttl{
+      font-weight: 900;
+      color: var(--ink);
+      display:flex; align-items:center; gap:.55rem;
+    }
+    .cardx .body{ padding: 1rem; }
+
+    .toolbar{
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .85rem;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .7rem;
+      border-radius:999px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size:.85rem;
+      color: rgba(0,0,0,.65);
+      font-weight: 700;
+    }
+
+    /* Form look */
+    .form-floating > .form-control,
+    .form-floating > .form-select{
+      background: #fff !important;
+      border: 1px solid rgba(15,23,42,.12) !important;
+      color: var(--ink) !important;
+      border-radius: 16px !important;
+    }
+    .form-floating > label{ color: rgba(15,23,42,.60) !important; }
+    .form-control:focus, .form-select:focus{
+      box-shadow: 0 0 0 .22rem rgba(255,193,7,.20) !important;
+      border-color: rgba(255,193,7,.55) !important;
+    }
+
+    /* TomSelect (simple + robuste) */
+    .ts-wrapper{ width:100%; }
+    .ts-control{
+      border-radius: 16px !important;
+      border: 1px solid rgba(15,23,42,.12) !important;
+      min-height: calc(3.5rem + 2px);
+      padding: .9rem .95rem !important;
+    }
+    .ts-dropdown{
+      border-radius: 14px !important;
+      border: 1px solid rgba(15,23,42,.12) !important;
+      box-shadow: 0 18px 55px rgba(15,23,42,.14) !important;
+      overflow: hidden;
+      z-index: 99999 !important;
+    }
+
+    .btn-pill{
+      border-radius: 999px;
+      font-weight: 800;
+      padding: .55rem .95rem;
+    }
+
+    .hint{
+      background: rgba(255,193,7,.08);
+      border: 1px solid rgba(255,193,7,.20);
+      border-radius: 16px;
+      padding: .75rem .85rem;
+      color: rgba(15,23,42,.85);
+      font-weight: 650;
+    }
+    .hint strong{ font-weight: 900; }
+
+    @media (max-width: 768px){
+      .hero{ border-radius: 16px; }
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# HERO #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <span class="meta-chip"><i class="bi bi-mortarboard"></i> E-learning</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+        <span class="meta-chip"><i class="bi bi-person-check"></i> Attribution d’accès</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Attribuer un accès</h2>
+          <div class="subtitle">
+            Cours : <strong>{{ course.titre }}</strong>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-light btn-sm fw-semibold"
+             href="{{ path('app_administrateur_elearning_content_index', { entite: entite.id, course: course.id }) }}">
+            <i class="bi bi-diagram-3"></i> Structure
+          </a>
+
+          <a class="btn btn-light btn-sm fw-semibold"
+             href="{{ path('app_administrateur_elearning_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left"></i> Retour aux cours
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# TOOLBAR #}
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+        <span class="chip"><i class="bi bi-info-circle"></i> Choisis un stagiaire + dates optionnelles</span>
+        <span class="chip"><i class="bi bi-shield-lock"></i> Unicité stagiaire / cours</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    {# FORM #}
+    <div class="col-lg-7">
+      <div class="cardx">
+        <div class="head">
+          <div class="ttl"><i class="bi bi-person-plus"></i> Attribution</div>
+          <span class="chip"><i class="bi bi-clock-history"></i> accès contrôlé</span>
+        </div>
+
+        <div class="body">
+          {{ form_start(form, { attr: { novalidate: 'novalidate' } }) }}
+
+          {{ form_errors(form) }}
+
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="form-floating">
+                {{ form_widget(form.stagiaire, { attr:{ class:'form-select', placeholder:'Stagiaire' } }) }}
+                <label for="{{ form.stagiaire.vars.id }}">Stagiaire *</label>
+              </div>
+              <div class="form-text">Recherche rapide via TomSelect.</div>
+              {{ form_errors(form.stagiaire) }}
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-floating">
+                {{ form_widget(form.startsAt, { attr:{
+                  class:'form-control js-dtp',
+                  placeholder:'JJ/MM/AAAA HH:MM',
+                  autocomplete:'off'
+                } }) }}
+                <label for="{{ form.startsAt.vars.id }}">Début d’accès (optionnel)</label>
+              </div>
+              {{ form_errors(form.startsAt) }}
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-floating">
+                {{ form_widget(form.endsAt, { attr:{
+                  class:'form-control js-dtp',
+                  placeholder:'JJ/MM/AAAA HH:MM',
+                  autocomplete:'off'
+                } }) }}
+                <label for="{{ form.endsAt.vars.id }}">Fin d’accès (optionnel)</label>
+              </div>
+              {{ form_errors(form.endsAt) }}
+            </div>
+
+            <div class="col-12">
+              <div class="hint">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-lightning-charge-fill" style="color: var(--s); font-size: 1.1rem;"></i>
+                  <div>
+                    <strong>Règles :</strong>
+                    <div class="mt-1" style="color: rgba(15,23,42,.75);">
+                      - Si <strong>début</strong> est renseigné : l’accès ne démarre qu’à cette date.<br>
+                      - Si <strong>fin</strong> est renseignée : l’accès expire après cette date.<br>
+                      - Sans dates : accès actif immédiatement.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 d-flex flex-wrap gap-2 justify-content-end pt-2">
+              <a class="btn btn-outline-secondary btn-pill"
+                 href="{{ path('app_administrateur_elearning_index', { entite: entite.id }) }}">
+                <i class="bi bi-x-lg"></i> Annuler
+              </a>
+
+              <button type="submit" class="btn btn-warning btn-pill">
+                <i class="bi bi-check2-circle"></i> Attribuer l’accès
+              </button>
+            </div>
+          </div>
+
+          {{ form_end(form) }}
+        </div>
+      </div>
+    </div>
+
+    {# SIDE CARD: rappel cours #}
+    <div class="col-lg-5">
+      <div class="cardx">
+        <div class="head">
+          <div class="ttl"><i class="bi bi-journal-bookmark"></i> Récap cours</div>
+          <span class="chip"><i class="bi bi-hash"></i> #{{ course.id }}</span>
+        </div>
+        <div class="body">
+          {% include 'administrateur/elearning/_course_card_mini.html.twig' with { course: course } %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+
+  <script>
+  (function(){
+    // =========================
+    // TomSelect (stagiaire)
+    // =========================
+    const sel = document.getElementById('{{ form.stagiaire.vars.id }}');
+    if (sel && !sel.tomselect) {
+      new TomSelect(sel, {
+        create: false,
+        allowEmptyOption: true,
+        sortField: { field: "text", direction: "asc" },
+        dropdownParent: 'body',
+        placeholder: 'Rechercher un stagiaire…',
+        plugins: ['clear_button']
+      });
+    }
+
+    // =========================
+    // Flatpickr (startsAt / endsAt)
+    // =========================
+    if (window.flatpickr) {
+      flatpickr.localize(flatpickr.l10ns.fr);
+
+      const opts = {
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "d/m/Y H:i",
+        altInput: true,
+        altFormat: "d/m/Y H:i",
+        allowInput: true,
+        minuteIncrement: 5,
+        locale: "fr"
+      };
+
+      const pickers = flatpickr('.js-dtp', opts);
+
+      // Bonus UX : empêcher fin < début
+      const startEl = document.getElementById('{{ form.startsAt.vars.id }}');
+      const endEl   = document.getElementById('{{ form.endsAt.vars.id }}');
+
+      if (startEl && endEl) {
+        const startFp = startEl._flatpickr;
+        const endFp   = endEl._flatpickr;
+
+        if (startFp && endFp) {
+          startFp.config.onChange.push(function(selectedDates){
+            const d = selectedDates && selectedDates[0] ? selectedDates[0] : null;
+            endFp.set('minDate', d);
+          });
+        }
+      }
+    }
+  })();
+</script>
+
+{% endblock %}

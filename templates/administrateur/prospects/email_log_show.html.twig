@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email envoyé — {{ log.subject }}</title>
+  <style>
+    body{ margin:0; background:#f2f4f7; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .top{ padding:12px 14px; background:#111827; color:#fff; font-size:13px; }
+    .meta{ opacity:.85 }
+    .wrap{ max-width: 900px; margin: 16px auto; padding: 0 12px; }
+    .card{ background:#fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.08); overflow:hidden; border:1px solid rgba(0,0,0,.06); }
+    .inner{ padding: 14px; }
+    .subject{ font-weight:700; margin-bottom:6px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="meta">
+      À: <b>{{ log.toEmail }}</b> — Envoyé: <b>{{ log.createdAt ? log.createdAt|date('d/m/Y H:i') : '—' }}</b>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="inner">
+        <div class="subject">{{ log.subject }}</div>
+      </div>
+      <div>
+        {{ log.bodyHtmlSnapshot|raw }}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,706 @@
+{# templates/administrateur/qcm/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}QCM — {{ entite.nom }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== KPI ===== */
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 26px rgba(0,0,0,.06);
+      border-radius: 18px;
+      overflow:hidden;
+      background:#fff;
+    }
+
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight:800; font-size:1.6rem; letter-spacing:-.02em }
+    .kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem }
+
+    /* ===== Filterbar ===== */
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      overflow: visible;
+    }
+    .filterbar__top{
+      padding: .9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
+    .filterbar__title{ font-weight:800; letter-spacing:-.01em; margin:0; font-size:1rem; }
+    .filterbar__hint{ color: rgba(0,0,0,.55); font-size:.85rem; margin-left:.25rem; }
+    .filterbar__body{ padding: 1rem; }
+
+    .filtergrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: .75rem;
+      align-items:end;
+    }
+    .fcol-search{ grid-column: span 6; }
+    .fcol-active{ grid-column: span 3; }
+    .fcol-reset{ grid-column: span 3; }
+
+    @media (max-width: 992px){
+      .fcol-search, .fcol-active, .fcol-reset{ grid-column: span 12; }
+      .hero{ border-radius:16px; }
+      .filterbar__body{ padding:.85rem; }
+    }
+
+    .filter-control .form-label{
+      font-size:.78rem;
+      font-weight:700;
+      color: rgba(0,0,0,.55);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      margin-bottom:.25rem;
+    }
+    .filterbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.04);
+    }
+    .filterbox:focus-within{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .filterrow{ display:flex; gap:.6rem; align-items:center; }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .filterbox .form-select,
+    .filterbox .form-control{
+      border:0 !important;
+      box-shadow:none !important;
+      padding-left:0 !important;
+      padding-right:0 !important;
+      background:transparent !important;
+    }
+
+    .resetbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+      cursor:pointer;
+      user-select:none;
+      transition: all .16s ease;
+      width: 100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:.5rem;
+    }
+    .resetbox:hover{
+      border-color: rgba(0,0,0,.14);
+      box-shadow: 0 10px 20px rgba(0,0,0,.06);
+      transform: translateY(-1px);
+    }
+    .resetbox:disabled{ cursor: default; opacity: .55; transform:none; }
+    .resetbox__text{ font-size:.9rem; font-weight:800; color: rgba(0,0,0,.65); }
+    .resetbox__badge{
+      min-width: 28px;
+      height: 22px;
+      padding: 0 .5rem;
+      border-radius: 999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:.78rem;
+      font-weight:800;
+      background: rgba(0,0,0,.06);
+      color: rgba(0,0,0,.65);
+      border: 1px solid rgba(0,0,0,.08);
+    }
+
+    /* ===== Table card + DataTables ===== */
+    .table-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow: visible;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      background:#f7f8fa!important;
+      border-bottom:1px solid rgba(0,0,0,.08)!important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color: rgba(0,0,0,.55);
+      text-align:center !important;
+      vertical-align: middle;
+    }
+    #qcmTable tbody td{
+      padding-top:.65rem!important;
+      padding-bottom:.65rem!important;
+      vertical-align: middle;
+      text-align:center !important;
+    }
+    #qcmTable tbody tr:nth-child(even) > *{ background:rgba(35,51,66,.035)!important; }
+    #qcmTable tbody tr:hover > *{ background:rgba(255,193,7,.08)!important; }
+
+    #qcmTable td.action-column{
+      overflow: visible !important;
+      position: relative;
+      white-space: nowrap !important;
+      min-width: 150px;
+      text-align:right !important;
+    }
+
+    @media (max-width:768px){
+      #qcmTable td.action-column{
+        position:sticky;
+        right:0;
+        background:#fff !important;
+        box-shadow:-12px 0 18px -14px rgba(0,0,0,.22);
+        z-index:5;
+      }
+    }
+
+    .title-cell{
+      text-align:left !important;
+    }
+    .qcm-title{
+      font-weight:900;
+      letter-spacing:-.01em;
+      color: rgba(0,0,0,.78);
+    }
+    .qcm-sub{
+      color: rgba(0,0,0,.55);
+      font-size:.82rem;
+      margin-top:.1rem;
+    }
+
+    .badge-soft{
+      border-radius:999px;
+      font-weight:800;
+      padding:.35rem .6rem;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      color: rgba(0,0,0,.70);
+      white-space: nowrap;
+    }
+    .badge-soft.good{
+      background: rgba(25,135,84,.10);
+      border-color: rgba(25,135,84,.25);
+      color:#146c43;
+    }
+    .badge-soft.off{
+      background: rgba(108,117,125,.10);
+      border-color: rgba(108,117,125,.22);
+      color:#5a6268;
+    }
+
+    .mini-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      padding:.28rem .55rem;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      font-size:.82rem;
+      font-weight:800;
+      white-space: nowrap;
+    }
+    .mini-chip i{ opacity:.65; }
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (comme Sessions) ===== #}
+<div class="hero p-3 mb-4 d-flex gap-3">
+  <div class="accent"></div>
+
+  <div class="flex-grow-1">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+      <div>
+        <h2 class="m-0 fw-bold">
+          <i class="bi bi-ui-checks-grid me-2" style="color:var(--theme-color-secondaire)"></i>
+          Questionnaires (QCM)
+        </h2>
+        <div class="opacity-75 mt-1">Création, activation et suivi des QCM de positionnement.</div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <span class="chip"><i class="bi bi-ui-checks-grid"></i> QCM</span>
+          <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+          <span class="chip chip--pill">
+            <i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-light btn-sm fw-semibold"
+           href="{{ path('app_administrateur_qcm_new', { entite: entite.id }) }}">
+          <i class="bi bi-plus-circle me-1"></i> Nouveau QCM
+        </a>
+
+        {# optionnel si tu as une page d'assignments QCM #}
+        {# <a class="btn btn-outline-theme btn-sm fw-semibold"
+             href="{{ path('app_administrateur_positioning_assignment_index', { entite: entite.id }) }}">
+          <i class="bi bi-clipboard-check me-1"></i> Affectations
+        </a> #}
+      </div>
+    </div>
+  </div>
+</div>
+
+  {# ===== KPI ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100"><div class="p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="kpi-ico"><i class="bi bi-collection fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Total QCM</div>
+            <div class="kpi-value" id="kpi-total">—</div>
+            <div class="kpi-sub">Tous confondus</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100"><div class="p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="kpi-ico"><i class="bi bi-check2-circle fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Actifs</div>
+            <div class="kpi-value" id="kpi-active">—</div>
+            <div class="kpi-sub">Disponibles en session</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100"><div class="p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="kpi-ico"><i class="bi bi-question-circle fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Questions</div>
+            <div class="kpi-value" id="kpi-questions">—</div>
+            <div class="kpi-sub">Total sur la liste</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100"><div class="p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="kpi-ico"><i class="bi bi-graph-up-arrow fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Moyenne</div>
+            <div class="kpi-value" id="kpi-avg">—</div>
+            <div class="kpi-sub">Questions / QCM</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== FILTERBAR ===== #}
+  <div class="filterbar mb-3">
+    <div class="filterbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
+        <div>
+          <div class="filterbar__title">Filtres</div>
+          <div class="filterbar__hint">Recherche + statut actif</div>
+        </div>
+      </div>
+
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="filterbar__body">
+      <div class="filtergrid">
+        <div class="filter-control fcol-search">
+          <div class="form-label">Recherche</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-search"></i></div>
+              <input id="qcmSearch" type="text" class="form-control form-control-sm" placeholder="Titre, ID…" />
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-active">
+          <div class="form-label">Actif</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-toggle2-on"></i></div>
+              <select id="qcmActiveFilter" class="form-select form-select-sm">
+                <option value="all">Tous</option>
+                <option value="1">Oui</option>
+                <option value="0">Non</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-reset">
+          <div class="form-label">&nbsp;</div>
+          <button id="btnReset" type="button" class="resetbox" title="Réinitialiser">
+            <i class="bi bi-arrow-counterclockwise"></i>
+            <span class="resetbox__text">Reset</span>
+            <span class="resetbox__badge" id="resetCount" style="display:none;">0</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== TABLE ===== #}
+  <div class="table-card mb-4 p-3">
+    <table id="qcmTable" class="table table-hover align-middle mb-0 w-100">
+      <thead>
+        <tr>
+          <th style="width:90px;">#</th>
+          <th>Titre</th>
+          <th style="width:160px;">Questions</th>
+          <th style="width:140px;">Actif</th>
+          <th class="text-end" style="width:220px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+
+  <script>
+  $(function(){
+
+
+    function initHeroClock(){
+      const el = document.getElementById('hero-last-refresh');
+      if(!el) return;
+      if(el.dataset.clockInit === '1') return;
+      el.dataset.clockInit = '1';
+
+      const tick = () => {
+        const d = new Date();
+        el.textContent = 'Maj : ' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      };
+      tick();
+      setInterval(tick, 30000);
+    }
+
+    document.addEventListener('DOMContentLoaded', initHeroClock);
+    document.addEventListener('turbo:load', initHeroClock);
+    document.addEventListener('turbo:render', initHeroClock);
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  
+
+  const $search = $('#qcmSearch');
+  const $active = $('#qcmActiveFilter');
+  const $btnReset = $('#btnReset');
+  const $badge = $('#resetCount');
+
+  const table = $('#qcmTable').DataTable({
+    serverSide: true,
+    processing: true,
+    pageLength: 25,
+    autoWidth: false,
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,
+
+    ajax:{
+      url: "{{ path('app_administrateur_qcm_ajax', { entite: entite.id }) }}",
+      type: "POST",
+      data: d => {
+        // DataTables envoie déjà search[value] via table.search()
+        d.activeFilter = $active.val() || 'all';
+      }
+    },
+
+    dom:
+      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+        + '<"dt-actions d-flex gap-2 align-items-center"B>'
+        + '<"dt-search d-none"f>'
+      + '>'
+      + 'rt'
+      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+    buttons:['copy','csv','excel','pdf','print'],
+    lengthMenu:[[10,25,50,500],[10,25,50,500]],
+    order:[[0,'desc']],
+    language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+
+    columns:[
+      { data:'id', name:'id' },
+      { data:'titre', name:'titre', orderable:true, searchable:true },
+      { data:'questions', name:'questions', orderable:true, searchable:false },
+      { data:'active', name:'active', orderable:true, searchable:false },
+      { data:'actions', name:'actions', orderable:false, searchable:false },
+    ],
+
+    columnDefs:[
+      { targets: 4, className:'action-column text-end' },
+      { targets: [0,2,3], className:'text-center' },
+      { targets: 1, className:'title-cell' }
+    ],
+
+    initComplete:function(){
+      const api = this.api();
+      const $btns = $(api.buttons().container()).find('button');
+
+      $('#exportMenu').empty();
+      $btns.each(function(){
+        const $b=$(this);
+        $('<li><a class="dropdown-item" href="#">'+$b.text()+'</a></li>')
+          .on('click',e=>{ e.preventDefault(); $b.click(); })
+          .appendTo('#exportMenu');
+      });
+
+      $(api.buttons().container()).hide();
+      api.columns.adjust();
+    }
+  });
+
+  function loadKpis(){
+    const params = new URLSearchParams();
+    params.set('active', $active.val() || 'all');
+    params.set('q', ($search.val() || '').trim());
+
+    const url = "{{ path('app_administrateur_qcm_kpis', { entite: entite.id }) }}?" + params.toString();
+
+    fetch(url, { headers: { 'Accept':'application/json' }})
+      .then(r => r.ok ? r.json() : null)
+      .then(k => {
+        if(!k) return;
+        $('#kpi-total').text(k.total ?? '—');
+        $('#kpi-active').text(k.active ?? '—');
+        $('#kpi-questions').text(k.questions ?? '—');
+        $('#kpi-avg').text(String(k.avg ?? '—').replace('.', ','));
+        $('#hero-last-refresh').text('Maj : ' + nowLabel());
+      });
+  }
+
+  function updateResetUi(){
+    const count = ($search.val().trim() ? 1 : 0) + ($active.val() !== 'all' ? 1 : 0);
+    if(count > 0){
+      $btnReset.prop('disabled', false);
+      $badge.show().text(String(count));
+    } else {
+      $btnReset.prop('disabled', true);
+      $badge.hide().text('0');
+    }
+  }
+
+  function refreshAll(resetPaging = true){
+    // IMPORTANT: ne pas faire draw() + reload() -> on laisse DataTables faire son ajax
+    table.ajax.reload(null, !resetPaging);
+    loadKpis();
+    updateResetUi();
+  }
+
+  // --- Events ---
+  let debounce = null;
+  $search.on('input', function(){
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      // table.search() déclenche une draw() -> donc une requête serverSide
+      table.search($search.val() || '').draw();
+      loadKpis();
+      updateResetUi();
+    }, 250);
+  });
+
+  $active.on('change', function(){
+    refreshAll(true);
+  });
+
+  $btnReset.on('click', function(){
+    $search.val('');
+    $active.val('all');
+    table.search('').draw();
+    refreshAll(true);
+  });
+
+  table.on('draw.dt', function(){
+    updateResetUi();
+  });
+
+  // Init
+  updateResetUi();
+  loadKpis();
+});
+
+  </script>
+
+
+
+  
+{% endblock %}

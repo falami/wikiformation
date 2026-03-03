@@ -1,0 +1,75 @@
+
+{# templates/administrateur/emails/templates/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Modèles emails{% endblock %}
+
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="fw-bold mb-0">Modèles emails</h2>
+      <div class="text-muted">Entité : {{ entite.nom }}</div>
+    </div>
+    <a class="btn btn-warning fw-semibold" href="{{ path('app_administrateur_email_template_new', { entite: entite.id }) }}">
+      <i class="bi bi-plus-circle"></i> Nouveau modèle
+    </a>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Nom</th>
+            <th>Code</th>
+            <th>Catégorie</th>
+            <th>Actif</th>
+            <th class="text-end"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in templates %}
+            <tr>
+              <td class="fw-semibold">{{ t.name }}</td>
+              <td><span class="badge bg-light text-dark">{{ t.code }}</span></td>
+              <td>{{ t.category }}</td>
+              <td>
+                {% if t.isActive %}
+                  <span class="badge bg-success">Oui</span>
+                {% else %}
+                  <span class="badge bg-secondary">Non</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary"
+                   href="{{ path('app_administrateur_email_template_edit', { entite: entite.id, id: t.id }) }}">
+                  <i class="bi bi-pencil"></i> Modifier
+                </a>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="text-muted">Aucun modèle.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,633 @@
+{# templates/pdf/convocation.html.twig #}
+
+{% set brand = {
+  primary:   entite.couleurPrincipal  |default('#1e3a5f'),
+  secondary: entite.couleurSecondaire |default('#4ba3ff'),
+  accent:    entite.couleurSecondaire |default('#d4a574'),
+  ink:       '#0f2336',
+  text:      '#1e2d3d',
+  muted:     '#5a6b7d',
+  line:      '#dce4ed',
+  soft:      '#f8fafc',
+  paper:     '#ffffff',
+  alertBg:   '#fff9f0',
+  alertLine: '#f5d6a8'
+} %}
+
+{% set recipientName = stagiaire_nom|default(
+  stagiaire is defined
+    ? ((stagiaire.prenom|default('') ~ ' ' ~ stagiaire.nom|default(''))|trim)
+    : ''
+)|default('Nom Prénom du stagiaire') %}
+
+{% set recipientCiv  = stagiaire is defined ? (stagiaire.civilite|default('')) : '' %}
+{% set recipientLine = (recipientCiv ~ ' ' ~ recipientName)|trim %}
+
+{% set hasSession    = session is defined %}
+{% set hasJours      = hasSession and session.jours is defined and session.jours|length %}
+{% set hasSite       = hasSession and session.site is defined and session.site %}
+{% set hasForm       = hasSession and session.formateur is defined and session.formateur %}
+{% set hasFormation  = hasSession and session.formation is defined and session.formation %}
+
+{% if hasJours %}
+  {% set firstJour = session.jours|first %}
+  {% set lastJour  = session.jours|last %}
+{% endif %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Convocation à la formation</title>
+
+  <style>
+    @page { margin: 10mm 10mm 0mm; size: A4 portrait; }
+
+    { box-sizing:border-box; margin:0; padding:0; }
+    body{
+      font-family: DejaVu Sans, Helvetica, Arial, sans-serif;
+      color: {{ brand.text }};
+      font-size: 11pt;
+      line-height: 1.45;
+    }
+
+    /* ====== Helpers ====== */
+    strong{ font-weight:700; color: {{ brand.ink }}; }
+    p{ margin: 0 0 9pt; }
+    .text-muted{ color: {{ brand.muted }}; }
+    .text-small{ font-size: 9pt; }
+    .mb-0{ margin-bottom:0 !important; }
+
+    /* Evite les coupes moches dompdf */
+    .avoid-break{ page-break-inside: avoid; }
+    .card, .alert-box, .header, .recipient, .signature { page-break-inside: avoid; }
+
+    /* ====== Header ====== */
+    .header{
+      width: 100%;
+      padding-bottom: 10pt;
+      margin-bottom: 10pt;
+      border-bottom: 1.5pt solid {{ brand.primary }};
+    }
+    .header-bar{
+      height: 2pt;
+      width: 140pt;
+      background: {{ brand.accent }};
+      margin-top: 6pt; /* PAS de négatif => rendu propre */
+    }
+
+    .header-table{ width:100%; border-collapse: collapse; }
+    .header-left{ width:64%; vertical-align: top; padding-right: 12pt; }
+    .header-right{ width:36%; vertical-align: top; text-align: right; }
+
+    .logo{
+      height: 90pt;
+      width: auto;
+      margin-bottom: 2pt;
+    }
+
+    .brand-name{
+      font-size: 18pt;
+      font-weight: 800;
+      color: {{ brand.primary }};
+      letter-spacing: -0.2pt;
+      margin-bottom: 4pt;
+    }
+
+    .brand-meta{
+      font-size: 9pt;
+      color: {{ brand.muted }};
+      line-height: 1.45;
+    }
+    .brand-meta p{ margin:0 0 1pt; }
+
+    .doc-badge{
+      display: inline-block;
+      background: {{ brand.primary }};
+      color: #fff;
+      font-weight: 900;
+      font-size: 13.5pt;   /* un poil plus petit => plus premium */
+      letter-spacing: 1.1pt;
+      padding: 7pt 12pt;
+      border-radius: 5pt;
+      text-transform: uppercase;
+      border: 1pt solid rgba(255,255,255,0.18);
+    }
+
+    .doc-meta{
+      margin-top: 8pt;
+      font-size: 9.5pt;
+      color: {{ brand.muted }};
+      line-height: 1.5;
+    }
+    .doc-meta-item{ margin-bottom: 3pt; }
+
+    /* ====== Recipient ====== */
+    .recipient{
+      margin: 0 0 10pt;
+      padding: 6pt 0 2pt;
+    }
+    .recipient-label{
+      font-size: 9pt;
+      color: {{ brand.muted }};
+      margin-bottom: 3pt;
+    }
+    .recipient-name{
+      font-size: 12.5pt;
+      font-weight: 800;
+      color: {{ brand.primary }};
+    }
+
+    /* ====== Cards ====== */
+    .card{
+      background: {{ brand.paper }};
+      border: 1pt solid {{ brand.line }};
+      border-left: 3pt solid {{ brand.primary }};
+      border-radius: 7pt;
+      padding: 12pt 14pt;
+      margin-bottom: 10pt;
+    }
+    .card-highlight{
+      background: {{ brand.soft }};
+      border-left-color: {{ brand.accent }};
+    }
+    .card-intro{
+      background: {{ brand.primary }};
+      color: #fff;
+      border: none;
+      border-left: 3pt solid {{ brand.accent }};
+      padding: 12pt 14pt;
+      border-radius: 7pt;
+      margin-bottom: 10pt;
+    }
+    .card-intro p{
+      color: #fff;
+      font-size: 10pt;
+      line-height: 1.65;
+      margin-bottom: 7pt;
+    }
+    .card-intro p:last-child{ margin-bottom:0; }
+    .card-intro strong{ color:#fff; }
+
+    /* ====== Section title ====== */
+    .section-title{
+      font-size: 10.5pt;
+      font-weight: 900;
+      color: {{ brand.primary }};
+      text-transform: uppercase;
+      letter-spacing: .8pt;
+      margin: 0 0 8pt;
+      padding-bottom: 6pt;
+      border-bottom: 1pt solid #eef2f6;
+    }
+    .section-title-accent{
+      width: 44pt;
+      height: 2pt;
+      background: {{ brand.accent }};
+      margin-top: -2pt;
+      margin-bottom: 10pt;
+    }
+
+    /* ====== Info blocks ====== */
+    .info-block{ margin-bottom: 9pt; }
+    .info-block:last-child{ margin-bottom:0; }
+    .info-label{
+      display:block;
+      font-size: 8.5pt;
+      font-weight: 800;
+      color: {{ brand.ink }};
+      text-transform: uppercase;
+      letter-spacing: .5pt;
+      margin-bottom: 3pt;
+    }
+    .info-content{
+      font-size: 10pt;
+      color: {{ brand.text }};
+      line-height: 1.55;
+    }
+
+    /* ====== 2 columns (table dompdf safe) ====== */
+    .grid-2{ width:100%; border-collapse: collapse; margin-bottom: 10pt; }
+    .grid-2 td{ width:50%; vertical-align: top; }
+    .grid-2 td:first-child{ padding-right: 6pt; }
+    .grid-2 td:last-child{ padding-left: 6pt; }
+
+    /* ====== Program ====== */
+    .program-list{ margin:0; padding-left: 16pt; font-size: 10pt; }
+    .program-list li{ margin: 0 0 9pt; }
+    .program-chapter{ font-weight: 800; color: {{ brand.ink }}; margin-bottom: 3pt; }
+    .program-duration{ font-size: 9pt; color: {{ brand.muted }}; font-weight: 700; }
+    .program-sublist{ margin: 5pt 0 0; padding-left: 14pt; font-size: 9.5pt; }
+    .program-sublist li{ margin: 0 0 5pt; }
+
+    /* ====== Alert ====== */
+    .alert-box{
+      background: {{ brand.alertBg }};
+      border: 1pt solid {{ brand.alertLine }};
+      border-left: 3pt solid {{ brand.accent }};
+      border-radius: 7pt;
+      padding: 11pt 13pt;
+      margin: 10pt 0 12pt;
+      page-break-inside: avoid;
+    }
+    .alert-box p{ font-size: 10pt; color:#5a4520; margin-bottom: 6pt; }
+    .alert-box p:last-child{ margin-bottom:0; }
+
+    /* ====== Signature ====== */
+    .signature{
+      margin-top: 12pt;
+      padding-top: 12pt;
+      border-top: 1pt solid #eef2f6;
+      page-break-inside: avoid;
+    }
+    .signature-date{ font-size: 10pt; color: {{ brand.muted }}; margin-bottom: 12pt; }
+    .signature-name{ font-weight: 800; color: {{ brand.primary }}; margin-top: 3pt; }
+
+    /* Footer fixed => présent sur toutes les pages (si tu veux éviter, supprime le footer) */
+    .footer{
+      position: fixed;
+      left: 26mm;
+      right: 26mm;
+      bottom: 5mm;
+      font-size: 9pt;
+      color: {{ brand.muted }};
+    }
+
+    .footer-box{
+      border: 1pt solid {{ brand.line }};
+      border-radius: 6pt;
+      padding: 6pt 10pt;
+      background: #fff;
+    }
+    .footer-title{
+      text-align:center;
+      font-weight: 800;
+      font-size: 9pt;
+      text-transform: uppercase;
+      color: {{ brand.primary }};
+      border-bottom: 1pt solid {{ brand.line }};
+      padding-bottom: 4pt;
+      margin-bottom: 4pt;
+    }
+
+    /* Réduit un peu le header pour respirer */
+    .header{
+      margin-bottom: 8pt;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="header avoid-break">
+      <table class="header-table">
+        <tr>
+          <td class="header-left">
+            {% if entite.logo %}
+              <img class="logo" src="{{ absolute_url(asset('/wkformation/public/uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom|default('') }}">
+            {% endif %}
+
+            {# IMPORTANT : on affiche TOUJOURS le nom (logo + nom => plus premium) #}
+            <div class="brand-name">{{ entite.nom|default('') }}</div>
+
+            <div class="brand-meta">
+              {% if entite.adresse %}<p>{{ entite.adresse }}</p>{% endif %}
+
+              {% set entite_l2 = [] %}
+              {% if entite.codePostal %}{% set entite_l2 = entite_l2|merge([entite.codePostal]) %}{% endif %}
+              {% if entite.ville %}{% set entite_l2 = entite_l2|merge([entite.ville]) %}{% endif %}
+              {% if entite_l2 is not empty or entite.pays %}
+                <p>{{ entite_l2|join(' ') }}{% if entite.pays %} · {{ entite.pays }}{% endif %}</p>
+              {% endif %}
+
+              {% set entite_contact = [] %}
+              {% if entite.telephone %}{% set entite_contact = entite_contact|merge([entite.telephone]) %}{% endif %}
+              {% if entite.email %}{% set entite_contact = entite_contact|merge([entite.email]) %}{% endif %}
+              {% if entite_contact is not empty %}<p>{{ entite_contact|join(' · ') }}</p>{% endif %}
+              {% if entite.siret or entite.numeroDeclarant %}
+                <p>
+                  {% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}
+                  {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %} - N° NDA : {{ entite.numeroDeclarant }}{% endif %}
+                </p>
+              {% endif %}
+            </div>
+          </td>
+
+          <td class="header-right">
+            <div class="doc-badge">CONVOCATION</div>
+            <div class="doc-meta">
+              <div class="doc-meta-item"><strong>Date d’édition :</strong> {{ "now"|date('d/m/Y') }}</div>
+              {% if hasSession and session.code is defined and session.code %}
+                <div class="doc-meta-item"><strong>Réf. session :</strong> {{ session.code }}</div>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="recipient avoid-break">
+      <div class="recipient-label">À l’attention de :</div>
+      <div class="recipient-name">{{ recipientName }}</div>
+    </div>
+
+    <div class="card-intro avoid-break">
+      <p>{{ (recipientLine ? recipientLine ~ ',' : recipientName ~ ',') }}</p>
+      <p>
+        Nous avons le plaisir de vous convoquer à la formation
+        <strong>
+          {% if hasFormation and session.formation.titre is defined and session.formation.titre %}
+            {{ session.formation.titre }}
+          {% else %}
+            {{ formation_intitule|default('Intitulé de la formation') }}
+          {% endif %}
+        </strong>.
+        Vous trouverez l’ensemble des informations pratiques dans le présent document.
+      </p>
+    </div>
+
+    <div class="card card-highlight">
+      <div class="section-title">Organisation pratique</div>
+      <div class="section-title-accent"></div>
+
+      <div class="info-block">
+        <span class="info-label">Dates de formation</span>
+        <div class="info-content">
+          {% if hasJours %}
+            {% if firstJour.dateDebut|date('Y-m-d') == lastJour.dateFin|date('Y-m-d') %}
+              Le {{ firstJour.dateDebut|date('d/m/Y') }}
+            {% else %}
+              Du {{ firstJour.dateDebut|date('d/m/Y') }} au {{ lastJour.dateFin|date('d/m/Y') }}
+            {% endif %}
+          {% else %}
+            {{ session_dates|default('Dates de la formation à renseigner') }}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="info-block">
+        <span class="info-label">Horaires</span>
+        <div class="info-content">
+          {% if hasJours %}
+            {{ firstJour.dateDebut|date('H\\hi') }} - {{ firstJour.dateFin|date('H\\hi') }}
+          {% else %}
+            {{ session_horaires|default('Ex. 9h00 - 12h30 et 14h00 - 17h30') }}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="info-block">
+        <span class="info-label">Lieu de formation</span>
+        <div class="info-content">
+          {% if hasSite %}
+            <strong>{{ session.site.nom|default('') }}</strong><br>
+            {{ session.site.adresse|default('') }}<br>
+            {{ (session.site.codePostal|default('') ~ ' ' ~ session.site.ville|default(''))|trim }}
+          {% else %}
+            {{ site_libelle|default('Nom et adresse du lieu de formation') }}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="info-block mb-0">
+        <span class="info-label">Formateur</span>
+        <div class="info-content">
+          {% if hasForm and session.formateur.utilisateur is defined %}
+            {{ (session.formateur.utilisateur.prenom|default('') ~ ' ' ~ session.formateur.utilisateur.nom|default(''))|trim }}
+          {% else %}
+            {{ formateur_nom|default('') }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <table class="grid-2 avoid-break">
+      <tr>
+        <td>
+          <div class="card">
+            <div class="section-title">Stagiaire</div>
+            <div class="section-title-accent"></div>
+
+            <div class="info-block">
+              <span class="info-label">Identité</span>
+              <div class="info-content">{{ recipientName }}</div>
+            </div>
+
+            <div class="info-block">
+              <span class="info-label">Adresse</span>
+              <div class="info-content">
+                {% if stagiaire is defined %}
+                  {% if stagiaire.adresse|default('') %}{{ stagiaire.adresse }}<br>{% endif %}
+                  {% if stagiaire.complement|default('') %}{{ stagiaire.complement }}<br>{% endif %}
+                  {% set cp_ville = [] %}
+                  {% if stagiaire.codePostal|default('') %}{% set cp_ville = cp_ville|merge([stagiaire.codePostal]) %}{% endif %}
+                  {% if stagiaire.ville|default('') %}{% set cp_ville = cp_ville|merge([stagiaire.ville]) %}{% endif %}
+                  {% if cp_ville is not empty %}{{ cp_ville|join(' ') }}<br>{% endif %}
+                  {% if stagiaire.pays|default('') %}{{ stagiaire.pays }}{% endif %}
+                {% else %}
+                  <span class="text-muted">Adresse non renseignée</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info-block mb-0">
+              <span class="info-label">Contact</span>
+              <div class="info-content">
+                {% if stagiaire is defined %}
+                  {% if stagiaire.email|default('') %}{{ stagiaire.email }}<br>{% endif %}
+                  {% if stagiaire.telephone|default('') %}{{ stagiaire.telephone }}{% endif %}
+                {% else %}
+                  <span class="text-muted">Non renseigné</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </td>
+
+        <td>
+          <div class="card">
+            <div class="section-title">Formation</div>
+            <div class="section-title-accent"></div>
+
+            <div class="info-block">
+              <span class="info-label">Intitulé</span>
+              <div class="info-content">
+                {% if hasFormation and session.formation.titre|default('') %}
+                  {{ session.formation.titre }}
+                {% else %}
+                  {{ formation_intitule|default('Intitulé de la formation') }}
+                {% endif %}
+              </div>
+            </div>
+
+            {% if hasFormation %}
+              <div class="info-block">
+                <span class="info-label">Durée</span>
+                <div class="info-content">
+                  {% set days = session.formation.duree|default(null) %}
+                  {% if days is not null %}
+                    {{ days }} jour(s) · {{ days * 7 }} heures
+                  {% else %}
+                    <span class="text-muted">Non renseignée</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              {% if session.formation.public is defined and session.formation.public %}
+                <div class="info-block">
+                  <span class="info-label">Public visé</span>
+                  <div class="info-content">{{ session.formation.public }}</div>
+                </div>
+              {% endif %}
+
+              <div class="info-block mb-0">
+                <span class="info-label">Niveau</span>
+                <div class="info-content">
+                  {% if session.formation.niveau is defined and session.formation.niveau %}
+                    {{ session.formation.niveau.label() }}
+                  {% else %}
+                    <span class="text-muted">Non renseigné</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% else %}
+              <div class="info-block mb-0">
+                <span class="info-label">Informations</span>
+                <div class="info-content"><span class="text-muted">Formation non renseignée</span></div>
+              </div>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="card">
+      <div class="section-title">Description & Objectifs</div>
+      <div class="section-title-accent"></div>
+
+      <div class="info-block">
+        <span class="info-label">Description</span>
+        <div class="info-content">
+          {% if hasFormation and session.formation.description is defined and session.formation.description %}
+            {{ session.formation.description|nl2br }}
+          {% else %}
+            <span class="text-muted">Description non renseignée.</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="info-block">
+        <span class="info-label">Objectifs pédagogiques</span>
+        <div class="info-content">
+          {% if hasFormation and session.formation.objectifs is defined and session.formation.objectifs %}
+            {{ session.formation.objectifs|nl2br }}
+          {% else %}
+            <span class="text-muted">Objectifs non renseignés.</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="info-block mb-0">
+        <span class="info-label">Condition préalable</span>
+        <div class="info-content">
+          {% if hasFormation and session.formation.conditionPrealable is defined and session.formation.conditionPrealable %}
+            {{ session.formation.conditionPrealable|nl2br }}
+          {% else %}
+            <span class="text-muted">Aucun prérequis spécifié.</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Programme de la formation</div>
+      <div class="section-title-accent"></div>
+
+      {% if hasFormation and session.formation.contentNodes is defined and session.formation.contentNodes is not empty %}
+        <ul class="program-list">
+          {% for node in session.formation.contentNodes %}
+            {% if node.parent is null and node.isPublished %}
+              <li>
+                <div class="program-chapter">
+                  {{ node.titre }}
+                  {% if node.dureeMinutes %}
+                    <span class="program-duration"> · {{ (node.dureeMinutes / 60)|number_format(1, ',', ' ') }} h</span>
+                  {% endif %}
+                </div>
+
+                {% if node.children is not empty %}
+                  <ul class="program-sublist">
+                    {% for child in node.children %}
+                      {% if child.isPublished %}
+                        <li>
+                          {{ child.titre }}
+                          {% if child.dureeMinutes %}
+                            <span class="program-duration"> ({{ child.dureeMinutes|number_format(0, ',', ' ') }} min)</span>
+                          {% endif %}
+                        </li>
+                      {% endif %}
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted text-small mb-0">
+          {{ formation_programme|default('Le programme détaillé de la formation vous sera communiqué ultérieurement.') }}
+        </p>
+      {% endif %}
+    </div>
+
+    <div class="alert-box">
+      <p><strong>Consignes importantes :</strong></p>
+      <p>
+        Merci de vous présenter <strong>15 minutes avant le début</strong> de la formation muni(e)
+        d’une pièce d’identité en cours de validité et de tout document éventuellement demandé.
+      </p>
+      <p class="mb-0">
+        En cas d’empêchement ou de retard, merci de prévenir au plus vite l’organisme de formation.
+      </p>
+    </div>
+
+    <div class="signature">
+      <div class="signature-date">
+        Fait à {{ entite.ville|default('Ville') }}, le {{ "now"|date('d/m/Y') }}.
+      </div>
+      <div class="text-small text-muted">Par l’organisme de formation</div>
+      <div class="signature-name">{{ entite.nom|default('Nom de l’organisme') }}</div>
+    </div>
+
+    {# FOOTER : si tu le trouves trop présent (sur toutes les pages), supprime ce bloc #}
+    <div class="footer">
+      <div class="footer-box">
+        <div class="footer-title">Coordonnées</div>
+        <div style="text-align:center;">
+          {% set foot = [] %}
+          {% if entite.adresse|default('') %}{% set foot = foot|merge([entite.adresse]) %}{% endif %}
+          {% set foot2 = [] %}
+          {% if entite.codePostal|default('') %}{% set foot2 = foot2|merge([entite.codePostal]) %}{% endif %}
+          {% if entite.ville|default('') %}{% set foot2 = foot2|merge([entite.ville]) %}{% endif %}
+          {% if foot2 is not empty %}{% set foot = foot|merge([foot2|join(' ')]) %}{% endif %}
+          {% if entite.pays|default('') %}{% set foot = foot|merge([entite.pays]) %}{% endif %}
+          {% if foot is not empty %}{{ foot|join(' · ') }}<br>{% endif %}
+
+          {% set contact = [] %}
+          {% if entite.telephone|default('') %}{% set contact = contact|merge([entite.telephone]) %}{% endif %}
+          {% if entite.email|default('') %}{% set contact = contact|merge([entite.email]) %}{% endif %}
+          {% if contact is not empty %}{{ contact|join(' · ') }}{% endif %}
+          {% if entite.siret or entite.numeroDeclarant %}
+            <p>
+              {% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}
+              {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %} - N° NDA : {{ entite.numeroDeclarant }}{% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

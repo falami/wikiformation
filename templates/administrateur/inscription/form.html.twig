@@ -1,0 +1,857 @@
+{# templates/administrateur/inscription/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d'une inscription{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+
+      --theme-glow: color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      --theme-soft: color-mix(in srgb, var(--theme-color-principal) 10%, #ffffff);
+      --secondary-soft: color-mix(in srgb, var(--theme-color-secondaire) 16%, #ffffff);
+    }
+
+
+
+    /* =========================
+      HERO (identique Sessions)
+      ========================= */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    /* Bouton outline blanc dans le hero */
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+
+    body{ background: var(--bg); }
+
+    .crumb{ color: var(--muted); font-size:.9rem; }
+    .crumb a{ color: inherit; text-decoration:none; }
+    .crumb a:hover{ text-decoration:underline; }
+
+
+    /* ---- Cards ---- */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow: visible !important;;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ---- Form polish ---- */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect: un peu plus premium */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+
+    /* Entreprise inline add */
+    .inline-add-wrap .ts-wrapper, .inline-add-wrap select{ width:100% }
+
+    /* KPI reste à payer */
+    .kpi{
+      border-radius: calc(var(--radius) - 4px);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      padding: .9rem 1rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    }
+    .kpi .kpi-label{ color: var(--muted); font-weight:700; margin:0; }
+    .kpi .kpi-value{
+      font-size: 1.35rem; font-weight: 900; letter-spacing:-.02em;
+      color: var(--ink);
+    }
+
+    /* Footer actions */
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-outline-theme{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 35%, var(--stroke));
+      color: var(--theme-color-principal);
+    }
+    .btn-outline-theme:hover{
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      color: var(--theme-color-principal);
+    }
+
+    /* Modal premium */
+    .modal-content{
+      border-radius: calc(var(--radius) + 2px);
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modal-header{
+      background: linear-gradient(180deg, var(--theme-soft), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .input-euro .form-control{
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.input-euro .euro-suffix{
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: var(--theme-color-principal);
+  border-color: var(--stroke);
+  min-width: 46px;
+  justify-content: center;
+  border: 1px solid var(--stroke);
+}
+
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+  {# =========================
+    HERO (identique Sessions)
+    ========================= #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-person-plus me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ modeEdition ? 'Modifier' : 'Créer' }} une inscription
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Associe une session, un stagiaire, une entreprise (optionnel) et la facturation.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-people"></i> Inscriptions</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-pencil-square"></i> {{ modeEdition ? 'Modification' : 'Création' }}</span>
+
+            {% if form.vars.value and form.vars.value.id %}
+              <span class="chip"><i class="bi bi-hash"></i> #{{ form.vars.value.id }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <a class="btn btn-outline-theme btn-sm fw-semibold" href="javascript:history.back()">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+            <i class="bi bi-check2 me-1"></i> {{ modeEdition ? 'Enregistrer' : 'Créer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, {
+    'attr': {
+      'id': form.vars.id,
+      'novalidate': 'novalidate',
+      'name':'inscription_administrateur'
+    }
+  }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ===== COL LEFT ===== #}
+    <div class="col-lg-7">
+
+      {# ---- Liens & Références ---- #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="fa fa-link text-warning"></i>
+            Liens & Références
+          </h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.session) }}</div>
+            <div class="col-md-6">{{ form_row(form.stagiaire) }}</div>
+
+            <div class="col-md-12">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <label class="form-label mb-0">Entreprise <span class="text-muted">(si financement entreprise)</span></label>
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-theme"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalEntreprise">
+                  <i class="fa fa-plus me-1"></i> Ajouter une entreprise
+                </button>
+              </div>
+
+              <div class="mt-2 inline-add-wrap">
+                {{ form_widget(form.entreprise) }}
+                {{ form_errors(form.entreprise) }}
+              </div>
+
+              <div class="form-text mt-2">
+                Si l’entreprise n’existe pas, utilise “Ajouter une entreprise”.
+              </div>
+            </div>
+
+            <div class="col-md-6">{{ form_row(form.status) }}</div>
+          </div>
+        </div>
+      </div>
+
+      {# ---- Facturation ---- #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="fa fa-receipt text-warning"></i>
+            Facturation
+          </h5>
+          <span class="chip">Étape 2</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              {{ form_label(form.montantDuCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantDuCents, {
+                  money_pattern: '{{ widget }}',
+                  attr: { class: 'form-control' }
+                }) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_errors(form.montantDuCents) }}
+
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.montantRegleCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantRegleCents, {
+                  money_pattern: '{{ widget }}',
+                  attr: { class: 'form-control' }
+                }) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_errors(form.montantRegleCents) }}
+
+            </div>
+          </div>
+
+
+          <div class="form-text mt-2">
+            Le montant est saisi TTC. Le “reste à payer” est calculé automatiquement à titre indicatif.
+          </div>
+
+          <div class="kpi mt-3">
+            <div>
+              <p class="kpi-label mb-1">Reste à payer</p>
+              <div class="small text-muted">Basé sur “Montant dû” - “Montant réglé”.</div>
+            </div>
+            <div class="kpi-value" id="reste-a-payer">0,00 €</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT (Résumé) ===== #}
+    <div class="col-lg-5">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="fa fa-circle-info text-warning"></i>
+            Résumé
+          </h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">
+            Vérifie rapidement avant d’enregistrer.
+          </div>
+
+
+          <div class="p-3 rounded-4 border mb-3"
+            style="border-color: var(--stroke); background: linear-gradient(180deg, var(--theme-soft), transparent);">
+          <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+            <div class="fw-bold">Choix actuels</div>
+            <span id="resume-valid-pill"
+                  class="badge rounded-pill px-3 py-2"
+                  style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+              Incomplet
+            </span>
+          </div>
+
+          <div class="mt-2 small">
+            <div class="d-flex justify-content-between gap-3 py-1">
+              <span class="text-muted">Session</span>
+              <span class="fw-semibold text-end" id="resume-session">—</span>
+            </div>
+            <div class="d-flex justify-content-between gap-3 py-1">
+              <span class="text-muted">Stagiaire</span>
+              <span class="fw-semibold text-end" id="resume-stagiaire">—</span>
+            </div>
+            <div class="d-flex justify-content-between gap-3 py-1">
+              <span class="text-muted">Entreprise</span>
+              <span class="fw-semibold text-end" id="resume-entreprise">—</span>
+            </div>
+            <div class="d-flex justify-content-between gap-3 py-1">
+              <span class="text-muted">Statut</span>
+              <span class="fw-semibold text-end" id="resume-statut">—</span>
+            </div>
+
+            <hr class="my-2" style="border-color: var(--stroke);">
+
+            <div class="d-flex justify-content-between gap-3 py-1">
+              <span class="text-muted">Montant dû</span>
+              <span class="fw-semibold text-end" id="resume-du">—</span>
+            </div>
+            <div class="d-flex justify-content-between gap-3 py-1">
+              <span class="text-muted">Montant réglé</span>
+              <span class="fw-semibold text-end" id="resume-regle">—</span>
+            </div>
+            <div class="d-flex justify-content-between gap-3 py-1">
+              <span class="text-muted">Reste à payer</span>
+              <span class="fw-bold text-end" id="resume-reste">—</span>
+            </div>
+          </div>
+
+          </div>
+
+          <hr class="my-4" style="border-color: var(--stroke);">
+
+          <div class="d-flex gap-2">
+            <a href="javascript:history.back()" class="btn btn-outline-theme w-50">
+              <i class="fa fa-arrow-left me-1"></i> Retour
+            </a>
+            <button type="submit" class="btn btn-gradient w-50">
+              <i class="fa fa-check me-1"></i> {{ modeEdition ? 'Enregistrer' : 'Créer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {# Action bar sticky (pro, pratique sur longues pages) #}
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> tu peux créer l’entreprise sans quitter la page.
+          </div>
+          <button type="button"
+                  class="btn btn-sm btn-outline-theme"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalEntreprise">
+            <i class="fa fa-building me-1"></i> Entreprise
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+
+{# ============================================================
+   ✅ MODAL AJOUT ENTREPRISE (plus premium)
+   ============================================================ #}
+<div class="modal fade" id="modalEntreprise" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="hero-icon" style="width:38px;height:38px;border-radius:12px;">
+            <i class="fa fa-building"></i>
+          </div>
+          <div>
+            <h5 class="modal-title mb-0">Ajouter une entreprise</h5>
+            <div class="small text-muted">Création rapide, l’entreprise sera sélectionnée automatiquement.</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="entrepriseModalAlert" class="alert alert-danger d-none mb-3"></div>
+
+        <div class="mb-3">
+          <label class="form-label">Raison sociale <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="entreprise_raison" placeholder="Ex: WIKI Formation">
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">SIRET</label>
+            <input type="text" class="form-control" id="entreprise_siret" placeholder="14 chiffres">
+            <div class="form-text">Optionnel, mais conseillé.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email facturation</label>
+            <input type="email" class="form-control" id="entreprise_email" placeholder="facturation@wikiformation.fr">
+            <div class="form-text">Utilisé pour les envois de documents.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btnCreateEntreprise">
+          <i class="fa fa-check me-1"></i> Créer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{# ======= TON SCRIPT : inchangé (copie/colle le tien ici) ======= #}
+<script>
+/* ⬇️ colle ici exactement ton script actuel (celui que tu as envoyé),
+   il est déjà compatible avec la nouvelle mise en page */
+document.addEventListener('DOMContentLoaded', function () {
+
+  // ---- IDs générés par Symfony (fiables) ----
+  const idSession     = '#{{ form.session.vars.id }}';
+  const idStagiaire   = '#{{ form.stagiaire.vars.id }}';
+  const idEntreprise  = '#{{ form.entreprise.vars.id }}';
+  const idStatus      = '#{{ form.status.vars.id }}';
+  const idDu          = '#{{ form.montantDuCents.vars.id }}';
+  const idRegle       = '#{{ form.montantRegleCents.vars.id }}';
+
+  // ---- TomSelect sur les selects ----
+  const ts = {}; // on garde les instances
+
+  [idSession, idStagiaire, idStatus, idEntreprise].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el && !el.tomselect) {
+      ts[sel] = new TomSelect(el, {
+        create: false,
+        allowEmptyOption: true,
+        sortField: { field: 'text', direction: 'asc' },
+        plugins: ['remove_button']
+      });
+    } else if (el && el.tomselect) {
+      ts[sel] = el.tomselect;
+    }
+  });
+
+  // ---- Helpers € -> nombre ----
+  const parseEuros = v => {
+    if (typeof v !== 'string') v = String(v ?? '');
+    v = v.replace(/\s/g,'').replace(',', '.').replace(/[^\d.]/g,'');
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  };
+  const formatEuros = n => new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR'}).format(n);
+
+  // ---- Calcul "reste à payer" ----
+  const $du    = document.querySelector(idDu);
+  const $regle = document.querySelector(idRegle);
+  const $reste = document.getElementById('reste-a-payer');
+
+  function updateReste(){
+    const du    = parseEuros($du?.value || 0);
+    const regle = parseEuros($regle?.value || 0);
+    const reste = Math.max(0, du - regle);
+    if ($reste) $reste.textContent = formatEuros(reste);
+  }
+  [$du, $regle].forEach(el => el && el.addEventListener('input', updateReste));
+  updateReste();
+
+
+  // ============================================================
+  // ✅ RÉCAP LIVE + VALIDATION LIVE
+  // ============================================================
+  const $resume = {
+    session: document.getElementById('resume-session'),
+    stagiaire: document.getElementById('resume-stagiaire'),
+    entreprise: document.getElementById('resume-entreprise'),
+    statut: document.getElementById('resume-statut'),
+    du: document.getElementById('resume-du'),
+    regle: document.getElementById('resume-regle'),
+    reste: document.getElementById('resume-reste'),
+    pill: document.getElementById('resume-valid-pill')
+  };
+
+  const form = document.querySelector('form[name="inscription_administrateur"]');
+  const submitButtons = form ? [...form.querySelectorAll('button[type="submit"]')] : [];
+
+  function getSelectedText(selectEl){
+    if (!selectEl) return '';
+    const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+    const txt = (opt ? opt.textContent : '').trim();
+    // TomSelect met parfois un placeholder comme "Sélectionner..."
+    if (!selectEl.value) return '';
+    return txt;
+  }
+
+  function isFormComplete(){
+    const s  = document.querySelector(idSession);
+    const st = document.querySelector(idStagiaire);
+    const ss = document.querySelector(idStatus);
+
+    // tes champs requis “métier”
+    const okBusiness = !!(s?.value && st?.value && ss?.value);
+
+    // + respect HTML5 (si certains champs sont required)
+    const okHtml = form ? form.checkValidity() : true;
+
+    return okBusiness && okHtml;
+  }
+
+  function refreshResume(){
+    const selSession   = document.querySelector(idSession);
+    const selStagiaire = document.querySelector(idStagiaire);
+    const selEntreprise= document.querySelector(idEntreprise);
+    const selStatus    = document.querySelector(idStatus);
+
+    if ($resume.session)    $resume.session.textContent    = getSelectedText(selSession)   || '—';
+    if ($resume.stagiaire)  $resume.stagiaire.textContent  = getSelectedText(selStagiaire) || '—';
+    if ($resume.entreprise) $resume.entreprise.textContent = getSelectedText(selEntreprise) || '—';
+    if ($resume.statut)     $resume.statut.textContent     = getSelectedText(selStatus)    || '—';
+
+    // montants
+    const du    = parseEuros($du?.value || 0);
+    const regle = parseEuros($regle?.value || 0);
+    const reste = Math.max(0, du - regle);
+
+    if ($resume.du)    $resume.du.textContent    = du ? formatEuros(du) : '—';
+    if ($resume.regle) $resume.regle.textContent = regle ? formatEuros(regle) : '—';
+    if ($resume.reste) $resume.reste.textContent = formatEuros(reste);
+
+    // validation
+    const ok = isFormComplete();
+    submitButtons.forEach(b => b.disabled = !ok);
+
+    if ($resume.pill) {
+      if (ok) {
+        $resume.pill.textContent = '✅ Complet';
+        $resume.pill.style.background = 'rgba(25,135,84,.15)';  // vert soft
+        $resume.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      } else {
+        $resume.pill.textContent = '⚠️ Incomplet';
+        $resume.pill.style.background = 'rgba(255,193,7,.15)'; // amber soft
+        $resume.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      }
+    }
+  }
+
+  // écoute changements (selects + montants)
+  [idSession, idStagiaire, idEntreprise, idStatus].forEach(sel => {
+    const el = document.querySelector(sel);
+    el && el.addEventListener('change', refreshResume);
+  });
+  [$du, $regle].forEach(el => el && el.addEventListener('input', refreshResume));
+
+  // au chargement
+  refreshResume();
+
+
+  // ---- Validation légère ----
+  initFormValidation({
+    formName: 'inscription_administrateur',
+    tomSelectFields: [
+      { id: '{{ form.session.vars.id }}',   label: '*Session' },
+      { id: '{{ form.stagiaire.vars.id }}', label: '*Stagiaire' },
+      { id: '{{ form.status.vars.id }}',    label: '*Statut' }
+    ]
+  });
+
+  // ============================================================
+  // ✅ CREATE ENTREPRISE (AJAX) + inject dans TomSelect
+  // ============================================================
+  const btnCreate = document.getElementById('btnCreateEntreprise');
+  const alertBox  = document.getElementById('entrepriseModalAlert');
+
+  const inputRaison = document.getElementById('entreprise_raison');
+  const inputSiret  = document.getElementById('entreprise_siret');
+  const inputEmail  = document.getElementById('entreprise_email');
+
+  function showModalError(msg){
+    alertBox.textContent = msg;
+    alertBox.classList.remove('d-none');
+  }
+  function clearModalError(){
+    alertBox.textContent = '';
+    alertBox.classList.add('d-none');
+  }
+
+  btnCreate?.addEventListener('click', async () => {
+    clearModalError();
+
+    const raison = (inputRaison.value || '').trim();
+    const siret  = (inputSiret.value || '').trim();
+    const email  = (inputEmail.value || '').trim();
+
+    if (!raison) {
+      showModalError('La raison sociale est obligatoire.');
+      return;
+    }
+
+    btnCreate.disabled = true;
+    btnCreate.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Création...';
+
+    try {
+      const res = await fetch('{{ path("app_administrateur_inscription_entreprise_ajax_create", {entite: entite.id}) }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ raisonSociale: raison, siret, emailFacturation: email })
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok || !payload.ok) {
+        showModalError(payload.message || 'Impossible de créer l’entreprise.');
+        return;
+      }
+
+      // Ajout dans TomSelect entreprise
+      const entrepriseId = String(payload.id);
+      const entrepriseLabel = payload.label;
+
+      const entrepriseTS = ts[idEntreprise] || document.querySelector(idEntreprise)?.tomselect;
+      if (entrepriseTS) {
+        entrepriseTS.addOption({ value: entrepriseId, text: entrepriseLabel });
+        entrepriseTS.refreshOptions(false);
+        entrepriseTS.addItem(entrepriseId, true);
+      } else {
+        // fallback sans tomselect
+        const select = document.querySelector(idEntreprise);
+        if (select) {
+          const opt = document.createElement('option');
+          opt.value = entrepriseId;
+          opt.textContent = entrepriseLabel;
+          opt.selected = true;
+          select.appendChild(opt);
+        }
+      }
+
+      // reset modal
+      inputRaison.value = '';
+      inputSiret.value = '';
+      inputEmail.value = '';
+
+      // fermer modal
+      const modalEl = document.getElementById('modalEntreprise');
+      const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      modal.hide();
+
+    } catch (e) {
+      showModalError('Erreur réseau. Réessaie.');
+    } finally {
+      btnCreate.disabled = false;
+      btnCreate.innerHTML = '<i class="fa fa-check me-1"></i> Créer';
+    }
+  });
+
+});
+
+function initFormValidation({ formName, tomSelectFields=[] }){
+  const form = document.querySelector(`form[name="${formName}"]`);
+  if (!form) return;
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (!submitButton) return;
+
+  let errorAlert = document.getElementById('form-error-alert');
+  if (!errorAlert) {
+    errorAlert = document.createElement('div');
+    errorAlert.className = 'alert alert-danger d-none';
+    errorAlert.id = 'form-error-alert';
+    submitButton.parentElement.prepend(errorAlert);
+  }
+
+  form.addEventListener('submit', e=>{
+    const messages = new Set();
+    let first = null;
+
+    // Requis côté selects (TomSelect)
+    tomSelectFields.forEach(({id,label})=>{
+      const f = document.getElementById(id);
+      if (f && f.hasAttribute('required') && (!f.value || !f.value.trim())) {
+        f.classList.add('is-invalid'); messages.add(`- ${label}`); if(!first) first=f;
+      }
+    });
+
+    // Champs HTML5 invalides
+    form.querySelectorAll(':invalid').forEach(el=>{
+      el.classList.add('is-invalid'); if(!first) first=el;
+      const l = form.querySelector(`label[for="${el.id}"]`);
+      if (l) messages.add(`- ${l.textContent.trim()}`);
+    });
+
+    if (messages.size) {
+      e.preventDefault();
+      errorAlert.innerHTML = `<strong>Champs requis manquants :</strong><br>${[...messages].join('<br>')}`;
+      errorAlert.classList.remove('d-none');
+      if (first && first.scrollIntoView) first.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>errorAlert.classList.add('d-none'), 6000);
+    }
+  });
+}
+</script>
+{% endblock %}

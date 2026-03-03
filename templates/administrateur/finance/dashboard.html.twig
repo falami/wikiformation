@@ -1,0 +1,1765 @@
+{# templates/administrateur/finance/dashboard.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Dashboard Financier{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10); --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius:18px;
+    }
+
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* chip highlight */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius:14px;
+      font-weight:800;
+    }
+    .meta-chip{ display:inline-flex; align-items:center; gap:.45rem; padding:.35rem .65rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.14); font-size:.82rem; white-space:nowrap; }
+    .btn-outline-theme{ border-color: rgba(255,255,255,.35); color:#fff; }
+    .btn-outline-theme:hover{ background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.55); color:#fff; }
+
+    .cardx{ background: var(--panel); border: 1px solid var(--stroke); border-radius: var(--radius); box-shadow: 0 10px 28px rgba(15,23,42,.08); overflow:visible; }
+    .cardx-h{ padding: .95rem 1.05rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; background: linear-gradient(180deg, rgba(0,0,0,.015), transparent); border-bottom: 1px solid var(--stroke); }
+    .cardx-title{ margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink); display:flex; align-items:center; gap:.6rem; }
+    .chip{ font-size:.78rem; padding:.25rem .55rem; border-radius:999px; background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent); border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke)); color: var(--muted); white-space:nowrap; }
+
+    .kpi-grid{ display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .kpi{ grid-column: span 3; padding: 14px 14px; border: 1px solid var(--stroke); border-radius: 18px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent), transparent);
+    }
+    .kpi .label{ color: var(--muted); font-size: .85rem; }
+    .kpi .value{ font-weight: 900; font-size: 1.25rem; color: var(--ink); letter-spacing:-.01em;}
+    .kpi .sub{ color: var(--muted); font-size: .82rem; margin-top: 2px;}
+
+    @media (max-width: 1200px){ .kpi{ grid-column: span 4; } }
+    @media (max-width: 768px){ .kpi{ grid-column: span 12; } .hero{ border-radius:16px; } }
+
+    .nav-pills .nav-link{
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      color: var(--ink);
+      font-weight: 800;
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+    }
+    .nav-pills .nav-link.active{
+      background: color-mix(in srgb, var(--theme-color-principal) 85%, #0000);
+      border-color: color-mix(in srgb, var(--theme-color-principal) 50%, var(--stroke));
+      color: #fff;
+    }
+
+    .chart-box{ height: 360px; }
+    .chart-box.sm{ height: 340px; }  /* ✅ plus gros */
+
+    @media (max-width: 768px){
+      .chart-box{ height: 340px; }
+      .chart-box.sm{ height: 320px; } /* ✅ garde grand sur mobile */
+    }
+
+
+    /* DataTables polish */
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid var(--stroke) !important;
+      background: var(--panel) !important;
+      color: var(--ink) !important;
+      padding: .35rem .75rem !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .pagination .page-link{
+      border-radius: 999px !important;
+      border:1px solid var(--stroke) !important;
+      color: var(--ink) !important;
+      background: var(--panel) !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .pagination .active .page-link{
+      background: color-mix(in srgb, var(--theme-color-principal) 14%, var(--panel)) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 35%, var(--stroke)) !important;
+      font-weight: 900;
+    }
+    .money{ font-variant-numeric: tabular-nums; font-weight: 900; white-space: nowrap; }
+    .badge-soft{
+      border:1px solid var(--stroke);
+      background: color-mix(in srgb, var(--theme-color-secondaire) 16%, var(--panel));
+      color: var(--ink);
+      border-radius: 999px;
+      padding: .35rem .6rem;
+      font-weight: 800;
+      font-size:.78rem;
+      white-space: nowrap;
+    }
+
+    #fYear{
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: var(--panel);
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+
+    /* ===== Filtres : version compacte ===== */
+    .filters-compact .row{ --bs-gutter-y: .6rem; --bs-gutter-x: .75rem; }
+
+    .filters-compact .form-label{
+      font-size: .78rem;
+      margin-bottom: .15rem;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .filters-compact .form-control,
+    .filters-compact .form-select{
+      padding: .34rem .65rem;
+      min-height: 34px;
+      border-radius: 12px;
+      font-size: .9rem;
+    }
+
+    .filters-compact .btn{
+      padding: .32rem .6rem;
+      border-radius: 12px;
+    }
+
+    .filters-compact .btn-group .btn{
+      padding: .28rem .55rem;
+    }
+
+    .filters-compact .input-inline{
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+    }
+
+    .filters-compact .input-inline .form-label{
+      margin: 0;
+      white-space: nowrap;
+      font-size: .78rem;
+    }
+
+    /* TomSelect compact */
+    .filters-compact .ts-control{
+      min-height: 34px !important;
+      padding: .18rem .55rem !important;
+      border-radius: 12px !important;
+    }
+    .filters-compact .ts-control .item,
+    .filters-compact .ts-control input{
+      font-size: .9rem !important;
+    }
+    .filters-compact .ts-dropdown .option{
+      padding: .35rem .6rem !important;
+      font-size: .9rem !important;
+    }
+
+    /* Flatpickr input compact (utilise ton #fRange) */
+    .filters-compact #fRange{
+      min-height: 34px;
+    }
+
+
+
+    /* --- Filtres avancés repliables --- */
+    .filters-advanced{
+      overflow: hidden;
+      transition: max-height .22s ease, opacity .18s ease;
+      max-height: 1200px;
+      opacity: 1;
+    }
+
+    .filters-collapsed .filters-advanced{
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+      margin-top: 0 !important;
+    }
+
+    .filters-collapsed .cardx-h .chip{
+      opacity: .9;
+    }
+
+    /* petit bonus : bouton toggle plus “chip” */
+    #btnToggleFilters{
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+    }
+
+
+    /* Liste scrollable (comme Dépenses) */
+    .dropdown-list{
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      padding: .25rem;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+  {# HERO (identique Sessions / site/index) #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-graph-up-arrow me-2" style="color:var(--theme-color-secondaire)"></i>
+            Dashboard financier
+          </h2>
+          <div class="opacity-75 mt-1">
+            Filtres, KPI, tendances, répartition, cash-in/cash-out, pipeline.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip">
+              <i class="bi bi-graph-up-arrow"></i>
+              Finance
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip chip--pill">
+              <i class="bi bi-stars"></i>
+              Dashboard premium
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-light btn-sm fw-semibold" id="btnRefresh">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== FILTRES ===== #}
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-funnel-fill text-warning"></i> Filtres</h5>
+
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-light btn-sm" id="btnToggleFilters">
+          <i class="bi bi-sliders"></i>
+          <span>Plus de filtres</span>
+        </button>
+        <span class="chip">Global</span>
+      </div>
+    </div>
+
+    <div class="p-3 filters-compact">
+      <div class="row g-3 align-items-end">
+
+        <div class="col-lg-6">
+          <div class="input-inline flex-wrap">
+            <label class="form-label">Année</label>
+
+            <div class="btn-group btn-group-sm" role="group" aria-label="Raccourcis année">
+              <button type="button" class="btn btn-light" id="btnYearNow">
+                <i class="bi bi-calendar-event"></i> Année
+              </button>
+              <button type="button" class="btn btn-light" id="btnYearPrev1">N-1</button>
+              <button type="button" class="btn btn-light" id="btnYearPrev2">N-2</button>
+            </div>
+
+            <select class="form-select form-select-sm w-auto" id="fYear" style="min-width:110px"></select>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <label class="form-label">Période</label>
+          <input class="form-control" id="fRange" placeholder="Période" />
+          <input type="hidden" id="fStart" value="{{ start }}">
+          <input type="hidden" id="fEnd" value="{{ end }}">
+        </div>
+
+        <div id="filtersAdvanced" class="filters-advanced">
+
+          <div class="row g-3 align-items-end">
+            {# ✅ Catégorie (multi) - version “chip dropdown” comme Dépenses #}
+            <div class="col-md-4 col-lg-3">
+              <label class="form-label">Catégorie</label>
+
+              <div class="chip w-100 d-flex align-items-center justify-content-between" style="gap:.5rem;">
+                <span class="d-flex align-items-center gap-2">
+                  <i class="bi bi-tags"></i>
+                  <span id="fCatSelectedCount">Toutes</span>
+                </span>
+
+                <button class="btn btn-sm btn-light dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false"
+                        style="border-radius:999px;">
+                  Choisir
+                </button>
+
+                <div class="dropdown-menu p-2" style="min-width:340px;">
+                  <input type="text" class="form-control form-control-sm mb-2"
+                        placeholder="Rechercher..." data-filter="fcat">
+
+                  <div class="d-flex gap-2 mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-check-all="fcat">Tout</button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-uncheck-all="fcat">Aucun</button>
+                  </div>
+
+                  <div id="fCatList" class="dropdown-list">
+                    {% for c in categories %}
+                      <label class="dropdown-item d-flex align-items-center gap-2" style="white-space:normal;">
+                        <input class="form-check-input m-0 f-filter-cat" type="checkbox" value="{{ c.id }}">
+                        <span>{{ c.libelle }}</span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            {# ✅ Fournisseur (multi) - version “chip dropdown” comme Dépenses #}
+            <div class="col-md-4 col-lg-3">
+              <label class="form-label">Fournisseur</label>
+
+              <div class="chip w-100 d-flex align-items-center justify-content-between" style="gap:.5rem;">
+                <span class="d-flex align-items-center gap-2">
+                  <i class="bi bi-truck"></i>
+                  <span id="fFourSelectedCount">Tous</span>
+                </span>
+
+                <button class="btn btn-sm btn-light dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false"
+                        style="border-radius:999px;">
+                  Choisir
+                </button>
+
+                <div class="dropdown-menu p-2" style="min-width:340px;">
+                  <input type="text" class="form-control form-control-sm mb-2"
+                        placeholder="Rechercher..." data-filter="ffour">
+
+                  <div class="d-flex gap-2 mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-check-all="ffour">Tout</button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-uncheck-all="ffour">Aucun</button>
+                  </div>
+
+                  <div id="fFourList" class="dropdown-list">
+                    {% for f in fournisseurs %}
+                      <label class="dropdown-item d-flex align-items-center gap-2" style="white-space:normal;">
+                        <input class="form-check-input m-0 f-filter-four" type="checkbox" value="{{ f.id }}">
+                        {# optionnel: pastille couleur si tu l’as #}
+                        {% if f.couleurHex %}
+                          <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:{{ f.couleurHex }};"></span>
+                        {% endif %}
+                        <span>{{ f.nom }}</span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            <div class="col-md-4 col-lg-2">
+              <label class="form-label">Devise</label>
+              <select class="form-select" id="fDevise">
+                <option value="">Toutes</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+              <label class="form-label">TVA</label>
+              <select class="form-select" id="fTvaOnly">
+                <option value="all">Toutes</option>
+                <option value="deductible">Déductibles</option>
+                <option value="nodeductible">Non déductibles</option>
+              </select>
+            </div>
+
+            <div class="col-md-4 col-lg-3">
+              <label class="form-label">Statut facture</label>
+              <select class="form-select" id="fFactureStatus">
+                <option value="">Tous</option>
+                {% for s in factureStatuses %}<option value="{{ s.value }}">{{ s.label()|capitalize }}</option>{% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+              <label class="form-label">Statut devis</label>
+              <select class="form-select" id="fDevisStatus">
+                <option value="">Tous</option>
+                {% for s in devisStatuses %}<option value="{{ s.value }}">{{ s.label()|capitalize }}</option>{% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+              <label class="form-label">Mode paiement</label>
+              <select class="form-select" id="fPayMode">
+                <option value="">Tous</option>
+                {% for m in modePaiements %}<option value="{{ m.value }}">{{ m.label() }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-gradient fw-semibold" id="btnApply"><i class="bi bi-check2"></i> Appliquer</button>
+          <button class="btn btn-light" id="btnReset">Réinitialiser</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  {# ===== KPI ===== #}
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Indicateurs</h5>
+      <span class="chip">Live</span>
+    </div>
+    <div class="p-3 p-md-4">
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="label">Dépenses (TTC)</div>
+          <div class="value" id="kpiDepTtc">—</div>
+          <div class="sub" id="kpiDepCount">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">TVA déductible</div>
+          <div class="value" id="kpiTvaDed">—</div>
+          <div class="sub">Selon % déductible</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Factures (TTC)</div>
+          <div class="value" id="kpiFacTtc">—</div>
+          <div class="sub" id="kpiFacCount">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Paiements encaissés</div>
+          <div class="value" id="kpiPayTotal">—</div>
+          <div class="sub" id="kpiPayCount">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Résultat (Factures - Dépenses)</div>
+          <div class="value" id="kpiNet">—</div>
+          <div class="sub">Sur la période</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Cash gap (Paiements - Dépenses)</div>
+          <div class="value" id="kpiCashGap">—</div>
+          <div class="sub">Trésorerie nette</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Devis (pipeline TTC)</div>
+          <div class="value" id="kpiDevisTtc">—</div>
+          <div class="sub" id="kpiDevisCount">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Avoirs (TTC)</div>
+          <div class="value" id="kpiAvoTotal">—</div>
+          <div class="sub" id="kpiAvoCount">—</div>
+        </div>
+        {# sous tes KPI existants #}
+        <div class="kpi">
+          <div class="label">Dépenses moy./mois</div>
+          <div class="value" id="kpiDepAvgMonth">—</div>
+          <div class="sub" id="kpiAvgHint">—</div>
+        </div>
+
+        <div class="kpi">
+          <div class="label">Factures moy./mois</div>
+          <div class="value" id="kpiFacAvgMonth">—</div>
+          <div class="sub">Lissé sur la période</div>
+        </div>
+
+        <div class="kpi">
+          <div class="label">Paiements moy./mois</div>
+          <div class="value" id="kpiPayAvgMonth">—</div>
+          <div class="sub">Encaissements</div>
+        </div>
+
+        <div class="kpi">
+          <div class="label">Devis moy./mois</div>
+          <div class="value" id="kpiDevisAvgMonth">—</div>
+          <div class="sub">Pipeline</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ===== ONGLET NAV ===== #}
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <ul class="nav nav-pills gap-2" id="financeTabs" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-all" type="button">Analyse complète</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-dep" type="button">Dépenses</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-pay" type="button">Paiements</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-fac" type="button">Factures</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-dev" type="button">Devis</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-avo" type="button">Avoirs</button></li>
+    </ul>
+  </div>
+
+  <div class="tab-content">
+
+    {# ===== TAB ALL ===== #}
+    <div class="tab-pane fade show active" id="tab-all">
+      <div class="row g-4">
+        <div class="col-lg-12">
+          <div class="cardx">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-activity text-warning"></i> Tendances (TTC)</h5>
+              <span class="chip">Courbes</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box"><canvas id="chTrend"></canvas></div>
+              <div class="small text-muted mt-2">Dépenses vs Factures vs Paiements (par mois).</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="cardx mb-4">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-pie-chart-fill text-warning"></i> Dépenses par catégorie</h5>
+              <span class="chip">Top 10</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box sm"><canvas id="chCat"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="cardx mb-4">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-shield-check text-warning"></i> Statut factures</h5>
+              <span class="chip">Répartition</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box sm"><canvas id="chFacStatus"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-12">
+          <div class="cardx">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-bar-chart-fill text-warning"></i> Top fournisseurs (dépenses)</h5>
+              <span class="chip">Barres</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box sm"><canvas id="chFourn"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB DEP (DATATABLES) ===== #}
+    <div class="tab-pane fade" id="tab-dep">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-wallet2 text-warning"></i> Dépenses</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtDepenses">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Libellé</th>
+                  <th>Catégorie</th>
+                  <th>Fournisseur</th>
+                  <th class="text-end">HT</th>
+                  <th class="text-end">TVA</th>
+                  <th class="text-end">TTC</th>
+                  <th>TVA déd.</th>
+                  <th>Devise</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">Server-side : dépense, catégorie, fournisseur, TVA, période.</div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB PAY (DATATABLES) ===== #}
+    <div class="tab-pane fade" id="tab-pay">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-cash-coin text-warning"></i> Paiements</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtPaiements">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Mode</th>
+                  <th>Facture</th>
+                  <th class="text-end">Montant</th>
+                  <th>Devise</th>
+                  <th>Stripe PI</th>
+                  <th>Justif</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">Server-side : période, mode, facture, stripe, justificatif.</div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB FAC (DATATABLES) ===== #}
+    <div class="tab-pane fade" id="tab-fac">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-receipt-cutoff text-warning"></i> Factures</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtFactures">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>N°</th>
+                  <th>Destinataire</th>
+                  <th>Statut</th>
+                  <th class="text-end">HT</th>
+                  <th class="text-end">TVA</th>
+                  <th class="text-end">TTC</th>
+                  <th>Devise</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">Server-side : période, statut, destinataire, PDF/Stripe.</div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB DEVIS (DATATABLES) ===== #}
+    <div class="tab-pane fade" id="tab-dev">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-file-earmark-text text-warning"></i> Devis</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtDevis">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>N°</th>
+                  <th>Destinataire</th>
+                  <th>Statut</th>
+                  <th class="text-end">HT</th>
+                  <th class="text-end">TVA</th>
+                  <th class="text-end">TTC</th>
+                  <th>Devise</th>
+                  <th>PDF</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">Server-side : période, statut, conversion devis→facture.</div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB AVOIRS (DATATABLES) ===== #}
+    <div class="tab-pane fade" id="tab-avo">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-arrow-counterclockwise text-warning"></i> Avoirs</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtAvoirs">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>N°</th>
+                  <th>Facture origine</th>
+                  <th class="text-end">Montant TTC</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">Server-side : période, facture, montant.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
+<script>
+  window.__ALL_FIN_CAT_IDS__  = {{ categories|map(c => c.id)|json_encode|raw }};
+  window.__ALL_FIN_FOUR_IDS__ = {{ fournisseurs|map(f => f.id)|json_encode|raw }};
+</script>
+
+
+<script>
+(function(){
+  // ===========================
+  // Helpers
+  // ===========================
+
+
+
+
+  // ===========================
+  // Toggle filtres avancés
+  // ===========================
+  const $filtersCard = document.querySelector('.cardx.mb-4'); // ta card filtres (si c'est la 1ère mb-4)
+  const $btnToggle   = document.getElementById('btnToggleFilters');
+  const $adv         = document.getElementById('filtersAdvanced');
+
+  (function initFiltersToggle(){
+    if (!$filtersCard || !$btnToggle || !$adv) return;
+
+    const KEY = 'finance_filters_advanced_open';
+    const saved = localStorage.getItem(KEY);
+
+    // par défaut: fermé (compact)
+    const open = saved === '1';
+    $filtersCard.classList.toggle('filters-collapsed', !open);
+    $btnToggle.querySelector('span').textContent = open ? 'Moins de filtres' : 'Plus de filtres';
+    $btnToggle.querySelector('i').className = open ? 'bi bi-chevron-up' : 'bi bi-sliders';
+
+    $btnToggle.addEventListener('click', () => {
+      const isCollapsed = $filtersCard.classList.toggle('filters-collapsed');
+      const isOpen = !isCollapsed;
+
+      localStorage.setItem(KEY, isOpen ? '1' : '0');
+      $btnToggle.querySelector('span').textContent = isOpen ? 'Moins de filtres' : 'Plus de filtres';
+      $btnToggle.querySelector('i').className = isOpen ? 'bi bi-chevron-up' : 'bi bi-sliders';
+
+      // TomSelect/Flatpickr : quand on ré-affiche, on rafraîchit la taille des dropdowns
+      if (isOpen){
+        setTimeout(() => {
+          document.querySelectorAll('.tomselect').forEach(() => {});
+        }, 50);
+      }
+    });
+  })();
+
+
+
+  const FAC_STATUS_FR = {
+    due: 'À payer',
+    paid: 'Payée',
+    canceled: 'Annulée',
+  };
+
+  const DV_STATUS_FR = {
+    // adapte à ton enum DevisStatus
+    draft: 'Brouillon',
+    sent: 'Envoyé',
+    accepted: 'Accepté',
+    refused: 'Refusé',
+    canceled: 'Annulé',
+  };
+
+  function labelFactureStatus(v){
+    const k = String(v || '').toLowerCase();
+    return FAC_STATUS_FR[k] || v || '—';
+  }
+
+  function labelDevisStatus(v){
+    const k = String(v || '').toLowerCase();
+    return DV_STATUS_FR[k] || v || '—';
+  }
+
+
+
+
+  // ✅ Toujours afficher en EUR pour les graphiques
+  const eur = (cents) => {
+    const n = Number(cents || 0) / 100;
+    try {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
+    } catch (e) {
+      return (n.toFixed(2)).replace('.', ',') + ' €';
+    }
+  };
+
+
+  const safe = (v) => (v === null || v === undefined || v === '') ? '—' : v;
+
+  const badgeBool = (v) => v
+    ? `<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">Oui</span>`
+    : `<span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle">Non</span>`;
+
+  const badgePill = (t) => `<span class="badge-soft">${t}</span>`;
+
+  // ===========================
+  // Flatpickr + TomSelect
+  // ===========================
+  if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
+
+  const $range = document.getElementById('fRange');
+  const $start = document.getElementById('fStart');
+  const $end   = document.getElementById('fEnd');
+
+  let fpRange = null;
+
+  function formatFr(d){
+    // d = Date
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = d.getFullYear();
+    return `${dd}/${mm}/${yy}`;
+  }
+  function iso(d){
+    return d.toISOString().slice(0,10);
+  }
+
+  function isoLocal(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function dateFromIso(isoStr){
+    // isoStr = "YYYY-MM-DD"
+    if (!isoStr) return null;
+    const [y,m,d] = isoStr.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m-1, d); // ✅ date locale sans timezone ISO
+  }
+
+  function setYearRange(year){
+    const y = Number(year);
+    if (!y) return;
+
+    const d1 = new Date(y, 0, 1);
+    const d2 = new Date(y, 11, 31);
+
+    // hidden inputs (format ISO)
+    $start.value = isoLocal(d1);
+    $end.value   = isoLocal(d2);
+
+    // flatpickr
+    fpRange?.setDate([d1, d2], true); // true => déclenche onChange
+  }
+
+  function getYearFromIso(isoStr){
+    if (!isoStr) return null;
+    const y = Number(String(isoStr).slice(0,4));
+    return Number.isFinite(y) ? y : null;
+  }
+
+
+  function initRangePicker(){
+    fpRange?.destroy?.();
+
+    const initStartIso = ($start.value || '').trim();
+    const initEndIso   = ($end.value || '').trim();
+
+    const dStart = dateFromIso(initStartIso);
+    const dEnd   = dateFromIso(initEndIso);
+
+    fpRange = flatpickr($range, {
+      locale: {
+        ...flatpickr.l10ns.fr,
+        rangeSeparator: " → ",
+      },
+      mode: "range",
+      dateFormat: "d/m/Y",
+      allowInput: true,
+      disableMobile: true,
+
+      // ✅ on passe des Date, plus des strings
+      defaultDate: [dStart, dEnd].filter(Boolean),
+
+      onChange: function(selectedDates){
+        const from = selectedDates[0] ? isoLocal(selectedDates[0]) : '';
+        const to   = selectedDates[1] ? isoLocal(selectedDates[1]) : from;
+        $start.value = from;
+        $end.value   = to;
+        syncYearSelectFromRange();
+
+      }
+    });
+
+    // ✅ force l’affichage du champ visible (range complet)
+    if (dStart && dEnd) {
+      fpRange.setDate([dStart, dEnd], false);
+    }
+  }
+
+  initRangePicker();
+
+  // ===========================
+  // Year selector helpers
+  // ===========================
+  const $year = document.getElementById('fYear');
+
+  (function initYearSelect(){
+    if (!$year) return;
+
+    // base : année de la période actuelle, sinon année courante
+    const currentY = getYearFromIso($start.value) || (new Date()).getFullYear();
+
+    // plage affichée : de (année courante - 6) à (année courante + 1)
+    const nowY = (new Date()).getFullYear();
+    const minY = nowY - 6;
+    const maxY = nowY + 1;
+
+    $year.innerHTML = '';
+    for (let y = maxY; y >= minY; y--){
+      const opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = String(y);
+      $year.appendChild(opt);
+    }
+
+    $year.value = String(currentY);
+
+    // si la période n’est PAS déjà une année complète, on ne force rien
+    // sinon, on synchronise l’affichage de la période
+  })();
+
+  // changements select => applique l'année complète
+  $year?.addEventListener('change', (e) => {
+    setYearRange(e.target.value);
+    refresh(); // ✅ applique direct
+  });
+
+
+
+  // ===========================
+  // ✅ Multi filtres Cat/Four (comme Dépenses)
+  // ===========================
+  function getCheckedValues(selector){
+    return Array.from(document.querySelectorAll(selector + ':checked'))
+      .map(el => parseInt(el.value, 10))
+      .filter(n => Number.isFinite(n));
+  }
+
+  function setAll(selector, checked){
+    document.querySelectorAll(selector).forEach(el => el.checked = checked);
+  }
+
+  function updateSelectedCounts(){
+    const catChecked  = getCheckedValues('.f-filter-cat');
+    const fourChecked = getCheckedValues('.f-filter-four');
+
+    const totalCat  = document.querySelectorAll('.f-filter-cat').length;
+    const totalFour = document.querySelectorAll('.f-filter-four').length;
+
+    // texte bouton
+    document.getElementById('fCatSelectedCount').textContent =
+      (catChecked.length === 0) ? 'Aucune' :
+      (catChecked.length === totalCat) ? 'Toutes' :
+      `${catChecked.length} sel.`;
+
+    document.getElementById('fFourSelectedCount').textContent =
+      (fourChecked.length === 0) ? 'Aucun' :
+      (fourChecked.length === totalFour) ? 'Tous' :
+      `${fourChecked.length} sel.`;
+
+    // modes (all|some|none) pour serveur
+    window.__finCatMode  =
+      (catChecked.length === 0) ? 'none' :
+      (catChecked.length === totalCat) ? 'all' : 'some';
+
+    window.__finFourMode =
+      (fourChecked.length === 0) ? 'none' :
+      (fourChecked.length === totalFour) ? 'all' : 'some';
+  }
+
+  // init: tout coché => mode "all"
+  setAll('.f-filter-cat', true);
+  setAll('.f-filter-four', true);
+  updateSelectedCounts();
+
+  // events check/uncheck
+  let refreshTimer = null;
+  function refreshDebounced(){
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => refresh(), 250);
+  }
+
+  document.addEventListener('change', (e) => {
+    if (e.target.matches('.f-filter-cat, .f-filter-four')){
+      updateSelectedCounts();
+      refreshDebounced(); // ✅ applique direct après sélection
+    }
+  });
+
+
+  // Tout / Aucun
+  document.addEventListener('click', (e) => {
+    const btnAll = e.target.closest('[data-check-all]');
+    const btnNone = e.target.closest('[data-uncheck-all]');
+    if (!btnAll && !btnNone) return;
+
+    const key = (btnAll || btnNone).getAttribute(btnAll ? 'data-check-all' : 'data-uncheck-all');
+    const checked = !!btnAll;
+
+    if (key === 'fcat')  setAll('.f-filter-cat', checked);
+    if (key === 'ffour') setAll('.f-filter-four', checked);
+
+    updateSelectedCounts();
+  });
+
+  // Recherche dropdown
+  document.addEventListener('input', (e) => {
+    const input = e.target.closest('input[data-filter]');
+    if (!input) return;
+
+    const q = (input.value || '').toLowerCase();
+    const t = input.getAttribute('data-filter');
+
+    if (t === 'fcat'){
+      document.querySelectorAll('#fCatList label').forEach(l => {
+        l.style.display = l.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+    if (t === 'ffour'){
+      document.querySelectorAll('#fFourList label').forEach(l => {
+        l.style.display = l.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+  });
+
+
+
+
+
+  
+
+
+
+  const initTS = (id) => {
+    const el = document.getElementById(id);
+    if (!el || el.tomselect) return;
+    new TomSelect(el, { create:false, allowEmptyOption:true, sortField:{field:'text',direction:'asc'} });
+  };
+  initTS('fDevise');
+  initTS('fTvaOnly');
+  initTS('fFactureStatus');
+  initTS('fDevisStatus');
+  initTS('fPayMode');
+
+
+  // ===========================
+  // Filters
+  // ===========================
+  function getFilters(){
+    const catIds  = getCheckedValues('.f-filter-cat');
+    const fourIds = getCheckedValues('.f-filter-four');
+
+    return {
+      dateStart: document.getElementById('fStart').value,
+      dateEnd: document.getElementById('fEnd').value,
+
+      // ✅ multi
+      catIds,
+      fourIds,
+      catMode:  window.__finCatMode  || 'all',   // all|some|none
+      fourMode: window.__finFourMode || 'all',   // all|some|none
+
+      // autres filtres inchangés
+      devise: document.getElementById('fDevise').value,
+      tvaOnly: document.getElementById('fTvaOnly').value,
+      factureStatus: document.getElementById('fFactureStatus').value,
+      devisStatus: document.getElementById('fDevisStatus').value,
+      payMode: document.getElementById('fPayMode').value,
+    };
+  }
+
+
+
+
+  // ===========================
+  // KPI + Charts (inchangés)
+  // ===========================
+  let chTrend, chCat, chFourn, chFacStatus;
+
+  function ensureChart(ref, ctx, cfg){
+    if (ref) ref.destroy();
+    return new Chart(ctx, cfg);
+  }
+
+  function num(v){ return Number(v||0); }
+
+  function buildMonthIndex(series){
+    const map = new Map();
+    series.forEach(r => map.set(r.ym, num(r.ttc || r.total || 0)));
+    const labels = Array.from(map.keys()).sort();
+    return { labels, values: labels.map(l => map.get(l) || 0) };
+  }
+
+  function buildQuery(filters){
+    const q = new URLSearchParams();
+
+    Object.entries(filters).forEach(([k,v]) => {
+      if (v === null || v === undefined) return;
+
+      // ✅ arrays -> k[]=1&k[]=2
+      if (Array.isArray(v)){
+        // si mode=all, on peut éviter d'envoyer les IDs (optionnel)
+        v.forEach(x => q.append(k + '[]', String(x)));
+        return;
+      }
+
+      if (typeof v === 'string' && v.trim() === '') return;
+      q.set(k, String(v));
+    });
+
+    // ✅ optimisation : si "all", on n'envoie pas les ids (ça évite URL longue)
+    if (filters.catMode === 'all')  q.delete('catIds[]');
+    if (filters.fourMode === 'all') q.delete('fourIds[]');
+
+    return q;
+  }
+
+
+  async function loadSummary(){
+    const q = buildQuery(getFilters());
+    const url = "{{ path('app_administrateur_finance_api_summary', {entite: entite.id}) }}" + "?" + q.toString();
+    const r = await fetch(url, { headers: { 'Accept':'application/json' }});
+    if (!r.ok) throw new Error('Erreur chargement dashboard');
+    return r.json();
+  }
+
+
+  const money = (cents) => {
+    const n = (Number(cents || 0) / 100);
+    const cur = document.getElementById('fDevise')?.value || 'EUR';
+    try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency:cur}).format(n); }
+    catch(e){ return (n.toFixed(2)).replace('.',',')+' '+cur; }
+  };
+
+
+
+
+  function applyKpis(k, filters){
+    document.getElementById('kpiDepTtc').textContent = money(k.dep.ttc);
+    document.getElementById('kpiDepCount').textContent = `${k.dep.cnt} dépense(s) — HT ${money(k.dep.ht)} — TVA ${money(k.dep.tva)}`;
+    document.getElementById('kpiTvaDed').textContent = money(k.dep.tvaDed);
+
+    document.getElementById('kpiFacTtc').textContent = money(k.fac.ttc);
+    document.getElementById('kpiFacCount').textContent = `${k.fac.cnt} facture(s) — HT ${money(k.fac.ht)} — TVA ${money(k.fac.tva)}`;
+
+    document.getElementById('kpiPayTotal').textContent = money(k.pay.total);
+    document.getElementById('kpiPayCount').textContent = `${k.pay.cnt} paiement(s)`;
+
+    document.getElementById('kpiNet').textContent = money(k.netTtc);
+    document.getElementById('kpiCashGap').textContent = money(k.cashGap);
+
+    document.getElementById('kpiDevisTtc').textContent = money(k.devis.ttc);
+    document.getElementById('kpiDevisCount').textContent = `${k.devis.cnt} devis`;
+
+    document.getElementById('kpiAvoTotal').textContent = money(k.avo.total);
+    document.getElementById('kpiAvoCount').textContent = `${k.avo.cnt} avoir(s)`;
+
+
+    if (k.avgMonthly) {
+      document.getElementById('kpiDepAvgMonth').textContent   = money(k.avgMonthly.depTtc);
+      document.getElementById('kpiFacAvgMonth').textContent   = money(k.avgMonthly.facTtc);
+      document.getElementById('kpiPayAvgMonth').textContent   = money(k.avgMonthly.pay);
+      document.getElementById('kpiDevisAvgMonth').textContent = money(k.avgMonthly.devisTtc);
+    }
+
+    // ✅ hint “lissé sur X mois”
+    const months = k?.filters?.monthsCovered || null; // si tu le mets dans kpis.filters, sinon data.filters
+    if (document.getElementById('kpiAvgHint')) {
+      document.getElementById('kpiAvgHint').textContent =
+        months ? `Lissé sur ${months} mois` : 'Lissé sur la période';
+    }
+  }
+
+
+  // ✅ Chart.js - lisibilité globale
+  Chart.defaults.font.size = 13;
+  Chart.defaults.plugins.legend.labels.boxWidth = 14;
+  Chart.defaults.plugins.legend.labels.boxHeight = 14;
+  Chart.defaults.plugins.legend.labels.padding = 14;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+
+
+  function applyCharts(c){
+    const dep = buildMonthIndex(c.depMonthly.map(x => ({ym:x.ym, total:x.ttc})));
+    const fac = buildMonthIndex(c.facMonthly.map(x => ({ym:x.ym, total:x.ttc})));
+    const pay = buildMonthIndex(c.payMonthly.map(x => ({ym:x.ym, total:x.total})));
+
+    const labels = Array.from(new Set([...dep.labels, ...fac.labels, ...pay.labels])).sort();
+    const at = (s) => {
+      const map = new Map(s.labels.map((l,i)=>[l, s.values[i]]));
+      return labels.map(l => map.get(l) || 0);
+    };
+
+    chTrend = ensureChart(chTrend, document.getElementById('chTrend'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Dépenses TTC', data: at(dep) },
+          { label: 'Factures TTC', data: at(fac) },
+          { label: 'Paiements', data: at(pay) },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false }, // ✅ tooltip “groupé” par mois
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              // ✅ titre (mois)
+              title: (items) => items?.[0]?.label ? items[0].label : '',
+              // ✅ valeurs en €
+              label: (ctx) => {
+                const v = Number(ctx.parsed?.y ?? ctx.raw ?? 0);
+                return `${ctx.dataset.label}: ${eur(v)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: { callback: (v) => eur(v) } // ✅ axe Y en €
+          }
+        }
+      }
+    });
+
+    const defaultPalette = [
+      '#2563eb','#16a34a','#f59e0b','#ef4444','#8b5cf6',
+      '#06b6d4','#f97316','#22c55e','#e11d48','#64748b'
+    ];
+
+
+
+    const catLabels = c.depByCat.map(x => x.label);
+    const catValues = c.depByCat.map(x => num(x.v)); // cents
+
+    const catColors = catLabels.map((_, i) => defaultPalette[i % defaultPalette.length]);
+
+    chCat = ensureChart(chCat, document.getElementById('chCat'), {
+      type: 'polarArea',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          data: catValues,
+          backgroundColor: catColors,
+          borderColor: catColors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 6, right: 8, bottom: 0, left: 8 } },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { font: { size: 12 } } // ✅ légende plus lisible
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const label = ctx.label ? `${ctx.label}: ` : '';
+                const v = Number(ctx.raw || 0);
+                return label + money(v);
+              },
+              footer: (items) => {
+                const vals = items?.[0]?.dataset?.data || [];
+                const total = vals.reduce((a,b)=>a+Number(b||0), 0);
+                const v = Number(items?.[0]?.raw || 0);
+                const pct = total ? (v/total*100) : 0;
+                return `Part: ${pct.toFixed(1).replace('.', ',')} %`;
+              }
+            }
+          }
+        },
+        scales: {
+          r: {
+            ticks: {
+              backdropColor: 'transparent',  // ✅ pas de “boîte” grise derrière le texte
+              font: { size: 12 },
+              callback: (v) => {
+                // ✅ ticks plus courts (sinon c’est illisible)
+                const euros = Number(v || 0) / 100;
+                if (euros >= 10000) return `${Math.round(euros/1000)}k€`;
+                if (euros >= 1000)  return `${(euros/1000).toFixed(1).replace('.', ',')}k€`;
+                return `${Math.round(euros)}€`;
+              }
+            },
+            pointLabels: {
+              font: { size: 12 }, // ✅ labels radiaux
+            }
+          }
+        }
+      }
+
+    });
+
+    const colorsFourn = c.depByFour.map((x, i) => x.color || defaultPalette[i % defaultPalette.length]);
+
+    chFourn = ensureChart(chFourn, document.getElementById('chFourn'), {
+      type:'bar',
+      data:{
+        labels: c.depByFour.map(x=>x.label),
+        datasets:[{
+          label:'Dépenses TTC',
+          data: c.depByFour.map(x=>num(x.v)),
+          backgroundColor: colorsFourn, // ✅ couleur par fournisseur
+          borderColor: colorsFourn,
+          borderWidth: 1
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{ display:false },
+          tooltip:{
+            callbacks:{
+              label: (ctx) => `${ctx.dataset.label}: ${money(ctx.parsed.y || 0)}`
+            }
+          }
+        },
+        scales:{
+          y:{ ticks:{ callback:(v)=> money(v) } }
+        }
+      }
+    });
+
+
+
+    const statusPalette = {
+      due:      '#f59e0b', // orange
+      paid:     '#16a34a', // vert
+      canceled: '#ef4444', // rouge
+    };
+
+    const facStatusLabelsRaw = c.facByStatus.map(x => String(x.label || '').toLowerCase());
+    const facStatusLabels    = c.facByStatus.map(x => labelFactureStatus(x.label));
+    const facStatusValues    = c.facByStatus.map(x => num(x.v));
+
+    const facStatusColors = facStatusLabelsRaw.map((k, i) =>
+      statusPalette[k] || defaultPalette[i % defaultPalette.length]
+    );
+
+    chFacStatus = ensureChart(chFacStatus, document.getElementById('chFacStatus'), {
+      type: 'polarArea',
+      data: {
+        labels: facStatusLabels,
+        datasets: [{
+          data: facStatusValues,
+          backgroundColor: facStatusColors,
+          borderColor: facStatusColors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const label = ctx.label ? `${ctx.label}: ` : '';
+                const v = Number(ctx.raw || 0);
+                return label + money(v);
+              },
+              footer: (items) => {
+                const vals = items?.[0]?.dataset?.data || [];
+                const total = vals.reduce((a,b)=>a+Number(b||0), 0);
+                const v = Number(items?.[0]?.raw || 0);
+                const pct = total ? (v/total*100) : 0;
+                return `Part: ${pct.toFixed(1).replace('.', ',')} %`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+  }
+
+  // ===========================
+  // DataTables (ALL tabs)
+  // ===========================
+  let dtDep, dtPay, dtFac, dtDev, dtAvo;
+
+  function dtCommonOptions(){
+    return {
+      processing:true,
+      serverSide:true,
+      pageLength: 25,
+      lengthMenu: [[10,25,50,100],[10,25,50,100]],
+      deferRender:true,
+      autoWidth:false,
+      responsive:false, // garde bootstrap table responsive
+      language: {
+        url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/fr-FR.json"
+      }
+    };
+  }
+
+
+
+  function syncYearSelectFromRange(){
+    const y = getYearFromIso($start.value);
+    if ($year && y) $year.value = String(y);
+  }
+
+  document.getElementById('btnYearNow')?.addEventListener('click', () => {
+    const y = (new Date()).getFullYear();
+    setYearRange(y);
+    if ($year) $year.value = String(y);
+    refresh(); // ✅
+  });
+
+
+  document.getElementById('btnYearPrev1')?.addEventListener('click', () => {
+    const y = (new Date()).getFullYear() - 1;
+    setYearRange(y);
+    if ($year) $year.value = String(y);
+    refresh();
+  });
+
+  document.getElementById('btnYearPrev2')?.addEventListener('click', () => {
+    const y = (new Date()).getFullYear() - 2;
+    setYearRange(y);
+    if ($year) $year.value = String(y);
+    refresh();
+  });
+
+
+  function dtFilters(d){
+    const f = getFilters();
+
+    // strings
+    ['dateStart','dateEnd','devise','tvaOnly','factureStatus','devisStatus','payMode','catMode','fourMode']
+      .forEach((k) => {
+        const v = f[k];
+        if (v === null || v === undefined) return;
+        if (typeof v === 'string' && v.trim() === '') return;
+        d[k] = v;
+      });
+
+    // ✅ arrays -> Symfony attend souvent catIds[] / fourIds[]
+    if (f.catMode !== 'all')  d['catIds[]']  = f.catIds;
+    if (f.fourMode !== 'all') d['fourIds[]'] = f.fourIds;
+  }
+
+
+
+
+  function initDtDepenses(){
+    if (dtDep) return;
+    dtDep = $('#dtDepenses').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{
+        url: "{{ path('app_administrateur_finance_dt_depenses', {entite: entite.id}) }}",
+        type:"GET",
+        data: dtFilters
+      },
+      columnDefs:[
+        { targets:[4,5,6,9], className:'text-end' },
+        { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[7], render:(d)=> badgeBool(!!d) },
+        { targets:[9], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function initDtPaiements(){
+    if (dtPay) return;
+    dtPay = $('#dtPaiements').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{
+        url: "{{ path('app_administrateur_finance_dt_paiements', {entite: entite.id}) }}",
+        type:"GET",
+        data: dtFilters
+      },
+      columnDefs:[
+        { targets:[3,7], className:'text-end' },
+        { targets:[3], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[5], render:(d)=> d ? `<code>${d}</code>` : '—' },
+        { targets:[6], render:(d)=> d ? `<a class="badge-soft" target="_blank" href="/uploads/paiements/${encodeURIComponent(d)}">Justif</a>` : '—' },
+        { targets:[7], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function initDtFactures(){
+    if (dtFac) return;
+    dtFac = $('#dtFactures').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{
+        url: "{{ path('app_administrateur_finance_dt_factures', {entite: entite.id}) }}",
+        type:"GET",
+        data: dtFilters
+      },
+      columnDefs:[
+        { targets:[4,5,6,8], className:'text-end' },
+        { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[3], render:(d)=> d ? badgePill(labelFactureStatus(d)) : '—' },
+        { targets:[8], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function initDtDevis(){
+    if (dtDev) return;
+    dtDev = $('#dtDevis').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{
+        url: "{{ path('app_administrateur_finance_dt_devis', {entite: entite.id}) }}",
+        type:"GET",
+        data: dtFilters
+      },
+      columnDefs:[
+        { targets:[4,5,6,9], className:'text-end' },
+        { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[3], render:(d)=> d ? badgePill(labelDevisStatus(d)) : '—' },
+        { targets:[8], render:(d)=> d ? badgePill('PDF') : '—' },
+        { targets:[9], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function initDtAvoirs(){
+    if (dtAvo) return;
+    dtAvo = $('#dtAvoirs').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{
+        url: "{{ path('app_administrateur_finance_dt_avoirs', {entite: entite.id}) }}",
+        type:"GET",
+        data: dtFilters
+      },
+      columnDefs:[
+        { targets:[3,4], className:'text-end' },
+        { targets:[3], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[4], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function reloadAllDt(){
+    dtDep?.ajax.reload(null,false);
+    dtPay?.ajax.reload(null,false);
+    dtFac?.ajax.reload(null,false);
+    dtDev?.ajax.reload(null,false);
+    dtAvo?.ajax.reload(null,false);
+  }
+
+  // ===========================
+  // Refresh
+  // ===========================
+  async function refresh(){
+    document.getElementById('btnRefresh').disabled = true;
+    document.getElementById('btnApply').disabled = true;
+    try{
+      const data = await loadSummary();
+      applyKpis(data.kpis, data.filters);
+      applyCharts(data.charts);
+
+      // si l'utilisateur est sur un onglet data, on reload la table active
+      reloadAllDt();
+    }catch(e){
+      console.error(e);
+      alert(e.message || 'Erreur');
+    }finally{
+      document.getElementById('btnRefresh').disabled = false;
+      document.getElementById('btnApply').disabled = false;
+    }
+  }
+
+  // ===========================
+  // Events
+  // ===========================
+  document.getElementById('btnApply').addEventListener('click', refresh);
+  document.getElementById('btnRefresh').addEventListener('click', refresh);
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    document.getElementById('fDevise')?.tomselect?.clear(true);
+    document.getElementById('fTvaOnly')?.tomselect?.setValue('all', true);
+    document.getElementById('fFactureStatus')?.tomselect?.clear(true);
+    document.getElementById('fDevisStatus')?.tomselect?.clear(true);
+    document.getElementById('fPayMode')?.tomselect?.clear(true);
+
+
+
+    // ✅ reset période : on remet start/end à celles du contrôleur (Twig)
+    document.getElementById('fStart').value = "{{ start }}";
+    document.getElementById('fEnd').value   = "{{ end }}";
+
+    const yReset = getYearFromIso("{{ start }}");
+    if ($year && yReset) $year.value = String(yReset);
+
+
+    const d1 = dateFromIso("{{ start }}");
+    const d2 = dateFromIso("{{ end }}");
+    fpRange?.setDate([d1, d2], true);
+    $range.value = `${formatFr(d1)} → ${formatFr(d2)}`; // ✅ force affichage
+
+    // ✅ reset multi cat/four : tout coché
+    setAll('.f-filter-cat', true);
+    setAll('.f-filter-four', true);
+    document.querySelectorAll('input[data-filter="fcat"], input[data-filter="ffour"]').forEach(i => i.value = '');
+    updateSelectedCounts();
+
+
+
+
+    refresh();
+  });
+
+
+  // Lazy init DataTables when tab is shown
+  document.querySelectorAll('#financeTabs button[data-bs-toggle="pill"]').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', (e) => {
+      const target = e.target.getAttribute('data-bs-target');
+      if (target === '#tab-dep') initDtDepenses();
+      if (target === '#tab-pay') initDtPaiements();
+      if (target === '#tab-fac') initDtFactures();
+      if (target === '#tab-dev') initDtDevis();
+      if (target === '#tab-avo') initDtAvoirs();
+    });
+  });
+
+  // Init (charts + KPIs)
+  refresh();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,1379 @@
+{# templates/administrateur/devis/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#fff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius:18px;
+    }
+
+
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .subtitle{ opacity:.86; }
+    .hero .btn{ border-radius:14px; font-weight:800; }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    /* IMPORTANT: dropdown au-dessus des cards/modales */
+    .ts-dropdown, .ts-dropdown.form-control, .ts-dropdown .ts-dropdown-content{
+      z-index: 1080 !important;
+    }
+
+    .input-euro .form-control{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .input-euro .euro-suffix{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      font-weight: 800;
+      letter-spacing: .02em;
+      color: var(--theme-color-principal);
+      border-color: var(--stroke);
+      min-width: 46px;
+      justify-content: center;
+      border: 1px solid var(--stroke);
+    }
+
+    .ligne-item .card{
+      border-style:dashed;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 16%, var(--stroke));
+      border-radius: 16px;
+    }
+
+    .summary-box{
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);
+      padding: 1rem;
+    }
+
+    .mini-kpi{
+      border:1px solid var(--stroke);
+      border-radius: 16px;
+      padding:.85rem 1rem;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent), transparent);
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO (style Sessions / site/index) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-file-earmark-text me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ title }}
+          </h2>
+
+          <div class="subtitle mt-1">
+            Références, lignes, remises et montants.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip">
+              <i class="bi bi-file-earmark-text"></i>
+              Devis
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip chip--pill">
+              <i class="bi bi-pencil-square"></i>
+              {{ title }}
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_devis_index', {entite: entite.id}) }}">
+            <i class="bi bi-arrow-left me-1"></i> Annuler
+          </a>
+
+          {% if form.vars.value and form.vars.value.id %}
+            <a class="btn btn-light btn-sm fw-semibold"
+              href="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: form.vars.value.id}) }}">
+              <i class="bi bi-filetype-pdf me-1"></i> PDF
+            </a>
+          {% endif %}
+
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-check2 me-1"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'devis_form' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+
+    {# ===== COL LEFT ===== #}
+    <div class="col-lg-8">
+
+      {# ===== Références ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-link text-warning"></i> Références</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+
+            <div class="col-md-12">
+              {{ form_label(form.formation) }}
+              {{ form_widget(form.formation) }}
+              {{ form_errors(form.formation) }}
+              <div class="form-text">
+                En rattachant une formation, <strong>une ligne</strong> peut être auto-remplie (titre + prix) et les montants recalculés.
+              </div>
+            </div>
+
+            <div class="col-md-12">
+              <div class="mini-kpi">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                  <div class="fw-bold"><i class="bi bi-mortarboard-fill me-2"></i>Formation sélectionnée</div>
+                  <span class="badge rounded-pill" style="border:1px solid var(--stroke); background:rgba(255,193,7,.15); color:var(--ink);">
+                    Auto
+                  </span>
+                </div>
+                <div class="mt-2 small">
+                  <div class="d-flex justify-content-between gap-3 py-1">
+                    <span class="text-muted">Titre</span>
+                    <span class="fw-semibold text-end" id="formation-title">—</span>
+                  </div>
+                  <div class="d-flex justify-content-between gap-3 py-1">
+                    <span class="text-muted">Heures / quantité</span>
+                    <span class="fw-semibold text-end" id="formation-hours">—</span>
+                  </div>
+                  <div class="d-flex justify-content-between gap-3 py-1">
+                    <span class="text-muted">Prix (base)</span>
+                    <span class="fw-semibold text-end" id="formation-price">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-12">{{ form_row(form.prospect) }}</div>
+
+            <div class="col-md-12">{{ form_row(form.destinataire) }}</div>
+
+            <div class="col-md-12">
+              {{ form_label(form.entrepriseDestinataire) }}
+              <div class="d-flex gap-2 align-items-start">
+                <div class="flex-grow-1">
+                  {{ form_widget(form.entrepriseDestinataire) }}
+                  {{ form_errors(form.entrepriseDestinataire) }}
+                </div>
+                <button type="button" class="btn btn-outline-primary"
+                        id="btnAddEntreprise"
+                        title="Créer une entreprise">
+                  <i class="fa fa-plus"></i>
+                </button>
+              </div>
+              <div class="form-text">Création à la volée, puis sélection automatique.</div>
+            </div>
+
+            <div class="col-md-12">
+              {{ form_row(form.inscriptions) }}
+              <div class="form-text">Sélection multiple possible (TomSelect).</div>
+            </div>
+
+            <div class="col-md-4">{{ form_row(form.dateEmission) }}</div>
+            <div class="col-md-4">{{ form_row(form.devise) }}</div>
+            <div class="col-md-4">{{ form_row(form.status) }}</div>
+          </div>
+        </div>
+      </div>
+
+      
+
+      {# ===== Lignes (prototype) ===== #}
+      {% set lignePrototype %}
+        <div class="row g-3">
+          <div class="col-12">
+            {{ form_row(form.lignes.vars.prototype.label) }}
+            <div class="form-text">Astuce : 1ère ligne = titre, lignes suivantes = détails (PDF).</div>
+          </div>
+
+          <div class="col-md-2">{{ form_row(form.lignes.vars.prototype.qte) }}</div>
+          <div class="col-md-2">{{ form_row(form.lignes.vars.prototype.puHtCents) }}</div>
+          <div class="col-md-2">{{ form_row(form.lignes.vars.prototype.tva) }}</div>
+          <div class="col-md-3">{{ form_row(form.lignes.vars.prototype.remisePourcent) }}</div>
+          <div class="col-md-3">{{ form_row(form.lignes.vars.prototype.remiseMontantCents) }}</div>
+        </div>
+      {% endset %}
+
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-list text-warning"></i> Lignes</h5>
+          <span class="chip">Étape 2</span>
+        </div>
+
+        <div class="p-1 p-md-1">
+          <div id="lignes-collection" data-prototype="{{ lignePrototype|e('html_attr') }}">
+            {% for ligneForm in form.lignes %}
+              <div class="ligne-item mb-3">
+                <div class="card p-3">
+                  <div class="row g-3">
+                      <div class="col-12">
+                        {{ form_row(ligneForm.label) }}
+                        <div class="form-text">1ère ligne = titre, lignes suivantes = détails (PDF).</div>
+                      </div>
+
+                      <div class="col-md-2">{{ form_row(ligneForm.qte) }}</div>
+                      <div class="col-md-2">{{ form_row(ligneForm.puHtCents) }}</div>
+                      <div class="col-md-2">{{ form_row(ligneForm.tva) }}</div>
+                      <div class="col-md-3">{{ form_row(ligneForm.remisePourcent) }}</div>
+
+                      <div class="col-md-3">
+                        <div class="input-group input-euro">
+                          {{ form_widget(ligneForm.remiseMontantCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                          <span class="input-group-text euro-suffix">€</span>
+                        </div>
+                        {{ form_errors(ligneForm.remiseMontantCents) }}
+                      </div>
+
+                      <div class="col-12 d-flex justify-content-end">
+                        <button type="button" class="btn btn-outline-danger btn-remove-ligne">
+                          <i class="fa fa-trash"></i> Supprimer
+                        </button>
+                      </div>
+                    </div>
+
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <button type="button" class="btn btn-outline-primary mt-2 m-3" id="btn-add-ligne">
+            <i class="fa fa-plus"></i> Ajouter une ligne
+          </button>
+        </div>
+      </div>
+
+
+
+      {# ===== Montants + Remise globale ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-receipt text-warning"></i> Montants</h5>
+          <span class="chip">Auto</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+
+            <div class="col-md-6">
+              {{ form_label(form.montantHtCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantHtCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.montantTvaCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantTvaCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.remiseGlobalePourcent) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.remiseGlobalePourcent, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">%</span>
+              </div>
+              <div class="form-text">Soit % soit € (si tu mets l’un, l’autre est vidé).</div>
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.remiseGlobaleMontantCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.remiseGlobaleMontantCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+            </div>
+
+            <div class="col-md-12">
+              {{ form_label(form.montantTtcCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantTtcCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="form-text mt-2">
+            Calcul : remise par ligne → sous-total HT net → remise globale (prorata lignes) → TVA par ligne → TTC.
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-gradient">
+          <i class="fa fa-check"></i> Enregistrer
+        </button>
+        <a class="btn btn-light" href="{{ path('app_administrateur_devis_index', {entite: entite.id}) }}">Annuler</a>
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT ===== #}
+    <div class="col-lg-4">
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="summary-box mb-3">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Choix actuels</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Formation</span>
+                <span class="fw-semibold text-end" id="resume-formation">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Heures / quantité</span>
+                <span class="fw-semibold text-end" id="resume-formation-hours">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Prospect</span>
+                <span class="fw-semibold text-end" id="resume-prospect">—</span>
+              </div>
+
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Destinataire</span>
+                <span class="fw-semibold text-end" id="resume-destinataire">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Entreprise</span>
+                <span class="fw-semibold text-end" id="resume-entreprise">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Inscriptions</span>
+                <span class="fw-semibold text-end" id="resume-inscriptions">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Date</span>
+                <span class="fw-semibold text-end" id="resume-date">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Devise</span>
+                <span class="fw-semibold text-end" id="resume-devise">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Statut</span>
+                <span class="fw-semibold text-end" id="resume-status">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">HT</span>
+                <span class="fw-semibold text-end" id="resume-ht">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">TVA</span>
+                <span class="fw-semibold text-end" id="resume-tva">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">TTC</span>
+                <span class="fw-bold text-end" id="resume-ttc">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Nb lignes</span>
+                <span class="fw-semibold text-end" id="resume-lines">0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="{{ path('app_administrateur_devis_index', {entite: entite.id}) }}">Annuler</a>
+            <button type="submit" class="btn btn-gradient w-50">
+              <i class="fa fa-check"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {% do form.lignes.setRendered %}
+
+  {{ form_end(form) }}
+
+<div id="entrepriseModalMount"></div>
+
+<script>
+
+const IS_EDIT = {{ form.vars.value and form.vars.value.id ? 'true' : 'false' }};
+
+/* =========================================================
+   HELPERS (centimes, robustes)
+========================================================= */
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+function parseNumberFR(v){
+  if (v === null || v === undefined) return 0;
+  v = String(v).trim().replace(/\s/g,'').replace(',', '.');
+  v = v.replace(/[^\d.\-]/g,'');
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function parseEurosToCents(v){
+  // "12,34" => 1234
+  const n = parseNumberFR(v);
+  return Math.round(n * 100);
+}
+
+function centsToEurosFR(cents){
+  const n = (Math.round(cents) / 100);
+  return n.toFixed(2).replace('.', ',');
+}
+
+function formatMoneyEURFromCents(cents){
+  const n = (Math.round(cents) / 100);
+  try { return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR' }).format(n); }
+  catch(e){ return (n.toFixed(2).replace('.', ',') + ' €'); }
+}
+
+function getSelectedText(selectEl){
+  if (!selectEl || !selectEl.value) return '';
+  const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+  return (opt ? opt.textContent : '').trim();
+}
+
+function getSelectedTexts(selectEl){
+  if (!selectEl) return [];
+  const opts = Array.from(selectEl.selectedOptions || []);
+  return opts.map(o => (o.textContent || '').trim()).filter(Boolean);
+}
+
+/* =========================================================
+   VALIDATION LIGHT (ton code, inchangé)
+========================================================= */
+function initFormValidation({ formName, alertMount = 'top', autoHideMs = 6000 } = {}) {
+  const form =
+    document.forms[formName] ||
+    document.querySelector(`form[name="${formName}"]`) ||
+    document.querySelector('form');
+
+  if (!form) return;
+
+  let errorAlert = document.getElementById('form-error-alert');
+  if (!errorAlert) {
+    errorAlert = document.createElement('div');
+    errorAlert.className = 'alert alert-danger d-none';
+    errorAlert.id = 'form-error-alert';
+    if (alertMount === 'top') form.prepend(errorAlert);
+    else form.appendChild(errorAlert);
+  }
+
+  const isVisible = (el) => {
+    if (!el) return false;
+    if (el.disabled) return false;
+    if (el.type === 'hidden') return false;
+    const parent = el.closest('[hidden], .d-none');
+    if (parent) return false;
+    if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+    return true;
+  };
+
+  const getLabelText = (el) => {
+    if (el.id) {
+      const l = form.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+      if (l?.textContent) return l.textContent.trim();
+    }
+    return (el.getAttribute('data-label') || el.getAttribute('placeholder') || el.name || 'Champ').trim();
+  };
+
+  const clearInvalidUI = (el) => {
+    if (!el) return;
+    el.classList.remove('is-invalid');
+    if (el.tomselect) {
+      const tsWrapper = el.tomselect.wrapper;
+      tsWrapper?.classList.remove('is-invalid');
+      tsWrapper?.querySelector('.ts-control')?.classList.remove('is-invalid');
+    }
+    if (el._flatpickr?.altInput) el._flatpickr.altInput.classList.remove('is-invalid');
+  };
+
+  const markInvalidUI = (el) => {
+    if (!el) return;
+    if (el.tomselect) {
+      const ctrl = el.tomselect.wrapper?.querySelector('.ts-control');
+      ctrl?.classList.add('is-invalid');
+      el.tomselect.wrapper?.classList.add('is-invalid');
+      return;
+    }
+    if (el._flatpickr?.altInput) { el._flatpickr.altInput.classList.add('is-invalid'); return; }
+    el.classList.add('is-invalid');
+  };
+
+  const scrollToField = (el) => {
+    if (!el) return;
+    if (el.tomselect && el.tomselect.wrapper) {
+      el.tomselect.wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.tomselect.focus();
+      return;
+    }
+    if (el._flatpickr?.altInput) {
+      el._flatpickr.altInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el._flatpickr.altInput.focus();
+      return;
+    }
+    el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    el.focus?.({ preventScroll: true });
+  };
+
+  form.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    clearInvalidUI(el);
+  }, true);
+
+  form.addEventListener('change', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    clearInvalidUI(el);
+  }, true);
+
+  form.addEventListener('submit', (e) => {
+    errorAlert.classList.add('d-none');
+    errorAlert.innerHTML = '';
+
+    const messages = new Set();
+    let firstInvalid = null;
+
+    const invalids = Array.from(form.querySelectorAll(':invalid'));
+    invalids.forEach((el) => {
+      if (!isVisible(el)) return;
+      markInvalidUI(el);
+      if (!firstInvalid) firstInvalid = el;
+      messages.add(`- ${getLabelText(el)}`);
+    });
+
+    if (messages.size) {
+      e.preventDefault();
+      errorAlert.innerHTML = `<strong>Champs requis manquants :</strong><br>` + [...messages].join('<br>');
+      errorAlert.classList.remove('d-none');
+      if (alertMount === 'top') errorAlert.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      scrollToField(firstInvalid);
+      if (autoHideMs) {
+        window.clearTimeout(errorAlert._hideTimer);
+        errorAlert._hideTimer = window.setTimeout(() => errorAlert.classList.add('d-none'), autoHideMs);
+      }
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+
+  // IDs
+  const idFormation     = '#{{ form.formation.vars.id }}';
+  const idDestinataire  = '#{{ form.destinataire.vars.id }}';
+  const idProspect = '#{{ form.prospect.vars.id }}';
+  const idEntreprise    = '#{{ form.entrepriseDestinataire.vars.id }}';
+  const idInscriptions  = '#{{ form.inscriptions.vars.id }}';
+  const idDate          = '#{{ form.dateEmission.vars.id }}';
+  const idDevise        = '#{{ form.devise.vars.id }}';
+  const idStatus        = '#{{ form.status.vars.id }}';
+
+  const idHT            = '#{{ form.montantHtCents.vars.id }}';
+  const idTVA           = '#{{ form.montantTvaCents.vars.id }}';
+  const idTTC           = '#{{ form.montantTtcCents.vars.id }}';
+
+  const idRemiseGlobPct = '#{{ form.remiseGlobalePourcent.vars.id }}';
+  const idRemiseGlobEur = '#{{ form.remiseGlobaleMontantCents.vars.id }}';
+
+  const $formation = document.querySelector(idFormation);
+  const $ht  = document.querySelector(idHT);
+  const $tva = document.querySelector(idTVA);
+  const $ttc = document.querySelector(idTTC);
+
+  const $remiseGlobPct = document.querySelector(idRemiseGlobPct);
+  const $remiseGlobEur = document.querySelector(idRemiseGlobEur);
+
+  const form = document.querySelector('form[name="devis_form"]');
+  const submitButtons = form ? [...form.querySelectorAll('button[type="submit"]')] : [];
+
+  const $resume = {
+    pill: document.getElementById('resume-valid-pill'),
+    formation: document.getElementById('resume-formation'),
+    formationHours: document.getElementById('resume-formation-hours'),
+    destinataire: document.getElementById('resume-destinataire'),
+    prospect: document.getElementById('resume-prospect'),
+    entreprise: document.getElementById('resume-entreprise'),
+    inscriptions: document.getElementById('resume-inscriptions'),
+    date: document.getElementById('resume-date'),
+    devise: document.getElementById('resume-devise'),
+    status: document.getElementById('resume-status'),
+    ht: document.getElementById('resume-ht'),
+    tva: document.getElementById('resume-tva'),
+    ttc: document.getElementById('resume-ttc'),
+    lines: document.getElementById('resume-lines')
+  };
+
+  const $formationUi = {
+    title: document.getElementById('formation-title'),
+    hours: document.getElementById('formation-hours'),
+    price: document.getElementById('formation-price'),
+  };
+
+  /* =========================================================
+     TomSelect
+  ========================================================= */
+  function initTomSelect(selector, opts = {}){
+    const el = document.querySelector(selector);
+    if (!el || el.tomselect) return el;
+    new TomSelect(el, Object.assign({
+      create:false,
+      plugins: el.multiple ? ['remove_button'] : [],
+      sortField: { field:'text', direction:'asc' }
+    }, opts));
+    return el;
+  }
+
+  initTomSelect(idFormation);
+  initTomSelect(idDestinataire);
+  initTomSelect(idProspect);
+  initTomSelect(idInscriptions);
+  initTomSelect(idDevise);
+  initTomSelect(idStatus);
+  initTomSelect(idEntreprise, { allowEmptyOption:true });
+
+  /* =========================================================
+     Flatpickr FR
+  ========================================================= */
+  if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
+  document.querySelectorAll('.flatpickr-date').forEach(el => {
+    if (!el._fp) flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
+  });
+
+  /* =========================================================
+     Remise globale exclusivité % / €
+  ========================================================= */
+  function bindExclusivePair(pctInput, eurInput){
+    if (!pctInput || !eurInput) return;
+    const clearPct = () => { pctInput.value = ''; };
+    const clearEur = () => { eurInput.value = ''; };
+
+    pctInput.addEventListener('input', () => {
+      const pct = parseNumberFR(pctInput.value);
+      if (pct > 0) clearEur();
+      recomputeTotalsFromLines();
+    });
+    eurInput.addEventListener('input', () => {
+      const eurCents = parseEurosToCents(eurInput.value);
+      if (eurCents > 0) clearPct();
+      recomputeTotalsFromLines();
+    });
+  }
+  bindExclusivePair($remiseGlobPct, $remiseGlobEur);
+
+  /* =========================================================
+     Lignes: collection / prototype
+  ========================================================= */
+  const collection = document.getElementById('lignes-collection');
+  const proto = collection?.dataset.prototype || '';
+  let index = {{ form.lignes|length }};
+
+  function attachLineEvents(item){
+    if (!item) return;
+
+    const qInput   = item.querySelector('input[name$="[qte]"]');
+    const puInput  = item.querySelector('input[name$="[puHtCents]"]');
+    const tvaInput = item.querySelector('select[name$="[tva]"], input[name$="[tva]"]');
+
+    const rpInput  = item.querySelector('input[name$="[remisePourcent]"]');
+    const reInput  = item.querySelector('input[name$="[remiseMontantCents]"]');
+
+    // exclusivité remise ligne
+    if (rpInput && reInput){
+      rpInput.addEventListener('input', () => {
+        const pct = parseNumberFR(rpInput.value);
+        if (pct > 0) reInput.value = '';
+        recomputeTotalsFromLines();
+      });
+      reInput.addEventListener('input', () => {
+        const eurCents = parseEurosToCents(reInput.value);
+        if (eurCents > 0) rpInput.value = '';
+        recomputeTotalsFromLines();
+      });
+    }
+
+    [qInput, puInput, tvaInput, rpInput, reInput].forEach(el => {
+      if (!el) return;
+      el.addEventListener('input', recomputeTotalsFromLines);
+      el.addEventListener('change', recomputeTotalsFromLines);
+    });
+  }
+
+  function addLigne(prefill = null){
+    const html = proto.replace(/__name__/g, index++);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ligne-item mb-3';
+    wrapper.innerHTML = `
+      <div class="card p-3">
+        ${html}
+        <div class="mt-2 d-flex justify-content-end">
+          <button type="button" class="btn btn-outline-danger btn-remove-ligne">
+            <i class="fa fa-trash"></i> Supprimer
+          </button>
+        </div>
+      </div>
+    `;
+    collection.appendChild(wrapper);
+
+    // si tu veux préremplir
+    if (prefill){
+      const label = wrapper.querySelector('input[name$="[label]"], textarea[name$="[label]"]');
+      const qte   = wrapper.querySelector('input[name$="[qte]"]');
+      const pu    = wrapper.querySelector('input[name$="[puHtCents]"]');
+      const tva   = wrapper.querySelector('select[name$="[tva]"], input[name$="[tva]"]');
+
+      if (label && prefill.label) label.value = prefill.label;
+      if (qte && prefill.qte !== undefined) qte.value = String(prefill.qte);
+      if (pu && prefill.puEuros !== undefined) pu.value = String(prefill.puEuros).replace('.', ',');
+      if (tva && prefill.tva !== undefined) tva.value = String(prefill.tva);
+    }
+
+    attachLineEvents(wrapper);
+    recomputeTotalsFromLines();
+    return wrapper;
+  }
+
+  document.querySelectorAll('#lignes-collection .ligne-item').forEach(attachLineEvents);
+
+  collection?.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.btn-remove-ligne');
+    if (btn){
+      e.preventDefault();
+      btn.closest('.ligne-item')?.remove();
+      recomputeTotalsFromLines();
+    }
+  });
+
+  document.getElementById('btn-add-ligne')?.addEventListener('click', () => addLigne());
+
+  /* =========================================================
+     Calcul robuste (centimes + prorata remise globale)
+     - Remise ligne: € prioritaire sinon %
+     - Remise globale: € prioritaire sinon %
+     - TVA calculée par ligne sur HT net après prorata
+  ========================================================= */
+  function readLine(item){
+    const qInput   = item.querySelector('input[name$="[qte]"]');
+    const puInput  = item.querySelector('input[name$="[puHtCents]"]');
+    const tvaInput = item.querySelector('select[name$="[tva]"], input[name$="[tva]"]');
+    const rpInput  = item.querySelector('input[name$="[remisePourcent]"]');
+    const reInput  = item.querySelector('input[name$="[remiseMontantCents]"]');
+    const labelInp = item.querySelector('input[name$="[label]"], textarea[name$="[label]"]');
+
+    const qte = clamp(parseNumberFR(qInput?.value || 0), 0, 999999);
+    const puCents = clamp(parseEurosToCents(puInput?.value || 0), 0, 999999999);
+    const tva = clamp(parseNumberFR(tvaInput?.value || 0), 0, 100);
+
+    const brutHtCents = Math.round(qte * puCents);
+
+    const remiseEurCents = clamp(parseEurosToCents(reInput?.value || 0), 0, brutHtCents);
+    const remisePct = clamp(parseNumberFR(rpInput?.value || 0), 0, 100);
+
+    let remiseLigneCents = 0;
+    if (remiseEurCents > 0) {
+      remiseLigneCents = remiseEurCents;
+    } else if (remisePct > 0) {
+      remiseLigneCents = Math.round(brutHtCents * (remisePct / 100));
+    }
+
+    remiseLigneCents = clamp(remiseLigneCents, 0, brutHtCents);
+    const netHtCents = brutHtCents - remiseLigneCents;
+
+    return {
+      item,
+      label: (labelInp?.value || '').trim(),
+      qte,
+      puCents,
+      tva,
+      brutHtCents,
+      remiseLigneCents,
+      netHtCents
+    };
+  }
+
+  function computeGlobalDiscountCents(baseNetHtCents){
+    const gEur = clamp(parseEurosToCents($remiseGlobEur?.value || 0), 0, baseNetHtCents);
+    const gPct = clamp(parseNumberFR($remiseGlobPct?.value || 0), 0, 100);
+
+    if (gEur > 0) return gEur;
+    if (gPct > 0) return Math.round(baseNetHtCents * (gPct / 100));
+    return 0;
+  }
+
+  function recomputeTotalsFromLines(){
+    const items = Array.from(document.querySelectorAll('#lignes-collection .ligne-item'));
+    const lines = items.map(readLine).filter(l => l.qte > 0 || l.puCents > 0 || l.label);
+
+    // base net HT (après remises lignes)
+    const baseNetHt = lines.reduce((s,l)=> s + l.netHtCents, 0);
+
+    // remise globale
+    const globalDiscount = clamp(computeGlobalDiscountCents(baseNetHt), 0, baseNetHt);
+
+    // prorata remise globale sur lignes (pour TVA correcte multi-taux)
+    // -> répartit en centimes sur les lignes avec netHtCents > 0
+    const proratables = lines.filter(l => l.netHtCents > 0);
+    const totalProratable = proratables.reduce((s,l)=> s + l.netHtCents, 0);
+
+    let remaining = globalDiscount;
+    const prorataMap = new Map();
+
+    if (globalDiscount > 0 && totalProratable > 0){
+      proratables.forEach((l, idx) => {
+        let share = (idx === proratables.length - 1)
+          ? remaining
+          : Math.round(globalDiscount * (l.netHtCents / totalProratable));
+
+        share = clamp(share, 0, remaining);
+        prorataMap.set(l, share);
+        remaining -= share;
+      });
+    }
+
+    // totals
+    let totalHtFinal = 0;
+    let totalTva = 0;
+
+    lines.forEach(l => {
+      const share = prorataMap.get(l) || 0;
+      const htAfterGlobal = clamp(l.netHtCents - share, 0, l.netHtCents);
+
+      const tvaCents = Math.round(htAfterGlobal * (l.tva / 100));
+
+      totalHtFinal += htAfterGlobal;
+      totalTva += tvaCents;
+    });
+
+    const totalTtc = totalHtFinal + totalTva;
+
+    // push into form fields (euros FR)
+    if ($ht)  $ht.value  = centsToEurosFR(totalHtFinal);
+    if ($tva) $tva.value = centsToEurosFR(totalTva);
+    if ($ttc) $ttc.value = centsToEurosFR(totalTtc);
+
+    refreshResume();
+  }
+
+  /* =========================================================
+     Auto depuis formation (choice_attr dataset)
+  ========================================================= */
+  function optionDataForFormation() {
+    if (!$formation || !$formation.value) return null;
+    const opt = $formation.selectedOptions?.[0];
+    if (!opt) return null;
+
+    const d = opt.dataset || {};
+    const prixBaseCents   = parseInt(d.prixBaseCents || '0', 10) || 0;
+    const prixReduitCents = parseInt(d.prixReduitCents || '0', 10) || 0;
+
+    return {
+      id: $formation.value,
+      title: (d.title || '').trim() || getSelectedText($formation),
+      days: parseInt(d.days || '0', 10) || 0,
+      hours: parseInt(d.hours || '0', 10) || 0,
+      prixBaseCents,
+      prixReduitCents,
+    };
+  }
+
+  function setFormationUi(data){
+    if (!data){
+      $formationUi.title.textContent = '—';
+      $formationUi.hours.textContent = '—';
+      $formationUi.price.textContent = '—';
+      return;
+    }
+    $formationUi.title.textContent = data.title || '—';
+    const parts = [];
+    if (data.days > 0) parts.push(`${data.days} j`);
+    if (data.hours > 0) parts.push(`${data.hours} h`);
+    $formationUi.hours.textContent = parts.length ? parts.join(' • ') : '—';
+
+    const cents = (data.prixReduitCents && data.prixReduitCents > 0) ? data.prixReduitCents : data.prixBaseCents;
+    $formationUi.price.textContent = cents > 0 ? formatMoneyEURFromCents(cents) : '—';
+  }
+
+  function ensureOneLineFromFormation(data){
+    if (!data) return;
+
+    // politique: 1 formation => 1 ligne (remplace les lignes)
+    collection.querySelectorAll('.ligne-item').forEach(el => el.remove());
+
+    const cents = (data.prixReduitCents && data.prixReduitCents > 0) ? data.prixReduitCents : data.prixBaseCents;
+
+    addLigne({
+      label: data.title || 'Formation',
+      qte: 1,
+      puEuros: (cents / 100).toFixed(2),
+      tva: 20
+    });
+  }
+
+  function applyFormationAuto(){
+    if (!$formation?.value){
+      setFormationUi(null);
+      refreshResume();
+      return;
+    }
+
+    const data = optionDataForFormation();
+    setFormationUi(data || { title: getSelectedText($formation), days:0, hours:0, prixBaseCents:0, prixReduitCents:0 });
+
+    // ✅ IMPORTANT : en édition, on n’écrase pas les lignes existantes (donc on garde le libellé multi-lignes)
+    if (IS_EDIT) {
+      recomputeTotalsFromLines();
+      return;
+    }
+
+    // ✅ en création : auto-remplir seulement si aucune "vraie" ligne n’existe
+    const existingItems = Array.from(collection.querySelectorAll('.ligne-item'));
+    const hasRealLine = existingItems.some(item => {
+      const label = item.querySelector('input[name$="[label]"], textarea[name$="[label]"]')?.value?.trim();
+      const q     = parseNumberFR(item.querySelector('input[name$="[qte]"]')?.value || 0);
+      const pu    = parseEurosToCents(item.querySelector('input[name$="[puHtCents]"]')?.value || 0);
+      return !!label || q > 0 || pu > 0;
+    });
+
+    if (data && (data.prixBaseCents > 0 || data.prixReduitCents > 0) && !hasRealLine){
+      ensureOneLineFromFormation(data);
+    } else {
+      recomputeTotalsFromLines();
+    }
+  }
+
+
+  $formation?.addEventListener('change', applyFormationAuto);
+
+  /* =========================================================
+     Exclusivité destinataire / entreprise
+  ========================================================= */
+  const destEl = document.querySelector(idDestinataire);
+  const entEl  = document.querySelector(idEntreprise);
+  const proEl  = document.querySelector(idProspect);
+
+  function clearSelect(el){
+    if (!el) return;
+    if (el.tomselect) el.tomselect.clear(true);
+    else el.value = '';
+  }
+
+
+  function bindProspectExclusive(prospectEl, userEl, entEl){
+    if (!prospectEl) return;
+
+    prospectEl.addEventListener('change', () => {
+      if (prospectEl.value) {
+        clearSelect(userEl);
+        clearSelect(entEl);
+      }
+      refreshResume();
+    });
+
+    const clearProspect = () => {
+      if (prospectEl.value) clearSelect(prospectEl);
+    };
+
+    userEl?.addEventListener('change', () => { if (userEl.value) clearProspect(); refreshResume(); });
+    entEl?.addEventListener('change',  () => { if (entEl.value)  clearProspect(); refreshResume(); });
+  }
+
+  bindProspectExclusive(proEl, destEl, entEl);
+
+
+  if (destEl && entEl) {
+    destEl.addEventListener('change', () => { if (destEl.value) clearSelect(entEl); refreshResume(); });
+    entEl.addEventListener('change',  () => { if (entEl.value)  clearSelect(destEl); refreshResume(); });
+  }
+
+  /* =========================================================
+     Résumé + bouton submit
+  ========================================================= */
+  function countValidLines(){
+    const items = document.querySelectorAll('#lignes-collection .ligne-item');
+    let ok = 0;
+
+    items.forEach(item => {
+      const label = item.querySelector('input[name$="[label]"], textarea[name$="[label]"]');
+      const q     = item.querySelector('input[name$="[qte]"]');
+      const pu    = item.querySelector('input[name$="[puHtCents]"]');
+
+      const labelOk = !!((label?.value || '').trim());
+      const qOk     = (parseNumberFR(q?.value || 0)) > 0;
+      const puOk    = (parseEurosToCents(pu?.value || 0)) > 0;
+
+      if (labelOk && qOk && puOk) ok++;
+    });
+
+    return ok;
+  }
+
+  function refreshResume(){
+    const selForm = document.querySelector(idFormation);
+    const selPro  = document.querySelector(idProspect);
+    const selDest = document.querySelector(idDestinataire);
+    const selEnt  = document.querySelector(idEntreprise);
+    const selIns  = document.querySelector(idInscriptions);
+    const selDev  = document.querySelector(idDevise);
+    const selSta  = document.querySelector(idStatus);
+    const inpDate = document.querySelector(idDate);
+
+    const htCents  = parseEurosToCents($ht?.value || 0);
+    const tvaCents = parseEurosToCents($tva?.value || 0);
+    const ttcCents = parseEurosToCents($ttc?.value || 0);
+
+    if ($resume.formation) $resume.formation.textContent = getSelectedText(selForm) || '—';
+    if ($resume.formationHours) {
+      const h = ($formationUi.hours?.textContent || '').trim();
+      $resume.formationHours.textContent = (h && h !== '—') ? h : '—';
+    }
+
+    if ($resume.prospect) $resume.prospect.textContent = getSelectedText(selPro) || '—';
+
+    if ($resume.destinataire) $resume.destinataire.textContent = getSelectedText(selDest) || '—';
+    if ($resume.entreprise)   $resume.entreprise.textContent   = getSelectedText(selEnt)  || '—';
+
+    const insTexts = getSelectedTexts(selIns);
+    if ($resume.inscriptions) $resume.inscriptions.textContent = insTexts.length ? insTexts.join(', ') : '—';
+
+    if ($resume.date)   $resume.date.textContent   = (inpDate?.value || '').trim() || '—';
+    if ($resume.devise) $resume.devise.textContent = getSelectedText(selDev) || '—';
+    if ($resume.status) $resume.status.textContent = getSelectedText(selSta) || '—';
+
+    if ($resume.ht)  $resume.ht.textContent  = (htCents  > 0) ? formatMoneyEURFromCents(htCents)  : '—';
+    if ($resume.tva) $resume.tva.textContent = (tvaCents > 0) ? formatMoneyEURFromCents(tvaCents) : '—';
+    if ($resume.ttc) $resume.ttc.textContent = (ttcCents > 0) ? formatMoneyEURFromCents(ttcCents) : '—';
+
+    const validLines = countValidLines();
+    if ($resume.lines) $resume.lines.textContent = String(validLines);
+
+    const linkOk = !!(
+      (selDest?.value && selDest.value.trim()) ||
+      (selEnt?.value && selEnt.value.trim()) ||
+      (selPro?.value && selPro.value.trim())
+    );
+
+    const dateOk   = !!((inpDate?.value || '').trim());
+    const deviseOk = !!(selDev?.value && selDev.value.trim());
+    const statusOk = !!(selSta?.value && selSta.value.trim());
+    const linesOk  = validLines > 0;
+    const okHtml   = form ? form.checkValidity() : true;
+
+    const ok = linkOk && dateOk && deviseOk && statusOk && linesOk && okHtml;
+    submitButtons.forEach(b => b.disabled = !ok);
+
+    if ($resume.pill) {
+      if (ok) {
+        $resume.pill.textContent = '✅ Complet';
+        $resume.pill.style.background = 'rgba(25,135,84,.15)';
+        $resume.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      } else {
+        $resume.pill.textContent = '⚠️ Incomplet';
+        $resume.pill.style.background = 'rgba(255,193,7,.15)';
+        $resume.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      }
+    }
+  }
+
+  // listeners résumé (✅ correction: idInscriptions)
+  [idFormation, idProspect, idDestinataire, idEntreprise, idInscriptions, idDevise, idStatus, idDate, idRemiseGlobPct, idRemiseGlobEur].forEach(sel=>{
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.addEventListener('change', refreshResume);
+    el.addEventListener('input', refreshResume);
+  });
+
+  /* =========================================================
+     Modal entreprise (ton code)
+  ========================================================= */
+  const mount = document.getElementById('entrepriseModalMount');
+  const btnAddEntreprise = document.getElementById('btnAddEntreprise');
+
+  async function loadEntrepriseModal() {
+    const url = "{{ path('app_administrateur_devis_entreprise_modal', { entite: entite.id }) }}";
+    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+    const html = await res.text();
+    mount.innerHTML = html;
+  }
+  function showEntrepriseModal() {
+    const modalEl = document.getElementById('entrepriseModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+  btnAddEntreprise?.addEventListener('click', async () => {
+    await loadEntrepriseModal();
+    showEntrepriseModal();
+    setTimeout(() => {
+      const rs = document.querySelector('#entrepriseModal input[name$="[raisonSociale]"]');
+      rs?.focus();
+    }, 150);
+  });
+
+  document.addEventListener('submit', async (e) => {
+    const f = e.target;
+    if (!f || f.id !== 'entrepriseModalForm') return;
+
+    console.log('submit modal entreprise intercepté ✅');
+    e.preventDefault();
+    e.stopPropagation();
+
+    const action = f.getAttribute('action');
+    const fd = new FormData(f);
+
+    const res = await fetch(action, {
+      method: 'POST',
+      body: fd,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+
+    const payload = await res.json().catch(() => null);
+
+    if (!payload || payload.ok !== true) {
+      if (payload?.html) {
+        mount.innerHTML = payload.html;
+        showEntrepriseModal();
+      } else {
+        console.error('Réponse non JSON ou erreur serveur', res.status);
+      }
+      return;
+    }
+
+
+    const entSelect = document.querySelector(idEntreprise);
+    if (entSelect?.tomselect) {
+      entSelect.tomselect.addOption({ value: String(payload.id), text: payload.text });
+      entSelect.tomselect.setValue(String(payload.id), true);
+    } else if (entSelect) {
+      const opt = document.createElement('option');
+      opt.value = String(payload.id);
+      opt.textContent = payload.text;
+      opt.selected = true;
+      entSelect.appendChild(opt);
+    }
+
+    const modalEl = document.getElementById('entrepriseModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal?.hide();
+
+    refreshResume();
+  }, true); // <- capture
+
+
+  /* =========================================================
+     INIT
+  ========================================================= */
+  initFormValidation({ formName: 'devis_form' });
+
+  // calc initial (edit ou non)
+  recomputeTotalsFromLines();
+  refreshResume();
+
+  // si edit avec formation déjà choisie
+  applyFormationAuto();
+});
+</script>
+{% endblock %}

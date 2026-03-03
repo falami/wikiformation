@@ -1,0 +1,142 @@
+{# templates/emails/user_devis_send.html.twig #}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ subject|default('Votre devis') }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#0f2336;">
+  {# --------- Variables robustes --------- #}
+  {% set ent = entite ?? null %}
+  {% set user = utilisateur ?? u ?? (devis.destinataire ?? null) %}
+  {% set destinataireNom = '' %}
+  {% if user %}
+    {% set destinataireNom = ((user.prenom ?? '') ~ ' ' ~ (user.nom ?? ''))|trim %}
+  {% endif %}
+  {% set devisNum = devis.numero ?? ('#' ~ devis.id) %}
+
+  {# Message (support message / contentHtml / fallback) #}
+  {% set _contentHtml = '' %}
+  {% if message is defined and message %}{% set _contentHtml = message %}{% endif %}
+  {% if _contentHtml == '' and contentHtml is defined and contentHtml %}{% set _contentHtml = contentHtml %}{% endif %}
+  {% if _contentHtml == '' %}
+    {% set _contentHtml =
+      '<p style="margin:0 0 10px 0;">Nous vous transmettons votre devis <strong>' ~ devisNum ~ '</strong>.</p>' ~
+      '<p style="margin:0;">Vous pouvez répondre à cet email si vous avez des questions, nous vous répondrons rapidement.</p>'
+    %}
+  {% endif %}
+
+  {# --------- Wrapper --------- #}
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fb;padding:24px 12px;">
+    <tr>
+      <td align="center">
+
+        {# Card #}
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0"
+               style="width:640px;max-width:640px;background:#ffffff;border:1px solid #e8eef6;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.06);">
+          {# Header #}
+          <tr>
+            <td style="padding:18px;background:#0f2336;color:#ffffff;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td valign="middle" style="padding-right:12px;">
+                    {% if ent and ent.logo %}
+                      <img src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ ent.logo)) }}"
+                           alt="Logo {{ ent.nom ?? '' }}"
+                           height="40"
+                           style="display:block;height:40px;width:auto;max-width:180px;object-fit:contain;border:0;outline:none;text-decoration:none;">
+                    {% endif %}
+                  </td>
+                  <td valign="middle" style="text-align:left;">
+                    <div style="font-weight:800;letter-spacing:.2px;font-size:16px;line-height:1.15;">
+                      {{ ent and ent.nom ? ent.nom : 'Wiki Formation' }}
+                    </div>
+                    <div style="opacity:.88;font-size:12px;margin-top:4px;line-height:1.35;">
+                      {% if ent and ent.email %}{{ ent.email }}{% endif %}
+                      {% if ent and ent.telephone %} — {{ ent.telephone }}{% endif %}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          {# Body #}
+          <tr>
+            <td style="padding:18px;text-align:left;">
+              <div style="font-size:16px;font-weight:800;margin:0 0 8px 0;">
+                Bonjour {{ destinataireNom ?: (user and user.email ? user.email : '') }},
+              </div>
+
+              <div style="font-size:12px;color:#5b6b7a;line-height:1.5;margin:0 0 12px 0;">
+                Nous vous transmettons votre devis <strong>{{ devisNum }}</strong>
+                {% if devis.dateEmission %}(émis le {{ devis.dateEmission|date('d/m/Y') }}){% endif %}
+                {% if devis.montantTtcCents is not null %}
+                  — Montant TTC : <strong>{{ ((devis.montantTtcCents ?? 0) / 100)|number_format(2, ',', ' ') }} €</strong>
+                {% endif %}.
+              </div>
+
+              <div style="border:1px solid #e8eef6;border-radius:14px;background:#fbfcff;padding:14px;font-size:14px;line-height:1.55;color:#0f2336;">
+                {{ _contentHtml|e|nl2br }}
+              </div>
+
+              {% if ctaUrl is defined and ctaUrl %}
+                <div style="margin-top:14px;">
+                  <a href="{{ ctaUrl }}"
+                     style="display:inline-block;background:#ffc107;color:#111827 !important;text-decoration:none;padding:11px 14px;border-radius:12px;font-weight:800;font-size:14px;">
+                    Voir le devis
+                  </a>
+                </div>
+              {% endif %}
+
+              <div style="margin-top:12px;font-size:12px;color:#6b7b8a;line-height:1.45;">
+                Cet email contient votre devis. Si vous ne parvenez pas à l’ouvrir, répondez à ce message et nous vous le renverrons.
+              </div>
+
+              <div style="height:1px;background:#edf2f7;margin:16px 0;"></div>
+
+              <div style="font-size:12px;color:#6b7b8a;line-height:1.4;">
+                <span style="display:inline-block;padding:4px 9px;border:1px solid #e8eef6;border-radius:999px;background:#fff;color:#4b5b6a;font-size:11px;margin-right:6px;">
+                  Devis : {{ devisNum }}
+                </span>
+                {% if ent and ent.siret %}
+                  <span style="display:inline-block;padding:4px 9px;border:1px solid #e8eef6;border-radius:999px;background:#fff;color:#4b5b6a;font-size:11px;margin-right:6px;">
+                    SIRET : {{ ent.siret }}
+                  </span>
+                {% endif %}
+                {% if ent and ent.numeroTva %}
+                  <span style="display:inline-block;padding:4px 9px;border:1px solid #e8eef6;border-radius:999px;background:#fff;color:#4b5b6a;font-size:11px;">
+                    TVA : {{ ent.numeroTva }}
+                  </span>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+
+          {# Footer #}
+          <tr>
+            <td style="padding:14px 18px;background:#fbfcff;border-top:1px solid #edf2f7;font-size:12px;color:#6b7b8a;line-height:1.4;">
+              <div style="font-weight:700;color:#0f2336;">
+                {{ ent and ent.nom ? ent.nom : 'Wiki Formation' }}
+              </div>
+              <div style="margin-top:4px;">
+                {% if ent and ent.adresse %}{{ ent.adresse }}{% endif %}
+                {% if ent and (ent.codePostal or ent.ville) %}
+                  — {{ ent.codePostal ?? '' }} {{ ent.ville ?? '' }}
+                {% endif %}
+                {% if ent and ent.pays %} — {{ ent.pays }}{% endif %}
+              </div>
+              <div style="margin-top:4px;">
+                {% if ent and ent.email %}{{ ent.email }}{% endif %}
+                {% if ent and ent.telephone %} — {{ ent.telephone }}{% endif %}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

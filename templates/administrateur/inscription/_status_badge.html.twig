@@ -1,0 +1,24 @@
+{# templates/administrateur/inscription/_status_badge.html.twig #}
+
+{% if inscription.status %}
+  {% set status = inscription.status %}
+  {% set map = {
+    'preinscrit':  { class: 'secondary', icon: 'hourglass' },
+    'confirme':    { class: 'info',      icon: 'check-circle' },
+    'en_cours':    { class: 'primary',   icon: 'play-circle' },
+    'termine':     { class: 'success',   icon: 'check2-circle' },
+    'annule':      { class: 'danger',    icon: 'x-circle' },
+    'absent':      { class: 'warning',   icon: 'person-x' }
+  } %}
+
+  {% set cfg = map[status.value] ?? { class: 'secondary', icon: 'question-circle' } %}
+
+  <span class="badge text-bg-{{ cfg.class }}"
+        data-bs-toggle="tooltip"
+        title="Statut : {{ status.label() }}">
+    <i class="bi bi-{{ cfg.icon }} me-1"></i>
+    {{ status.label() }}
+  </span>
+{% else %}
+  <span class="badge text-bg-secondary">—</span>
+{% endif %}

@@ -1,0 +1,175 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Super — Console plateforme{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal:#233342;
+      --theme-color-secondaire:#ffc107;
+      --ink:#0f2336;
+    }
+    .hero{
+      position:relative;border-radius:22px;overflow:hidden;color:#fff;
+      background:
+        radial-gradient(1200px 420px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(950px 380px at 88% 10%, rgba(255,193,7,.20), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+    }
+    .hero .accent{ width:12px;border-radius:999px;background:var(--theme-color-secondaire);box-shadow:0 0 0 6px rgba(255,193,7,.10); }
+    .meta-chip{
+      display:inline-flex;align-items:center;gap:.5rem;
+      padding:.35rem .65rem;border-radius:999px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.825rem;
+    }
+    .toolbar{
+      border-radius:18px;background:#fff;border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      padding:.9rem;
+    }
+    .cardx{
+      border-radius:18px;background:#fff;border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);overflow:hidden;
+    }
+    .rowitem{ display:flex; gap:.9rem; align-items:center; padding:.85rem 1rem; border-top:1px solid rgba(0,0,0,.06); }
+    .rowitem:first-child{ border-top:0; }
+    .muted{ color: rgba(0,0,0,.58); }
+    .pill{ display:inline-flex;align-items:center;gap:.45rem;padding:.32rem .66rem;border-radius:999px;border:1px solid rgba(0,0,0,.08);background:rgba(0,0,0,.03);font-weight:800;font-size:.85rem; }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="hero p-4 mb-3 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <span class="meta-chip"><i class="bi bi-shield-lock"></i> SUPER</span>
+        <span class="meta-chip"><i class="bi bi-boxes"></i> Console plateforme</span>
+        <span class="meta-chip"><i class="bi bi-people"></i> Users + Entités</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Administration globale</h2>
+          <div class="opacity-75">Attribuer des rôles (user ↔ entité) et offrir des essais aux entités.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-light btn-sm fw-semibold" href="{{ path('app_super_admin_assign', {entite: entite.id}) }}">
+            <i class="bi bi-person-gear"></i> Assigner un rôle
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="toolbar mb-3">
+    <ul class="nav nav-pills gap-2">
+      <li class="nav-item">
+        <a class="nav-link {{ tab == 'entites' ? 'active' : '' }}"
+           href="{{ path('app_super_admin_console', { tab:'entites', qEnt:qEnt, qUser:qUser, entite: entite.id }) }}">
+          <i class="bi bi-building"></i> Entités
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {{ tab == 'users' ? 'active' : '' }}"
+           href="{{ path('app_super_admin_console', { tab:'users', qEnt:qEnt, qUser:qUser, entite: entite.id }) }}">
+          <i class="bi bi-person"></i> Utilisateurs
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  {% if tab == 'entites' %}
+    <div class="toolbar mb-3">
+      <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+        <input type="hidden" name="tab" value="entites">
+        <div class="me-auto d-flex gap-2 align-items-center">
+          <span class="pill">{{ entites|length }} entité(s)</span>
+          <span class="muted small d-none d-lg-inline">Recherche : nom, email, ville, siret</span>
+        </div>
+        <input class="form-control" style="max-width:360px;border-radius:999px;" name="qEnt" value="{{ qEnt }}" placeholder="Rechercher une entité…">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
+      </form>
+    </div>
+
+    <div class="cardx">
+      {% for e in entites %}
+        <div class="rowitem">
+          <div class="flex-grow-1">
+            <div class="fw-bold" style="color:var(--ink);">
+              {{ e.nom }}
+              {% if e.siret %}<span class="ms-2 pill"><i class="bi bi-hash"></i> {{ e.siret }}</span>{% endif %}
+            </div>
+            <div class="muted small">
+              {% if e.email %}<i class="bi bi-envelope"></i> {{ e.email }}{% endif %}
+              {% if e.ville %}<span class="mx-2">•</span><i class="bi bi-geo-alt"></i> {{ e.ville }}{% endif %}
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-warning btn-sm fw-semibold"
+               href="{{ path('app_super_admin_entite_trial', { e: e.id, entite: entite.id }) }}">
+              <i class="bi bi-gift"></i> Offrir essai
+            </a>
+            <a class="btn btn-outline-primary btn-sm"
+               href="{{ path('app_super_billing_subscription_show', { e: e.id, entite: entite.id }) }}">
+              <i class="bi bi-credit-card"></i>
+            </a>
+            <a class="btn btn-outline-secondary btn-sm"
+               href="{{ path('app_super_entite_users_index', { e: e.id, entite: entite.id }) }}">
+              <i class="bi bi-people"></i>
+            </a>
+          </div>
+        </div>
+      {% else %}
+        <div class="p-3 text-muted">Aucune entité trouvée.</div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="toolbar mb-3">
+      <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+        <input type="hidden" name="tab" value="users">
+        <div class="me-auto d-flex gap-2 align-items-center">
+          <span class="pill">{{ users|length }} user(s)</span>
+          <span class="muted small d-none d-lg-inline">Recherche : email, nom, prénom, société</span>
+        </div>
+        <input class="form-control" style="max-width:360px;border-radius:999px;" name="qUser" value="{{ qUser }}" placeholder="Rechercher un utilisateur…">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
+      </form>
+    </div>
+
+    <div class="cardx">
+      {% for u in users %}
+        <div class="rowitem">
+          <div class="flex-grow-1">
+            <div class="fw-bold" style="color:var(--ink);">
+              {{ u.prenom }} {{ u.nom }}
+              <span class="ms-2 pill"><i class="bi bi-envelope"></i> {{ u.email }}</span>
+            </div>
+            <div class="muted small">
+              {% if u.entreprise %}<i class="bi bi-building"></i> {{ u.entreprise.raisonSociale }}{% endif %}
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary btn-sm" href="{{ path('app_super_admin_assign', {entite: entite.id}) }}">
+              <i class="bi bi-person-gear"></i> Assigner rôle
+            </a>
+          </div>
+        </div>
+      {% else %}
+        <div class="p-3 text-muted">Aucun utilisateur trouvé.</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+{% endblock %}

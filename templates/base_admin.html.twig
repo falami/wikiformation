@@ -1,0 +1,276 @@
+{# templates/base_admin.html.twig #}
+<!DOCTYPE html>
+<html lang="{{ app.request.locale|default('fr') }}">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="UTF-8">
+        
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <title>{% block title %}Bienvenue!{% endblock %}</title>
+        {#<link rel="icon" type="image/x-icon" href="{{ asset('uploads/photos/entite/logo/')}}{{ entite.logo }}">#}
+        <link rel="icon" type="image/x-icon" href="{{ asset('uploads/photos/entite/favicon/favicon-wikiformation.png')}}">
+        <!-- à mettre en haut du head -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+
+        <link rel="alternate" hreflang="fr" href="{{ path(app.request.attributes.get('_route'), app.request.attributes.get('_route_params')|merge({'_locale':'fr'})) }}">
+        <link rel="alternate" hreflang="en" href="{{ path(app.request.attributes.get('_route'), app.request.attributes.get('_route_params')|merge({'_locale':'en'})) }}">
+        <link rel="alternate" hreflang="x-default" href="{{ path(app.request.attributes.get('_route'), app.request.attributes.get('_route_params')|merge({'_locale': app.request.locale == 'fr' ? 'en' : 'fr'})) }}">
+        <meta property="og:locale" content="{{ app.request.locale == 'en' ? 'en_GB' : 'fr_FR' }}">
+            
+        <script src="{{ asset('dist/js/cookie-consent.js') }}"></script>
+
+        {% block stylesheets %}
+
+        {% endblock %}
+
+        <style>
+        /* Offcanvas menu compact */
+        #mobileMenu .list-group-item{
+            border: 0;
+            border-radius: .65rem;
+            margin-bottom: .25rem;
+        }
+        #mobileMenu .list-group-item.active{
+            font-weight: 700;
+        }
+        #mobileMenu .accordion-button{
+            border-radius: .75rem !important;
+        }
+        #mobileMenu .accordion-item{
+            border: 0;
+            margin-bottom: .35rem;
+        }
+        </style>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+        {% block javascripts %}
+        {% endblock %}
+
+        {% if app.request.cookies.get('cookieConsent') == 'accepted' %}
+            <!-- Google tag (gtag.js) -->
+                <script async src="https://www.googletagmanager.com/gtag/js?id=G-1WB960CZ37"></script>
+                <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+
+                gtag('config', 'G-1WB960CZ37');
+                </script>
+        {% endif %}
+
+        
+    </head>
+    <body {% block body_attributes %}{% endblock %}>
+
+        {% include '_cookie_consent.html.twig' %}
+
+
+        {% include 'header_administrateur.html.twig' %}
+        {% include 'sidebar_administrateur.html.twig' %}
+
+        <div class="content">
+            {% block body %}
+            {% endblock %}
+        </div>
+
+        <footer class="footer">
+            &copy; 2025 - Wiki Formation - <a href="#" id="manage-cookies" class="text-body text-decoration-none">Gérer les cookies</a>
+        </footer>
+
+        <button id="scrollToTopBtn" class="btn btn-warning rounded-circle shadow" title="Remonter">
+            ↑
+        </button>
+        <script>
+            const scrollBtn = document.getElementById("scrollToTopBtn");
+
+            window.addEventListener("scroll", () => {
+                if (window.scrollY > 200) {
+                    scrollBtn.style.display = "block";
+                } else {
+                    scrollBtn.style.display = "none";
+                }
+            });
+
+            scrollBtn.addEventListener("click", () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth"
+                });
+            });
+            
+            document.addEventListener("DOMContentLoaded", function() {
+                const sidebar  = document.querySelector('.sidebar');
+                const content  = document.querySelector('.content');
+                const toggleBtn= document.querySelector('.toggle-btn');
+                const closeBtn = document.querySelector('.close-btn');
+                const footer   = document.querySelector('.footer');
+                const navbar   = document.querySelector('.navbar');
+
+                if(!sidebar || !content) return;
+
+                function applyState(isOpen){
+                    // Sidebar
+                    sidebar.classList.toggle('active', isOpen);
+
+                    // Content
+                    content.classList.toggle('full-width', !isOpen);
+
+                    // Navbar / Footer (si présents)
+                    if (navbar) navbar.classList.toggle('full-width', !isOpen);
+                    if (footer) footer.classList.toggle('full-width', !isOpen);
+
+                    // Bouton toggle (si présent)
+                    if (toggleBtn) toggleBtn.classList.toggle('hidden', isOpen);
+
+                    localStorage.setItem('menuOpen', isOpen ? 'true' : 'false');
+                }
+
+                // Etat initial
+                const isMenuOpen = localStorage.getItem('menuOpen') === 'true';
+                applyState(isMenuOpen);
+
+                // Events
+                toggleBtn?.addEventListener('click', () => applyState(true));
+                closeBtn?.addEventListener('click', () => applyState(false));
+
+
+
+                document.querySelectorAll('.dropdown-submenu > a').forEach(function (element) {
+                    element.addEventListener("click", function (e) {
+                        if (window.innerWidth < 992) { // Seulement pour mobile
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            let submenu = this.parentElement;
+                            submenu.classList.toggle("show");
+
+                            // Fermer les autres sous-menus ouverts
+                            submenu.parentElement.querySelectorAll('.dropdown-submenu.show').forEach(function (openSubmenu) {
+                                if (openSubmenu !== submenu) {
+                                    openSubmenu.classList.remove("show");
+                                }
+                            });
+                        }
+                    });
+                });
+
+                // Fermer les menus ouverts si on clique ailleurs
+                document.addEventListener("click", function () {
+                    if (window.innerWidth < 992) { // Seulement sur mobile
+                        document.querySelectorAll('.dropdown-submenu.show').forEach(function (submenu) {
+                            submenu.classList.remove("show");
+                        });
+                    }
+                });
+            });
+            
+{#
+            // === Notifications (cloche) ===
+            function checkNotifications() {
+                const entiteId = {{ entite.id|json_encode|raw }};
+
+                fetch(`{{ path('app_adherent_nouveaux_messages', {'entite': entite.id}) }}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entiteId })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const count = data.count;
+                    const messages = data.messages;
+
+                    const counters = [
+                        document.getElementById('notif-count-desktop'),
+                        document.getElementById('notif-count-mobile')
+                    ];
+
+                    const containers = [
+                        document.getElementById('notif-messages-desktop'),
+                        document.getElementById('notif-messages-mobile')
+                    ];
+
+                    // Affichage des compteurs
+                    counters.forEach(c => {
+                        if (c) {
+                            if (count > 0) {
+                                c.innerText = count;
+                                c.style.display = 'inline-block';
+                            } else {
+                                c.style.display = 'none';
+                            }
+                        }
+                    });
+
+                    // Affichage des messages
+                    containers.forEach(container => {
+                        if (!container) return;
+
+                        container.innerHTML = '';
+
+                        if (count > 0) {
+                            messages.forEach(msg => {
+                                const link = document.createElement('a');
+                                link.href = `{{ path('app_adherent_message', { entite: entite.id }) }}?to=${msg.fromId}&type=${msg.fromType}`;
+                                link.classList.add('dropdown-item', 'text-dark', 'text-decoration-none', 'py-2');
+
+                                /*link.innerHTML = `
+                                    <div class="d-flex align-items-start">
+                                        <img src='{{ asset('uploads/photos/utilisateur/') }}${msg.fromPhoto}'>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold mb-1">${msg.fromName}</div>
+                                            <div class="small text-muted">${msg.content}</div>
+                                            <div class="small text-muted fst-italic">${msg.createdAt}</div>
+                                        </div>
+                                    </div>
+                                `;*/
+
+
+
+                                if(msg.fromPhoto == null)
+                                {
+                                    link.innerHTML = `
+                                        <div class="d-flex align-items-start">
+                                            <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold mb-1">${msg.fromName}</div>
+                                                <div class="small text-muted">${msg.content}</div>
+                                                <div class="small text-muted fst-italic">${msg.createdAt}</div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }else{
+                                    
+                                    link.innerHTML = `
+                                        <div class="d-flex align-items-start">
+                                            <img src='{{ asset('uploads/photos/') }}${msg.fromPhoto}'  alt="hugenerd" width="30" height="30" class="rounded-circle">
+                                            <div class="flex-grow-1 mx-1">
+                                                <div class="fw-bold mb-1">${msg.fromName}</div>
+                                                <div class="small text-muted">${msg.content}</div>
+                                                <div class="small text-muted fst-italic">${msg.createdAt}</div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
+                                container.appendChild(link);
+                            });
+                        } else {
+                            container.innerHTML = '<span class="dropdown-item text-muted">Aucun message</span>';
+                        }
+                    });
+                })
+                .catch(err => console.error('Erreur lors du chargement des notifications :', err));
+            }
+
+            checkNotifications();
+            setInterval(checkNotifications, 5000); // toutes les 1s pour test, à ajuster ensuite
+#}
+
+        </script>
+        {% block javascripts_bottom %}{% endblock %}
+        
+    </body>
+</html>

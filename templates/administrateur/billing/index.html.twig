@@ -1,0 +1,752 @@
+{# templates/administrateur/billing/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Abonnement - WikiFormation{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --ink:#0f2336;
+      --muted: rgba(15,35,54,.62);
+      --stroke: rgba(0,0,0,.08);
+      --card:#fff;
+
+      --radius: 22px;
+      --radius-sm: 16px;
+      --shadow: 0 18px 50px rgba(0,0,0,.10);
+      --shadow-soft: 0 12px 30px rgba(0,0,0,.06);
+    }
+
+
+    /* =========================
+       HERO PREMIUM (comme Devis, + glass)
+       ========================= */
+    .hero{
+      position:relative;
+      border-radius: var(--radius);
+      overflow:hidden;
+      color:#fff;
+      background:
+        radial-gradient(1200px 420px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(950px 380px at 88% 10%, rgba(255,193,7,.20), transparent 55%),
+        radial-gradient(700px 300px at 80% 80%, rgba(99,102,241,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      box-shadow: var(--shadow);
+    }
+    .hero:after{
+      content:""; position:absolute; inset:0;
+      background: linear-gradient(90deg, rgba(255,255,255,.08), transparent 60%);
+      pointer-events:none;
+    }
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px rgba(255,193,7,.10);
+      flex: 0 0 auto;
+    }
+    .hero .subtitle{ opacity:.88; max-width: 65ch; }
+    .hero .meta-chip{
+      display:inline-flex; align-items:center; gap:.55rem;
+      padding:.38rem .72rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(7px);
+      font-size:.84rem;
+      white-space: nowrap;
+    }
+    .hero .status-pill{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.40rem .75rem;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.10);
+      backdrop-filter: blur(8px);
+      font-weight: 700;
+    }
+    .hero .status-dot{
+      width:10px; height:10px; border-radius:999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 4px rgba(255,193,7,.16);
+    }
+
+    /* =========================
+       KPI CARDS (comme Devis)
+       ========================= */
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: var(--shadow-soft);
+      border-radius: 18px;
+      overflow:hidden;
+      background: #fff;
+      position:relative;
+    }
+    .kpi-card:before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(750px 140px at 18% 0%, rgba(255,193,7,.12), transparent 55%),
+        radial-gradient(850px 160px at 86% 10%, rgba(99,102,241,.10), transparent 55%);
+      pointer-events:none;
+    }
+    .kpi-ico{
+      width: 48px; height:48px;
+      display:grid; place-items:center;
+      border-radius: 16px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+    }
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight: 900; font-size: 1.55rem; letter-spacing:-.02em; color: var(--ink); }
+    .kpi-sub{ color: rgba(0,0,0,.52); font-size:.82rem }
+    .kpi-bar{ height: 8px; border-radius: 999px; background: rgba(0,0,0,.06); overflow:hidden; }
+    .kpi-bar > span{
+      display:block; height:100%;
+      width:0%;
+      background: var(--theme-color-secondaire);
+      border-radius: 999px;
+      transition: width .35s ease;
+    }
+
+    /* =========================
+       TOOLBAR + CHIPS
+       ========================= */
+    .toolbar{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .95rem;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:.55rem;
+      padding:.40rem .78rem;
+      border-radius:999px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size:.86rem;
+      color: rgba(0,0,0,.70);
+      white-space: nowrap;
+    }
+    .hint{ font-size:.86rem; color: rgba(0,0,0,.56); }
+
+    /* =========================
+       PREMIUM CTA (sticky)
+       ========================= */
+    .cta-sticky{
+      position: sticky;
+      bottom: 14px;
+      z-index: 20;
+      margin-top: 18px;
+    }
+    .cta-panel{
+      border-radius: 18px;
+      border: 1px solid rgba(0,0,0,.08);
+      background:
+        radial-gradient(1100px 260px at 20% 0%, rgba(255,193,7,.10), transparent 55%),
+        radial-gradient(900px 280px at 90% 10%, rgba(99,102,241,.10), transparent 60%),
+        rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 56px rgba(0,0,0,.12);
+      padding: .95rem;
+    }
+    .cta-title{ font-weight: 900; color: var(--ink); letter-spacing:-.01em; }
+    .cta-desc{ color: rgba(0,0,0,.58); font-size:.92rem; }
+
+    /* =========================
+       BENEFITS LIST
+       ========================= */
+    .benefits{
+      border-radius: 18px;
+      background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow: var(--shadow-soft);
+      overflow:hidden;
+    }
+    .benefits .benefit{
+      padding: .85rem .95rem;
+      border-top: 1px solid rgba(0,0,0,.06);
+      display:flex; gap:.75rem;
+      align-items:flex-start;
+    }
+    .benefits .benefit:first-child{ border-top: 0; }
+    .benefits .b-ico{
+      width:38px; height:38px;
+      border-radius: 14px;
+      display:grid; place-items:center;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(255,193,7,.10);
+      color: #7a5600;
+      flex: 0 0 auto;
+    }
+    .benefits .b-title{ font-weight: 800; color: var(--ink); margin-bottom: .15rem; }
+    .benefits .b-text{ color: rgba(0,0,0,.58); font-size:.92rem; margin:0; }
+
+    /* =========================
+       BADGES STATUS
+       ========================= */
+    .badge-soft{
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.18);
+      color:#fff;
+      backdrop-filter: blur(8px);
+      padding:.42rem .72rem;
+      border-radius:999px;
+      font-weight: 800;
+    }
+
+    /* progress premium */
+    .progress{
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .progress-bar{
+      background: var(--theme-color-secondaire);
+      border-radius: 999px;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius: 16px; }
+      .cta-panel{ padding: .85rem; }
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  {# =========================
+     HERO
+     ========================= #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <span class="meta-chip"><i class="bi bi-shield-lock"></i> Abonnement</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+        <span class="meta-chip"><i class="bi bi-stars"></i> Accès & limites</span>
+
+        {% if sub and sub.status %}
+          {% set st = sub.status %}
+          {% set stLabel =
+            st == 'trialing' ? 'Essai' :
+            st == 'active' ? 'Actif' :
+            st == 'past_due' ? 'Paiement en attente' :
+            st == 'canceled' ? 'Annulé' :
+            st
+          %}
+          <span class="status-pill ms-auto">
+            <span class="status-dot"></span> {{ stLabel }}
+          </span>
+        {% else %}
+          <span class="status-pill ms-auto">
+            <span class="status-dot"></span> Aucun abonnement
+          </span>
+        {% endif %}
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Boostez votre organisme ✨</h2>
+          <div class="subtitle">
+            Activez une offre pour débloquer plus de capacités, un meilleur support, et une expérience “pro” sur WikiFormation.
+          </div>
+
+          <div class="mt-3 d-flex flex-wrap gap-2">
+            {% if sub and sub.status == 'trialing' %}
+              <span class="badge-soft"><i class="bi bi-hourglass-split me-1"></i> Essai - reste <strong>{{ trialRemainingDays }}</strong> jour(s)</span>
+            {% elseif sub and sub.status == 'active' %}
+              <span class="badge-soft"><i class="bi bi-check2-circle me-1"></i> Abonnement actif</span>
+            {% elseif sub and sub.status %}
+              <span class="badge-soft"><i class="bi bi-exclamation-triangle me-1"></i> Statut : <strong>{{ sub.status }}</strong></span>
+            {% else %}
+              <span class="badge-soft"><i class="bi bi-info-circle me-1"></i> Passez à une offre pour débloquer les avantages</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          {% if sub and sub.stripeCustomerId %}
+            <a href="{{ path('app_billing_portal', {entite : entite.id}) }}" class="btn btn-light btn-sm fw-semibold">
+              <i class="bi bi-credit-card"></i> Portail Stripe
+            </a>
+          {% endif %}
+          <a href="{{ path('app_public_pricing') }}" class="btn btn-warning btn-sm fw-semibold">
+            <i class="bi bi-lightning-charge"></i> Choisir / upgrader
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# =========================
+     KPI ROW
+     ========================= #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-award fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Offre actuelle</div>
+              <div class="kpi-value">
+                {{ sub and sub.plan ? sub.plan.name : 'Essai / non défini' }}
+              </div>
+              <div class="kpi-sub">
+                {% if sub and sub.currentPeriodEnd %}
+                  Période jusqu’au {{ sub.currentPeriodEnd|date('d/m/Y') }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span style="width: {{ sub and sub.status in ['active','trialing'] ? 88 : 18 }}%"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-people fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Apprenants / {{ year }}</div>
+              {% set maxAppr = limits.max_apprenants_an ?: 0 %}
+              {% set countAppr = usage.apprenantsCount|default(0) %}
+              {% set pctAppr = maxAppr > 0 ? (countAppr / maxAppr * 100) : 0 %}
+              <div class="kpi-value">
+                {{ countAppr }} <span class="text-muted" style="font-weight:800; font-size:1rem;">/ {{ maxAppr > 0 ? maxAppr : '∞' }}</span>
+              </div>
+              <div class="kpi-sub">Suivi d’usage en temps réel (inscriptions / créations).</div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <div class="progress">
+              <div class="progress-bar" role="progressbar" style="width: {{ pctAppr > 100 ? 100 : pctAppr }}%"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-2">
+              <div class="kpi-sub">Utilisation</div>
+              <div class="kpi-sub fw-semibold">
+                {{ maxAppr > 0 ? (pctAppr|round) ~ '%' : '-' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-2 kpi-bar"><span style="width: {{ pctAppr > 100 ? 100 : (pctAppr > 0 ? pctAppr : 12) }}%"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-patch-check fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Fonctionnalités clés</div>
+              <div class="kpi-value" style="font-size:1.25rem;">
+                <span class="me-2"><i class="bi bi-life-preserver"></i></span>
+                {{ limits.support_prioritaire ? 'Support prioritaire' : 'Support standard' }}
+              </div>
+              <div class="kpi-sub">
+                Utilisateurs: <strong>{{ limits.max_utilisateurs ?: '∞' }}</strong> ·
+                Formateurs: <strong>{{ limits.max_formateurs ?: '∞' }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span style="width: {{ limits.support_prioritaire ? 92 : 45 }}%"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# =========================
+     TOOLBAR ACTIONS
+     ========================= #}
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+        <span class="chip">
+          <i class="bi bi-info-circle"></i>
+          Transparence : vous pouvez <strong>annuler</strong> à tout moment.
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-shield-check"></i>
+          Paiement sécurisé via <strong>Stripe</strong>
+        </span>
+
+        <span class="hint d-none d-lg-inline ms-1">
+          Astuce : l’annuel est souvent le meilleur rapport qualité/prix.
+        </span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        {% if sub and sub.stripeCustomerId %}
+          <a href="{{ path('app_billing_portal', {entite : entite.id}) }}" class="btn btn-outline-primary btn-sm fw-semibold">
+            <i class="bi bi-receipt"></i> Factures / CB
+          </a>
+        {% endif %}
+        <a href="{{ path('app_public_pricing') }}" class="btn btn-warning btn-sm fw-semibold">
+          <i class="bi bi-rocket-takeoff"></i> Voir les offres
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# =========================
+     BENEFITS + QUICK ACTIONS
+     ========================= #}
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="benefits">
+        <div class="p-3">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <div class="fw-bold" style="color:var(--ink); font-size:1.05rem;">
+                Ce que l’abonnement débloque 🚀
+              </div>
+              <div class="text-muted small">Pensé pour vous faire gagner du temps et professionnaliser la gestion.</div>
+            </div>
+            <div class="d-none d-md-block">
+              <span class="chip"><i class="bi bi-stars"></i> Ultra premium</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="benefit">
+          <div class="b-ico"><i class="bi bi-speedometer2"></i></div>
+          <div>
+            <div class="b-title">Plus de capacité, sans friction</div>
+            <p class="b-text">Augmentez vos limites (apprenants / utilisateurs / formateurs) pour accompagner votre croissance.</p>
+          </div>
+        </div>
+
+        <div class="benefit">
+          <div class="b-ico"><i class="bi bi-headset"></i></div>
+          <div>
+            <div class="b-title">Support prioritaire</div>
+            <p class="b-text">Réponses plus rapides et accompagnement pour avancer vite (selon l’offre).</p>
+          </div>
+        </div>
+
+        <div class="benefit">
+          <div class="b-ico"><i class="bi bi-file-earmark-text"></i></div>
+          <div>
+            <div class="b-title">Flux plus pro</div>
+            <p class="b-text">Un parcours plus fluide côté admin et stagiaire, et une expérience plus “premium”.</p>
+          </div>
+        </div>
+
+        <div class="benefit">
+          <div class="b-ico"><i class="bi bi-shield-lock"></i></div>
+          <div>
+            <div class="b-title">Factures & paiement maîtrisés</div>
+            <p class="b-text">Tout est géré dans Stripe : factures, carte bancaire, annulation, upgrade/downgrade.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="kpi-ico"><i class="bi bi-lightning-charge fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Actions rapides</div>
+              <div class="kpi-value" style="font-size:1.25rem;">Passez au niveau supérieur</div>
+              <div class="kpi-sub">Choisissez une offre, appliquez un code promo, puis gérez tout depuis le portail.</div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 mt-3">
+            <a class="btn btn-warning fw-semibold" href="{{ path('app_public_pricing') }}">
+              <i class="bi bi-rocket-takeoff me-1"></i> Choisir une offre
+            </a>
+
+            {% if sub and sub.stripeSubscriptionId and sub.status in ['active','trialing','past_due','unpaid'] %}
+              <button type="button"
+                      class="btn btn-outline-dark fw-semibold"
+                      id="btnChangePlan"
+                      data-current-plan="{{ sub.plan ? sub.plan.code : '' }}"
+                      data-current-interval="{{ sub.intervale|default('month') }}">
+                <i class="bi bi-arrow-repeat me-1"></i> Changer d’offre (prorata)
+              </button>
+            {% endif %}
+
+
+            {% if sub and sub.stripeCustomerId %}
+              <a class="btn btn-outline-primary fw-semibold" href="{{ path('app_billing_portal', {entite : entite.id}) }}">
+                <i class="bi bi-credit-card me-1"></i> Ouvrir le portail Stripe
+              </a>
+            {% else %}
+              <div class="text-muted small">
+                Le portail Stripe sera disponible après une première souscription.
+              </div>
+            {% endif %}
+          </div>
+
+          <hr class="my-3">
+
+          <div class="d-flex flex-wrap gap-2">
+            <span class="chip"><i class="bi bi-check2-circle"></i> Annulation simple</span>
+            <span class="chip"><i class="bi bi-shield-check"></i> Paiement sécurisé</span>
+            <span class="chip"><i class="bi bi-clock-history"></i> Accès immédiat</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# =========================
+     STICKY CTA (conversion)
+     ========================= #}
+  <div class="cta-sticky">
+    <div class="cta-panel d-flex flex-wrap align-items-center gap-2">
+      <div class="me-auto">
+        <div class="cta-title">Prêt à passer en mode “pro” ?</div>
+        <div class="cta-desc">
+          Débloquez plus de limites, un meilleur support et une expérience premium. <strong>Upgrade en 2 minutes.</strong>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        {% if sub and sub.stripeCustomerId %}
+          <a href="{{ path('app_billing_portal', {entite : entite.id}) }}" class="btn btn-outline-primary fw-semibold">
+            <i class="bi bi-receipt"></i> Factures / CB
+          </a>
+        {% endif %}
+        <a href="{{ path('app_public_pricing') }}" class="btn btn-warning fw-semibold">
+          <i class="bi bi-lightning-charge"></i> Voir les offres
+        </a>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+
+<div class="modal fade" id="changePlanModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-arrow-repeat me-1"></i> Changer d’abonnement
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="text-muted small mb-3">
+          Le changement est <strong>immédiat</strong>. Un prorata peut être facturé ou crédité selon votre période en cours.
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nouvelle offre</label>
+          {% set allowedCodes = ['ESSENTIEL','PROFESSIONNEL','EXPERT','EXCELLENCE'] %}
+          <select class="form-select" id="newPlan">
+            {% for p in plans %}
+              {% if p.isActive and p.code in allowedCodes %}
+                <option value="{{ p.code }}">{{ p.name }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Périodicité</label>
+          <div class="btn-group w-100" role="group" aria-label="Intervalle">
+            <input type="radio" class="btn-check" name="newInterval" id="intervalMonth" value="month" autocomplete="off">
+            <label class="btn btn-outline-primary" for="intervalMonth">Mensuel</label>
+
+            <input type="radio" class="btn-check" name="newInterval" id="intervalYear" value="year" autocomplete="off" checked>
+            <label class="btn btn-outline-primary" for="intervalYear">Annuel</label>
+          </div>
+        </div>
+
+        <div class="alert alert-info d-flex gap-2 align-items-start mb-0" id="prorationBox" style="display:none;">
+          <i class="bi bi-calculator"></i>
+          <div>
+            <div class="fw-semibold">Prorata estimé</div>
+            <div class="small" id="prorationText">...</div>
+          </div>
+        </div>
+
+        <div class="alert alert-danger mt-3 mb-0" id="changePlanError" style="display:none;"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+
+        <form method="post" action="{{ path('app_billing_change_apply') }}" id="applyChangeForm" class="d-inline">
+          <input type="hidden" name="_token" value="{{ csrf_token('change_plan') }}">
+          <input type="hidden" name="plan" id="applyPlan">
+          <input type="hidden" name="interval" id="applyInterval">
+          <input type="hidden" id="previewToken" value="{{ csrf_token('change_plan_preview') }}">
+
+          <button type="submit" class="btn btn-primary fw-semibold" id="btnConfirmChange" disabled>
+            Confirmer le changement
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    const btnOpen = document.getElementById('btnChangePlan');
+    if (!btnOpen) return;
+
+    const modalEl = document.getElementById('changePlanModal');
+    const modal = new bootstrap.Modal(modalEl);
+
+    const selectPlan = document.getElementById('newPlan');
+    const prorationBox = document.getElementById('prorationBox');
+    const prorationText = document.getElementById('prorationText');
+    const errorBox = document.getElementById('changePlanError');
+
+    const btnConfirm = document.getElementById('btnConfirmChange');
+    const applyPlan = document.getElementById('applyPlan');
+    const applyInterval = document.getElementById('applyInterval');
+
+    const intervalMonth = document.getElementById('intervalMonth');
+    const intervalYear = document.getElementById('intervalYear');
+
+    const previewUrl = "{{ path('app_billing_change_preview') }}";
+
+    function getInterval() {
+      return intervalYear.checked ? 'year' : 'month';
+    }
+
+    function money(cents, currency) {
+      const amount = (cents / 100);
+      try {
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: (currency || 'eur').toUpperCase() }).format(amount);
+      } catch (e) {
+        return amount.toFixed(2) + ' ' + (currency || 'eur').toUpperCase();
+      }
+    }
+
+    async function refreshPreview() {
+      btnConfirm.disabled = true;
+      prorationBox.style.display = 'none';
+      errorBox.style.display = 'none';
+
+      const plan = selectPlan.value;
+      const interval = getInterval();
+
+      // Alimente le form "apply"
+      applyPlan.value = plan;
+      applyInterval.value = interval;
+
+      const body = new URLSearchParams();
+      body.set('plan', plan);
+      body.set('interval', interval);
+      body.set('_token', document.getElementById('previewToken').value);
+
+
+      try {
+        const res = await fetch(previewUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+          body: body.toString()
+        });
+
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+
+        if (!ct.includes('application/json')) {
+          const txt = await res.text();
+          throw new Error('Réponse non-JSON (probable 403/500 ou redirection).');
+        }
+
+        const data = await res.json();
+
+
+        
+
+
+
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Impossible de calculer le prorata.');
+        }
+
+        const cur = data.currency || 'eur';
+        const proration = Number(data.proration_cents ?? 0);
+        const prorationTax = Number(data.proration_tax_cents ?? 0);
+        const nextPeriod = Number(data.next_period_cents ?? 0);
+        const nextTax = Number(data.next_tax_cents ?? 0);
+        const amountDue = Number(data.amount_due_cents ?? 0);
+
+        let lines = [];
+
+        lines.push(`Prorata HT : <strong>${money(proration, cur)}</strong>`);
+        if (prorationTax !== 0) lines.push(`TVA (prorata) : <strong>${money(prorationTax, cur)}</strong>`);
+
+        lines.push(`<div class="mt-1">À régler maintenant (Stripe) : <strong>${money(amountDue, cur)}</strong></div>`);
+
+        if (nextPeriod !== 0 || nextTax !== 0) {
+          lines.push(`<hr class="my-2">`);
+          lines.push(`Prochaine période HT : <strong>${money(nextPeriod, cur)}</strong>`);
+          if (nextTax !== 0) lines.push(`TVA (prochaine période) : <strong>${money(nextTax, cur)}</strong>`);
+          lines.push(`<div class="mt-1">Prochaine facture estimée : <strong>${money(nextPeriod + nextTax, cur)}</strong></div>`);
+        }
+
+        prorationText.innerHTML = lines.join('<br>');
+
+
+        prorationBox.style.display = 'flex';
+        btnConfirm.disabled = false;
+
+
+      } catch (e) {
+        errorBox.textContent = e.message || 'Erreur lors du calcul du prorata.';
+        errorBox.style.display = 'block';
+      }
+    }
+
+    btnOpen.addEventListener('click', () => {
+      // pré-sélection (optionnel)
+      const currentPlan = btnOpen.getAttribute('data-current-plan');
+      if (currentPlan) selectPlan.value = currentPlan;
+
+      const currentInterval = btnOpen.getAttribute('data-current-interval') || 'year';
+      if (currentInterval === 'month') intervalMonth.checked = true;
+      else intervalYear.checked = true;
+
+      modal.show();
+      refreshPreview();
+    });
+
+    selectPlan.addEventListener('change', refreshPreview);
+    intervalMonth.addEventListener('change', refreshPreview);
+    intervalYear.addEventListener('change', refreshPreview);
+
+  })();
+</script>
+
+
+{% endblock %}

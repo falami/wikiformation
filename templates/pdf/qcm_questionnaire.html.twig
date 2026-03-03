@@ -1,0 +1,243 @@
+{# templates/pdf/qcm_questionnaire.html.twig #}
+{% set brand = {
+  primary: entite.couleurPrincipal|default('#1e3a5f'),
+  secondary: entite.couleurSecondaire|default('#4ba3ff'),
+  accent: entite.couleurSecondaire|default('#d4a574'),
+  ink: '#0b1b2a',
+  text: '#182a3a',
+  muted: '#6a7a8a',
+  line: '#dbe5ef',
+  soft: '#f5f8fc',
+  paper: '#ffffff'
+} %}
+
+{% set sessionLabel = session.label|default(session.code|default('Session')) %}
+{% set phaseLabel = phase|default('-') %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Questionnaire QCM</title>
+  <style>
+    @page { margin: 10mm 10mm 0mm; size: A4 portrait; }
+    body{ font-family: DejaVu Sans, Arial, sans-serif; font-size: 10.5pt; color:#1e2d3d; }
+
+
+
+    strong{ font-weight: 800; color: {{ brand.ink }}; }
+    .muted{ color: {{ brand.muted }}; }
+    .small{ font-size: 9pt; color: {{ brand.muted }}; }
+    .avoid-break{ page-break-inside: avoid; }
+
+
+
+
+    /* Top ribbon */
+    .ribbon{
+      height: 12pt;
+      width: 100%;
+      border-radius: 8pt;
+      border: 1pt solid {{ brand.line }};
+      overflow: hidden;
+      margin-bottom: 10pt;
+    }
+    .ribbon table{ width:100%; border-collapse: collapse; }
+    .ribbon td{ height: 12pt; }
+    .r1{ width: 62%; background: {{ brand.primary }}; }
+    .r2{ width: 23%; background: {{ brand.secondary }}; }
+    .r3{ width: 15%; background: {{ brand.accent }}; }
+
+
+
+    /* Header (premium) */
+    .header{
+      width:100%;
+      margin-bottom: 12pt;
+      padding-bottom: 10pt;
+      border-bottom: 1.5pt solid {{ brand.line }};
+    }
+    .header table{ width:100%; border-collapse: collapse; }
+    .hl{ width: 52%; vertical-align: top; }
+    .hr{ width: 48%; vertical-align: top; text-align: right; }
+
+    .logo{
+      height: 54pt;
+      width: auto;
+      display: inline-block;
+      border: 1pt solid {{ brand.line }};
+      padding: 4pt;
+      border-radius: 10pt;
+      background: #fff;
+    }
+
+    .brand-name{
+      font-size: 16.5pt;
+      font-weight: 900;
+      letter-spacing: -0.2pt;
+      color: {{ brand.primary }};
+      margin-top: 4pt;
+      margin-bottom: 3pt;
+    }
+    .brand-meta{ font-size: 9pt; color: {{ brand.muted }}; line-height: 1.35; }
+    .brand-meta div{ margin-bottom: 1.5pt; }
+
+    .doc-chip{
+      display:inline-block;
+      border: 1pt solid rgba(255,255,255,0.25);
+      background: {{ brand.primary }};
+      color: #fff;
+      font-weight: 900;
+      font-size: 11.5pt;
+      letter-spacing: 1pt;
+      padding: 7pt 10pt;
+      border-radius: 10pt;
+      text-transform: uppercase;
+    }
+    .doc-meta{
+      margin-top: 8pt;
+      border: 1pt solid {{ brand.line }};
+      border-radius: 10pt;
+      padding: 8pt 10pt;
+      background: #fff;
+      text-align: left;
+    }
+    .doc-meta .row{ margin-bottom: 3pt; }
+    .doc-meta b{ color: {{ brand.ink }}; }
+
+
+
+
+    .h{ border-bottom: 2pt solid {{ brand.primary }}; padding-bottom: 8pt; margin-bottom: 10pt; }
+    .t{ font-weight: 900; font-size: 16pt; color: {{ brand.primary }}; }
+    .m{ color: {{ brand.muted }}; font-size: 9.5pt; margin-top: 4pt; }
+    .q{ border:1pt solid {{ brand.line }}; border-left:3pt solid {{ brand.primary }}; border-radius:7pt; margin:0 0 10pt; }
+    .qhead{ background: {{ brand.soft }}; padding:8pt 10pt; border-bottom:1pt solid {{ brand.line }}; font-weight: 900; }
+    .qbody{ padding:8pt 10pt; }
+    .opt{ margin: 0 0 5pt; }
+    .box{ display:inline-block; width:10pt; height:10pt; border:1pt solid #999; margin-right:6pt; vertical-align: middle; }
+    .small{ font-size: 9pt; color: {{ brand.muted }}; }
+
+
+
+
+    /* Media (images) */
+    .media{ text-align: center; } /* centre l'image si elle est petite */
+
+    .media img{
+      width: auto;            /* ✅ ne pas forcer à 100% */
+      height: auto;
+      max-width: 100%;        /* ✅ ne dépasse jamais le bloc */
+      max-height: 280pt;      /* ✅ évite les images trop hautes */
+      border-radius: 9pt;
+      display: inline-block;  /* ✅ permet le centrage */
+    }
+    .media-caption{
+      margin-top: 5pt;
+      font-size: 8.6pt;
+      color: {{ brand.muted }};
+    }
+
+    /* Question image block (bigger) */
+    .qMedia{ margin: 8pt 0 0; }
+
+    /* Option with image layout */
+    .optRow{ width:100%; border-collapse: collapse; }
+    .optLeft{ vertical-align: top; padding-right: 8pt; }
+    .optRight{ vertical-align: top; width: 120pt; } /* largeur fixe image option */
+    .optMedia{
+      border: 1pt solid {{ brand.line }};
+      border-radius: 10pt;
+      background: #fff;
+      padding: 4pt;
+    }
+    .optMedia img{
+      width: 100%;
+      height: auto;
+      border-radius: 7pt;
+      display:block;
+    }
+
+  </style>
+</head>
+<body>
+
+
+<div class="ribbon avoid-break">
+  <table><tr><td class="r1"></td><td class="r2"></td><td class="r3"></td></tr></table>
+</div>
+
+<div class="header avoid-break">
+  <table>
+    <tr>
+      <td class="hl">
+        {% if entite.logo %}
+          <img class="logo" src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom }}">
+        {% else %}
+          <div class="brand-name">{{ entite.nom }}</div>
+        {% endif %}
+
+        <div class="brand-name">{{ entite.nom|default('') }}</div>
+
+        <div class="brand-meta">
+          {% if entite.adresse %}<div>{{ entite.adresse }}</div>{% endif %}
+          {% set l2 = [] %}
+          {% if entite.codePostal %}{% set l2 = l2|merge([entite.codePostal]) %}{% endif %}
+          {% if entite.ville %}{% set l2 = l2|merge([entite.ville]) %}{% endif %}
+          {% if l2 is not empty or entite.pays %}
+            <div>{{ l2|join(' ') }}{% if entite.pays %} · {{ entite.pays }}{% endif %}</div>
+          {% endif %}
+          {% set contact = [] %}
+          {% if entite.telephone %}{% set contact = contact|merge([entite.telephone]) %}{% endif %}
+          {% if entite.email %}{% set contact = contact|merge([entite.email]) %}{% endif %}
+          {% if contact is not empty %}<div>{{ contact|join(' · ') }}</div>{% endif %}
+          {% if entite.siret or entite.numeroDeclarant %}<div>{% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}{% if entite.numeroDeclarant %} - N° NDA : {{ entite.numeroDeclarant }}{% endif %}</div>{% endif %}
+          
+        </div>
+      </td>
+
+      <td class="hr">
+        <div class="doc-chip">Questionnaire</div>
+
+        <div class="doc-meta">
+          <div class="row"><b>QCM :</b> {{ qcm.titre }}</div>
+          <div class="row"><b>Session :</b> {{ sessionLabel }}</div>
+          <div class="row"><b>Phase :</b> {{ phaseLabel }}</div>
+          <div class="row"><b>Édité le :</b> {{ generatedAt|date('d/m/Y H:i') }}</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+{% for q in questions %}
+  <div class="q">
+    <div class="qhead">Q{{ loop.index }} - {{ q.enonce }}</div>
+    {# ✅ Image question #}
+    {% if q.image %}
+      <div class="qbody" style="padding-top:0;">
+        <div class="media qMedia">
+          <img
+            src="{{ absolute_url(asset('uploads/qcm/questions/' ~ q.image)) }}"
+            alt="Illustration question {{ loop.index }}">
+          <div class="media-caption">Illustration de la question</div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="qbody">
+      <div class="small">Points : {{ q.pointsMax|default(0) }} - Type : {{ q.type.label|default(q.type.value) }}</div>
+      <div style="height:6pt;"></div>
+
+      {% for opt in q.options %}
+        <div class="opt">
+          <span class="box"></span>
+          {{ opt.label }}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+
+</body>
+</html>

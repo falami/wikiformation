@@ -1,0 +1,996 @@
+{# templates/premium/entite/modifier.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Modification d'une entité{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+  <style>
+    :root {
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      /* UI tokens */
+      --bg: #f5f7fb;
+      --panel: rgba(255,255,255,.92);
+      --ink: #0f172a;
+      --muted: #64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --soft: rgba(15, 23, 42, .06);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+
+      /* premium glass */
+      --glass: rgba(255,255,255,.74);
+      --glassStroke: rgba(255,255,255,.40);
+
+      /* derived accents */
+      --p-ink: color-mix(in srgb, var(--theme-color-principal) 72%, #0b1220);
+      --accent: color-mix(in srgb, var(--theme-color-secondaire) 92%, #fff);
+      --ring: color-mix(in srgb, var(--theme-color-secondaire) 22%, transparent);
+    }
+
+
+    /* fix bootstrap switch */
+    .form-switch .form-check-input{ margin-left:-1px !important; }
+
+    /* toast erreurs */
+    #form-error-alert{
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1050;
+      max-width: 92%;
+      width: auto;
+      padding: .8rem 1.1rem;
+      background: rgba(254, 226, 226, .95);
+      color: #7f1d1d;
+      border: 1px solid rgba(239, 68, 68, .25);
+      border-radius: 999px;
+      box-shadow: 0 18px 55px rgba(15,23,42,.18);
+      font-weight: 800;
+      font-size: .9rem;
+      line-height: 1.35;
+      text-align: left;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: fadeIn .35s ease;
+    }
+    #form-error-alert strong{ font-size: .95rem; }
+    @keyframes fadeIn{
+      from{ opacity:0; transform: translateX(-50%) translateY(18px); }
+      to{ opacity:1; transform: translateX(-50%) translateY(0); }
+    }
+    .fade-out{ opacity:0; transition: opacity 1s ease; }
+
+    /* ================= HERO (ultra premium colors) ================= */
+    /* ===== HERO ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme facture) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ================= PREMIUM CARD ================= */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+      min-width:0;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0;
+      font-weight:950;
+      letter-spacing:-.01em;
+      color: var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.65rem;
+    }
+    .cardx-sub{
+      margin:.25rem 0 0;
+      color: var(--muted);
+      font-size:.9rem;
+    }
+
+    /* ================= FORM polish (ultra premium focus) ================= */
+    .form-control, .form-select, textarea.form-control{
+      border-radius: 14px;
+      border-color: var(--stroke);
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 1px 0 rgba(255,255,255,.7) inset;
+    }
+    .form-control:focus, .form-select:focus, textarea.form-control:focus{
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 55%, var(--stroke));
+      box-shadow: 0 0 0 .25rem var(--ring);
+    }
+    label.form-label{ font-weight: 800; color: var(--ink); }
+
+    /* ================= Buttons premium ================= */
+    .btn-gradient{
+      border: 0 !important;
+      border-radius: 14px !important;
+      font-weight: 950;
+      color: #0b1220 !important;
+      background:
+        radial-gradient(1200px 300px at 20% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 55%, #fff),
+          transparent 55%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-secondaire) 92%, #fff 8%),
+          color-mix(in srgb, var(--theme-color-secondaire) 70%, var(--theme-color-principal) 30%)
+        );
+      box-shadow:
+        0 18px 50px rgba(15,23,42,.16),
+        0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .btn-gradient:hover{ transform: translateY(-1px); }
+    .btn-gradient:active{ transform: translateY(0); }
+
+    /* ---------- Premium Upload UI ---------- */
+    .upload-card{
+      border: 1px solid rgba(15,35,54,.10);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.80));
+      box-shadow: 0 10px 30px rgba(15,35,54,.06);
+      padding: 14px;
+    }
+    .upload-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding: 6px 2px 12px;
+    }
+    .upload-badge{
+      width:38px;height:38px;border-radius:12px;
+      display:grid;place-items:center;
+      background: rgba(255,255,255,.75);
+      border:1px solid rgba(15,35,54,.10);
+      box-shadow: 0 8px 20px rgba(15,35,54,.06);
+      color: var(--theme-color-principal);
+    }
+    .upload-title{ font-weight:900; color: var(--theme-color-principal); line-height:1.1; }
+    .upload-sub{ font-size:.86rem; color: rgba(0,0,0,.55); margin-top:2px; }
+    .upload-hint{
+      font-size:.75rem;
+      padding:6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(15,35,54,.10);
+      background: rgba(255,255,255,.70);
+      color: rgba(0,0,0,.55);
+    }
+    .dropzone-uploader{
+      position: relative;
+      border-radius: 18px;
+      border: 1.5px dashed rgba(15,35,54,.22);
+      background:
+        radial-gradient(1200px 200px at 20% 0%, rgba(236,182,47,.18), transparent 55%),
+        radial-gradient(900px 220px at 90% 0%, rgba(22,56,96,.18), transparent 60%),
+        rgba(255,255,255,.70);
+      min-height: 190px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .dropzone-uploader:hover{
+      transform: translateY(-2px);
+      border-color: rgba(15,35,54,.35);
+      box-shadow: 0 14px 35px rgba(15,35,54,.10);
+    }
+    .dropzone-uploader.is-dragover{
+      border-color: var(--theme-color-secondaire);
+      box-shadow: 0 16px 40px rgba(15,35,54,.14);
+    }
+    .dz-inner{
+      padding: 18px;
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+      height: 190px;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+    }
+    .dz-icon{
+      width:52px;height:52px;border-radius:18px;
+      display:grid;place-items:center;
+      background: rgba(255,255,255,.78);
+      border:1px solid rgba(15,35,54,.10);
+      color: var(--theme-color-principal);
+      box-shadow: 0 10px 24px rgba(15,35,54,.08);
+      font-size: 20px;
+    }
+    .dz-title{ font-weight:950; color: var(--theme-color-principal); }
+    .dz-sub{ color: rgba(0,0,0,.60); font-size:.92rem; }
+    .dz-link{
+      color: var(--theme-color-secondaire);
+      font-weight: 950;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .dz-meta{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:2px; }
+    .dz-chip{
+      font-size:.75rem;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(15,35,54,.10);
+      background: rgba(255,255,255,.72);
+      color: rgba(0,0,0,.58);
+    }
+    .dz-preview{
+      position:absolute; inset:0;
+      display:none;
+      background: rgba(255,255,255,.80);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .dz-preview.is-visible{ display:block; }
+    .dz-img{
+      width:100%;
+      height:100%;
+      object-fit: contain;
+      padding: 16px;
+    }
+    .dz-actions{
+      position:absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+    }
+    .dz-btn{
+      border-radius: 12px !important;
+      box-shadow: 0 10px 24px rgba(15,35,54,.10);
+    }
+
+    /* ================= DARK MODE FRIENDLY ================= */
+    body.dark-mode{
+      --bg:#0b1220;
+      --panel: rgba(17, 24, 39, .92);
+      --ink:#e5e7eb;
+      --muted:#9ca3af;
+      --stroke: rgba(148, 163, 184, .18);
+      --shadow: 0 22px 70px rgba(0,0,0,.35);
+      --glass: rgba(17, 24, 39, .58);
+      --glassStroke: rgba(148, 163, 184, .18);
+    }
+    body.dark-mode .form-control,
+    body.dark-mode .form-select,
+    body.dark-mode textarea.form-control{
+      background: rgba(17,24,39,.72);
+      color: var(--ink);
+      border-color: var(--stroke);
+    }
+    body.dark-mode .upload-card{
+      background: linear-gradient(180deg, rgba(17,24,39,.70), rgba(17,24,39,.55));
+      border-color: var(--stroke);
+    }
+    body.dark-mode .dropzone-uploader{
+      background:
+        radial-gradient(1200px 200px at 20% 0%, color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent), transparent 55%),
+        radial-gradient(900px 220px at 90% 0%, color-mix(in srgb, var(--theme-color-principal) 18%, transparent), transparent 60%),
+        rgba(17,24,39,.55);
+    }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js')}}"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+{{ form_start(form, {'attr': {'novalidate': 'novalidate', 'id': 'premium-form'}}) }}
+{{ form_errors(form) }}
+
+
+  {# ================= HERO (tu gardes ton hero actuel, juste replacé DANS le form) ================= #}
+  <div class="hero p-3 p-md-4 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1 w-100">
+      <div class="d-flex align-items-start justify-content-between gap-3 w-100 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="fa-solid fa-pen-to-square text-theme-secondaire me-2"></i>
+            Modifier les informations du club
+          </h2>
+          <div class="opacity-75 mt-1">
+            Mettez à jour l’identité, les coordonnées et le branding.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="fa-solid fa-palette"></i> Branding</span>
+            <span class="chip"><i class="fa-solid fa-location-dot"></i> Adresse</span>
+            <span class="chip"><i class="fa-solid fa-image"></i> Logos</span>
+          </div>
+        </div>
+
+        <div class="ms-auto d-flex gap-2 flex-wrap justify-content-end align-items-start">
+          <a href="{{ path('app_premium_entite', { entite: entite.id, id: entite.id }) }}"
+             class="btn btn-outline-theme btn-sm fw-semibold">
+            <i class="fa-solid fa-arrow-left me-1"></i> Retour
+          </a>
+
+          <button type="submit" class="btn btn-light btn-sm fw-semibold">
+            <i class="fa-solid fa-save me-1"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ================= GRID (comme l’exemple : gauche 8 / droite 4) ================= #}
+  <div class="row g-4 align-items-start">
+
+    {# ===== COLONNE GAUCHE (8) ===== #}
+    <div class="col-lg-8">
+
+      {# INFOS PRINCIPALES #}
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title"><i class="fa-solid fa-id-card text-theme-secondaire"></i> Informations principales</h5>
+            <div class="cardx-sub">Identité & contact</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-4">{{ form_row(form.nom) }}</div>
+            <div class="col-md-4">{{ form_row(form.email) }}</div>
+            <div class="col-md-4">{{ form_row(form.telephone) }}</div>
+          </div>
+        </div>
+      </div>
+      {# LOCALISATION #}
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title"><i class="bi bi-geo-alt-fill text-theme-secondaire"></i> Localisation de l'organisme de formation</h5>
+            <div class="cardx-sub">Autocomplétion Google Places → champs verrouillés</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="autocomplete" class="form-label">Adresse complète</label>
+              <input type="text" id="autocomplete" class="form-control" placeholder="Tapez votre adresse">
+            </div>
+
+            <div class="col-12">
+              {{ form_row(form.adresse, { attr: { readonly: true, id: 'adresse' } }) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(form.complement, { attr: { readonly: true, id: 'complement' } }) }}
+            </div>
+
+            <div class="col-md-5">
+              {{ form_row(form.codePostal, { attr: { readonly: true, id: 'codePostal' } }) }}
+            </div>
+            <div class="col-md-7">
+              {{ form_row(form.ville, { attr: { readonly: true, id: 'ville' } }) }}
+            </div>
+
+            <div class="col-12">
+              {{ form_row(form.departement, { attr: { readonly: true, id: 'departement' } }) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(form.region, { attr: { readonly: true, id: 'region' } }) }}
+            </div>
+
+            <div class="col-12">
+              {{ form_row(form.pays, { attr: { readonly: true, id: 'pays' } }) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# DESCRIPTION #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title"><i class="fa-solid fa-align-left text-theme-secondaire"></i> Description & Accueil</h5>
+            <div class="cardx-sub">Texte public de présentation</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          {{ form_row(form.description) }}
+          {{ form_row(form.texteAccueil) }}
+        </div>
+      </div>
+
+    </div>
+
+    {# ===== COLONNE DROITE (4) ===== #}
+    <div class="col-lg-4">
+
+     {# CARD 2 : BRANDING COLORS #}
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title">
+              <i class="fa-solid fa-palette text-theme-secondaire"></i>
+              Palette Chromatique
+            </h5>
+            <div class="cardx-sub">Couleurs de votre application</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+
+            {# ================= COULEUR PRINCIPALE ================= #}
+            <div class="col-12">
+              <div class="p-3 border rounded-4 bg-light d-flex align-items-center gap-3">
+                {{ form_widget(form.couleurPrincipal, {
+                  attr: {
+                    class: 'form-control-color border-0 bg-transparent p-0',
+                    style: 'width:52px;height:52px;'
+                  }
+                }) }}
+
+                <div class="flex-grow-1">
+                  {{ form_label(form.couleurPrincipal, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.couleurPrincipal) }}
+                  <small class="text-muted">Bandeau latéral</small>
+                </div>
+              </div>
+            </div>
+
+            {# ================= COULEUR SECONDAIRE ================= #}
+            <div class="col-12">
+              <div class="p-3 border rounded-4 bg-light d-flex align-items-center gap-3">
+                {{ form_widget(form.couleurSecondaire, {
+                  attr: {
+                    class: 'form-control-color border-0 bg-transparent p-0',
+                    style: 'width:52px;height:52px;'
+                  }
+                }) }}
+
+                <div class="flex-grow-1">
+                  {{ form_label(form.couleurSecondaire, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.couleurSecondaire) }}
+                  <small class="text-muted">Couleur des textes</small>
+                </div>
+              </div>
+            </div>
+
+            {# ================= COULEUR TERTIAIRE ================= #}
+            <div class="col-12">
+              <div class="p-3 border rounded-4 bg-light d-flex align-items-center gap-3">
+                {{ form_widget(form.couleurTertiaire, {
+                  attr: {
+                    class: 'form-control-color border-0 bg-transparent p-0',
+                    style: 'width:52px;height:52px;'
+                  }
+                }) }}
+
+                <div class="flex-grow-1">
+                  {{ form_label(form.couleurTertiaire, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.couleurTertiaire) }}
+                  <small class="text-muted">En-têtes de vos sections</small>
+                </div>
+              </div>
+            </div>
+
+            {# ================= COULEUR QUATERNAIRE ================= #}
+            <div class="col-12">
+              <div class="p-3 border rounded-4 bg-light d-flex align-items-center gap-3">
+                {{ form_widget(form.couleurQuaternaire, {
+                  attr: {
+                    class: 'form-control-color border-0 bg-transparent p-0',
+                    style: 'width:52px;height:52px;'
+                  }
+                }) }}
+
+                <div class="flex-grow-1">
+                  {{ form_label(form.couleurQuaternaire, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.couleurQuaternaire) }}
+                  <small class="text-muted">Texte de vos sections</small>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# LOGOS #}
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title"><i class="fa-solid fa-image text-theme-secondaire"></i> Logos</h5>
+            <div class="cardx-sub">Upload premium + preview temps réel</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          {{ form_widget(form.removeLogo) }}
+          {{ form_widget(form.removeLogoMenu) }}
+
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="upload-card">
+                
+                <div class="upload-head">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="upload-badge"><i class="fa-solid fa-square"></i></span>
+                  </div>
+                  <span class="upload-hint">JPG/PNG/WebP</span>
+                </div>
+
+                <div class="mb-2">
+                  <div class="upload-title">Logo cartes (carré)</div>
+                  <div class="upload-sub">Affiché sur les cartes. Idéal : carré sur fond blanc.</div>
+                </div>
+
+                <div class="dropzone-uploader"
+                     data-input-id="{{ form.logo.vars.id }}"
+                     data-preview-id="preview_logo"
+                     data-remove-id="{{ form.removeLogo.vars.id }}">
+                  <div class="dz-inner">
+                    <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                    <div>
+                      <div class="dz-title">Glisse-dépose ton image ici</div>
+                      <div class="dz-sub">ou <span class="dz-link">clique pour choisir</span></div>
+                    </div>
+                  </div>
+
+                  <div class="dz-preview" id="preview_logo">
+                    <img class="dz-img" alt="Aperçu logo" />
+                    <div class="dz-actions">
+                      <button type="button" class="btn btn-sm btn-light dz-btn dz-btn-change">
+                        <i class="fa-solid fa-pen-to-square me-1"></i> Changer
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger dz-btn dz-btn-remove">
+                        <i class="fa-solid fa-trash me-1"></i> Supprimer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-none">
+                  {{ form_row(form.logo, { attr: { accept: 'image/*' } }) }}
+                </div>
+
+                <p class="mt-2 mb-0 text-muted"><small>Si laissé vide, le nom du club sera affiché à la place dans le menu.</small></p>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="upload-card">
+                <div class="upload-head">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="upload-badge"><i class="fa-solid fa-panorama"></i></span>
+
+                  </div>
+                  <span class="upload-hint">JPG/PNG/WebP</span>
+                </div>
+                <div class="mb-2">
+                  <div class="upload-title">Logo menu (horizontal)</div>
+                  <div class="upload-sub">Affiché sur téléphone. Idéal : horizontal.</div>
+                </div>
+
+                <div class="dropzone-uploader"
+                     data-input-id="{{ form.logoMenu.vars.id }}"
+                     data-preview-id="preview_logoMenu"
+                     data-remove-id="{{ form.removeLogoMenu.vars.id }}">
+                  <div class="dz-inner">
+                    <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                    <div>
+                      <div class="dz-title">Glisse-dépose ton image ici</div>
+                      <div class="dz-sub">ou <span class="dz-link">clique pour choisir</span></div>
+                    </div>
+                  </div>
+
+                  <div class="dz-preview" id="preview_logoMenu">
+                    <img class="dz-img" alt="Aperçu logoMenu" />
+                    <div class="dz-actions">
+                      <button type="button" class="btn btn-sm btn-light dz-btn dz-btn-change">
+                        <i class="fa-solid fa-pen-to-square me-1"></i> Changer
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger dz-btn dz-btn-remove">
+                        <i class="fa-solid fa-trash me-1"></i> Supprimer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-none">
+                  {{ form_row(form.logoMenu, { attr: { accept: 'image/*' } }) }}
+                </div>
+
+                <p class="mt-2 mb-0 text-muted"><small>Ce logo apparaît sur les cartes. Idéal : carré sur fond blanc.</small></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# CTA bas de page (comme l’exemple) #}
+  <div class="mt-4 d-flex justify-content-end">
+    <button type="submit" class="btn btn-gradient">
+      <i class="fa-solid fa-save me-1"></i> Enregistrer
+    </button>
+  </div>
+
+
+{{ form_end(form) }}
+
+<div id="form-error-alert" class="d-none"></div>
+
+<script
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCX1L5c9NLzQKNa0GDexg7w-cbYHwHAwxo&libraries=places&callback=initAutocomplete"
+  async defer></script>
+
+<script>
+  let autocomplete;
+
+  function initAutocomplete() {
+    const input = document.getElementById('autocomplete');
+    if (!input || !window.google?.maps?.places) return;
+
+    autocomplete = new google.maps.places.Autocomplete(input, {
+      types: ['geocode'],
+      fields: ['address_components', 'geometry']
+    });
+
+    autocomplete.addListener('place_changed', fillInAddress);
+  }
+
+  function fillInAddress() {
+    const place = autocomplete.getPlace();
+    if (!place || !place.address_components) return;
+
+    const c = {
+      street_number: '',
+      route: '',
+      locality: '',
+      postal_town: '',
+      administrative_area_level_3: '',
+      sublocality_level_1: '',
+      postal_code: '',
+      administrative_area_level_1: '',
+      administrative_area_level_2: '',
+      country: ''
+    };
+
+    for (const comp of place.address_components) {
+      comp.types.forEach(t => { if (t in c) c[t] = comp.long_name; });
+    }
+
+    const ville = (c.locality || c.postal_town || c.administrative_area_level_3 || c.sublocality_level_1 || '').trim();
+
+    document.getElementById('entite_premium_adresse').value = (c.street_number + ' ' + c.route).trim();
+    document.getElementById('entite_premium_codePostal').value = c.postal_code;
+    document.getElementById('entite_premium_ville').value = ville;
+    document.getElementById('entite_premium_departement').value = c.administrative_area_level_2;
+    document.getElementById('entite_premium_region').value = c.administrative_area_level_1;
+    document.getElementById('entite_premium_pays').value = c.country;
+  }
+
+  // Validation premium (reprend ton helper)
+  initFormValidation({
+    formName: 'entite_premium',
+    tomSelectFields: []
+  });
+
+  function initFormValidation({ formName, tomSelectFields = [] }) {
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.querySelector(`form[name="${formName}"]`);
+      if (!form) return;
+
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (!submitButton) return;
+
+      let errorAlert = document.getElementById('form-error-alert');
+      if (!errorAlert) {
+        errorAlert = document.createElement('div');
+        errorAlert.classList.add('alert', 'alert-danger', 'd-none');
+        errorAlert.setAttribute('role', 'alert');
+        errorAlert.id = 'form-error-alert';
+        submitButton.parentElement.prepend(errorAlert);
+      }
+
+      form.addEventListener('submit', function (e) {
+        const invalidFields = form.querySelectorAll(':invalid');
+        const flatpickrFields = form.querySelectorAll('.flatpickr-input[required]');
+        let hasCustomError = false;
+
+        const messagesSet = new Set();
+        let firstInvalidField = null;
+
+        flatpickrFields.forEach(field => {
+          if (!field.value || field.value.trim() === '') {
+            field.classList.add('is-invalid');
+            hasCustomError = true;
+            if (!firstInvalidField) firstInvalidField = field;
+
+            const label = form.querySelector(`label[for="${field.id}"]`);
+            if (label) messagesSet.add(`- ${label.textContent.trim()}`);
+          }
+        });
+
+        tomSelectFields.forEach(({ id, label }) => {
+          const field = document.getElementById(id);
+          if (field && field.hasAttribute('required') && (!field.value || field.value.trim() === '')) {
+            field.classList.add('is-invalid');
+            hasCustomError = true;
+            if (!firstInvalidField) firstInvalidField = field;
+            messagesSet.add(`- ${label}`);
+          }
+        });
+
+        if (invalidFields.length > 0 || hasCustomError) {
+          e.preventDefault();
+
+          form.querySelectorAll('.is-invalid').forEach(f => f.classList.remove('is-invalid'));
+
+          invalidFields.forEach(field => {
+            field.classList.add('is-invalid');
+            if (!firstInvalidField) firstInvalidField = field;
+
+            const label = form.querySelector(`label[for="${field.id}"]`);
+            if (label) messagesSet.add(`- ${label.textContent.trim()}`);
+          });
+
+          errorAlert.innerHTML = `
+            <strong>Certains champs obligatoires ne sont pas remplis ou invalides :</strong>
+            <div style="margin-top:.35rem">${[...messagesSet].join('<br>')}</div>
+          `;
+          errorAlert.classList.remove('d-none');
+
+          if (firstInvalidField && typeof firstInvalidField.scrollIntoView === 'function') {
+            const scrollTarget = firstInvalidField.closest('.form-floating, .form-group, .form-check, .input-group-number, .col-md-4, .col-md-6, .col-md-12, .palier-form') || firstInvalidField;
+            scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrollTarget.classList.add('border', 'border-danger', 'rounded');
+            setTimeout(() => scrollTarget.classList.remove('border', 'border-danger', 'rounded'), 1500);
+          }
+
+          setTimeout(() => {
+            errorAlert.classList.add('fade-out');
+            setTimeout(() => {
+              errorAlert.classList.add('d-none');
+              errorAlert.classList.remove('fade-out');
+            }, 1000);
+          }, 6000);
+        }
+      });
+    });
+  }
+</script>
+
+<script>
+  function initPremiumDropzones() {
+    const zones = document.querySelectorAll('.dropzone-uploader');
+
+    zones.forEach(zone => {
+      const inputId = zone.dataset.inputId;
+      const previewId = zone.dataset.previewId;
+      const removeId = zone.dataset.removeId;
+
+      const input = document.getElementById(inputId);
+      const preview = document.getElementById(previewId);
+      const img = preview ? preview.querySelector('.dz-img') : null;
+      const btnRemove = preview ? preview.querySelector('.dz-btn-remove') : null;
+      const btnChange = preview ? preview.querySelector('.dz-btn-change') : null;
+      const removeField = removeId ? document.getElementById(removeId) : null;
+
+      if (!input || !preview || !img) return;
+
+      const showPreviewFromFile = (file) => {
+        if (!file) return;
+        if (removeField) removeField.value = '';
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+          preview.classList.add('is-visible');
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const clearAll = () => {
+        input.value = '';
+        img.removeAttribute('src');
+        preview.classList.remove('is-visible');
+        if (removeField) removeField.value = '1';
+      };
+
+      zone.addEventListener('click', (e) => {
+        if (e.target.closest('.dz-btn')) return;
+        input.click();
+      });
+
+      input.addEventListener('change', () => {
+        if (input.files && input.files[0]) showPreviewFromFile(input.files[0]);
+      });
+
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('is-dragover');
+      });
+
+      zone.addEventListener('dragleave', () => zone.classList.remove('is-dragover'));
+
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('is-dragover');
+
+        const files = e.dataTransfer.files;
+        if (!files || !files.length) return;
+
+        const file = files[0];
+        if (!file.type.startsWith('image/')) return;
+
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+
+        showPreviewFromFile(file);
+      });
+
+      if (btnRemove) {
+        btnRemove.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearAll();
+        });
+      }
+
+      if (btnChange) {
+        btnChange.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          input.click();
+        });
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initPremiumDropzones();
+
+    const base = "{{ asset('uploads/photos/entite/logo/') }}";
+
+    {% if entite.logo is defined and entite.logo %}
+      (function(){
+        const p = document.getElementById('preview_logo');
+        if (p) {
+          const img = p.querySelector('.dz-img');
+          img.src = base + "{{ entite.logo }}";
+          p.classList.add('is-visible');
+          const rm = document.getElementById("{{ form.removeLogo.vars.id }}");
+          if (rm) rm.value = '';
+        }
+      })();
+    {% endif %}
+
+    {% if entite.logoMenu is defined and entite.logoMenu %}
+      (function(){
+        const p = document.getElementById('preview_logoMenu');
+        if (p) {
+          const img = p.querySelector('.dz-img');
+          img.src = base + "{{ entite.logoMenu }}";
+          p.classList.add('is-visible');
+          const rm = document.getElementById("{{ form.removeLogoMenu.vars.id }}");
+          if (rm) rm.value = '';
+        }
+      })();
+    {% endif %}
+  });
+</script>
+{% endblock %}

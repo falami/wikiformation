@@ -1,0 +1,2165 @@
+{# templates/administrateur/depense/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}{{ title|default('Dépense') }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#fff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius:18px;
+    }
+    
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== HERO Chips (comme site/index) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* boutons hero (cohérents site/index) */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== CARDS ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ===== FORM POLISH ===== */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown, .ts-dropdown.form-control, .ts-dropdown .ts-dropdown-content{
+      z-index: 1080 !important;
+    }
+
+    /* input suffix */
+    .input-euro .form-control{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .input-euro .euro-suffix{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      font-weight: 800;
+      letter-spacing: .02em;
+      color: var(--theme-color-principal);
+      border-color: var(--stroke);
+      min-width: 46px;
+      justify-content: center;
+      border: 1px solid var(--stroke);
+    }
+
+    .mini-kpi{
+      border:1px solid var(--stroke);
+      border-radius: 16px;
+      padding:.85rem 1rem;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent), transparent);
+    }
+    .summary-box{
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);
+      padding: 1rem;
+    }
+
+    /* Upload */
+    .upload-drop{
+      border: 1.5px dashed color-mix(in srgb, var(--theme-color-principal) 22%, var(--stroke));
+      border-radius: 16px;
+      padding: 1rem;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      transition: .15s ease;
+    }
+    .upload-drop.is-dragover{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 16%, var(--panel));
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 40%, var(--stroke));
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+
+
+    .proof-card{
+      border:1px solid var(--stroke);
+      border-radius: 18px;
+      overflow:hidden;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 6%, transparent), transparent);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+    }
+    .proof-card-h{
+      padding:.8rem 1rem;
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+      border-bottom:1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+    }
+    .proof-meta{
+      display:flex; flex-direction:column; gap:.15rem;
+    }
+    .proof-name{
+      font-weight: 800; color: var(--ink); line-height:1.1;
+    }
+    .proof-sub{
+      color: var(--muted); font-size:.85rem;
+    }
+    .proof-body{
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+    }
+    .proof-frame{
+      width:100%;
+      height: 360px;
+      border:0;
+      display:block;
+      background: #fff;
+    }
+    @media (max-width: 768px){
+      .proof-frame{ height: 260px; }
+    }
+
+    .scan-thumb{
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .scan-thumb img{
+      width:100%;
+      height:auto;
+      display:block;
+    }
+    .scan-thumb iframe{
+      width:100%;
+      height:260px;
+      border:0;
+      display:block;
+    }
+    @media (max-width:768px){
+      .scan-thumb iframe{ height:220px; }
+    }
+
+
+
+    /* ===== Scan preview : taille réduite ===== */
+    #scanPreview .scan-thumb img,
+    #scanPreview .scan-thumb iframe {
+      max-height: 300px;       /* 👈 taille réduite */
+      width: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    @media (max-width: 768px) {
+      #scanPreview .scan-thumb img,
+      #scanPreview .scan-thumb iframe {
+        max-height: 140px;
+      }
+    }
+
+
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (comme site/index) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-wallet2 me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ title|default('Dépense') }}
+          </h2>
+          <div class="opacity-75 mt-1">Saisie rapide, TVA, montants.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-wallet2"></i> Dépenses</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill">
+              <i class="bi bi-pencil-square"></i>
+              {% if form.vars.value and form.vars.value.id %}Modification{% else %}Création{% endif %}
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_depense_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-check2 me-1"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'depense_form' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+
+    {# ===== COL LEFT ===== #}
+    <div class="col-lg-8">
+
+
+
+
+
+
+      <div class="card border-0 shadow-sm mb-3" style="border-radius:18px;">
+        <div class="card-body">
+
+          <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+            <div>
+              <div class="fw-bold">Scanner un reçu</div>
+              <div class="text-muted small">Glisse une photo / PDF, ou prends une photo : on te propose HT / TVA / TTC + date.</div>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              {# input principal : fichiers #}
+              <input id="scanFile" type="file"
+                    accept="image/*,application/pdf"
+                    class="d-none">
+
+              {# input camera dédié (mobile) : photo directe #}
+              <input id="scanCamera" type="file"
+                    accept="image/*"
+                    capture="environment"
+                    class="d-none">
+
+              <button type="button" class="btn btn-light btn-sm" id="btnScanPick" style="border-color:var(--stroke);">
+                <i class="bi bi-folder2-open me-1"></i> Choisir
+              </button>
+
+              <button type="button" class="btn btn-light btn-sm" id="btnScanCamera" style="border-color:var(--stroke);">
+                <i class="bi bi-camera me-1"></i> Photo
+              </button>
+
+              <button type="button" class="btn btn-light btn-sm" id="btnScanClear" style="border-color:var(--stroke);" disabled>
+                <i class="bi bi-x-circle me-1"></i> Supprimer
+              </button>
+
+              <button id="btnScan" class="btn btn-warning btn-sm fw-semibold" type="button" disabled>
+                <i class="bi bi-magic"></i> Analyser
+              </button>
+            </div>
+          </div>
+
+          {# Dropzone + aperçu #}
+          <div class="upload-drop mt-3" id="scanDropzone" style="cursor:pointer;">
+            <div class="d-flex align-items-start gap-3">
+              <div class="fs-3"><i class="bi bi-receipt-cutoff"></i></div>
+
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="color:var(--ink)">Glisse ton reçu ici</div>
+                <div class="small text-muted">JPG/PNG/WebP ou PDF</div>
+
+                <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
+                  <span class="badge rounded-pill text-bg-light border" id="scanFileBadge">
+                    <i class="bi bi-dot me-1"></i> Aucun fichier
+                  </span>
+                  <span class="small text-muted" id="scanFileMeta"></span>
+                </div>
+              </div>
+
+              <div class="text-end">
+                <div class="small text-muted">Clique pour choisir</div>
+                <i class="bi bi-cloud-arrow-up fs-4"></i>
+              </div>
+            </div>
+
+            <div id="scanPreview" class="mt-3" style="display:none;"></div>
+          </div>
+
+          <div id="scanStatus" class="small mt-2 text-muted"></div>
+
+          <div id="scanProposal" class="mt-3" style="display:none;">
+            <div class="p-3 border rounded-3" style="background:rgba(255,193,7,.08); border-color:rgba(255,193,7,.25) !important;">
+              <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div>
+                  <div class="fw-bold">Proposition</div>
+                  <div class="small text-muted" id="scanConfidence">—</div>
+                </div>
+                <button id="btnApplyProposal" class="btn btn-dark btn-sm fw-semibold" type="button">
+                  <i class="bi bi-check2"></i> Appliquer au formulaire
+                </button>
+              </div>
+
+              <div class="row g-2 mt-2 small">
+                <div class="col-md-3"><div class="text-muted">Date</div><div class="fw-semibold" id="pDate">—</div></div>
+                <div class="col-md-3"><div class="text-muted">TTC</div><div class="fw-semibold" id="pTtc">—</div></div>
+                <div class="col-md-3"><div class="text-muted">TVA (Taux)</div><div class="fw-semibold" id="pTva">—</div></div>
+                <div class="col-md-3"><div class="text-muted">HT</div><div class="fw-semibold" id="pHt">—</div></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {# ===== Infos ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-info-circle-fill text-warning"></i> Informations</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12">
+              {{ form_label(form.libelle) }}
+              {{ form_widget(form.libelle, {
+                attr: {
+                  class: 'form-control',
+                  rows: 3,
+                  placeholder: "Ex : Achat fournitures (facture #1234) • Licence logiciel • Déplacement…"
+                }
+              }) }}
+              {{ form_errors(form.libelle) }}
+              <div class="form-text">
+                <i class="bi bi-journal-text me-1"></i>
+                Décris la dépense (référence, contexte, refacturation, n° facture…). Max 2000 caractères.
+              </div>
+
+            </div>
+
+
+            <div class="col-md-6">
+              {{ form_label(form.categorie) }}
+              <div class="input-group">
+                {{ form_widget(form.categorie) }}
+                <button type="button"
+                        class="btn btn-light"
+                        style="border-color: var(--stroke);"
+                        data-bs-toggle="modal" data-bs-target="#modalAddCategorie">
+                  <i class="bi bi-plus-lg"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-light"
+                        style="border-color: var(--stroke);"
+                        id="btnEditCategorieOpen"
+                        title="Éditer la catégorie sélectionnée">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+
+
+              {{ form_errors(form.categorie) }}
+              <div class="form-text"><i class="bi bi-tags me-1"></i>Catégorie normalisée pour des stats propres.</div>
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.fournisseur) }}
+              <div class="input-group">
+                {{ form_widget(form.fournisseur) }}
+                <button type="button"
+                        class="btn btn-light"
+                        style="border-color: var(--stroke);"
+                        data-bs-toggle="modal" data-bs-target="#modalAddFournisseur">
+                  <i class="bi bi-plus-lg"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-light"
+                        style="border-color: var(--stroke);"
+                        id="btnEditFournisseurOpen"
+                        title="Éditer le fournisseur sélectionné">
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+
+
+              {{ form_errors(form.fournisseur) }}
+              <div class="form-text"><i class="bi bi-truck me-1"></i>Fournisseur normalisé (évite les doublons).</div>
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.payeur) }}
+              {{ form_widget(form.payeur) }}
+              {{ form_errors(form.payeur) }}
+              <div class="form-text"><i class="bi bi-person-check me-1"></i>Qui a réellement payé (optionnel).</div>
+            </div>
+
+            <div class="col-md-3">
+              {{ form_row(form.dateDepense) }}
+            </div>
+            <div class="col-md-3">
+              {{ form_row(form.devise) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      
+
+
+
+      {# ===== TVA + Montants ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-calculator-fill text-warning"></i> TVA & Montants</h5>
+          <span class="chip">Auto</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3 align-items-end">
+
+            <div class="col-md-4">
+              {{ form_row(form.tauxTva) }}
+            </div>
+
+            <div class="col-md-4">
+              <div class="form-check form-switch mt-2">
+                {{ form_widget(form.tvaDeductible) }}
+                {{ form_label(form.tvaDeductible) }}
+              </div>
+              <div class="form-text"><i class="bi bi-percent me-1"></i>Décoche si la TVA n’est pas récupérable.</div>
+            </div>
+
+            
+
+
+            <div class="col-md-4">
+              <div class="mini-kpi">
+                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                  <div class="fw-bold"><i class="bi bi-lightning-charge-fill me-2"></i>Calcul assisté</div>
+                  <span class="badge rounded-pill"
+                        style="border:1px solid var(--stroke); background:rgba(255,193,7,.15); color:var(--ink);">
+                    Live
+                  </span>
+                </div>
+                <div class="mt-2 small">
+                  <div class="d-flex justify-content-between gap-3 py-1">
+                    <span class="text-muted">Saisie TTC</span>
+                    <span class="fw-semibold text-end">→ calc HT + TVA</span>
+                  </div>
+                  <div class="d-flex justify-content-between gap-3 py-1">
+                    <span class="text-muted">Saisie HT</span>
+                    <span class="fw-semibold text-end">→ calc TVA + TTC</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            
+
+            <div class="col-md-6">
+              {{ form_label(form.montantHtCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantHtCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+
+              <div class="form-text"><i class="bi bi-sliders me-1"></i>Montant HT, le TTC sera automatiquement calculé.</div>
+              {{ form_errors(form.montantHtCents) }}
+            </div>
+
+            
+
+
+            <div class="col-md-6">
+              {{ form_row(form.tvaDeductiblePct) }}
+              <div class="form-text"><i class="bi bi-sliders me-1"></i>Ex : 80% si usage mixte (perso + pro).</div>
+            </div>
+
+
+            <div class="col-md-6">
+              {{ form_label(form.montantTvaCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantTvaCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_errors(form.montantTvaCents) }}
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.montantTtcCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantTtcCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_errors(form.montantTtcCents) }}
+            </div>
+
+          </div>
+
+          <div class="form-text mt-2">
+            Astuce : saisis <strong>TTC</strong> (reçu) pour obtenir automatiquement <strong>HT</strong> et <strong>TVA</strong>.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Justificatif ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-paperclip text-warning"></i> Justificatif</h5>
+          <span class="chip">Optionnel</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="upload-drop" id="dropzone">
+            <div class="d-flex align-items-start gap-3">
+              <div class="fs-3"><i class="bi bi-cloud-arrow-up"></i></div>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="color:var(--ink)">Glisse-dépose ton fichier ici</div>
+                <div class="small text-muted">PDF, JPG, PNG… (stocké comme justificatif)</div>
+
+                <div class="mt-2">
+                  {{ form_row(form.justificatifFile) }}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <button type="button" class="btn btn-light btn-sm" id="btnClearSelectedProof" style="border-color:var(--stroke);">
+                    <i class="bi bi-x-circle me-1"></i> Retirer le fichier sélectionné
+                  </button>
+                  <div id="proofInfo" class="form-text m-0"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# Aperçu premium #}
+          {% set dep = form.vars.value %}
+          {% set hasExisting = dep and dep.id and dep.justificatifPath is defined and dep.justificatifPath %}
+          <div id="proofPreviewWrap"
+              class="mt-3"
+              data-existing="{{ hasExisting ? '1' : '0' }}"
+              data-existing-url="{{ hasExisting ? path('app_administrateur_depense_proof', {entite: entite.id, id: dep.id}) : '' }}"
+              data-existing-name="{{ hasExisting ? (dep.justificatifPath|split('/')|last) : '' }}"
+              data-delete-url="{{ hasExisting ? path('app_administrateur_depense_proof_delete', {entite: entite.id, id: dep.id}) : '' }}"
+              data-delete-token="{{ hasExisting ? csrf_token('depense_proof_delete_' ~ dep.id) : '' }}">
+          </div>
+
+          {% if hasExisting %}
+            <div class="mt-2 small">
+              <span class="badge rounded-pill text-bg-light border">
+                <i class="bi bi-check2-circle me-1"></i> Justificatif déjà présent
+              </span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+
+      <div class="d-flex gap-2">
+        <a class="btn btn-light" href="{{ path('app_administrateur_depense_index', {entite: entite.id}) }}">Annuler</a>
+        <button type="submit" class="btn btn-gradient fw-semibold">
+          <i class="bi bi-check2"></i> Enregistrer
+        </button>
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT ===== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-clipboard2-check-fill text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="summary-box mb-3">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">État</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Libellé</span>
+                <span class="fw-semibold text-end" id="resume-libelle">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Catégorie</span>
+                <span class="fw-semibold text-end" id="resume-categorie">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Fournisseur</span>
+                <span class="fw-semibold text-end" id="resume-fournisseur">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Payeur</span>
+                <span class="fw-semibold text-end" id="resume-payeur">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Date</span>
+                <span class="fw-semibold text-end" id="resume-date">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Devise</span>
+                <span class="fw-semibold text-end" id="resume-devise">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Taux TVA</span>
+                <span class="fw-semibold text-end" id="resume-taux">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Déductible</span>
+                <span class="fw-semibold text-end" id="resume-deductible">—</span>
+              </div>
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">% déductible</span>
+                <span class="fw-semibold text-end" id="resume-pct">—</span>
+              </div>
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">TVA déductible</span>
+                <span class="fw-semibold text-end" id="resume-tvaded">—</span>
+              </div>
+
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">HT</span>
+                <span class="fw-semibold text-end" id="resume-ht">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">TVA</span>
+                <span class="fw-semibold text-end" id="resume-tva">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">TTC</span>
+                <span class="fw-bold text-end" id="resume-ttc">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Justificatif</span>
+                <span class="fw-semibold text-end" id="resume-proof">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="{{ path('app_administrateur_depense_index', {entite: entite.id}) }}">Annuler</a>
+            <button type="submit" class="btn btn-gradient w-50 fw-semibold">
+              <i class="bi bi-check2"></i> Enregistrer
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+  
+
+
+
+
+{# ===================== MODALE : AJOUT CATEGORIE ===================== #}
+<div class="modal fade" id="modalAddCategorie" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content cardx" style="border-radius: 18px;">
+      <div class="cardx-h">
+        <h5 class="cardx-title"><i class="bi bi-tags-fill text-warning"></i> Nouvelle catégorie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="p-3 p-md-4">
+        <div class="mb-2 text-muted small">Ajout instantané et sélection automatique.</div>
+
+        <label class="form-label">Libellé</label>
+        <input type="text" class="form-control" id="newCategorieLibelle" placeholder="Ex: Logiciels, Matériel, Déplacements…">
+
+        <label class="form-label mt-3">Type</label>
+        <select class="form-select" id="newCategorieType">
+          <option value="operating" selected>Exploitation</option>
+          <option value="tax">Taxes / impôts</option>
+          <option value="payroll">Social / salaires</option>
+          <option value="finance">Frais financiers</option>
+          <option value="internal">Interne / transferts</option>
+          <option value="other">Autre</option>
+        </select>
+
+        <div class="form-check form-switch mt-3">
+          <input class="form-check-input" type="checkbox" id="newCategorieActif" checked>
+          <label class="form-check-label" for="newCategorieActif">Catégorie active</label>
+        </div>
+
+        <div class="form-check form-switch mt-2">
+          <input class="form-check-input" type="checkbox" id="newCategorieIncludeCharts" checked>
+          <label class="form-check-label" for="newCategorieIncludeCharts">Inclure dans les graphiques finance</label>
+        </div>
+
+        <div class="form-text">
+          <i class="bi bi-bar-chart-line me-1"></i>
+          Le type sert au classement (TVA/charges). Le toggle “graphes” masque/affiche dans les stats.
+        </div>
+
+
+        <div id="catErr" class="small text-danger mt-2 d-none"></div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-light w-50" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-gradient w-50 fw-semibold" id="btnCreateCategorie">
+            <i class="bi bi-check2"></i> Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ===================== MODALE : AJOUT FOURNISSEUR ===================== #}
+<div class="modal fade" id="modalAddFournisseur" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content cardx" style="border-radius: 18px;">
+      <div class="cardx-h">
+        <h5 class="cardx-title"><i class="bi bi-truck-front-fill text-warning"></i> Nouveau fournisseur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="p-3 p-md-4">
+        <div class="mb-2 text-muted small">Ajout instantané et sélection automatique.</div>
+
+        <label class="form-label">Nom</label>
+        <input type="text" class="form-control" id="newFournisseurNom" placeholder="Ex: Amazon, OVH, Apple…">
+
+        <label class="form-label mt-3">SIRET (optionnel)</label>
+        <input type="text" class="form-control" id="newFournisseurSiret" placeholder="Ex: 123 456 789 00010">
+
+        <label class="form-label mt-3">Couleur (optionnel)</label>
+        <div class="d-flex align-items-center gap-2">
+          <input type="color" class="form-control form-control-color"
+                id="newFournisseurColor"
+                value="#2563eb"
+                style="width: 56px; height: 44px; padding: .25rem; border-radius: 12px;">
+          <input type="text" class="form-control"
+                id="newFournisseurColorText"
+                value="#2563eb"
+                placeholder="#RRGGBB">
+        </div>
+        <div class="form-text">
+          <i class="bi bi-palette me-1"></i>Cette couleur sera utilisée dans les graphiques.
+        </div>
+
+
+        <div id="fourErr" class="small text-danger mt-2 d-none"></div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-light w-50" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-gradient w-50 fw-semibold" id="btnCreateFournisseur">
+            <i class="bi bi-check2"></i> Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<div class="modal fade" id="modalEditCategorie" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content cardx" style="border-radius: 18px;">
+      <div class="cardx-h">
+        <h5 class="cardx-title"><i class="bi bi-pencil-square text-warning"></i> Éditer catégorie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="p-3 p-md-4">
+        <div class="mb-2 text-muted small">Modification instantanée.</div>
+
+        <label class="form-label">Libellé</label>
+        <input type="text" class="form-control" id="editCategorieLibelle" placeholder="Ex: Logiciels…">
+        <label class="form-label mt-3">Type</label>
+        <select class="form-select" id="editCategorieType">
+          <option value="operating">Exploitation</option>
+          <option value="tax">Taxes / impôts</option>
+          <option value="payroll">Social / salaires</option>
+          <option value="finance">Frais financiers</option>
+          <option value="internal">Interne / transferts</option>
+          <option value="other">Autre</option>
+        </select>
+
+        <div class="form-check form-switch mt-3">
+          <input class="form-check-input" type="checkbox" id="editCategorieActif">
+          <label class="form-check-label" for="editCategorieActif">Catégorie active</label>
+        </div>
+
+        <div class="form-check form-switch mt-2">
+          <input class="form-check-input" type="checkbox" id="editCategorieIncludeCharts">
+          <label class="form-check-label" for="editCategorieIncludeCharts">Inclure dans les graphiques finance</label>
+        </div>
+
+        <div class="form-text">
+          <i class="bi bi-bar-chart-line me-1"></i>
+          Le type sert au classement. Le toggle “graphes” masque/affiche dans les stats.
+        </div>
+
+        <input type="hidden" id="editCategorieId">
+
+        <div id="catEditErr" class="small text-danger mt-2 d-none"></div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-light w-50" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-gradient w-50 fw-semibold" id="btnUpdateCategorie">
+            <i class="bi bi-check2"></i> Mettre à jour
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+<div class="modal fade" id="modalEditFournisseur" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content cardx" style="border-radius: 18px;">
+      <div class="cardx-h">
+        <h5 class="cardx-title"><i class="bi bi-pencil-square text-warning"></i> Éditer fournisseur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="p-3 p-md-4">
+        <div class="mb-2 text-muted small">Modification instantanée.</div>
+
+        <input type="hidden" id="editFournisseurId">
+
+        <label class="form-label">Nom</label>
+        <input type="text" class="form-control" id="editFournisseurNom" placeholder="Ex: Amazon…">
+
+        <label class="form-label mt-3">SIRET (optionnel)</label>
+        <input type="text" class="form-control" id="editFournisseurSiret" placeholder="Ex: 123 456…">
+
+        <label class="form-label mt-3">Couleur (optionnel)</label>
+        <div class="d-flex align-items-center gap-2">
+          <input type="color" class="form-control form-control-color"
+                id="editFournisseurColor"
+                value="#2563EB"
+                style="width: 56px; height: 44px; padding: .25rem; border-radius: 12px;">
+          <input type="text" class="form-control"
+                id="editFournisseurColorText"
+                value="#2563EB"
+                placeholder="#RRGGBB">
+        </div>
+        <div class="form-text">
+          <i class="bi bi-palette me-1"></i>Cette couleur sera utilisée dans les graphiques.
+        </div>
+
+        <div id="fourEditErr" class="small text-danger mt-2 d-none"></div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="button" class="btn btn-light w-50" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-gradient w-50 fw-semibold" id="btnUpdateFournisseur">
+            <i class="bi bi-check2"></i> Mettre à jour
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+/* =========================================================
+   HELPERS (format FR)
+========================================================= */
+function parseNumberFR(v){
+  if (v === null || v === undefined) return 0;
+  v = String(v).trim().replace(/\s/g,'').replace('\u202F','').replace(',', '.');
+  v = v.replace(/[^\d.\-]/g,'');
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+function formatMoneyFR(n){
+  if (!isFinite(n)) n = 0;
+  try {
+    return new Intl.NumberFormat('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }).format(n);
+  } catch(e){
+    return (Number(n).toFixed(2)).replace('.', ',');
+  }
+}
+function getSelectedText(selectEl){
+  if (!selectEl) return '';
+  if (selectEl.tomselect){
+    const v = selectEl.tomselect.getValue();
+    if (!v) return '';
+    const opt = selectEl.querySelector(`option[value="${CSS.escape(v)}"]`);
+    return (opt ? opt.textContent : '').trim();
+  }
+  const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+  return (opt ? opt.textContent : '').trim();
+}
+
+/* =========================================================
+   INIT
+========================================================= */
+document.addEventListener('DOMContentLoaded', function(){
+
+  // TomSelect
+  function initTomSelect(selector, opts = {}){
+    const el = document.querySelector(selector);
+    if (!el || el.tomselect) return el;
+    new TomSelect(el, Object.assign({
+      create:false,
+      plugins: el.multiple ? ['remove_button'] : [],
+      sortField: { field:'text', direction:'asc' }
+    }, opts));
+    return el;
+  }
+
+  initTomSelect('#{{ form.payeur.vars.id }}', { allowEmptyOption:true });
+  initTomSelect('#{{ form.devise.vars.id }}');
+  initTomSelect('#{{ form.categorie.vars.id }}', { allowEmptyOption:true });
+  initTomSelect('#{{ form.fournisseur.vars.id }}', { allowEmptyOption:true });
+
+
+
+  function postForm(url, data){
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: new URLSearchParams(data)
+    }).then(async r => {
+      const json = await r.json().catch(()=>null);
+      if (!r.ok) throw (json || {message:'Erreur serveur'});
+      return json;
+    });
+  }
+
+  const categorieSelect = document.getElementById('{{ form.categorie.vars.id }}');
+  const fournisseurSelect = document.getElementById('{{ form.fournisseur.vars.id }}');
+
+  const modalCatEl = document.getElementById('modalAddCategorie');
+  const modalFourEl = document.getElementById('modalAddFournisseur');
+
+  const catModal = modalCatEl ? bootstrap.Modal.getOrCreateInstance(modalCatEl) : null;
+  const fourModal = modalFourEl ? bootstrap.Modal.getOrCreateInstance(modalFourEl) : null;
+  const $pct = document.getElementById('{{ form.tvaDeductiblePct.vars.id }}');
+
+
+  function showErr(id, msg){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('d-none', !msg);
+  }
+
+  document.getElementById('btnCreateCategorie')?.addEventListener('click', async () => {
+    showErr('catErr', '');
+    const libelle = (document.getElementById('newCategorieLibelle')?.value || '').trim();
+    if (!libelle) { showErr('catErr', 'Le libellé est requis.'); return; }
+
+    try {
+      const url = "{{ path('app_administrateur_depense_ajax_categorie_create', { entite: entite.id }) }}";
+      const type = (document.getElementById('newCategorieType')?.value || 'operating').trim();
+      const actif = document.getElementById('newCategorieActif')?.checked ? 1 : 0;
+      const includeInFinanceCharts = document.getElementById('newCategorieIncludeCharts')?.checked ? 1 : 0;
+
+      const res = await postForm(url, { libelle, type, actif, includeInFinanceCharts });
+
+
+      // inject dans TomSelect (ou select natif)
+      if (categorieSelect?.tomselect){
+        categorieSelect.tomselect.addOption({ value: String(res.id), text: res.text });
+        const opt = categorieSelect.querySelector(`option[value="${CSS.escape(String(res.id))}"]`);
+        if (opt){
+          opt.dataset.type = res.type || type;
+          opt.dataset.actif = String(res.actif ?? actif);
+          opt.dataset.includeCharts = String(res.includeInFinanceCharts ?? includeInFinanceCharts);
+        }
+
+        categorieSelect.tomselect.addItem(String(res.id));
+        categorieSelect.tomselect.refreshOptions(false);
+      } else if (categorieSelect) {
+        const opt = new Option(res.text, String(res.id), true, true);
+        opt.dataset.type = res.type || type;
+        opt.dataset.actif = String(res.actif ?? actif);
+        opt.dataset.includeCharts = String(res.includeInFinanceCharts ?? includeInFinanceCharts);
+
+        categorieSelect.add(opt);
+        categorieSelect.value = String(res.id);
+      }
+
+      // clean + close
+      document.getElementById('newCategorieLibelle').value = '';
+      document.getElementById('newCategorieLibelle').value = '';
+      document.getElementById('newCategorieType').value = 'operating';
+      document.getElementById('newCategorieActif').checked = true;
+      document.getElementById('newCategorieIncludeCharts').checked = true;
+
+      catModal?.hide();
+
+      // ton refreshResume existant
+      if (typeof refreshResume === 'function') refreshResume();
+
+    } catch(e){
+      showErr('catErr', e?.message || 'Impossible de créer la catégorie.');
+    }
+  });
+
+
+  const $fourColor = document.getElementById('newFournisseurColor');
+  const $fourColorText = document.getElementById('newFournisseurColorText');
+
+  function normalizeHex(v){
+    v = String(v || '').trim();
+    if (!v) return '';
+    if (v[0] !== '#') v = '#'+v;
+    v = v.toUpperCase();
+    return /^#([0-9A-F]{6})$/.test(v) ? v : '';
+  }
+
+  if ($fourColor && $fourColorText){
+    $fourColor.addEventListener('input', () => {
+      $fourColorText.value = $fourColor.value.toUpperCase();
+    });
+    $fourColorText.addEventListener('input', () => {
+      const hex = normalizeHex($fourColorText.value);
+      if (hex) $fourColor.value = hex;
+    });
+  }
+
+
+  document.getElementById('btnCreateFournisseur')?.addEventListener('click', async () => {
+    showErr('fourErr', '');
+    const nom = (document.getElementById('newFournisseurNom')?.value || '').trim();
+    const siret = (document.getElementById('newFournisseurSiret')?.value || '').trim();
+    const couleurHex = normalizeHex(document.getElementById('newFournisseurColorText')?.value || '');
+
+    if (!nom) { showErr('fourErr', 'Le nom est requis.'); return; }
+    if (document.getElementById('newFournisseurColorText')?.value && !couleurHex){
+      showErr('fourErr', 'Couleur invalide (format attendu: #RRGGBB).');
+      return;
+    }
+
+    try {
+      const url = "{{ path('app_administrateur_depense_ajax_fournisseur_create', { entite: entite.id }) }}";
+      const res = await postForm(url, { nom, siret, couleurHex });
+
+      if (fournisseurSelect?.tomselect){
+        fournisseurSelect.tomselect.addOption({ value: String(res.id), text: res.text });
+        // après res reçu
+        const opt = fournisseurSelect.querySelector(`option[value="${CSS.escape(String(res.id))}"]`);
+        if (opt){
+          opt.dataset.color = res.color || '';
+          opt.dataset.siret = siret || '';
+        }
+
+        fournisseurSelect.tomselect.addItem(String(res.id));
+        fournisseurSelect.tomselect.refreshOptions(false);
+      } else if (fournisseurSelect) {
+        const opt = new Option(res.text, String(res.id), true, true);
+        fournisseurSelect.add(opt);
+        fournisseurSelect.value = String(res.id);
+      }
+
+      document.getElementById('newFournisseurNom').value = '';
+      document.getElementById('newFournisseurSiret').value = '';
+      document.getElementById('newFournisseurColor').value = '#2563eb';
+      document.getElementById('newFournisseurColorText').value = '#2563eb';
+      fourModal?.hide();
+
+      if (typeof refreshResume === 'function') refreshResume();
+
+    } catch(e){
+      showErr('fourErr', e?.message || 'Impossible de créer le fournisseur.');
+    }
+  });
+
+
+
+
+  // Modals bootstrap
+  const editCatEl  = document.getElementById('modalEditCategorie');
+  const editFourEl = document.getElementById('modalEditFournisseur');
+  const editCatModal  = editCatEl  ? bootstrap.Modal.getOrCreateInstance(editCatEl)  : null;
+  const editFourModal = editFourEl ? bootstrap.Modal.getOrCreateInstance(editFourEl) : null;
+
+  // Helpers: valeur sélectionnée TomSelect ou select natif
+  function getSelectedId(selectEl){
+    if (!selectEl) return '';
+    if (selectEl.tomselect) return selectEl.tomselect.getValue() || '';
+    return selectEl.value || '';
+  }
+  function getOptionEl(selectEl, id){
+    if (!selectEl || !id) return null;
+    return selectEl.querySelector(`option[value="${CSS.escape(id)}"]`);
+  }
+
+  /* ===================== OUVRIR MODALE EDIT CATEGORIE ===================== */
+  document.getElementById('btnEditCategorieOpen')?.addEventListener('click', () => {
+    showErr('catEditErr', '');
+    const id = getSelectedId(categorieSelect);
+    if (!id) { showErr('catEditErr', 'Sélectionne une catégorie à éditer.'); return; }
+
+    const opt = getOptionEl(categorieSelect, id);
+    document.getElementById('editCategorieId').value = id;
+    document.getElementById('editCategorieLibelle').value = (opt?.textContent || '').trim();
+    const type = (opt?.dataset?.type || 'operating').trim();
+    const actif = (opt?.dataset?.actif ?? '1') === '1';
+    const inc = (opt?.dataset?.includeCharts ?? '1') === '1';
+
+    document.getElementById('editCategorieType').value = type;
+    document.getElementById('editCategorieActif').checked = actif;
+    document.getElementById('editCategorieIncludeCharts').checked = inc;
+
+
+    editCatModal?.show();
+  });
+
+  document.getElementById('btnUpdateCategorie')?.addEventListener('click', async () => {
+    showErr('catEditErr', '');
+    const id = (document.getElementById('editCategorieId')?.value || '').trim();
+    const libelle = (document.getElementById('editCategorieLibelle')?.value || '').trim();
+    if (!id) { showErr('catEditErr', 'Catégorie invalide.'); return; }
+    if (!libelle) { showErr('catEditErr', 'Le libellé est requis.'); return; }
+
+    try {
+      const url = "{{ path('app_administrateur_depense_ajax_categorie_update', { entite: entite.id, id: 0 }) }}".replace('/0/', `/${id}/`);
+      const type = (document.getElementById('editCategorieType')?.value || 'operating').trim();
+      const actif = document.getElementById('editCategorieActif')?.checked ? 1 : 0;
+      const includeInFinanceCharts = document.getElementById('editCategorieIncludeCharts')?.checked ? 1 : 0;
+
+      const res = await postForm(url, { libelle, type, actif, includeInFinanceCharts });
+
+
+      // Update option text
+      if (categorieSelect?.tomselect){
+        categorieSelect.tomselect.updateOption(String(res.id), { value: String(res.id), text: res.text });
+        const opt = categorieSelect.querySelector(`option[value="${CSS.escape(String(res.id))}"]`);
+        if (opt){
+          opt.dataset.type = res.type || type;
+          opt.dataset.actif = String(res.actif ?? actif);
+          opt.dataset.includeCharts = String(res.includeInFinanceCharts ?? includeInFinanceCharts);
+        }
+
+        categorieSelect.tomselect.refreshOptions(false);
+        categorieSelect.tomselect.setValue(String(res.id), true);
+      } else {
+        const opt = getOptionEl(categorieSelect, String(res.id));
+        if (opt) opt.textContent = res.text;
+        categorieSelect.value = String(res.id);
+      }
+
+      editCatModal?.hide();
+      if (typeof refreshResume === 'function') refreshResume();
+    } catch(e){
+      showErr('catEditErr', e?.message || 'Impossible de mettre à jour la catégorie.');
+    }
+  });
+
+  /* ===================== OUVRIR MODALE EDIT FOURNISSEUR ===================== */
+  function syncColorInputs(colorInput, textInput){
+    if (!colorInput || !textInput) return;
+    colorInput.addEventListener('input', () => { textInput.value = String(colorInput.value).toUpperCase(); });
+    textInput.addEventListener('input', () => {
+      const hex = normalizeHex(textInput.value);
+      if (hex) colorInput.value = hex;
+    });
+  }
+
+  syncColorInputs(
+    document.getElementById('editFournisseurColor'),
+    document.getElementById('editFournisseurColorText')
+  );
+
+  document.getElementById('btnEditFournisseurOpen')?.addEventListener('click', () => {
+    showErr('fourEditErr', '');
+    const id = getSelectedId(fournisseurSelect);
+    if (!id) { showErr('fourEditErr', 'Sélectionne un fournisseur à éditer.'); return; }
+
+    const opt = getOptionEl(fournisseurSelect, id);
+
+    document.getElementById('editFournisseurId').value = id;
+    document.getElementById('editFournisseurNom').value = (opt?.textContent || '').trim();
+    document.getElementById('editFournisseurSiret').value = (opt?.dataset?.siret || '').trim();
+
+    const hex = normalizeHex(opt?.dataset?.color || '') || '#2563EB';
+    document.getElementById('editFournisseurColor').value = hex;
+    document.getElementById('editFournisseurColorText').value = hex;
+
+    editFourModal?.show();
+  });
+
+  document.getElementById('btnUpdateFournisseur')?.addEventListener('click', async () => {
+    showErr('fourEditErr', '');
+    const id = (document.getElementById('editFournisseurId')?.value || '').trim();
+    const nom = (document.getElementById('editFournisseurNom')?.value || '').trim();
+    const siret = (document.getElementById('editFournisseurSiret')?.value || '').trim();
+    const couleurHex = normalizeHex(document.getElementById('editFournisseurColorText')?.value || '');
+
+    if (!id) { showErr('fourEditErr', 'Fournisseur invalide.'); return; }
+    if (!nom) { showErr('fourEditErr', 'Le nom est requis.'); return; }
+    if (document.getElementById('editFournisseurColorText')?.value && !couleurHex){
+      showErr('fourEditErr', 'Couleur invalide (format attendu: #RRGGBB).'); return;
+    }
+
+    try {
+      const url = "{{ path('app_administrateur_depense_ajax_fournisseur_update', { entite: entite.id, id: 0 }) }}".replace('/0/', `/${id}/`);
+      const res = await postForm(url, { nom, siret, couleurHex });
+
+      // Update option
+      if (fournisseurSelect?.tomselect){
+        fournisseurSelect.tomselect.updateOption(String(res.id), { value: String(res.id), text: res.text });
+        fournisseurSelect.tomselect.refreshOptions(false);
+        fournisseurSelect.tomselect.setValue(String(res.id), true);
+      } else {
+        const opt = getOptionEl(fournisseurSelect, String(res.id));
+        if (opt) opt.textContent = res.text;
+        fournisseurSelect.value = String(res.id);
+      }
+
+      // Update dataset (important pour ré-ouvrir la modale avec les bonnes infos)
+      const opt = getOptionEl(fournisseurSelect, String(res.id));
+      if (opt){
+        opt.dataset.color = res.color || '';
+        opt.dataset.siret = siret || '';
+      }
+
+      editFourModal?.hide();
+      if (typeof refreshResume === 'function') refreshResume();
+    } catch(e){
+      showErr('fourEditErr', e?.message || 'Impossible de mettre à jour le fournisseur.');
+    }
+  });
+
+
+
+
+  // Flatpickr
+  if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
+  document.querySelectorAll('.flatpickr-date').forEach(el => {
+    if (!el._fp) flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
+  });
+
+  // Elements
+  const $libelle = document.getElementById('{{ form.libelle.vars.id }}');
+  const $cat     = document.getElementById('{{ form.categorie.vars.id }}');
+  const $four    = document.getElementById('{{ form.fournisseur.vars.id }}');
+  const $payeur  = document.getElementById('{{ form.payeur.vars.id }}');
+  const $date    = document.getElementById('{{ form.dateDepense.vars.id }}');
+  const $devise  = document.getElementById('{{ form.devise.vars.id }}');
+
+  const $taux    = document.getElementById('{{ form.tauxTva.vars.id }}');
+  const $ded     = document.getElementById('{{ form.tvaDeductible.vars.id }}');
+
+  const $ht      = document.getElementById('{{ form.montantHtCents.vars.id }}');
+  const $tva     = document.getElementById('{{ form.montantTvaCents.vars.id }}');
+  const $ttc     = document.getElementById('{{ form.montantTtcCents.vars.id }}');
+
+  const $file    = document.getElementById('{{ form.justificatifFile.vars.id }}');
+  const $proofInfo = document.getElementById('proofInfo');
+
+  const $resume = {
+    pill: document.getElementById('resume-valid-pill'),
+    libelle: document.getElementById('resume-libelle'),
+    categorie: document.getElementById('resume-categorie'),
+    fournisseur: document.getElementById('resume-fournisseur'),
+    payeur: document.getElementById('resume-payeur'),
+    date: document.getElementById('resume-date'),
+    devise: document.getElementById('resume-devise'),
+    taux: document.getElementById('resume-taux'),
+    deductible: document.getElementById('resume-deductible'),
+    ht: document.getElementById('resume-ht'),
+    tva: document.getElementById('resume-tva'),
+    ttc: document.getElementById('resume-ttc'),
+    proof: document.getElementById('resume-proof'),
+    pct: document.getElementById('resume-pct'),
+    tvaded: document.getElementById('resume-tvaded'),
+
+  };
+
+  // Live calc
+  function recalcFromTtc(){
+    const taux = parseFloat($taux?.value || '0') || 0;
+    const ttc  = parseNumberFR($ttc?.value || 0);
+    if (!($ht && $tva && $ttc)) return;
+    if (ttc <= 0) return;
+
+    if (taux <= 0.0001){
+      $ht.value  = formatMoneyFR(ttc);
+      $tva.value = formatMoneyFR(0);
+      return;
+    }
+    const ht  = ttc / (1 + (taux/100));
+    const tv  = ttc - ht;
+
+    $ht.value  = formatMoneyFR(ht);
+    $tva.value = formatMoneyFR(tv);
+  }
+
+  function recalcFromHt(){
+    const taux = parseFloat($taux?.value || '0') || 0;
+    const ht   = parseNumberFR($ht?.value || 0);
+    if (!($ht && $tva && $ttc)) return;
+    if (ht <= 0) return;
+
+    const tv  = ht * (taux/100);
+    const ttc = ht + tv;
+
+    $tva.value = formatMoneyFR(tv);
+    $ttc.value = formatMoneyFR(ttc);
+  }
+
+  // Resume + validation
+  function isFilled(v){ return !!String(v || '').trim(); }
+
+  function refreshResume(){
+    const ht  = parseNumberFR($ht?.value || 0);
+    const tv  = parseNumberFR($tva?.value || 0);
+    const ttc = parseNumberFR($ttc?.value || 0);
+
+    if ($resume.libelle){
+      const v = ($libelle?.value || '').trim();
+      $resume.libelle.textContent = v ? (v.length > 42 ? (v.slice(0, 42) + '…') : v) : '—';
+    }
+
+    if ($resume.categorie)  $resume.categorie.textContent = getSelectedText($cat) || '—';
+    if ($resume.fournisseur)$resume.fournisseur.textContent = getSelectedText($four) || '—';
+    if ($resume.payeur)     $resume.payeur.textContent = getSelectedText($payeur) || '—';
+    if ($resume.date)       $resume.date.textContent = isFilled($date?.value) ? $date.value.trim() : '—';
+    if ($resume.devise)     $resume.devise.textContent = getSelectedText($devise) || '—';
+
+    if ($resume.taux)       $resume.taux.textContent = (parseFloat($taux?.value || '0') || 0).toString().replace('.', ',') + ' %';
+    if ($resume.deductible) $resume.deductible.textContent = ($ded && $ded.checked) ? 'Oui' : 'Non';
+
+    if ($resume.ht)  $resume.ht.textContent  = (ht  > 0) ? (formatMoneyFR(ht)  + ' €') : '—';
+    if ($resume.tva) $resume.tva.textContent = (tv  > 0) ? (formatMoneyFR(tv)  + ' €') : '—';
+    if ($resume.ttc) $resume.ttc.textContent = (ttc > 0) ? (formatMoneyFR(ttc) + ' €') : '—';
+
+    
+
+
+    const pct = parseNumberFR($pct?.value || 100);
+    const pctClamped = Math.max(0, Math.min(100, pct));
+    const isDed = ($ded && $ded.checked);
+
+    const tvaded = isDed ? (tv * (pctClamped / 100)) : 0;
+
+    if ($resume.pct) $resume.pct.textContent = isDed ? (formatMoneyFR(pctClamped).replace(',00','') + ' %') : '—';
+    if ($resume.tvaded) $resume.tvaded.textContent = (tvaded > 0) ? (formatMoneyFR(tvaded) + ' €') : '—';
+
+
+    if ($resume.proof){
+      const f = $file?.files && $file.files[0] ? $file.files[0] : null;
+      $resume.proof.textContent = f ? 'Sélectionné' : '—';
+    }
+
+    if ($pct) {
+      $pct.disabled = !isDed;
+    }
+
+    const ok =
+      isFilled($libelle?.value) &&
+      isFilled($date?.value) &&
+      isFilled($devise?.value) &&
+      (ttc > 0 || ht > 0);
+
+
+    if ($resume.pill){
+      if (ok){
+        $resume.pill.textContent = '✅ Complet';
+        $resume.pill.style.background = 'rgba(25,135,84,.15)';
+        $resume.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      } else {
+        $resume.pill.textContent = '⚠️ Incomplet';
+        $resume.pill.style.background = 'rgba(255,193,7,.15)';
+        $resume.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      }
+    }
+
+    // disable submit buttons if incomplete
+    document.querySelectorAll('form[name="depense_form"] button[type="submit"]').forEach(b => b.disabled = !ok);
+  }
+
+  // Listeners
+  [$libelle,$cat,$four,$payeur,$date,$devise,$taux,$ded,$pct,$ht,$tva,$ttc].forEach(el=>{
+    if (!el) return;
+    el.addEventListener('input', refreshResume);
+    el.addEventListener('change', refreshResume);
+  });
+
+  if ($ttc) $ttc.addEventListener('input', () => { recalcFromTtc(); refreshResume(); });
+  if ($ht)  $ht.addEventListener('input',  () => { recalcFromHt();  refreshResume(); });
+  if ($taux) $taux.addEventListener('change', () => {
+    const ttc = parseNumberFR($ttc?.value || 0);
+    if (ttc > 0) recalcFromTtc(); else recalcFromHt();
+    refreshResume();
+  });
+
+  if ($ded) $ded.addEventListener('change', () => {
+    if (!$ded.checked && $pct) $pct.value = '0';
+    if ($ded.checked && $pct && (!String($pct.value).trim() || parseNumberFR($pct.value) === 0)) $pct.value = '100';
+    refreshResume();
+  });
+
+
+    // File info + dropzone + preview (premium)
+  let currentObjectUrl = null;
+
+  function humanSize(bytes){
+    const mb = bytes / 1024 / 1024;
+    if (mb >= 1) return mb.toFixed(2) + ' Mo';
+    const kb = bytes / 1024;
+    return kb.toFixed(0) + ' Ko';
+  }
+
+  function isPdf(fileOrName){
+    const name = typeof fileOrName === 'string' ? fileOrName : (fileOrName?.name || '');
+    const type = typeof fileOrName === 'object' ? (fileOrName?.type || '') : '';
+    return (type === 'application/pdf') || name.toLowerCase().endsWith('.pdf');
+  }
+  function isImage(fileOrName){
+    const name = typeof fileOrName === 'string' ? fileOrName : (fileOrName?.name || '');
+    const type = typeof fileOrName === 'object' ? (fileOrName?.type || '') : '';
+    return (type.startsWith('image/')) || /\.(png|jpe?g|gif|webp)$/i.test(name);
+  }
+
+  function setProofInfoText(text){
+    if (!$proofInfo) return;
+    $proofInfo.textContent = text || '';
+  }
+
+  function renderProofCard({ title, subtitle, contentHtml, actionsHtml }){
+    return `
+      <div class="proof-card">
+        <div class="proof-card-h">
+          <div class="proof-meta">
+            <div class="proof-name">${title}</div>
+            <div class="proof-sub">${subtitle || ''}</div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 justify-content-end">
+            ${actionsHtml || ''}
+          </div>
+        </div>
+        <div class="proof-body">
+          ${contentHtml || ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function clearSelectedFile(){
+    if (!$file) return;
+    $file.value = ''; // clear input
+    if (currentObjectUrl){
+      URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = null;
+    }
+    setProofInfoText('');
+    refreshResume();
+    renderProofPreview(); // re-render (retombe sur l’existant si présent)
+  }
+
+  document.getElementById('btnClearSelectedProof')?.addEventListener('click', clearSelectedFile);
+
+  async function deleteExistingProof(){
+    const wrap = document.getElementById('proofPreviewWrap');
+    if (!wrap) return;
+
+    const deleteUrl = wrap.dataset.deleteUrl || '';
+    const token = wrap.dataset.deleteToken || '';
+    if (!deleteUrl || !token) return;
+
+    // confirm premium (simple et clair)
+    if (!confirm('Supprimer définitivement le justificatif ?')) return;
+
+    const r = await fetch(deleteUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: new URLSearchParams({ _token: token })
+    });
+
+    const json = await r.json().catch(()=>null);
+    if (!r.ok || !json?.ok){
+      alert(json?.message || 'Impossible de supprimer le justificatif.');
+      return;
+    }
+
+    // UI: plus d’existant
+    wrap.dataset.existing = '0';
+    wrap.dataset.existingUrl = '';
+    wrap.dataset.existingName = '';
+    wrap.dataset.deleteUrl = '';
+    wrap.dataset.deleteToken = '';
+
+    renderProofPreview();
+    refreshResume();
+  }
+
+  function renderProofPreview(){
+    const wrap = document.getElementById('proofPreviewWrap');
+    if (!wrap) return;
+
+    // 1) priorité: fichier sélectionné
+    const selected = $file?.files && $file.files[0] ? $file.files[0] : null;
+    if (selected){
+      if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = URL.createObjectURL(selected);
+
+      const title = selected.name;
+      const subtitle = `${humanSize(selected.size)} • ${selected.type || 'fichier'}`;
+
+      let contentHtml = `
+        <div class="p-3">
+          <div class="text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            Aperçu local (avant enregistrement).
+          </div>
+        </div>
+      `;
+
+      if (isPdf(selected)){
+        contentHtml += `<iframe class="proof-frame" src="${currentObjectUrl}"></iframe>`;
+      } else if (isImage(selected)){
+        contentHtml += `
+          <div class="p-3">
+            <img src="${currentObjectUrl}" alt="" style="max-width:100%; border-radius:14px; border:1px solid var(--stroke);">
+          </div>
+        `;
+      } else {
+        contentHtml += `
+          <div class="p-3">
+            <div class="alert alert-light border mb-0">
+              <i class="bi bi-file-earmark me-2"></i>
+              Aperçu non disponible pour ce type de fichier. Il sera enregistré tel quel.
+            </div>
+          </div>
+        `;
+      }
+
+      const actionsHtml = `
+        <span class="badge rounded-pill text-bg-warning border" style="background: rgba(255,193,7,.15)!important; color: var(--ink);">
+          Sélectionné
+        </span>
+      `;
+
+      wrap.innerHTML = renderProofCard({ title, subtitle, contentHtml, actionsHtml });
+      setProofInfoText(`Fichier : ${selected.name} (${humanSize(selected.size)})`);
+      return;
+    }
+
+    // 2) sinon: justificatif existant
+    const hasExisting = (wrap.dataset.existing === '1');
+    const url = wrap.dataset.existingUrl || '';
+    const name = wrap.dataset.existingName || 'Justificatif';
+
+    if (hasExisting && url){
+      const title = name;
+      const subtitle = `Justificatif enregistré • affichage inline`;
+
+      const actionsHtml = `
+        <a class="btn btn-light btn-sm" style="border-color:var(--stroke);" target="_blank" href="${url}">
+          <i class="bi bi-box-arrow-up-right me-1"></i> Voir
+        </a>
+        <button type="button" class="btn btn-danger btn-sm" id="btnDeleteExistingProof">
+          <i class="bi bi-trash3 me-1"></i> Supprimer
+        </button>
+      `;
+
+      let contentHtml = '';
+      if (isPdf(name)){
+        contentHtml = `<iframe class="proof-frame" src="${url}"></iframe>`;
+      } else if (isImage(name)){
+        contentHtml = `
+          <div class="p-3">
+            <img src="${url}" alt="" style="max-width:100%; border-radius:14px; border:1px solid var(--stroke);">
+          </div>
+        `;
+      } else {
+        contentHtml = `
+          <div class="p-3">
+            <div class="alert alert-light border mb-0">
+              <i class="bi bi-file-earmark me-2"></i>
+              Aperçu non disponible. Utilise “Voir” pour l’ouvrir.
+            </div>
+          </div>
+        `;
+      }
+
+      wrap.innerHTML = renderProofCard({ title, subtitle, contentHtml, actionsHtml });
+      document.getElementById('btnDeleteExistingProof')?.addEventListener('click', deleteExistingProof);
+      setProofInfoText('');
+      return;
+    }
+
+    // 3) rien
+    wrap.innerHTML = '';
+    setProofInfoText('');
+  }
+
+  if ($file){
+    $file.addEventListener('change', () => {
+      renderProofPreview();
+      refreshResume();
+    });
+  }
+
+  const dz = document.getElementById('dropzone');
+  if (dz && $file){
+    ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      dz.classList.add('is-dragover');
+    }));
+    ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      dz.classList.remove('is-dragover');
+    }));
+    dz.addEventListener('drop', (e)=>{
+      const files = e.dataTransfer?.files;
+      if (!files || !files.length) return;
+      $file.files = files;
+      renderProofPreview();
+      refreshResume();
+    });
+  }
+
+  // IMPORTANT: résumé justificatif -> tient compte aussi de l’existant
+  const _refreshResumeProof = refreshResume;
+  refreshResume = function(){
+    _refreshResumeProof();
+
+    const wrap = document.getElementById('proofPreviewWrap');
+    if ($resume.proof && wrap){
+      const selected = $file?.files && $file.files[0] ? $file.files[0] : null;
+      const hasExisting = (wrap.dataset.existing === '1');
+      $resume.proof.textContent = selected ? 'Sélectionné' : (hasExisting ? 'Présent' : '—');
+    }
+  };
+
+  // init
+  renderProofPreview();
+
+
+  // init
+  refreshResume();
+});
+</script>
+
+
+
+<script>
+(function(){
+  const $file      = document.getElementById('scanFile');
+  const $camera    = document.getElementById('scanCamera');
+  const $btnPick   = document.getElementById('btnScanPick');
+  const $btnCam    = document.getElementById('btnScanCamera');
+  const $btnClear  = document.getElementById('btnScanClear');
+  const $btnScan   = document.getElementById('btnScan');
+  const $status    = document.getElementById('scanStatus');
+  const $box       = document.getElementById('scanProposal');
+
+  const $dz        = document.getElementById('scanDropzone');
+  const $preview   = document.getElementById('scanPreview');
+  const $badge     = document.getElementById('scanFileBadge');
+  const $meta      = document.getElementById('scanFileMeta');
+
+  let lastProposal = null;
+  let objectUrl = null;
+
+  function euro(cents){
+    const v = (cents||0)/100;
+    return v.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+  }
+  function humanSize(bytes){
+    const mb = bytes / 1024 / 1024;
+    if (mb >= 1) return mb.toFixed(2) + ' Mo';
+    const kb = bytes / 1024;
+    return kb.toFixed(0) + ' Ko';
+  }
+  function isPdf(f){
+    const name = (f?.name || '').toLowerCase();
+    return f?.type === 'application/pdf' || name.endsWith('.pdf');
+  }
+  function isImage(f){
+    return (f?.type || '').startsWith('image/');
+  }
+
+  function setFile(f){
+    if (!f) return;
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    $file.files = dt.files;
+    render();
+  }
+
+
+  function formatPctFR(x){
+    const n = Number(x);
+    if (!isFinite(n)) return '—';
+    const s = n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+    return s + ' %';
+  }
+
+  /**
+   * Renvoie un taux TVA "fiable" :
+   * - priorité à un taux fourni par l’API si présent
+   * - sinon calcule brut depuis HT/TTC (plus robuste que TVA/HT)
+   * - puis snap vers un taux légal si proche (20/10/5.5/2.1/0)
+   * - sinon conserve le brut (mais on pourra l’afficher "à vérifier")
+   */
+  function computeVatRatePct(proposal){
+    // 1) si l’API te renvoie déjà un taux : on le prend
+    const direct =
+      proposal?.tauxTva ??
+      proposal?.tauxTvaPct ??
+      proposal?.vatRate ??
+      proposal?.vatRatePct ??
+      null;
+
+    if (direct !== null && direct !== undefined && direct !== '') {
+      const d = Number(String(direct).replace(',', '.'));
+      if (isFinite(d) && d >= 0) return { pct: d, snapped: true, source: 'api' };
+    }
+
+    // 2) sinon on calcule depuis HT/TTC (évite dépendre d’une TVA OCR)
+    const ht  = Number(proposal?.montantHtCents || 0);
+    const ttc = Number(proposal?.montantTtcCents || 0);
+
+    if (!(ht > 0) || !(ttc > 0) || ttc <= ht) {
+      return { pct: 0, snapped: true, source: 'none' };
+    }
+
+    const raw = ((ttc - ht) / ht) * 100;
+
+    // 3) snap vers taux légaux si proche
+    const legal = [20, 10, 5.5, 2.1, 0];
+    let best = legal[0];
+    let bestDiff = Math.abs(raw - best);
+
+    for (const r of legal) {
+      const diff = Math.abs(raw - r);
+      if (diff < bestDiff) { bestDiff = diff; best = r; }
+    }
+
+    // tolérance : si on est à +/- 1 point, on considère que c’est une erreur OCR
+    const TOL = 1.0;
+    if (bestDiff <= TOL) {
+      return { pct: best, snapped: true, source: 'snapped' };
+    }
+
+    // sinon on garde le brut, mais on signalera qu’il est douteux
+    return { pct: raw, snapped: false, source: 'raw' };
+  }
+
+
+
+  function clear(){
+    lastProposal = null;
+    $box.style.display = 'none';
+    $status.textContent = '';
+    if (objectUrl){ URL.revokeObjectURL(objectUrl); objectUrl = null; }
+    $file.value = '';
+    if ($camera) $camera.value = '';
+    render();
+  }
+
+  function render(){
+    const f = $file.files?.[0] || null;
+
+    $btnClear.disabled = !f;
+    $btnScan.disabled  = !f;
+
+    if (!f){
+      $badge.innerHTML = `<i class="bi bi-dot me-1"></i> Aucun fichier`;
+      $meta.textContent = '';
+      $preview.style.display = 'none';
+      $preview.innerHTML = '';
+      return;
+    }
+
+    $badge.innerHTML = `<i class="bi bi-check2-circle me-1"></i> ${f.name}`;
+    $meta.textContent = `${humanSize(f.size)} • ${f.type || 'fichier'}`;
+
+    if (objectUrl){ URL.revokeObjectURL(objectUrl); }
+    objectUrl = URL.createObjectURL(f);
+
+    let html = `<div class="scan-thumb">`;
+
+    if (isPdf(f)){
+      html += `<iframe src="${objectUrl}"></iframe>`;
+    } else if (isImage(f)){
+      html += `<img src="${objectUrl}" alt="Aperçu reçu">`;
+    } else {
+      html += `<div class="p-3 small text-muted">
+                <i class="bi bi-file-earmark me-2"></i>
+                Aperçu non disponible pour ce type de fichier.
+              </div>`;
+    }
+
+    html += `</div>`;
+    $preview.innerHTML = html;
+    $preview.style.display = '';
+  }
+
+  // Buttons
+  $btnPick?.addEventListener('click', () => $file?.click());
+  $btnCam?.addEventListener('click', () => $camera?.click());
+  $btnClear?.addEventListener('click', clear);
+
+  // Click on dropzone => open picker
+  $dz?.addEventListener('click', (e) => {
+    // évite de déclencher si on sélectionne du texte
+    if ((window.getSelection?.().toString() || '').length) return;
+    $file?.click();
+  });
+
+  // Input changes
+  $file?.addEventListener('change', () => render());
+  $camera?.addEventListener('change', () => {
+    const f = $camera.files?.[0];
+    if (f) setFile(f);
+  });
+
+  // Drag & drop
+  if ($dz){
+    ['dragenter','dragover'].forEach(ev => $dz.addEventListener(ev, (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      $dz.classList.add('is-dragover');
+    }));
+    ['dragleave','drop'].forEach(ev => $dz.addEventListener(ev, (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      $dz.classList.remove('is-dragover');
+    }));
+    $dz.addEventListener('drop', (e)=>{
+      const f = e.dataTransfer?.files?.[0];
+      if (f) setFile(f);
+    });
+  }
+
+  // Analyse
+  $btnScan?.addEventListener('click', async () => {
+    lastProposal = null;
+    $box.style.display = 'none';
+
+    const f = $file.files?.[0];
+    if(!f){
+      $status.textContent = "Choisis un fichier (photo/PDF) d’abord.";
+      return;
+    }
+
+    $status.textContent = "Analyse en cours…";
+    $btnScan.disabled = true;
+
+    try{
+      const fd = new FormData();
+      fd.append('file', f);
+
+      const res = await fetch("{{ path('app_administrateur_depense_scan_receipt', { entite: entite.id }) }}", {
+        method: 'POST',
+        body: fd,
+        headers: { 'Accept': 'application/json' }
+      });
+
+      const json = await res.json();
+      if(!res.ok || !json.ok){
+        throw new Error(json.message || "Erreur d’analyse");
+      }
+
+      lastProposal = json.proposal;
+
+      document.getElementById('scanConfidence').textContent =
+        `Confiance : ${lastProposal.confidence || 0}% (à valider)`;
+
+      document.getElementById('pDate').textContent = lastProposal.date || '—';
+      document.getElementById('pTtc').textContent = euro(lastProposal.montantTtcCents);
+      const rate = computeVatRatePct(lastProposal);
+
+      document.getElementById('pTva').textContent =
+        rate.snapped
+          ? formatPctFR(rate.pct)
+          : (formatPctFR(rate.pct) + ' (à vérifier)');
+
+      document.getElementById('pHt').textContent  = euro(lastProposal.montantHtCents);
+
+      $box.style.display = '';
+      $status.textContent = "Proposition prête. Vérifie puis applique.";
+    }catch(e){
+      $status.textContent = "❌ " + (e.message || "Erreur");
+    }finally{
+      $btnScan.disabled = !($file.files?.[0]);
+    }
+  });
+
+
+
+    const $btnApply = document.getElementById('btnApplyProposal');
+
+  // Champs du formulaire Symfony
+  const $fDate = document.getElementById('{{ form.dateDepense.vars.id }}');
+  const $fTtc  = document.getElementById('{{ form.montantTtcCents.vars.id }}');
+  const $fTva  = document.getElementById('{{ form.montantTvaCents.vars.id }}');
+  const $fHt   = document.getElementById('{{ form.montantHtCents.vars.id }}');
+  const $fTaux = document.getElementById('{{ form.tauxTva.vars.id }}');
+
+
+  // Input justificatif Symfony
+  const $justif = document.getElementById('{{ form.justificatifFile.vars.id }}');
+
+  function centsToInputMoney(cents){
+    const v = (Number(cents || 0) / 100);
+    // On retourne une valeur "champ" (sans symbole €)
+    return v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function isoToFrDate(iso){
+    // Supporte "YYYY-MM-DD" ou "YYYY-MM-DDTHH:mm:ss"
+    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso || '').trim();
+    return `${m[3]}/${m[2]}/${m[1]}`;
+  }
+
+  function setFilesOnInput(input, file){
+    if (!input || !file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    // trigger change (pour ton preview + résumé)
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function applyProposalToForm(){
+    if (!lastProposal) return;
+
+    // 1) Remplissage champs
+    if ($fDate && lastProposal.date) {
+      $fDate.value = isoToFrDate(lastProposal.date);
+      $fDate.dispatchEvent(new Event('input', { bubbles: true }));
+      $fDate.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    if ($fTtc) {
+      $fTtc.value = centsToInputMoney(lastProposal.montantTtcCents);
+      $fTtc.dispatchEvent(new Event('input', { bubbles: true }));
+      $fTtc.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if ($fTva) {
+      $fTva.value = centsToInputMoney(lastProposal.montantTvaCents);
+      $fTva.dispatchEvent(new Event('input', { bubbles: true }));
+      $fTva.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if ($fHt) {
+      $fHt.value = centsToInputMoney(lastProposal.montantHtCents);
+      $fHt.dispatchEvent(new Event('input', { bubbles: true }));
+      $fHt.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // 2) Mettre automatiquement la photo/PDF scanné comme justificatif Symfony
+    const f = $file?.files?.[0] || null;
+    if (f && $justif) {
+      setFilesOnInput($justif, f);
+    }
+
+
+    // 1bis) appliquer le taux TVA (snap/legal si possible)
+    if ($fTaux) {
+      const rate = computeVatRatePct(lastProposal);
+      const pctRounded = Math.round(Number(rate.pct) * 100) / 100;
+
+      if ($fTaux.tagName === 'SELECT') {
+        const opts = Array.from($fTaux.options || []);
+        let best = null;
+        let bestDiff = Infinity;
+
+        for (const o of opts) {
+          const v = parseFloat(String(o.value).replace(',', '.'));
+          if (!isFinite(v)) continue;
+          const diff = Math.abs(v - pctRounded);
+          if (diff < bestDiff) { bestDiff = diff; best = o.value; }
+        }
+        if (best !== null) $fTaux.value = best;
+      } else {
+        $fTaux.value = String(pctRounded).replace('.', ',');
+      }
+
+      $fTaux.dispatchEvent(new Event('change', { bubbles: true }));
+      $fTaux.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+
+
+    // 3) Petit feedback
+    $status.textContent = "✅ Proposition appliquée au formulaire (et justificatif attaché).";
+  }
+
+  $btnApply?.addEventListener('click', applyProposalToForm);
+
+
+  // init
+  render();
+})();
+</script>
+
+
+{% endblock %}

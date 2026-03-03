@@ -1,0 +1,44 @@
+{{ form_start(contactForm, {
+  action: path('app_public_contact'),
+  method: 'POST',
+  attr: { class: 'footer-form', novalidate: 'novalidate' }
+}) }}
+
+<div class="form-floating mb-2">
+  {{ form_widget(contactForm.nom, { attr: {
+    class: 'form-control form-control-sm',
+    placeholder: 'Nom',
+    autocomplete: 'name'
+  }}) }}
+  <label for="{{ contactForm.nom.vars.id }}">Nom</label>
+</div>
+
+<div class="form-floating mb-2">
+  {{ form_widget(contactForm.email, { attr: {
+    class: 'form-control form-control-sm',
+    placeholder: 'Email',
+    autocomplete: 'email'
+  }}) }}
+  <label for="{{ contactForm.email.vars.id }}">Email</label>
+</div>
+
+<div class="form-floating mb-2">
+  {{ form_widget(contactForm.message, { attr: {
+    class: 'form-control form-control-sm',
+    placeholder: 'Message',
+    style: 'height:70px'
+  }}) }}
+  <label for="{{ contactForm.message.vars.id }}">Message</label>
+</div>
+
+{# champs techniques #}
+{{ form_row(contactForm.website) }}
+{{ form_widget(contactForm.startedAt) }}
+{{ form_widget(contactForm.captcha) }}
+{{ form_rest(contactForm) }}
+
+<button type="submit" class="btn btn-theme w-100 mt-2">
+  <i class="bi bi-send me-1"></i> Envoyer
+</button>
+
+{{ form_end(contactForm) }}

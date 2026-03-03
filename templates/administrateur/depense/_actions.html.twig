@@ -1,0 +1,62 @@
+{# templates/administrateur/depense/_actions.html.twig #}
+{% set dep = d %}
+{% set hasProof = dep.justificatifPath is not empty %}
+{% if hasProof %}
+  {% set proofUrl = path('app_administrateur_depense_proof', { entite: entite.id, id: dep.id }) %}
+{% endif %}
+
+<div class="btn-group btn-group-sm dep-actions" role="group">
+
+
+  <a class="btn btn-light dep-main" 
+      href="{{ path('app_administrateur_depense_edit', { entite: entite.id, id: dep.id }) }}">
+    <i class="bi bi-pencil-square"></i>
+  </a>
+
+
+  {% if hasProof %}
+      <button type="button" class="btn btn-light dep-secondary"
+        data-action="preview-facture"
+        data-pdf-url="{{ proofUrl }}"
+        data-preview-title="Justificatif #{{ dep.id }}"
+        data-preview-subtitle="{{ dep.libelle|e('html_attr') }}">
+        <i class="bi bi-eye"></i>
+      </button>
+
+    {% endif %}
+
+
+  <button type="button"
+          class="btn btn-light dropdown-toggle dropdown-toggle-split dep-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Actions</span>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end dep-menu">
+    
+
+    {% if hasProof %}
+      <li>
+        <a class="dropdown-item"
+           target="_blank" rel="noopener"
+           href="{{ proofUrl }}">
+          <i class="bi bi-box-arrow-up-right me-2"></i>Ouvrir
+        </a>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+    {% endif %}
+
+    
+
+    <li>
+      <form method="post"
+            action="{{ path('app_administrateur_depense_delete', { entite: entite.id, id: dep.id }) }}"
+            onsubmit="return confirm('Supprimer cette dépense ?');">
+        <input type="hidden" name="_token" value="{{ csrf_token('depense_delete_' ~ dep.id) }}">
+        <button class="dropdown-item d-flex align-items-center text-danger" type="submit">
+          <i class="bi bi-trash me-2"></i> Supprimer
+        </button>
+      </form>
+    </li>
+  </ul>
+</div>

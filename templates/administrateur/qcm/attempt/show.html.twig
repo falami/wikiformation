@@ -1,0 +1,128 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .cardx{ background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 12px 30px rgba(0,0,0,.06); overflow:hidden; }
+    .cardx .cardx-h{ padding:.9rem 1rem; border-bottom:1px solid rgba(0,0,0,.06); font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:.75rem; background: linear-gradient(180deg, rgba(0,0,0,.015), transparent); }
+    .cardx .cardx-b{ padding:1rem; }
+    pre.jsonbox{ background: #0b1020; color:#d6e1ff; border-radius:14px; padding:14px; overflow:auto; max-height: 560px; }
+    .meta{ display:flex; flex-wrap:wrap; gap:.5rem; }
+    .chip{ display:inline-flex; align-items:center; gap:.4rem; border-radius:999px; padding:.35rem .6rem; border:1px solid rgba(0,0,0,.08); background:rgba(0,0,0,.03); font-size:.82rem; font-weight:700; white-space: nowrap; }
+    .badge-phase{ font-weight:900; letter-spacing:.03em; }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3 py-3">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="fw-bold mb-1">{{ title }}</h2>
+      <div class="text-muted">Détails d’une tentative (réponses JSON)</div>
+
+      <div class="meta mt-2">
+
+        <span class="chip">
+          <i class="bi bi-person"></i>
+          {{ stagiaire ? (stagiaire.prenom ~ ' ' ~ stagiaire.nom) : '—' }}
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-envelope"></i>
+          {{ stagiaire and stagiaire.email ? stagiaire.email : '—' }}
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-calendar3"></i>
+          Session #{{ session.id }}
+          {% if session.code is defined and session.code %} — {{ session.code }}{% endif %}
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-mortarboard"></i>
+          {{ session.formation ? session.formation.titre : '—' }}
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-ui-checks"></i>
+          {{ qcm ? qcm.titre : '—' }}
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-flag"></i>
+          {% if phase %}
+            {% if phase.value == 'pre' %}
+              <span class="badge bg-info-subtle text-info border badge-phase">PRE</span>
+              <span class="ms-1">Début</span>
+            {% else %}
+              <span class="badge bg-warning-subtle text-warning border badge-phase">POST</span>
+              <span class="ms-1">Fin</span>
+            {% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </span>
+
+        <span class="chip"><i class="bi bi-calendar-check"></i> Créé : {{ attempt.createdAt ? attempt.createdAt|date('d/m/Y H:i') : '—' }}</span>
+        <span class="chip"><i class="bi bi-play"></i> Début : {{ attempt.startedAt ? attempt.startedAt|date('d/m/Y H:i') : '—' }}</span>
+        <span class="chip"><i class="bi bi-check2-circle"></i> Soumis : {{ attempt.submittedAt ? attempt.submittedAt|date('d/m/Y H:i') : '—' }}</span>
+
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary fw-semibold"
+         href="{{ path('app_administrateur_qcm_assignment_index', { entite: entite.id }) }}">
+        <i class="bi bi-arrow-left"></i> Retour aux affectations
+      </a>
+
+      {# Optionnel : lien action corrective si tu veux #}
+      {# <a class="btn btn-outline-warning fw-semibold"
+         href="{{ path('app_administrateur_qcm_followup_edit', { entite: entite.id, id: assignment.id }) }}">
+        <i class="bi bi-clipboard2-pulse"></i> Action corrective
+      </a> #}
+    </div>
+  </div>
+
+  <div class="cardx">
+    <div class="cardx-h">
+      <span><i class="bi bi-braces"></i> Answers (JSON)</span>
+      <span class="text-muted small">lecture seule</span>
+    </div>
+    <div class="cardx-b">
+
+      {# ✅ On tente plusieurs conventions de nommage pour être robuste #}
+      {% set answers =
+        attempt.answers is defined ? attempt.answers :
+        (attempt.answersJson is defined ? attempt.answersJson :
+        (attempt.data is defined ? attempt.data : null))
+      %}
+
+      {% if answers is empty %}
+        <div class="alert alert-light border mb-0">
+          Aucune réponse enregistrée.
+        </div>
+      {% else %}
+        {# answers peut être déjà array/objet, ou string JSON #}
+        {% if answers is iterable %}
+          <pre class="jsonbox" id="jsonbox">{{ answers|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+        {% else %}
+          {# string json brute #}
+          <pre class="jsonbox" id="jsonbox">{{ answers }}</pre>
+        {% endif %}
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

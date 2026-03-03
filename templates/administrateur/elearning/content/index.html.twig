@@ -1,0 +1,154 @@
+{# templates/administrateur/elearning/content/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Contenu - {{ course.titre }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .wrap{max-width:1200px;margin:0 auto;}
+    .hero{
+      border-radius:20px;
+      background: linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+    }
+    .hero .accent{width:10px;background:var(--theme-color-secondaire,#ffc107);border-radius:999px;}
+    .cardx{background:#fff;border:1px solid rgba(15,23,42,.10);border-radius:18px;box-shadow:0 10px 28px rgba(15,23,42,.08);}
+    .node-item{border:1px solid rgba(15,23,42,.10);border-radius:14px;background:#fff;}
+    .node-children{margin-left:1.5rem;border-left:2px dashed rgba(15,23,42,.15);padding-left:1rem;}
+    .drag-handle{cursor:grab;color:#94a3b8;}
+    .drag-handle:hover{color:#334155;}
+    .sortable-ghost{opacity:.45;}
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="wrap">
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <h2 class="fw-bold mb-1">Contenu du cours</h2>
+      <div class="opacity-75 mb-3">{{ course.titre }}</div>
+
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-light btn-sm"
+           href="{{ path('app_administrateur_elearning_index', { entite: entite.id }) }}">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+
+        <a class="btn btn-light btn-sm fw-semibold"
+           href="{{ path('app_administrateur_elearning_content_node_add', { entite: entite.id, course: course.id }) }}">
+          <i class="bi bi-plus-lg"></i> Ajouter un chapitre
+        </a>
+
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="cardx p-3 p-md-4">
+
+    {% if roots is empty %}
+      <div class="alert alert-info mb-0">
+        Aucun contenu pour l’instant.
+        <a class="alert-link"
+           href="{{ path('app_administrateur_elearning_content_node_add', { entite: entite.id, course: course.id }) }}">
+          Créer le premier chapitre
+        </a>.
+      </div>
+    {% else %}
+
+      {# ===== LISTE RACINE DRAGGABLE ===== #}
+      <ul class="list-group node-sortable"
+          data-parent-id="0"
+          data-url="{{ path('app_administrateur_elearning_content_node_reorder', { entite: entite.id, course: course.id }) }}"
+          data-csrf="{{ csrf_token('reorder_nodes_' ~ course.id) }}">
+
+        {% for n in roots %}
+          {% include 'administrateur/elearning/content/_node_item.html.twig' with {
+            entite: entite,
+            course: course,
+            n: n
+          } %}
+        {% endfor %}
+      </ul>
+
+    {% endif %}
+  </div>
+
+</div>
+
+{# ===== SORTABLE JS ===== #}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+<script>
+(function(){
+  async function post(url, payload){
+    const fd = new FormData();
+    Object.entries(payload).forEach(([k,v]) => {
+      if (Array.isArray(v)) v.forEach(x => fd.append(k + '[]', x));
+      else fd.append(k, v);
+    });
+    const res = await fetch(url, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}});
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.message || 'Erreur');
+  }
+
+  // ===== CHAPITRES / SOUS-CHAPITRES =====
+  document.querySelectorAll('.node-sortable').forEach(list => {
+    new Sortable(list, {
+      animation:150,
+      handle:'.drag-handle',
+      ghostClass:'sortable-ghost',
+      onEnd: async () => {
+        const ids = [...list.children].map(li => li.dataset.id);
+        try{
+          await post(list.dataset.url, {
+            _token: list.dataset.csrf,
+            parentId: list.dataset.parentId,
+            ids
+          });
+        }catch(e){
+          alert(e.message);
+          location.reload();
+        }
+      }
+    });
+  });
+
+  // ===== BLOCS =====
+  document.querySelectorAll('.block-sortable').forEach(list => {
+    new Sortable(list, {
+      animation:150,
+      handle:'.drag-handle',
+      ghostClass:'sortable-ghost',
+      onEnd: async () => {
+        const ids = [...list.children].map(li => li.dataset.id);
+        try{
+          await post(list.dataset.url, {
+            _token: list.dataset.csrf,
+            nodeId: list.dataset.nodeId,
+            ids
+          });
+        }catch(e){
+          alert(e.message);
+          location.reload();
+        }
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}BPF {{ annee }} — {{ entite.nom ?? 'Organisme' }}{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+
+  <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Bilan Pédagogique & Financier (BPF) — {{ annee }}</h1>
+      <div class="text-muted">
+        Exercice du {{ data.period.start|date('d/m/Y') }} au {{ (data.period.end|date_modify('-1 day'))|date('d/m/Y') }}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary"
+         href="{{ path('app_administrateur_bpf_pdf', {entite: entite.id, annee: annee}) }}">
+        <i class="bi bi-filetype-pdf"></i> PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-header"><strong>Cadre C — Produits HT</strong></div>
+        <div class="card-body">
+          {% set p = data.produits %}
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 1 (entreprises)</span><b>{{ (p.c1/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 2 (fonds formation: OPCO/CPF/PTP…)</span><b>{{ (p.c2/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 3 (public agents)</span><b>{{ (p.c3/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 4 (UE)</span><b>{{ (p.c4/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 5 (État)</span><b>{{ (p.c5/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 6 (Région)</span><b>{{ (p.c6/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 7 (France Travail)</span><b>{{ (p.c7/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 8 (autres publics)</span><b>{{ (p.c8/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 9 (particuliers)</span><b>{{ (p.c9/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 10 (autres OF)</span><b>{{ (p.c10/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Ligne 11 (autres produits formation)</span><b>{{ (p.c11/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between bg-light"><span><strong>Total</strong></span><strong>{{ (p.total/100)|number_format(2, ',', ' ') }} €</strong></li>
+          </ul>
+          <div class="small text-muted mt-2">
+            Ventilation basée sur <code>Facture.meta.financeur</code>/<code>dispositif</code> (à adapter).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-header"><strong>Cadre D — Charges HT</strong></div>
+        <div class="card-body">
+          {% set c = data.charges %}
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between"><span>Total charges liées à la formation</span><b>{{ (c.total/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Dont salaires formateurs</span><b>{{ (c.salaires_formateurs/100)|number_format(2, ',', ' ') }} €</b></li>
+            <li class="list-group-item d-flex justify-content-between"><span>Dont achats prestations/honoraires</span><b>{{ (c.achats_presta/100)|number_format(2, ',', ' ') }} €</b></li>
+          </ul>
+          <div class="small text-muted mt-2">
+            Ici, “achats/honoraires” = somme des <code>ContratFormateur.montantPrevuCents</code> + <code>fraisMissionCents</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-3">
+        <div class="card-header"><strong>Cadre E — Heures dispensées</strong></div>
+        <div class="card-body">
+          {% set f = data.formateurs %}
+          <div class="row g-2">
+            <div class="col-md-6">
+              <div class="border rounded p-3">
+                <div class="text-muted small">Personnes de l’organisme</div>
+                <div class="h5 mb-0">{{ f.internes.count }} pers.</div>
+                <div class="text-muted">{{ f.internes.hours }} h</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="border rounded p-3">
+                <div class="text-muted small">Personnes extérieures (sous-traitance)</div>
+                <div class="h5 mb-0">{{ f.externes.count }} pers.</div>
+                <div class="text-muted">{{ f.externes.hours }} h</div>
+              </div>
+            </div>
+          </div>
+          <div class="small text-muted mt-2">
+            Règle : “externe” si un <code>ContratFormateur</code> existe sur la période pour le formateur.
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-3">
+        <div class="card-header"><strong>Cadre F/G — Stagiaires</strong></div>
+        <div class="card-body">
+          <div class="small text-muted mb-2">{{ data.stagiaires.note ?? '' }}</div>
+
+          {% if data.stagiaires.f1 is defined %}
+            <ul class="list-group list-group-flush">
+              {% set f1 = data.stagiaires.f1 %}
+              <li class="list-group-item d-flex justify-content-between"><span>Salariés privés</span><b>{{ f1.a_salaries_prives.count }} — {{ f1.a_salaries_prives.hours }} h</b></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Apprentis</span><b>{{ f1.b_apprentis.count }} — {{ f1.b_apprentis.hours }} h</b></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Demandeurs d’emploi</span><b>{{ f1.c_demandeurs_emploi.count }} — {{ f1.c_demandeurs_emploi.hours }} h</b></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Particuliers</span><b>{{ f1.d_particuliers.count }} — {{ f1.d_particuliers.hours }} h</b></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Autres</span><b>{{ f1.e_autres.count }} — {{ f1.e_autres.hours }} h</b></li>
+              <li class="list-group-item d-flex justify-content-between bg-light"><span><strong>Total</strong></span><strong>{{ data.stagiaires.f1_total.count }} — {{ data.stagiaires.f1_total.hours }} h</strong></li>
+            </ul>
+          {% else %}
+            <div class="alert alert-warning mb-0">
+              Module Inscription non détecté / champs à adapter.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

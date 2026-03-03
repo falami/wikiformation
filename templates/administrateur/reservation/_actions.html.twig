@@ -1,0 +1,53 @@
+{# templates/administrateur/reservation/_actions.html.twig #}
+
+<div class="hover-actions end-0 me-4 d-flex gap-1 justify-content-end">
+
+  {# Modifier #}
+  <a href="{{ path('app_administrateur_reservation_modifier', { entite: entite.id, id: reservation.id }) }}"
+     class="btn btn-warning btn-sm"
+     data-bs-toggle="tooltip"
+     data-bs-title="Modifier">
+    <i class="bi bi-pencil"></i>
+  </a>
+
+  {# Supprimer (ouvre ta modale globale #deleteModal) #}
+  <button type="button"
+          class="btn btn-danger btn-sm delete-btn"
+          data-bs-toggle="modal"
+          data-bs-target="#deleteModal"
+          data-url="{{ path('app_administrateur_reservation_supprimer', { entite: entite.id, id: reservation.id }) }}"
+          data-bs-toggle="tooltip"
+          data-bs-title="Supprimer">
+    <i class="bi bi-trash"></i>
+  </button>
+
+  {# Confirmer => créer l'inscription en AJAX (POST) #}
+  {# Confirmer => créer l'inscription en AJAX (POST) #}
+  {% if reservation.session and canConfirm %}
+    {% set u = reservation.utilisateur %}
+    {% set s = reservation.session %}
+    {% set formationTitre = s.formation ? s.formation.titre : '—' %}
+
+    <button type="button"
+            class="btn btn-success btn-sm js-confirm-resa"
+            data-url="{{ path('app_administrateur_reservation_confirmer_ajax', { entite: entite.id, id: reservation.id }) }}"
+            data-id="{{ reservation.id }}"
+            data-user="{{ u ? ((u.prenom ?? '') ~ ' ' ~ (u.nom ?? ''))|trim : '—' }}"
+            data-session="{{ (s.code ?? '—') ~ ' — ' ~ formationTitre }}"
+            data-places="{{ reservation.places ?? 1 }}"
+            data-bs-toggle="tooltip"
+            data-bs-title="Créer l’inscription">
+      <i class="bi bi-person-check"></i>
+    </button>
+  {% else %}
+    {# Optionnel : bouton grisé si pas confirmable #}
+    <button type="button"
+            class="btn btn-outline-success btn-sm"
+            disabled
+            data-bs-toggle="tooltip"
+            data-bs-title="{% if not reservation.session %}Aucune session{% else %}Déjà inscrit / statut non confirmable{% endif %}">
+      <i class="bi bi-person-check"></i>
+    </button>
+  {% endif %}
+
+</div>

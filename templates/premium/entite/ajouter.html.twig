@@ -1,0 +1,712 @@
+{# templates/premium/entite/ajouter.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Ajout d'un nouveau club{% endblock %}
+
+{% block stylesheets %}
+<style>
+    :root {
+        --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+        --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+        --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+        --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .card-header {
+        background-color: var(--theme-color-principal);
+        color: white;
+        font-weight: 500;
+    }
+    #form-error-alert {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1050;
+        max-width: 90%;
+        width: auto;
+        padding: 0.75rem 1.25rem;
+        background-color: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+        font-weight: 500;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        text-align: left;
+        animation: fadeIn 0.4s ease;
+    }
+
+    #form-error-alert strong {
+        font-size: 1rem;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    .fade-out {
+        opacity: 0;
+        transition: opacity 1s ease;
+    }
+
+
+    /* ---------- Premium Upload UI ---------- */
+    .upload-card{
+    border: 1px solid rgba(15,35,54,.10);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.80));
+    box-shadow: 0 10px 30px rgba(15,35,54,.06);
+    padding: 14px;
+    }
+
+    .upload-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding: 6px 2px 12px;
+    }
+
+    .upload-badge{
+    width:38px;height:38px;border-radius:12px;
+    display:grid;place-items:center;
+    background: rgba(255,255,255,.75);
+    border:1px solid rgba(15,35,54,.10);
+    box-shadow: 0 8px 20px rgba(15,35,54,.06);
+    color: var(--theme-color-principal);
+    }
+
+    .upload-title{ font-weight:700; color: var(--theme-color-principal); line-height:1.1; }
+    .upload-sub{ font-size:.86rem; color: rgba(0,0,0,.55); margin-top:2px; }
+    .upload-hint{
+    font-size:.75rem;
+    padding:6px 10px;
+    border-radius:999px;
+    border: 1px solid rgba(15,35,54,.10);
+    background: rgba(255,255,255,.70);
+    color: rgba(0,0,0,.55);
+    }
+
+    /* Dropzone */
+    .dropzone-uploader{
+    position: relative;
+    border-radius: 18px;
+    border: 1.5px dashed rgba(15,35,54,.22);
+    background:
+        radial-gradient(1200px 200px at 20% 0%, rgba(236,182,47,.18), transparent 55%),
+        radial-gradient(900px 220px at 90% 0%, rgba(22,56,96,.18), transparent 60%),
+        rgba(255,255,255,.70);
+    min-height: 190px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .dropzone-uploader:hover{
+    transform: translateY(-2px);
+    border-color: rgba(15,35,54,.35);
+    box-shadow: 0 14px 35px rgba(15,35,54,.10);
+    }
+
+    .dropzone-uploader.is-dragover{
+    border-color: var(--theme-color-secondaire);
+    box-shadow: 0 16px 40px rgba(15,35,54,.14);
+    }
+
+    .dz-inner{
+    padding: 18px;
+    display:flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 190px;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    }
+
+    .dz-icon{
+    width:52px;height:52px;border-radius:18px;
+    display:grid;place-items:center;
+    background: rgba(255,255,255,.78);
+    border:1px solid rgba(15,35,54,.10);
+    color: var(--theme-color-principal);
+    box-shadow: 0 10px 24px rgba(15,35,54,.08);
+    font-size: 20px;
+    }
+
+    .dz-title{ font-weight:800; color: var(--theme-color-principal); }
+    .dz-sub{ color: rgba(0,0,0,.60); font-size:.92rem; }
+    .dz-link{
+    color: var(--theme-color-secondaire);
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    }
+
+    .dz-meta{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:2px; }
+    .dz-chip{
+    font-size:.75rem;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid rgba(15,35,54,.10);
+    background: rgba(255,255,255,.72);
+    color: rgba(0,0,0,.58);
+    }
+
+    /* Preview overlay */
+    .dz-preview{
+    position:absolute; inset:0;
+    display:none;
+    background: rgba(255,255,255,.80);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    }
+
+    .dz-preview.is-visible{ display:block; }
+
+    .dz-img{
+    width:100%;
+    height:100%;
+    object-fit: contain;
+    padding: 16px;
+    }
+
+    .dz-actions{
+    position:absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    }
+
+    .dz-btn{
+    border-radius: 12px !important;
+    box-shadow: 0 10px 24px rgba(15,35,54,.10);
+    }
+
+</style>
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<div class="container my-4">
+    <h2><i class="fa-solid fa-plus text-theme-secondaire me-2"></i> Ajouter un nouveau club</h2>
+
+    {{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
+    {{ form_errors(form) }}
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-theme-tertiaire text-theme-quaternaire">
+            <i class="fa-solid fa-id-card text-theme-secondaire me-2"></i> Informations générales
+        </div>
+        <div class="card-body row g-3">
+            <div class="col-md-4">{{ form_row(form.nom) }}</div>
+            <div class="col-md-4">{{ form_row(form.email) }}</div>
+            <div class="col-md-4">{{ form_row(form.telephone) }}</div>
+            <div class="col-md-3">{{ form_row(form.couleurPrincipal) }}</div>
+            <div class="col-md-3">{{ form_row(form.couleurSecondaire) }}</div>
+            <div class="col-md-3">{{ form_row(form.couleurTertiaire) }}</div>
+            <div class="col-md-3">{{ form_row(form.couleurQuaternaire) }}</div>
+            <div class="form-check form-switch mt-3">
+                {{ form_widget(form.scanAutorise, {'attr': {'class': 'form-check-input'}}) }}
+                {{ form_label(form.scanAutorise, null, {'label_attr': {'class': 'form-check-label'}}) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-theme-tertiaire text-theme-quaternaire">
+            <i class="bi bi-geo-alt-fill text-theme-secondaire me-2"></i> Localisation du club
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-12 mb-3">
+                    <label for="autocomplete" class="form-label">Adresse complète</label>
+                    <input type="text" id="autocomplete" class="form-control" placeholder="Tapez votre adresse">
+                </div>
+
+                <div class="col-lg-12 mb-3">
+                    
+                    {{ form_row(form.adresse, { attr: { readonly: true, id: 'adresse' } }) }}
+                </div>
+                <div class="col-lg-12 mb-3">
+                    {{ form_row(form.complement, { attr: { readonly: true, id: 'complement' } }) }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form_row(form.codePostal, { attr: { readonly: true, id: 'codePostal' } }) }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    {{ form_row(form.ville, { attr: { readonly: true, id: 'ville' } }) }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ form_row(form.departement, { attr: { readonly: true, id: 'departement' } }) }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    {{ form_row(form.region, { attr: { readonly: true, id: 'region' } }) }}
+                </div>
+                <div class="col-lg-12 mb-3">
+                    {{ form_row(form.pays, { attr: { readonly: true, id: 'pays' } }) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-theme-tertiaire text-theme-quaternaire">
+            <i class="fa-solid fa-image text-theme-secondaire me-2"></i> Logo du club
+        </div>
+
+        <div class="card-body">
+            {# ✅ Flags de suppression (ajoutés dans le FormType plus bas) #}
+            {{ form_widget(form.removeLogo) }}
+            {{ form_widget(form.removeLogoMenu) }}
+
+            <div class="row g-3">
+            {# ====================== LOGO (horizontal) ====================== #}
+            <div class="col-lg-6">
+                <div class="upload-card">
+                <div class="upload-head">
+                    <div class="d-flex align-items-center gap-2">
+                    <span class="upload-badge"><i class="fa-solid fa-panorama"></i></span>
+                    <div>
+                        <div class="upload-title">Logo menu (horizontal)</div>
+                        <div class="upload-sub">Recommandé : 800×800 (recadré). Format horizontal.</div>
+                    </div>
+                    </div>
+                    <span class="upload-hint">JPG/PNG/WebP</span>
+                </div>
+
+                {# input file caché + dropzone custom #}
+                <div
+                    class="dropzone-uploader"
+                    data-input-id="{{ form.logo.vars.id }}"
+                    data-preview-id="preview_logo"
+                    data-remove-id="{{ form.removeLogo.vars.id }}"
+                    data-existing="{{ nouvelleEntite.logo is defined and nouvelleEntite.logo ? 1 : (entite.logo is defined and entite.logo ? 1 : 0) }}"
+                >
+                    <div class="dz-inner">
+                    <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                    <div class="dz-text">
+                        <div class="dz-title">Glisse-dépose ton image ici</div>
+                        <div class="dz-sub">ou <span class="dz-link">clique pour choisir</span></div>
+                    </div>
+                    <div class="dz-meta">
+                        <span class="dz-chip"><i class="fa-regular fa-image me-1"></i> Aperçu en temps réel</span>
+                        <span class="dz-chip"><i class="fa-solid fa-shield-halved me-1"></i> Champs sécurisé</span>
+                    </div>
+                    </div>
+
+                    {# Preview #}
+                    <div class="dz-preview" id="preview_logo">
+                    <img class="dz-img" alt="Aperçu logo" />
+                    <div class="dz-actions">
+                        <button type="button" class="btn btn-sm btn-light dz-btn dz-btn-change">
+                        <i class="fa-solid fa-pen-to-square me-1"></i> Changer
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger dz-btn dz-btn-remove">
+                        <i class="fa-solid fa-trash me-1"></i> Supprimer
+                        </button>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="d-none">
+                    {{ form_row(form.logo, { attr: { accept: 'image/*' } }) }}
+                </div>
+
+                <p class="mt-2 mb-0 text-muted">
+                    <small>Ce logo apparaîtra dans le menu sur téléphone. Si laissé vide, le nom du club sera affiché.</small>
+                </p>
+                </div>
+            </div>
+
+            {# ====================== LOGO MENU (carré) ====================== #}
+            <div class="col-lg-6">
+                <div class="upload-card">
+                <div class="upload-head">
+                    <div class="d-flex align-items-center gap-2">
+                    <span class="upload-badge"><i class="fa-solid fa-square"></i></span>
+                    <div>
+                        <div class="upload-title">Logo cartes (carré)</div>
+                        <div class="upload-sub">Recommandé : carré sur fond blanc (recadré).</div>
+                    </div>
+                    </div>
+                    <span class="upload-hint">JPG/PNG/WebP</span>
+                </div>
+
+                <div
+                    class="dropzone-uploader"
+                    data-input-id="{{ form.logoMenu.vars.id }}"
+                    data-preview-id="preview_logoMenu"
+                    data-remove-id="{{ form.removeLogoMenu.vars.id }}"
+                    data-existing="{{ nouvelleEntite.logoMenu is defined and nouvelleEntite.logoMenu ? 1 : (entite.logoMenu is defined and entite.logoMenu ? 1 : 0) }}"
+                >
+                    <div class="dz-inner">
+                    <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                    <div class="dz-text">
+                        <div class="dz-title">Glisse-dépose ton image ici</div>
+                        <div class="dz-sub">ou <span class="dz-link">clique pour choisir</span></div>
+                    </div>
+                    <div class="dz-meta">
+                        <span class="dz-chip"><i class="fa-regular fa-image me-1"></i> Aperçu en temps réel</span>
+                        <span class="dz-chip"><i class="fa-solid fa-crop me-1"></i> Recadrage serveur</span>
+                    </div>
+                    </div>
+
+                    <div class="dz-preview" id="preview_logoMenu">
+                    <img class="dz-img" alt="Aperçu logoMenu" />
+                    <div class="dz-actions">
+                        <button type="button" class="btn btn-sm btn-light dz-btn dz-btn-change">
+                        <i class="fa-solid fa-pen-to-square me-1"></i> Changer
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger dz-btn dz-btn-remove">
+                        <i class="fa-solid fa-trash me-1"></i> Supprimer
+                        </button>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="d-none">
+                    {{ form_row(form.logoMenu, { attr: { accept: 'image/*' } }) }}
+                </div>
+
+                <p class="mt-2 mb-0 text-muted">
+                    <small>Ce logo apparaît sur les cartes. Idéal : carré sur fond blanc.</small>
+                </p>
+                </div>
+            </div>
+
+            </div>
+
+            {# ✅ Optionnel : si tu veux afficher l'image existante côté édition :
+            tu peux injecter via JS plus bas une URL si entite.logo / entite.logoMenu existent.
+            Je te fournis le JS qui le fait. #}
+        </div>
+    </div>
+
+    
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-theme-tertiaire text-theme-quaternaire">
+            <i class="fa-solid fa-align-left text-theme-secondaire me-2"></i> Présentation du club
+        </div>
+        <div class="card-body">
+            {{ form_row(form.description) }}
+            <p class="text-muted"><small><b>La description apparaîtra sur votre fiche publique.</b></small></p>
+            {{ form_row(form.texteAccueil) }}
+            <p class="text-muted"><small><b>Le texte d'accueil est un message de bienvenue visible sur votre fiche publique.</b></small></p>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end">
+        <button type="submit" class="btn btn-gradiant">
+            <i class="fa-solid fa-circle-plus me-1"></i> Ajouter le club
+        </button>
+    </div>
+
+    {{ form_end(form) }}
+</div>
+
+<script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCX1L5c9NLzQKNa0GDexg7w-cbYHwHAwxo&libraries=places&callback=initAutocomplete"
+    async defer></script>
+
+<script>
+  let autocomplete;
+
+  function initAutocomplete() {
+    const input = document.getElementById('autocomplete');
+    if (!input || !window.google?.maps?.places) return;
+
+    autocomplete = new google.maps.places.Autocomplete(input, {
+      types: ['geocode'], // international OK
+      fields: ['address_components', 'geometry'] // ✅ le bon champ
+      // ❌ pas de componentRestrictions => tous pays
+    });
+
+    autocomplete.addListener('place_changed', fillInAddress);
+  }
+
+  function fillInAddress() {
+    const place = autocomplete.getPlace();
+    if (!place || !place.address_components) return;
+
+    const c = {
+      street_number: '',
+      route: '',
+      locality: '',
+      postal_town: '',
+      administrative_area_level_3: '',
+      sublocality_level_1: '',
+      postal_code: '',
+      administrative_area_level_1: '',
+      administrative_area_level_2: '',
+      country: ''
+    };
+
+    for (const comp of place.address_components) {
+      comp.types.forEach(t => { if (t in c) c[t] = comp.long_name; });
+    }
+
+    const ville = (c.locality || c.postal_town || c.administrative_area_level_3 || c.sublocality_level_1 || '').trim();
+
+    document.getElementById('entite_premium_adresse').value = (c.street_number + ' ' + c.route).trim();
+    document.getElementById('entite_premium_codePostal').value = c.postal_code;
+    document.getElementById('entite_premium_ville').value = ville;
+    document.getElementById('entite_premium_departement').value = c.administrative_area_level_2;
+    document.getElementById('entite_premium_region').value = c.administrative_area_level_1;
+    document.getElementById('entite_premium_pays').value = c.country;
+  }
+
+
+
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.querySelector('form[name="entite_premium"]');
+
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        // Crée une alerte d'erreur si elle n'existe pas
+        let errorAlert = document.createElement('div');
+        errorAlert.classList.add('alert', 'alert-danger', 'd-none');
+        errorAlert.setAttribute('role', 'alert');
+        errorAlert.id = 'form-error-alert';
+        submitButton.parentElement.prepend(errorAlert);
+
+        form.addEventListener('submit', function (e) {
+            const invalidFields = form.querySelectorAll(':invalid');
+
+            if (invalidFields.length > 0) {
+                e.preventDefault();
+
+                // Nettoie les anciens "is-invalid"
+                form.querySelectorAll('.is-invalid').forEach(field => field.classList.remove('is-invalid'));
+
+                const messagesSet = new Set();
+                let firstInvalidField = null;
+
+                invalidFields.forEach(field => {
+                    field.classList.add('is-invalid');
+                    if (!firstInvalidField) {
+                        firstInvalidField = field;
+                    }
+
+                    // 🔍 Recherche du label associé
+                    let labelText = null;
+
+                    // 1. via <label for="id">
+                    const label = form.querySelector(`label[for="${field.id}"]`);
+                    if (label) {
+                        labelText = label.textContent.trim();
+                    }
+
+                    // 2. sinon, via .form-group ou .form-floating
+                    if (!labelText) {
+                        const container = field.closest('.form-floating, .form-group, .form-check, .col-md-4, .col-md-12, .palier-form');
+                        if (container) {
+                            const altLabel = container.querySelector('label');
+                            if (altLabel) {
+                                labelText = altLabel.textContent.trim();
+                            }
+                        }
+                    }
+
+                    if (labelText) {
+                        messagesSet.add(`- ${labelText}`);
+                    }
+                });
+
+                // ✅ Affichage
+                const messages = [...messagesSet];
+                errorAlert.innerHTML = `
+                    <strong>Certains champs obligatoires ne sont pas remplis ou invalides :</strong><br>
+                    ${messages.join('<br>')}
+                `;
+                errorAlert.classList.remove('d-none');
+
+                // Scroll vers le champ invalide
+                if (firstInvalidField && typeof firstInvalidField.scrollIntoView === 'function') {
+                    const scrollTarget = firstInvalidField.closest('.form-floating, .form-group, .form-check, .input-group-number, .col-md-4, .col-md-6, .col-md-12, .palier-form') || firstInvalidField;
+
+                    scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    // Optionnel : un petit flash visuel
+                    scrollTarget.classList.add('border', 'border-danger', 'rounded');
+                    setTimeout(() => scrollTarget.classList.remove('border', 'border-danger', 'rounded'), 1500);
+                }
+
+
+                // 🔄 Disparition automatique après 6s
+                setTimeout(() => {
+                    errorAlert.classList.add('fade-out');
+                    setTimeout(() => {
+                        errorAlert.classList.add('d-none');
+                        errorAlert.classList.remove('fade-out');
+                    }, 1000);
+                }, 6000);
+            }
+        });
+    });
+</script>
+
+
+
+<script>
+  function initPremiumDropzones() {
+    const zones = document.querySelectorAll('.dropzone-uploader');
+
+    zones.forEach(zone => {
+      const inputId = zone.dataset.inputId;
+      const previewId = zone.dataset.previewId;
+      const removeId = zone.dataset.removeId;
+
+      const input = document.getElementById(inputId);
+      const preview = document.getElementById(previewId);
+      const img = preview ? preview.querySelector('.dz-img') : null;
+      const btnRemove = preview ? preview.querySelector('.dz-btn-remove') : null;
+      const btnChange = preview ? preview.querySelector('.dz-btn-change') : null;
+      const removeField = removeId ? document.getElementById(removeId) : null;
+
+      if (!input || !preview || !img) return;
+
+      // helper
+      const showPreviewFromFile = (file) => {
+        if (!file) return;
+
+        // Si on vient de choisir un fichier => on annule la demande de suppression
+        if (removeField) removeField.value = '';
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+          preview.classList.add('is-visible');
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const clearAll = () => {
+        input.value = '';
+        img.removeAttribute('src');
+        preview.classList.remove('is-visible');
+
+        // Demande de suppression si image existante côté édition
+        if (removeField) {
+          removeField.value = '1';
+        }
+      };
+
+      // Click zone -> ouvre input
+      zone.addEventListener('click', (e) => {
+        // si click sur boutons, ne pas déclencher la sélection
+        if (e.target.closest('.dz-btn')) return;
+        input.click();
+      });
+
+      // Input change
+      input.addEventListener('change', () => {
+        if (input.files && input.files[0]) {
+          showPreviewFromFile(input.files[0]);
+        }
+      });
+
+      // Drag events
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('is-dragover');
+      });
+
+      zone.addEventListener('dragleave', () => {
+        zone.classList.remove('is-dragover');
+      });
+
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('is-dragover');
+
+        const files = e.dataTransfer.files;
+        if (!files || !files.length) return;
+
+        const file = files[0];
+        if (!file.type.startsWith('image/')) return;
+
+        // Inject file into input (via DataTransfer)
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+
+        showPreviewFromFile(file);
+      });
+
+      // Buttons
+      if (btnRemove) {
+        btnRemove.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearAll();
+        });
+      }
+
+      if (btnChange) {
+        btnChange.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          input.click();
+        });
+      }
+    });
+  }
+</script>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initPremiumDropzones();
+
+    const base = "{{ asset('uploads/photos/entite/logo/') }}";
+
+    {% if entite.logo is defined and entite.logo %}
+      (function(){
+        const p = document.getElementById('preview_logo');
+        if (p) {
+          const img = p.querySelector('.dz-img');
+          img.src = base + "{{ entite.logo }}";
+          p.classList.add('is-visible');
+          const rm = document.getElementById("{{ form.removeLogo.vars.id }}");
+          if (rm) rm.value = '';
+        }
+      })();
+    {% endif %}
+
+    {% if entite.logoMenu is defined and entite.logoMenu %}
+      (function(){
+        const p = document.getElementById('preview_logoMenu');
+        if (p) {
+          const img = p.querySelector('.dz-img');
+          img.src = base + "{{ entite.logoMenu }}";
+          p.classList.add('is-visible');
+          const rm = document.getElementById("{{ form.removeLogoMenu.vars.id }}");
+          if (rm) rm.value = '';
+        }
+      })();
+    {% endif %}
+  });
+</script>
+
+
+{% endblock %}

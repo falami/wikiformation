@@ -1,0 +1,1529 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}
+  {{ modeEdition ? 'Modification' : 'Ajout' }} d’un chapitre — {{ course.titre }}
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  --p: var(--theme-color-principal);
+  --s: var(--theme-color-secondaire);
+  --t: var(--theme-color-tertiaire);
+  --q: var(--theme-color-quaternaire);
+
+  /* ✅ LIGHT PREMIUM TOKENS (lisible sur fond clair) */
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --stroke: rgba(15, 23, 42, .10);
+  --stroke2: rgba(15, 23, 42, .14);
+  --ink: #0f172a;
+  --muted: #64748b;
+  --muted2: rgba(100,116,139,.85);
+
+  --shadow: 0 18px 50px rgba(15, 23, 42, .12);
+  --shadow2: 0 22px 70px rgba(15, 23, 42, .16);
+
+  --r: 18px;
+
+  /* extras premium */
+  --ok: rgba(34,197,94,.95);
+  --warn: rgba(245,158,11,.95);
+  --err: rgba(239,68,68,.95);
+
+  --glass: rgba(15,23,42,.04);
+  --glass2: rgba(15,23,42,.06);
+}
+
+
+/* ============ Header ============ */
+.h-title{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:1rem;
+  margin: 1.25rem 0 1rem;
+}
+.h-title h2{
+  margin:0; color: var(--ink); font-weight: 900; letter-spacing: .2px;
+}
+.h-title small{ color: var(--muted2); font-weight: 650; }
+.h-title .subtitle{ color: var(--muted); font-weight: 650; }
+
+/* ============ Cards ============ */
+.p-card{
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.p-card .p-head{
+  padding: .9rem 1rem;
+  display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+  background: linear-gradient(90deg, rgba(15,23,42,.04), rgba(15,23,42,.02));
+  border-bottom: 1px solid var(--stroke);
+}
+.p-head .ttl{
+  color: var(--ink);
+  font-weight: 950;
+  letter-spacing: .15px;
+  display:flex; align-items:center; gap:.6rem;
+}
+.p-head .ttl i{ color: var(--s); }
+.p-card .p-body{ padding: 1rem; }
+
+/* ============ Badges ============ */
+.badge-soft{
+  display:inline-flex; align-items:center; gap:.4rem;
+  background: rgba(15,23,42,.04);
+  border: 1px solid rgba(15,23,42,.10);
+  color: var(--ink);
+  padding:.25rem .55rem;
+  border-radius: 999px;
+  font-size:.7rem;
+  font-weight: 800;
+}
+.badge-soft.muted{ color: var(--muted); }
+
+/* ============ Divider ============ */
+.hr-soft{
+  height:1px; background: rgba(15,23,42,.10); border:0; margin: .9rem 0;
+}
+
+/* ============ Form ============ */
+.form-floating > .form-control,
+.form-floating > .form-select{
+  background: #fff !important;
+  border: 1px solid rgba(15,23,42,.12) !important;
+  color: var(--ink) !important;
+  border-radius: 16px !important;
+}
+.form-control::placeholder{ color: rgba(15,23,42,.35) !important; }
+.form-floating > label{ color: rgba(15,23,42,.60) !important; }
+.form-text{ color: var(--muted) !important; }
+
+.form-control:focus, .form-select:focus{
+  box-shadow: 0 0 0 .22rem rgba(255,193,7,.20) !important;
+  border-color: rgba(255,193,7,.55) !important;
+}
+
+.form-icon{ pointer-events:none; z-index:2; }
+.with-icon{ padding-left: 2.45rem !important; }
+.with-icon ~ label{ padding-left: 2.45rem !important; }
+
+/* Invalid */
+.is-invalid{
+  border-color: rgba(239,68,68,.55) !important;
+  box-shadow: 0 0 0 .22rem rgba(239,68,68,.12) !important;
+}
+
+/* ============ Buttons ============ */
+.btn-premium{
+  border-radius: 999px;
+  padding: .6rem 1rem;
+  font-weight: 900;
+}
+
+.btn-premium.btn-outline-light{
+  border-color: rgba(15,23,42,.18) !important;
+  color: var(--ink) !important;
+  background: rgba(255,255,255,.88) !important;
+}
+.btn-premium.btn-outline-light:hover{
+  background: rgba(15,23,42,.04) !important;
+}
+
+.btn-gradient{
+  border: 0 !important;
+  background: linear-gradient(90deg, var(--s), rgba(255,193,7,.65));
+  color: #1b1b1b !important;
+  font-weight: 950;
+  border-radius: 999px;
+  padding: .65rem 1.1rem;
+  box-shadow: 0 14px 30px rgba(255,193,7,.18);
+}
+.btn-gradient:hover{ filter: brightness(1.03); }
+
+/* ============ Tree ============ */
+.tree{ list-style:none; padding:0; margin:0; }
+.tree > li{ margin-bottom:.7rem; }
+
+.node{
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.10);
+  overflow:hidden;
+}
+.node-head{
+  padding: .75rem .8rem;
+  display:flex; align-items:center; justify-content:space-between; gap: .75rem;
+}
+.node-left{ display:flex; align-items:center; gap:.55rem; min-width: 0; }
+.node-title{
+  color: var(--ink);
+  font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.node-meta{ color: var(--muted); font-weight: 850; font-size: .85rem; }
+
+
+
+.drag{
+  cursor:grab;
+  width: 32px; height: 32px;
+  display:grid; place-items:center;
+  border-radius: 10px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(15,23,42,.03);
+  color: rgba(15,23,42,.70);
+}
+.drag:active{ cursor:grabbing; }
+
+.node-sub{ padding: 0 .8rem .8rem; }
+
+.child-list{
+  list-style:none;
+  margin:.55rem 0 0 1.3rem;
+  padding:0;
+}
+
+.child-list:empty{
+  margin-left: 1.1rem;
+  padding: .4rem .55rem;
+  border-radius: 12px;
+  border: 1px dashed rgba(15,23,42,.18);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: .85rem;
+  background: rgba(15,23,42,.02);
+}
+.child-list:empty::before{ content:"Dépose un sous-chapitre ici"; }
+
+/* ============ Blocks preview chips ============ */
+.block-preview{
+  display:flex; flex-wrap:wrap; gap:.4rem;
+  margin-top:.55rem;
+}
+.block-chip{
+  display:inline-flex; align-items:center; gap:.45rem;
+  padding:.22rem .55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(15,23,42,.03);
+  color: rgba(15,23,42,.85);
+  font-weight: 900;
+  font-size: .78rem;
+}
+.block-chip i{ color: var(--s); }
+
+/* ============ Responsive ============ */
+@media (max-width: 992px){
+  .h-title{ flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 576px){
+  .node-actions .btn span{ display:none; }
+  .node-left{ gap:.45rem; }
+  .drag{ width: 30px; height: 30px; }
+}
+
+/* =============================
+   EXTRAS PREMIUM (SANS toucher au Twig body)
+   ============================= */
+
+/* sortable feedback */
+.sortable-ghost{
+  opacity: .85 !important;
+  background: rgba(255,193,7,.08) !important;
+  border: 1px dashed rgba(255,193,7,.35) !important;
+  border-radius: 16px !important;
+}
+.sortable-chosen .node{
+  box-shadow: 0 0 0 .22rem rgba(255,193,7,.14), var(--shadow);
+}
+
+/* current node highlight */
+.node-item.is-current > .node{
+  border-color: rgba(255,193,7,.55) !important;
+  box-shadow: 0 0 0 .22rem rgba(255,193,7,.16), var(--shadow);
+}
+.node-item.is-current .node-title{
+  text-shadow: 0 0 18px rgba(255,193,7,.18);
+}
+
+/* saving pill (injected via JS) */
+.save-pill{
+  display:inline-flex; align-items:center; gap:.45rem;
+  border-radius: 999px;
+  padding:.35rem .65rem;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.92);
+  color: var(--ink);
+  font-weight: 950;
+  font-size: .82rem;
+  backdrop-filter: blur(8px);
+}
+.save-pill .dot{
+  width: 9px; height: 9px; border-radius: 999px;
+  background: rgba(15,23,42,.25);
+}
+.save-pill.is-saving .dot{ background: var(--warn); box-shadow: 0 0 0 6px rgba(245,158,11,.12); }
+.save-pill.is-ok .dot{ background: var(--ok); box-shadow: 0 0 0 6px rgba(34,197,94,.12); }
+.save-pill.is-error .dot{ background: var(--err); box-shadow: 0 0 0 6px rgba(239,68,68,.12); }
+
+/* toast stack (injected via JS) */
+.toast-stack{
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+}
+
+.toastx{
+  width: min(360px, calc(100vw - 36px));
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: #fff;
+  box-shadow: 0 18px 55px rgba(15,23,42,.14);
+  padding: 10px 12px;
+  color: var(--ink);
+}
+.toastx .top{
+  display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+  margin-bottom:.25rem;
+}
+.toastx .ttl{ font-weight: 950; letter-spacing:.15px; }
+.toastx .msg{ color: var(--muted); font-weight: 650; }
+
+.toastx .xbtn{
+  border:0; background: transparent; color: rgba(15,23,42,.70);
+  width: 30px; height: 30px; border-radius: 10px;
+}
+.toastx .xbtn:hover{ background: rgba(15,23,42,.06); }
+
+.toastx.ok{ border-color: rgba(34,197,94,.25); }
+.toastx.warn{ border-color: rgba(245,158,11,.25); }
+.toastx.err{ border-color: rgba(239,68,68,.28); }
+
+/* sticky action bar (mobile only, injected via JS) */
+.sticky-actions{
+  position: fixed;
+  left: 12px; right: 12px; bottom: 12px;
+  z-index: 9990;
+  display:none;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow2);
+}
+.sticky-actions .btn{ flex: 1; }
+
+@media (max-width: 768px){
+  .sticky-actions{ display:flex; }
+}
+
+
+/* slug helper */
+.slug-help{
+  margin-top: .45rem;
+  display:flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+}
+.slug-help .hint{
+  font-size: .86rem;
+  color: var(--muted);
+  font-weight: 650;
+}
+.slug-help code{
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  background: rgba(15,23,42,.04);
+  border: 1px solid rgba(15,23,42,.10);
+  color: var(--ink);
+  font-weight: 900;
+}
+.slug-help .btn-mini{
+  border: 1px solid rgba(15,23,42,.14);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: .25rem .55rem;
+  font-weight: 900;
+  font-size: .82rem;
+}
+.slug-help .btn-mini:hover{ background: rgba(15,23,42,.04); }
+.slug-help .state{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  padding: .18rem .55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.92);
+  font-size:.82rem;
+  font-weight: 900;
+  color: var(--ink);
+}
+.slug-help .dot{
+  width:8px;height:8px;border-radius:999px;
+  background: rgba(100,116,139,.45);
+}
+.slug-help .state.auto .dot{ background: rgba(245,158,11,.9); }
+.slug-help .state.manual .dot{ background: rgba(34,197,94,.9); }
+
+.slug-flash{
+  animation: slugFlash .55s ease;
+}
+@keyframes slugFlash{
+  0%{ box-shadow: 0 0 0 .22rem rgba(255,193,7,.20); }
+  100%{ box-shadow: none; }
+}
+
+
+
+.slug-help .avail{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  padding: .18rem .55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.92);
+  font-size:.82rem;
+  font-weight: 900;
+  color: var(--ink);
+}
+.slug-help .avail .dot{ width:8px;height:8px;border-radius:999px; background: rgba(100,116,139,.45); }
+.slug-help .avail.ok{ border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.08); }
+.slug-help .avail.ok .dot{ background: var(--ok); }
+.slug-help .avail.bad{ border-color: rgba(239,68,68,.25); background: rgba(239,68,68,.08); }
+.slug-help .avail.bad .dot{ background: var(--err); }
+.slug-help .avail.wait{ border-color: rgba(245,158,11,.25); background: rgba(245,158,11,.08); }
+.slug-help .avail.wait .dot{ background: var(--warn); }
+
+
+
+
+
+/* =========================
+   STICKY HEADER (desktop)
+   ========================= */
+@media (min-width: 992px){
+  .h-title{
+    position: sticky;
+    top: 10px;
+    z-index: 20;
+    padding: 10px 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(15,23,42,.10);
+    background: rgba(255,255,255,.80);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 18px 50px rgba(15,23,42,.10);
+    margin: 1rem 0 1.15rem;
+  }
+  .h-title h2{
+    font-size: 1.55rem;
+    line-height: 1.15;
+  }
+  .h-title .subtitle{
+    display:flex;
+    flex-wrap: wrap;
+    gap:.45rem;
+  }
+}
+
+/* =========================
+   CARDS : glass + edges
+   ========================= */
+.p-card{
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(15,23,42,.10);
+  box-shadow: 0 18px 55px rgba(15,23,42,.10);
+}
+
+.p-card .p-head{
+  background:
+    linear-gradient(90deg, rgba(15,23,42,.035), rgba(15,23,42,.015));
+}
+
+.p-head .ttl{
+  font-size: .98rem;
+}
+
+.p-card:hover{
+  box-shadow: 0 22px 70px rgba(15,23,42,.14);
+  transform: translateY(-1px);
+  transition: box-shadow .18s ease, transform .18s ease;
+}
+
+/* =========================
+   GRID DESKTOP : hauteur égale + scroll zone droite
+   ========================= */
+@media (min-width: 992px){
+  /* colonne gauche et droite alignées */
+  .row.g-4{
+    align-items: stretch;
+  }
+
+  /* colonne gauche: les 2 cards bien espacées */
+  .col-lg-5{
+    display:flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .col-lg-5 .p-card.mb-4{ margin-bottom: 0 !important; }
+
+  /* colonne droite: card structure prend la hauteur dispo */
+  .col-lg-7{
+    display:flex;
+  }
+  #tree-card{
+    width: 100%;
+  }
+
+  /* Body de la structure scrollable => page plus compacte */
+  #tree-card .p-body{
+    max-height: calc(150vh - 240px);
+    overflow: auto;
+    padding-right: 12px;
+    scrollbar-gutter: stable;
+  }
+
+  /* Scrollbar premium (webkit) */
+  #tree-card .p-body::-webkit-scrollbar{ width: 10px; }
+  #tree-card .p-body::-webkit-scrollbar-thumb{
+    background: rgba(15,23,42,.12);
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,.8);
+  }
+  #tree-card .p-body::-webkit-scrollbar-thumb:hover{
+    background: rgba(15,23,42,.18);
+  }
+}
+
+/* =========================
+   BADGES : plus “design system”
+   ========================= */
+.badge-soft{
+  background: rgba(15,23,42,.035);
+  border-color: rgba(15,23,42,.12);
+}
+.badge-soft i{ opacity: .9; }
+
+/* =========================
+   FORM : focus plus premium
+   ========================= */
+.form-floating > .form-control,
+.form-floating > .form-select{
+  transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+}
+.form-floating:focus-within{
+  transform: translateY(-1px);
+}
+.form-control:focus, .form-select:focus{
+  box-shadow:
+    0 0 0 .22rem rgba(255,193,7,.18),
+    0 14px 30px rgba(15,23,42,.06) !important;
+}
+
+/* =========================
+   BUTTONS : micro-interactions
+   ========================= */
+.btn-premium, .btn-gradient{
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.btn-premium:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(15,23,42,.10);
+}
+.btn-gradient:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(255,193,7,.20);
+}
+
+/* =========================
+   TREE : nodes plus "app"
+   ========================= */
+.node{
+  background: rgba(255,255,255,.95);
+  border-color: rgba(15,23,42,.10);
+  transition: box-shadow .16s ease, transform .16s ease, border-color .16s ease;
+}
+.node:hover{
+  transform: translateY(-1px);
+  border-color: rgba(15,23,42,.16);
+  box-shadow: 0 18px 44px rgba(15,23,42,.10);
+}
+
+.node-head{
+  background: linear-gradient(180deg, rgba(15,23,42,.015), transparent);
+}
+
+/* Titre plus “premium” */
+.node-title{
+  letter-spacing: .1px;
+}
+
+/* handle drag plus visible */
+.drag{
+  background: rgba(15,23,42,.035);
+  border-color: rgba(15,23,42,.14);
+  transition: background .12s ease, transform .12s ease;
+}
+.node:hover .drag{
+  background: rgba(255,193,7,.10);
+  border-color: rgba(255,193,7,.22);
+}
+.drag:hover{ transform: scale(1.03); }
+
+
+/* =========================
+   CHILD LIST : indentation plus élégante
+   ========================= */
+.child-list{
+  margin-left: 1.45rem;
+  position: relative;
+}
+.child-list::before{
+  content:"";
+  position:absolute;
+  left:-.75rem;
+  top:.2rem;
+  bottom:.2rem;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(15,23,42,.06);
+}
+
+/* empty drop zone : mieux */
+.child-list:empty{
+  background: linear-gradient(180deg, rgba(255,193,7,.06), rgba(15,23,42,.015));
+  border-color: rgba(255,193,7,.22);
+}
+
+/* =========================
+   BLOCK CHIPS : plus clean
+   ========================= */
+.block-chip{
+  background: rgba(15,23,42,.028);
+  border-color: rgba(15,23,42,.11);
+}
+.block-chip:hover{
+  background: rgba(255,193,7,.10);
+  border-color: rgba(255,193,7,.22);
+}
+
+
+
+/* =========================================================
+   FIX : TomSelect + form-floating (Type / Parent)
+   FIX : icônes qui recouvrent le label (Titre / Slug)
+   ========================================================= */
+
+/* 1) Empêcher les overflow bizarres dans les wrappers */
+.form-floating{
+  overflow: visible; /* important pour TomSelect */
+}
+
+/* 2) Les labels doivent être au-dessus et lisibles */
+.form-floating > label{
+  z-index: 5 !important;
+  pointer-events: none;
+  /* petit fond pour éviter que le texte passe dessous */
+  background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,0));
+  padding-right: .4rem;
+}
+
+/* 3) FIX ICONS : l’icône doit être derrière le texte */
+.form-icon{
+  z-index: 1 !important;      /* ⬅️ avant : 2, ça recouvrait tout */
+  opacity: .55;
+}
+
+/* 4) Les inputs avec icône doivent être au-dessus */
+.form-floating > .form-control,
+.form-floating > .form-select{
+  position: relative;
+  z-index: 2;
+}
+
+/* 5) Ajuster padding-left pour que le texte ne touche jamais l’icône */
+.with-icon{
+  padding-left: 3.0rem !important; /* un poil plus large */
+}
+.with-icon ~ label{
+  padding-left: 3.0rem !important;
+}
+
+/* =========================================================
+   TOMSELECT : rendre compatible avec form-floating
+   TomSelect remplace le <select> par .ts-wrapper + .ts-control
+   ========================================================= */
+
+/* le wrapper prend la place du select dans le floating */
+.form-floating > .ts-wrapper{
+  width: 100%;
+}
+
+/* donner à TomSelect exactement la "height" Bootstrap floating */
+.form-floating > .ts-wrapper .ts-control{
+  min-height: calc(3.5rem + 2px);  /* hauteur standard BS */
+  border-radius: 16px !important;
+  border: 1px solid rgba(15,23,42,.12) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+
+  /* padding TOP important: laisse la place au label flottant */
+  padding-top: 1.35rem !important;
+  padding-bottom: .55rem !important;
+  padding-left: .95rem !important;
+  padding-right: .95rem !important;
+
+  display: flex;
+  align-items: center;
+}
+
+/* la valeur sélectionnée doit couper proprement */
+.form-floating > .ts-wrapper .ts-control .item,
+.form-floating > .ts-wrapper .ts-control .ts-input{
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* focus : même glow que tes inputs */
+.form-floating > .ts-wrapper.focus .ts-control,
+.form-floating > .ts-wrapper .ts-control:focus-within{
+  border-color: rgba(255,193,7,.55) !important;
+  box-shadow: 0 0 0 .22rem rgba(255,193,7,.18) !important;
+}
+
+/* dropdown TomSelect : premium + cohérent */
+.ts-dropdown{
+  border-radius: 14px !important;
+  border: 1px solid rgba(15,23,42,.12) !important;
+  box-shadow: 0 18px 55px rgba(15,23,42,.14) !important;
+  overflow: hidden;
+}
+.ts-dropdown .option{
+  padding: .65rem .8rem !important;
+}
+.ts-dropdown .option.active{
+  background: rgba(255,193,7,.14) !important;
+}
+
+/* =========================================================
+   BONUS : empêche le "label" de paraître décalé sur select
+   (uniquement quand TomSelect est présent)
+   ========================================================= */
+.form-floating > .ts-wrapper ~ label{
+  transform-origin: 0 0;
+}
+
+
+
+/* =========================================================
+   FIX 1 : stop blur (transform) sur les form-floating
+   ========================================================= */
+.form-floating:focus-within{
+  transform: none !important; /* supprime l'effet qui "floute" sur mobile */
+}
+
+/* =========================================================
+   FIX 2 : icônes inputs (Titre/Slug) qui doivent rester derrière
+   ========================================================= */
+.form-floating.position-relative{ overflow: visible; }
+.form-icon{ z-index: 0 !important; opacity: .55; }
+.form-floating > .form-control{ position: relative; z-index: 1; }
+
+/* =========================================================
+   FIX 3 : TomSelect ne doit PAS être en form-floating
+   On va ajouter une classe .ts-off via JS (voir plus bas)
+   ========================================================= */
+.form-floating.ts-off{
+  /* on transforme visuellement en "label au dessus" */
+  padding-top: .25rem;
+}
+
+.form-floating.ts-off > label{
+  position: static !important;
+  transform: none !important;
+  opacity: 1 !important;
+  height: auto !important;
+  padding: 0 0 .4rem 0 !important;
+  background: none !important;
+  pointer-events: none;
+  font-weight: 800;
+  color: rgba(15,23,42,.70) !important;
+}
+
+/* TomSelect look & height cohérents */
+.form-floating.ts-off > .ts-wrapper{
+  width: 100%;
+}
+
+.form-floating.ts-off > .ts-wrapper .ts-control{
+  min-height: calc(3.5rem + 2px);
+  border-radius: 16px !important;
+  border: 1px solid rgba(15,23,42,.12) !important;
+  background: #fff !important;
+  padding: .9rem .95rem !important; /* plus besoin de padding-top "floating" */
+  box-shadow: none !important;
+  display:flex;
+  align-items:center;
+}
+
+.form-floating.ts-off > .ts-wrapper.focus .ts-control,
+.form-floating.ts-off > .ts-wrapper .ts-control:focus-within{
+  border-color: rgba(255,193,7,.55) !important;
+  box-shadow: 0 0 0 .22rem rgba(255,193,7,.18) !important;
+}
+
+/* dropdown */
+.ts-dropdown{
+  z-index: 2000 !important; /* au-dessus des cards */
+  border-radius: 14px !important;
+  border: 1px solid rgba(15,23,42,.12) !important;
+  box-shadow: 0 18px 55px rgba(15,23,42,.14) !important;
+  overflow: hidden;
+}
+
+/* TomSelect dropdown ne doit pas être coupé par la card */
+.p-card-form{ overflow: visible !important; }
+.p-card-form .p-body{ overflow: visible !important; }
+
+/* dropdown toujours au-dessus */
+.ts-dropdown{
+  z-index: 99999 !important;
+}
+
+
+
+
+</style>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="h-title">
+    <div>
+      <h2>
+        <i class="fa fa-sitemap me-2" style="color:var(--s)"></i>
+        {% set isSous = (form.vars.value.type and form.vars.value.type.name == 'SOUS_CHAPITRE') %}
+        {{ modeEdition ? 'Modifier' : 'Ajouter' }} un {{ isSous ? 'sous-chapitre' : 'chapitre' }}
+
+      </h2>
+      <div class="subtitle mt-1">
+        <span class="badge-soft"><i class="fa fa-graduation-cap"></i> {{ course.titre }}</span>
+        {% if node is defined and node and node.id %}
+          <span class="badge-soft muted ms-2">#{{ node.id }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ path('app_administrateur_elearning_content_index', { entite: entite.id, course: course.id }) }}"
+         class="btn btn-outline-light btn-premium">
+        <i class="fa fa-arrow-left me-1"></i> Retour
+      </a>
+      <button form="node-form" type="submit" class="btn btn-gradient">
+        <i class="fa fa-check me-1"></i> {{ modeEdition ? 'Enregistrer' : 'Créer' }}
+      </button>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {% set nodeId = form.vars.value.id ?? null %}
+  {% set parentId = (form.vars.value.parent is not null) ? form.vars.value.parent.id : null %}
+
+  {% set actionPath = modeEdition and nodeId
+    ? path('app_administrateur_elearning_content_node_edit', { entite: entite.id, course: course.id, node: nodeId })
+    : (parentId
+        ? path('app_administrateur_elearning_content_node_add',  { entite: entite.id, course: course.id, parentId: parentId })
+        : path('app_administrateur_elearning_content_node_add',  { entite: entite.id, course: course.id })
+      )
+  %}
+
+
+  {{ form_start(form, {
+    action: actionPath,
+    attr: { id:'node-form', novalidate:'novalidate', name:'course_content_node' }
+  }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+
+    <!-- LEFT: FORM -->
+    <div class="col-lg-5">
+
+      <div class="p-card mb-4 p-card-form">
+        <div class="p-head">
+          <div class="ttl"><i class="fa fa-info-circle"></i> Informations</div>
+          <span class="badge-soft muted"><i class="fa fa-shield"></i> auto</span>
+        </div>
+        <div class="p-body">
+          <div class="row g-3">
+
+            <div class="col-12">
+              <div class="form-floating">
+                {{ form_widget(form.type, { attr:{ class:'form-select' } }) }}
+                <label for="{{ form.type.vars.id }}">Type</label>
+              </div>
+              {{ form_errors(form.type) }}
+            </div>
+
+            <div class="col-12" id="parent-wrapper" style="display:none;">
+              <div class="form-floating">
+                {{ form_widget(form.parent, { attr:{ class:'form-select' } }) }}
+                <label for="{{ form.parent.vars.id }}">Parent (si sous-chapitre)</label>
+              </div>
+              <div class="form-text">Le parent est verrouillé si tu es venu via “+” depuis un chapitre.</div>
+              {{ form_errors(form.parent) }}
+            </div>
+
+            <div class="col-12">
+              <div class="form-floating">
+                {{ form_widget(form.titre, { attr:{ class:'form-select' } }) }}
+                <label for="{{ form.titre.vars.id }}">*Titre</label>
+              </div>
+              {{ form_errors(form.titre) }}
+            </div>
+
+            <div class="col-12">
+              <div class="form-floating">
+                {{ form_widget(form.slug, { attr:{ class:'form-select' } }) }}
+                <label for="{{ form.slug.vars.id }}">Slug</label>
+              </div>
+              <div class="form-text">Auto-généré si vide (ou tant que tu ne l’édites pas).</div>
+              {{ form_errors(form.slug) }}
+            </div>
+
+            <div class="col-12">
+              <div class="form-floating">
+                {{ form_widget(form.dureeMinutes, { attr:{ class:'form-select', min:0 } }) }}
+                <label for="{{ form.dureeMinutes.vars.id }}">Durée (minutes)</label>
+              </div>
+              {{ form_errors(form.dureeMinutes) }}
+            </div>
+
+            {{ form_widget(form.position) }}
+
+            <div class="col-12">
+              <hr class="hr-soft">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="ttl" style="color:var(--ink); font-weight:900;">
+                  <i class="fa fa-bullhorn me-2" style="color:var(--s)"></i> Publication
+                </div>
+                <div class="form-check form-switch m-0">
+                  {{ form_widget(form.isPublished, { attr:{ class:'form-check-input' } }) }}
+                  <label class="form-check-label" for="{{ form.isPublished.vars.id }}" style="color:var(--ink); font-weight:800;">
+                    Publié
+                  </label>
+                </div>
+              </div>
+              <div class="form-text mt-2">Si désactivé : brouillon (non visible côté apprenant).</div>
+              {{ form_errors(form.isPublished) }}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="p-card">
+        <div class="p-head">
+          <div class="ttl"><i class="fa fa-bolt"></i> Astuces</div>
+          <span class="badge-soft muted">UX</span>
+        </div>
+        <div class="p-body" style="color:var(--muted); font-weight:650;">
+          <div class="d-flex flex-column gap-2">
+            <div><span class="badge-soft"><i class="fa fa-wand-magic-sparkles"></i> Slug</span> se complète automatiquement tant que tu ne le touches pas.</div>
+            <div><span class="badge-soft"><i class="fa fa-hand-pointer"></i> Drag</span> utilise la poignée pour réorganiser et déplacer entre chapitres.</div>
+            <div><span class="badge-soft"><i class="fa fa-layer-group"></i> Structure</span> est sauvegardée en un seul appel (payload complet).</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: TREE -->
+    <div class="col-lg-7">
+
+      <div class="p-card" id="tree-card"
+           data-reorder-url="{{ path('app_administrateur_elearning_content_node_reorder', { entite: entite.id, course: course.id }) }}"
+           data-csrf="{{ csrf_token('reorder_nodes_' ~ course.id) }}">
+        <div class="p-head">
+          <div class="ttl"><i class="fa fa-diagram-project"></i> Structure de la formation</div>
+          <span class="badge-soft muted"><i class="fa fa-arrows-up-down-left-right"></i> drag & drop</span>
+        </div>
+        <div class="p-body">
+
+          {% macro block_preview(n) %}
+            {% if attribute(n, 'blocks') is defined and n.blocks is iterable and (n.blocks|length) %}
+              <div class="block-preview">
+                {% set shown = 0 %}
+                {% for b in n.blocks|slice(0, 6) %}
+                  {% set shown = shown + 1 %}
+                  <span class="block-chip" title="Bloc #{{ b.id }}">
+                    <i class="fa fa-cube"></i>
+                    {{ b.type ? (b.type.name ?? b.type) : 'Bloc' }}
+                  </span>
+                {% endfor %}
+                {% if n.blocks|length > 6 %}
+                  <span class="block-chip" title="{{ n.blocks|length - 6 }} autre(s) bloc(s)">
+                    <i class="fa fa-ellipsis"></i> +{{ n.blocks|length - 6 }}
+                  </span>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endmacro %}
+
+          {% macro render_nodes(list, entite, course) %}
+            <ul class="child-list">
+              {% for n in list %}
+                <li class="node-item" data-node-id="{{ n.id }}">
+                  <div class="node">
+                    <div class="node-head">
+                      <div class="node-left">
+                        <span class="drag" title="Déplacer"><i class="fa fa-grip-vertical"></i></span>
+
+
+                        <span class="node-title">{{ n.titre }}</span>
+
+                        
+                        {% if not n.isPublished %}
+                          <span class="badge-soft muted"><i class="fa fa-eye-slash"></i> Brouillon</span>
+                        {% endif %}
+                      </div>
+
+                      <div class="node-actions d-flex gap-1">
+                        <a class="btn btn-sm btn-light"
+                           href="{{ path('app_administrateur_elearning_content_node_edit', { entite: entite.id, course: course.id, node: n.id }) }}"
+                           title="Modifier">
+                          <i class="fa fa-pen"></i>
+                        </a>
+                        <a class="btn btn-sm btn-primary"
+                          href="{{ path('app_administrateur_elearning_content_block_add', { entite: entite.id, course: course.id, node: n.id }) }}"
+                          title="Ajouter un bloc">
+                          <i class="bi bi-file-earmark-plus"></i>
+                        </a>
+                        <button type="button"
+                                class="btn btn-sm btn-danger btn-node-delete"
+                                title="Supprimer"
+                                data-del-url="{{ path('app_administrateur_elearning_content_node_delete', { entite: entite.id, course: course.id, node: n.id }) }}"
+                                data-csrf="{{ csrf_token('del_node_' ~ n.id) }}">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="node-sub">
+                      <span class="badge-soft">
+                        <i class="fa fa-folder-tree"></i>
+                        {{ n.type and n.type.name == 'SOUS_CHAPITRE' ? 'Sous-chapitre' : 'Chapitre' }} {{ n.position + 1 }}
+                      </span>
+                      {% if n.dureeMinutes %}
+                        <span class="badge-soft muted"><i class="fa fa-clock"></i> {{ n.dureeMinutes }} min</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endmacro %}
+
+          {% import _self as macros %}
+          {% set roots = roots is defined ? roots : [] %}
+
+          <ul class="tree" id="tree-root">
+            {% if roots|length %}
+              {% for r in roots %}
+                <li class="node-item" data-node-id="{{ r.id }}">
+                  <div class="node">
+                    <div class="node-head">
+                      <div class="node-left">
+                        <span class="drag" title="Déplacer"><i class="fa fa-grip-vertical"></i></span>
+
+                        <span class="badge-soft">
+                          <i class="fa fa-folder"></i> Chapitre {{ r.position + 1 }}
+                        </span>
+
+                        <span class="node-title">{{ r.titre }}</span>
+
+                        {% if r.dureeMinutes %}
+                          <span class="badge-soft muted"><i class="fa fa-clock"></i> {{ r.dureeMinutes }} min</span>
+                        {% endif %}
+                        {% if not r.isPublished %}
+                          <span class="badge-soft muted"><i class="fa fa-eye-slash"></i> Brouillon</span>
+                        {% endif %}
+                      </div>
+
+                      <div class="node-actions d-flex gap-1">
+                        <a class="btn btn-sm btn-light"
+                           href="{{ path('app_administrateur_elearning_content_node_edit', { entite: entite.id, course: course.id, node: r.id }) }}"
+                           title="Modifier">
+                          <i class="fa fa-pen"></i>
+                        </a>
+                        <a class="btn btn-sm btn-light"
+                           href="{{ path('app_administrateur_elearning_content_node_add', { entite: entite.id, course: course.id, parentId: r.id }) }}"
+                           title="Ajouter un sous-chapitre">
+                          <i class="fa fa-plus"></i>
+                        </a>
+                        <button type="button"
+                                class="btn btn-sm btn-danger btn-node-delete"
+                                title="Supprimer"
+                                data-del-url="{{ path('app_administrateur_elearning_content_node_delete', { entite: entite.id, course: course.id, node: r.id }) }}"
+                                data-csrf="{{ csrf_token('del_node_' ~ r.id) }}">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="node-sub">
+                      {{ macros.block_preview(r) }}
+
+                      {% if r.children is defined and r.children|length %}
+                        {{ macros.render_nodes(r.children, entite, course) }}
+                      {% else %}
+                        <ul class="child-list"></ul>
+                      {% endif %}
+                    </div>
+                  </div>
+                </li>
+              {% endfor %}
+            {% else %}
+              <li class="text-muted" style="color:var(--muted2)!important; font-weight:800;">
+                Aucun chapitre pour l’instant.
+              </li>
+            {% endif %}
+          </ul>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  {% if form.parentIdLock is defined %}
+    {{ form_widget(form.parentIdLock, { value: (form.vars.value.parent ? form.vars.value.parent.id : '') }) }}
+  {% endif %}
+
+
+  {{ form_end(form) }}
+
+
+{% endblock %}
+
+
+{% block javascripts_bottom %}
+  {{ parent() }}
+
+  <script>
+  /* =========================================================
+     UI INJECTION (toasts + saving pill + sticky actions)
+     ========================================================= */
+  (function(){
+    let stack = document.querySelector('.toast-stack');
+    if(!stack){
+      stack = document.createElement('div');
+      stack.className = 'toast-stack';
+      document.body.appendChild(stack);
+    }
+
+    window.showToastX = function(type, title, message, timeout=3800){
+      const el = document.createElement('div');
+      el.className = 'toastx ' + (type || 'ok');
+      el.innerHTML = `
+        <div class="top">
+          <div class="ttl">${title || 'Info'}</div>
+          <button class="xbtn" type="button" aria-label="Fermer">✕</button>
+        </div>
+        <div class="msg">${message || ''}</div>
+      `;
+      el.querySelector('.xbtn')?.addEventListener('click', ()=> el.remove());
+      stack.appendChild(el);
+      if(timeout) setTimeout(()=> el.remove(), timeout);
+    };
+
+    const header = document.querySelector('.h-title > .d-flex.gap-2');
+    if(header && !document.querySelector('.save-pill')){
+      const pill = document.createElement('span');
+      pill.className = 'save-pill is-ok';
+      pill.innerHTML = `<span class="dot"></span><span class="txt">Prêt</span>`;
+      header.prepend(pill);
+    }
+
+    window.setSaveState = function(state, text){
+      const pill = document.querySelector('.save-pill');
+      if(!pill) return;
+      pill.classList.remove('is-saving','is-ok','is-error');
+      pill.classList.add(state || 'is-ok');
+      pill.querySelector('.txt').textContent =
+        text || (state === 'is-saving' ? 'Sauvegarde…' : state === 'is-error' ? 'Erreur' : 'OK');
+    };
+
+    if(!document.querySelector('.sticky-actions')){
+      const sticky = document.createElement('div');
+      sticky.className = 'sticky-actions';
+
+      const backBtn = document.querySelector('.h-title a.btn.btn-outline-light');
+      const saveBtn = document.querySelector('.h-title button.btn.btn-gradient');
+
+      const backClone = backBtn ? backBtn.cloneNode(true) : null;
+      const saveClone = saveBtn ? saveBtn.cloneNode(true) : null;
+
+      if(backClone) sticky.appendChild(backClone);
+      if(saveClone){
+        saveClone.type = 'submit';
+        const formId = saveBtn?.getAttribute('form');
+        if(formId) saveClone.setAttribute('form', formId);
+        sticky.appendChild(saveClone);
+      }
+
+      if(sticky.children.length) document.body.appendChild(sticky);
+    }
+  })();
+  </script>
+
+  <script>
+  /* =========================
+     TOMSELECT + PARENT UX
+     ========================= */
+  (function(){
+    const typeSel     = document.getElementById('{{ form.type.vars.id }}');
+    const parentSel   = document.getElementById('{{ form.parent.vars.id }}');
+    const parentWrap  = document.getElementById('parent-wrapper');
+
+    function ensureTomSelect(id){
+      const el = document.getElementById(id);
+      if (!el) return null;
+      if (el.tomselect) return el.tomselect;
+      return new TomSelect('#'+id, {
+        create: false,
+        allowEmptyOption: true,
+        sortField: { field: "text", direction:"asc" },
+        dropdownParent: 'body' // ✅ IMPORTANT
+      });
+    }
+
+    ensureTomSelect('{{ form.type.vars.id }}');
+    ensureTomSelect('{{ form.parent.vars.id }}');
+
+
+    // ✅ Désactive "form-floating" pour les selects TomSelect (sinon ça casse)
+    ['{{ form.type.vars.id }}','{{ form.parent.vars.id }}'].forEach((id)=>{
+      const el = document.getElementById(id);
+      const wrap = el?.closest('.form-floating');
+      if (wrap) wrap.classList.add('ts-off');
+    });
+
+
+    function isSousChapitre(val){
+      return String(val||'').toUpperCase().includes('SOUS');
+    }
+
+    const hasInitialParent = !!(parentSel && (
+      (parentSel.tomselect && parentSel.tomselect.getValue()) ||
+      (!parentSel.tomselect && parentSel.value)
+    ));
+
+    function syncParentVisibility(){
+      const typeVal = typeSel.tomselect ? typeSel.tomselect.getValue() : typeSel.value;
+      const sous = String(typeVal||'').toUpperCase().includes('SOUS');
+      parentWrap.style.display = sous ? '' : 'none';
+    }
+
+
+    if (typeSel){
+      syncParentVisibility();
+      if (typeSel.tomselect) typeSel.tomselect.on('change', syncParentVisibility);
+      else typeSel.addEventListener('change', syncParentVisibility);
+    }
+  })();
+  </script>
+
+  <script>
+  /* =========================
+     SLUG LIVE PROPOSAL
+     ========================= */
+  function slugify(str){
+    return (str || '')
+      .toString()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-');
+  }
+
+  (function(){
+    const titre = document.getElementById('{{ form.titre.vars.id }}');
+    const slug  = document.getElementById('{{ form.slug.vars.id }}');
+    if (!titre || !slug) return;
+
+    let manual = !!(slug.value && slug.value.trim().length);
+
+    const wrap = slug.closest('.form-floating')?.parentElement || slug.parentElement;
+    const helper = document.createElement('div');
+    helper.className = 'slug-help';
+    helper.innerHTML = `
+      <span class="state ${manual ? 'manual' : 'auto'}">
+        <span class="dot"></span>
+        <span class="txt">${manual ? 'Manuel' : 'Auto'}</span>
+      </span>
+      <span class="hint">Proposition :</span>
+      <code class="proposal">—</code>
+      <button type="button" class="btn-mini btn-apply">Appliquer</button>
+      <button type="button" class="btn-mini btn-auto" ${manual ? '' : 'disabled'}>Auto</button>
+    `;
+    wrap.appendChild(helper);
+
+    const proposalEl = helper.querySelector('.proposal');
+    const btnApply   = helper.querySelector('.btn-apply');
+    const btnAuto    = helper.querySelector('.btn-auto');
+    const stateEl    = helper.querySelector('.state');
+    const stateTxt   = helper.querySelector('.state .txt');
+
+    let lastProposal = '';
+
+    function setMode(isManual){
+      manual = !!isManual;
+      stateEl.classList.toggle('manual', manual);
+      stateEl.classList.toggle('auto', !manual);
+      stateTxt.textContent = manual ? 'Manuel' : 'Auto';
+      btnAuto.disabled = !manual;
+    }
+
+    function computeProposal(){
+      const p = slugify(titre.value);
+      lastProposal = p;
+      proposalEl.textContent = p || '—';
+      return p;
+    }
+
+    function flashSlug(){
+      slug.classList.remove('slug-flash');
+      void slug.offsetWidth;
+      slug.classList.add('slug-flash');
+    }
+
+    titre.addEventListener('input', () => {
+      const p = computeProposal();
+      if (!manual){
+        slug.value = p;
+        flashSlug();
+      }
+    });
+
+    slug.addEventListener('input', () => {
+      setMode(true);
+      computeProposal();
+    });
+
+    btnApply.addEventListener('click', () => {
+      const p = computeProposal();
+      if (!p) return;
+      slug.value = p;
+      flashSlug();
+    });
+
+    btnAuto.addEventListener('click', () => {
+      setMode(false);
+      const p = computeProposal();
+      slug.value = p;
+      flashSlug();
+    });
+
+    computeProposal();
+    if (!manual && !slug.value.trim()){
+      slug.value = lastProposal;
+    }
+  })();
+  </script>
+
+  <script>
+  /* =========================
+     VALIDATION DOUCE + toast
+     ========================= */
+  (function(){
+    const f = document.querySelector('form[name="course_content_node"]');
+    if(!f) return;
+
+    f.addEventListener('submit', (e)=>{
+      const inv = f.querySelectorAll(':invalid');
+      if(inv.length){
+        inv.forEach(x=>x.classList.add('is-invalid'));
+        inv[0]?.scrollIntoView({behavior:'smooth', block:'center'});
+        window.showToastX?.('warn', 'Vérification', 'Certains champs sont incomplets.');
+        e.preventDefault();
+      }
+    });
+  })();
+  </script>
+
+  <script>
+  /* =========================
+     HIGHLIGHT NODE COURANT
+     ========================= */
+  (function(){
+    const currentId = {{ (node is defined and node and node.id) ? node.id : 'null' }};
+    if(!currentId) return;
+    const li = document.querySelector(`.node-item[data-node-id="${currentId}"]`);
+    if(li){
+      li.classList.add('is-current');
+      setTimeout(()=> li.scrollIntoView({behavior:'smooth', block:'center'}), 220);
+    }
+  })();
+  </script>
+
+  <script>
+  /* =========================
+     DRAG & DROP + SAVE
+     ========================= */
+  (function(){
+    const treeCard   = document.getElementById('tree-card');
+    const reorderUrl = treeCard?.dataset?.reorderUrl || '';
+    if (!reorderUrl || typeof Sortable === 'undefined') return;
+
+    function closestNodeIdFromUl(ul){
+      if (!ul || ul.id === 'tree-root') return null;
+      const li = ul.closest('li.node-item');
+      return li ? (li.dataset.nodeId || null) : null;
+    }
+
+    function serializeAll(){
+      const items = [];
+      const root = document.getElementById('tree-root');
+      if (root){
+        [...root.children].forEach((li, idx)=>{
+          const id = li?.dataset?.nodeId;
+          if (!id) return;
+          items.push({ id: parseInt(id,10), position: idx, parentId: null });
+        });
+      }
+
+      document.querySelectorAll('.child-list').forEach(ul=>{
+        const parentId = closestNodeIdFromUl(ul);
+        [...ul.children].forEach((li, idx)=>{
+          const id = li?.dataset?.nodeId;
+          if (!id) return;
+          items.push({ id: parseInt(id,10), position: idx, parentId: parentId ? parseInt(parentId,10) : null });
+        });
+      });
+
+      return items;
+    }
+
+    let saveTimer = null;
+    let lastHash = '';
+
+    function hashPayload(p){
+      try{ return JSON.stringify(p); }catch(e){ return String(Date.now()); }
+    }
+
+    async function postReorderAll(){
+      const payload = serializeAll();
+      const h = hashPayload(payload);
+      if (h === lastHash) return;
+      lastHash = h;
+
+      window.setSaveState?.('is-saving','Sauvegarde…');
+
+      try{
+        const res = await fetch(reorderUrl, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+
+        window.setSaveState?.('is-ok','OK');
+        window.showToastX?.('ok', 'Structure', 'Ordre enregistré.');
+      }catch(e){
+        console.error('Reorder error:', e);
+        window.setSaveState?.('is-error','Erreur');
+        window.showToastX?.('err', 'Structure', "Impossible d’enregistrer le nouvel ordre.");
+      }
+    }
+
+    function scheduleSave(){
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(postReorderAll, 280);
+    }
+
+    document.querySelectorAll('#tree-root, .child-list').forEach(ul=>{
+      new Sortable(ul, {
+        group: 'nodes',
+        animation: 170,
+        handle: '.drag',
+        fallbackOnBody: true,
+        swapThreshold: .65,
+        ghostClass: 'sortable-ghost',
+        onEnd: scheduleSave
+      });
+    });
+  })();
+  </script>
+
+  <script>
+  /* =========================
+     DELETE NODE (AJAX)
+     ========================= */
+  document.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('.btn-node-delete[data-del-url]');
+    if (!btn) return;
+
+    e.preventDefault();
+    if (!confirm('Supprimer ce nœud ?')) return;
+
+    window.setSaveState?.('is-saving','Suppression…');
+
+    try{
+      const res = await fetch(btn.dataset.delUrl, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/x-www-form-urlencoded', 'X-Requested-With':'XMLHttpRequest' },
+        body: new URLSearchParams({_token: btn.dataset.csrf || ''})
+      });
+
+      if(!res.ok) throw new Error('HTTP '+res.status);
+
+      btn.closest('li.node-item')?.remove();
+      window.setSaveState?.('is-ok','OK');
+      window.showToastX?.('ok', 'Suppression', 'Nœud supprimé.');
+    }catch(err){
+      console.error(err);
+      window.setSaveState?.('is-error','Erreur');
+      window.showToastX?.('err', 'Suppression', 'Erreur lors de la suppression.');
+    }
+  });
+  </script>
+{% endblock %}

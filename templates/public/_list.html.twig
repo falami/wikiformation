@@ -1,0 +1,99 @@
+{# templates/public/_list.html.twig #}
+
+<div class="d-flex justify-content-center justify-content-lg-start mt-3 mb-2">
+  <div id="results-count" class="results-count">{{ formations|length }} résultats</div>
+</div>
+
+<div id="results" class="vstack gap-4 pb-5">
+  {% for item in formations %}
+    {% set f = item.formation %}
+    {% set s = item.nextSession %}
+    {% set cover =
+      (f is defined and f.photoBanniere ? asset('uploads/photos/formation/' ~ f.photoBanniere) :
+      asset('dist/img/vitrine/voile.webp'))
+    %}
+    <div class="session-card">
+      <div class="row g-0">
+        <div class="col-12 col-lg-3">
+          <div class="session-media h-100 w-100" style="--cover:url('{{ cover|e('html_attr') }}');"></div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="session-body">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              {% if f and f.niveau is defined %}
+                {% set _niv_key = 'formation.niveau.' ~ (f.niveau.value ?? f.niveau.name) %}
+                <span class="chip-soft"><i class="bi bi-tags-fill me-2"></i>{{ _niv_key|lower|trans }}</span>
+              {% endif %}
+              {% if f and f.codeQualiopi %}
+                <span class="badge rounded-pill bg-success-subtle text-success">Qualiopi {{ f.codeQualiopi }}</span>
+              {% endif %}
+            </div>
+
+            <div class="session-title">
+              {{ f.titre ?? 'Formation voile' }}
+              {% if s and s.titre is defined and s.titre %}
+                <span class="text-white-50 fw-normal">— {{ s.titre }}</span>
+              {% endif %}
+              {% if s and s.engin and s.engin.nom %}
+                - {{ s.engin.nom }}
+              {% endif %}
+              {% if f.duree is defined and f.duree %}
+                ({{ f.duree }} jour{% if f.duree > 1 %}s{% endif %})
+              {% endif %}
+            </div>
+
+            <div class="small session-meta mt-2">
+              <div class="mb-1">
+                {{ s and s.dateDebut ? s.dateDebut|date('d/m/Y H:i') : 'Date à définir' }}
+              </div>
+              <div>
+                {% if s and s.dateFin %}
+                  {{ s.dateFin|date('d/m/Y H:i') }}
+                {% else %}
+                  {{ f.duree ? f.duree ~ ' jours' : '' }}
+                {% endif %}
+              </div>
+            </div>
+
+            {% if f.description %}
+              <p class="text-white-50 mt-3 mb-0">
+                {{ (f.description|striptags|slice(0,180)|nl2br ~ (f.description|length > 180 ? '…' : ''))|raw }}
+              </p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <div class="price-panel text-center">
+            <div class="price-from text-uppercase">À partir de</div>
+            {% set prixReduit = f.prixReduitEuros %}
+            {% if prixReduit is not null %}
+              <div class="price-value">{{ (prixReduit ?? 0)|number_format(0, ',', ' ') }}<span class="fs-6 align-top"> €</span></div>
+              <div class="text-white-50">HT / pers.</div>
+              <div class="price-value-reduit mb-3">Au lieu de {{ f.prixBaseEuros|number_format(0, ',', ' ') }}<span class="fs-6 align-top"> €</span></div>
+            {% else %}
+              <div class="price-value">{{ (f.prixBaseEuros ?? 0)|number_format(0, ',', ' ') }}<span class="fs-6 align-top"> €</span></div>
+              <div class="text-white-50 mb-3">HT / pers.</div>
+            {% endif %}
+
+            <a class="btn cta w-100" href="{{ path('app_public_show', {slug: f.slug}) }}">Voir la formation</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-state text-center text-dark py-5">
+      <i class="bi bi-calendar-x fs-1 d-block mb-3"></i>
+      <h3 class="h5 text-dark mb-2">Aucune formation trouvée</h3>
+      <p class="mb-4">Essayez d’élargir la période, changer de destination ou retirer des critères.</p>
+      <div class="d-flex gap-2 justify-content-center">
+        <button type="button" id="btn-reset-filters" class="btn btn-secondary">
+          <i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser les filtres
+        </button>
+        <a href="{{ path('app_public') }}" class="btn btn-warning text-dark">Voir toutes les formations</a>
+      </div>
+    </div>
+  {% endfor %}
+</div>

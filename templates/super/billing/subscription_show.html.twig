@@ -1,0 +1,165 @@
+{# templates/super/billing/subscription_show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Super — Abonnement {{ entite.nom }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --ink:#0f2336;
+    }
+
+    .hero{
+      position:relative; border-radius:22px; overflow:hidden; color:#fff;
+      background:
+        radial-gradient(1200px 420px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(950px 380px at 88% 10%, rgba(255,193,7,.20), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+    }
+    .hero:after{ content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(255,255,255,.08), transparent 60%); pointer-events:none; }
+    .hero .accent{ width:12px; border-radius:999px; background: var(--theme-color-secondaire); box-shadow:0 0 0 6px rgba(255,193,7,.10); }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.825rem;
+    }
+    .cardx{
+      border-radius:18px; background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .cardx .head{
+      padding:.9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: radial-gradient(900px 180px at 15% 0%, rgba(255,193,7,.10), transparent 55%), #fff;
+    }
+    .kv{ display:flex; justify-content:space-between; gap:1rem; padding:.55rem 1rem; border-top:1px solid rgba(0,0,0,.06); }
+    .kv:first-child{ border-top:0; }
+    .kv .k{ color:rgba(0,0,0,.55); font-size:.9rem; }
+    .kv .v{ font-weight:800; color:var(--ink); text-align:right; }
+    .pill{
+      display:inline-flex; align-items:center; gap:.4rem;
+      padding:.35rem .7rem; border-radius:999px;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      font-weight:800;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="hero p-4 mb-3 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <span class="meta-chip"><i class="bi bi-shield-lock"></i> SUPER</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+        <span class="meta-chip"><i class="bi bi-credit-card"></i> Abonnement</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Gestion abonnement</h2>
+          <div class="opacity-75">Changer plan, ajuster statut, offrir un essai — contrôle total.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          {% if sub %}
+            <a class="btn btn-light btn-sm fw-semibold"
+               href="{{ path('app_super_billing_subscription_edit', { entite: entite.id, id: sub.id }) }}">
+              <i class="bi bi-pencil"></i> Éditer
+            </a>
+          {% else %}
+            <a class="btn btn-warning btn-sm fw-semibold"
+               href="{{ path('app_super_billing_subscription_new', { entite: entite.id }) }}">
+              <i class="bi bi-plus-circle"></i> Créer un abonnement
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="cardx">
+        <div class="head d-flex justify-content-between align-items-center">
+          <div class="fw-bold">État actuel</div>
+          {% if sub %}
+            <span class="pill">
+              <i class="bi bi-activity"></i>
+              {{ sub.status }}
+            </span>
+          {% else %}
+            <span class="pill"><i class="bi bi-dash-circle"></i> aucun</span>
+          {% endif %}
+        </div>
+
+        {% if sub %}
+          <div class="kv"><div class="k">Plan</div><div class="v">{{ sub.plan ? sub.plan.name : '—' }}</div></div>
+          <div class="kv"><div class="k">Intervale</div><div class="v">{{ sub.intervale }}</div></div>
+          <div class="kv"><div class="k">Fin période</div><div class="v">{{ sub.currentPeriodEnd ? sub.currentPeriodEnd|date('d/m/Y H:i') : '—' }}</div></div>
+          <div class="kv"><div class="k">Fin essai</div><div class="v">{{ sub.trialEndsAt ? sub.trialEndsAt|date('d/m/Y H:i') : '—' }}</div></div>
+          <div class="kv"><div class="k">Stripe customer</div><div class="v">{{ sub.stripeCustomerId ?: '—' }}</div></div>
+          <div class="kv"><div class="k">Stripe subscription</div><div class="v">{{ sub.stripeSubscriptionId ?: '—' }}</div></div>
+        {% else %}
+          <div class="p-3 text-muted">Aucun abonnement enregistré pour cette entité.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="cardx">
+        <div class="head d-flex justify-content-between align-items-center">
+          <div class="fw-bold">Actions rapides</div>
+          <span class="pill"><i class="bi bi-lightning-charge"></i> super</span>
+        </div>
+
+        <div class="p-3">
+          {% if sub %}
+            <form method="post"
+                  action="{{ path('app_super_billing_subscription_grant_trial', { entite: entite.id, id: sub.id }) }}"
+                  class="d-flex flex-wrap gap-2 align-items-end mb-3">
+              <input type="hidden" name="_token" value="{{ csrf_token('grant_trial_' ~ sub.id) }}">
+              <div class="flex-grow-1">
+                <label class="form-label small text-muted mb-1">Offrir un essai (jours)</label>
+                <input class="form-control" type="number" min="1" max="365" name="days" value="14">
+              </div>
+              <button class="btn btn-warning fw-semibold" type="submit">
+                <i class="bi bi-gift"></i> Offrir l’essai
+              </button>
+            </form>
+
+            <form method="post"
+                  action="{{ path('app_super_billing_subscription_cancel_local', { entite: entite.id, id: sub.id }) }}"
+                  onsubmit="return confirm('Marquer cet abonnement comme annulé (local) ?');">
+              <input type="hidden" name="_token" value="{{ csrf_token('cancel_local_' ~ sub.id) }}">
+              <button class="btn btn-outline-danger fw-semibold" type="submit">
+                <i class="bi bi-x-circle"></i> Annuler (local)
+              </button>
+            </form>
+
+            <div class="text-muted small mt-3">
+              L’action “essai” met le statut à <strong>trialing</strong> et fixe <strong>trialEndsAt</strong> (+ met fin période).
+            </div>
+          {% else %}
+            <div class="text-muted">Crée d’abord un abonnement, puis tu pourras offrir un essai.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}

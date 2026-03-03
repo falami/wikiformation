@@ -1,0 +1,503 @@
+{# templates/formateur/supports.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Ma bibliothèque de supports{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+:root{
+  --teal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
+  --amber: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffb703')) }};
+  --ink:#0f2336; --muted:#6f8897; --card:#ffffff; --card-2:#f8fbfe; --line:#e6eef5;
+  --radius:1rem; --radius-lg:1.25rem; --ring:0 18px 55px rgba(15,35,54,.12);
+}
+.hero{ position:relative; border-radius:var(--radius-lg); padding:1rem 1.2rem;
+  background: radial-gradient(1000px 1000px at -10% -20%, color-mix(in oklab, var(--teal) 18%, transparent) 0%, transparent 40%),
+             linear-gradient(180deg, color-mix(in oklab, var(--teal) 8%, var(--card)), var(--card));
+  border:1px solid var(--line); box-shadow:var(--ring);
+}
+.section-card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:var(--ring); overflow:hidden; }
+.section-card .card-header{ background:linear-gradient(180deg,var(--card-2),var(--card)); border-bottom:1px solid var(--line); padding:.9rem 1rem; }
+.section-card .card-body{ padding:1rem; }
+
+.asset{ border:1px solid var(--line); border-radius:.9rem; padding:.7rem .8rem; display:flex; gap:.75rem; align-items:center;
+  background:linear-gradient(180deg,var(--card),var(--card-2)); transition: transform .15s ease, box-shadow .15s ease; }
+.asset:hover{ transform: translateY(-1px); box-shadow: var(--ring); }
+.asset .icon{ width:36px; height:36px; display:grid; place-items:center; border-radius:.6rem; background: color-mix(in oklab, var(--teal) 12%, white 88%); color: color-mix(in oklab, var(--teal) 85%, black 15%); }
+.asset .name{ font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.asset .meta{ font-size:.85rem; color:var(--muted); }
+
+.selector-box{ border:1px solid var(--line); border-radius:.9rem; padding:.6rem; max-height:300px; overflow:auto; background:var(--card-2); }
+.badge-soft{
+  border:1px solid color-mix(in oklab, var(--amber) 40%, white 60%);
+  background: color-mix(in oklab, var(--amber) 12%, white 88%);
+  color: color-mix(in oklab, var(--amber) 65%, black 35%);
+  border-radius:999px; padding:.35rem .6rem; font-weight:800; font-size:.85rem;
+}
+.skel{ height:58px; border-radius:.9rem; background:
+  linear-gradient(90deg, color-mix(in oklab, var(--card-2) 70%, var(--line) 30%), var(--card-2), color-mix(in oklab, var(--card-2) 70%, var(--line) 30%));
+  background-size: 200% 100%; animation: shine 1.2s infinite linear; }
+@keyframes shine{ 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+
+  [hidden]{ display:none !important; }
+  #scopeSwitch .btn.active{ pointer-events:none; }
+
+  /* Ajoute ce style après tes styles */
+/* ne pas masquer le bouton de suppression de session */
+#sessionsBox,
+#btnAssignSessions,
+label[for="sessionsBox"] {
+  display: none !important;
+}
+
+
+/* Rendre toute la carte cliquable + accessibilité */
+.asset{ cursor:pointer; }
+.asset:focus-visible{ outline:2px solid color-mix(in oklab, var(--teal) 60%, white 40%); outline-offset:3px; }
+
+/* Désactive le curseur sur les vraies actions pour éviter la confusion */
+.asset .btn,
+.asset a[href] { cursor:auto; }
+</style>
+
+<style>
+:root{ --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};}
+@media (max-width:768px){
+  table.dataTable td.action-column{ position:sticky; right:0; background:#fff; z-index:5; box-shadow:-8px 0 12px -8px rgba(0,0,0,.08); }
+}
+</style>
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
+<link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+{% endblock %}
+{% block body %}
+
+
+
+
+
+<div class="container-fluid py-3" id="page" data-session-id="{{ session.id }}">
+  <div class="hero mb-3 d-flex align-items-center justify-content-between">
+    <h1 class="h5 mb-0">Ma bibliothèque de supports</h1>
+    <a class="btn btn-outline-secondary" href="{{ path('app_formateur_dashboard', {entite: entite.id}) }}">
+      <i class="bi bi-arrow-left"></i> Retour
+    </a>
+  </div>
+
+
+
+
+  <div class="row g-4">
+    <!-- GAUCHE : upload + liste -->
+    <div class="col-12 col-xl-6">
+      <div class="section-card h-100">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <h5 class="mb-0">Uploader dans la bibliothèque</h5>
+          <small class="text-muted">Fichiers multiples</small>
+        </div>
+        <div class="card-body">
+          <form id="libUploadForm" method="post" enctype="multipart/form-data" action="{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}">
+            <div class="mb-3">
+              <input id="libFiles" type="file" name="files[]" multiple class="form-control"/>
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-upload"></i> Déposer</button>
+          </form>
+
+          <hr class="my-4"/>
+
+          <h6 class="fw-bold mb-2">Mes documents (dernier upload en premier)</h6>
+          <div id="assets" class="vstack gap-2">
+            <div class="skel"></div>
+            <div class="skel"></div>
+            <div class="skel"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DROITE : Contexte session, affectation à tous OU à des personnes -->
+    <div class="col-12 col-xl-6">
+      <div class="section-card h-100">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <h5 class="mb-0">Affecter dans cette session</h5>
+          <small class="text-muted">Session {{ session.code }}</small>
+        </div>
+
+
+
+        <div class="card-body">
+            <div class="mb-3 d-flex align-items-center justify-content-between">
+                <span class="badge-soft">Sélection : <strong id="currentAssetName">-</strong></span>
+
+                {# Sélecteur de portée (all/users) #}
+                <div class="btn-group" role="group" id="scopeSwitch" aria-label="Portée d'affectation">
+                <button type="button" class="btn btn-sm btn-outline-primary active" id="btnScopeAll"  data-scope="all">
+                    <i class="bi bi-people"></i> Toute la session
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnScopeUsers" data-scope="users">
+                    <i class="bi bi-person"></i> Stagiaire(s)
+                </button>
+                </div>
+            </div>
+
+            {# === Bloc: Toute la session === #}
+            <div id="blockAll" class="mb-3 p-3 border rounded">
+                <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="fw-semibold">Affecter à <u>toute la session</u></div>
+                    <div class="text-muted small">Tous les stagiaires de la session recevront le document.</div>
+                </div>
+                <div class="text-end">
+                    <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="visibleAll" checked>
+                    <label class="form-check-label" for="visibleAll">Visible pour les stagiaires</label>
+                    </div>
+                    <button class="btn btn-sm btn-primary" id="btnAssignAll">
+                    <i class="bi bi-link-45deg"></i> Affecter à tous
+                    </button>
+                </div>
+                </div>
+            </div>
+
+            {# === Bloc: Stagiaire(s) spécifiques === #}
+            <div id="blockUsers" class="mb-3" hidden>
+                <label class="form-label fw-semibold">Choisir des stagiaires</label>
+                <div id="usersBox" class="selector-box">
+                <div class="skel"></div>
+                </div>
+                <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" id="visibleUsers" checked>
+                <label class="form-check-label" for="visibleUsers">Visible pour le stagiaire</label>
+                </div>
+                <button class="btn btn-sm btn-primary mt-2" id="btnAssignUsers">
+                <i class="bi bi-person-plus"></i> Lier aux stagiaires sélectionnés
+                </button>
+            </div>
+
+            <hr class="my-4"/>
+            <h6 class="fw-bold mb-2">Affectations existantes</h6>
+            <div class="row g-3">
+                <div class="col-12">
+                <div class="fw-semibold mb-1">Liens au niveau session</div>
+                <div id="assignSessions" class="vstack gap-2"></div>
+                </div>
+                <div class="col-12">
+                <div class="fw-semibold mb-1">Liens au niveau stagiaire</div>
+                <div id="assignUsers" class="vstack gap-2"></div>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+
+
+{# Modales réutilisées (comme sur supports_library) #}
+<div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-3">
+      <div class="modal-header">
+        <h5 class="modal-title" id="appModalTitle">Titre</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="appModalBody">…</div>
+      <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-3">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmer l’action</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">Êtes-vous sûr ?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" id="confirmModalOk">Confirmer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  (function(){
+    const $ = (id)=> document.getElementById(id);
+    const escapeHtml = (s)=> String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    let CURRENT_ASSET_ID = null;
+    const PAGE = $('page');
+    const CURRENT_SESSION_ID = PAGE ? PAGE.getAttribute('data-session-id') : null;
+
+    /* ====== Helpers modales (identiques à supports_library) ====== */
+    function getBS(){ const c=(window.bootstrap||globalThis.bootstrap||bootstrap||null); return (c && c.Modal)?c:null; }
+    window.showModal = function(title, html, variant='info'){
+      const m=$('appModal'), bs=getBS(); if(!m||!bs){ alert((title||'Info')+'\n\n'+(html||'')); return; }
+      m.querySelector('#appModalTitle').textContent = title||'Information';
+      m.querySelector('#appModalBody').innerHTML    = html||'';
+      const ok=m.querySelector('.modal-footer .btn'); ok.className='btn';
+      ok.classList.add({info:'btn-primary',success:'btn-success',warning:'btn-warning',danger:'btn-danger'}[variant]||'btn-primary');
+      bs.Modal.getOrCreateInstance(m).show();
+    };
+    window.confirmDialog = function(message, {title='Confirmer', confirmText='Confirmer', variant='danger'} = {}){
+      return new Promise(resolve=>{
+        const bs=getBS(), modal=$('confirmModal');
+        if(!bs||!modal){ resolve(!!confirm((title?title+'\n\n':'')+(message||'Êtes-vous sûr ?'))); return; }
+        const elTitle=modal.querySelector('.modal-title'), elBody=modal.querySelector('#confirmModalBody'), btnOk=modal.querySelector('#confirmModalOk');
+        if(!elTitle||!elBody||!btnOk){ resolve(!!confirm((title?title+'\n\n':'')+(message||'Êtes-vous sûr ?'))); return; }
+        elTitle.textContent=title; elBody.innerHTML=message;
+        btnOk.textContent=confirmText; btnOk.className='btn '+(variant==='danger'?'btn-danger':variant==='warning'?'btn-warning':variant==='success'?'btn-success':'btn-primary');
+        const inst=bs.Modal.getOrCreateInstance(modal,{backdrop:true,focus:true});
+        const onOk = ()=>{ cleanup(); inst.hide(); resolve(true);  };
+        const onHide= ()=>{ cleanup();              resolve(false); };
+        function cleanup(){ btnOk.removeEventListener('click', onOk); modal.removeEventListener('hidden.bs.modal', onHide); }
+        btnOk.addEventListener('click', onOk, {once:true}); modal.addEventListener('hidden.bs.modal', onHide, {once:true}); inst.show();
+      });
+    };
+
+    async function fetchJson(url, opts){ const r = await fetch(url, opts); if(!r.ok) throw new Error(r.status); return r.json(); }
+
+    /* ====== Upload ====== */
+    $('libUploadForm')?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const form = new FormData(e.currentTarget);
+      const btn  = e.currentTarget.querySelector('button[type=submit]');
+      const old  = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Dépôt…';
+      try{
+        await fetch("{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'} });
+        await loadAssets();
+        showModal('Import terminé', 'Fichier(s) importé(s) dans la bibliothèque.', 'success');
+      }catch(_){ showModal('Upload refusé', 'Vérifie la taille/format du fichier.', 'danger'); }
+      finally{ btn.disabled = false; btn.innerHTML = old; }
+    });
+
+    /* ====== Liste des documents (CLIC SUR TOUTE LA CARTE) ====== */
+    async function loadAssets(){
+      const wrap = $('assets'); if(!wrap) return;
+      wrap.innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+
+      try{
+        const url = new URL("{{ path('app_formateur_supports_assets_feed', {entite: entite.id}) }}", window.location.origin);
+        const payload = await fetchJson(url);
+
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        if(rows.length===0){ wrap.innerHTML = '<div class="text-muted">Aucun document pour le moment.</div>'; return; }
+
+        wrap.innerHTML = '';
+        rows.forEach(a=>{
+          const div = document.createElement('div');
+          div.className = 'asset';
+          div.tabIndex = 0;
+          div.dataset.choose = String(a.id);
+
+          const safeName = escapeHtml(a.titre || a.originalName || 'Document');
+          const safeMime = escapeHtml(a.mimeType || '');
+          const safeDate = escapeHtml(a.uploadedAt || '');
+          const safeUrl  = escapeHtml(a.url || '#');
+
+          div.innerHTML = `
+            <div class="icon"><i class="bi bi-file-earmark-text"></i></div>
+            <div class="flex-grow-1 text-truncate">
+              <div class="name" title="${safeName}">${safeName}</div>
+              <div class="meta">${safeMime} · ${safeDate}</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <a class="btn btn-sm btn-outline-secondary" href="${safeUrl}" target="_blank" data-download>
+                <i class="bi bi-download"></i>
+              </a>
+              <button class="btn btn-sm btn-primary" data-choose-btn="${a.id}" data-name="${safeName}">
+                <i class="bi bi-check2-circle"></i>
+              </button>
+            </div>`;
+
+          wrap.appendChild(div);
+        });
+
+                // ✅ Délégation: clic sur carte (hors bouton télécharger et bouton select)
+        wrap.onclick = (e) => {
+          // si clic sur le bouton download ou le bouton sélectionner => on ne traite pas ici
+          if (e.target.closest('[data-download]')) return;
+
+          const btn = e.target.closest('[data-choose-btn]');
+          const card = e.target.closest('.asset');
+
+          // clic sur le bouton "sélectionner"
+          if (btn) {
+            CURRENT_ASSET_ID = btn.getAttribute('data-choose-btn');
+            $('currentAssetName').textContent = btn.getAttribute('data-name') || 'Document';
+            loadAssignments();
+            return;
+          }
+
+          // clic sur la carte
+          if (card) {
+            CURRENT_ASSET_ID = card.dataset.choose;
+            const name = card.querySelector('[data-choose-btn]')?.getAttribute('data-name') || 'Document';
+            $('currentAssetName').textContent = name;
+            loadAssignments();
+          }
+        };
+
+        // ✅ Sélection clavier (Entrée / Espace)
+        wrap.onkeydown = (e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.asset')) {
+            e.preventDefault();
+            e.target.closest('.asset').click();
+          }
+        };
+
+
+      }catch(e){
+        console.error('[assets] fail:', e);
+        wrap.innerHTML = '<div class="text-danger">Erreur de chargement des documents.</div>';
+      }
+    }
+
+
+    /* ====== Stagiaires de la session ====== */
+    async function loadUsersOfSession(){
+      const usrBox = $('usersBox'); if(!usrBox) return;
+      usrBox.innerHTML = '<div class="skel"></div>';
+      try{
+        const url = new URL("{{ path('app_formateur_supports_trainees_feed', {entite: entite.id}) }}", window.location.origin);
+        url.searchParams.set('sessionId', CURRENT_SESSION_ID);
+        const payU = await fetchJson(url);
+
+        const urows = payU?.data || [];
+        usrBox.innerHTML='';
+        if(urows.length===0){ usrBox.innerHTML='<div class="text-muted">Aucun stagiaire dans cette session.</div>'; return; }
+        urows.forEach(u=>{
+          const item = document.createElement('label'); item.className='d-flex align-items-center gap-2 mb-1';
+          item.innerHTML = `<input type="checkbox" class="form-check-input me-1" value="${u.id}"> <span class="fw-semibold">${escapeHtml(u.nom)}</span> <span class="ms-2 text-muted small">${escapeHtml(u.email)}</span>`;
+          usrBox.appendChild(item);
+        });
+      }catch(_){ usrBox.innerHTML = '<div class="text-danger">Erreur de chargement.</div>'; }
+    }
+
+    /* ====== Affectations existantes + suppression avec modale ====== */
+    async function loadAssignments(){
+      const as = $('assignSessions'); const au = $('assignUsers');
+      if(!CURRENT_ASSET_ID){ if(as) as.innerHTML='-'; if(au) au.innerHTML='-'; return; }
+      const url = new URL("{{ path('app_formateur_supports_assignments_feed',{entite:entite.id}) }}", window.location.origin);
+      url.searchParams.set('assetId', CURRENT_ASSET_ID);
+      try{
+        const payload = await fetchJson(url);
+
+        if(as){
+          as.innerHTML='';
+          (payload.sessions||[]).forEach(s=>{
+            const div = document.createElement('div'); div.className='d-flex align-items-center justify-content-between border rounded p-2';
+            div.innerHTML = `
+              <div><strong>${escapeHtml(s.code)}</strong> - ${escapeHtml(s.formation)}
+                <span class="text-muted small ms-1">${escapeHtml(s.dates)}</span></div>
+              <button class="btn btn-sm btn-outline-danger" data-unassign-session="${s.linkId}"><i class="bi bi-x-circle"></i></button>`;
+            as.appendChild(div);
+          });
+        }
+
+        if(au){
+          au.innerHTML='';
+          (payload.users||[]).forEach(u=>{
+            const div = document.createElement('div'); div.className='d-flex align-items-center justify-content-between border rounded p-2';
+            div.innerHTML = `
+              <div>${escapeHtml(u.nom)} <span class="text-muted small ms-1">${escapeHtml(u.email)}</span></div>
+              <button class="btn btn-sm btn-outline-danger" data-unassign-user="${u.linkId}"><i class="bi bi-x-circle"></i></button>`;
+            au.appendChild(div);
+          });
+        }
+
+        // suppression: même UX que supports_library (confirmDialog)
+        as?.querySelectorAll('[data-unassign-session]').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            const ok = await confirmDialog('Retirer ce lien de session ?', {title:'Supprimer le lien', confirmText:'Retirer', variant:'danger'});
+            if(!ok) return;
+            const form = new FormData(); form.append('id', btn.getAttribute('data-unassign-session'));
+            const res = await fetch("{{ path('app_formateur_supports_unassign_session',{entite:entite.id}) }}", {method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'}});
+            if(res.ok) loadAssignments(); else showModal('Action refusée', 'Impossible de retirer ce lien.', 'danger');
+          });
+        });
+        au?.querySelectorAll('[data-unassign-user]').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            const ok = await confirmDialog('Retirer ce lien stagiaire ?', {title:'Supprimer le lien', confirmText:'Retirer', variant:'danger'});
+            if(!ok) return;
+            const form = new FormData(); form.append('id', btn.getAttribute('data-unassign-user'));
+            const res = await fetch("{{ path('app_formateur_supports_unassign_user',{entite:entite.id}) }}", {method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'}});
+            if(res.ok) loadAssignments(); else showModal('Action refusée', 'Impossible de retirer ce lien.', 'danger');
+          });
+        });
+
+      }catch(_){
+        if(as) as.innerHTML = '<div class="text-danger">Erreur de chargement.</div>';
+        if(au) au.innerHTML = '<div class="text-danger">Erreur de chargement.</div>';
+      }
+    }
+
+    /* ====== Actions d’affectation ====== */
+    $('btnAssignAll')?.addEventListener('click', async ()=>{
+      if(!CURRENT_ASSET_ID) return showModal('Sélection requise','Sélectionne d’abord un document.','warning');
+      if(!CURRENT_SESSION_ID) return showModal('Session introuvable',"Impossible d'identifier la session.",'danger');
+      const form = new FormData();
+      form.append('assetId', CURRENT_ASSET_ID);
+      form.append('sessionIds[]', CURRENT_SESSION_ID);
+      form.append('visible', $('visibleAll')?.checked ? '1' : '0');
+      const res = await fetch("{{ path('app_formateur_supports_assign_sessions',{entite:entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'} });
+      if(!res.ok) return showModal('Affectation refusée','Vérifie tes droits/paramètres.','danger');
+      await loadAssignments(); showModal('Affectation effectuée','Lié à toute la session.','success');
+    });
+
+    $('btnAssignUsers')?.addEventListener('click', async ()=>{
+      if(!CURRENT_ASSET_ID) return showModal('Sélection requise','Sélectionne d’abord un document.','warning');
+      const ids = Array.from(document.querySelectorAll('#usersBox input[type=checkbox]:checked')).map(i=>i.value);
+      if(ids.length===0) return showModal('Sélection requise','Choisis au moins un stagiaire.','warning');
+      const form = new FormData();
+      form.append('assetId', CURRENT_ASSET_ID);
+      ids.forEach(id=> form.append('userIds[]', id));
+      form.append('visible', $('visibleUsers')?.checked ? '1' : '0');
+      const res = await fetch("{{ path('app_formateur_supports_assign_users',{entite:entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'} });
+      if(!res.ok) return showModal('Affectation refusée','Vérifie tes droits/paramètres.','danger');
+      await loadAssignments(); showModal('Affectation effectuée','Lié au(x) stagiaire(s) sélectionné(s).','success');
+    });
+
+    /* ====== Scope UI ====== */
+    const els = {
+      btnScopeAll:   document.getElementById('btnScopeAll'),
+      btnScopeUsers: document.getElementById('btnScopeUsers'),
+      blockAll:      document.getElementById('blockAll'),
+      blockUsers:    document.getElementById('blockUsers'),
+    };
+    function hasScopeDom(){ return !!(els.btnScopeAll && els.btnScopeUsers && els.blockAll && els.blockUsers); }
+    function setScope(scope){
+      if(!hasScopeDom()) return;
+      const { blockAll, blockUsers, btnScopeAll, btnScopeUsers } = els;
+      if(scope === 'all'){
+        blockAll.hidden=false; blockUsers.hidden=true; btnScopeAll.classList.add('active'); btnScopeUsers.classList.remove('active');
+        document.querySelectorAll('#usersBox input[type=checkbox]:checked').forEach(c=> c.checked=false);
+      }else{
+        blockAll.hidden=true; blockUsers.hidden=false; btnScopeUsers.classList.add('active'); btnScopeAll.classList.remove('active');
+      }
+    }
+    if(hasScopeDom()){
+      els.btnScopeAll.addEventListener('click', ()=> setScope('all'));
+      els.btnScopeUsers.addEventListener('click', ()=> setScope('users'));
+      requestAnimationFrame(()=> setScope('all'));
+    }
+
+    /* ====== Init ====== */
+    loadAssets();
+    loadUsersOfSession();
+  })();
+});
+</script>
+{% endblock %}

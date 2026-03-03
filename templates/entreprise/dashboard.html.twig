@@ -1,0 +1,809 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Espace entreprise — Tableau de bord{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<style>
+/* ================= THEME TOKENS (identique stagiaire) ================= */
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  /* alias “stagiaire dashboard” */
+  --teal:  {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
+  --amber: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffb703')) }};
+  --sand:  {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#eef3f7')) }};
+
+  --ink:#0f2336;
+  --ink-2:#28435a;
+  --muted:#6f8897;
+
+  --card:#ffffff;
+  --card-2:#f8fbfe;
+  --line:#e6eef5;
+
+  --radius:1.15rem;
+  --ring:0 14px 48px rgba(15,35,54,.12);
+
+  --glass:rgba(255,255,255,.18);
+  --blur:14px;
+}
+
+/* ================= GLOBAL ================= */
+body{ color:var(--ink); }
+.round{ border-radius: var(--radius); }
+.shadow-premium{ box-shadow: var(--ring); }
+
+.section-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow: var(--ring);
+}
+.section-card .card-header{
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border-bottom:1px solid var(--line);
+  border-top-left-radius:var(--radius);
+  border-top-right-radius:var(--radius);
+}
+.section-title{ font-weight:800; letter-spacing:.2px; }
+
+/* ================= HERO (identique stagiaire) ================= */
+.hero{
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+  background:
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  opacity:.85;
+}
+.hero .accent{
+  width: 12px;
+  border-radius: 999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+}
+
+/* Chips hero (identique stagiaire) */
+.hero .chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.32rem .7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size:.82rem;
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.hero .chip i{ color: var(--theme-color-secondaire); }
+.hero .chip--pill{
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+  color:#fff;
+}
+
+/* bouton outline theme (identique stagiaire) */
+.hero .btn-outline-theme{
+  border-color: rgba(255,255,255,.35);
+  color:#fff;
+}
+.hero .btn-outline-theme:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  color:#fff;
+}
+
+@media (max-width:768px){
+  .hero{ border-radius:16px; }
+}
+
+/* ================= KPI (identique stagiaire) ================= */
+.kpi{
+  position:relative;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:1rem 1.25rem;
+  box-shadow: var(--ring);
+}
+.kpi .label{ color:var(--muted); font-size:.82rem; }
+.kpi .value{ font-weight:900; font-size:1.7rem; color:var(--ink); }
+
+/* ================= DATATABLES (même skin stagiaire) ================= */
+.table thead th{
+  font-weight:800;
+  color:var(--ink-2);
+  border-bottom:1px solid var(--line) !important;
+}
+table.dataTable tbody tr{ transition: background .15s ease; }
+table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%, white 65%); }
+.dataTables_wrapper .dataTables_filter input{
+  border:1px solid var(--line);
+  border-radius:.65rem;
+  padding:.45rem .75rem;
+  background:var(--card-2);
+  color:var(--ink);
+}
+
+/* ================= FULLCALENDAR (repris + clean) ================= */
+#calendar{
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, rgba(0,0,0,.08));
+  box-shadow: var(--ring, 0 14px 48px rgba(15,35,54,.12));
+}
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 70%, transparent 30%);
+  --fc-border-color: color-mix(in oklab, var(--theme-color-principal) 12%, transparent 88%);
+  --fc-today-bg-color: color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%);
+
+  --fc-event-bg-color: color-mix(in oklab, var(--theme-color-principal) 92%, black 8%);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #fff;
+}
+.fc .fc-toolbar-title{ font-weight:900; letter-spacing:.2px; }
+
+/* ================= MODAL HEADER (signature/upload) ================= */
+.modal-header-premium{
+  background:
+    radial-gradient(900px 280px at 10% -40%, rgba(255,255,255,.14), transparent 60%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+      color-mix(in oklab, var(--theme-color-secondaire) 55%, white 10%)
+    );
+  color:#fff;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+}
+.modal-header-premium .btn-close{
+  filter: invert(1) grayscale(100%);
+  opacity:.85;
+}
+
+/* signature pad */
+.sig-pad-wrap{
+  border:1px dashed color-mix(in oklab, var(--line) 70%, transparent 30%);
+  background: color-mix(in oklab, var(--card-2) 70%, transparent 30%);
+  border-radius:1rem;
+  padding:1rem;
+}
+#signatureCanvas{
+  display:block;
+  width:100%;
+  height:200px;
+  touch-action:none;
+  background:#fff;
+  border-radius:.8rem;
+  border:2px solid color-mix(in oklab, var(--line) 80%, transparent 20%);
+}
+
+
+
+/* ================= FULLCALENDAR — SKIN PRO (comme stagiaire) ================= */
+#calendar{
+  min-height: 530px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, rgba(0,0,0,.08));
+  box-shadow: var(--ring, 0 14px 48px rgba(15,35,54,.12));
+}
+
+/* Variables FullCalendar basées sur ton thème */
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 70%, transparent 30%);
+  --fc-border-color: color-mix(in oklab, var(--theme-color-principal) 12%, transparent 88%);
+  --fc-today-bg-color: color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%);
+
+  --fc-event-bg-color: color-mix(in oklab, var(--theme-color-principal) 92%, black 8%);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #fff;
+
+  --fc-list-event-hover-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 65%, white 35%);
+  --fc-highlight-color: color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+}
+
+/* Header / toolbar (dégradé premium) */
+.fc .fc-header-toolbar{
+  padding: 1rem 1rem .75rem;
+  margin: 0 !important;
+  background:
+    radial-gradient(900px 260px at 10% -40%,
+      color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%),
+      transparent 60%
+    ),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+      color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+    );
+  border-bottom: 1px solid rgba(255,255,255,.14);
+}
+
+.fc .fc-toolbar-title{
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .2px;
+  text-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+/* Boutons toolbar (glass) */
+.fc .fc-button{
+  border: 1px solid rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.10) !important;
+  color: #fff !important;
+  border-radius: .75rem !important;
+  box-shadow: none !important;
+  padding: .45rem .7rem !important;
+  font-weight: 800 !important;
+}
+.fc .fc-button:hover{
+  background: rgba(255,255,255,.16) !important;
+}
+.fc .fc-button:focus{
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 30%, transparent 70%) !important;
+}
+.fc .fc-button.fc-button-active{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 72%, black 0%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%) !important;
+}
+
+/* Corps calendrier */
+.fc .fc-view-harness{ background: var(--card, #fff); }
+
+/* En-têtes jours semaine */
+.fc .fc-col-header-cell{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 70%, white 30%);
+}
+.fc .fc-col-header-cell-cushion{
+  padding: .75rem .25rem !important;
+  color: var(--theme-color-quaternaire);
+  font-weight: 900;
+  text-decoration: none !important;
+}
+
+/* Grille (cellules) */
+.fc .fc-daygrid-day{ transition: background .15s ease; }
+.fc .fc-daygrid-day:hover{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 55%, transparent 45%);
+}
+
+/* Numéro du jour */
+.fc .fc-daygrid-day-number{
+  padding: .45rem .55rem !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 82%, black 18%);
+  font-weight: 800;
+  text-decoration: none !important;
+}
+
+/* Today : badge discret + fond */
+.fc .fc-day-today{
+  position: relative;
+  background: var(--fc-today-bg-color) !important;
+}
+.fc .fc-day-today .fc-daygrid-day-number{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%);
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%);
+  border-radius: 999px;
+  padding: .25rem .6rem !important;
+}
+
+/* Events : pill premium */
+.fc .fc-event{
+  border-radius: .75rem !important;
+  padding: .2rem .35rem !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,.10);
+}
+.fc .fc-event .fc-event-title{ font-weight: 800; letter-spacing: .1px; }
+.fc .fc-event .fc-event-time{ font-weight: 800; opacity: .92; }
+
+/* “more” link */
+.fc .fc-daygrid-more-link{
+  color: color-mix(in oklab, var(--theme-color-principal) 72%, black 28%);
+  font-weight: 800;
+}
+
+/* Vue liste */
+.fc .fc-list{ border: 0 !important; }
+.fc .fc-list-day-cushion{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 75%, white 25%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 85%, black 15%);
+  font-weight: 900;
+}
+.fc .fc-list-event:hover td{
+  background: var(--fc-list-event-hover-bg-color) !important;
+}
+
+/* ================= FULLCALENDAR — MOBILE LAYOUT (comme stagiaire) ================= */
+@media (max-width: 576px){
+  .fc .fc-header-toolbar{
+    flex-wrap: wrap !important;
+    gap: .6rem !important;
+    padding: .9rem .85rem .75rem !important;
+  }
+  .fc .fc-toolbar-chunk{
+    flex: 1 1 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  /* ordre : nav+today, puis titre, puis vues */
+  .fc .fc-toolbar-chunk:first-child{ order: 1; justify-content: space-between !important; }
+  .fc .fc-toolbar-chunk:nth-child(2){ order: 2; }
+  .fc .fc-toolbar-chunk:last-child{ order: 3; }
+
+  .fc .fc-button-group{
+    flex-wrap: wrap !important;
+    gap: .35rem !important;
+    justify-content: center !important;
+  }
+  .fc .fc-button{
+    padding: .35rem .55rem !important;
+    font-size: .9rem !important;
+  }
+  .fc .fc-toolbar-title{
+    font-size: 1.25rem !important;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .fc .fc-col-header-cell-cushion{ padding: .55rem .2rem !important; }
+  .fc .fc-daygrid-day-number{ padding: .35rem .45rem !important; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (copie stagiaire) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-briefcase me-2" style="color:var(--theme-color-secondaire)"></i>
+            Espace entreprise
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            RH · Sessions, salariés & documents
+            {% if entreprise is defined and entreprise %}
+              · <strong>{{ entreprise.raisonSociale }}</strong>
+            {% endif %}
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-speedometer2"></i> Tableau de bord</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+            <span class="chip"><i class="bi bi-briefcase"></i> Entreprise</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-theme btn-sm fw-semibold"
+                  data-bs-toggle="modal"
+                  data-bs-target="#uploadDocModal">
+            <i class="bi bi-upload me-1"></i> Déposer un document
+          </button>
+
+          <button class="btn btn-outline-theme btn-sm fw-semibold" id="btnRefresh">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Salariés en formation</div><div class="value" id="kpi-trainees">—</div></div></div>
+    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Sessions à venir</div><div class="value" id="kpi-upcoming">—</div></div></div>
+    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Sessions en cours</div><div class="value" id="kpi-live">—</div></div></div>
+    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Documents</div><div class="value" id="kpi-docs">—</div></div></div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="section-card">
+        <div class="card-header px-3 py-3 d-flex justify-content-between">
+          <h5 class="mb-0 fw-bold">Salariés & sessions</h5>
+          <div class="text-muted small">DataTable</div>
+        </div>
+        <div class="card-body p-4">
+          <table id="table-ent" class="table table-striped align-middle w-100">
+            <thead>
+              <tr>
+                <th>Salarié</th>
+                <th>Formation</th>
+                <th>Code</th>
+                <th>Dates</th>
+                <th class="text-center">Statut</th>
+                <th class="text-center">Actions</th>
+                <th>firstStartIso</th>
+                <th>lastEndIso</th>
+                <th>sessionId</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="6"></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="section-card">
+        <div class="card-header px-3 py-3 d-flex justify-content-between">
+          <h5 class="mb-0 fw-bold">Calendrier</h5>
+          <div class="text-muted small">FullCalendar</div>
+        </div>
+        <div class="card-body p-4">
+          <div id="calendar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="section-card">
+        <div class="card-header px-3 py-3 d-flex justify-content-between">
+          <h5 class="mb-0 fw-bold">Documents (tout-en-un)</h5>
+          <div class="text-muted small">Devis / Factures / Conventions / Upload RH</div>
+        </div>
+        <div class="card-body p-4">
+          <div class="d-flex gap-2 flex-wrap mb-3">
+            <select class="form-select" id="filterSession" style="max-width:360px;">
+              <option value="">— Toutes les sessions —</option>
+            </select>
+            <button class="btn btn-outline-secondary" id="btnLoadDocs"><i class="bi bi-folder2-open"></i> Charger</button>
+          </div>
+          <div id="docsList" class="row g-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+{# Upload modal #}
+<div class="modal fade" id="uploadDocModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-4 py-3">
+        <div class="w-100 d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <h5 class="mb-1 fw-bold"><i class="bi bi-upload me-1"></i> Déposer un document</h5>
+            <div class="opacity-75 small">Rattache éventuellement à une session / salarié</div>
+          </div>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+      <div class="modal-body p-4">
+        {{ form_start(formUpload, { attr:{ novalidate:'novalidate' } }) }}
+          {{ form_row(formUpload.type) }}
+          <div class="row g-3">
+            <div class="col-12 col-md-6">{{ form_row(formUpload.session) }}</div>
+            <div class="col-12 col-md-6">{{ form_row(formUpload.inscription) }}</div>
+          </div>
+          <div class="mt-3">{{ form_row(formUpload.file) }}</div>
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button class="btn btn-success"><i class="bi bi-check2-circle me-1"></i> Envoyer</button>
+          </div>
+        {{ form_end(formUpload) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Signature modal #}
+<div class="modal fade" id="signatureModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-4 py-3">
+        <div class="w-100 d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <h5 class="mb-1 fw-bold"><i class="bi bi-pen me-1"></i> Signature entreprise</h5>
+            <div class="opacity-75 small" id="sigMeta">—</div>
+          </div>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+      <div class="modal-body p-4">
+        <div class="sig-pad-wrap"><canvas id="signatureCanvas"></canvas></div>
+        <div class="small text-muted mt-2"><i class="bi bi-shield-check me-1"></i> La signature sera associée au document sélectionné.</div>
+      </div>
+      <div class="modal-footer border-top-0 px-4 pb-4 d-flex gap-2 justify-content-end">
+        <button class="btn btn-outline-secondary" id="btnClearSig"><i class="bi bi-eraser"></i> Effacer</button>
+        <button class="btn btn-success" id="btnSaveSig"><i class="bi bi-check-circle"></i> Valider</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/fr.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+
+<script>
+(function(){
+  const escapeHtml = s => String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  const stripHtml = html => String(html||'').replace(/<[^>]+>/g,'').trim();
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' +
+      d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  const refreshEl = document.getElementById('hero-last-refresh');
+  if(refreshEl) refreshEl.textContent = 'Maj : ' + nowLabel();
+
+  const urls = {
+    dt: "{{ path('app_entreprise_inscriptions_ajax', { entite: entite.id }) }}",
+    cal: "{{ path('app_entreprise_calendar_feed', { entite: entite.id }) }}",
+    docs: "{{ path('app_entreprise_documents_feed', { entite: entite.id }) }}",
+  };
+
+  let DT = null;
+  let CURRENT_SIGN = { signUrl:null, label:'' };
+
+  function computeKpis(rows){
+    const now = new Date();
+    const trainees = new Set();
+    let upcoming=0, live=0;
+
+    rows.forEach(r=>{
+      trainees.add(r.salarié || '');
+      const start = r.firstStartIso ? new Date(r.firstStartIso) : null;
+      const end   = r.lastEndIso ? new Date(r.lastEndIso) : null;
+      if(!start || !end) return;
+      if(now < start) upcoming++;
+      else if(now >= start && now <= end) live++;
+    });
+
+    document.getElementById('kpi-trainees').textContent = trainees.size || 0;
+    document.getElementById('kpi-upcoming').textContent = upcoming;
+    document.getElementById('kpi-live').textContent = live;
+  }
+
+  function refreshSessionFilter(rows){
+    const sel = document.getElementById('filterSession');
+    const map = new Map();
+    rows.forEach(r=>{
+      if(r.sessionId) map.set(r.sessionId, `${stripHtml(r.formation)} · ${r.code}`);
+    });
+    const current = sel.value;
+    sel.innerHTML = `<option value="">— Toutes les sessions —</option>`;
+    [...map.entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]))).forEach(([id,label])=>{
+      const opt = document.createElement('option');
+      opt.value = String(id);
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+    sel.value = current;
+  }
+
+  function docCard(d){
+    const signed = d.signedAt ? `<span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Signé</span>` : `<span class="badge bg-secondary">Non signé</span>`;
+    const signBtn = d.signUrl ? `<button class="btn btn-sm btn-outline-success js-sign-doc" data-url="${escapeHtml(d.signUrl)}" data-label="${escapeHtml(d.label)}">
+        <i class="bi bi-pen"></i> Signer
+      </button>` : ``;
+
+    return `
+      <div class="col-12 col-md-6 col-xxl-4">
+        <div class="section-card p-3 h-100">
+          <div class="d-flex justify-content-between gap-2">
+            <div>
+              <div class="fw-bold">${escapeHtml(d.label)}</div>
+              <div class="small text-muted text-truncate" title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</div>
+              <div class="small text-muted mt-1"><i class="bi bi-clock"></i> ${escapeHtml(d.uploadedAt||'')}</div>
+            </div>
+            <div class="text-end">${signed}</div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-3 justify-content-end">
+            <a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(d.url)}" target="_blank">
+              <i class="bi bi-download"></i> Ouvrir
+            </a>
+            ${signBtn}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadDocs(){
+    const sid = document.getElementById('filterSession').value || '';
+    const u = urls.docs + (sid ? ('?session='+encodeURIComponent(sid)) : '');
+    const r = await fetch(u, { headers:{'Accept':'application/json'} });
+    const j = await r.json();
+    const rows = j.data || [];
+    document.getElementById('kpi-docs').textContent = rows.length || 0;
+    const wrap = document.getElementById('docsList');
+    wrap.innerHTML = rows.length ? rows.map(docCard).join('') : `<div class="text-muted">Aucun document.</div>`;
+  }
+
+  $(function(){
+    DT = $('#table-ent').DataTable({
+      ajax:{ url: urls.dt, type:'POST' },
+      columns:[
+        {data:'salarié'},
+        {data:'formation'},
+        {data:'code'},
+        {data:'dates'},
+        {data:'statut', className:'text-center'},
+        {data:'actions', className:'text-center'},
+        {data:'firstStartIso', visible:false, searchable:false},
+        {data:'lastEndIso', visible:false, searchable:false},
+        {data:'sessionId', visible:false, searchable:false},
+      ],
+      order:[[6,'desc']],
+      pageLength:10,
+      language: { url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' },
+      drawCallback:function(){
+        const rows = this.api().rows().data().toArray();
+        computeKpis(rows);
+        refreshSessionFilter(rows);
+      }
+    });
+
+    $('#btnRefresh').on('click', ()=> DT.ajax.reload());
+    $('#btnLoadDocs').on('click', loadDocs);
+
+    $('#btnRefresh').on('click', ()=>{
+      DT.ajax.reload();
+      const el = document.getElementById('hero-last-refresh');
+      if(el) el.textContent = 'Maj : ' + nowLabel();
+    });
+
+    // Calendrier
+    const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+      locale: 'fr',                 // <- ok
+      timeZone: 'Europe/Paris',     // <- optionnel mais recommandé (et cohérent avec FR)
+      firstDay: 1,                  // <- lundi
+      height: 'auto',
+      initialView: 'dayGridMonth',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek,listWeek'
+      },
+
+      // Libellés en français (sécurité supplémentaire)
+      buttonText: {
+        today: "Aujourd'hui",
+        month: "Mois",
+        week: "Semaine",
+        day: "Jour",
+        list: "Liste"
+      },
+
+      // Formats FR (optionnel mais rend mieux)
+      titleFormat: { year: 'numeric', month: 'long' },
+      dayHeaderFormat: { weekday: 'short' },
+
+      events: urls.cal,
+
+      eventClick: (info) => {
+        info.jsEvent?.preventDefault();
+        const sid = info.event.extendedProps?.sessionId || info.event.id;
+        $('#filterSession').val(String(sid));
+        loadDocs();
+      }
+    });
+    cal.render();
+
+    // signature modal
+    let pad = null;
+    function initPad(){
+      const canvas = document.getElementById('signatureCanvas');
+      const wrap = canvas.parentElement;
+      const cssWidth = wrap ? wrap.clientWidth : 600;
+      const cssHeight = 200;
+
+      canvas.style.width = cssWidth+'px';
+      canvas.style.height = cssHeight+'px';
+
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = Math.floor(cssWidth * ratio);
+      canvas.height = Math.floor(cssHeight * ratio);
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+      pad = new SignaturePad(canvas, { throttle:16, minWidth:.5, maxWidth:2.5, backgroundColor:'rgb(255,255,255)' });
+    }
+
+    $(document).on('click', '.js-open-docs', function(){
+      const sid = this.dataset.session || '';
+      $('#filterSession').val(String(sid));
+      loadDocs();
+      window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' });
+    });
+
+    $(document).on('click', '.js-sign-doc', function(){
+      CURRENT_SIGN.signUrl = this.dataset.url;
+      CURRENT_SIGN.label = this.dataset.label || 'Document';
+      $('#sigMeta').text('Document : '+CURRENT_SIGN.label);
+
+      const el = document.getElementById('signatureModal');
+      el.addEventListener('shown.bs.modal', ()=>{
+        initPad();
+        pad.clear();
+      }, { once:true });
+
+      bootstrap.Modal.getOrCreateInstance(el, { backdrop:'static', focus:false }).show();
+    });
+
+    $('#btnClearSig').on('click', ()=> pad?.clear());
+
+    $('#btnSaveSig').on('click', async ()=>{
+      if(!pad || pad.isEmpty()){ alert('Veuillez signer.'); return; }
+      if(!CURRENT_SIGN.signUrl){ alert('URL manquante'); return; }
+
+      const dataUrl = pad.toDataURL('image/png');
+      const fd = new FormData();
+      fd.append('signatureData', dataUrl);
+
+      const res = await fetch(CURRENT_SIGN.signUrl, {
+        method:'POST',
+        headers:{'X-Requested-With':'XMLHttpRequest'},
+        body: fd
+      });
+
+      const json = await res.json().catch(()=>null);
+      if(!res.ok || !json || json.success!==true){
+        alert((json && (json.message||json.error)) || ('HTTP '+res.status));
+        return;
+      }
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('signatureModal')).hide();
+      await loadDocs();
+    });
+
+    // first docs load
+    loadDocs();
+  });
+})();
+</script>
+{% endblock %}

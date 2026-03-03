@@ -1,0 +1,460 @@
+{# templates/pdf/qcm_result.html.twig #}
+
+{% set brand = {
+  primary: entite.couleurPrincipal|default('#1e3a5f'),
+  secondary: entite.couleurSecondaire|default('#4ba3ff'),
+  accent: entite.couleurSecondaire|default('#d4a574'),
+  ink: '#0b1b2a',
+  text: '#182a3a',
+  muted: '#6a7a8a',
+  line: '#dbe5ef',
+  soft: '#f5f8fc',
+  paper: '#ffffff',
+  okBg: '#ecfdf5',
+  okLine: '#34d399',
+  warnBg: '#fffbeb',
+  warnLine: '#f59e0b',
+  badBg: '#fef2f2',
+  badLine: '#fb7185'
+} %}
+
+{% set traineeName = (stagiaire.prenom|default('') ~ ' ' ~ stagiaire.nom|default(''))|trim %}
+{% set sessionLabel = session.label|default(session.code|default('Session')) %}
+{% set qcmTitle = qcm.titre|default('QCM') %}
+{% set phaseLabel = a.phase.label|default(a.phase.value|default('')) %}
+
+{# Niveau / statut #}
+{% set level =
+  pct >= 85 ? 'Excellent' :
+  (pct >= 70 ? 'Très bon' :
+  (pct >= 55 ? 'Satisfaisant' :
+  (pct >= 40 ? 'À renforcer' : 'Insuffisant')))
+%}
+
+{% set levelClass =
+  pct >= 85 ? 'lvl-ok' :
+  (pct >= 55 ? 'lvl-warn' : 'lvl-bad')
+%}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Résultat QCM</title>
+
+  <style>
+    
+    @page { margin: 10mm 10mm 0mm; size: A4 portrait; }
+
+    body{
+      font-family: DejaVu Sans, Helvetica, Arial, sans-serif;
+      color: {{ brand.text }};
+      font-size: 10.6pt;
+      line-height: 1.45;
+      padding: 0;
+      margin: 0;
+    }
+    strong{ font-weight: 700; color: {{ brand.ink }}; }
+    .muted{ color: {{ brand.muted }}; }
+    .small{ font-size: 9pt; }
+    .xs{ font-size: 8.5pt; }
+    .avoid-break{ page-break-inside: avoid; }
+
+    /* Top ribbon (premium feel, Dompdf-safe) */
+    .ribbon{
+      height: 12pt;
+      width: 100%;
+      border-radius: 8pt;
+      border: 1pt solid {{ brand.line }};
+      overflow: hidden;
+      margin-bottom: 10pt;
+    }
+    .ribbon table{ width:100%; border-collapse: collapse; }
+    .ribbon td{ height: 12pt; }
+    .r1{ width: 62%; background: {{ brand.primary }}; }
+    .r2{ width: 23%; background: {{ brand.secondary }}; }
+    .r3{ width: 15%; background: {{ brand.accent }}; }
+
+    /* Header */
+    .header{
+      width:100%;
+      margin-bottom: 10pt;
+      padding-bottom: 8pt;
+      border-bottom: 1.5pt solid {{ brand.line }};
+    }
+    .header table{ width:100%; border-collapse: collapse; }
+    .hl{ width: 50%; vertical-align: top; }
+    .hr{ width: 50%; vertical-align: top; text-align: right; }
+
+    .logo{
+      height: 54pt;
+      width: auto;
+      display: inline-block;
+      border: 1pt solid {{ brand.line }};
+      padding: 4pt;
+      border-radius: 10pt;
+      background: #fff;
+    }
+
+    .brand-name{
+      font-size: 16.5pt;
+      font-weight: 900;
+      letter-spacing: -0.2pt;
+      color: {{ brand.primary }};
+      margin-top: 4pt;
+      margin-bottom: 3pt;
+    }
+    .brand-meta{ font-size: 9pt; color: {{ brand.muted }}; line-height: 1.35; }
+    .brand-meta div{ margin-bottom: 1.5pt; }
+
+    .doc-chip{
+      display:inline-block;
+      border: 1pt solid rgba(255,255,255,0.25);
+      background: {{ brand.primary }};
+      color: #fff;
+      font-weight: 900;
+      font-size: 11.5pt;
+      letter-spacing: 1pt;
+      padding: 7pt 10pt;
+      border-radius: 10pt;
+      text-transform: uppercase;
+    }
+    .doc-meta{
+      margin-top: 8pt;
+      border: 1pt solid {{ brand.line }};
+      border-radius: 10pt;
+      padding: 8pt 10pt;
+      background: #fff;
+      text-align: left;
+    }
+    .doc-meta .row{ margin-bottom: 3pt; }
+    .doc-meta b{ color: {{ brand.ink }}; }
+
+    /* Hero summary */
+    .hero{
+      border: 1pt solid {{ brand.line }};
+      border-radius: 12pt;
+      overflow: hidden;
+      margin: 10pt 0 10pt;
+    }
+    .hero-top{
+      padding: 10pt 12pt;
+      background: {{ brand.soft }};
+      border-bottom: 1pt solid {{ brand.line }};
+    }
+    .hero-title{
+      font-size: 12pt;
+      font-weight: 900;
+      color: {{ brand.ink }};
+      margin-bottom: 2pt;
+    }
+    .hero-sub{
+      font-size: 9pt;
+      color: {{ brand.muted }};
+    }
+    .hero-body{ padding: 12pt; background: #fff; }
+
+    .kpiTable{ width:100%; border-collapse: collapse; }
+    .kpiCell{ vertical-align: top; width: 50%; }
+    .kpiBox{
+      border: 1pt solid {{ brand.line }};
+      border-radius: 12pt;
+      padding: 10pt 10pt;
+      background: #fff;
+    }
+    .kLabel{
+      font-size: 8.7pt;
+      text-transform: uppercase;
+      letter-spacing: .6pt;
+      font-weight: 900;
+      color: {{ brand.muted }};
+      margin-bottom: 4pt;
+    }
+    .kVal{
+      font-size: 20pt;
+      font-weight: 900;
+      color: {{ brand.ink }};
+      line-height: 1.05;
+    }
+    .kVal small{ font-size: 11pt; color: {{ brand.muted }}; font-weight: 800; }
+    .lvl{
+      display:inline-block;
+      margin-top: 6pt;
+      font-size: 9pt;
+      font-weight: 900;
+      padding: 3pt 9pt;
+      border-radius: 999px;
+      border: 1pt solid {{ brand.line }};
+    }
+    .lvl-ok{ background: {{ brand.okBg }}; border-color: {{ brand.okLine }}; color: #065f46; }
+    .lvl-warn{ background: {{ brand.warnBg }}; border-color: {{ brand.warnLine }}; color: #92400e; }
+    .lvl-bad{ background: {{ brand.badBg }}; border-color: {{ brand.badLine }}; color: #9f1239; }
+
+    .barWrap{
+      margin-top: 10pt;
+      border: 1pt solid {{ brand.line }};
+      border-radius: 999px;
+      overflow: hidden;
+      background: #fff;
+      height: 10pt;
+    }
+    .barFill{
+      height: 10pt;
+      width: {{ pct }}%;
+      background: {{ brand.secondary }};
+    }
+    .hero-foot{
+      margin-top: 8pt;
+      font-size: 9pt;
+      color: {{ brand.muted }};
+    }
+
+    /* Section title */
+    .section{
+      margin-top: 10pt;
+      margin-bottom: 6pt;
+    }
+    .section h2{
+      font-size: 10pt;
+      font-weight: 900;
+      color: {{ brand.primary }};
+      text-transform: uppercase;
+      letter-spacing: .9pt;
+      margin-bottom: 4pt;
+    }
+    .section .underline{
+      height: 2pt;
+      width: 48pt;
+      background: {{ brand.accent }};
+      border-radius: 99pt;
+      margin-bottom: 8pt;
+    }
+
+    /* Question card */
+    .qCard{
+      border: 1pt solid {{ brand.line }};
+      border-radius: 12pt;
+      overflow: hidden;
+      margin-bottom: 10pt;
+      page-break-inside: avoid;
+    }
+    .qHead{
+      padding: 9pt 12pt;
+      background: {{ brand.soft }};
+      border-bottom: 1pt solid {{ brand.line }};
+    }
+    .qTitle{
+      font-weight: 900;
+      color: {{ brand.ink }};
+      font-size: 10.8pt;
+    }
+    .qMeta{
+      margin-top: 3pt;
+      font-size: 9pt;
+      color: {{ brand.muted }};
+    }
+    .badge{
+      display:inline-block;
+      margin-left: 6pt;
+      font-size: 8.5pt;
+      font-weight: 900;
+      padding: 2pt 8pt;
+      border-radius: 999px;
+      border: 1pt solid {{ brand.line }};
+    }
+    .b-ok{ background: {{ brand.okBg }}; border-color: {{ brand.okLine }}; color:#065f46; }
+    .b-bad{ background: {{ brand.badBg }}; border-color: {{ brand.badLine }}; color:#9f1239; }
+
+    .qBody{ padding: 10pt 12pt; background: #fff; }
+
+    .opt{
+      border: 1pt solid {{ brand.line }};
+      border-radius: 10pt;
+      padding: 8pt 10pt;
+      margin-bottom: 7pt;
+      background: #fff;
+    }
+    .opt table{ width:100%; border-collapse: collapse; }
+    .ico{ width: 16pt; font-weight: 900; }
+    .opt strong{ font-weight: 800; }
+    .tag{
+      display:inline-block;
+      margin-left: 6pt;
+      font-size: 8pt;
+      font-weight: 900;
+      padding: 2pt 7pt;
+      border-radius: 999px;
+      border: 1pt solid {{ brand.line }};
+      color: {{ brand.muted }};
+      background: #fff;
+    }
+    .tag-ok{ border-color: {{ brand.okLine }}; color:#065f46; background: {{ brand.okBg }}; }
+    .tag-bad{ border-color: {{ brand.badLine }}; color:#9f1239; background: {{ brand.badBg }}; }
+
+    .opt-sel-ok{ border-color: {{ brand.okLine }}; background: {{ brand.okBg }}; }
+    .opt-sel-bad{ border-color: {{ brand.badLine }}; background: {{ brand.badBg }}; }
+    .opt-correct{ border-style: solid; }
+
+    /* Footer via dompdf page_text */
+    .footnote{
+      position: fixed;
+      left: 20mm;
+      right: 20mm;
+      bottom: 5mm;
+      font-size: 8.8pt;
+      color: {{ brand.muted }};
+      border-top: 1pt solid {{ brand.line }};
+      padding-top: 4pt;
+    }
+    .footnote table{ width:100%; border-collapse: collapse; }
+    .right{ text-align:right; }
+  </style>
+</head>
+
+<body>
+
+<div class="ribbon avoid-break">
+  <table><tr><td class="r1"></td><td class="r2"></td><td class="r3"></td></tr></table>
+</div>
+
+<div class="header avoid-break">
+  <table>
+    <tr>
+      <td class="hl">
+        {% if entite.logo %}
+          <img class="logo" src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom }}">
+        {% else %}
+          <div class="brand-name">{{ entite.nom }}</div>
+        {% endif %}
+        <div class="brand-name">{{ entite.nom|default('') }}</div>
+
+        <div class="brand-meta">
+          {% if entite.adresse %}<div>{{ entite.adresse }}</div>{% endif %}
+          {% set l2 = [] %}
+          {% if entite.codePostal %}{% set l2 = l2|merge([entite.codePostal]) %}{% endif %}
+          {% if entite.ville %}{% set l2 = l2|merge([entite.ville]) %}{% endif %}
+          {% if l2 is not empty or entite.pays %}
+            <div>{{ l2|join(' ') }}{% if entite.pays %} · {{ entite.pays }}{% endif %}</div>
+          {% endif %}
+          {% set contact = [] %}
+          {% if entite.telephone %}{% set contact = contact|merge([entite.telephone]) %}{% endif %}
+          {% if entite.email %}{% set contact = contact|merge([entite.email]) %}{% endif %}
+          {% if contact is not empty %}<div>{{ contact|join(' · ') }}</div>{% endif %}
+          {% if entite.siret or entite.numeroDeclarant %}<div>{% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}{% if entite.numeroDeclarant %} - N° NDA : {{ entite.numeroDeclarant }}{% endif %}</div>{% endif %}
+        </div>
+      </td>
+
+      <td class="hr">
+        <div class="doc-chip">Résultat QCM</div>
+
+        <div class="doc-meta">
+          <div class="row"><b>Session :</b> {{ sessionLabel }}</div>
+          <div class="row"><b>Phase :</b> {{ phaseLabel }}</div>
+          <div class="row"><b>Stagiaire :</b> {{ traineeName ?: '-' }}</div>
+          <div class="row"><b>Date soumission :</b> {{ attempt.submittedAt ? attempt.submittedAt|date('d/m/Y H:i') : '-' }}</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="hero avoid-break">
+  <div class="hero-top">
+    <div class="hero-title">{{ qcmTitle }}</div>
+    <div class="hero-sub">Synthèse du passage · Document généré automatiquement</div>
+  </div>
+
+  <div class="hero-body">
+    <table class="kpiTable">
+      <tr>
+        <td class="kpiCell" style="padding-right:6pt;">
+          <div class="kpiBox">
+            <div class="kLabel">Score</div>
+            <div class="kVal">{{ scorePoints }}<small>/{{ maxPoints }}</small></div>
+            <div class="lvl {{ levelClass }}">{{ level }}</div>
+          </div>
+        </td>
+        <td class="kpiCell" style="padding-left:6pt;">
+          <div class="kpiBox">
+            <div class="kLabel">Réussite</div>
+            <div class="kVal">{{ pct }}<small>%</small></div>
+
+            <div class="barWrap" aria-hidden="true">
+              <div class="barFill"></div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="section avoid-break">
+  <h2>Détails question par question</h2>
+  <div class="underline"></div>
+</div>
+
+{% for item in items %}
+  {% set q = item.question %}
+  {% set selectedIds = item.selected|default([]) %}
+  {% set correctIds = item.correctIds|default([]) %}
+
+  <div class="qCard">
+    <div class="qHead">
+      <div class="qTitle">Q{{ loop.index }}- {{ q.enonce }}</div>
+      <div class="qMeta">
+        Points : {{ q.pointsMax|default(0) }} · Type : {{ q.type.label|default(q.type.value|default('')) }}
+        {% if item.isCorrect %}
+          <span class="badge b-ok">Correct</span>
+        {% else %}
+          <span class="badge b-bad">Incorrect</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="qBody">
+      {% for opt in item.choices %}
+        {% set isSelected = opt.id in selectedIds %}
+        {% set isCorrectOpt = opt.isCorrect %}
+
+        {% set cls = 'opt' %}
+        {% if isSelected and isCorrectOpt %}{% set cls = cls ~ ' opt-sel-ok' %}{% endif %}
+        {% if isSelected and (not isCorrectOpt) %}{% set cls = cls ~ ' opt-sel-bad' %}{% endif %}
+
+        <div class="{{ cls }}">
+          <table>
+            <tr>
+              <td class="ico">
+                {% if isSelected and isCorrectOpt %}✔{% elseif isSelected and (not isCorrectOpt) %}✖{% elseif isCorrectOpt %}★{% else %}•{% endif %}
+              </td>
+              <td>
+                <strong>{{ opt.label }}</strong>
+                {% if isSelected %}<span class="tag">Ta réponse</span>{% endif %}
+                {% if isCorrectOpt %}<span class="tag tag-ok">Bonne réponse</span>{% endif %}
+              </td>
+            </tr>
+          </table>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+
+<div class="footnote">
+  <table>
+    <tr>
+      <td>Édité le {{ generatedAt|date('d/m/Y H:i') }}</td>
+      <td class="right">Référence : {{ session.code|default('-') }} · {{ assignment.id|default('-') }}</td>
+    </tr>
+  </table>
+</div>
+
+<script type="text/php">
+  if (isset($pdf)) {
+    $font = $fontMetrics->get_font("DejaVu Sans", "normal");
+    $pdf->page_text(500, 820, "{PAGE_NUM} / {PAGE_COUNT}", $font, 9, [106/255,122/255,138/255]);
+  }
+</script>
+
+</body>
+</html>

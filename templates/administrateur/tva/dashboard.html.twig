@@ -1,0 +1,1008 @@
+{# templates/administrateur/tva/dashboard.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Dashboard TVA{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10); --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius:18px;
+    }
+    
+    
+    /* ===== HERO (même base que Sessions) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* ===== Boutons HERO (comme Sessions) ===== */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius:16px; }
+    }
+    .cardx{ background: var(--panel); border: 1px solid var(--stroke); border-radius: var(--radius); box-shadow: 0 10px 28px rgba(15,23,42,.08); overflow:visible; }
+    .cardx-h{ padding: .95rem 1.05rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; background: linear-gradient(180deg, rgba(0,0,0,.015), transparent); border-bottom: 1px solid var(--stroke); }
+    .cardx-title{ margin:0; font-weight:900; letter-spacing:-.01em; color: var(--ink); display:flex; align-items:center; gap:.6rem; }
+    .chip{ font-size:.78rem; padding:.25rem .55rem; border-radius:999px; background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent); border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke)); color: var(--muted); white-space:nowrap; }
+
+    .kpi-grid{ display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .kpi{ grid-column: span 3; padding: 14px 14px; border: 1px solid var(--stroke); border-radius: 18px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent), transparent);
+    }
+    .kpi .label{ color: var(--muted); font-size: .85rem; font-weight:800; }
+    .kpi .value{ font-weight: 950; font-size: 1.25rem; color: var(--ink); letter-spacing:-.01em;}
+    .kpi .sub{ color: var(--muted); font-size: .82rem; margin-top: 2px;}
+
+    @media (max-width: 1200px){ .kpi{ grid-column: span 4; } }
+    @media (max-width: 768px){ .kpi{ grid-column: span 12; } .hero{ border-radius:16px; } }
+
+    .nav-pills .nav-link{
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      color: var(--ink);
+      font-weight: 900;
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+    }
+    .nav-pills .nav-link.active{
+      background: color-mix(in srgb, var(--theme-color-principal) 85%, #0000);
+      border-color: color-mix(in srgb, var(--theme-color-principal) 50%, var(--stroke));
+      color: #fff;
+    }
+
+    .chart-box{ height: 320px; }
+    .chart-box.sm{ height: 260px; }
+
+    /* DataTables polish */
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid var(--stroke) !important;
+      background: var(--panel) !important;
+      color: var(--ink) !important;
+      padding: .35rem .75rem !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .pagination .page-link{
+      border-radius: 999px !important;
+      border:1px solid var(--stroke) !important;
+      color: var(--ink) !important;
+      background: var(--panel) !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .pagination .active .page-link{
+      background: color-mix(in srgb, var(--theme-color-principal) 14%, var(--panel)) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 35%, var(--stroke)) !important;
+      font-weight: 950;
+    }
+
+    .money{ font-variant-numeric: tabular-nums; font-weight: 950; white-space: nowrap; }
+    .badge-soft{
+      border:1px solid var(--stroke);
+      background: color-mix(in srgb, var(--theme-color-secondaire) 16%, var(--panel));
+      color: var(--ink);
+      border-radius: 999px;
+      padding: .35rem .6rem;
+      font-weight: 900;
+      font-size:.78rem;
+      white-space: nowrap;
+    }
+
+    /* Filtres */
+    .filters-compact .row{ --bs-gutter-y: .6rem; --bs-gutter-x: .75rem; }
+    .filters-compact .form-label{ font-size:.78rem; margin-bottom:.15rem; color:var(--muted); font-weight:900; }
+    .filters-compact .form-control, .filters-compact .form-select{
+      padding:.34rem .65rem; min-height:34px; border-radius:12px; font-size:.9rem;
+    }
+    .filters-compact .btn{ padding:.32rem .6rem; border-radius:12px; }
+    .filters-advanced{ overflow:hidden; transition:max-height .22s ease, opacity .18s ease; max-height:1200px; opacity:1; }
+    .filters-collapsed .filters-advanced{ max-height:0; opacity:0; pointer-events:none; margin-top:0 !important; }
+    #btnToggleFilters{ border-radius:999px; border:1px solid var(--stroke); background: color-mix(in srgb, var(--panel) 85%, transparent); }
+
+    .quick-ranges .btn{
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+      font-weight: 900;
+    }
+    .quick-ranges .btn.active{
+      background: color-mix(in srgb, var(--theme-color-principal) 85%, #0000);
+      border-color: color-mix(in srgb, var(--theme-color-principal) 50%, var(--stroke));
+      color: #fff;
+    }
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# --- HTML (à mettre dans ton block body, à la place de l’ancien hero) --- #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-percent me-2" style="color:var(--theme-color-secondaire)"></i>
+            Dashboard TVA
+          </h2>
+          <div class="opacity-75 mt-1">
+            Collectée, déductible, à payer, tendances, taux, détails + exports.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-percent"></i> TVA</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-stars"></i> Déclaration & pilotage</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-light btn-sm fw-semibold" id="btnRefresh" type="button">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </button>
+
+          <button class="btn btn-outline-theme btn-sm fw-semibold" id="btnApply" type="button">
+            <i class="bi bi-check2 me-1"></i> Appliquer
+          </button>
+
+          <button class="btn btn-outline-theme btn-sm fw-semibold" id="btnReset" type="button">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== FILTRES ===== #}
+  <div class="cardx mb-4" id="filtersCard">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-funnel-fill text-warning"></i> Filtres</h5>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-light btn-sm" id="btnToggleFilters">
+          <i class="bi bi-sliders"></i> <span>Plus de filtres</span>
+        </button>
+        <span class="chip">TVA</span>
+      </div>
+    </div>
+
+    <div class="p-3 filters-compact">
+      <div class="row g-3 align-items-end">
+
+        <div class="col-lg-6">
+          <label class="form-label">Période</label>
+          <input class="form-control" id="fRange" placeholder="Période" />
+          <input type="hidden" id="fStart" value="{{ start }}">
+          <input type="hidden" id="fEnd" value="{{ end }}">
+          <div class="quick-ranges mt-2 d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-light btn-sm qr" data-qr="month">Mois</button>
+            <button type="button" class="btn btn-light btn-sm qr" data-qr="quarter">Trimestre</button>
+            <button type="button" class="btn btn-light btn-sm qr" data-qr="year">Année</button>
+            <button type="button" class="btn btn-light btn-sm qr" data-qr="y-1">N-1</button>
+            <button type="button" class="btn btn-light btn-sm qr" data-qr="y-2">N-2</button>
+
+            {# optionnel mais très pratique #}
+            <button type="button" class="btn btn-light btn-sm qr" data-qr="last-12m">12 derniers mois</button>
+          </div>
+
+        </div>
+
+        <div class="col-lg-3">
+          <label class="form-label">Régime TVA</label>
+          <select class="form-select" id="fRegime">
+            <option value="debits" selected>Débits (date facture)</option>
+            <option value="encaissements">Encaissements (paiements)</option>
+          </select>
+        </div>
+
+        <div class="col-lg-3">
+          <label class="form-label">Devise</label>
+          <select class="form-select" id="fDevise">
+            <option value="EUR" selected>EUR</option>
+          </select>
+        </div>
+
+        <div id="filtersAdvanced" class="filters-advanced mt-1">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4 col-lg-3">
+              <label class="form-label">Catégorie dépense</label>
+              <select class="form-select" id="fCategorie">
+                <option value="">Toutes</option>
+                {% for c in categories %}<option value="{{ c.id }}">{{ c.libelle }}</option>{% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4 col-lg-3">
+              <label class="form-label">Fournisseur</label>
+              <select class="form-select" id="fFournisseur">
+                <option value="">Tous</option>
+                {% for f in fournisseurs %}<option value="{{ f.id }}">{{ f.nom }}</option>{% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4 col-lg-3">
+              <label class="form-label">TVA dépenses</label>
+              <select class="form-select" id="fDepTvaOnly">
+                <option value="all">Toutes</option>
+                <option value="deductible">Déductibles</option>
+                <option value="nodeductible">Non déductibles</option>
+              </select>
+            </div>
+
+            <div class="col-md-4 col-lg-3">
+              <label class="form-label">Taux TVA</label>
+              <select class="form-select" id="fRate">
+                <option value="">Tous</option>
+                <option value="0">0%</option>
+                <option value="55">5.5%</option>
+                <option value="10">10%</option>
+                <option value="20">20%</option>
+              </select>
+              <div class="small text-muted mt-1">Pour les breakdowns (ventes/achats).</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-gradient fw-semibold" id="btnApply"><i class="bi bi-check2"></i> Appliquer</button>
+          <button class="btn btn-light" id="btnReset">Réinitialiser</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== KPI ===== #}
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Indicateurs TVA</h5>
+      <span class="chip">Live</span>
+    </div>
+    <div class="p-3 p-md-4">
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="label">TVA collectée (ventes)</div>
+          <div class="value" id="kpiOut">—</div>
+          <div class="sub" id="kpiOutHint">Factures (hors débours)</div>
+        </div>
+        <div class="kpi">
+          <div class="label">TVA déductible (achats)</div>
+          <div class="value" id="kpiInDed">—</div>
+          <div class="sub" id="kpiInHint">Selon % déductible</div>
+        </div>
+        <div class="kpi">
+          <div class="label">TVA à déclarer (solde)</div>
+          <div class="value" id="kpiPayable">—</div>
+          <div class="sub">Collectée − Déductible</div>
+        </div>
+        <div class="kpi">
+          <div class="label">TVA non déductible</div>
+          <div class="value" id="kpiInNoDed">—</div>
+          <div class="sub">Achats (perdue)</div>
+        </div>
+
+        <div class="kpi">
+          <div class="label">HT ventes (hors débours)</div>
+          <div class="value" id="kpiSalesHt">—</div>
+          <div class="sub" id="kpiSalesCnt">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">HT achats</div>
+          <div class="value" id="kpiBuyHt">—</div>
+          <div class="sub" id="kpiBuyCnt">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Ratio TVA déductible</div>
+          <div class="value" id="kpiDedRatio">—</div>
+          <div class="sub">Déductible / TVA achats</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Régime appliqué</div>
+          <div class="value" id="kpiRegime">—</div>
+          <div class="sub">Débits / Encaissements</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== ONGLET NAV ===== #}
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <ul class="nav nav-pills gap-2" id="tvaTabs" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-all" type="button">Synthèse</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-fac" type="button">TVA factures</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-dep" type="button">TVA dépenses</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-pay" type="button">Paiements</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-avo" type="button">Avoirs</button></li>
+    </ul>
+  </div>
+
+  <div class="tab-content">
+
+    {# ===== TAB ALL ===== #}
+    <div class="tab-pane fade show active" id="tab-all">
+      <div class="row g-4">
+        <div class="col-lg-12">
+          <div class="cardx">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-graph-up text-warning"></i> TVA mensuelle</h5>
+              <span class="chip">Collectée vs Déductible vs Solde</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box"><canvas id="chVatTrend"></canvas></div>
+              <div class="small text-muted mt-2">Par mois sur la période.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="cardx">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-pie-chart-fill text-warning"></i> TVA collectée par taux</h5>
+              <span class="chip">Ventes</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box sm"><canvas id="chOutByRate"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="cardx">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-pie-chart text-warning"></i> TVA déductible par taux</h5>
+              <span class="chip">Achats</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box sm"><canvas id="chInByRate"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-12">
+          <div class="cardx">
+            <div class="cardx-h">
+              <h5 class="cardx-title"><i class="bi bi-building-check text-warning"></i> Top fournisseurs (TVA)</h5>
+              <span class="chip">Achats</span>
+            </div>
+            <div class="p-3 p-md-4">
+              <div class="chart-box sm"><canvas id="chTopSuppliers"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB FACTURES ===== #}
+    <div class="tab-pane fade" id="tab-fac">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-receipt-cutoff text-warning"></i> TVA sur factures</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtTvaFactures">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>N°</th>
+                  <th>Destinataire</th>
+                  <th class="text-end">HT (hors débours)</th>
+                  <th class="text-end">TVA</th>
+                  <th class="text-end">TTC</th>
+                  <th>Devise</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB DEPENSES ===== #}
+    <div class="tab-pane fade" id="tab-dep">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-wallet2 text-warning"></i> TVA sur dépenses</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtTvaDepenses">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Libellé</th>
+                  <th>Catégorie</th>
+                  <th>Fournisseur</th>
+                  <th class="text-end">HT</th>
+                  <th class="text-end">TVA</th>
+                  <th class="text-end">TVA déd.</th>
+                  <th>Taux</th>
+                  <th class="text-end">TTC</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB PAIEMENTS ===== #}
+    <div class="tab-pane fade" id="tab-pay">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-cash-coin text-warning"></i> Paiements</h5>
+          <span class="chip">utile en encaissements</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtTvaPaiements">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Mode</th>
+                  <th>Facture</th>
+                  <th class="text-end">Montant</th>
+                  <th class="text-end">TVA estimée</th>
+                  <th>Devise</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-2">TVA estimée = TVA facture × (paiement / TTC facture).</div>
+        </div>
+      </div>
+    </div>
+
+    {# ===== TAB AVOIRS ===== #}
+    <div class="tab-pane fade" id="tab-avo">
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-arrow-counterclockwise text-warning"></i> Avoirs</h5>
+          <span class="chip">DataTables</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle w-100" id="dtTvaAvoirs">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>N°</th>
+                  <th>Facture origine</th>
+                  <th class="text-end">TVA</th>
+                  <th class="text-end">TTC</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  
+
+<script>
+(function(){
+  // ===== helpers money (EUR toujours) =====
+  const money = (cents) => {
+    const n = Number(cents || 0) / 100;
+    try { return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(n); }
+    catch(e){ return (n.toFixed(2)).replace('.',',')+' €'; }
+  };
+  const pct = (v) => (Number(v||0)).toFixed(1).replace('.', ',') + ' %';
+
+  // ===== Toggle filtres avancés =====
+  const $filtersCard = document.getElementById('filtersCard');
+  const $btnToggle   = document.getElementById('btnToggleFilters');
+  const $adv         = document.getElementById('filtersAdvanced');
+
+  (function initFiltersToggle(){
+    if (!$filtersCard || !$btnToggle || !$adv) return;
+    const KEY = 'tva_filters_advanced_open';
+    const open = localStorage.getItem(KEY) === '1';
+    $filtersCard.classList.toggle('filters-collapsed', !open);
+    $btnToggle.querySelector('span').textContent = open ? 'Moins de filtres' : 'Plus de filtres';
+    $btnToggle.querySelector('i').className = open ? 'bi bi-chevron-up' : 'bi bi-sliders';
+
+    $btnToggle.addEventListener('click', () => {
+      const isCollapsed = $filtersCard.classList.toggle('filters-collapsed');
+      const isOpen = !isCollapsed;
+      localStorage.setItem(KEY, isOpen ? '1' : '0');
+      $btnToggle.querySelector('span').textContent = isOpen ? 'Moins de filtres' : 'Plus de filtres';
+      $btnToggle.querySelector('i').className = isOpen ? 'bi bi-chevron-up' : 'bi bi-sliders';
+    });
+  })();
+
+  // ===== Flatpickr =====
+  if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
+
+  const $range = document.getElementById('fRange');
+  const $start = document.getElementById('fStart');
+  const $end   = document.getElementById('fEnd');
+
+  function dateFromIso(isoStr){
+    if (!isoStr) return null;
+    const [y,m,d] = isoStr.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  function isoLocal(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  let fpRange = flatpickr($range, {
+    locale: { ...flatpickr.l10ns.fr, rangeSeparator: " → " },
+    mode: "range",
+    dateFormat: "d/m/Y",
+    allowInput: true,
+    disableMobile: true,
+    defaultDate: [dateFromIso($start.value), dateFromIso($end.value)].filter(Boolean),
+    onChange(selectedDates){
+      const from = selectedDates[0] ? isoLocal(selectedDates[0]) : '';
+      const to   = selectedDates[1] ? isoLocal(selectedDates[1]) : from;
+      $start.value = from;
+      $end.value = to;
+    }
+  });
+
+
+
+
+    // ===== Quick ranges (mois / trimestre / année / N-1 / N-2) =====
+  function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); } // last day
+  function startOfQuarter(d){
+    const q = Math.floor(d.getMonth() / 3) * 3;
+    return new Date(d.getFullYear(), q, 1);
+  }
+  function endOfQuarter(d){
+    const s = startOfQuarter(d);
+    return new Date(s.getFullYear(), s.getMonth()+3, 0);
+  }
+  function startOfYear(d){ return new Date(d.getFullYear(), 0, 1); }
+  function endOfYear(d){ return new Date(d.getFullYear(), 11, 31); }
+
+  function setRange(fromDate, toDate, {apply=true, mark=null} = {}){
+    const fromIso = isoLocal(fromDate);
+    const toIso = isoLocal(toDate);
+
+    $start.value = fromIso;
+    $end.value = toIso;
+
+    // met à jour Flatpickr (affichage)
+    fpRange?.setDate([fromDate, toDate], true);
+
+    // UI active
+    document.querySelectorAll('.quick-ranges .qr').forEach(b => b.classList.remove('active'));
+    if (mark) mark.classList.add('active');
+
+    if (apply) refresh();
+  }
+
+  function initQuickRanges(){
+    const wrap = document.querySelector('.quick-ranges');
+    if (!wrap) return;
+
+    wrap.addEventListener('click', (e) => {
+      const btn = e.target.closest('.qr');
+      if (!btn) return;
+
+      const key = btn.getAttribute('data-qr');
+      const now = new Date(); // local
+      let from, to;
+
+      if (key === 'month') {
+        from = startOfMonth(now);
+        to = endOfMonth(now);
+      }
+      else if (key === 'quarter') {
+        from = startOfQuarter(now);
+        to = endOfQuarter(now);
+      }
+      else if (key === 'year') {
+        from = startOfYear(now);
+        to = endOfYear(now);
+      }
+      else if (key === 'y-1' || key === 'y-2') {
+        const off = (key === 'y-1') ? 1 : 2;
+        const y = now.getFullYear() - off;
+        from = new Date(y, 0, 1);
+        to = new Date(y, 11, 31);
+      }
+      else if (key === 'last-12m') {
+        // 12 derniers mois glissants : du 1er du mois il y a 11 mois -> fin du mois courant
+        const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        from = start;
+        to = endOfMonth(now);
+      }
+      else {
+        return;
+      }
+
+      setRange(from, to, { apply: true, mark: btn });
+    });
+  }
+
+  initQuickRanges();
+
+  // Bonus : si l’utilisateur change la période manuellement, on retire l’état "active"
+  $range?.addEventListener('change', () => {
+    document.querySelectorAll('.quick-ranges .qr').forEach(b => b.classList.remove('active'));
+  });
+
+
+  // ===== TomSelect =====
+  const initTS = (id, def=null) => {
+    const el = document.getElementById(id);
+    if (!el || el.tomselect) return;
+    new TomSelect(el, { create:false, allowEmptyOption:true, sortField:{field:'text',direction:'asc'} });
+    if (def !== null) el.tomselect.setValue(def, true);
+  };
+  initTS('fCategorie');
+  initTS('fFournisseur');
+  initTS('fDepTvaOnly','all');
+  initTS('fRate');
+  initTS('fRegime','debits');
+
+  function getFilters(){
+    return {
+      dateStart: $start.value,
+      dateEnd: $end.value,
+      regime: document.getElementById('fRegime').value,
+      categorie: document.getElementById('fCategorie').value,
+      fournisseur: document.getElementById('fFournisseur').value,
+      depTvaOnly: document.getElementById('fDepTvaOnly').value,
+      rate: document.getElementById('fRate').value,
+    };
+  }
+  function buildQuery(filters){
+    const q = new URLSearchParams();
+    Object.entries(filters).forEach(([k,v]) => {
+      if (v === null || v === undefined) return;
+      if (typeof v === 'string' && v.trim() === '') return;
+      q.set(k, v);
+    });
+    return q;
+  }
+
+  // ===== Charts =====
+  let chVatTrend, chOutByRate, chInByRate, chTopSuppliers;
+
+  function ensureChart(ref, canvasId, cfg){
+    const el = document.getElementById(canvasId);
+    if (!el) return ref;
+    if (ref) ref.destroy();
+    return new Chart(el, cfg);
+  }
+
+  function applyKpis(k){
+    document.getElementById('kpiOut').textContent = money(k.out.tva);
+    document.getElementById('kpiInDed').textContent = money(k.in.tvaDed);
+    document.getElementById('kpiPayable').textContent = money(k.payable);
+    document.getElementById('kpiInNoDed').textContent = money(k.in.tvaNoDed);
+
+    document.getElementById('kpiSalesHt').textContent = money(k.out.ht);
+    document.getElementById('kpiSalesCnt').textContent = `${k.out.cnt} facture(s)`;
+    document.getElementById('kpiBuyHt').textContent = money(k.in.ht);
+    document.getElementById('kpiBuyCnt').textContent = `${k.in.cnt} dépense(s)`;
+
+    document.getElementById('kpiDedRatio').textContent = k.in.tva > 0 ? pct((k.in.tvaDed / k.in.tva) * 100) : '—';
+    document.getElementById('kpiRegime').textContent = (k.regime === 'encaissements') ? 'Encaissements' : 'Débits';
+  }
+
+  function applyCharts(c){
+    // trend (line) : out/in/payable par mois
+    const labels = c.trend.labels;
+    chVatTrend = ensureChart(chVatTrend, 'chVatTrend', {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'TVA collectée', data: c.trend.outTva },
+          { label: 'TVA déductible', data: c.trend.inTvaDed },
+          { label: 'TVA à payer', data: c.trend.payable },
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ position:'bottom' },
+          tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${money(ctx.parsed.y)}` } }
+        },
+        scales:{ y:{ ticks:{ callback:(v)=> money(v) } } }
+      }
+    });
+
+    // pie out by rate
+    chOutByRate = ensureChart(chOutByRate, 'chOutByRate', {
+      type:'pie',
+      data:{ labels: c.outByRate.labels, datasets:[{ data: c.outByRate.values }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' },
+        tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${money(ctx.parsed)}` } } } }
+    });
+
+    // pie in by rate (deductible)
+    chInByRate = ensureChart(chInByRate, 'chInByRate', {
+      type:'pie',
+      data:{ labels: c.inByRate.labels, datasets:[{ data: c.inByRate.values }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' },
+        tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${money(ctx.parsed)}` } } } }
+    });
+
+    // top suppliers bar
+    // top suppliers bar (avec couleurs fournisseur)
+    chTopSuppliers = ensureChart(chTopSuppliers, 'chTopSuppliers', {
+      type:'bar',
+      data:{
+        labels: c.topSuppliers.labels,
+        datasets:[{
+          label:'TVA (dépenses)',
+          data: c.topSuppliers.values,
+          backgroundColor: (c.topSuppliers.colors && c.topSuppliers.colors.length)
+            ? c.topSuppliers.colors
+            : undefined,
+          borderColor: (c.topSuppliers.colors && c.topSuppliers.colors.length)
+            ? c.topSuppliers.colors
+            : undefined,
+          borderWidth: 1,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(ctx)=> `${money(ctx.parsed.y)}` } } },
+        scales:{ y:{ ticks:{ callback:(v)=> money(v) } } }
+      }
+    });
+
+  }
+
+  async function loadSummary(){
+    const q = buildQuery(getFilters());
+    const url = "{{ path('app_administrateur_tva_api_summary', {entite: entite.id}) }}" + "?" + q.toString();
+    const r = await fetch(url, { headers:{'Accept':'application/json'} });
+    if (!r.ok) throw new Error('Erreur chargement TVA');
+    return r.json();
+  }
+
+  // ===== DataTables =====
+  let dtFac, dtDep, dtPay, dtAvo;
+
+  function dtCommonOptions(){
+    return {
+      processing:true, serverSide:true,
+      pageLength: 25,
+      lengthMenu: [[10,25,50,100],[10,25,50,100]],
+      deferRender:true,
+      autoWidth:false,
+      language: { url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/fr-FR.json" }
+    };
+  }
+  function dtFilters(d){
+    const f = getFilters();
+    Object.entries(f).forEach(([k,v]) => {
+      if (v === null || v === undefined) return;
+      if (typeof v === 'string' && v.trim() === '') return;
+      d[k] = v;
+    });
+  }
+
+  function initDtFactures(){
+    if (dtFac) return;
+    dtFac = $('#dtTvaFactures').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{ url:"{{ path('app_administrateur_tva_dt_factures', {entite: entite.id}) }}", type:"GET", data: dtFilters },
+      columnDefs:[
+        { targets:[3,4,5,7], className:'text-end' },
+        { targets:[3,4,5], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[7], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function initDtDepenses(){
+    if (dtDep) return;
+    dtDep = $('#dtTvaDepenses').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{ url:"{{ path('app_administrateur_tva_dt_depenses', {entite: entite.id}) }}", type:"GET", data: dtFilters },
+      columnDefs:[
+        { targets:[4,5,6,8,9], className:'text-end' },
+        { targets:[4,5,6,8], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[7], render:(d)=> d ? `<span class="badge-soft">${d}</span>` : '—' },
+        { targets:[9], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function initDtPaiements(){
+    if (dtPay) return;
+    dtPay = $('#dtTvaPaiements').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{ url:"{{ path('app_administrateur_tva_dt_paiements', {entite: entite.id}) }}", type:"GET", data: dtFilters },
+      columnDefs:[
+        { targets:[3,4,6], className:'text-end' },
+        { targets:[3,4], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[6], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function initDtAvoirs(){
+    if (dtAvo) return;
+    dtAvo = $('#dtTvaAvoirs').DataTable(Object.assign(dtCommonOptions(),{
+      order:[[0,'desc']],
+      ajax:{ url:"{{ path('app_administrateur_tva_dt_avoirs', {entite: entite.id}) }}", type:"GET", data: dtFilters },
+      columnDefs:[
+        { targets:[3,4,5], className:'text-end' },
+        { targets:[3,4], render:(d)=> `<span class="money">${money(d)}</span>` },
+        { targets:[5], orderable:false, searchable:false },
+      ]
+    }));
+  }
+
+  function reloadAllDt(){
+    dtFac?.ajax.reload(null,false);
+    dtDep?.ajax.reload(null,false);
+    dtPay?.ajax.reload(null,false);
+    dtAvo?.ajax.reload(null,false);
+  }
+
+  // ===== Refresh =====
+  async function refresh(){
+    document.getElementById('btnRefresh').disabled = true;
+    document.getElementById('btnApply').disabled = true;
+    try{
+      const data = await loadSummary();
+      applyKpis(data.kpis);
+      applyCharts(data.charts);
+      reloadAllDt();
+    }catch(e){
+      console.error(e);
+      alert(e.message || 'Erreur');
+    }finally{
+      document.getElementById('btnRefresh').disabled = false;
+      document.getElementById('btnApply').disabled = false;
+    }
+  }
+
+  document.getElementById('btnApply').addEventListener('click', refresh);
+  document.getElementById('btnRefresh').addEventListener('click', refresh);
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    document.getElementById('fRegime').tomselect?.setValue('debits', true);
+    document.getElementById('fCategorie').tomselect?.clear(true);
+    document.getElementById('fFournisseur').tomselect?.clear(true);
+    document.getElementById('fDepTvaOnly').tomselect?.setValue('all', true);
+    document.getElementById('fRate').tomselect?.clear(true);
+
+    document.getElementById('fStart').value = "{{ start }}";
+    document.getElementById('fEnd').value   = "{{ end }}";
+    fpRange?.setDate([dateFromIso("{{ start }}"), dateFromIso("{{ end }}")], true);
+
+    refresh();
+  });
+
+  // Lazy init DT when tab shown
+  document.querySelectorAll('#tvaTabs button[data-bs-toggle="pill"]').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', (e) => {
+      const target = e.target.getAttribute('data-bs-target');
+      if (target === '#tab-fac') initDtFactures();
+      if (target === '#tab-dep') initDtDepenses();
+      if (target === '#tab-pay') initDtPaiements();
+      if (target === '#tab-avo') initDtAvoirs();
+    });
+  });
+
+  refresh();
+})();
+</script>
+{% endblock %}

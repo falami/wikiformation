@@ -1,0 +1,820 @@
+{# templates/pdf/convention_contrat.html.twig #}
+{% set brand = {
+  primary:   entite.couleurPrincipal  |default('#1e3a5f'),
+  secondary: entite.couleurSecondaire |default('#4ba3ff'),
+  accent:    entite.couleurSecondaire |default('#d4a574'),
+  ink:       '#0f2336',
+  text:      '#1e2d3d',
+  muted:     '#5a6b7d',
+  line:      '#dce4ed',
+  soft:      '#f8fafc',
+  paper:     '#ffffff',
+  alertBg:   '#fff9f0',
+  alertLine: '#f5d6a8'
+} %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Convention / Contrat de formation</title>
+
+  <style>
+    
+    @page { margin: 10mm 10mm 0mm; size: A4 portrait; }
+    body{
+      font-family: DejaVu Sans, Helvetica, Arial, sans-serif;
+      color: {{ brand.text }};
+      font-size: 11pt;
+      line-height: 1.42;
+    }
+
+    /* ===== Helpers ===== */
+    strong{ font-weight:700; color: {{ brand.ink }}; }
+    p{ margin: 0 0 9pt; }
+    .text-muted{ color: {{ brand.muted }}; }
+    .text-small{ font-size: 9pt; }
+    .mb-0{ margin-bottom:0 !important; }
+    .mt-8{ margin-top:8pt !important; }
+    .mt-12{ margin-top:12pt !important; }
+    .avoid-break{ page-break-inside: avoid; }
+
+    /* ===== Page padding ===== */
+    .page{ padding: 0 1mm; }
+
+    /* ===== Header ===== */
+    .header{
+      width:100%;
+      padding-bottom: 10pt;
+      margin-bottom: 10pt;
+      border-bottom: 1.5pt solid {{ brand.primary }};
+      page-break-inside: avoid;
+    }
+    .header-bar{
+      height: 2pt;
+      width: 140pt;
+      background: {{ brand.accent }};
+      margin-top: 6pt;
+    }
+    .header-table{ width:100%; border-collapse: collapse; }
+    .header-left{ width:64%; vertical-align: top; padding-right: 12pt; }
+    .header-right{ width:36%; vertical-align: top; text-align:right;padding-top: 40px; }
+
+    .logo{ height: 90pt; width:auto; margin-bottom: 2pt; }
+    .brand-name{
+      font-size: 18pt;
+      font-weight: 800;
+      color: {{ brand.primary }};
+      letter-spacing: -0.2pt;
+      margin-bottom: 4pt;
+    }
+    .brand-meta{
+      font-size: 9pt;
+      color: {{ brand.muted }};
+      line-height: 1.45;
+    }
+    .brand-meta p{ margin:0 0 1pt; }
+
+    .doc-badge{
+      display:inline-block;
+      background: {{ brand.primary }};
+      color:#fff;
+      font-weight: 900;
+      font-size: 13.5pt;
+      letter-spacing: 1.1pt;
+      padding: 7pt 12pt;
+      border-radius: 5pt;
+      text-transform: uppercase;
+      border: 1pt solid rgba(255,255,255,0.18);
+      text-align:center;
+    }
+    .doc-meta{
+      margin-top: 8pt;
+      font-size: 9.5pt;
+      color: {{ brand.muted }};
+      line-height: 1.5;
+    }
+    .doc-meta-item{ margin-bottom: 3pt; }
+
+    /* ===== Cards ===== */
+    .card{
+      background: {{ brand.paper }};
+      border: 1pt solid {{ brand.line }};
+      border-left: 3pt solid {{ brand.primary }};
+      border-radius: 7pt;
+      padding: 12pt 14pt;
+      margin-bottom: 10pt;
+      page-break-inside: avoid;
+    }
+    .card-highlight{
+      background: {{ brand.soft }};
+      border-left-color: {{ brand.accent }};
+    }
+    .card-intro{
+      background: {{ brand.primary }};
+      color:#fff;
+      border:none;
+      border-left: 3pt solid {{ brand.accent }};
+      padding: 12pt 14pt;
+      border-radius: 7pt;
+      margin-bottom: 10pt;
+      page-break-inside: avoid;
+    }
+    .card-intro p{ color:#fff; font-size: 10pt; line-height: 1.65; margin-bottom: 7pt; }
+    .card-intro p:last-child{ margin-bottom:0; }
+    .card-intro strong{ color:#fff; }
+
+    /* ===== Section title ===== */
+    .section-title{
+      font-size: 10.5pt;
+      font-weight: 900;
+      color: {{ brand.primary }};
+      text-transform: uppercase;
+      letter-spacing: .8pt;
+      margin: 0 0 10pt;
+      padding-bottom: 6pt;
+      border-bottom: 1pt solid #eef2f6;
+    }
+    .section-title-accent{
+      width: 40pt;
+      height: 2pt;
+      background: {{ brand.accent }};
+      margin-top: -2pt;
+      margin-bottom: 0;
+    }
+
+    /* ===== Info blocks ===== */
+    .info-block{ margin-bottom: 9pt; }
+    .info-block:last-child{ margin-bottom:0; }
+    .info-label{
+      display:block;
+      font-size: 8.5pt;
+      font-weight: 800;
+      color: {{ brand.ink }};
+      text-transform: uppercase;
+      letter-spacing: .5pt;
+      margin-bottom: 3pt;
+    }
+    .info-content{
+      font-size: 10pt;
+      color: {{ brand.text }};
+      line-height: 1.55;
+      padding-left:1mm;
+    }
+
+    /* ===== 2 columns (dompdf safe) ===== */
+    .grid-2{ width:100%; border-collapse: collapse; margin-bottom: 10pt; }
+    .grid-2 td{ width:50%; vertical-align: top; }
+    .grid-2 td:first-child{ padding-right: 6pt; }
+    .grid-2 td:last-child{ padding-left: 6pt; }
+
+    /* ===== Tables ===== */
+    table{ border-collapse: collapse; }
+    .table{
+      width:100%;
+      border-collapse: collapse;
+      font-size: 9.8pt;
+      margin-top: 6pt;
+    }
+    .table th, .table td{
+      border: 1pt solid {{ brand.line }};
+      padding: 7pt 8pt;
+      vertical-align: top;
+      text-align: center;
+    }
+    .table th{
+      background: {{ brand.soft }};
+      text-align: center;
+      color: {{ brand.ink }};
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .35pt;
+      font-size: 9pt;
+    }
+
+    .badge-soft{
+      display:inline-block;
+      padding: 2pt 6pt;
+      border-radius: 999pt;
+      border: 1pt solid {{ brand.line }};
+      background: rgba(75,163,255,.08);
+      color: {{ brand.ink }};
+      font-weight: 800;
+      font-size: 8.5pt;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    /* ===== Program (reprend ton rendu mais “card-like”) ===== */
+    .prog-wrap{ margin-top: 6pt; }
+    .prog-chap{
+      border: 1pt solid {{ brand.line }};
+      border-left: 3pt solid {{ brand.accent }};
+      border-radius: 7pt;
+      padding: 9pt 10pt;
+      margin-top: 8pt;
+      background: #fff;
+      page-break-inside: avoid;
+    }
+    .prog-chap-title{
+      font-weight: 900;
+      color: {{ brand.ink }};
+      font-size: 10.5pt;
+      margin-bottom: 4pt;
+    }
+    .prog-sub{
+      margin-top: 7pt;
+      padding-left: 10pt;
+      border-left: 3pt solid {{ brand.primary }};
+    }
+    .prog-sub-title{
+      font-weight: 800;
+      color: {{ brand.ink }};
+      font-size: 10pt;
+      margin-bottom: 2pt;
+    }
+    .prog-meta{
+      font-size: 9pt;
+      color: {{ brand.muted }};
+      margin-top: 2pt;
+      line-height: 1.45;
+    }
+    .prog-text{
+      margin-top: 4pt;
+      font-size: 9.6pt;
+      color: {{ brand.text }};
+      line-height: 1.5;
+    }
+
+    /* ===== Signature ===== */
+    .sig-box{
+      margin-top: 6pt;
+      border: 1pt dashed {{ brand.line }};
+      border-radius: 7pt;
+      padding: 8pt;
+      height: 86pt;
+      background: #fff;
+      text-align:center;
+    }
+    .sig-box.is-filled{
+      border-style: solid;
+      background: {{ brand.soft }};
+    }
+    .sig-img{
+      height: 62pt;
+      max-width: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .sig-meta{
+      margin-top: 4pt;
+      font-size: 9pt;
+      color: {{ brand.muted }};
+    }
+    
+    .table-stagiaire{
+      text-align:center;
+    }
+
+
+
+  </style>
+</head>
+
+<body>
+  
+  <div class="page">
+
+    {# ====== VARS sûres ====== #}
+    {% set convention = convention ?? null %}
+    {% set session    = session ?? (convention ? convention.session : null) %}
+    {% set formation  = formation ?? (session ? session.formation : null) %}
+    {% set entreprise = entreprise ?? (convention ? convention.entreprise : null) %}
+    {% set stagiaire  = stagiaire ?? (convention ? convention.stagiaire : null) %}
+    {% set preferences = entite.preferences ?? null %}
+
+    {# Programme détaillé #}
+    {% set nodes = (formation and formation.contentNodes is defined) ? formation.contentNodes : [] %}
+
+    {# inscriptions (ManyToMany) #}
+    {% set inscriptions = (convention and convention.inscriptions is defined) ? convention.inscriptions : [] %}
+
+    {# stagiaires list #}
+    {% set stagiairesList = [] %}
+    {% if inscriptions and inscriptions|length > 0 %}
+      {% for ins in inscriptions %}
+        {% set u = ins.stagiaire ?? null %}
+        {% if u %}
+          {% set stagiairesList = stagiairesList|merge([u]) %}
+        {% endif %}
+      {% endfor %}
+    {% elseif stagiaire %}
+      {% set stagiairesList = [stagiaire] %}
+    {% endif %}
+
+    {# jours session #}
+    {% set jours = (session and session.jours is defined) ? session.jours : [] %}
+    {% set hasJours = jours and jours|length > 0 %}
+    {% if hasJours %}
+      {% set j0 = jours|first %}
+      {% set jLast = jours|last %}
+    {% endif %}
+
+    {# ===== Header ===== #}
+    <div class="header avoid-break">
+      <table class="header-table">
+        <tr>
+          <td class="header-left">
+            {% if entite.logo %}
+              <img class="logo"
+                   src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}"
+                   alt="Logo {{ entite.nom|default('') }}">
+            {% endif %}
+
+            {# Toujours le nom (logo + nom = premium) #}
+            <div class="brand-name">{{ entite.nom|default('') }}</div>
+
+            <div class="brand-meta">
+              {% if entite.adresse %}<p>{{ entite.adresse }}</p>{% endif %}
+
+              {% set entite_l2 = [] %}
+              {% if entite.codePostal %}{% set entite_l2 = entite_l2|merge([entite.codePostal]) %}{% endif %}
+              {% if entite.ville %}{% set entite_l2 = entite_l2|merge([entite.ville]) %}{% endif %}
+              {% if entite_l2 is not empty or entite.pays %}
+                <p>{{ entite_l2|join(' ') }}{% if entite.pays %} · {{ entite.pays }}{% endif %}</p>
+              {% endif %}
+
+              {% set entite_contact = [] %}
+              {% if entite.telephone %}{% set entite_contact = entite_contact|merge([entite.telephone]) %}{% endif %}
+              {% if entite.email %}{% set entite_contact = entite_contact|merge([entite.email]) %}{% endif %}
+              {% if entite_contact is not empty %}<p>{{ entite_contact|join(' · ') }}</p>{% endif %}
+
+              {% if entite.siret or entite.numeroDeclarant %}
+                <p>
+                  {% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}
+                  {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %} - N° NDA : {{ entite.numeroDeclarant }}{% endif %}
+                </p>
+              {% endif %}
+            </div>
+          </td>
+
+          <td class="header-right">
+            <div class="doc-badge">CONVENTION / CONTRAT</div>
+            <div class="doc-meta">
+              <div class="doc-meta-item"><strong>Numéro :</strong> {{ convention ? convention.numero : '-' }}</div>
+              <div class="doc-meta-item"><strong>Date d’édition :</strong> {{ "now"|date('d/m/Y') }}</div>
+              {% if session and session.code is defined and session.code %}
+                <div class="doc-meta-item"><strong>Réf. session :</strong> {{ session.code }}</div>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    {# ===== Intro ===== #}
+    <div class="card-intro avoid-break">
+      <p><strong>Convention et contrat de formation professionnelle</strong></p>
+      <p class="mb-0">
+        Ce document formalise l’accord entre l’organisme de formation et le client concernant la réalisation de l’action de formation.
+      </p>
+    </div>
+
+    {# ===== Entre les soussignés ===== #}
+    <div class="card avoid-break">
+      <div class="section-title">Entre les soussignés
+      <div class="section-title-accent"></div>
+      </div>
+      
+
+      <div class="info-block">
+        <span class="info-label">Organisme de formation</span>
+        <div class="info-content">
+          {{ entite.nom|default('Nom de l’organisme de formation') }},
+          dont le siège social est situé {{ entite.adresse|default('Adresse') }}
+          {{ entite.codePostal|default('CP') }} {{ entite.ville|default('Ville') }},
+          SIRET {{ entite.siret|default('XXXXXXXXXXXXX') }},
+          {% if entite.createur is defined and entite.createur %}
+            dûment représenté par {{ entite.createur.civilite|default('') }} {{ entite.createur.prenom|default('') }} {{ entite.createur.nom|default('') }},
+          {% endif %}
+          ci-après dénommé « l’organisme de formation ».
+        </div>
+      </div>
+
+      <div class="info-block mb-0">
+        <span class="info-label">Client</span>
+        <div class="info-content">
+          {% if entreprise %}
+            {{ entreprise.raisonSociale|default('Entreprise') }},
+            {% if entreprise.adresse is defined and entreprise.adresse %}
+              dont le siège est situé {{ entreprise.adresse }}
+              {{ entreprise.codePostal|default('') }} {{ entreprise.ville|default('') }},
+            {% endif %}
+            ci-après dénommé « le Client ».
+          {% elseif stagiaire %}
+            {{ stagiaire.civilite|default('') }} {{ stagiaire.prenom|default('') }} {{ stagiaire.nom|default('') }},
+            {% if stagiaire.adresse is defined and stagiaire.adresse %}
+              domicilié{% if stagiaire.civilite == 'Madame' %}e{% endif %} {{ stagiaire.adresse }}
+              {{ stagiaire.codePostal|default('') }} {{ stagiaire.ville|default('') }},
+            {% endif %}
+            ci-après dénommé « le Client ».
+          {% else %}
+            (Client non renseigné) - ci-après dénommé « le Client ».
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ===== Objet ===== #}
+    <div class="card avoid-break">
+      <div class="section-title">
+        Objet
+        <div class="section-title-accent"></div>
+      </div>
+      <p class="mb-0">
+        La présente convention / le présent contrat a pour objet la réalisation d’une action de formation professionnelle continue,
+        conformément aux dispositions du Code du travail relatives à la formation professionnelle.
+      </p>
+    </div>
+
+    {# ===== Descriptif formation ===== #}
+    <div class="card card-highlight">
+      <div class="section-title">
+        Descriptif de la formation
+        <div class="section-title-accent"></div>
+      </div>
+
+      <table class="grid-2 avoid-break">
+        <tr>
+          <td>
+            <div class="info-block">
+              <span class="info-label">Intitulé</span>
+              <div class="info-content"> - {{ formation ? formation.titre : '' }}</div>
+            </div>
+
+            {% if formation and formation.niveau is defined and formation.niveau %}
+              <div class="info-block">
+                <span class="info-label">Niveau</span>
+                <div class="info-content">
+                    - {{ formation.niveau.label() }}
+                </div>
+              </div>
+            {% endif %}
+
+            {% if formation and formation.duree is defined and formation.duree %}
+              <div class="info-block">
+                <span class="info-label">Durée</span>
+                <div class="info-content">
+                  - {{ formation.duree }} jour{% if formation.duree > 1 %}s{% endif %}
+                </div>
+              </div>
+            {% endif %}
+            {% if formation and formation.prixBaseCents is defined and formation.prixBaseCents %}
+              <div class="info-block mb-0">
+                <span class="info-label">Montant HT</span>
+                <div class="info-content text-nowrap">
+                  {{ (formation.prixBaseCents / 100)|number_format(2, ',', ' ') }} €
+                </div>
+              </div>
+            {% endif %}
+
+          </td>
+
+          <td>
+
+            {% if session and session.site %}
+              <div class="info-block">
+                <span class="info-label">Lieu(x)</span>
+                <div class="info-content">
+                    <strong>{{ session.site.nom|default('-') }}</strong><br>
+                    {{ session.site.adresse|default('') }}<br>
+                    {{ (session.site.codePostal|default('') ~ ' ' ~ session.site.ville|default(''))|trim }}
+                </div>
+              </div>
+            {% endif %}
+            {% if hasJours %}
+              <div class="info-block">
+                <span class="info-label">Dates prévisionnelles</span>
+                <div class="info-content">
+                  - Du {{ j0.dateDebut|date('d/m/Y H\\hi') }} au {{ jLast.dateFin|date('d/m/Y H\\hi') }}
+                </div>
+              </div>
+            {% endif %}
+
+            {% if session and session.formateur is defined and session.formateur %}
+              <div class="info-block mb-0">
+                <span class="info-label">Formateur</span>
+                <div class="info-content">
+                  {% set f = session.formateur %}
+                  - {{ f.utilisateur ? (f.utilisateur.prenom ~ ' ' ~ f.utilisateur.nom) : '-' }}
+                </div>
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+
+      <div class="info-block">
+        <span class="info-label">Objectifs</span>
+        <div class="info-content">
+          {{ (formation and formation.objectifs is defined and formation.objectifs) ? formation.objectifs|nl2br : '-' }}
+        </div>
+      </div>
+
+      {% if formation and formation.public is defined and formation.public %}
+        <div class="info-block">
+          <span class="info-label">Public visé</span>
+          <div class="info-content">
+            - {{ formation.public }}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if formation and formation.pedagogie is defined and formation.pedagogie %}
+        <div class="info-block">
+          <span class="info-label">Pédagogie</span>
+          <div class="info-content">
+            - {{ formation.pedagogie|nl2br }}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if formation and formation.modalitesPratiques is defined and formation.modalitesPratiques %}
+        <div class="info-block">
+          <span class="info-label">Modalités Pratiques</span>
+          <div class="info-content">
+            - {{ formation.modalitesPratiques|nl2br }}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if formation and formation.modalitesEvaluation is defined and formation.modalitesEvaluation %}
+        <div class="info-block">
+          <span class="info-label">Modalités Evaluation</span>
+          <div class="info-content">
+            - {{ formation.modalitesEvaluation|nl2br }}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if hasJours %}
+        <div class="info-block mt-12 mb-0">
+          <span class="info-label">Détail des jours</span>
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:35%;">Date</th>
+                <th style="width:35%;">Horaires</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for j in jours %}
+                <tr>
+                  <td>{{ j.dateDebut ? j.dateDebut|date('d/m/Y') : '-' }}</td>
+                  <td>
+                    {% if j.dateDebut and j.dateFin %}
+                      {{ j.dateDebut|date('H\\hi') }} – {{ j.dateFin|date('H\\hi') }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+
+    {# ===== Programme détaillé ===== #}
+    {% if nodes and nodes|length > 0 %}
+      {% set rootNodes = [] %}
+      {% for n in nodes %}
+        {% if (n.parent is not defined or n.parent is null) %}
+          {% set rootNodes = rootNodes|merge([n]) %}
+        {% endif %}
+      {% endfor %}
+
+      {% set publishedRoots = [] %}
+      {% for n in rootNodes %}
+        {% if (n.isPublished is not defined) or n.isPublished %}
+          {% set publishedRoots = publishedRoots|merge([n]) %}
+        {% endif %}
+      {% endfor %}
+
+      {% if publishedRoots|length > 0 %}
+        <div class="card">
+          <div class="section-title">
+            Programme détaillé
+            <div class="section-title-accent"></div>
+          </div>
+
+          <div class="prog-wrap">
+            {% for chap in publishedRoots %}
+              <div class="prog-chap">
+                <div class="prog-chap-title">
+                  {{ chap.titre }}
+                  {% if chap.dureeMinutes is defined and chap.dureeMinutes %}
+                    <span class="badge-soft" style="margin-left:6pt;">{{ chap.dureeMinutes }} min</span>
+                  {% endif %}
+                </div>
+                {% set children = (chap.children is defined) ? chap.children : [] %}
+                {% if children and children|length > 0 %}
+                  {% for sub in children %}
+                    {% if (sub.isPublished is not defined) or sub.isPublished %}
+                      <div class="prog-sub">
+                        <div class="prog-sub-title">{{ sub.titre }}</div>
+
+                        {% if sub.blocks is defined and sub.blocks|length > 0 %}
+                          {% for b in sub.blocks %}
+                            {% if b.type is defined and (b.type.value ?? b.type) == 'richtext' and b.content %}
+                              <div class="prog-text">
+                                {{ b.content|striptags|trim|nl2br }}
+                              </div>
+                            {% endif %}
+                          {% endfor %}
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+
+                {% if chap.blocks is defined and chap.blocks|length > 0 %}
+                  {% for b in chap.blocks %}
+                    {% if b.type is defined and (b.type.value ?? b.type) == 'richtext' and b.content %}
+                      <div class="prog-text">
+                        {{ b.content|raw }}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          <p class="text-muted text-small mb-0 mt-8">
+            Le programme peut évoluer en fonction des besoins et des demandes des participants.
+          </p>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    {# ===== Stagiaires inscrits ===== #}
+    <div class="card">
+      <div class="section-title">
+        Stagiaires inscrits
+        <div class="section-title-accent"></div>
+      </div>
+
+      {% if stagiairesList and stagiairesList|length > 0 %}
+        <table class="table table-stagiaire">
+          <thead>
+            <tr>
+              <th style="width:46%;">Nom / Prénom</th>
+              <th style="width:34%;">Email</th>
+              <th style="width:20%;">Financeur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in stagiairesList %}
+              <tr>
+                <td><strong>{{ (u.nom ?? '')|upper }}</strong> {{ u.prenom ?? '' }}</td>
+                <td>{{ u.email ?? '-' }}</td>
+                <td>
+                  <span class="badge-soft">{{ session.typeFinancement.value|upper }}</span>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <p class="text-muted text-small mb-0 mt-8">
+          {% if stagiairesList|length > 1 %}
+            {{ stagiairesList|length }} stagiaires rattachés à la convention.
+          {% else %}
+            {{ stagiairesList|length }} stagiaire rattaché à la convention.
+          {% endif %}
+        </p>
+      {% else %}
+        <p class="text-muted mb-0">-</p>
+      {% endif %}
+    </div>
+
+    {# ===== Conditions financières (si dispo) ===== #}
+    {% if convention and convention.conditionsFinancieres %}
+      <div class="card card-highlight">
+        <div class="section-title">
+          Conditions financières
+          <div class="section-title-accent"></div>
+        </div>
+        <p class="mb-0">{{ convention.conditionsFinancieres|nl2br }}</p>
+      </div>
+    {% endif %}
+
+    {# ===== Engagements ===== #}
+    <div class="card">
+      <div class="section-title">
+        Engagements des parties
+        <div class="section-title-accent"></div>
+      </div>
+      <p>
+        L’Organisme de formation s’engage à mettre en œuvre les moyens pédagogiques, techniques et d’encadrement
+        nécessaires à la réalisation de l’action de formation décrite ci-dessus.
+      </p>
+      <p class="mb-0">
+        Le Client s’engage à respecter les modalités de financement et de règlement convenues et à fournir les documents
+        nécessaires au traitement de la formation (conventions, prises en charge, émargements, etc.).
+      </p>
+    </div>
+
+    {# ===== Dispositions finales ===== #}
+    <div class="card">
+      <div class="section-title">
+        Dispositions finales
+        <div class="section-title-accent"></div>
+      </div>
+      <p class="mb-0">
+        La présente convention / le présent contrat est établi en autant d’exemplaires que de parties,
+        qui reconnaissent chacune en avoir reçu un exemplaire.
+      </p>
+    </div>
+
+    {# ===== Signatures ===== #}
+    <div class="card avoid-break">
+      <div class="section-title">
+        Signatures
+        <div class="section-title-accent"></div>
+      </div>
+
+      <p class="text-muted mb-0">
+        Fait à {{ entite.ville|default('Ville') }}, le {{ "now"|date('d/m/Y') }}.
+      </p>
+
+      <table class="grid-2" style="margin-top:10pt;">
+        <tr>
+          <td>
+            <div class="info-block mb-0">
+              <span class="info-label">Pour l’organisme de formation</span>
+              <div class="info-content">
+                <strong>{{ entite.nom|default('Nom de l’organisme') }}</strong><br>
+
+                {% if preferences and (preferences.signatureOrganismeNom or preferences.signatureOrganismeFonction) %}
+                  <span class="text-muted text-small">
+                    {{ preferences.signatureOrganismeNom ? preferences.signatureOrganismeNom : '' }}
+                    {% if preferences.signatureOrganismeNom and preferences.signatureOrganismeFonction %} · {% endif %}
+                    {{ preferences.signatureOrganismeFonction ? preferences.signatureOrganismeFonction : '' }}
+                  </span>
+                {% endif %}
+
+                <div class="sig-box {% if preferences and preferences.signatureOrganismePath %}is-filled{% endif %}">
+                  {% if preferences and preferences.signatureOrganismePath %}
+                    <img class="sig-img"
+                         src="{{ absolute_url(asset(preferences.signatureOrganismePath|trim('/'))) }}"
+                         alt="Signature organisme">
+                    <div class="sig-meta">
+                      {% if preferences.signatureOrganismeAt %}
+                        Signé le {{ "now"|date('d/m/Y') }}
+                      {% else %}
+                        Signature configurée
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </td>
+
+          <td>
+            <div class="info-block mb-0">
+              <span class="info-label">Pour le client</span>
+              <div class="info-content">
+                <strong>
+                  {% if entreprise %}
+                    {{ entreprise.raisonSociale|default('Entreprise') }}
+                  {% elseif stagiaire %}
+                    {{ stagiaire.civilite|default('') }} {{ stagiaire.prenom|default('') }} {{ stagiaire.nom|default('') }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </strong>
+
+                <div class="sig-box {% if convention and convention.signatureDataUrlStagiaire %}is-filled{% endif %}">
+                  {% if convention and convention.signatureDataUrlStagiaire %}
+                    <img class="sig-img" src="{{ convention.signatureDataUrlStagiaire }}" alt="Signature client">
+                    <div class="sig-meta">
+                      Signé le {{ convention.dateSignatureStagiaire ? convention.dateSignatureStagiaire|date('d/m/Y') : '-' }}
+                    </div>
+                  {% else %}
+                    Signature :
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>

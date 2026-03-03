@@ -1,0 +1,584 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Avoirs{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ====== HERO (glass + accent) ====== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .hero .subtitle{ opacity:.86 }
+    /* ===== Chips HERO (comme site/index) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ====== KPI CARDS ====== */
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 26px rgba(0,0,0,.06);
+      border-radius: 18px;
+      overflow:hidden;
+      background: #fff;
+      position:relative;
+    }
+    .kpi-card:before{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(700px 120px at 20% 0%, rgba(255,193,7,.12), transparent 55%);
+      pointer-events:none;
+    }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight: 800; font-size: 1.6rem; letter-spacing:-.02em }
+    .kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem }
+    .kpi-bar{
+      height: 6px; border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .kpi-bar > span{
+      display:block; height:100%;
+      width: 0%;
+      background: var(--theme-color-secondaire);
+      border-radius: 999px;
+      transition: width .35s ease;
+    }
+
+    /* ====== TOOLBAR ====== */
+    .toolbar{
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .85rem;
+    }
+    .toolbar .hint{
+      font-size:.85rem;
+      color: rgba(0,0,0,.55);
+    }
+
+    /* ====== DATATABLE CARD ====== */
+    .table-card{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      position: sticky; top: 0; z-index: 2;
+      background: #f7f8fa !important;
+      border-bottom: 1px solid rgba(0,0,0,.08) !important;
+      text-transform: uppercase;
+      font-size: .78rem;
+      letter-spacing:.06em;
+      color: rgba(0,0,0,.55);
+    }
+
+    /* DataTables UI polish */
+    .dataTables_wrapper .dataTables_filter input{
+      border-radius: 999px !important;
+      padding: .45rem .85rem !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      padding: .35rem .7rem !important;
+    }
+
+    .dt-top{
+      padding: .75rem .85rem;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+    }
+
+    /* ✅ Zebra (cellules) */
+    #tableauAvoirs tbody tr:nth-child(odd) > *{ background-color:#fff !important; }
+    #tableauAvoirs tbody tr:nth-child(even) > *{ background-color: rgba(35,51,66,.035) !important; }
+    #tableauAvoirs tbody tr:hover > *{ background-color: rgba(255,193,7,.08) !important; }
+
+    /* ✅ air vertical */
+    #tableauAvoirs tbody td{
+      padding-top: .75rem !important;
+      padding-bottom: .75rem !important;
+    }
+
+    /* ✅ espace + barre bottom */
+    #tableauAvoirs.dataTable{
+      margin-bottom: .85rem !important;
+    }
+    #tableauAvoirs_wrapper .dt-bottom-internal{
+      margin-top: .75rem !important;
+      padding: 1rem .85rem !important;
+      border-top: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+    }
+    #tableauAvoirs_wrapper .dataTables_info,
+    #tableauAvoirs_wrapper .dataTables_paginate,
+    #tableauAvoirs_wrapper .dataTables_length{
+      margin-top: .25rem !important;
+    }
+
+    /* mobile sticky (si un jour tu ajoutes une colonne actions) */
+    @media (max-width: 768px){
+      table.dataTable td.action-column{
+        position: sticky; right:0; background:#fff; z-index:5;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+      .hero{ border-radius: 16px; }
+    }
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-files me-2" style="color:var(--theme-color-secondaire)"></i>
+            Avoirs
+          </h2>
+          <div class="opacity-75 mt-1">Pilotage : nombre, total TTC, exports & impression.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-arrow-counterclockwise"></i> Finance</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_avoir_new', {'entite': entite.id}) }}">
+            <i class="bi bi-file-earmark-plus me-1"></i> Nouvel avoir
+          </a>
+
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_facture_index', {'entite': entite.id}) }}">
+            <i class="bi bi-receipt me-1"></i> Factures
+          </a>
+
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_paiement_index', {'entite': entite.id}) }}">
+            <i class="bi bi-credit-card-2-front me-1"></i> Paiements
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== KPI ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-files fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Avoirs</div>
+              <div class="kpi-value" id="kpi-avoirs-count">—</div>
+              <div class="kpi-sub">{{ entite.nom }}</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-avoirs-count"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-cash-stack fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Total TTC avoirs</div>
+              <div class="kpi-value" id="kpi-avoirs-ttc">—</div>
+              <div class="kpi-sub">Somme des avoirs</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-avoirs-ttc"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-calendar-range fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">30 derniers jours</div>
+              <div class="kpi-value" id="kpi-avoirs-30d-ttc">—</div>
+              <div class="kpi-sub">
+                <span id="kpi-avoirs-30d-count">—</span> avoir(s)
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-avoirs-30d"></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== TOOLBAR ===== #}
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto">
+        <span class="hint d-none d-lg-inline">
+          Recherche : numéro, facture d’origine.
+        </span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <button id="btnResetAvoirs" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenuAvoirs"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== TABLE ===== #}
+  <div class="table-card mb-4 p-3">
+    <table id="tableauAvoirs" class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+        <tr>
+          <th style="width:80px">#</th>
+          <th>Facture d’origine</th>
+          <th>Numéro</th>
+          <th style="width:140px">Date émission</th>
+          <th class="text-end" style="width:160px">Montant TTC</th>
+        </tr>
+      </thead>
+      <tbody><tr><td colspan="5"></td></tr></tbody>
+    </table>
+  </div>
+
+
+<script>
+$(function () {
+
+  function euroFromCents(cents){
+    const v = (Number(cents || 0) / 100);
+    return v.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  }
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  function setBar($el, pct){
+    const p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+    $el.css('width', p + '%');
+  }
+
+  // ===============================
+  // DataTable
+  // ===============================
+  const table = $('#tableauAvoirs').DataTable({
+    autoWidth: false,
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,
+    ajax: {
+      url: "{{ path('app_administrateur_avoir_ajax', { entite: entite.id }) }}",
+      type: "POST"
+    },
+
+    dom:
+      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+        + '<"dt-actions d-flex gap-2 align-items-center"B>'
+        + '<"dt-search"f>'
+      + '>'
+      + 'rt'
+      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+    buttons: [
+      { extend: 'copy',  title: 'Avoirs', text: 'Copier' },
+      { extend: 'csv',   title: 'Avoirs', text: 'CSV' },
+      { extend: 'excel', title: 'Avoirs', text: 'Excel' },
+      { extend: 'pdf',   title: 'Avoirs', text: 'PDF' },
+      { extend: 'print', title: 'Avoirs', text: 'Imprimer' },
+    ],
+
+    lengthMenu: [[10,25,50,100,500],[10,25,50,100,500]],
+
+    columns: [
+      { data:'id' },
+      { data:'origine' },
+      { data:'numero' },
+      { data:'date' },
+      { data:'ttc' }
+    ],
+
+    columnDefs: [
+      { targets:[4], className:'text-end', searchable:false },
+    ],
+
+    order: [[0,'desc']],
+    language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+    deferRender: true,
+
+    initComplete: function(){
+      // Dropdown export identique (Copier/CSV/Excel/PDF/Imprimer)
+      const api = this.api();
+      const container = api.buttons().container();
+      const $btns = $(container).find('button');
+
+      $('#exportMenuAvoirs').empty();
+      $btns.each(function(){
+        const $b = $(this);
+        const label = $b.text().trim();
+
+        const icon = label === 'Excel' ? 'bi-file-earmark-excel' :
+                     label === 'PDF' ? 'bi-file-earmark-pdf' :
+                     label === 'CSV' ? 'bi-filetype-csv' :
+                     label === 'Imprimer' ? 'bi-printer' :
+                     label === 'Copier' ? 'bi-clipboard' : 'bi-download';
+
+        const $item = $(`
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+              <i class="bi ${icon}"></i> <span>${label}</span>
+            </a>
+          </li>
+        `);
+
+        $item.on('click', function(e){
+          e.preventDefault();
+          $b.trigger('click');
+        });
+
+        $('#exportMenuAvoirs').append($item);
+      });
+
+      $(container).hide();
+    }
+  });
+
+  table.on('draw.dt', function(){
+    $('#hero-last-refresh').text('Maj : ' + nowLabel());
+  });
+
+  // ===============================
+  // KPI (même logique que Paiements)
+  // ===============================
+  let baseline = null;
+
+  async function loadAvoirsBaseline(){
+    try{
+      const url = "{{ path('app_administrateur_avoir_kpis', { entite: entite.id }) }}";
+      const res = await fetch(url, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+      });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      baseline = await res.json();
+    }catch(e){
+      console.warn('Baseline avoirs KO:', e);
+      baseline = null;
+    }
+  }
+
+  async function loadAvoirsKpis(){
+    try{
+      const url = "{{ path('app_administrateur_avoir_kpis', { entite: entite.id }) }}";
+      const res = await fetch(url, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+      });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const k = await res.json();
+
+      // Tolérant sur les noms de champs côté PHP
+      const count = Number(k.count ?? 0);
+      const ttcCents = Number(k.ttcCents ?? k.sumCents ?? 0);
+
+      const last30Count = Number(k.last30Count ?? k.count30d ?? 0);
+      const last30TtcCents = Number(k.last30TtcCents ?? k.last30SumCents ?? k.ttc30dCents ?? 0);
+
+      $('#kpi-avoirs-count').text(count.toLocaleString('fr-FR'));
+      $('#kpi-avoirs-ttc').text(euroFromCents(ttcCents));
+      $('#kpi-avoirs-30d-count').text(last30Count.toLocaleString('fr-FR'));
+      $('#kpi-avoirs-30d-ttc').text(euroFromCents(last30TtcCents));
+
+      // Barres en % de la baseline (non filtrée)
+      const baseCount = Number(baseline?.count ?? count);
+      const baseTtc   = Number(baseline?.ttcCents ?? baseline?.sumCents ?? ttcCents);
+      const base30Ttc = Number(
+        baseline?.last30TtcCents ??
+        baseline?.last30SumCents ??
+        baseline?.ttc30dCents ??
+        last30TtcCents
+      );
+
+      setBar($('#kpi-bar-avoirs-count'), baseCount > 0 ? (count / baseCount) * 100 : 0);
+      setBar($('#kpi-bar-avoirs-ttc'),   baseTtc   > 0 ? (ttcCents / baseTtc) * 100 : 0);
+      setBar($('#kpi-bar-avoirs-30d'),   base30Ttc > 0 ? (last30TtcCents / base30Ttc) * 100 : 0);
+
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    }catch(e){
+      console.error('KPI avoirs error:', e);
+      $('#hero-last-refresh').text('Maj : —');
+    }
+  }
+
+  async function reloadAll(){
+    table.ajax.reload(null, true);
+    await loadAvoirsKpis();
+  }
+
+  // init
+  (async () => {
+    await loadAvoirsBaseline();
+    await loadAvoirsKpis();
+  })();
+
+  // Reset
+  $('#btnResetAvoirs').on('click', function(){
+    table.search('');
+    table.order([[0,'desc']]);
+    reloadAll();
+  });
+
+});
+</script>
+{% endblock %}

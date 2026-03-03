@@ -1,0 +1,1276 @@
+{# templates/administrateur/paiement/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Paiements{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .hero .subtitle{ opacity:.86 }
+    /* ===== Chips HERO (style Sessions) ===== */
+    .hero .chip--hero{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.825rem;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+
+    .hero .chip--hero i{
+      color: var(--theme-color-secondaire);
+    }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius:14px;
+      font-weight:800;
+    }
+
+    /* ===== KPI ===== */
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 26px rgba(0,0,0,.06);
+      border-radius: 18px;
+      overflow:hidden;
+      background: #fff;
+      position:relative;
+    }
+    .kpi-card:before{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(700px 120px at 20% 0%, rgba(255,193,7,.12), transparent 55%);
+      pointer-events:none;
+    }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight: 800; font-size: 1.6rem; letter-spacing:-.02em }
+    .kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem }
+    .kpi-bar{
+      height: 6px; border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .kpi-bar > span{
+      display:block; height:100%;
+      width: 0%;
+      background: var(--theme-color-secondaire);
+      border-radius: 999px;
+      transition: width .35s ease;
+    }
+
+    /* ===== TOOLBAR ===== */
+    .toolbar{
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .85rem;
+    }
+    .toolbar .hint{
+      font-size:.85rem;
+      color: rgba(0,0,0,.55);
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .7rem;
+      border-radius:999px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size:.85rem;
+      color: rgba(0,0,0,.65);
+    }
+
+    /* ===== DATATABLE CARD ===== */
+    .table-card{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      position: sticky; top: 0; z-index: 2;
+      background: #f7f8fa !important;
+      border-bottom: 1px solid rgba(0,0,0,.08) !important;
+      text-transform: uppercase;
+      font-size: .78rem;
+      letter-spacing:.06em;
+      color: rgba(0,0,0,.55);
+    }
+
+    .dataTables_wrapper .dataTables_filter input{
+      border-radius: 999px !important;
+      padding: .45rem .85rem !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      padding: .35rem .7rem !important;
+    }
+
+    .dt-top{
+      padding: .75rem .85rem;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+    }
+    .dt-bottom-internal{
+      padding: 1rem .85rem !important;
+      background: #fff;
+      border-top: 1px solid rgba(0,0,0,.06);
+    }
+
+    /* Zebra */
+    #tableauPaiements tbody tr:nth-child(odd) > *{ background-color:#fff !important; }
+    #tableauPaiements tbody tr:nth-child(even) > *{ background-color: rgba(35,51,66,.035) !important; }
+    #tableauPaiements tbody tr:hover > *{ background-color: rgba(255,193,7,.08) !important; }
+
+    #tableauPaiements tbody td{
+      padding-top: .75rem !important;
+      padding-bottom: .75rem !important;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius: 16px; }
+    }
+
+
+
+    /* Colonne Numéro : un peu plus large + autorise le retour à la ligne */
+    #tableauPaiements th:nth-child(2),
+    #tableauPaiements td:nth-child(2){
+      min-width: 220px;
+      white-space: normal !important;
+    }
+
+    /* Bloc numéro + note */
+    .fact-num-wrap{ line-height: 1.15; }
+    .fact-num{
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    /* Note façon "chip" discrète */
+    .fact-note{
+      margin-top: .35rem;
+      display: inline-flex;
+      align-items: flex-start;
+      gap: .35rem;
+      padding: .25rem .5rem;
+      border-radius: 12px;
+      background-color: var(--bs-info-bg-subtle);
+      border: 1px solid rgba(0,0,0,.06);
+      color: black;
+      font-size: .80rem;
+      max-width: 100%;
+    }
+
+    /* Tronquer à 2 lignes */
+    .fact-note-text{
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+
+
+    #payeurTypeFilter{
+      min-width: 190px;
+    }
+    #payeurTypeFilter option{
+      padding: .25rem .5rem;
+    }
+
+
+
+
+    /* =========================
+      ✅ Dropdown "premium" (même design que Paiements)
+      ========================= */
+
+    /* Le bouton toggle (dans la chip) */
+    .chip .dropdown-toggle{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.75);
+      box-shadow: 0 8px 18px rgba(0,0,0,.06);
+      color: rgba(0,0,0,.72);
+      font-weight: 700;
+      padding: .38rem .70rem;
+      line-height: 1.1;
+      transition: transform .08s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .chip .dropdown-toggle:hover{
+      border-color: rgba(0,0,0,.16);
+      box-shadow: 0 12px 22px rgba(0,0,0,.08);
+    }
+    .chip .dropdown-toggle:active{
+      transform: translateY(1px);
+    }
+
+    /* Badge compteur dans le bouton */
+    .chip .dropdown-toggle .badge{
+      border-radius: 999px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    /* Le menu */
+    .toolbar .dropdown-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .65rem;
+      background:
+        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        #fff;
+      overflow: hidden;
+    }
+
+    /* Petit "header" du menu : zone recherche */
+    .toolbar .dropdown-menu .form-control{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.95);
+      padding: .42rem .85rem;
+      box-shadow: none !important;
+    }
+    .toolbar .dropdown-menu .form-control:focus{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18) !important;
+    }
+
+    /* Boutons Tout / Aucun */
+    .toolbar .dropdown-menu .btn{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      font-weight: 700;
+      padding: .35rem .7rem;
+    }
+    .toolbar .dropdown-menu .btn:hover{
+      background: rgba(255,193,7,.12);
+      border-color: rgba(255,193,7,.35);
+    }
+
+    /* Liste scrollable (comme Paiements) */
+    .toolbar .dropdown-menu [id^="list"], /* si tu gardes les ids list... */
+    .toolbar .dropdown-menu .dropdown-list{
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.92);
+      padding: .25rem;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    /* Item ligne */
+    .toolbar .dropdown-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .45rem .55rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+      background: transparent;
+    }
+    .toolbar .dropdown-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.20);
+    }
+
+    /* Checkbox */
+    .toolbar .dropdown-menu .form-check-input{
+      width: 1.05rem;
+      height: 1.05rem;
+      border-radius: .35rem;
+      border: 1px solid rgba(0,0,0,.18);
+      margin-top: 0;
+    }
+    .toolbar .dropdown-menu .form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: rgba(0,0,0,.10);
+    }
+
+    /* Texte secondaire */
+    .toolbar .dropdown-menu .text-muted{
+      color: rgba(0,0,0,.52) !important;
+    }
+
+    /* Scrollbar clean */
+    .toolbar .dropdown-menu *::-webkit-scrollbar{ width: 10px; }
+    .toolbar .dropdown-menu *::-webkit-scrollbar-track{ background: rgba(0,0,0,.04); border-radius: 999px; }
+    .toolbar .dropdown-menu *::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.18); border-radius: 999px; }
+    .toolbar .dropdown-menu *::-webkit-scrollbar-thumb:hover{ background: rgba(0,0,0,.26); }
+
+
+
+
+  /* =========================
+   ✅ Actions paiements (même design que Devis/Factures)
+   ========================= */
+
+/* colonne actions compacte */
+#tableauPaiements th:last-child,
+#tableauPaiements td:last-child{
+  width: 1% !important;
+  min-width: 0 !important;
+  white-space: nowrap;
+}
+
+/* boutons compacts */
+.paiement-actions .btn{
+  padding: .32rem .55rem;
+}
+
+/* bouton principal */
+.paiement-actions .paiement-main{
+  background: rgba(255,255,255,.85);
+  border-color: rgba(0,0,0,.12);
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+.paiement-actions .paiement-main:hover{
+  box-shadow: 0 14px 28px rgba(0,0,0,.10);
+  border-color: rgba(0,0,0,.18);
+}
+
+/* split */
+.paiement-actions .paiement-split{
+  padding-left: .55rem;
+  padding-right: .55rem;
+  border-color: rgba(0,0,0,.12);
+  background: rgba(255,255,255,.85);
+}
+
+/* fusion pill (main + split) */
+.paiement-actions.btn-group .paiement-main{
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.paiement-actions.btn-group .paiement-split{
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  margin-left: -1px;
+  position: relative;
+}
+.paiement-actions.btn-group .paiement-split:before{
+  content:"";
+  position:absolute;
+  left:0; top:20%; bottom:20%;
+  width:1px;
+  background: rgba(0,0,0,.10);
+}
+
+/* menu dropdown */
+.paiement-actions .paiement-menu{
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,.10);
+  box-shadow: 0 18px 46px rgba(0,0,0,.18);
+  padding: .55rem;
+  background:
+    radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+    #fff;
+  overflow: hidden;
+}
+.paiement-actions .paiement-menu .dropdown-item{
+  border-radius: 12px;
+  padding: .50rem .60rem;
+  margin: .10rem 0;
+  border: 1px solid transparent;
+}
+.paiement-actions .paiement-menu .dropdown-item:hover{
+  background: rgba(255,193,7,.10);
+  border-color: rgba(255,193,7,.22);
+}
+
+/* alignement colonne */
+#tableauPaiements td:last-child{
+  text-align: right;
+  padding-right: .15rem !important;
+}
+
+/* ✅ menu floaté au-dessus de tout */
+body .paiement-floating-dropdown{
+  z-index: 20000 !important;
+}
+
+
+@media (max-width: 768px){
+  /* ✅ Colonne actions sticky à droite (comme Devis) */
+  #tableauPaiements td.action-column,
+  #tableauPaiements th.action-column{
+    position: sticky;
+    right: 0;
+    z-index: 5;
+    background: #fff;
+    box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+  }
+
+  /* optionnel : évite que ça “colle” trop */
+  #tableauPaiements td.action-column{
+    padding-left: .25rem !important;
+    padding-right: .15rem !important;
+  }
+
+  .hero{ border-radius: 16px; }
+}
+
+
+
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO (style Sessions) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-credit-card-2-front me-2" style="color:var(--theme-color-secondaire)"></i>
+            Paiements
+          </h2>
+
+          <div class="subtitle mt-1">
+            Pilotage : volumes, montants, 30 derniers jours, exports.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip chip--hero">
+              <i class="bi bi-clipboard-check"></i>
+              Finance
+            </span>
+
+            <span class="chip chip--hero">
+              <i class="bi bi-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip chip--hero chip--pill">
+              <i class="bi bi-clock-history"></i>
+              <span id="hero-last-refresh">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_paiement_new', {'entite': entite.id}) }}">
+            <i class="bi bi-file-plus me-1"></i> Nouveau paiement
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== KPI ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-receipt fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Paiements</div>
+              <div class="kpi-value" id="kpi-pay-count">—</div>
+              <div class="kpi-sub">{{ entite.nom }}</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-pay-count"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-cash-stack fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Total encaissé</div>
+              <div class="kpi-value" id="kpi-pay-sum">—</div>
+              <div class="kpi-sub">Somme des paiements</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-pay-sum"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-calendar-range fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">30 derniers jours</div>
+              <div class="kpi-value" id="kpi-pay-30d-sum">—</div>
+              <div class="kpi-sub"><span id="kpi-pay-30d-count">—</span> paiements</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-pay-30d"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== TOOLBAR ===== #}
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+
+        {# Mode #}
+        <span class="chip">
+          <i class="bi bi-funnel"></i>
+          <select id="payModeFilter" class="form-select form-select-sm ms-2" style="width:auto">
+            <option value="all">Tous</option>
+            <option value="virement">Virement</option>
+            <option value="cb">Carte</option>
+            <option value="cheque">Chèque</option>
+            <option value="especes">Espèces</option>
+            <option value="opco">OPCO</option>
+          </select>
+        </span>
+
+        {# Période : Année / Mois / Trimestre #}
+        <span class="chip">
+          <i class="bi bi-calendar3"></i>
+          <select id="periodTypeFilter" class="form-select form-select-sm ms-2" style="width:auto">
+            <option value="all">Toutes</option>
+            <option value="year">Année</option>
+            <option value="month">Mois</option>
+            <option value="quarter">Trimestre</option>
+          </select>
+
+          <select id="yearFilter" class="form-select form-select-sm ms-2 d-none" style="width:auto">
+            <option value ="all">—</option>
+            {% for y in 2024..2027 %}
+              <option value="{{ y }}">{{ y }}</option>
+            {% endfor %}
+          </select>
+
+          <select id="monthFilter" class="form-select form-select-sm ms-2 d-none" style="width:auto">
+            <option value="all">—</option>
+            {% for m in 1..12 %}
+              <option value="{{ m }}">{{ "%02d"|format(m) }}</option>
+            {% endfor %}
+          </select>
+
+          <select id="quarterFilter" class="form-select form-select-sm ms-2 d-none" style="width:auto">
+            <option value="all">—</option>
+            <option value="1">T1</option>
+            <option value="2">T2</option>
+            <option value="3">T3</option>
+            <option value="4">T4</option>
+          </select>
+        </span>
+
+        {# === Payeurs particuliers (dropdown checkbox) === #}
+        <span class="chip">
+          <i class="bi bi-person"></i>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                    id="btnPayeurUsers">
+              Particuliers <span class="badge bg-secondary-subtle text-secondary ms-1" id="badgePayeurUsers">0</span>
+            </button>
+
+            <div class="dropdown-menu p-2 shadow" style="min-width: 320px;">
+              <div class="px-2 pb-2">
+                <input type="text" class="form-control form-control-sm" placeholder="Rechercher un particulier…"
+                      id="searchPayeurUsers">
+              </div>
+
+              <div class="px-2 d-flex gap-2 pb-2">
+                <button type="button" class="btn btn-sm btn-light" id="usersSelectAll">Tout</button>
+                <button type="button" class="btn btn-sm btn-light" id="usersSelectNone">Aucun</button>
+              </div>
+
+              <div class="px-2" style="max-height: 280px; overflow:auto;" id="listPayeurUsers">
+                {% for u in payeurUsers %}
+                  <label class="dropdown-item d-flex align-items-center gap-2 user-item" data-text="{{ (u.nom ~ ' ' ~ u.prenom ~ ' ' ~ u.email)|lower }}">
+                    <input class="form-check-input m-0 payeur-user-check" type="checkbox" value="{{ u.id }}">
+                    <span class="flex-grow-1">
+                      <div class="fw-semibold">{{ u.nom }} {{ u.prenom }}</div>
+                      <div class="text-muted small">{{ u.email }}</div>
+                    </span>
+                  </label>
+                {% else %}
+                  <div class="text-muted small px-2 py-1">Aucun payeur particulier.</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </span>
+
+        {# === Payeurs entreprises (dropdown checkbox) === #}
+        <span class="chip">
+          <i class="bi bi-building"></i>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                    id="btnPayeurEntreprises">
+              Entreprises <span class="badge bg-secondary-subtle text-secondary ms-1" id="badgePayeurEnt">0</span>
+            </button>
+
+            <div class="dropdown-menu p-2 shadow" style="min-width: 320px;">
+              <div class="px-2 pb-2">
+                <input type="text" class="form-control form-control-sm" placeholder="Rechercher une entreprise…"
+                      id="searchPayeurEnt">
+              </div>
+
+              <div class="px-2 d-flex gap-2 pb-2">
+                <button type="button" class="btn btn-sm btn-light" id="entSelectAll">Tout</button>
+                <button type="button" class="btn btn-sm btn-light" id="entSelectNone">Aucun</button>
+              </div>
+
+              <div class="px-2" style="max-height: 280px; overflow:auto;" id="listPayeurEnt">
+                {% for e in payeurEntreprises %}
+                  <label class="dropdown-item d-flex align-items-center gap-2 ent-item" data-text="{{ (e.raisonSociale ~ ' ' ~ (e.email ?? ''))|lower }}">
+                    <input class="form-check-input m-0 payeur-ent-check" type="checkbox" value="{{ e.id }}">
+                    <span class="flex-grow-1">
+                      <div class="fw-semibold">{{ e.raisonSociale }}</div>
+                      <div class="text-muted small">{{ e.email ?? '—' }}</div>
+                    </span>
+                  </label>
+                {% else %}
+                  <div class="text-muted small px-2 py-1">Aucune entreprise payeuse.</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {# ===== TABLE ===== #}
+  <div class="table-card mb-4 p-3">
+    <table id="tableauPaiements" class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>De qui</th>
+          <th>Facture</th>
+          <th>HT</th>
+          <th>TVA</th>
+          <th>Débours</th>
+          <th>TTC</th>
+          <th>Mode</th>
+          <th>Date</th>
+          <th class="action-column text-end"></th>
+        </tr>
+      </thead>
+
+      <tbody><tr><td colspan="10"></td></tr></tbody>
+    </table>
+  </div>
+
+
+<script>
+$(function () {
+  const $modeFilter = $('#payModeFilter');
+  const $periodType = $('#periodTypeFilter');
+  const $yearFilter = $('#yearFilter');
+  const $monthFilter = $('#monthFilter');
+  const $quarterFilter = $('#quarterFilter');
+
+  function getSelectedPayeurUserIds(){
+    return $('.payeur-user-check:checked').map(function(){ return $(this).val(); }).get();
+  }
+  function getSelectedPayeurEntrepriseIds(){
+    return $('.payeur-ent-check:checked').map(function(){ return $(this).val(); }).get();
+  }
+
+  function refreshPayeurBadges(){
+    $('#badgePayeurUsers').text(getSelectedPayeurUserIds().length);
+    $('#badgePayeurEnt').text(getSelectedPayeurEntrepriseIds().length);
+  }
+
+
+    function selectAllOnLoad(){
+      $('.payeur-user-check').prop('checked', true);
+      $('.payeur-ent-check').prop('checked', true);
+
+      $('#searchPayeurUsers').val('');
+      $('#searchPayeurEnt').val('');
+
+      refreshPayeurBadges();
+    }
+
+
+  selectAllOnLoad();
+
+
+
+
+  function togglePeriodControls(){
+    const t = $periodType.val() || 'all';
+
+    // cache tout par défaut
+    $yearFilter.addClass('d-none');
+    $monthFilter.addClass('d-none');
+    $quarterFilter.addClass('d-none');
+
+    if (t === 'month') {
+      // Mois => Année + Mois
+      $yearFilter.removeClass('d-none');
+      $monthFilter.removeClass('d-none');
+      $quarterFilter.val('all');
+      if ($yearFilter.val() === 'all') $yearFilter.val(new Date().getFullYear());
+    }
+    else if (t === 'quarter') {
+      // Trimestre => Année + Trimestre
+      $yearFilter.removeClass('d-none');
+      $quarterFilter.removeClass('d-none');
+      $monthFilter.val('all');
+      if ($yearFilter.val() === 'all') $yearFilter.val(new Date().getFullYear());
+    }
+    else if (t === 'year') {
+      // Année => Année uniquement
+      $yearFilter.removeClass('d-none');
+      $monthFilter.val('all');
+      $quarterFilter.val('all');
+      if ($yearFilter.val() === 'all') $yearFilter.val(new Date().getFullYear());
+    }
+    else {
+      // Toutes => on remet à neutre et on masque tout (y compris année)
+      $yearFilter.val('all');
+      $monthFilter.val('all');
+      $quarterFilter.val('all');
+    }
+  }
+
+
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function formatEUR(cents){
+    const val = (Number(cents || 0) / 100);
+    return val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+
+  function setBar($el, pct){
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    $el.css('width', p + '%');
+  }
+
+
+  let baseline = null;
+
+  async function loadPaiementsBaseline(){
+    try{
+      const url = "{{ path('app_administrateur_paiement_kpis', { entite: entite.id }) }}";
+      const params = new URLSearchParams({
+        modeFilter: 'all',
+        periodType: 'all',
+        yearFilter: 'all',
+        monthFilter: 'all',
+        quarterFilter: 'all',
+      });
+
+      // ✅ baseline = sans filtre payeur => on envoie rien
+      const res = await fetch(url + '?' + params.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      baseline = await res.json(); // {count,sumCents,last30...}
+    }catch(e){
+      console.warn('Baseline paiements KO:', e);
+      baseline = null;
+    }
+  }
+
+
+  async function loadPaiementsKpis(){
+    try {
+      const url = "{{ path('app_administrateur_paiement_kpis', { entite: entite.id }) }}";
+      const params = new URLSearchParams({
+        modeFilter: ($modeFilter.val() || 'all'),
+        periodType: ($periodType.val() || 'all'),
+        yearFilter: ($yearFilter.val() || 'all'),
+        monthFilter: ($monthFilter.val() || 'all'),
+        quarterFilter: ($quarterFilter.val() || 'all'),
+      });
+
+
+      getSelectedPayeurUserIds().forEach(v => params.append('payeurUserIds[]', v));
+      getSelectedPayeurEntrepriseIds().forEach(v => params.append('payeurEntrepriseIds[]', v));
+
+
+      
+
+
+
+      const res = await fetch(url + '?' + params.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const j = await res.json();
+
+      const count = Number(j.count || 0);
+      const sumCents = Number(j.sumCents || 0);
+      const last30Count = Number(j.last30Count || 0);
+      const last30SumCents = Number(j.last30SumCents || 0);
+
+      $('#kpi-pay-count').text(count.toLocaleString('fr-FR'));
+      $('#kpi-pay-sum').text(formatEUR(sumCents));
+      $('#kpi-pay-30d-count').text(last30Count.toLocaleString('fr-FR'));
+      $('#kpi-pay-30d-sum').text(formatEUR(last30SumCents));
+
+      // barres (simple et stable)
+      const countTarget = Math.max(10, count);
+      setBar($('#kpi-bar-pay-count'), (count / countTarget) * 100);
+
+      // barres : % par rapport à la baseline (total entité, non filtré)
+      const baseCount = baseline?.count ?? count;
+      const baseSum   = baseline?.sumCents ?? sumCents;
+      const base30Sum = baseline?.last30SumCents ?? last30SumCents;
+
+      setBar($('#kpi-bar-pay-count'), baseCount > 0 ? (count / baseCount) * 100 : 0);
+      setBar($('#kpi-bar-pay-sum'),   baseSum   > 0 ? (sumCents / baseSum) * 100 : 0);
+      setBar($('#kpi-bar-pay-30d'),   base30Sum > 0 ? (last30SumCents / base30Sum) * 100 : 0);
+
+
+
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    } catch (e) {
+      console.error('KPI paiements error:', e);
+      $('#hero-last-refresh').text('Maj : —');
+    }
+  }
+
+  function initTooltips(){
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+  }
+
+  const table = $('#tableauPaiements').DataTable({
+    serverSide:true,
+    processing:true,
+    autoWidth: false,
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,
+
+    ajax: {
+      url: "{{ path('app_administrateur_paiement_ajax', { entite: entite.id }) }}",
+      type: "POST",
+      data: function (d) {
+        d.modeFilter = $modeFilter.val() || 'all';
+
+        d.periodType = $periodType.val() || 'all';
+        d.yearFilter = $yearFilter.val() || 'all';
+        d.monthFilter = $monthFilter.val() || 'all';
+        d.quarterFilter = $quarterFilter.val() || 'all';
+
+        d.payeurUserIds = getSelectedPayeurUserIds();
+        d.payeurEntrepriseIds = getSelectedPayeurEntrepriseIds();
+
+
+      }
+
+    },
+
+    dom:
+      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+        + '<"dt-actions d-flex gap-2 align-items-center"B>'
+        + '<"dt-search"f>'
+      + '>'
+      + 'rt'
+      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+    buttons: [
+      { extend: 'copy',  title: 'Paiements', text: 'Copier' },
+      { extend: 'csv',   title: 'Paiements', text: 'CSV' },
+      { extend: 'excel', title: 'Paiements', text: 'Excel' },
+      { extend: 'pdf',   title: 'Paiements', text: 'PDF' },
+      { extend: 'print', title: 'Paiements', text: 'Imprimer' },
+    ],
+
+    lengthMenu: [[10,25,50,100,500],[10,25,50,100,500]],
+
+    columns:[
+      { data:'id' },
+      { data:'deQui' },
+      { data:'facture' },
+
+      // ✅ badges HTML renvoyés par PHP
+      { data:'montantHt' },
+      { data:'montantTva' },
+      { data:'montantDebours' },
+      { data:'montantTtc' },
+
+      { data:'mode' },
+      { data:'date' },
+      { data:'actions' }
+    ],
+    columnDefs:[
+      // ✅ colonnes montants alignées à droite
+      { targets:[3,4,5,6], className:'text-end' },
+
+      // ✅ date centrée/nowrap
+      { targets:[8], className:'text-nowrap' },
+
+      // ✅ actions : sticky mobile comme devis
+      { targets:[9], orderable:false, searchable:false, className:'action-column text-end' },
+    ],
+
+
+    order: [[8,'desc']],
+
+
+
+    language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+    deferRender: true,
+
+    initComplete: function(){
+      const api = this.api();
+      const container = api.buttons().container();
+      const $btns = $(container).find('button');
+
+      $('#exportMenu').empty();
+
+      $btns.each(function(){
+        const $b = $(this);
+        const label = $b.text().trim();
+
+        const icon = label === 'Excel' ? 'bi-file-earmark-excel' :
+                     label === 'PDF' ? 'bi-file-earmark-pdf' :
+                     label === 'CSV' ? 'bi-filetype-csv' :
+                     label === 'Imprimer' ? 'bi-printer' :
+                     label === 'Copier' ? 'bi-clipboard' : 'bi-download';
+
+        const $item = $(`
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+              <i class="bi ${icon}"></i> <span>${label}</span>
+            </a>
+          </li>
+        `);
+
+        $item.on('click', function(e){
+          e.preventDefault();
+          $b.trigger('click');
+        });
+
+        $('#exportMenu').append($item);
+      });
+      selectAllOnLoad();
+      (async () => {
+        await loadPaiementsBaseline();
+        await loadPaiementsKpis();
+      })();
+
+      reloadAll();
+
+      $(container).hide();
+    }
+  });
+
+
+
+
+  // ✅ Dropdown actions paiements : menu hors du scroll DataTables (anti-clipping)
+  (function enablePaiementActionsFloatingDropdown(){
+    document.addEventListener('show.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.paiement-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      const menu = dd.querySelector('.dropdown-menu');
+      if (!menu) return;
+
+      if (!menu.__originalParent) menu.__originalParent = dd;
+
+      document.body.appendChild(menu);
+      menu.classList.add('paiement-floating-dropdown');
+
+      const rect = toggle.getBoundingClientRect();
+
+      // force layout
+      menu.style.position = 'absolute';
+      menu.style.top = '0px';
+      menu.style.left = '0px';
+      menu.style.display = 'block';
+
+      const menuRect = menu.getBoundingClientRect();
+      const isEnd = menu.classList.contains('dropdown-menu-end');
+
+      const top = rect.bottom + window.scrollY + 6;
+
+      let left = isEnd
+        ? (rect.right + window.scrollX - menuRect.width)
+        : (rect.left + window.scrollX);
+
+      left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+    }, true);
+
+    document.addEventListener('hidden.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.paiement-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      document.querySelectorAll('body .paiement-floating-dropdown').forEach(menu => {
+        if (menu.__originalParent === dd) {
+          dd.appendChild(menu);
+          menu.classList.remove('paiement-floating-dropdown');
+          menu.style.position = '';
+          menu.style.top = '';
+          menu.style.left = '';
+          menu.style.display = '';
+        }
+      });
+    }, true);
+
+    // si scroll/resize : ferme les menus ouverts
+    window.addEventListener('scroll', () => {
+      document.querySelectorAll('.paiement-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.paiement-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+  })();
+
+
+
+  
+
+  initTooltips();
+  table.on('draw.dt', function(){ initTooltips(); });
+
+
+  function reloadAll(){
+    table.ajax.reload(null, true);
+    loadPaiementsKpis();
+  }
+
+  togglePeriodControls();
+
+  $periodType.off('change').on('change', function(){
+    togglePeriodControls();
+    reloadAll();
+  });
+
+  $yearFilter.off('change').on('change', reloadAll);
+  $monthFilter.off('change').on('change', reloadAll);
+  $quarterFilter.off('change').on('change', reloadAll);
+
+
+
+
+  
+
+  
+  $(document).on('change', '.payeur-user-check, .payeur-ent-check', function(){
+    refreshPayeurBadges();
+    reloadAll();
+  });
+
+
+
+  $('#searchPayeurUsers').on('input', function(){
+    const q = ($(this).val() || '').toLowerCase();
+    $('#listPayeurUsers .user-item').each(function(){
+      $(this).toggle(($(this).data('text') || '').includes(q));
+    });
+  });
+
+  $('#searchPayeurEnt').on('input', function(){
+    const q = ($(this).val() || '').toLowerCase();
+    $('#listPayeurEnt .ent-item').each(function(){
+      $(this).toggle(($(this).data('text') || '').includes(q));
+    });
+  });
+
+
+
+  $('#usersSelectAll').on('click', function(){
+    $('.payeur-user-check').prop('checked', true);
+    refreshPayeurBadges();
+    reloadAll();
+  });
+  $('#usersSelectNone').on('click', function(){
+    $('.payeur-user-check').prop('checked', false);
+    refreshPayeurBadges();
+    reloadAll();
+  });
+
+  $('#entSelectAll').on('click', function(){
+    $('.payeur-ent-check').prop('checked', true);
+    refreshPayeurBadges();
+    reloadAll();
+  });
+  $('#entSelectNone').on('click', function(){
+    $('.payeur-ent-check').prop('checked', false);
+    refreshPayeurBadges();
+    reloadAll();
+  });
+
+
+  refreshPayeurBadges();
+
+
+  // ✅ Reset => remet tout à zéro + reload
+  $('#btnReset').off('click').on('click', function(){
+    $modeFilter.val('all');
+    $periodType.val('all');
+    $yearFilter.val('all');
+    $monthFilter.val('all');
+    $quarterFilter.val('all');
+    $('.payeur-user-check, .payeur-ent-check').prop('checked', false);
+    $('#searchPayeurUsers').val('');
+    $('#searchPayeurEnt').val('');
+    refreshPayeurBadges();
+
+    togglePeriodControls();
+
+    table.search('');
+    table.order([[8,'desc']]);
+    table.ajax.reload(null, true);
+
+    loadPaiementsKpis();
+  });
+});
+</script>
+{% endblock %}

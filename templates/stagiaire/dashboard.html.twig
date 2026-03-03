@@ -1,0 +1,2187 @@
+{# templates/stagiaire/dashboard.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Espace stagiaire — Tableau de bord{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+<style>
+/* ================= THEME TOKENS ================= */
+:root{
+
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+  --teal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
+  --amber: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffb703')) }};
+  --sand: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#eef3f7')) }};
+  --ink:#0f2336; --ink-2:#28435a; --muted:#6f8897;
+  --card:#ffffff; --card-2:#f8fbfe; --line:#e6eef5;
+  --radius:1.15rem; --ring:0 14px 48px rgba(15,35,54,.12);
+  --glass:rgba(255,255,255,.18); --blur:14px;
+}
+
+/* ================= GLOBAL ================= */
+body{ color:var(--ink); }
+.round{ border-radius: var(--radius); }
+.shadow-premium{ box-shadow: var(--ring); }
+.section-card{
+  background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow: var(--ring);
+}
+.section-card .card-header{
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border-bottom:1px solid var(--line);
+  border-top-left-radius:var(--radius); border-top-right-radius:var(--radius);
+}
+.section-title{ font-weight:800; letter-spacing:.2px; }
+
+/* ================= HERO ================= */
+.hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+/* ===== Chips HERO (comme sessions) ===== */
+.hero .chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.32rem .7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size:.82rem;
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.hero .chip i{
+  color: var(--theme-color-secondaire);
+}
+.hero .chip--pill{
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+  color:#fff;
+}
+
+/* bouton outline “theme” (comme sessions) */
+.hero .btn-outline-theme{
+  border-color: rgba(255,255,255,.35);
+  color:#fff;
+}
+.hero .btn-outline-theme:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  color:#fff;
+}
+@keyframes sheen{ from{ transform:translateX(-2%)} to{ transform:translateX(2%)} }
+/* ================= KPI ================= */
+/* ===== KPI ICON STYLE (comme sessions) ===== */
+.kpi{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  position:relative;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:1rem 1.25rem;
+  box-shadow: var(--ring);
+}
+
+.kpi-ico{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+
+  background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+  color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+  font-size:1.2rem;
+}
+
+.kpi-content{
+  display:flex;
+  flex-direction:column;
+}
+
+.kpi .label{
+  color:var(--muted);
+  font-size:.82rem;
+}
+
+.kpi .value{
+  font-weight:900;
+  font-size:1.7rem;
+  line-height:1.1;
+}
+
+/* ================= TOOLBAR ================= */
+.toolbar{
+  background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); padding:.8rem; box-shadow: var(--ring);
+}
+.soft-badge{
+  border:1px solid color-mix(in oklab, var(--amber) 38%, white 62%);
+  background: color-mix(in oklab, var(--amber) 10%, white 90%);
+  color: color-mix(in oklab, var(--amber) 55%, black 45%);
+  border-radius:999px; padding:.35rem .6rem; font-weight:800; font-size:.85rem;
+}
+
+/* ================= DATATABLES ================= */
+.table thead th{ font-weight:800; color:var(--ink-2); border-bottom:1px solid var(--line) !important; }
+table.dataTable tbody tr{ transition: background .15s ease; }
+table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%, white 65%); }
+.dataTables_wrapper .dataTables_filter input{
+  border:1px solid var(--line); border-radius:.65rem; padding:.45rem .75rem;
+  background:var(--card-2); color:var(--ink);
+}
+.compact td, .compact th{ padding:.6rem .75rem !important; }
+
+/* ================= FULLCALENDAR ================= */
+#calendar{ min-height: 530px; }
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--card-2);
+  --fc-border-color: var(--line);
+  --fc-event-bg-color: color-mix(in oklab, var(--teal) 94%, white 0%);
+  --fc-event-text-color: #fff;
+  --fc-today-bg-color: color-mix(in oklab, var(--amber) 24%, transparent 76%);
+}
+.fc .fc-toolbar-title{ font-weight:900; letter-spacing:.2px; }
+.fc .fc-button{ border-radius:.6rem !important; border:1px solid var(--line) !important; box-shadow:none !important; }
+
+/* ===== Table ema ===== */
+.ema-table thead th { font-weight:800; color:var(--ink-2); border-bottom:1px solid var(--line) !important; }
+.ema-actioncell{ display:flex; align-items:center; justify-content:center; gap:.5rem; flex-wrap:wrap; }
+.pill-success{ display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .6rem;
+  border-radius:999px; font-weight:700; font-size:.85rem;
+  background:color-mix(in oklab,#22c55e 18%,white 82%);
+  color:color-mix(in oklab,#16a34a 70%,black 30%);
+  border:1px solid color-mix(in oklab,#22c55e 35%,white 65%);
+}
+.btn-mini{ padding:.25rem .5rem; border-radius:.55rem; }
+
+/* ================= MODALS PREMIUM ================= */
+.modal .modal-content.section-card{ border-radius: calc(var(--radius) + .2rem); overflow:hidden; }
+.modal-backdrop.show{ opacity:.55; }
+
+.modal-header-premium{
+  background:
+    radial-gradient(900px 280px at 10% -40%, rgba(255,255,255,.14), transparent 60%),
+    linear-gradient(135deg, color-mix(in oklab, var(--teal) 92%, black 8%), color-mix(in oklab, var(--amber) 55%, white 10%));
+  color:#fff;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+}
+.modal-header-premium .btn-close{ filter: invert(1) grayscale(100%); opacity:.85; }
+.modal-subtitle{ opacity:.9; font-size:.9rem; }
+
+.modal-toolbar{
+  display:flex; flex-wrap:wrap; gap:.6rem;
+  align-items:center; justify-content:space-between;
+  background: color-mix(in oklab, var(--card-2) 60%, transparent 40%);
+  border:1px solid var(--line);
+  border-radius: .95rem;
+  padding:.75rem .85rem;
+}
+.pill{
+  display:inline-flex; align-items:center; gap:.4rem;
+  border:1px solid var(--line);
+  background: var(--card);
+  border-radius:999px;
+  padding:.35rem .65rem;
+  font-weight:800; font-size:.85rem;
+}
+.fp-input{
+  background: var(--card);
+  border:1px solid var(--line);
+  border-radius:.75rem;
+  padding:.5rem .75rem;
+}
+.fp-input:focus{
+  border-color: color-mix(in oklab, var(--amber) 65%, var(--line) 35%);
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--amber) 22%, transparent 78%);
+}
+
+.sig-preview{
+  width:100%;
+  border:1px dashed var(--line);
+  border-radius: .9rem;
+  background: color-mix(in oklab, var(--card-2) 70%, transparent 30%);
+  padding: .75rem;
+  display:flex; align-items:center; justify-content:center;
+  min-height: 220px;
+}
+.sig-preview img{ max-width:100%; height:auto; display:block; border-radius:.6rem; }
+
+/* ===== Signature modal ===== */
+.sig-pad-wrap{
+  border:1px dashed color-mix(in oklab, var(--line) 70%, transparent 30%);
+  background: color-mix(in oklab, var(--card-2) 70%, transparent 30%);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+#signatureCanvas{
+  display:block; width:100%; height:200px; touch-action:none;
+  background:#fff;
+  border-radius:.8rem;
+  border:2px solid color-mix(in oklab, var(--line) 80%, transparent 20%);
+}
+
+
+/* ===== Fix "modal dans modal" : signature au-dessus de l'émargement ===== */
+#emargementModal{ z-index: 1055; }      /* modal principal */
+#signatureModal{ z-index: 1065; }       /* modal enfant au-dessus */
+#sigPreviewModal{ z-index: 1075; }      /* si tu ouvres aussi un aperçu par-dessus */
+
+.modal-backdrop.emargement-backdrop{ z-index: 1050; }
+.modal-backdrop.signature-backdrop{  z-index: 1060; }
+.modal-backdrop.preview-backdrop{    z-index: 1070; }
+
+
+
+/* ================= FULLCALENDAR — FIX MOBILE ONLY ================= */
+@media (max-width: 576px){
+
+  /* le header */
+  .fc .fc-header-toolbar{
+    flex-wrap: wrap !important;
+    gap: .5rem !important;
+    align-items: center !important;
+  }
+
+  /* chaque “chunk” (gauche / centre / droite) passe à la ligne si besoin */
+  .fc .fc-toolbar-chunk{
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  /* le titre au centre : plus petit + autorise le retour à la ligne */
+  .fc .fc-toolbar-title{
+    font-size: 1.25rem !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
+
+  /* on évite que le bloc de droite déborde : wrap des boutons */
+  .fc .fc-button-group{
+    flex-wrap: wrap !important;
+    gap: .35rem !important;
+  }
+
+  /* boutons plus compacts sur mobile */
+  .fc .fc-button{
+    padding: .35rem .55rem !important;
+    font-size: .9rem !important;
+  }
+
+  /* aligne proprement le bloc de droite */
+  .fc .fc-toolbar-chunk:last-child{
+    display: flex !important;
+    justify-content: center !important;
+  }
+}
+
+
+
+/* ================= FULLCALENDAR — SKIN PRO ================= */
+#calendar{
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, rgba(0,0,0,.08));
+  box-shadow: var(--ring, 0 14px 48px rgba(15,35,54,.12));
+}
+
+/* Variables FullCalendar basées sur ton thème */
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 70%, transparent 30%);
+  --fc-border-color: color-mix(in oklab, var(--theme-color-principal) 12%, transparent 88%);
+  --fc-today-bg-color: color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%);
+
+  --fc-event-bg-color: color-mix(in oklab, var(--theme-color-principal) 92%, black 8%);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #fff;
+
+  --fc-list-event-hover-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 65%, white 35%);
+  --fc-highlight-color: color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+}
+
+/* Header / toolbar */
+.fc .fc-header-toolbar{
+  padding: 1rem 1rem .75rem;
+  margin: 0 !important;
+  background:
+    radial-gradient(900px 260px at 10% -40%, color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%), transparent 60%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+      color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+    );
+  border-bottom: 1px solid rgba(255,255,255,.14);
+}
+
+.fc .fc-toolbar-title{
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .2px;
+  text-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+/* Boutons toolbar */
+.fc .fc-button{
+  border: 1px solid rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.10) !important;
+  color: #fff !important;
+  border-radius: .75rem !important;
+  box-shadow: none !important;
+  padding: .45rem .7rem !important;
+  font-weight: 800 !important;
+}
+.fc .fc-button:hover{
+  background: rgba(255,255,255,.16) !important;
+}
+.fc .fc-button:focus{
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 30%, transparent 70%) !important;
+}
+.fc .fc-button.fc-button-active{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 72%, black 0%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%) !important;
+}
+
+/* Corps calendrier */
+.fc .fc-view-harness{
+  background: var(--card, #fff);
+}
+
+/* En-têtes jours semaine */
+.fc .fc-col-header-cell{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 70%, white 30%);
+}
+.fc .fc-col-header-cell-cushion{
+  padding: .75rem .25rem !important;
+  color: var(--theme-color-quaternaire);
+  font-weight: 900;
+  text-decoration: none !important;
+}
+
+/* Grille (cellules) */
+.fc .fc-daygrid-day{
+  transition: background .15s ease;
+}
+.fc .fc-daygrid-day:hover{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 55%, transparent 45%);
+}
+
+/* Numéro du jour */
+.fc .fc-daygrid-day-number{
+  padding: .45rem .55rem !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 82%, black 18%);
+  font-weight: 800;
+  text-decoration: none !important;
+}
+
+/* Today : badge discret + anneau */
+.fc .fc-day-today{
+  position: relative;
+  background: var(--fc-today-bg-color) !important;
+}
+.fc .fc-day-today .fc-daygrid-day-number{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%);
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%);
+  border-radius: 999px;
+  padding: .25rem .6rem !important;
+}
+
+/* Events : pill premium */
+.fc .fc-event{
+  border-radius: .75rem !important;
+  padding: .2rem .35rem !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,.10);
+}
+.fc .fc-event .fc-event-title{
+  font-weight: 800;
+  letter-spacing: .1px;
+}
+.fc .fc-event .fc-event-time{
+  font-weight: 800;
+  opacity: .92;
+}
+
+/* “more” link */
+.fc .fc-daygrid-more-link{
+  color: color-mix(in oklab, var(--theme-color-principal) 72%, black 28%);
+  font-weight: 800;
+}
+
+/* Vue liste */
+.fc .fc-list{
+  border: 0 !important;
+}
+.fc .fc-list-day-cushion{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 75%, white 25%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 85%, black 15%);
+  font-weight: 900;
+}
+.fc .fc-list-event:hover td{
+  background: var(--fc-list-event-hover-bg-color) !important;
+}
+
+/* ================= FULLCALENDAR — MOBILE LAYOUT ================= */
+@media (max-width: 576px){
+  .fc .fc-header-toolbar{
+    flex-wrap: wrap !important;
+    gap: .6rem !important;
+    padding: .9rem .85rem .75rem !important;
+  }
+  .fc .fc-toolbar-chunk{
+    flex: 1 1 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  /* ordre pro : nav + today, puis titre, puis vues */
+  .fc .fc-toolbar-chunk:first-child{ order: 1; justify-content: space-between !important; }
+  .fc .fc-toolbar-chunk:nth-child(2){ order: 2; }
+  .fc .fc-toolbar-chunk:last-child{ order: 3; }
+
+  .fc .fc-button-group{
+    flex-wrap: wrap !important;
+    gap: .35rem !important;
+    justify-content: center !important;
+  }
+  .fc .fc-button{
+    padding: .35rem .55rem !important;
+    font-size: .9rem !important;
+  }
+  .fc .fc-toolbar-title{
+    font-size: 1.25rem !important;
+    text-align: center;
+    white-space: normal;
+  }
+
+  /* compacte le calendrier */
+  .fc .fc-col-header-cell-cushion{ padding: .55rem .2rem !important; }
+  .fc .fc-daygrid-day-number{ padding: .35rem .45rem !important; }
+}
+
+
+/* ================= MAP CARD (dashboard) ================= */
+.cardx{
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--ring);
+}
+
+.map-frame{
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+}
+
+.map-frame iframe{
+  display:block;
+  width:100%;
+  height:320px;
+  border:0;
+}
+
+@media (max-width: 576px){
+  .map-frame iframe{ height: 260px; }
+}
+
+
+/* ===== DATATABLES — DATES PREMIUM (timeline) ===== */
+.dt-dates{ min-width: 320px; }
+.dt-dates-top{
+  display:flex;
+  gap:.35rem;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.dt-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  border:1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius:999px;
+  padding:.22rem .55rem;
+  font-weight:900;
+  font-size:.78rem;
+}
+.dt-chip i{ opacity:.85; }
+.dt-chip-primary{
+  border:1px solid color-mix(in oklab, var(--theme-color-principal) 18%, var(--line) 82%);
+  background: color-mix(in oklab, var(--theme-color-principal) 8%, white 92%);
+  color: color-mix(in oklab, var(--theme-color-principal) 72%, black 28%);
+}
+.dt-chip-days{
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 28%, var(--line) 72%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 12%, white 88%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 60%, black 40%);
+}
+
+.dt-timeline{
+  position:relative;
+  margin-top:.45rem;
+  padding-left: .9rem;
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+}
+.dt-timeline::before{
+  content:"";
+  position:absolute;
+  left:.32rem;
+  top:.15rem;
+  bottom:.15rem;
+  width:2px;
+  background: color-mix(in oklab, var(--theme-color-principal) 14%, var(--line) 86%);
+  border-radius:99px;
+}
+.dt-tl-item{
+  position:relative;
+  display:flex;
+  gap:.55rem;
+  align-items:flex-start;
+}
+.dt-tl-dot{
+  width:.55rem;
+  height:.55rem;
+  border-radius:999px;
+  margin-top:.25rem;
+  background: color-mix(in oklab, var(--theme-color-secondaire) 70%, white 30%);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--theme-color-secondaire) 12%, transparent 88%);
+  flex:0 0 auto;
+  position:relative;
+  left:-.02rem;
+}
+.dt-tl-content{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.4rem .6rem;
+  align-items:baseline;
+  line-height:1.1;
+}
+.dt-tl-date{
+  font-weight:900;
+  color: var(--ink);
+  font-size:.86rem;
+}
+.dt-tl-time{
+  font-weight:800;
+  color: var(--muted);
+  font-size:.82rem;
+}
+.dt-tl-more{
+  margin-top:.25rem;
+  align-self:flex-start;
+  font-size:.78rem;
+  font-weight:900;
+  color: var(--muted);
+  border:1px dashed color-mix(in oklab, var(--theme-color-principal) 18%, var(--line) 82%);
+  border-radius:999px;
+  padding:.12rem .5rem;
+}
+
+
+
+/* ================= MODALS — MOBILE READABILITY ================= */
+@media (max-width: 576px){
+
+  /* modal spacing + title */
+  .modal .modal-content.section-card{ border-radius: 0; }
+  .modal-header-premium{ padding: .9rem 1rem !important; }
+  .modal-header-premium .section-title{ font-size: 1.05rem; line-height: 1.15; }
+  .modal-subtitle{ font-size: .85rem; line-height: 1.2; }
+  .modal-body{ padding: 1rem !important; }
+  .modal-footer{ padding: .75rem 1rem 1rem !important; }
+
+  /* toolbar -> column */
+  .modal-toolbar{
+    flex-direction: column;
+    align-items: stretch;
+    gap: .65rem;
+    padding: .75rem;
+  }
+  .modal-toolbar > div{
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* date input full width */
+  #ema-date-input{ max-width: none !important; width: 100% !important; }
+
+  /* actions: bigger touch targets */
+  .ema-actioncell{
+    justify-content: flex-start;
+    gap: .5rem;
+  }
+  .btn-mini{
+    padding: .45rem .75rem;
+    border-radius: .75rem;
+  }
+
+  /* signature canvas smaller */
+  #signatureCanvas{ height: 160px !important; }
+  .sig-pad-wrap{ padding: .75rem; }
+
+  /* footer buttons stack nicely (signature modal mainly) */
+  #signatureModal .modal-footer{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #signatureModal .modal-footer .btn{ width: 100%; }
+}
+
+
+
+@media (max-width: 576px){
+
+  /* on n'affiche plus l'entête, et chaque ligne devient une "carte" */
+  #emargementModal .ema-table thead{ display:none; }
+
+  #emargementModal .ema-table,
+  #emargementModal .ema-table tbody,
+  #emargementModal .ema-table tr,
+  #emargementModal .ema-table td{
+    display:block;
+    width:100%;
+  }
+
+  #emargementModal .ema-table tbody tr{
+    border:1px solid var(--line);
+    background: var(--card);
+    border-radius: 1rem;
+    padding: .75rem;
+    margin-bottom: .75rem;
+    box-shadow: 0 10px 28px rgba(15,35,54,.08);
+  }
+
+  /* chaque cellule affiche son label */
+  #emargementModal .ema-table td{
+    padding: .55rem .65rem !important;
+    border:0 !important;
+  }
+  #emargementModal .ema-table td[data-label]::before{
+    content: attr(data-label);
+    display:block;
+    font-size: .78rem;
+    font-weight: 900;
+    color: var(--muted);
+    margin-bottom: .25rem;
+    letter-spacing: .2px;
+  }
+
+  /* participant en premier, plus visuel */
+  #emargementModal .ema-table td[data-label="Participant"]{
+    padding-bottom: .65rem !important;
+    margin-bottom: .35rem;
+    border-bottom: 1px dashed color-mix(in oklab, var(--line) 75%, transparent 25%) !important;
+  }
+
+  /* actions sur 2 lignes si besoin */
+  #emargementModal .ema-actioncell{
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  #emargementModal .ema-actioncell .btn{
+    flex: 1 1 auto;
+  }
+}
+
+/* ================= ASSETS (comme formateur) ================= */
+.asset-item{
+  display:flex; align-items:center; gap:.75rem;
+  padding:.55rem .65rem;
+  border:1px solid var(--line);
+  border-radius:.7rem;
+  background: var(--card);
+}
+.asset-icon{
+  width:34px; height:34px;
+  display:grid; place-items:center;
+  border-radius:.6rem;
+  background: color-mix(in oklab, var(--teal) 10%, white 90%);
+  color: color-mix(in oklab, var(--teal) 85%, black 15%);
+  flex: 0 0 auto;
+}
+.asset-name{
+  font-weight:800;
+  white-space:nowrap; overflow:hidden; text-overflow: ellipsis;
+}
+.asset-meta{ font-size:.8rem; color:var(--muted); }
+
+/* ================= ACTIONS DROPDOWN (comme formateur) ================= */
+.actions-wrap{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:.4rem;
+  flex-wrap:wrap;
+}
+/* ================= ACTIONS DROPDOWN — PREMIUM POPOVER ================= */
+
+.action-dd .btn-action{
+  display:inline-flex; align-items:center; gap:.45rem;
+  border-radius:.85rem;
+  font-weight:900;
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 45%, white 55%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 16%, white 84%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
+}
+.action-dd .btn-action:hover,
+.action-dd .btn-action:focus{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 22%, white 78%);
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 22%, transparent 78%);
+}
+
+/* ✅ le menu = popover glass */
+/* ✅ On stylise TOUS les items cliquables du menu (btn, dropdown-item, liens simples, boutons) */
+.action-dd .dropdown-menu :is(a, button){
+  width: 100%;
+  display:flex !important;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.6rem;
+
+  padding:.55rem .65rem !important;
+  margin: .18rem 0 !important;
+
+  border-radius:.9rem !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  line-height: 1.15;
+  color: var(--ink) !important;
+
+  box-shadow: none !important;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+
+/* hover premium */
+.action-dd .dropdown-menu :is(a, button):hover{
+  background: color-mix(in oklab, var(--sand) 45%, white 55%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-principal) 14%, transparent 86%) !important;
+  transform: translateY(-1px);
+}
+
+/* ✅ Bootstrap met parfois "dropdown-item" en white-space / padding => on neutralise */
+.action-dd .dropdown-menu .dropdown-item{
+  padding: .55rem .65rem !important;
+  background: transparent !important;
+}
+
+/* ✅ icônes */
+.action-dd .dropdown-menu :is(a, button) i{
+  width: 1.25rem;
+  text-align:center;
+  font-size: 1.05rem;
+  opacity: .95;
+}
+
+
+/* optionnel : petit header dans le menu (si on l’ajoute via JS/render) */
+.action-dd .dropdown-menu .dd-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: .55rem .65rem .5rem;
+  margin: calc(var(--menuPad) * -1) calc(var(--menuPad) * -1) .35rem;
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+    color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+  );
+  color:#fff;
+}
+.action-dd .dropdown-menu .dd-head .t{
+  font-weight: 950;
+  letter-spacing:.2px;
+}
+.action-dd .dropdown-menu .dd-head .s{
+  opacity:.85;
+  font-size:.82rem;
+  font-weight:700;
+}
+
+/* ✅ on “reset” les boutons générés par le backend :
+   ils deviennent des "menu items" premium */
+.action-dd .dropdown-menu :is(a.btn, button.btn){
+  width: 100%;
+  display:flex !important;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.6rem;
+
+  padding:.55rem .65rem !important;
+  margin: .18rem 0 !important;
+
+  border-radius:.9rem !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  line-height: 1.15;
+  color: var(--ink) !important;
+
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+
+/* hover premium */
+.action-dd .dropdown-menu :is(a.btn, button.btn):hover{
+  background: color-mix(in oklab, var(--sand) 45%, white 55%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-principal) 14%, transparent 86%) !important;
+  transform: translateY(-1px);
+}
+
+/* icônes */
+.action-dd .dropdown-menu :is(a.btn, button.btn) i{
+  font-size: 1.05rem;
+  opacity: .95;
+}
+
+/* mini séparateur élégant si tu as des <hr> dans raw */
+.action-dd .dropdown-menu hr{
+  margin: .45rem 0;
+  border-color: color-mix(in oklab, var(--line) 75%, transparent 25%);
+  opacity: 1;
+}
+
+/* Teintes par "type" (on s’appuie sur tes classes bootstrap existantes) */
+.action-dd .dropdown-menu .btn-outline-success i,
+.action-dd .dropdown-menu .btn-success i{ color: #16a34a; }
+
+.action-dd .dropdown-menu .btn-outline-primary i,
+.action-dd .dropdown-menu .btn-primary i{ color: color-mix(in oklab, var(--theme-color-principal) 70%, black 30%); }
+
+.action-dd .dropdown-menu .btn-outline-warning i,
+.action-dd .dropdown-menu .btn-warning i{ color: #b45309; }
+
+.action-dd .dropdown-menu .btn-outline-danger i,
+.action-dd .dropdown-menu .btn-danger i{ color: #dc2626; }
+
+/* Les boutons "outline" du backend : on supprime l’aspect bouton */
+.action-dd .dropdown-menu .btn{
+  box-shadow: none !important;
+}
+
+/* --- éviter les bordures carrées des .btn-outline-* --- */
+.action-dd .dropdown-menu :is(.btn-outline-primary,.btn-outline-success,.btn-outline-warning,.btn-outline-danger){
+  border-color: transparent !important;
+}
+
+.dropdown-portal-menu{
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  transform: none !important;
+  inset: auto !important;
+}
+.dropdown-portal-menu.show{ display:block !important; }
+
+
+
+.action-dd .dropdown-menu :is(.d-grid, .btn-group, .actions-wrap, .row){
+  display:block !important;
+}
+.action-dd .dropdown-menu :is(.d-grid){
+  gap: .25rem !important;
+}
+
+
+
+/* évite que le dropdown soit coupé par le scroll container */
+.section-card .table-responsive{
+  overflow-x: auto;
+  overflow-y: visible !important;
+  position: relative;
+}
+.section-card .table-responsive .dropdown-menu{
+  z-index: 2000; /* au-dessus du contenu de la card */
+}
+
+
+
+/* ===== FIX dropdown derrière la card suivante ===== */
+
+/* Toutes les section-card créent une base de z-index */
+.section-card{
+  position: relative;
+  z-index: 1;
+}
+
+/* La card qui contient la DataTable passe devant */
+#table-stagiaire_wrapper{
+  position: relative;
+  z-index: 50;
+}
+
+/* Le menu dropdown doit être au-dessus */
+#table-stagiaire_wrapper .dropdown-menu{
+  z-index: 9999 !important;
+}
+
+
+
+/* Fix overlay dropdown */
+.section-card{ position: relative; z-index: 1; }
+.section-card.is-overlay{ z-index: 999; } /* <- manquait */
+
+#table-stagiaire_wrapper .dropdown-menu{
+  z-index: 9999 !important;
+}
+
+/* très important si un parent coupe le menu */
+.section-card,
+.section-card .card-body,
+.section-card .table-responsive{
+  overflow: visible !important;
+}
+
+
+
+</style>
+{% endblock %}
+
+{% block body %}
+
+
+
+  {# ===== HERO (comme sessions) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-speedometer2 me-2" style="color:var(--theme-color-secondaire)"></i>
+            Tableau de bord
+          </h2>
+          <div class="opacity-75 mt-1">Sessions, supports et émargements.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-speedometer2"></i> Tableau de bord</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+            <span class="chip"><i class="bi bi-person-badge"></i> Stagiaire</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ path('app_stagiaire_dashboard', { entite: entite.id }) }}"
+            class="btn btn-outline-theme btn-sm fw-semibold">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {# ===== KPI ===== #}
+  <div class="row g-3 mb-4">
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico">
+        <i class="bi bi-calendar-event"></i>
+      </div>
+      <div class="kpi-content">
+        <div class="label">Sessions à venir</div>
+        <div class="value" id="kpi-upcoming">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico">
+        <i class="bi bi-play-circle"></i>
+      </div>
+      <div class="kpi-content">
+        <div class="label">Sessions en cours</div>
+        <div class="value" id="kpi-live">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico">
+        <i class="bi bi-folder2-open"></i>
+      </div>
+      <div class="kpi-content">
+        <div class="label">Supports disponibles</div>
+        <div class="value" id="kpi-files">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-ico">
+        <i class="bi bi-pen"></i>
+      </div>
+      <div class="kpi-content">
+        <div class="label">Feuilles à signer (aujourd’hui)</div>
+        <div class="value" id="kpi-sign">—</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+  {# ===== TOOLBAR ===== #}
+  <div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4">
+    <div class="input-group" style="max-width:520px;">
+      <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+      <input id="searchAll" type="text" class="form-control border-start-0" placeholder="Rechercher une session, un code, une formation…">
+    </div>
+  </div>
+
+
+    {# ===== PROCHAINE SESSION ===== #}
+  {% if nextSession is defined and nextSession %}
+    <div class="col-12 mb-4">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">
+            <i class="bi bi-lightning-charge me-1"></i> Prochaine session
+          </h5>
+          <span class="text-muted small">Détails & infos pratiques</span>
+        </div>
+
+        <div class="card-body p-4">
+          <div class="row g-3">
+
+            <div class="col-12 col-lg-7">
+              <div class="p-3 rounded-4 border" style="background: var(--card-2); border-color: var(--line)!important;">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                  <span class="pill">
+                    <i class="bi bi-upc-scan"></i>
+                    <span class="fw-bold">{{ nextSession.code ?? ('Session #' ~ nextSession.id) }}</span>
+                  </span>
+
+                  <span class="pill">
+                    <i class="bi bi-journal-bookmark-fill"></i>
+                    {{ nextSession.formationTitre ?? '—' }}
+                  </span>
+
+                  {% if nextSession.siteNom is defined and nextSession.siteNom %}
+                    <span class="pill">
+                      <i class="bi bi-geo-alt"></i> {{ nextSession.siteNom }}
+                    </span>
+                  {% endif %}
+                </div>
+
+                <div class="row g-2">
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted">Début</div>
+                    <div class="fw-bold">{{ nextSession.start ? nextSession.start|date('d/m/Y H:i') : '—' }}</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted">Fin</div>
+                    <div class="fw-bold">{{ nextSession.end ? nextSession.end|date('d/m/Y H:i') : '—' }}</div>
+                  </div>
+
+                  {% if nextSession.formateur is defined %}
+                    <div class="col-12 col-md-6">
+                      <div class="small text-muted">Formateur</div>
+                      <div class="fw-bold">{{ nextSession.formateur ?: '—' }}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if nextSession.nbJours is defined %}
+                    <div class="col-12 col-md-6">
+                      <div class="small text-muted">Durée</div>
+                      <div class="fw-bold">{{ nextSession.nbJours }} jour{% if nextSession.nbJours > 1 %}s{% endif %}</div>
+                    </div>
+                  {% endif %}
+                </div>
+
+
+
+                {% set nextIso = nextSession.emaDefaultIso ?? (nextSession.start ? nextSession.start|date('Y-m-d') : null) %}
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-success js-next-ema"
+                          data-session-id="{{ nextSession.id }}"
+                          data-session-label="{{ (nextSession.formationTitre ?? 'Session') ~ ' - ' ~ (nextSession.code ?? ('#' ~ nextSession.id)) }}"
+                          data-date="{{ nextIso }}"
+                          data-periode="AM">
+                    <i class="bi bi-sunrise me-1"></i> Émargement matin
+                  </button>
+
+                  <button type="button"
+                          class="btn btn-sm btn-outline-success js-next-ema"
+                          data-session-id="{{ nextSession.id }}"
+                          data-session-label="{{ (nextSession.formationTitre ?? 'Session') ~ ' - ' ~ (nextSession.code ?? ('#' ~ nextSession.id)) }}"
+                          data-date="{{ nextIso }}"
+                          data-periode="PM">
+                    <i class="bi bi-sunset me-1"></i> Émargement après-midi
+                  </button>
+                </div>
+
+
+
+                {# ✅ Bouton Satisfaction si dernière journée #}
+                {% if nextSession.hasSatisfactionAssign
+                  and nextSession.isLastDay
+                  and nextSession.satisfactionUrl %}
+                  {% if nextSession.satisfactionSubmitted %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled title="Questionnaire déjà envoyé">
+                      <i class="bi bi-check2-circle me-1"></i> Satisfaction
+                    </button>
+                  {% else %}
+                    {% if nextSession.canFillSatisfaction %}
+                      <a href="{{ nextSession.satisfactionUrl }}" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-ui-checks me-1"></i> Questionnaire de satisfaction
+                      </a>
+                    {% else %}
+                      <a href="{{ nextSession.satisfactionUrl }}" class="btn btn-sm btn-outline-warning disabled"
+                        tabindex="-1" aria-disabled="true"
+                        title="Disponible à la dernière journée (et quelques jours après)">
+                        <i class="bi bi-ui-checks me-1"></i> Questionnaire de satisfaction
+                      </a>
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+
+
+
+
+
+                {% if nextSession.equipements is defined %}
+                  <hr class="my-3" style="border-color: var(--line); opacity:.8;">
+                  <div class="fw-bold mb-2"><i class="bi bi-tools me-1"></i> Équipements sur place</div>
+
+                  {% set e = nextSession.equipements ?? {} %}
+                  {% set equipList = [
+                    {'k':'equipOrdinateurFormateur', 'label':'Ordinateur (formateur)', 'icon':'bi-laptop'},
+                    {'k':'equipVideoprojecteurEcran', 'label':'Vidéoprojecteur / écran', 'icon':'bi-projector'},
+                    {'k':'equipInternetStable', 'label':'Connexion Internet stable', 'icon':'bi-wifi'},
+                    {'k':'equipTableauPaperboard', 'label':'Tableau blanc / paperboard', 'icon':'bi-easel2'},
+                    {'k':'equipMarqueursSupportsImprimes', 'label':'Marqueurs / supports imprimés', 'icon':'bi-journal-text'},
+                    {'k':'salleAdapteeTailleGroupe', 'label':'Salle adaptée (taille du groupe)', 'icon':'bi-people'},
+                    {'k':'salleTablesChaisesErgo', 'label':'Tables / chaises ergonomiques', 'icon':'bi-grid-3x3-gap'},
+                    {'k':'salleLumiereChauffageClim', 'label':'Lumière / chauffage / clim', 'icon':'bi-sun'},
+                    {'k':'salleEauCafe', 'label':'Eau / café', 'icon':'bi-cup-hot'}
+                  ] %}
+
+                  {% set hasAny = false %}
+                  <div class="d-flex flex-wrap gap-1">
+                    {% for it in equipList %}
+                      {% if e[it.k] is defined and e[it.k] is not null %}
+                        {% set hasAny = true %}
+                        {% set v = e[it.k] %}
+                        {% if v == true %}
+                          {% set cls = 'bg-success' %}
+                          {% set icon2 = 'bi-check2' %}
+                        {% elseif v == false %}
+                          {% set cls = 'bg-secondary' %}
+                          {% set icon2 = 'bi-x' %}
+                        {% else %}
+                          {% set cls = 'bg-light text-muted' %}
+                          {% set icon2 = 'bi-dash' %}
+                        {% endif %}
+
+                        <span class="badge {{ cls }} d-inline-flex align-items-center gap-1"
+                              style="border:1px solid var(--line); padding:.4rem .55rem; border-radius:999px;">
+                          <i class="bi {{ it.icon }} opacity-75"></i>
+                          <span class="text-truncate">{{ it.label }}</span>
+                          <i class="bi {{ icon2 }} ms-1"></i>
+                        </span>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+
+                  {% if not hasAny %}
+                    <div class="text-muted">—</div>
+                  {% endif %}
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-5">
+              {% if nextSession.destAddress is defined and nextSession.destAddress %}
+                <div class="cardx p-3">
+                  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div class="me-2">
+                      <div class="fw-semibold">Itinéraire vers le site</div>
+                      <div class="small text-muted">{{ nextSession.destAddress }}</div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 map-frame">
+                    {% if nextSession.gmapsEmbedUrl is defined and nextSession.gmapsEmbedUrl %}
+                      <iframe src="{{ nextSession.gmapsEmbedUrl }}" loading="lazy"
+                              referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                    {% else %}
+                      <iframe src="https://www.google.com/maps?q={{ nextSession.destAddress|url_encode }}&output=embed"
+                              loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                    {% endif %}
+                  </div>
+                </div>
+              {% else %}
+                <div class="text-muted">
+                  <i class="bi bi-info-circle me-1"></i> Adresse du site non disponible.
+                </div>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="col-12 mb-4">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">
+            <i class="bi bi-lightning-charge me-1"></i> Prochaine session
+          </h5>
+          <span class="text-muted small">Détails & infos pratiques</span>
+        </div>
+        <div class="card-body p-4">
+          <div class="text-muted">
+            <i class="bi bi-info-circle me-1"></i> Aucune session à venir.
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+
+  {# ===== GRID ===== #}
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">Mes sessions</h5>
+          <span class="text-muted small">Liste compacte</span>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive p-4">
+            <table id="table-stagiaire" class="table table-striped align-middle compact w-100">
+              <thead>
+              <tr>
+                <th>Code</th>
+                <th>Formation</th>
+                <th>Dates</th>
+                <th>Formateur</th>
+                <th class="text-center">Actions</th>
+              </tr>
+              </thead>
+              <tbody><tr><td colspan="5"></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="section-card h-100">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">Calendrier & à venir</h5>
+          <span class="text-muted small">Vue synthétique</span>
+        </div>
+        <div class="card-body p-4">
+          <div id="calendar" class="mb-4"></div>
+          <h6 class="fw-bold mb-2">Prochaines sessions</h6>
+          <ul class="timeline" id="upcoming-timeline">
+            <li><span class="dot"></span><span class="when">—</span><span class="what">Chargement…</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="section-card">
+        <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+          <h5 class="section-title mb-0">Ma bibliothèque (aperçu rapide)</h5>
+
+          <div class="d-flex gap-2 align-items-center">
+            <span class="text-muted small">Affectés à vos sessions ou directement à vous</span>
+            <button class="btn btn-sm btn-outline-secondary" id="btnReloadAssets" type="button">
+              <i class="bi bi-arrow-repeat"></i> Recharger
+            </button>
+          </div>
+
+        </div>
+        <div class="card-body p-4">
+          <div id="assets-list" class="row g-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+{# ===== MODAL SIGNATURE (premium) ===== #}
+<div class="modal fade" id="signatureModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100 d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <h5 class="section-title mb-1"><i class="bi bi-pen me-1"></i> Ma signature</h5>
+            <div class="modal-subtitle"><i class="bi bi-info-circle me-1"></i> Signez puis validez</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+      <div class="modal-body p-3 p-lg-4">
+        <div class="sig-pad-wrap">
+          <canvas id="signatureCanvas"></canvas>
+        </div>
+        <div class="small text-muted mt-2">
+          <i class="bi bi-shield-check me-1"></i> Votre signature est associée à la feuille et à la période sélectionnée.
+        </div>
+      </div>
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4 d-flex gap-2 justify-content-end">
+        <button type="button" class="btn btn-outline-secondary" id="btnClearSignature"><i class="bi bi-eraser"></i> Effacer</button>
+        <button type="button" class="btn btn-success" id="btnSaveSignature"><i class="bi bi-check-circle"></i> Valider</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ===== MODAL ÉMARGEMENTS (premium) ===== #}
+<div class="modal fade" id="emargementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-content section-card">
+
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100">
+          <div class="d-flex align-items-start justify-content-between gap-3">
+            <div>
+              <h5 class="section-title mb-1">
+                <i class="bi bi-clipboard-check me-1"></i>
+                Feuille de présence
+                <span class="badge bg-light text-dark ms-2">Stagiaire</span>
+              </h5>
+              <div class="modal-subtitle">
+                <span class="me-2"><i class="bi bi-calendar3"></i> <strong id="ema-date">—</strong></span>
+                <span class="opacity-75">·</span>
+                <span class="ms-2"><i class="bi bi-easel"></i> Session : <strong id="ema-session">—</strong></span>
+              </div>
+            </div>
+
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-body p-3 p-lg-4">
+        <div class="modal-toolbar mb-3">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="pill"><i class="bi bi-calendar-week"></i> Date</span>
+            <input type="text" id="ema-date-input" class="fp-input form-control form-control-sm"
+                   placeholder="Choisir une date" style="max-width:220px">
+            <button class="btn btn-sm btn-outline-secondary" id="ema-refresh">
+              <i class="bi bi-arrow-repeat"></i> Recharger
+            </button>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="pill"><i class="bi bi-info-circle"></i> Astuce</span>
+            <span class="small text-muted">Clique sur <strong>Signer</strong> puis valide ta signature.</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle compact w-100 ema-table">
+            <thead>
+              <tr>
+                <th style="min-width:320px;">Participant</th>
+                <th class="text-center" style="min-width:260px;">Matin</th>
+                <th class="text-center" style="min-width:260px;">Après-midi</th>
+              </tr>
+            </thead>
+            <tbody id="ema-tbody">
+              <tr><td colspan="3" class="text-center text-muted py-4">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i> Fermer
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ===== MODAL APERÇU SIGNATURE ===== #}
+<div class="modal fade" id="sigPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100 d-flex align-items-start justify-content-between">
+          <div>
+            <h5 class="section-title mb-1"><i class="bi bi-eye me-1"></i> Aperçu signature</h5>
+            <div class="modal-subtitle" id="sigPreviewMeta">—</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-3 p-lg-4">
+        <div class="sig-preview">
+          <img id="sigPreviewImg" src="" alt="Signature">
+        </div>
+      </div>
+
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i> Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# URL templates pour SIGN/UNSIGN (stagiaire) #}
+<div id="sign-url-template" data-url="{{ path('app_stagiaire_emargement_sign', { entite: entite.id, id: '__ID__' }) }}" hidden></div>
+<div id="unsign-url-template" data-url="{{ path('app_stagiaire_emargement_unsign', { entite: entite.id, id: '__ID__' }) }}" hidden></div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+
+{# ⚠️ IMPORTANT : il faut bootstrap.bundle.js dans base_admin.html.twig.
+   Si tu n'es pas certain, tu peux décommenter la ligne suivante :
+#}
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+<script>
+// Locale FR FullCalendar (fallback) + rien sur le DOM ici
+(function(){
+  const FC=(window.FullCalendar=window.FullCalendar||{});
+  FC.globalLocales=FC.globalLocales||[];
+  if(!FC.globalLocales.some(l=>l.code==='fr')){
+    FC.globalLocales.push({
+      code:'fr',
+      buttonText:{prev:'Préc.',next:'Suiv.',today:'Aujourd’hui',year:'Année',month:'Mois',week:'Semaine',day:'Jour',list:'Liste'},
+      weekText:'Sem.',allDayText:'Toute la journée',moreLinkText:'en plus',noEventsText:'Aucun évènement à afficher',
+      week:{dow:1,doy:4}
+    });
+  }
+})();
+</script>
+
+<script>
+$(function(){
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' +
+          d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  $('#hero-last-refresh').text('Maj : ' + nowLabel());
+
+  /* ===== helpers ===== */
+  function escapeHtml(s){return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+  function stripHtml(html){ return String(html||'').replace(/<[^>]+>/g,'').trim(); }
+  function pad(n){ return n<10?('0'+n):n; }
+
+  const toFr = (ymd)=>{
+    if(!ymd) return '';
+    if(ymd.includes('/')) return ymd;
+    const [Y,M,D]=ymd.split('-').map(n=>parseInt(n,10));
+    const p=n=>n<10?('0'+n):n;
+    return p(D)+'/'+p(M)+'/'+Y;
+  };
+
+
+  document.addEventListener('shown.bs.dropdown', function(e){
+    const wrapper = document.querySelector('#table-stagiaire_wrapper')?.closest('.section-card');
+    wrapper?.classList.add('is-overlay');
+  });
+
+  document.addEventListener('hidden.bs.dropdown', function(e){
+    const wrapper = document.querySelector('#table-stagiaire_wrapper')?.closest('.section-card');
+    wrapper?.classList.remove('is-overlay');
+  });
+
+
+  
+
+
+  /* ===== DataTables : mes sessions ===== */
+  const dt = $('#table-stagiaire').DataTable({
+    ajax:{ url:"{{ path('app_stagiaire_sessions_ajax', { entite: entite.id }) }}", type:'POST' },
+    columns:[
+      {data:'code'},
+      {data:'formation'},
+      {data:'dates'},
+      {data:'formateur'},
+
+      // ✅ Actions (dropdown) : inclut désormais "Mon dossier" + émargements + satisfaction + QCM etc.
+      {
+        data: 'actions',
+        className: 'text-center',
+        render: function(d, type, row){
+          const raw = (d || '').trim();
+          if(!raw) return '';
+
+          const key = String(row.code || '').replace(/\W+/g,'_') || Math.random().toString(16).slice(2);
+          const menuId = 'act_' + key;
+
+          return `
+            <div class="actions-wrap">
+              <div class="dropdown action-dd">
+                <button class="btn btn-action btn-sm dropdown-toggle" type="button"
+                  id="${menuId}"
+                  data-bs-toggle="dropdown"
+                  data-bs-boundary="viewport"
+                  data-bs-display="static"
+                  aria-expanded="false">
+                  <i class="bi bi-three-dots-vertical"></i> Actions
+                </button>
+
+                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="${menuId}">
+                  <div class="dd-head">
+                    <div class="t"><i class="bi bi-lightning-charge me-1"></i> Actions</div>
+                  </div>
+                  ${raw}
+                </div>
+
+              </div>
+            </div>
+          `;
+        }
+
+      },
+
+      {data:'firstStartIso', visible:false, searchable:false},
+      {data:'lastEndIso', visible:false, searchable:false},
+    ],
+    order:[[5,'desc']], // ⚠️ avant c'était 6, car tu avais une colonne de plus
+
+
+    pageLength:10,
+    language: { url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' },
+    drawCallback:function(){
+      computeKpisFromTable(this.api());
+      buildTimelineFromTable(this.api(), '#upcoming-timeline', 6);
+    }
+  });
+
+  $('#searchAll').on('input', function(){ dt.search(this.value).draw(); });
+
+  /* ===== KPIs ===== */
+  function computeKpisFromTable(api){
+    const data = api.rows({search:'applied'}).data().toArray();
+    const now = new Date();
+
+    let upcoming = 0, live = 0;
+
+    data.forEach(row => {
+      const start = row.firstStartIso ? new Date(row.firstStartIso) : null;
+      const end   = row.lastEndIso ? new Date(row.lastEndIso) : null;
+      if(!start || !end) return;
+
+      if (now < start) upcoming++;
+      else if (now >= start && now <= end) live++;
+    });
+
+    $('#kpi-upcoming').text(upcoming);
+    $('#kpi-live').text(live);
+  }
+
+
+  /* ===== FullCalendar ===== */
+  const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    locale:'fr', height:'auto', initialView:'dayGridMonth',
+    headerToolbar:{ left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek,listWeek' },
+    events: "{{ path('app_stagiaire_calendar_feed', { entite: entite.id }) }}",
+    eventDidMount: (info)=>{ info.el.style.borderRadius = '.6rem'; info.el.style.boxShadow = '0 8px 20px rgba(0,0,0,.08)'; },
+    eventClick: (info) => {
+      info.jsEvent?.preventDefault();
+      const sid = info.event.extendedProps?.sessionId || info.event.id;
+      const ymd = (info.event.startStr || '').slice(0,10);
+      window.__openEma?.({ sessionId: sid, sessionLabel: info.event.title || 'Session', date: ymd });
+    }
+  });
+  calendar.render();
+
+  /* ===== Timeline ===== */
+  function parseIsoToTs(iso){
+    if(!iso) return null;
+
+    // ISO “normal” (ATOM) => Date.parse OK
+    let ts = Date.parse(iso);
+    if(!Number.isNaN(ts)) return ts;
+
+    // Fallback 1 : certaines chaînes arrivent sans ':' dans l’offset (+0100)
+    // => on transforme en +01:00
+    const fixed = String(iso).replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+    ts = Date.parse(fixed);
+    if(!Number.isNaN(ts)) return ts;
+
+    return null;
+  }
+
+  function buildTimelineFromTable(api, selector, maxItems){
+    const data = api.rows({ search: 'applied' }).data().toArray();
+    const nowTs = Date.now();
+
+    const items = [];
+
+    data.forEach(row => {
+      const startTs = parseIsoToTs(row.firstStartIso);
+      const endTs   = parseIsoToTs(row.lastEndIso);
+
+      if(startTs === null || endTs === null) return;
+
+      // ✅ On garde la session si elle n'est pas terminée
+      if(endTs <= nowTs) return;
+
+      const isLive = (startTs <= nowTs && nowTs <= endTs);
+      const d = new Date(startTs);
+
+      items.push({
+        sortTs: isLive ? nowTs - 1 : startTs, // live en haut
+        when: d.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+        what: `${stripHtml(row.formation)} (${row.code || ''})`.trim(),
+        badge: isLive ? '<span class="soft-badge ms-2">EN COURS</span>' : ''
+      });
+    });
+
+    items.sort((a,b)=> a.sortTs - b.sortTs);
+
+    const ul = document.querySelector(selector);
+    ul.innerHTML = '';
+
+    if(items.length === 0){
+      ul.innerHTML = `
+        <li>
+          <span class="dot"></span>
+          <span class="when">—</span>
+          <span class="what">Aucun évènement à venir.</span>
+        </li>`;
+      return;
+    }
+
+    items.slice(0, maxItems || 6).forEach(it => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <span class="dot"></span>
+        <span class="when">${it.when}</span>
+        <span class="what">${escapeHtml(it.what)} ${it.badge}</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+
+
+
+  /* ===== Supports ===== */
+    /* ===== Supports ===== */
+  function loadAssets(){
+    fetch("{{ path('app_stagiaire_supports_assets_feed', { entite: entite.id }) }}")
+      .then(r=>r.json()).then(payload=>{
+        const rows = (payload?.data||[]);
+        $('#kpi-files').text(rows.length || 0);
+
+        const wrap = document.getElementById('assets-list');
+        wrap.innerHTML='';
+
+        if(rows.length===0){
+          wrap.innerHTML = '<div class="text-muted">Aucun support disponible pour le moment.</div>';
+          return;
+        }
+
+        rows.slice(0,12).forEach(a=>{
+          const col = document.createElement('div');
+          col.className = 'col-12 col-md-6 col-xxl-3';
+          col.innerHTML = `
+            <div class="asset-item">
+              <div class="asset-icon"><i class="bi bi-file-earmark-text-fill"></i></div>
+              <div class="flex-grow-1 text-truncate">
+                <div class="asset-name" title="${escapeHtml(a.titre || a.originalName || '')}">
+                  ${escapeHtml(a.titre || a.originalName || 'Document')}
+                </div>
+                <div class="asset-meta">${escapeHtml(a.mimeType || '')} · ${escapeHtml(a.uploadedAt || '')}</div>
+              </div>
+              <a class="btn btn-sm btn-outline-secondary" href="${a.url}" target="_blank" title="Télécharger">
+                <i class="bi bi-download"></i>
+              </a>
+            </div>`;
+          wrap.appendChild(col);
+        });
+      });
+  }
+
+  loadAssets();
+  $('#btnReloadAssets').on('click', loadAssets);
+
+
+  /* ===== Émargements ===== */
+  let STATE = {
+    sessionId: null,
+    sessionLabel: '—',
+    date: (new Date()).toISOString().slice(0,10),
+    trainer: null,
+    me: null
+  };
+
+  function setHeader(){
+    $('#ema-date').text(toFr(STATE.date));
+    // l'input flatpickr garde la value ISO
+    $('#ema-date-input').val(STATE.date);
+    $('#ema-session').text(STATE.sessionLabel||'—');
+  }
+
+  function viewBtn(url, at){
+    if(!url) return '';
+    const safeAt = at ? escapeHtml(at) : '';
+    return `
+      <button type="button" class="btn btn-mini btn-outline-secondary js-view-sig"
+              data-url="${escapeHtml(url)}" data-at="${safeAt}">
+        <i class="bi bi-eye"></i>
+      </button>`;
+  }
+
+  function cellHtmlForMe(info, periode){
+    if(!info?.signed){
+      return `<div class="ema-actioncell">
+        <button class="btn btn-mini btn-outline-success js-open-sign" data-periode="${periode}">
+          <i class="bi bi-pencil"></i> Signer
+        </button>
+      </div>`;
+    }
+    return `<div class="ema-actioncell">
+      <span class="pill-success"><i class="bi bi-check2-circle"></i> Signé</span>
+      ${viewBtn(info.url, info.at)}
+      <button class="btn btn-mini btn-outline-danger js-unsign" data-periode="${periode}">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>`;
+  }
+
+  function cellHtmlReadOnly(info){
+    if(!info?.signed){
+      return `<div class="ema-actioncell"><span class="badge bg-secondary-subtle text-secondary">Non signé</span></div>`;
+    }
+    return `<div class="ema-actioncell">
+      <span class="pill-success"><i class="bi bi-check2-circle"></i> Signé</span>
+      ${viewBtn(info.url, info.at)}
+    </div>`;
+  }
+
+  function renderEma(){
+    const trainerName = STATE.trainer?.name || '—';
+    const meName = STATE.me?.name || 'Moi';
+
+    const trainerAm = STATE.trainer?.am || {signed:false};
+    const trainerPm = STATE.trainer?.pm || {signed:false};
+    const meAm = STATE.me?.am || {signed:false};
+    const mePm = STATE.me?.pm || {signed:false};
+
+    const html = `
+      <tr>
+        <td data-label="Participant">
+          <strong>Formateur</strong>
+          <div class="small text-muted">${escapeHtml(trainerName)}</div>
+        </td>
+        <td class="text-center" data-label="Matin">${cellHtmlReadOnly(trainerAm)}</td>
+        <td class="text-center" data-label="Après-midi">${cellHtmlReadOnly(trainerPm)}</td>
+      </tr>
+      <tr>
+        <td data-label="Participant">
+          <strong>Moi</strong>
+          <div class="small text-muted">${escapeHtml(meName)}</div>
+        </td>
+        <td class="text-center" data-label="Matin">${cellHtmlForMe(meAm,'AM')}</td>
+        <td class="text-center" data-label="Après-midi">${cellHtmlForMe(mePm,'PM')}</td>
+      </tr>
+    `;
+
+    $('#ema-tbody').html(html);
+
+    const todayIso = (new Date()).toISOString().slice(0,10);
+    const todo = (STATE.date===todayIso ? ((meAm.signed?0:1) + (mePm.signed?0:1)) : 0);
+    $('#kpi-sign').text(todo);
+  }
+
+  function loadEma(){
+    $('#ema-tbody').html('<tr><td colspan="3" class="text-center text-muted py-4">⏳ Chargement…</td></tr>');
+
+    const url = "{{ path('app_stagiaire_emargement_feed', { entite: entite.id }) }}"
+              + "?session="+encodeURIComponent(STATE.sessionId)
+              + "&date="+encodeURIComponent(STATE.date);
+
+    return fetch(url, { headers:{'Accept':'application/json'} })
+      .then(r => r.json())
+      .then(j => {
+        if(j?.error){
+          $('#ema-tbody').html(`<tr><td colspan="3" class="text-center text-danger py-4">${escapeHtml(j.error)}</td></tr>`);
+          return;
+        }
+        if (j?.sessionLabel) STATE.sessionLabel = j.sessionLabel;
+        STATE.trainer = j?.trainer || null;
+        STATE.me = j?.me || null;
+        setHeader();
+        renderEma();
+      })
+      .catch(e=>{
+        console.error(e);
+        $('#ema-tbody').html('<tr><td colspan="3" class="text-center text-danger py-4">Erreur de chargement</td></tr>');
+      });
+  }
+
+  /* ===== Flatpickr (ema date) ===== */
+  let __fpEma = null;
+  function initEmaDatepicker(){
+    const input = document.getElementById('ema-date-input');
+    if(!input || typeof flatpickr !== 'function') return;
+
+    if(__fpEma){ try{ __fpEma.destroy(); }catch(e){} __fpEma=null; }
+
+    __fpEma = flatpickr(input, {
+      locale: 'fr',
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd/m/Y',
+      defaultDate: STATE?.date || new Date(),
+      allowInput: true,
+      onChange: function(selectedDates, dateStr){
+        if(dateStr){
+          STATE.date = dateStr;
+          setHeader();
+          loadEma();
+        }
+      }
+    });
+  }
+
+  /* ===== Open ema modal ===== */
+  window.__openEma = ({ sessionId, sessionLabel, date, periode })=>{
+    if(!sessionId){ alert('ID session manquant'); return; }
+
+    STATE.sessionId = String(sessionId);
+    STATE.sessionLabel = sessionLabel || STATE.sessionLabel;
+    if(date) STATE.date = String(date);
+
+    // 👇 on stocke une "préférence" (AM/PM) pour auto-ouvrir la signature
+    window.__AUTO_OPEN_PERIODE = periode || null;
+
+    setHeader();
+
+    return loadEma().then(()=>{
+      const modalEl = document.getElementById('emargementModal');
+
+      modalEl.addEventListener('shown.bs.modal', () => {
+        initEmaDatepicker();
+
+        // ✅ auto-open signature si demandé
+        if(window.__AUTO_OPEN_PERIODE){
+          const p = window.__AUTO_OPEN_PERIODE;
+          window.__AUTO_OPEN_PERIODE = null; // important: éviter répétition
+
+          // on cherche le bouton "Signer" du bon créneau (AM/PM)
+          const btn = modalEl.querySelector(`.js-open-sign[data-periode="${p}"]`);
+          if(btn) btn.click();
+        }
+      }, { once:true });
+
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    });
+  };
+
+
+  $('#ema-refresh').on('click', ()=>{
+    // si flatpickr est actif, input.value est ISO Y-m-d
+    const v = $('#ema-date-input').val();
+    if(v) STATE.date = v;
+    setHeader();
+    loadEma();
+  });
+
+  /* ===== Signature: open modal + init canvas AFTER shown ===== */
+  $(document).on('click', '.js-open-sign', function(e){
+    e.preventDefault();
+
+    if(typeof bootstrap === 'undefined' || !bootstrap.Modal){
+      alert("Bootstrap JS n'est pas chargé (bootstrap.bundle.min.js).");
+      return;
+    }
+
+    window.CURRENT_PERIODE = this.dataset.periode || null;
+
+    const el = document.getElementById('signatureModal');
+    el.addEventListener('shown.bs.modal', () => {
+      window.initSignaturePad?.();
+      window.__signaturePad?.clear();
+    }, { once:true });
+
+    bootstrap.Modal.getOrCreateInstance(el, { backdrop:'static', focus:false }).show();
+  });
+
+
+
+  $(document).on('click', '.js-next-ema', function(e){
+    e.preventDefault();
+
+    const sid = this.dataset.sessionId;
+    const label = this.dataset.sessionLabel || 'Session';
+    const date = this.dataset.date || (new Date()).toISOString().slice(0,10);
+    const periode = this.dataset.periode || null; // AM / PM
+
+    window.__openEma?.({ sessionId: sid, sessionLabel: label, date: date, periode: periode });
+  });
+
+
+  // Clear
+  $('#btnClearSignature').on('click', ()=> window.__signaturePad?.clear());
+
+  // Save
+  $('#btnSaveSignature').on('click', async function(){
+    if (!window.__signaturePad || window.__signaturePad.isEmpty()) { alert('Veuillez signer.'); return; }
+    if (!window.CURRENT_PERIODE) { alert('Période inconnue.'); return; }
+
+    const dataUrl = window.__signaturePad.toDataURL('image/png');
+    const tpl = document.getElementById('sign-url-template')?.dataset?.url || '';
+    const url = String(tpl).replace('__ID__', String(STATE.sessionId || ''));
+
+    const form = new FormData();
+    form.append('signatureData', dataUrl);
+    form.append('periode', window.CURRENT_PERIODE);
+    form.append('date', toFr(STATE.date)); // ton endpoint attend du d/m/Y
+
+    const res = await fetch(url, {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest'},
+      body: form
+    });
+
+    const json = await res.json().catch(()=>null);
+    if (!res.ok || !json || json.success !== true) {
+      alert((json && (json.message||json.error)) || ('HTTP '+res.status));
+      return;
+    }
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('signatureModal')).hide();
+    await loadEma();
+  });
+
+  // Preview signature (modal)
+  $(document).on('click', '.js-view-sig', function(){
+    const url = this.dataset.url;
+    const at  = this.dataset.at || '';
+    if(!url) return;
+
+    $('#sigPreviewImg').attr('src', url);
+    $('#sigPreviewMeta').text(at ? ('Signé le ' + at) : 'Signature');
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('sigPreviewModal')).show();
+  });
+
+  // Unsign
+  $(document).on('click', '.js-unsign', async function(e){
+    e.preventDefault();
+    const periode = this.dataset.periode;
+    if (!confirm('Supprimer votre signature '+periode+' ?')) return;
+
+    const tpl = document.getElementById('unsign-url-template')?.dataset?.url || '';
+    const url = String(tpl).replace('__ID__', String(STATE.sessionId || ''));
+
+    const form = new FormData();
+    form.append('periode', periode);
+    form.append('date', toFr(STATE.date));
+
+    const res = await fetch(url, {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest'},
+      body: form
+    });
+
+    const json = await res.json().catch(()=>null);
+    if (!res.ok || !json || json.success !== true) {
+      alert((json && (json.message||json.error)) || ('HTTP '+res.status));
+      return;
+    }
+
+    await loadEma();
+  });
+
+  // Clic depuis la DataTable
+  $(document).on('click', '.js-emargement', function(e){
+    e.preventDefault();
+    const sid = this.dataset.sessionId;
+    const label = this.dataset.sessionLabel || 'Session';
+    const today = (new Date()).toISOString().slice(0,10);
+    window.__openEma?.({ sessionId: sid, sessionLabel: label, date: today });
+  });
+
+
+  function tagLastBackdrop(className){
+  const bds = document.querySelectorAll('.modal-backdrop');
+  const last = bds[bds.length - 1];
+  if(last) last.classList.add(className);
+}
+
+// Emargement backdrop
+document.getElementById('emargementModal')?.addEventListener('shown.bs.modal', () => {
+  tagLastBackdrop('emargement-backdrop');
+});
+
+// Signature backdrop (au-dessus)
+document.getElementById('signatureModal')?.addEventListener('shown.bs.modal', () => {
+  tagLastBackdrop('signature-backdrop');
+});
+
+// Preview backdrop (au-dessus de tout)
+document.getElementById('sigPreviewModal')?.addEventListener('shown.bs.modal', () => {
+  tagLastBackdrop('preview-backdrop');
+});
+
+
+
+
+
+
+
+
+  function tagLastBackdrop(className){
+    const bds = document.querySelectorAll('.modal-backdrop');
+    const last = bds[bds.length - 1];
+    if(last) last.classList.add(className);
+  }
+
+  // Emargement backdrop
+  document.getElementById('emargementModal')?.addEventListener('shown.bs.modal', () => {
+    tagLastBackdrop('emargement-backdrop');
+  });
+
+  // Signature backdrop (au-dessus)
+  document.getElementById('signatureModal')?.addEventListener('shown.bs.modal', () => {
+    tagLastBackdrop('signature-backdrop');
+  });
+
+  // Preview backdrop (au-dessus de tout)
+  document.getElementById('sigPreviewModal')?.addEventListener('shown.bs.modal', () => {
+    tagLastBackdrop('preview-backdrop');
+  });
+
+
+});
+</script>
+
+<script>
+// SignaturePad init (robuste: canvas visible uniquement après "shown")
+window.initSignaturePad = function(){
+  const canvas = document.getElementById('signatureCanvas');
+  if (!canvas) return;
+
+  if (window.__signaturePad) { try{ window.__signaturePad.off(); }catch(_){ } window.__signaturePad=null; }
+
+  const wrap = canvas.parentElement;
+  const cssWidth  = wrap ? wrap.clientWidth : (canvas.clientWidth || 600);
+  const cssHeight = 200;
+
+  canvas.style.width  = cssWidth + 'px';
+  canvas.style.height = cssHeight + 'px';
+
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  canvas.width  = Math.floor(cssWidth * ratio);
+  canvas.height = Math.floor(cssHeight * ratio);
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  if (typeof window.SignaturePad !== 'function') { console.error('SignaturePad non chargé'); return; }
+  window.__signaturePad = new SignaturePad(canvas, {
+    throttle:16,
+    minWidth:.5,
+    maxWidth:2.5,
+    backgroundColor:'rgb(255,255,255)'
+  });
+};
+
+
+
+
+
+
+</script>
+{% endblock %}

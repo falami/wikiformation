@@ -1,0 +1,1054 @@
+{# templates/formateur/satisfaction/fill.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Évaluation formateur — {{ session.code ?? ('Session #' ~ session.id) }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+      overflow:hidden;
+    }
+
+    .cardx{
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:18px;
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      background:#fff;
+    }
+
+    .chapter{
+      border-radius:16px;
+      border:1px solid rgba(0,0,0,.06);
+      background:#fff;
+    }
+    .chapter-h{
+      padding: .9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+    }
+    .chapter-b{ padding: 1rem; }
+
+    .progress-wrap{
+      position: sticky; top: .75rem; z-index: 5;
+      background: rgba(255,255,255,.9);
+      border:1px solid rgba(0,0,0,.06);
+      border-radius: 14px;
+      padding: .6rem .75rem;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 10px 24px rgba(0,0,0,.06);
+      margin-bottom: 1rem;
+    }
+
+    .q-block{
+      padding:.85rem;
+      border-radius:14px;
+      border:1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.98);
+    }
+    .q-block.is-invalid{
+      border-color: rgba(220,53,69,.55);
+      box-shadow:0 0 0 3px rgba(220,53,69,.08);
+    }
+
+    /* ===== SCALE 0..10 (étoiles) ===== */
+    .scale10{
+      padding:.65rem .75rem;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+    }
+    .scale10 .form-check{ display:none !important; }
+    .scale10 input[type="radio"]{
+      position:absolute !important;
+      opacity:0 !important;
+      width:1px !important;
+      height:1px !important;
+      pointer-events:none !important;
+    }
+
+    .stars-row{
+      display:flex;
+      align-items:center;
+      gap:.35rem;
+      flex-wrap:wrap;
+    }
+    .star-btn{
+      width:38px; height:38px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.02);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+    }
+    .star-btn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,193,7,.55);
+    }
+    .star-btn i{
+      font-size: 1.05rem;
+      color: rgba(0,0,0,.25);
+      transition: color .12s ease;
+    }
+    .star-btn.is-on{
+      background: rgba(255,193,7,.14);
+      border-color: rgba(255,193,7,.55);
+    }
+    .star-btn.is-on i{ color: #f0b400; }
+
+    .note-live{
+      margin-left:auto;
+      display:flex;
+      align-items:center;
+      gap:.6rem;
+      font-weight:800;
+      color: rgba(0,0,0,.70);
+      white-space:nowrap;
+    }
+    .note-live .btn-clear{
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(0,0,0,.02);
+      border-radius:10px;
+      padding:.25rem .45rem;
+      cursor:pointer;
+      line-height:1;
+    }
+    .note-live .btn-clear:hover{
+      border-color: rgba(220,53,69,.35);
+      background: rgba(220,53,69,.06);
+    }
+
+    /* ===== Oui / Non en “cards” ===== */
+    .yn{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+      padding:.65rem .75rem;
+    }
+    .yn .form-check{ display:none !important; }
+    .yn input[type="radio"]{
+      position:absolute !important;
+      opacity:0 !important;
+      width:1px !important;
+      height:1px !important;
+      pointer-events:none !important;
+    }
+    .yn-row{
+      display:flex;
+      gap:.6rem;
+      flex-wrap:wrap;
+      justify-content:flex-start;
+    }
+    .yn-btn{
+      flex: 0 0 auto;
+      min-width: 160px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:.5rem;
+      padding:.55rem .85rem;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.02);
+      cursor:pointer;
+      font-weight:800;
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+    }
+    .yn-btn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,193,7,.55);
+    }
+    .yn-btn.is-on{
+      background: rgba(255,193,7,.14);
+      border-color: rgba(255,193,7,.55);
+    }
+
+    /* ===== champs texte sous la question ===== */
+    .field-under label.form-label{ display:none !important; }
+    .field-under .form-control,
+    .field-under .form-select{ margin-top: .25rem; width:100% !important; }
+
+    /* FIX legend/labels Symfony (012345678910 / OuiNon) */
+    .scale10 fieldset,
+    .yn fieldset{
+      border: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      min-inline-size: auto !important;
+    }
+    .scale10 legend,
+    .yn legend{ display: none !important; }
+    .scale10 label,
+    .yn label{ display:none !important; }
+
+    .star-btn.is-hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.35);
+    }
+    .star-btn.is-hover i{ color:#f0b400; }
+
+    /* ===== Objectifs table ===== */
+    .obj-table th{
+      font-weight:800;
+      background: rgba(0,0,0,.02);
+      border-bottom:1px solid rgba(0,0,0,.06) !important;
+      white-space:nowrap;
+    }
+    .obj-table td{ vertical-align: top; }
+    .obj-stagiaire{ min-width: 240px; }
+    .obj-comment textarea, .obj-comment input{ width:100% !important; }
+
+    /* ===== Chips ===== */
+    .cp-chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.02);
+      border-radius: 999px;
+      padding: .35rem .55rem .35rem .65rem;
+      font-weight: 700;
+    }
+    .cp-chip button{
+      border:0; background:transparent; padding:0; line-height:1;
+      color: rgba(0,0,0,.45);
+    }
+    .cp-chip button:hover{ color: #dc3545; }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-3">
+
+  {# ===== HERO ===== #}
+  <div class="hero p-4 mb-3">
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <span class="badge rounded-pill text-bg-light text-dark"><i class="bi bi-ui-checks"></i> Évaluation</span>
+      {% if template is defined %}
+        <span class="badge rounded-pill text-bg-light text-dark"><i class="bi bi-journal-text"></i> {{ template.titre }}</span>
+      {% endif %}
+      {% if session.formation %}
+        <span class="badge rounded-pill text-bg-light text-dark"><i class="bi bi-mortarboard"></i> {{ session.formation.titre }}</span>
+      {% endif %}
+      <span class="badge rounded-pill text-bg-light text-dark"><i class="bi bi-hash"></i> {{ session.code ?? ('#' ~ session.id) }}</span>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+      <div>
+        <h2 class="fw-bold mb-1">Votre évaluation (Formateur)</h2>
+        <div class="opacity-75">
+          Merci de répondre avec sincérité — cela améliore la qualité des formations.
+        </div>
+      </div>
+
+      <span class="badge bg-info text-dark align-self-center">
+        Disponible fin de session
+      </span>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== Progress ===== #}
+  <div class="progress-wrap">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <div class="fw-semibold small">Progression</div>
+      <div class="small text-muted"><span id="progressPct">0</span>%</div>
+    </div>
+    <div class="progress" style="height:10px;">
+      <div class="progress-bar" role="progressbar" id="progressBar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="cardx p-3">
+    {{ form_start(form, { attr: { id: 'satForm', novalidate: 'novalidate' } }) }}
+
+    {% if not form.vars.valid %}
+      <div class="alert alert-danger">
+        <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle"></i> Des champs sont à corriger</div>
+        <div class="small">Vérifie les questions marquées en rouge puis renvoie le formulaire.</div>
+      </div>
+    {% endif %}
+
+    {# ===== Questions ===== #}
+    {% if template is defined %}
+      {% for chapter in template.chapters %}
+        <div class="chapter mb-3">
+          <div class="chapter-h">
+            <div class="fw-bold">{{ chapter.titre }}</div>
+          </div>
+
+          <div class="chapter-b">
+            {% for q in chapter.questions %}
+              {% set field = attribute(form, 'q_' ~ q.id) %}
+              {% set hasError = field.vars.errors|length > 0 %}
+
+              <div class="mb-3 q-block js-qblock {{ hasError ? 'is-invalid' : '' }}"
+                   data-required="{{ q.required ? '1' : '0' }}">
+                <div class="d-flex align-items-start justify-content-between gap-2">
+                  <label class="form-label fw-semibold mb-1">
+                    {{ q.libelle }}
+                    {% if q.required %}<span class="text-danger">*</span>{% endif %}
+                  </label>
+
+                  {% if q.type.value in ['scale','stars'] %}
+                    <span class="text-muted small">Échelle 0 → 10</span>
+                  {% elseif q.type.value == 'yes_no' %}
+                    <span class="text-muted small">Oui / Non</span>
+                  {% endif %}
+                </div>
+
+                {% if q.help %}
+                  <div class="small text-muted mt-1">{{ q.help }}</div>
+                {% endif %}
+
+                {% if q.type.value in ['scale','stars'] %}
+                  <div class="scale10 js-scale10" data-max="10">
+                    {{ form_widget(field) }}
+
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                      <div class="stars-row js-scale10-ui" aria-hidden="true"></div>
+
+                      <div class="note-live">
+                        <span class="js-note">Note : —/10</span>
+                        <button type="button" class="btn-clear js-clear" title="Effacer">
+                          <i class="bi bi-x-lg"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {% if field.vars.help %}<div class="form-text">{{ field.vars.help }}</div>{% endif %}
+                  {{ form_errors(field) }}
+
+                {% elseif q.type.value == 'yes_no' %}
+                  <div class="yn js-yesno">
+                    {{ form_widget(field) }}
+                    <div class="yn-row js-yesno-ui" aria-hidden="true"></div>
+                  </div>
+
+                  {% if field.vars.help %}<div class="form-text">{{ field.vars.help }}</div>{% endif %}
+                  {{ form_errors(field) }}
+
+                {% else %}
+                  <div class="field-under w-100">
+                    {{ form_widget(field, { attr: { class: (field.vars.attr.class|default('') ~ ' w-100')|trim } }) }}
+                    {% if field.vars.help %}<div class="form-text">{{ field.vars.help }}</div>{% endif %}
+                    {{ form_errors(field) }}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {# ===== Objectifs x stagiaires ===== #}
+    <div class="chapter mb-3">
+      <div class="chapter-h">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div>
+            <div class="fw-bold">Acquisition des objectifs</div>
+            <div class="small text-muted">Acquis / Partiellement acquis / Non acquis</div>
+          </div>
+          <i class="bi bi-mortarboard fs-5 text-muted"></i>
+        </div>
+      </div>
+
+      <div class="chapter-b">
+
+        {# ===== Phase 1 : définir les points (si aucun objectif) ===== #}
+        {% if objectives is empty and form.competences_points is defined %}
+          <div class="mb-3">
+            <div class="fw-semibold mb-1">Définir les points évalués</div>
+            <div class="small text-muted mb-2">
+              Ajoute les compétences une par une. Ensuite, clique sur <b>Définir l’acquisition</b> pour renseigner les niveaux par stagiaire.
+            </div>
+
+            {# textarea réel caché #}
+            <div class="d-none">
+              {{ form_widget(form.competences_points, { attr: { id: 'competences_points_hidden' } }) }}
+              {{ form_errors(form.competences_points) }}
+            </div>
+
+            {# JSON hidden (matrice d'évaluation) #}
+            {% if form.obj_matrix_json is defined %}
+              <div class="d-none">
+                {{ form_widget(form.obj_matrix_json, { attr: { id: 'obj_matrix_json' } }) }}
+              </div>
+            {% endif %}
+
+            <div class="card border-0 shadow-sm" style="border-radius: 14px;">
+              <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                  <input type="text" class="form-control" id="cp_input"
+                        placeholder="Ex : Manœuvres portuaires, Sécurité à bord…">
+                  <button type="button" class="btn btn-warning fw-semibold" id="cp_add">
+                    <i class="bi bi-plus-circle"></i> Ajouter
+                  </button>
+
+                  <button type="button"
+                          class="btn btn-outline-primary fw-semibold ms-auto"
+                          id="btnOpenEvalModal"
+                          data-bs-toggle="modal"
+                          data-bs-target="#evalModal"
+                          disabled>
+                    <i class="bi bi-sliders"></i> Définir l’acquisition
+                  </button>
+                </div>
+
+                <div class="mt-3 d-flex flex-wrap gap-2" id="cp_list"></div>
+
+                <div class="mt-3 small text-muted">
+                  Astuce : tu peux appuyer sur <kbd>Entrée</kbd> pour ajouter.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# ===== Modal Bootstrap : acquisition par stagiaire ===== #}
+          <div class="modal fade" id="evalModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+              <div class="modal-content" style="border-radius: 18px;">
+                <div class="modal-header">
+                  <div>
+                    <div class="fw-bold">Acquisition par stagiaire</div>
+                    <div class="small text-muted">Renseigne le niveau pour chaque point évalué</div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+
+                <div class="modal-body">
+                  <div id="evalModalEmpty" class="alert alert-warning d-none mb-3">
+                    Ajoute au moins un point pour pouvoir évaluer.
+                  </div>
+
+                  {# JS injecte ici : onglets stagiaires + liste points #}
+                  <div id="evalModalContent"></div>
+                </div>
+
+                <div class="modal-footer d-flex justify-content-between">
+                  <div class="small text-muted">
+                    Les choix sont enregistrés automatiquement (dans le formulaire).
+                  </div>
+
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                      Fermer
+                    </button>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="btnEvalSave">
+                      <i class="bi bi-check2-circle"></i> OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+
+        {# ===== Phase 2 : objectifs existants -> grille ===== #}
+        {% if objectives is empty %}
+          {# Si on n'est PAS en mode "création des points", on affiche l'alerte #}
+          {% if form.competences_points is not defined %}
+            <div class="alert alert-warning mb-0">
+              Aucun objectif n’est défini pour cette formation. Ajoute des <b>FormationObjective</b> pour activer la grille.
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="table-responsive">
+            <table class="table align-middle obj-table">
+              <thead>
+                <tr>
+                  <th class="obj-stagiaire">Stagiaire</th>
+                  {% for o in objectives %}
+                    <th style="min-width:210px;">{{ o.label }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in stagiaires %}
+                  <tr>
+                    <td class="obj-stagiaire">
+                      <div class="fw-semibold">
+                        {{ (s.prenom ?? '') ~ ' ' ~ (s.nom ?? '') }}
+                      </div>
+                      <div class="small text-muted">{{ s.email ?? '' }}</div>
+
+                      <div class="mt-2 obj-comment">
+                        {{ form_widget(attribute(form, 'obj_comment_' ~ s.id), { attr: { class: 'form-control', placeholder: 'Commentaire (optionnel)…' } }) }}
+                        {{ form_errors(attribute(form, 'obj_comment_' ~ s.id)) }}
+                      </div>
+                    </td>
+
+                    {% for o in objectives %}
+                      <td>
+                        {{ form_widget(attribute(form, 'obj_' ~ s.id ~ '_' ~ o.id)) }}
+                        {{ form_errors(attribute(form, 'obj_' ~ s.id ~ '_' ~ o.id)) }}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+      <a class="btn btn-outline-secondary" href="{{ path('app_formateur_dashboard', { entite: entite.id }) }}">
+        <i class="bi bi-arrow-left"></i> Retour
+      </a>
+
+      <button id="btnSubmitSat" class="btn btn-warning fw-semibold" type="submit">
+        <i class="bi bi-send-check"></i> Soumettre mon évaluation
+      </button>
+    </div>
+
+    {% if form._token is defined %}
+      {{ form_widget(form._token) }}
+    {% endif %}
+
+    {{ form_end(form, { render_rest: false }) }}
+
+  </div>
+</div>
+<script>
+(function(){
+  // =========================
+  // GLOBALS
+  // =========================
+  const STAGIAIRES = {{ stagiaires|map(s => {
+    id: s.id,
+    nom: (s.prenom ?? '') ~ ' ' ~ (s.nom ?? ''),
+    email: (s.email ?? '')
+  })|json_encode|raw }};
+
+  // valeurs = AcquisitionLevel::value
+  const ACQ = [
+    { v: '', label: '—' },
+    { v: 'acquired', label: 'Acquis' },
+    { v: 'partial', label: 'Partiellement acquis' },
+    { v: 'not_acquired', label: 'Non acquis' },
+  ];
+
+  // =========================
+  // Helpers
+  // =========================
+  function normalize(v){
+    return (v || '')
+      .toString()
+      .trim()
+      .replace(/^\-\s*/, '')
+      .trim();
+  }
+
+  // =========================
+  // TomSelect
+  // =========================
+  document.querySelectorAll('.js-tomselect').forEach(el=>{
+    if (el.tomselect) return;
+    new TomSelect(el, { plugins:['remove_button'], create:false });
+  });
+
+  // =========================
+  // SCALE stars UI
+  // =========================
+  function initScaleStars(scope){
+    (scope || document).querySelectorAll('.js-scale10').forEach(wrap => {
+      if (wrap.dataset.uiInit === '1') return;
+      wrap.dataset.uiInit = '1';
+
+      const radios = Array.from(wrap.querySelectorAll('input[type="radio"]'));
+      const ui = wrap.querySelector('.js-scale10-ui');
+      const note = wrap.querySelector('.js-note');
+      const clearBtn = wrap.querySelector('.js-clear');
+      const max = parseInt(wrap.dataset.max || '10', 10);
+
+      if (!radios.length || !ui) return;
+
+      const byValue = new Map();
+      radios.forEach(r => byValue.set(String(r.value), r));
+
+      ui.innerHTML = '';
+
+      for(let i=1; i<=max; i++){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'star-btn';
+        btn.setAttribute('data-v', String(i));
+        btn.innerHTML = '<i class="bi bi-star-fill"></i>';
+
+        btn.addEventListener('mouseenter', () => { setVisual(i, true); setNote(i); });
+        btn.addEventListener('mouseleave', () => { refresh(); });
+
+        btn.addEventListener('click', () => {
+          const r = byValue.get(String(i));
+          if (!r) return;
+          r.checked = true;
+          r.dispatchEvent(new Event('change', { bubbles:true }));
+        });
+
+        ui.appendChild(btn);
+      }
+
+      function getCheckedValue(){
+        const checked = radios.find(r => r.checked);
+        if(!checked) return null;
+        const v = parseInt(checked.value, 10);
+        return Number.isFinite(v) ? v : null;
+      }
+
+      function setNote(val){
+        if(!note) return;
+        note.textContent = (val == null) ? 'Note : —/10' : ('Note : ' + val + '/10');
+      }
+
+      function setVisual(val, isHover){
+        const btns = Array.from(ui.querySelectorAll('.star-btn'));
+        btns.forEach(b => {
+          const v = parseInt(b.getAttribute('data-v') || '0', 10);
+          b.classList.toggle('is-on', val !== null && v <= val);
+          b.classList.toggle('is-hover', !!isHover && val !== null && v <= val);
+        });
+      }
+
+      function refresh(){
+        const val = getCheckedValue();
+        setVisual(val, false);
+        setNote(val);
+      }
+
+      radios.forEach(r => r.addEventListener('change', refresh));
+
+      if(clearBtn){
+        clearBtn.addEventListener('click', () => {
+          radios.forEach(r => r.checked = false);
+          refresh();
+        });
+      }
+
+      refresh();
+    });
+  }
+
+  // =========================
+  // YES/NO cards UI
+  // =========================
+    function initYesNo(scope){
+      (scope || document).querySelectorAll('.js-yesno').forEach(wrap => {
+        if (wrap.dataset.uiInit === '1') return;
+        wrap.dataset.uiInit = '1';
+
+        const radios = Array.from(wrap.querySelectorAll('input[type="radio"]'));
+        const ui = wrap.querySelector('.js-yesno-ui');
+        if(!radios.length || !ui) return;
+
+        // map value -> radio
+        const byValue = new Map();
+        radios.forEach(r => byValue.set(String(r.value), r));
+
+        // ✅ On force les labels "Oui" / "Non"
+        // (et on garde les values existantes : 1/0 ou true/false)
+        const values = radios.map(r => String(r.value));
+        const yesVal = values.find(v => v === '1' || v.toLowerCase() === 'true' || v.toLowerCase() === 'yes') ?? values[0];
+        const noVal  = values.find(v => v === '0' || v.toLowerCase() === 'false' || v.toLowerCase() === 'no') ?? values[1] ?? values[0];
+
+        const options = [
+          { value: yesVal, label: 'Oui', icon: 'bi-check2-circle' },
+          { value: noVal,  label: 'Non', icon: 'bi-x-circle' },
+        ];
+
+        ui.innerHTML = '';
+        options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'yn-btn';
+          btn.setAttribute('data-v', opt.value);
+          btn.innerHTML = `<i class="bi ${opt.icon}"></i> ${opt.label}`;
+
+          btn.addEventListener('click', () => {
+            const r = byValue.get(opt.value);
+            if(!r) return;
+            r.checked = true;
+            r.dispatchEvent(new Event('change', { bubbles:true }));
+          });
+
+          ui.appendChild(btn);
+        });
+
+        function refresh(){
+          const checked = radios.find(r => r.checked);
+          const val = checked ? String(checked.value) : null;
+          ui.querySelectorAll('.yn-btn').forEach(b => {
+            b.classList.toggle('is-on', val !== null && b.getAttribute('data-v') === val);
+          });
+        }
+
+        radios.forEach(r => r.addEventListener('change', refresh));
+        refresh();
+      });
+    }
+
+
+  initScaleStars(document);
+  initYesNo(document);
+
+  // =========================
+  // Progression
+  // =========================
+  const qBlocks = Array.from(document.querySelectorAll('.js-qblock'));
+  const pb = document.getElementById('progressBar');
+  const pct = document.getElementById('progressPct');
+
+  function isAnswered(block){
+    const inputs = block.querySelectorAll('input, textarea, select');
+    if (!inputs.length) return false;
+
+    for (const el of inputs) {
+      if (el.type === 'radio') {
+        const name = el.name;
+        if (block.querySelector(`input[type="radio"][name="${CSS.escape(name)}"]:checked`)) return true;
+      } else if (el.type === 'checkbox') {
+        if (el.checked) return true;
+      } else {
+        if ((el.value || '').trim() !== '') return true;
+      }
+    }
+    return false;
+  }
+
+  function refreshProgress(){
+    const required = qBlocks.filter(b => b.dataset.required === '1');
+    const base = required.length ? required : qBlocks;
+    const total = base.length || 1;
+    const done = base.filter(isAnswered).length;
+
+    const p = Math.max(0, Math.min(100, Math.round((done / total) * 100)));
+    if (pb) pb.style.width = p + '%';
+    if (pct) pct.textContent = String(p);
+  }
+
+  document.addEventListener('input', refreshProgress, true);
+  document.addEventListener('change', refreshProgress, true);
+  refreshProgress();
+
+  // =========================
+  // Anti double-submit + sync matrix
+  // =========================
+  const form = document.getElementById('satForm');
+  const btnSubmit = document.getElementById('btnSubmitSat');
+
+  // points textarea hidden
+  const hidden =
+    document.getElementById('competences_points_hidden')
+    || document.querySelector('textarea[name$="[competences_points]"]')
+    || document.querySelector('textarea[name="competences_points"]');
+
+  // matrix hidden
+  const matrixHidden =
+    document.getElementById('obj_matrix_json')
+    || document.querySelector('input[type="hidden"][name$="[obj_matrix_json]"]')
+    || document.querySelector('input[type="hidden"][name="obj_matrix_json"]');
+
+  const input = document.getElementById('cp_input');
+  const addBtn = document.getElementById('cp_add');
+  const list = document.getElementById('cp_list');
+
+  const btnOpenModal = document.getElementById('btnOpenEvalModal');
+  const modalContent = document.getElementById('evalModalContent');
+  const modalEmpty = document.getElementById('evalModalEmpty');
+
+  // matrix = { [sid]: { [label]: value } }
+  let matrix = {};
+
+  function syncMatrixHidden(){
+    if (!matrixHidden) return;
+    matrixHidden.value = JSON.stringify({ matrix });
+  }
+
+  function getPoints(){
+    if (!hidden) return [];
+    return (hidden.value || '').split(/\r?\n/).map(normalize).filter(Boolean);
+  }
+
+  function setPoints(points){
+    if (!hidden) return;
+    hidden.value = points.join('\n');
+  }
+
+  function ensureMatrix(points){
+    STAGIAIRES.forEach(s => {
+      const sid = String(s.id);
+      if (!matrix[sid]) matrix[sid] = {};
+
+      points.forEach(p => {
+        if (matrix[sid][p] === undefined) {
+          matrix[sid][p] = { level: '', comment: '' };
+        } else if (typeof matrix[sid][p] === 'string') {
+          // compat si ancienne donnée (string)
+          matrix[sid][p] = { level: matrix[sid][p] || '', comment: '' };
+        } else {
+          matrix[sid][p].level = matrix[sid][p].level ?? '';
+          matrix[sid][p].comment = matrix[sid][p].comment ?? '';
+        }
+      });
+
+      Object.keys(matrix[sid]).forEach(p => {
+        if (!points.includes(p)) delete matrix[sid][p];
+      });
+    });
+
+    syncMatrixHidden();
+  }
+
+
+  function renderChips(points){
+    if (!list) return;
+    list.innerHTML = '';
+    points.forEach((p, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'cp-chip';
+      chip.innerHTML = `
+        <span>${p}</span>
+        <button type="button" aria-label="Supprimer"><i class="bi bi-x-circle-fill"></i></button>
+      `;
+      chip.querySelector('button').addEventListener('click', () => {
+        points.splice(idx, 1);
+        setPoints(points);
+        ensureMatrix(points);
+        renderChips(points);
+        if (btnOpenModal) btnOpenModal.disabled = points.length === 0;
+      });
+      list.appendChild(chip);
+    });
+  }
+
+  function addPoint(points){
+    const v = normalize(input.value);
+    if (!v) return;
+    if (!points.includes(v)) points.push(v);
+    input.value = '';
+    setPoints(points);
+    ensureMatrix(points);
+    renderChips(points);
+    if (btnOpenModal) btnOpenModal.disabled = points.length === 0;
+  }
+
+  function buildModal(points){
+    if (!modalContent || !modalEmpty) return;
+
+    if (!points.length) {
+      modalEmpty.classList.remove('d-none');
+      modalContent.innerHTML = '';
+      return;
+    }
+    modalEmpty.classList.add('d-none');
+
+    let nav = `<ul class="nav nav-pills gap-2 mb-3" role="tablist">`;
+    let panes = `<div class="tab-content">`;
+
+    STAGIAIRES.forEach((s, idx) => {
+      const sid = String(s.id);
+      const tabId = `st_${sid}`;
+      const active = idx === 0 ? 'active' : '';
+      const show = idx === 0 ? 'show active' : '';
+
+      nav += `
+        <li class="nav-item" role="presentation">
+          <button class="nav-link ${active}" data-bs-toggle="tab" data-bs-target="#${tabId}" type="button" role="tab">
+            <i class="bi bi-person"></i> ${s.nom}
+          </button>
+        </li>`;
+
+      let rows = '';
+      points.forEach(p => {
+        const curObj = (matrix[sid] && matrix[sid][p] !== undefined) ? matrix[sid][p] : { level:'', comment:'' };
+        const curLevel = (typeof curObj === 'string') ? curObj : (curObj.level || '');
+        const curComment = (typeof curObj === 'object' && curObj) ? (curObj.comment || '') : '';
+
+        const opts = ACQ.map(o => `<option value="${o.v}" ${o.v === curLevel ? 'selected' : ''}>${o.label}</option>`).join('');
+
+        rows += `
+          <div class="py-2 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <div class="flex-grow-1 fw-semibold">${p}</div>
+
+              <select class="form-select form-select-sm w-auto js-acq"
+                      data-sid="${sid}"
+                      data-point="${encodeURIComponent(p)}">
+                ${opts}
+              </select>
+            </div>
+
+            <div class="mt-2">
+              <input type="text"
+                    class="form-control form-control-sm js-acq-comment"
+                    placeholder="Commentaire (optionnel)…"
+                    value="${String(curComment).replaceAll('"','&quot;')}"
+                    data-sid="${sid}"
+                    data-point="${encodeURIComponent(p)}">
+            </div>
+          </div>`;
+      });
+
+
+      panes += `
+        <div class="tab-pane fade ${show}" id="${tabId}" role="tabpanel">
+          <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
+            <div class="small text-muted">${s.email || ''}</div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary js-fill-all" data-sid="${sid}" data-v="acquired">Tout Acquis</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary js-fill-all" data-sid="${sid}" data-v="partial">Tout Partiel</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary js-fill-all" data-sid="${sid}" data-v="not_acquired">Tout Non</button>
+              <button type="button" class="btn btn-sm btn-outline-danger js-fill-all" data-sid="${sid}" data-v="">Réinitialiser</button>
+            </div>
+          </div>
+          <div class="border rounded-3 p-2">
+            ${rows}
+          </div>
+        </div>`;
+    });
+
+    nav += `</ul>`;
+    panes += `</div>`;
+    modalContent.innerHTML = nav + panes;
+
+    // change select => matrix.level
+    modalContent.querySelectorAll('.js-acq').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const sid = String(sel.dataset.sid || '');
+        const point = decodeURIComponent(sel.dataset.point || '');
+        if (!matrix[sid]) matrix[sid] = {};
+        if (!matrix[sid][point] || typeof matrix[sid][point] !== 'object') {
+          matrix[sid][point] = { level:'', comment:'' };
+        }
+        matrix[sid][point].level = sel.value;
+        syncMatrixHidden();
+      });
+    });
+
+    // input comment => matrix.comment (input + debounce light)
+    modalContent.querySelectorAll('.js-acq-comment').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const sid = String(inp.dataset.sid || '');
+        const point = decodeURIComponent(inp.dataset.point || '');
+        if (!matrix[sid]) matrix[sid] = {};
+        if (!matrix[sid][point] || typeof matrix[sid][point] !== 'object') {
+          matrix[sid][point] = { level:'', comment:'' };
+        }
+        matrix[sid][point].comment = inp.value;
+        syncMatrixHidden();
+      });
+    });
+
+
+    // fill-all
+    modalContent.querySelectorAll('.js-fill-all').forEach(b => {
+      b.addEventListener('click', () => {
+        const sid = String(b.dataset.sid || '');
+        const v = b.dataset.v ?? '';
+
+        modalContent.querySelectorAll(`.js-acq[data-sid="${CSS.escape(sid)}"]`).forEach(sel => {
+          sel.value = v;
+          const point = decodeURIComponent(sel.dataset.point || '');
+          if (!matrix[sid]) matrix[sid] = {};
+          if (!matrix[sid][point] || typeof matrix[sid][point] !== 'object') {
+            matrix[sid][point] = { level:'', comment:'' };
+          }
+          matrix[sid][point].level = v;
+        });
+
+        syncMatrixHidden();
+      });
+    });
+
+  }
+
+  // init points + matrix
+  if (hidden && input && addBtn && list) {
+    // restore matrix (retour validation)
+    if (matrixHidden && matrixHidden.value) {
+      try {
+        const parsed = JSON.parse(matrixHidden.value);
+        if (parsed && parsed.matrix) matrix = parsed.matrix;
+      } catch(e){}
+    }
+
+    let points = Array.from(new Set(getPoints()));
+    setPoints(points);
+    ensureMatrix(points);
+    renderChips(points);
+
+    if (btnOpenModal) btnOpenModal.disabled = points.length === 0;
+
+    addBtn.addEventListener('click', () => addPoint(points));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); addPoint(points); }
+    });
+
+    if (btnOpenModal) {
+      btnOpenModal.addEventListener('click', () => {
+        const pts = getPoints();
+        ensureMatrix(pts);
+        buildModal(pts);
+      });
+    }
+  }
+
+  if (form && btnSubmit) {
+    form.addEventListener('submit', (e) => {
+      // 1) Empêche l'envoi si des required ne sont pas répondus (UX)
+      const requiredBlocks = qBlocks.filter(b => b.dataset.required === '1');
+      const base = requiredBlocks.length ? requiredBlocks : qBlocks;
+
+      const firstMissing = base.find(b => !isAnswered(b));
+      if (firstMissing) {
+        e.preventDefault();
+        firstMissing.classList.add('is-invalid');
+        firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        refreshProgress();
+        return;
+      }
+
+      // 2) sécurité : sync matrix avant submit
+      ensureMatrix(getPoints());
+      syncMatrixHidden();
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Envoi...';
+    });
+  }
+
+})();
+</script>
+
+{% endblock %}

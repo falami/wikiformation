@@ -1,0 +1,213 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Mes cours e-learning{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css">
+
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+}
+
+/* ===== HERO (comme administrateur/session) ===== */
+.hero{
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color:#fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+  background:
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  opacity:.85;
+}
+
+.hero .accent{
+  width: 12px;
+  border-radius: 999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+}
+
+/* Chips HERO */
+.hero .chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.32rem .7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size:.82rem;
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.hero .chip i{ color: var(--theme-color-secondaire); }
+.hero .chip--pill{
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+  color:#fff;
+}
+
+/* Buttons hero */
+.hero .btn{
+  border-radius: 14px;
+  font-weight: 800;
+}
+.hero .btn-outline-theme{
+  border-color: rgba(255,255,255,.35);
+  color:#fff;
+}
+.hero .btn-outline-theme:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  color:#fff;
+}
+
+@media (max-width:768px){
+  .hero{ border-radius: 16px; }
+}
+
+/* ---- ton reste existant (table-card, badges, etc.) peut rester ---- */
+.table-card{
+  border-radius:18px; background:#fff;
+  border:1px solid rgba(0,0,0,.06);
+  box-shadow: 0 12px 30px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+.badge-state{ display:inline-flex; align-items:center; gap:.45rem; padding:.28rem .65rem; border-radius:999px; font-weight:900; font-size:.78rem; border:1px solid rgba(15,23,42,.10); }
+.badge-state .dot{ width:8px; height:8px; border-radius:999px; }
+.badge-state.active{ background: rgba(34,197,94,.10); border-color: rgba(34,197,94,.20); color:#166534; } .badge-state.active .dot{ background: rgba(34,197,94,.95); }
+.badge-state.upcoming{ background: color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent); border-color: color-mix(in srgb, var(--theme-color-secondaire) 26%, transparent); color: color-mix(in srgb, var(--theme-color-principal) 70%, #000 30%); } .badge-state.upcoming .dot{ background: var(--theme-color-secondaire); }
+.badge-state.expired{ background: rgba(148,163,184,.18); border-color: rgba(148,163,184,.25); color: rgba(15,23,42,.70);} .badge-state.expired .dot{ background: rgba(100,116,139,.85); }
+.badge-state.suspended{ background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.22); color:#7f1d1d;} .badge-state.suspended .dot{ background: rgba(239,68,68,.95); }
+.pbar{ height:10px; border-radius:999px; background: rgba(15,23,42,.08); overflow:hidden; border:1px solid rgba(15,23,42,.08); }
+.pbar > span{ display:block; height:100%; width: var(--w,0%); background: linear-gradient(90deg, var(--theme-color-secondaire), color-mix(in srgb, var(--theme-color-secondaire) 55%, #fff 45%)); }
+
+</style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (comme administrateur/session) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-laptop me-2" style="color:var(--theme-color-secondaire)"></i>
+            Mes cours e-learning
+          </h2>
+          <div class="opacity-75 mt-1">Accède à tes contenus, suis ta progression et tes dates d’accès.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-mortarboard"></i> E-learning</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_stagiaire_elearning_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card mb-4 p-3">
+    <table id="tableStagiaireElearning"  class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+        <tr>
+          <th>Cours</th>
+          <th style="width:140px">État</th>
+          <th style="width:220px">Période</th>
+          <th style="width:190px">Progression</th>
+          <th class="text-end" style="width:1px">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+
+<script>
+$(function(){
+  $('#tableStagiaireElearning').DataTable({
+    serverSide: true,
+    processing: true,
+    ajax: {
+      url: "{{ path('app_stagiaire_elearning_ajax', { entite: entite.id }) }}",
+      type: "POST"
+    },
+    columns: [
+      { data:'course' },
+      { data:'status' },
+      { data:'window' },
+      { data:'progress' },
+      { data:'actions', orderable:false, searchable:false }
+    ],
+    columnDefs:[
+      { targets:[0,1,2,3,4], render: function(d){ return d; } },
+      { targets:4, className:'text-end', searchable:false }
+    ],
+    order: [[0,'asc']],
+    language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' }
+  });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  const el = document.getElementById('hero-last-refresh');
+  if (el) el.textContent = 'Maj : ' + nowLabel();
+});
+</script>
+{% endblock %}

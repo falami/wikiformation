@@ -1,0 +1,641 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Convention / Contrat #{{ c.id }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f6f8fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:rgba(15,23,42,.62);
+      --stroke:rgba(15,23,42,.10);
+      --shadow: 0 18px 55px rgba(0,0,0,.08);
+      --r: 22px;
+    }
+    /* ===== HERO (identique à administrateur/formateur/form.html.twig) ===== */
+    .hero{
+      border-radius:22px;
+      padding: 1.2rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* chips du hero */
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .chip i{ color: var(--theme-color-secondaire); }
+
+    /* boutons du hero */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    /* bouton outline "theme" (comme formateur/form) */
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== PANELS ===== */
+    .panel{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel-hd{
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between;
+      border-bottom: 1px solid var(--stroke);
+      background:
+        radial-gradient(700px 140px at 18% 0%, rgba(255,193,7,.12), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.85), #fff);
+    }
+    .panel-title{
+      display:flex; align-items:center; gap:.6rem;
+      font-weight:900; color: var(--ink);
+    }
+    .panel-title i{
+      width:38px; height:38px; display:grid; place-items:center;
+      border-radius:14px;
+      background: rgba(15,23,42,.04);
+      border:1px solid rgba(15,23,42,.08);
+    }
+    .panel-bd{ padding:16px; }
+
+    .info{
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:12px;
+      background:#fff;
+    }
+    .info .k{ font-size:.8rem; color:var(--muted); }
+    .info .v{ font-weight:800; color:var(--ink); }
+
+    pre.pretty{
+      background:#f8f9fa;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:14px;
+      white-space:pre-wrap;
+    }
+
+    @media (max-width: 768px){
+      .sticky-actions{
+        position: sticky;
+        bottom: 10px;
+        z-index: 20;
+        display:flex; gap:.5rem;
+        padding: 10px;
+        border-radius: 18px;
+        background: rgba(255,255,255,.86);
+        border: 1px solid rgba(15,23,42,.10);
+        box-shadow: 0 18px 55px rgba(0,0,0,.10);
+      }
+    }
+
+    
+
+  /* Micro-espacement horizontal entre cartes dans une row */
+  .info-spaced{
+    margin-left: .5rem; /* ajuste à .25 / .5 / .75 si besoin */
+  }
+  /* ===== PDF Preview ===== */
+  .pdf-preview{
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--stroke);
+    background: linear-gradient(180deg, rgba(15,23,42,.03), #fff);
+    box-shadow: 0 18px 45px rgba(0,0,0,.06);
+  }
+
+  .pdf-preview .pdf-iframe{
+    width: 100%;
+    height: 520px;
+    border: 0;
+    display: block;
+    background: #fff;
+  }
+
+  .pdf-preview .pdf-overlay{
+    position:absolute;
+    top:12px;
+    right:12px;
+    display:flex;
+    gap:.5rem;
+    z-index: 5;
+  }
+
+  .pdf-preview .pdf-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:.45rem;
+    padding:.38rem .65rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid rgba(15,23,42,.10);
+    box-shadow: 0 14px 32px rgba(0,0,0,.10);
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .pdf-preview .pdf-hint{
+    padding: 12px 14px;
+    border-top: 1px solid var(--stroke);
+    font-size: .9rem;
+    color: rgba(15,23,42,.62);
+    background: rgba(255,255,255,.75);
+  }
+
+  /* Mobile: on évite l'iframe, on garde une carte + CTA */
+  @media (max-width: 768px){
+    .pdf-preview .pdf-iframe{ display:none; }
+  }
+
+  /* ===== Delete modal (premium) ===== */
+  .delete-modal{
+    border: 1px solid rgba(15,23,42,.10);
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 30px 90px rgba(0,0,0,.18);
+    background:
+      radial-gradient(900px 260px at 10% 0%, rgba(220,53,69,.10), transparent 60%),
+      radial-gradient(700px 220px at 90% 10%, rgba(255,193,7,.10), transparent 60%),
+      #fff;
+  }
+  .delete-badge{
+    width:44px; height:44px;
+    display:grid; place-items:center;
+    border-radius: 16px;
+    background: rgba(220,53,69,.10);
+    border: 1px solid rgba(220,53,69,.22);
+    color: rgba(220,53,69,1);
+    box-shadow: 0 18px 35px rgba(220,53,69,.12);
+  }
+  .delete-card{
+    border-radius: 18px;
+    border: 1px solid rgba(15,23,42,.10);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.98)),
+      radial-gradient(900px 220px at 12% 0%, rgba(220,53,69,.08), transparent 60%);
+    padding: 14px;
+  }
+
+  .attente-convention{
+    text-align:center;
+  }
+
+
+    
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO (identique formateur/form) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-file-earmark-text me-2" style="color:var(--theme-color-secondaire)"></i>
+            Convention "{{ c.session.formation.titre }}"
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            - ID Convention : {{ c.numero }}
+            {% if c.session %}
+              <br />- ID Session : {{ c.session.code }}
+              {% if c.session.formation %}
+                <br />- {{ c.session.formation.titre }}
+              {% endif %}
+            {% endif %}
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-file-text"></i> Convention</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+
+            {% if c.entreprise %}
+              <span class="chip"><i class="bi bi-briefcase"></i> Entreprise</span>
+            {% elseif c.stagiaire %}
+              <span class="chip"><i class="bi bi-person"></i> Individuel</span>
+            {% else %}
+              <span class="chip"><i class="bi bi-exclamation-triangle"></i> À compléter</span>
+            {% endif %}
+
+            {% if c.pdfPath %}
+              <span class="chip"><i class="bi bi-check2-circle"></i> PDF prêt</span>
+            {% else %}
+              <span class="chip"><i class="bi bi-hourglass-split"></i> PDF à générer</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_convention_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_convention_edit', { entite: entite.id, id: c.id }) }}">
+            <i class="bi bi-pencil-square me-1"></i> Éditer
+          </a>
+
+          <form method="post"
+                action="{{ path('app_administrateur_convention_generate_pdf', { entite: entite.id, id: c.id }) }}"
+                class="d-inline">
+            <input type="hidden" name="_token" value="{{ csrf_token('genpdf' ~ c.id) }}">
+            <button class="btn btn-danger btn-sm fw-semibold">
+              <i class="bi bi-filetype-pdf me-1"></i> Générer PDF
+            </button>
+          </form>
+
+          {% if c.pdfPath %}
+            <a class="btn btn-light btn-sm fw-semibold"
+              href="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: c.id }) }}"
+              target="_blank">
+              <i class="bi bi-box-arrow-up-right me-1"></i> Ouvrir PDF
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="row g-3">
+
+    {# ===== MAIN ===== #}
+    <div class="col-lg-8">
+
+      
+        <div class="panel mb-3">
+          <div class="panel-hd">
+            <div class="panel-title">
+              <i class="bi bi-filetype-pdf"></i> Convention
+            </div>
+
+            <a class="btn btn-light btn-sm"
+              href="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: c.id }) }}"
+              target="_blank">
+              <i class="bi bi-box-arrow-up-right"></i> Ouvrir
+            </a>
+          </div>
+          
+          <div class="panel-bd">
+            {% if c.pdfPath %}
+            <div class="pdf-preview">
+
+              <div class="pdf-overlay">
+                <span class="pdf-badge">
+                  <i class="bi bi-check2-circle text-success"></i> PDF prêt
+                </span>
+
+                <a class="btn btn-sm btn-warning fw-semibold"
+                  href="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: c.id }) }}"
+                  target="_blank">
+                  <i class="bi bi-box-arrow-up-right"></i> Ouvrir
+                </a>
+              </div>
+
+              {# ✅ Aperçu PDF (desktop) #}
+              <iframe class="pdf-iframe"
+                      src="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: c.id }) }}#view=FitH&toolbar=0&navpanes=0&scrollbar=1">
+              </iframe>
+
+              {# ✅ Fallback / mobile card #}
+              <div class="pdf-hint d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                  <div class="fw-bold">Aperçu du contrat</div>
+                  <div class="small text-muted">Clique sur “Ouvrir” pour le consulter ou l’imprimer.</div>
+                </div>
+
+                <a class="btn btn-outline-secondary btn-sm"
+                  href="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: c.id }) }}"
+                  target="_blank">
+                  <i class="bi bi-printer"></i> Imprimer
+                </a>
+              </div>
+
+            </div>
+            {% else %}
+              <div class="attente-convention">
+                La convention s'affichera lorsque vous l'aurez généré...
+                <form method="post"
+                      action="{{ path('app_administrateur_convention_generate_pdf', { entite: entite.id, id: c.id }) }}">
+                  <input type="hidden" name="_token" value="{{ csrf_token('genpdf' ~ c.id) }}">
+                  <button class="btn btn-danger btn-sm">
+                    <i class="bi bi-filetype-pdf"></i> Générer PDF
+                  </button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+    </div>
+
+    {# ===== SIDEBAR ===== #}
+    <div class="col-lg-4">
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-info-circle"></i> Informations complémentaires
+          </div>
+        </div>
+
+        <div class="panel-bd d-grid gap-2">
+
+          {% if c.session and c.session.code %}
+            <div class="info">
+              <div class="k">Session</div>
+              <div class="v">{{ c.session ? c.session.code : '-' }}</div>
+            </div>
+          {% endif %}
+
+          {% if c.session and c.session.formation %}
+            <div class="info">
+              <div class="k">Formation</div>
+              <div class="v">{{ c.session and c.session.formation ? c.session.formation.titre : '-' }}</div>
+            </div>
+          {% endif %}
+
+          {% if c.entreprise %}
+          <div class="info">
+            <div class="k">Entreprise</div>
+            <div class="v">{{ c.entreprise ? c.entreprise.raisonSociale : '-' }}</div>
+          </div>
+          {% endif %}
+          {% if c.stagiaire %}
+          <div class="info">
+            <div class="k">Stagiaire</div>
+            <div class="v">
+              {{ c.stagiaire.prenom }} {{ c.stagiaire.nom }}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if c.pdfPath %}
+            <div class="info">
+              <div class="k">PDF</div>
+              <div class="v">{{ c.pdfPath ? 'Disponible' : 'Non généré' }}</div>
+            </div>
+          {% endif %}
+
+
+          {% if c.conditionsFinancieres %}
+            <div class="info">
+              <div class="k">Conditions financières</div>
+              <div class="v">{{ c.conditionsFinancieres }}</div>
+            </div>
+          {% endif %}
+
+          {% if c.dateSignatureEntreprise %}
+          <div class="info">
+            <div class="k">Entreprise</div>
+            <div class="v">{{ c.dateSignatureEntreprise ? c.dateSignatureEntreprise|date('d/m/Y') : '-' }}</div>
+          </div>
+          {% endif %}
+
+          {% if c.dateSignatureStagiaire %}
+          <div class="info">
+              <div class="k">Stagiaire</div>
+              <div class="v">{{ c.dateSignatureStagiaire ? c.dateSignatureStagiaire|date('d/m/Y') : '-' }}</div>
+          </div>
+          {% endif %}
+
+          {% if c.dateSignatureOf %}
+          <div class="info">
+            <div class="k">OF</div>
+            <div class="v">{{ c.dateSignatureOf ? c.dateSignatureOf|date('d/m/Y') : '-' }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel border-danger">
+        <div class="panel-hd" style="background:rgba(220,53,69,.08)">
+          <div class="panel-title text-danger">
+            <i class="bi bi-trash"></i> Zone sensible
+          </div>
+        </div>
+
+        <div class="panel-bd d-grid gap-2">
+
+          {# Bouton qui ouvre le modal #}
+          <button type="button"
+                  class="btn btn-danger w-100 fw-semibold"
+                  data-bs-toggle="modal"
+                  data-bs-target="#deleteConventionModal">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            Supprimer la convention
+          </button>
+
+          <div class="small" style="color:rgba(15,23,42,.62)">
+            Cette action est irréversible. Un écran de confirmation s’ouvrira.
+          </div>
+
+        </div>
+      </div>
+
+      {# ===== MODAL DELETE (premium) ===== #}
+      <div class="modal fade" id="deleteConventionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content delete-modal">
+
+            <div class="modal-header border-0 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <div class="delete-badge">
+                  <i class="bi bi-shield-exclamation"></i>
+                </div>
+                <div>
+                  <div class="modal-title h5 mb-0">Supprimer la convention</div>
+                  <div class="small text-muted">Confirmation requise</div>
+                </div>
+              </div>
+
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body pt-3">
+              <div class="delete-card">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-exclamation-triangle text-danger fs-5 mt-1"></i>
+                  <div>
+                    <div class="fw-bold">Cette action est irréversible.</div>
+                    <div class="text-muted small">
+                      La convention <span class="fw-semibold">{{ c.numero }}</span>
+                      sera supprimée définitivement.
+                      {% if c.session and c.session.code %}
+                        (Session : <span class="fw-semibold">{{ c.session.code }}</span>)
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <hr class="my-3" style="opacity:.08">
+
+                <div class="small text-muted mb-2">
+                  Pour éviter les clics involontaires, confirme en tapant :
+                  <span class="badge rounded-pill text-bg-light border" style="font-weight:800;">SUPPRIMER</span>
+                </div>
+
+                <input id="deleteConfirmInput"
+                      type="text"
+                      class="form-control"
+                      placeholder="Tape SUPPRIMER"
+                      autocomplete="off">
+              </div>
+            </div>
+
+            <div class="modal-footer border-0 pt-0">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                Annuler
+              </button>
+
+              <form method="post"
+                    action="{{ path('app_administrateur_convention_delete', { entite: entite.id, id: c.id }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('del' ~ c.id) }}">
+
+                <button id="confirmDeleteBtn"
+                        class="btn btn-danger fw-semibold"
+                        type="submit"
+                        disabled>
+                  <i class="bi bi-trash me-1"></i> Supprimer définitivement
+                </button>
+              </form>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  {# ===== MOBILE ACTIONS ===== #}
+  <div class="sticky-actions d-md-none mt-3">
+    <a class="btn btn-outline-secondary btn-sm flex-grow-1"
+       href="{{ path('app_administrateur_convention_index', { entite: entite.id }) }}">
+      Retour
+    </a>
+    {% if c.pdfPath %}
+      <a class="btn btn-danger btn-sm flex-grow-1"
+         href="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: c.id }) }}">
+        PDF
+      </a>
+    {% endif %}
+  </div>
+
+{% endblock %}
+
+
+
+{% block javascripts %}
+  {{ parent() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const modalEl = document.getElementById('deleteConventionModal');
+      if (!modalEl) return;
+
+      const input = document.getElementById('deleteConfirmInput');
+      const btn = document.getElementById('confirmDeleteBtn');
+
+      const refresh = () => {
+        const ok = (input.value || '').trim().toUpperCase() === 'SUPPRIMER';
+        btn.disabled = !ok;
+      };
+
+      input.addEventListener('input', refresh);
+
+      modalEl.addEventListener('shown.bs.modal', () => {
+        input.value = '';
+        refresh();
+        setTimeout(() => input.focus(), 150);
+      });
+
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        input.value = '';
+        refresh();
+      });
+    });
+  </script>
+{% endblock %}
+

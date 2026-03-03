@@ -1,0 +1,447 @@
+{# templates/administrateur/formation/content/node_form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d’un chapitre - {{ formation.titre }}{% endblock %}
+
+{% block stylesheets %}
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+}
+
+/* Habillage global */
+.section-title { font-weight:600; }
+.text-theme-secondaire { color: var(--theme-color-secondaire) !important; }
+.bg-theme-tertiaire { background: var(--theme-color-tertiaire) !important; }
+.text-theme-quaternaire { color: var(--theme-color-quaternaire) !important; }
+
+/* Icône champ flottant */
+.form-icon{ pointer-events:none; z-index:2; }
+.form-floating .form-control.with-icon{ padding-left: 2.4rem; }
+.form-floating .form-control.with-icon ~ label{ padding-left: 2.4rem; }
+
+/* Arborescence */
+.tree{ list-style:none; padding-left:0; margin:0; }
+.tree > li{ margin-bottom:.55rem; }
+.node-card{
+  background:#0f2230; border:1px solid rgba(255,255,255,.08);
+  border-radius:.8rem; padding:.7rem .75rem;
+}
+.node-header{ display:flex; align-items:center; gap:.65rem; justify-content:space-between; }
+.node-left{ display:flex; align-items:center; gap:.55rem; }
+.node-title{ font-weight:600; color: #FFFFFF;}
+.node-meta{ font-size:.9rem; opacity:.85; }
+.child-list{ list-style:none; margin:.45rem 0 0 1.25rem; padding-left:0; }
+.drag{ cursor:grab; opacity:.9; }
+.badge-soft{
+  background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
+  color:#cfe8f6; border-radius: 999px; padding:.2rem .5rem; font-size:.8rem;
+}
+</style>
+
+<link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+<link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  <h2 class="mb-3">
+    <i class="fa fa-sitemap text-theme-secondaire me-2"></i>{{ modeEdition ? 'Modifier' : 'Ajouter' }} un chapitre
+    <small class="text-muted">- {{ formation.titre }}</small>
+  </h2>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# Action (facultatif si généré automatiquement) #}
+  {% set nodeId = form.vars.value.id ?? null %}
+  {% set actionPath = modeEdition and nodeId
+    ? path('app_administrateur_formation_content_node_edit', { entite: entite.id, formation: formation.id, node: nodeId })
+    : path('app_administrateur_formation_content_node_add',  { entite: entite.id, formation: formation.id })
+  %}
+
+  {{ form_start(form, { action: actionPath, attr: { novalidate:'novalidate', name:'formation_content_node' } }) }}
+  {{ form_errors(form) }}
+
+  {# ================== Informations ================== #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+      <i class="fa fa-info-circle text-theme-secondaire me-2"></i> Informations
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="form-floating">
+            {{ form_widget(form.type, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Type'}}) }}
+            <label for="{{ form.type.vars.id }}">Type</label>
+          </div>
+          {{ form_errors(form.type) }}
+        </div>
+
+        <div class="col-md-6" id="parent-wrapper" style="display:none;">
+          <div class="form-floating">
+            {{ form_widget(form.parent, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Parent'}}) }}
+            <label for="{{ form.parent.vars.id }}">Parent (si sous-chapitre)</label>
+          </div>
+          {{ form_errors(form.parent) }}
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-floating position-relative">
+            {{ form_widget(form.titre, {'attr': {'class': 'form-control rounded-3 shadow-sm with-icon', 'placeholder': 'Titre'}}) }}
+            <label for="{{ form.titre.vars.id }}">*Titre</label>
+            <i class="fa fa-heading position-absolute top-50 start-0 translate-middle-y ms-3 text-muted form-icon"></i>
+          </div>
+          {{ form_errors(form.titre) }}
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-floating position-relative">
+            {{ form_widget(form.slug, {'attr': {'class': 'form-control rounded-3 shadow-sm with-icon', 'placeholder': 'Slug'}}) }}
+            <label for="{{ form.slug.vars.id }}">Slug</label>
+            <i class="fa fa-link position-absolute top-50 start-0 translate-middle-y ms-3 text-muted form-icon"></i>
+          </div>
+          <div class="form-text">Généré côté contrôleur si laissé vide.</div>
+          {{ form_errors(form.slug) }}
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-floating">
+            {{ form_widget(form.dureeMinutes, {'attr': {'class':'form-control rounded-3 shadow-sm', 'placeholder':'Durée (min)', 'min':0}}) }}
+            <label for="{{ form.dureeMinutes.vars.id }}">Durée (minutes)</label>
+          </div>
+          {{ form_errors(form.dureeMinutes) }}
+        </div>
+
+        {{ form_widget(form.position) }}
+
+      </div>
+    </div>
+  </div>
+
+  {# ================== Publication ================== #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+      <i class="fa fa-bullhorn text-theme-secondaire me-2"></i> Publication
+    </div>
+    <div class="card-body">
+      <div class="form-check form-switch">
+        {{ form_widget(form.isPublished, {'attr': {'class': 'form-check-input'}}) }}
+        <label class="form-check-label" for="{{ form.isPublished.vars.id }}">Publié</label>
+      </div>
+      {{ form_errors(form.isPublished) }}
+      <div class="form-text mt-2">Lorsque publié, le chapitre est visible dans la structure de la formation.</div>
+    </div>
+  </div>
+
+  {# ================== Actions ================== #}
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    <a href="{{ path('app_administrateur_formation_content_index', { entite: entite.id, formation: formation.id }) }}" class="btn btn-secondary">
+      <i class="fa fa-arrow-left me-1"></i> Retour
+    </a>
+    <button type="submit" class="btn btn-gradient">
+      <i class="fa fa-check me-1"></i>{{ modeEdition ? 'Enregistrer' : 'Créer' }}
+    </button>
+  </div>
+
+  {{ form_end(form) }}
+
+  {# ================== Structure du cours (drag & drop) ================== #}
+  <div class="card shadow-sm mt-4" id="tree-card"
+       data-reorder-url="{{ path('app_administrateur_formation_content_node_reorder', { entite: entite.id, formation: formation.id }) }}"
+       data-csrf="{{ csrf_token('reorder_nodes_' ~ formation.id) }}">
+    <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+      <i class="fa fa-diagram-project text-theme-secondaire me-2"></i> Structure de la formation
+    </div>
+    <div class="card-body">
+
+      {% macro render_nodes(list, entite, formation) %}
+        <ul class="child-list">
+          {% for n in list %}
+            <li class="node" data-node-id="{{ n.id }}">
+              <div class="node-card">
+                <div class="node-header">
+                  <div class="node-left">
+                    <span class="drag" title="Déplacer">
+                      <i class="fa fa-grip-vertical"></i>
+                    </span>
+                    <span class="badge-soft">{{ n.type.name == 'SOUS_CHAPITRE' ? 'Sous-chapitre' : 'Chapitre' }}</span>
+                    <span class="node-title">{{ n.titre }}</span>
+                    <span class="node-meta">#{{ n.position }}</span>
+                    {% if n.dureeMinutes %}<span class="badge-soft">{{ n.dureeMinutes }} min</span>{% endif %}
+                    {% if not n.isPublished %}<span class="badge-soft">Brouillon</span>{% endif %}
+                  </div>
+                  <div class="node-actions d-flex gap-1">
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="{{ path('app_administrateur_formation_content_node_edit', {
+                        entite: entite.id, formation: formation.id, node: n.id
+                        }) }}">
+                      <i class="fa fa-pen"></i>
+                    </a>
+                    <a class="btn btn-sm btn-outline-success"
+                      href="{{ path('app_administrateur_formation_content_node_add', {
+                        entite: entite.id,
+                        formation: formation.id,
+                        parentId: r.id,
+                        copyFromId: r.id
+                      }) }}">
+                      <i class="fa fa-plus"></i>
+                    </a>
+                    <button type="button"
+                       class="btn btn-sm btn-outline-danger btn-node-delete"
+                       data-del-url="{{ path('app_administrateur_formation_content_node_delete', {
+                        entite: entite.id, formation: formation.id, node: n.id
+                        }) }}"
+                       data-csrf="{{ csrf_token('del_node_' ~ n.id) }}">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+
+                {% if n.children is defined and n.children|length %}
+                  {{ _self.render_nodes(n.children, entite, formation) }}
+                {% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endmacro %}
+
+      {# Racines = chapitres (parent null). On suppose que formation.contentNodes est pré-chargé/trié côté repo #}
+      {% import _self as macros %}
+      {% set roots = formation.contentNodes|filter(n => n.parent is null) %}
+      <ul class="tree" id="tree-root">
+        {% for r in roots %}
+          <li class="node" data-node-id="{{ r.id }}">
+            <div class="node-card">
+              <div class="node-header">
+                <div class="node-left">
+                  <span class="drag" title="Déplacer"><i class="fa fa-grip-vertical"></i></span>
+                  <span class="badge-soft">Chapitre</span>
+                  <span class="node-title">{{ r.titre }}</span>
+                  <span class="node-meta">#{{ r.position }}</span>
+                  {% if r.dureeMinutes %}<span class="badge-soft">{{ r.dureeMinutes }} min</span>{% endif %}
+                  {% if not r.isPublished %}<span class="badge-soft">Brouillon</span>{% endif %}
+                </div>
+                <div class="node-actions d-flex gap-1">
+                  <a class="btn btn-sm btn-outline-primary"
+                     href="{{ path('app_administrateur_formation_content_node_edit', { entite: entite.id, formation: formation.id, node: r.id }) }}">
+                    <i class="fa fa-pen"></i>
+                  </a>
+                  <a class="btn btn-sm btn-outline-success"
+                     href="{{ path('app_administrateur_formation_content_node_add',  { entite: entite.id, formation: formation.id, parentId: r.id }) }}">
+                    <i class="fa fa-plus"></i>
+                  </a>
+                  <button type="button"
+                     class="btn btn-sm btn-outline-danger btn-node-delete"
+                     data-del-url="{{ path('app_administrateur_formation_content_node_delete', {
+                        entite: entite.id, formation: formation.id, node: r.id
+                        }) }}"
+                     data-csrf="{{ csrf_token('del_node_' ~ r.id) }}">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              {% if r.children is defined and r.children|length %}
+                {{ macros.render_nodes(r.children, entite, formation) }}
+              {% else %}
+                <ul class="child-list"></ul>
+              {% endif %}
+            </div>
+          </li>
+        {% else %}
+          <li class="text-muted">Aucun chapitre pour l’instant.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+{# ================== Scripts page ================== #}
+<script>
+  // TomSelect pour type/parent + toggle parent
+  const typeSel   = document.getElementById('{{ form.type.vars.id }}');
+  const parentSel = document.getElementById('{{ form.parent.vars.id }}');
+  const parentWrap= document.getElementById('parent-wrapper');
+
+  function ensureTomSelect(id){
+    const el = document.getElementById(id);
+    if (!el) return null;
+    return new TomSelect('#'+id, { create:false, allowEmptyOption:true, sortField:{field:"text",direction:"asc"} });
+  }
+  ensureTomSelect('{{ form.type.vars.id }}');
+  ensureTomSelect('{{ form.parent.vars.id }}');
+
+  function isSousChapitre(val){ return String(val||'').toUpperCase().includes('SOUS'); }
+  function syncParentVisibility(){
+    const val = typeSel ? (typeSel.tomselect ? typeSel.tomselect.getValue() : typeSel.value) : '';
+    parentWrap.style.display = isSousChapitre(val) ? '' : 'none';
+    if (!isSousChapitre(val) && parentSel) {
+      if (parentSel.tomselect) parentSel.tomselect.clear(); else parentSel.value='';
+    }
+  }
+  if (typeSel){
+    syncParentVisibility();
+    if (typeSel.tomselect) typeSel.tomselect.on('change', syncParentVisibility);
+    else typeSel.addEventListener('change', syncParentVisibility);
+  }
+
+  // Validation douce
+  (function(){ const f = document.querySelector('form[name="formation_content_node"]'); if(!f) return;
+    f.addEventListener('submit', (e)=>{ const inv = f.querySelectorAll(':invalid'); if(inv.length){ inv.forEach(x=>x.classList.add('is-invalid')); inv[0]?.scrollIntoView({behavior:'smooth',block:'center'}); e.preventDefault(); } });
+  })();
+
+  // ================ Drag & Drop arborescence ================
+  const treeCard   = document.getElementById('tree-card');
+  const reorderUrl = treeCard?.dataset.reorderUrl || '';
+  const csrfReord  = treeCard?.dataset.csrf || '';
+
+  // Initialiser Sortable sur toutes les listes (racine + enfants)
+  function initNodeSortables(){
+    document.querySelectorAll('#tree-root, .child-list').forEach(ul=>{
+      new Sortable(ul, {
+        group: 'nodes',
+        animation: 150,
+        handle: '.drag',
+        fallbackOnBody: true,
+        swapThreshold: .65,
+        onEnd: sendOrder
+      });
+    });
+  }
+
+  async function sendOrder(){
+    const tree = document.getElementById('tree-root');
+    if (!tree) return;
+
+    const payload = collectNodes(tree, null);
+
+    try{
+      const res = await fetch(reorderUrl, {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'X-Requested-With':'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+    }catch(e){
+      console.error('Reorder error:', e);
+      alert("Impossible d’enregistrer le nouvel ordre.");
+    }
+  }
+
+  function collectNodes(ul, parentId){
+    const out = [];
+    if (!(ul instanceof HTMLElement)) return out;
+
+    [...ul.children].forEach((li, idx)=>{
+      if (!li.matches('li.node[data-node-id]')) return;
+      const id = parseInt(li.dataset.nodeId, 10);
+      out.push({ id, position: idx, parentId });
+
+      const child = li.querySelector(':scope .child-list');
+      if (child) out.push(...collectNodes(child, id));
+    });
+
+    return out;
+  }
+  function ulClosestNode(ul){
+    // ul.child-list est contenu dans .node-card d’un li.node => on remonte au li
+    if (!ul) return null;
+    const card = ul.closest('.node-card');
+    if (!card) return null;
+    return card.closest('li.node');
+  }
+  async function postReorder(payload){
+    try{
+      const res = await fetch(reorderUrl, {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'X-Requested-With':'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          ...payload,
+          _token: csrfReord
+        })
+      });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+    }catch(e){
+      console.error('Reorder error:', e);
+      alert("Impossible d’enregistrer le nouvel ordre.");
+    }
+  }
+
+  // Suppression d’un nœud (POST + CSRF) et retrait du DOM
+  document.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('.btn-node-delete[data-del-url]');
+    if (!btn) return;
+    e.preventDefault();
+    if (!confirm('Supprimer ce nœud ?')) return;
+
+    const url  = btn.dataset.delUrl;
+    const tok  = btn.dataset.csrf;
+
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest'},
+        body: new URLSearchParams({_token: tok})
+      });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const li = btn.closest('li.node');
+      li?.remove();
+    }catch(err){
+      console.error(err);
+      alert("Erreur lors de la suppression.");
+    }
+  });
+
+  // Lancement
+  initNodeSortables();
+</script>
+
+
+<script>
+  function slugify(str){
+    return (str || '')
+      .toString()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // accents
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-') // non alphanum -> -
+      .replace(/^-+|-+$/g, '')     // trim -
+      .replace(/-{2,}/g, '-');     // -- -> -
+  }
+
+  (function(){
+    const titre = document.getElementById('{{ form.titre.vars.id }}');
+    const slug  = document.getElementById('{{ form.slug.vars.id }}');
+    if (!titre || !slug) return;
+
+    // Si on est en édition et que le slug est déjà rempli => on considère “manuel”
+    let slugManual = !!(slug.value && slug.value.trim().length);
+
+    slug.addEventListener('input', () => {
+      slugManual = slug.value.trim().length > 0;
+    });
+
+    titre.addEventListener('input', () => {
+      if (slugManual) return; // l’utilisateur a décidé de gérer son slug
+      slug.value = slugify(titre.value);
+    });
+  })();
+</script>
+
+{% endblock %}

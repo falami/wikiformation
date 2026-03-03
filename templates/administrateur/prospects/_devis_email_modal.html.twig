@@ -1,0 +1,84 @@
+{# templates/administrateur/prospects/_devis_email_modal.html.twig #}
+
+<div class="modal fade" id="devisEmailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px; overflow:hidden;">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Envoyer le devis</h5>
+          <div class="text-muted small">
+            Devis <strong>{{ devis.numero ?? ('#' ~ devis.id) }}</strong> — Prospect :
+            <strong>{{ ((prospect.prenom ?? '') ~ ' ' ~ (prospect.nom ?? ''))|trim ?: (prospect.email ?? '—') }}</strong>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="devisSendForm">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold">Destinataire</label>
+              <input class="form-control" name="prospect_devis[to]" value="{{ to ?? (prospect.email ?? '') }}" placeholder="email@exemple.com">
+              <div class="form-text">Email du prospect (modifiable).</div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold">Objet</label>
+              <input class="form-control" name="prospect_devis[subject]" value="{{ subject ?? ('Votre devis — ' ~ (entite.nom ?? 'Wiki Formation')) }}">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold">Message</label>
+              <textarea class="form-control" name="prospect_devis[message]" rows="7"
+                        placeholder="Bonjour {{ prospect.prenom ?? '' }}, ...">{{ message ?? defaultMessage ?? '' }}</textarea>
+              <div class="form-text">
+                Tu peux utiliser du Twig : <code>{{ '{{ prospect.prenom }}' }}</code>, <code>{{ '{{ devis.numero }}' }}</code>, etc.
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="d-flex flex-wrap gap-3 align-items-center">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="attachPdf" name="prospect_devis[attachPdf]" value="1" checked>
+                  <label class="form-check-label" for="attachPdf">
+                    Joindre le PDF du devis
+                  </label>
+                </div>
+
+                {# ✅ idempotency key : évite double envoi si double click #}
+                <input type="hidden" name="prospect_devis[idemKey]" value="{{ idemKey ?? (random() ~ '-' ~ devis.id) }}">
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary" id="btnDevisPreview">
+                  <i class="bi bi-eye"></i> Aperçu
+                </button>
+                <button type="button" class="btn btn-warning fw-semibold" id="btnDevisSend">
+                  <i class="bi bi-send"></i> Envoyer
+                </button>
+              </div>
+              <div class="small mt-2" id="devisSendStatus" style="color:#0a7a2f;"></div>
+            </div>
+          </div>
+        </form>
+
+        <hr class="my-3">
+
+        <div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="fw-semibold">Aperçu email</div>
+            <div class="text-muted small">Rendu HTML final (avec variables)</div>
+          </div>
+          <div id="devisPreviewZone"
+               style="border:1px solid rgba(0,0,0,.08); border-radius:14px; padding:12px; background:#fff;">
+            <div class="text-muted small">Clique sur “Aperçu” pour générer le rendu.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

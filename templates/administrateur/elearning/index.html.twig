@@ -1,0 +1,374 @@
+{# templates/administrateur/elearning/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}E-learning — Cours{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ✅ HERO — copié du style QCM */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    .hero .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero .meta-chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .hero .btn-outline-hero{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-hero:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* (le reste de ton CSS e-learning peut rester identique) */
+
+    @media (max-width: 768px){
+      .hero{ border-radius: 16px; }
+    }
+
+    .toolbar{
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .85rem;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .7rem;
+      border-radius:999px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size:.85rem;
+      color: rgba(0,0,0,.65);
+    }
+
+    .table-card{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      position: sticky; top: 0; z-index: 2;
+      background: #f7f8fa !important;
+      border-bottom: 1px solid rgba(0,0,0,.08) !important;
+      text-transform: uppercase;
+      font-size: .78rem;
+      letter-spacing:.06em;
+      color: rgba(0,0,0,.55);
+      white-space: nowrap;
+    }
+
+    #tableauElearning tbody tr:nth-child(odd) > *{ background-color:#fff !important; }
+    #tableauElearning tbody tr:nth-child(even) > *{ background-color: rgba(35,51,66,.035) !important; }
+    #tableauElearning tbody tr:hover > *{ background-color: rgba(255,193,7,.08) !important; }
+    #tableauElearning tbody td{ padding-top:.75rem !important; padding-bottom:.75rem !important; vertical-align: middle; }
+
+    .dataTables_wrapper .dataTables_filter input{
+      border-radius: 999px !important;
+      padding: .45rem .85rem !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      padding: .35rem .7rem !important;
+    }
+
+    .dt-top{
+      padding: .75rem .85rem;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+    }
+    .dt-bottom-internal{
+      padding: 1rem .85rem !important;
+      background: #fff;
+      border-top: 1px solid rgba(0,0,0,.06);
+      margin-top: .75rem !important;
+    }
+    .dt-actions .btn{
+      border-radius: 999px;
+      font-weight: 700;
+      padding: .40rem .75rem;
+    }
+
+    #tableauElearning td.action-column{ white-space: nowrap; text-align:right; }
+
+    body .dt-floating-dropdown{ z-index: 9999 !important; }
+
+    @media (max-width: 768px){
+      table.dataTable td.action-column{
+        position: sticky; right:0; background:#fff; z-index:5;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+      .hero{ border-radius: 16px; }
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-mortarboard me-2" style="color:var(--theme-color-secondaire)"></i>
+            Cours
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Gestion des cours, publication, prix et contenus.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="meta-chip"><i class="bi bi-mortarboard"></i> E-learning</span>
+            <span class="meta-chip"><i class="bi bi-journal-richtext"></i> Cours</span>
+            <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="meta-chip"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-hero btn-sm fw-semibold"
+            href="{{ path('app_administrateur_dashboard_index', { entite: entite.id })|default('#') }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_elearning_add', { entite: entite.id }) }}">
+            <i class="bi bi-plus-lg me-1"></i> Nouveau cours
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+        <span class="chip"><i class="bi bi-info-circle"></i> Recherche + export</span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card mb-4 p-3">
+    <table id="tableauElearning" class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+        <tr>
+          <th style="width:80px">#</th>
+          <th>Titre</th>
+          <th style="width:120px">Public</th>
+          <th style="width:120px">Publié</th>
+          <th class="text-end" style="width:140px">Prix</th>
+          <th class="text-end" style="width:1px">Actions</th>
+        </tr>
+      </thead>
+      <tbody><tr><td colspan="6"></td></tr></tbody>
+    </table>
+  </div>
+
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+
+  <script>
+    $(function(){
+
+      function nowLabel(){
+        const d = new Date();
+        return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      }
+
+      const table = $('#tableauElearning').DataTable({
+        serverSide: true,
+        processing: true,
+        autoWidth: false,
+        scrollX: true,
+        scrollCollapse: true,
+        responsive: false,
+
+        ajax: {
+          url: "{{ path('app_administrateur_elearning_ajax', { entite: entite.id }) }}",
+          type: "POST",
+        },
+
+        dom:
+          '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+            + '<"dt-actions d-flex gap-2 align-items-center"B>'
+            + '<"dt-search"f>'
+          + '>'
+          + 'rt'
+          + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+        buttons: [
+          { extend: 'copy',  title: 'Elearning_Cours', text: 'Copier' },
+          { extend: 'csv',   title: 'Elearning_Cours', text: 'CSV' },
+          { extend: 'excel', title: 'Elearning_Cours', text: 'Excel' },
+          { extend: 'pdf',   title: 'Elearning_Cours', text: 'PDF' },
+          { extend: 'print', title: 'Elearning_Cours', text: 'Imprimer' },
+        ],
+
+        lengthMenu: [[10,25,50,100,500],[10,25,50,100,500]],
+
+        // ✅ IMPORTANT : data: "clé" == JSON renvoyé par le controller
+        columns: [
+          { data:'id' },
+          { data:'titre' },
+          { data:'public' },
+          { data:'published' },
+          { data:'prix' },
+          { data:'actions' },
+        ],
+
+        columnDefs: [
+          { targets: 0, type:'num', className:'text-muted fw-semibold' },
+          { targets: 4, className:'text-end' },
+          { targets: 5, className:'action-column text-end', orderable:false, searchable:false },
+          { targets: [1,2,3,4,5], render: function(data){ return data; } }, // ✅ HTML OK
+        ],
+
+        order: [[0,'desc']],
+        language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+        deferRender: true,
+
+        initComplete: function(){
+          const api = this.api();
+          const container = api.buttons().container();
+          const $btns = $(container).find('button');
+
+          $('#exportMenu').empty();
+          $btns.each(function(){
+            const $b = $(this);
+            const label = $b.text().trim();
+            const icon = label === 'Excel' ? 'bi-file-earmark-excel' :
+                        label === 'PDF' ? 'bi-file-earmark-pdf' :
+                        label === 'CSV' ? 'bi-filetype-csv' :
+                        label === 'Imprimer' ? 'bi-printer' :
+                        label === 'Copier' ? 'bi-clipboard' : 'bi-download';
+
+            const $item = $(`
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+                  <i class="bi ${icon}"></i> <span>${label}</span>
+                </a>
+              </li>
+            `);
+
+            $item.on('click', function(e){
+              e.preventDefault();
+              $b.trigger('click');
+            });
+
+            $('#exportMenu').append($item);
+          });
+
+          $(container).hide();
+        }
+      });
+
+      table.on('draw.dt', function(){
+        $('#hero-last-refresh').text('Maj : ' + nowLabel());
+      });
+
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    });
+  </script>
+{% endblock %}

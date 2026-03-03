@@ -1,0 +1,1098 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d'un site{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+
+      --theme-glow: color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      --theme-soft: color-mix(in srgb, var(--theme-color-principal) 10%, #ffffff);
+      --secondary-soft: color-mix(in srgb, var(--theme-color-secondaire) 16%, #ffffff);
+    }
+
+
+    /* HERO (comme Sessions) */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* chip highlight */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+
+
+    body{ background: var(--bg); }
+
+    .crumb{ color: var(--muted); font-size:.9rem; }
+    .crumb a{ color: inherit; text-decoration:none; }
+    .crumb a:hover{ text-decoration:underline; }
+    .hero-sub{ color: var(--muted); margin:0; }
+
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+
+    .btn-outline-theme{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 35%, var(--stroke));
+      color: var(--theme-color-principal);
+    }
+    .btn-outline-theme:hover{
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      color: var(--theme-color-principal);
+    }
+
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+    /* HERO (même rendu que site/index) */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+.meta-chip{
+  display:inline-flex; align-items:center; gap:.45rem;
+  padding:.35rem .65rem; border-radius:999px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.14);
+  font-size:.82rem;
+  white-space: nowrap;
+}
+@media (max-width:768px){
+  .hero{ border-radius:16px; }
+}
+
+.pac-container{
+  z-index: 20000 !important;
+}
+
+
+  </style>
+
+
+
+  <link rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+<style>
+  #site-map{
+    height: 340px;
+    border-radius: 16px;
+    border: 1px solid var(--stroke);
+    box-shadow: 0 10px 28px rgba(15,23,42,.08);
+  }
+  .map-hint{
+    display:flex; gap:.5rem; align-items:center;
+    padding:.55rem .75rem;
+    border-radius: 14px;
+    border: 1px dashed color-mix(in srgb, var(--theme-color-principal) 25%, var(--stroke));
+    background: color-mix(in srgb, var(--theme-color-principal) 6%, transparent);
+    color: var(--muted);
+  }
+</style>
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+  {% if googleMapsBrowserKey %}
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&v=weekly&loading=async"
+      async defer></script>
+  {% endif %}
+
+
+{% endblock %}
+
+{% block body %}
+  {# HERO style index (même rendu) #}
+  {# HERO (identique Sessions / site/index) #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-geo-alt me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ modeEdition ? 'Modifier un site' : 'Créer un site' }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Identité, adresse et localisation avec contrôle en temps réel.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip">
+              <i class="bi bi-geo-alt"></i>
+              {{ modeEdition ? 'Modification site' : 'Nouveau site' }}
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip chip--pill">
+              <i class="bi bi-pencil-square"></i>
+              {{ modeEdition ? 'Édition' : 'Création' }}
+            </span>
+
+            {# Optionnel : affiche l'ID si édition #}
+            {% if form.vars.value and form.vars.value.id %}
+              <span class="chip">
+                <i class="bi bi-hash"></i>
+                #{{ form.vars.value.id }}
+              </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="javascript:history.back()"
+            class="btn btn-outline-theme btn-sm fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <button form="{{ form.vars.id }}"
+                  type="submit"
+                  class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-check2 me-1"></i> {{ modeEdition ? 'Enregistrer' : 'Créer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, {
+    'attr': {
+      'id': form.vars.id,
+      'novalidate': 'novalidate',
+      'name':'site_administrateur'
+    }
+  }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ===== COL LEFT ===== #}
+    <div class="col-lg-7">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-info-circle text-warning"></i> Identité</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.nom) }}</div>
+            <div class="col-md-6">{{ form_row(form.slug) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-map text-warning"></i> Adresse</h5>
+          <span class="chip">Étape 2</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-12">{{ form_row(form.adresse) }}</div>
+            <div class="col-md-6">{{ form_row(form.complement) }}</div>
+            <div class="col-md-3">{{ form_row(form.codePostal) }}</div>
+            <div class="col-md-3">{{ form_row(form.ville) }}</div>
+            <div class="col-md-4">{{ form_row(form.departement) }}</div>
+            <div class="col-md-4">{{ form_row(form.region) }}</div>
+            <div class="col-md-4">{{ form_row(form.pays) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-crosshairs text-warning"></i> Localisation</h5>
+          <span class="chip">Étape 3</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            {# on garde les champs mais on les masque (ou readonly si tu préfères) #}
+            <div class="col-md-4 d-none">{{ form_row(form.latitude) }}</div>
+            <div class="col-md-4 d-none">{{ form_row(form.longitude) }}</div>
+            <div class="col-md-6 d-none">{{ form_row(form.googlePlaceId) }}</div>
+            <div class="col-md-6 d-none">{{ form_row(form.formattedAddress) }}</div>
+
+
+            <div class="col-md-12">
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <div class="map-hint">
+                  <i class="bi bi-cursor-fill"></i>
+                  Clique sur la carte pour poser le point, puis déplace le marqueur si besoin.
+                </div>
+
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-outline-theme btn-sm" id="btn-geoloc">
+                    <i class="bi bi-crosshair"></i> Me localiser
+                  </button>
+                  <button type="button" class="btn btn-outline-theme btn-sm" id="btn-clear-marker">
+                    <i class="bi bi-x-circle"></i> Effacer
+                  </button>
+                </div>
+              </div>
+
+              <div id="site-map"></div>
+
+              <div class="form-text mt-2">
+                Lat/Lng se remplissent automatiquement. (Tu peux les rendre obligatoires si tu veux.)
+              </div>
+            </div>
+
+            <div class="col-md-6">{{ form_row(form.timezone) }}</div>
+
+            <div class="col-md-6">
+              <label class="form-label">Coordonnées</label>
+              <div class="form-control" id="latlng-display">
+                —
+              </div>
+              <div class="form-text">Affichage lecture seule (les champs sont dans le formulaire).</div>
+            </div>
+          </div>
+
+          <div class="form-text mt-2">Astuce : tu pourras brancher Leaflet/autocomplete plus tard.</div>
+        </div>
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT (Résumé + live validation) ===== #}
+    <div class="col-lg-5">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie rapidement avant d’enregistrer.</div>
+
+          <div class="p-3 rounded-4 border mb-3"
+               style="border-color: var(--stroke); background: linear-gradient(180deg, var(--theme-soft), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Choix actuels</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Nom</span>
+                <span class="fw-semibold text-end" id="resume-nom">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Slug</span>
+                <span class="fw-semibold text-end" id="resume-slug">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Adresse</span>
+                <span class="fw-semibold text-end" id="resume-adresse">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">CP / Ville</span>
+                <span class="fw-semibold text-end" id="resume-cpville">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Département</span>
+                <span class="fw-semibold text-end" id="resume-dept">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Région</span>
+                <span class="fw-semibold text-end" id="resume-region">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Pays</span>
+                <span class="fw-semibold text-end" id="resume-pays">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Lat / Lng</span>
+                <span class="fw-semibold text-end" id="resume-latlng">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Timezone</span>
+                <span class="fw-semibold text-end" id="resume-tz">—</span>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4" style="border-color: var(--stroke);">
+
+          <div class="d-flex gap-2">
+            <a href="javascript:history.back()" class="btn btn-outline-theme w-50">
+              <i class="fa fa-arrow-left me-1"></i> Retour
+            </a>
+            <button type="submit" class="btn btn-gradient w-50">
+              <i class="fa fa-check me-1"></i> {{ modeEdition ? 'Enregistrer' : 'Créer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> nom + adresse + CP + ville suffisent pour valider.
+          </div>
+          <span class="badge rounded-pill"
+                style="border:1px solid var(--stroke); background: var(--secondary-soft); color: var(--ink);">
+            Site
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+  // --- IDs Symfony (fiables) ---
+  const idNom        = '#{{ form.nom.vars.id }}';
+  const idSlug       = '#{{ form.slug.vars.id }}';
+  const idAdresse    = '#{{ form.adresse.vars.id }}';
+  const idComplement = '#{{ form.complement.vars.id }}';
+  const idCp         = '#{{ form.codePostal.vars.id }}';
+  const idVille      = '#{{ form.ville.vars.id }}';
+  const idDept       = '#{{ form.departement.vars.id }}';
+  const idRegion     = '#{{ form.region.vars.id }}';
+  const idPays       = '#{{ form.pays.vars.id }}';
+  const idLat        = '#{{ form.latitude.vars.id }}';
+  const idLng        = '#{{ form.longitude.vars.id }}';
+  const idTz         = '#{{ form.timezone.vars.id }}';
+  const idPlaceId   = '#{{ form.googlePlaceId.vars.id }}';
+  const idFmtAddr   = '#{{ form.formattedAddress.vars.id }}';
+
+
+  // --- TomSelect (si select) ---
+  const tsOptions = { create:false, allowEmptyOption:true, plugins:['remove_button'], sortField:{field:'text',direction:'asc'} };
+  [idDept, idRegion, idPays, idTz].forEach(sel=>{
+    const el = document.querySelector(sel);
+    if (el && el.tagName === 'SELECT' && !el.tomselect) new TomSelect(el, tsOptions);
+  });
+
+  // --- Références résumé ---
+  const $r = {
+    nom: document.getElementById('resume-nom'),
+    slug: document.getElementById('resume-slug'),
+    adresse: document.getElementById('resume-adresse'),
+    cpville: document.getElementById('resume-cpville'),
+    dept: document.getElementById('resume-dept'),
+    region: document.getElementById('resume-region'),
+    pays: document.getElementById('resume-pays'),
+    latlng: document.getElementById('resume-latlng'),
+    tz: document.getElementById('resume-tz'),
+    pill: document.getElementById('resume-valid-pill'),
+  };
+
+  const form = document.querySelector('form[name="site_administrateur"]');
+  const submitButtons = form ? [...form.querySelectorAll('button[type="submit"]')] : [];
+
+  function getVal(id){ return (document.querySelector(id)?.value || '').trim(); }
+  function getSelectText(id){
+    const el = document.querySelector(id);
+    if (!el || el.tagName !== 'SELECT' || !el.value) return '';
+    return (el.selectedOptions?.[0]?.textContent || '').trim();
+  }
+
+  // ✅ Règle de complétude (ajuste si tu veux)
+  // - requis: nom + adresse + codePostal + ville
+  // - lat/lng optionnels (mets à true si tu veux les rendre obligatoires)
+  const requireLatLng = true;
+
+  function isComplete(){
+    const okBusiness = !!(getVal(idNom) && getVal(idAdresse) && getVal(idCp) && getVal(idVille));
+    const okLatLng = !requireLatLng || (!!getVal(idLat) && !!getVal(idLng));
+    const okHtml = form ? form.checkValidity() : true;
+    return okBusiness && okLatLng && okHtml;
+  }
+
+
+    // =======================
+  // Leaflet map picker
+  // =======================
+  const mapEl = document.getElementById('site-map');
+  const latInput = document.querySelector(idLat);
+  const lngInput = document.querySelector(idLng);
+  const display = document.getElementById('latlng-display');
+
+  let lastLatLngSource = 'auto'; // 'auto' | 'manual'
+
+  function setLatLng(lat, lng, {pan=true, source='manual'} = {}){
+    if (!latInput || !lngInput) return;
+
+    lastLatLngSource = source;
+
+    const latFixed = Number(lat).toFixed(6);
+    const lngFixed = Number(lng).toFixed(6);
+
+    latInput.value = latFixed;
+    lngInput.value = lngFixed;
+
+    latInput.dispatchEvent(new Event('input', {bubbles:true}));
+    lngInput.dispatchEvent(new Event('input', {bubbles:true}));
+
+    if (display) display.textContent = `${latFixed} / ${lngFixed}`;
+
+    if (marker){
+      marker.setLatLng([lat, lng]);
+    } else {
+      marker = L.marker([lat, lng], {draggable:true}).addTo(map);
+      marker.on('dragend', () => {
+        const p = marker.getLatLng();
+        setLatLng(p.lat, p.lng, {pan:false, source:'manual'});
+      });
+    }
+
+    if (pan) map.panTo([lat, lng], {animate:true});
+  }
+
+  // expose pour les callbacks externes (Places, etc.)
+  window.siteMapSetLatLng = (lat, lng, opts = {}) => setLatLng(lat, lng, opts);
+  window.siteMapGetMap = () => map; // optionnel
+
+
+
+  function clearLatLng(){
+    lastLatLngSource = 'auto';
+    if (latInput) latInput.value = '';
+    if (lngInput) lngInput.value = '';
+    if (display) display.textContent = '—';
+    if (marker){
+      map.removeLayer(marker);
+      marker = null;
+    }
+    refresh();
+  }
+
+  let map, marker;
+
+  if (mapEl){
+    // valeurs existantes (édition)
+    const existingLat = parseFloat((latInput?.value || '').replace(',', '.'));
+    const existingLng = parseFloat((lngInput?.value || '').replace(',', '.'));
+
+    // fallback (France) si pas de coords
+    const start = (Number.isFinite(existingLat) && Number.isFinite(existingLng))
+      ? [existingLat, existingLng]
+      : [46.603354, 1.888334]; // centre France
+
+    map = L.map('site-map', { scrollWheelZoom: true }).setView(start, (Number.isFinite(existingLat) ? 14 : 6));
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // si édition -> place le marqueur directement
+    if (Number.isFinite(existingLat) && Number.isFinite(existingLng)){
+      setLatLng(existingLat, existingLng, {pan:false});
+    }
+
+    // clic carte = pose / déplace
+    map.on('click', (e) => {
+      setLatLng(e.latlng.lat, e.latlng.lng, {source:'manual'});
+    });
+
+
+    // boutons
+    const btnGeoloc = document.getElementById('btn-geoloc');
+    if (btnGeoloc){
+      btnGeoloc.addEventListener('click', () => {
+        if (!navigator.geolocation){
+          alert("La géolocalisation n'est pas disponible sur ce navigateur.");
+          return;
+        }
+        btnGeoloc.disabled = true;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setLatLng(pos.coords.latitude, pos.coords.longitude);
+            map.setZoom(15);
+            btnGeoloc.disabled = false;
+          },
+          () => {
+            alert("Impossible de récupérer ta position.");
+            btnGeoloc.disabled = false;
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      });
+    }
+
+    const btnClear = document.getElementById('btn-clear-marker');
+    if (btnClear){
+      btnClear.addEventListener('click', clearLatLng);
+    }
+
+    // fix affichage si la carte est dans un layout qui change
+    setTimeout(() => map.invalidateSize(), 150);
+  }
+
+
+
+
+  // =======================
+  // Auto-pin depuis l'adresse (Nominatim)
+  // =======================
+  const adresseEl = document.querySelector(idAdresse);
+  const cpEl      = document.querySelector(idCp);
+  const villeEl   = document.querySelector(idVille);
+  const paysEl    = document.querySelector(idPays); // select souvent
+  const deptEl    = document.querySelector(idDept);
+
+  let geocodeTimer = null;
+  let lastQueryKey = null;
+
+  function normalize(s){ return (s || '').toString().trim(); }
+
+  function buildGeocodeQuery(){
+    const a  = normalize(adresseEl?.value);
+    const cp = normalize(cpEl?.value);
+    const v  = normalize(villeEl?.value);
+
+    // pays: si select => texte, sinon value
+    let p = '';
+    if (paysEl){
+      if (paysEl.tagName === 'SELECT' && paysEl.value){
+        p = (paysEl.selectedOptions?.[0]?.textContent || '').trim();
+      } else {
+        p = normalize(paysEl.value);
+      }
+    }
+
+    // optionnel: département (parfois utile)
+    let d = '';
+    if (deptEl){
+      if (deptEl.tagName === 'SELECT' && deptEl.value){
+        d = (deptEl.selectedOptions?.[0]?.textContent || '').trim();
+      } else {
+        d = normalize(deptEl.value);
+      }
+    }
+
+    // requis minimal
+    if (!a || !cp || !v) return null;
+
+    // query la plus robuste
+    const parts = [a, cp, v, d, p].filter(Boolean);
+    return parts.join(', ');
+  }
+
+  async function geocodeAndPlace(){
+    // Si l'utilisateur a déjà déplacé le marqueur à la main, on n'écrase pas
+    // (sauf si lat/lng sont vides).
+    const latFilled = !!normalize(latInput?.value);
+    const lngFilled = !!normalize(lngInput?.value);
+    const placeIdVal = (document.querySelector(idPlaceId)?.value || '').trim();
+    if (lastLatLngSource === 'manual' && latFilled && lngFilled) return;
+    if (placeIdVal) return; // Places a déjà fourni une géo fiable
+
+
+    const q = buildGeocodeQuery();
+    if (!q) return;
+
+    const key = q.toLowerCase();
+    if (key === lastQueryKey) return;
+    lastQueryKey = key;
+
+    try{
+      const url = new URL('https://nominatim.openstreetmap.org/search');
+      url.searchParams.set('format', 'json');
+      url.searchParams.set('limit', '1');
+      url.searchParams.set('q', q);
+
+      const res = await fetch(url.toString(), {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (!Array.isArray(data) || !data.length) return;
+
+      const lat = parseFloat(data[0].lat);
+      const lon = parseFloat(data[0].lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+      setLatLng(lat, lon, {source:'auto'});
+      map && map.setZoom(16);
+    } catch(e){
+      // silencieux (évite d'ennuyer l'utilisateur)
+      // console.debug(e);
+    }
+  }
+
+  function scheduleGeocode(){
+    clearTimeout(geocodeTimer);
+    geocodeTimer = setTimeout(geocodeAndPlace, 650);
+  }
+
+  // Quand l’adresse “se remplit” (typing/autocomplete), on tente
+  [adresseEl, cpEl, villeEl].forEach(el=>{
+    if (!el) return;
+    el.addEventListener('input', scheduleGeocode);
+    el.addEventListener('change', scheduleGeocode);
+  });
+
+  // Pour pays/département (select), change suffit
+  [paysEl, deptEl].forEach(el=>{
+    if (!el) return;
+    el.addEventListener('change', scheduleGeocode);
+  });
+
+
+  // si pas de carte (fallback) -> display lat/lng
+  if (display && latInput && lngInput){
+    const lat = latInput.value?.trim();
+    const lng = lngInput.value?.trim();
+    display.textContent = (lat || lng) ? `${lat || '—'} / ${lng || '—'}` : '—';
+  }
+
+
+  function refresh(){
+    const nom = getVal(idNom);
+    const slug = getVal(idSlug);
+    const adresse = getVal(idAdresse);
+    const cp = getVal(idCp);
+    const ville = getVal(idVille);
+
+    if ($r.nom) $r.nom.textContent = nom || '—';
+    if ($r.slug) $r.slug.textContent = slug || '—';
+    if ($r.adresse) $r.adresse.textContent = adresse || '—';
+    if ($r.cpville) $r.cpville.textContent = (cp || ville) ? `${cp || '—'} ${ville || ''}`.trim() : '—';
+
+    if ($r.dept) $r.dept.textContent = getSelectText(idDept) || getVal(idDept) || '—';
+    if ($r.region) $r.region.textContent = getSelectText(idRegion) || getVal(idRegion) || '—';
+    if ($r.pays) $r.pays.textContent = getSelectText(idPays) || getVal(idPays) || '—';
+
+    const lat = getVal(idLat), lng = getVal(idLng);
+    if ($r.latlng) $r.latlng.textContent = (lat || lng) ? `${lat || '—'} / ${lng || '—'}` : '—';
+    if ($r.tz) $r.tz.textContent = getSelectText(idTz) || getVal(idTz) || '—';
+
+    const ok = isComplete();
+    submitButtons.forEach(b => b.disabled = !ok);
+
+    if ($r.pill) {
+      if (ok) {
+        $r.pill.textContent = '✅ Complet';
+        $r.pill.style.background = 'rgba(25,135,84,.15)';
+        $r.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $r.pill.style.color = 'var(--ink)';
+      } else {
+        $r.pill.textContent = '⚠️ Incomplet';
+        $r.pill.style.background = 'rgba(255,193,7,.15)';
+        $r.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $r.pill.style.color = 'var(--ink)';
+      }
+    }
+  }
+
+  // écoute input/change
+  [
+    idNom,idSlug,idAdresse,idComplement,idCp,idVille,idLat,idLng
+  ].forEach(id=>{
+    const el = document.querySelector(id);
+    if (!el) return;
+    el.addEventListener('input', refresh);
+    el.addEventListener('change', refresh);
+  });
+
+  [idDept,idRegion,idPays,idTz].forEach(id=>{
+    const el = document.querySelector(id);
+    el && el.addEventListener('change', refresh);
+  });
+
+  // init
+  refresh();
+
+
+
+  // =======================
+  // Google Places Autocomplete -> remplit champs + pose marqueur Leaflet
+  // =======================
+  function waitForGoogle(cb){
+    const t = setInterval(()=>{
+      if (window.google?.maps?.places?.Autocomplete){
+        clearInterval(t);
+        cb();
+      }
+    }, 50);
+    setTimeout(()=>clearInterval(t), 8000);
+  }
+
+  function extractComponent(components, type){
+    const c = (components || []).find(x => (x.types || []).includes(type));
+    return c ? (c.long_name || '') : '';
+  }
+  function extractComponentShort(components, type){
+    const c = (components || []).find(x => (x.types || []).includes(type));
+    return c ? (c.short_name || '') : '';
+  }
+
+  function initPlacesAutocomplete(){
+    const adresseInput = document.querySelector(idAdresse);
+    if (!adresseInput) return;
+
+    const ac = new google.maps.places.Autocomplete(adresseInput, {
+      types: ['address'], // adresse postale
+      fields: ['address_components','geometry','formatted_address','place_id'],
+    });
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place) return;
+
+      const comps = place.address_components || [];
+
+      // Construit une "adresse" (num + voie) propre
+      const streetNumber = extractComponent(comps, 'street_number');
+      const route = extractComponent(comps, 'route');
+      const adresse = [streetNumber, route].filter(Boolean).join(' ').trim();
+
+      const postalCode = extractComponent(comps, 'postal_code');
+      // ville: parfois "locality", parfois "postal_town" selon pays
+      const locality = extractComponent(comps, 'locality') || extractComponent(comps, 'postal_town');
+      // région: administrative_area_level_1
+      const region = extractComponent(comps, 'administrative_area_level_1');
+      // département: souvent administrative_area_level_2 (FR: ex "Gard")
+      const departement = extractComponent(comps, 'administrative_area_level_2');
+      const pays = extractComponent(comps, 'country') || extractComponentShort(comps, 'country');
+
+
+      const placeIdEl = document.querySelector(idPlaceId);
+      const fmtEl     = document.querySelector(idFmtAddr);
+
+      if (placeIdEl) placeIdEl.value = place.place_id || '';
+      if (fmtEl) fmtEl.value = place.formatted_address || '';
+
+      if (placeIdEl) placeIdEl.dispatchEvent(new Event('input', {bubbles:true}));
+      if (fmtEl) fmtEl.dispatchEvent(new Event('input', {bubbles:true}));
+
+
+      // Remplit les champs (si présents)
+      if (adresse) adresseInput.value = adresse;
+
+      const cpEl = document.querySelector(idCp);
+      if (cpEl && postalCode) cpEl.value = postalCode;
+
+      const villeEl = document.querySelector(idVille);
+      if (villeEl && locality) villeEl.value = locality;
+
+      const deptEl = document.querySelector(idDept);
+      if (deptEl && departement){
+        if (deptEl.tagName === 'SELECT' && deptEl.tomselect){
+          // si tu as des options correspondant au texte, tente setValue
+          // sinon, mets la valeur brute (selon ton modèle)
+          deptEl.tomselect.setValue(deptEl.value || '');
+        } else {
+          deptEl.value = departement;
+        }
+      }
+
+      const regionEl = document.querySelector(idRegion);
+      if (regionEl && region){
+        if (regionEl.tagName === 'SELECT' && regionEl.tomselect){
+          regionEl.tomselect.setValue(regionEl.value || '');
+        } else {
+          regionEl.value = region;
+        }
+      }
+
+      const paysEl = document.querySelector(idPays);
+      if (paysEl && pays){
+        if (paysEl.tagName === 'SELECT' && paysEl.tomselect){
+          paysEl.tomselect.setValue(paysEl.value || '');
+        } else {
+          paysEl.value = pays;
+        }
+      }
+
+      // Déclenche les listeners UI/résumé
+      [idAdresse,idCp,idVille,idDept,idRegion,idPays].forEach(id=>{
+        const el = document.querySelector(id);
+        el && el.dispatchEvent(new Event('input', {bubbles:true}));
+        el && el.dispatchEvent(new Event('change', {bubbles:true}));
+      });
+
+      // Pose le point Leaflet depuis Places
+      // Pose le point Leaflet depuis Places
+      const loc = place.geometry?.location;
+      if (loc && window.siteMapSetLatLng){
+        window.siteMapSetLatLng(loc.lat(), loc.lng(), { source:'auto', pan:true });
+
+        if (window.siteMapGetMap?.()) {
+          window.siteMapGetMap().setView([loc.lat(), loc.lng()], 16, { animate: true });
+        }
+
+        // IMPORTANT: évite que Nominatim repasse derrière
+        lastQueryKey = '__from_places__' + (place.place_id || Math.random());
+        lastLatLngSource = 'auto';
+      }
+
+
+    });
+  }
+
+  // Lance quand Google est prêt (si clé présente + script chargé)
+  {% if googleMapsBrowserKey %}
+  waitForGoogle(initPlacesAutocomplete);
+  {% endif %}
+
+
+
+  // Validation submit (ta logique améliorée)
+  initFormValidation({ formName: 'site_administrateur' });
+
+});
+
+function initFormValidation({ formName }){
+  const form = document.querySelector(`form[name="${formName}"]`); if(!form) return;
+  const submit = form.querySelector('button[type="submit"]'); if(!submit) return;
+
+  let alertBox = document.getElementById('form-error-alert');
+  if(!alertBox){
+    alertBox = document.createElement('div');
+    alertBox.id = 'form-error-alert';
+    alertBox.className = 'alert alert-danger d-none';
+    submit.parentElement.prepend(alertBox);
+  }
+
+  form.addEventListener('submit', e=>{
+    const invalid = form.querySelectorAll(':invalid');
+    if(!invalid.length) return;
+
+    e.preventDefault();
+    invalid.forEach(f=>f.classList.add('is-invalid'));
+
+    const list = [...invalid].map(f=>{
+      const l = form.querySelector(`label[for="${f.id}"]`);
+      return l ? `- ${l.textContent.trim()}` : '- Champ requis';
+    }).join('<br>');
+
+    alertBox.innerHTML = `<strong>Champs requis manquants :</strong><br>${list}`;
+    alertBox.classList.remove('d-none');
+    invalid[0].scrollIntoView({behavior:'smooth',block:'center'});
+    setTimeout(()=>alertBox.classList.add('d-none'), 6000);
+  });
+}
+</script>
+{% endblock %}

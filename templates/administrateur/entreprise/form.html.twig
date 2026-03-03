@@ -1,0 +1,749 @@
+{# templates/administrateur/entreprises/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% set is_edit = modeEdition ?? false %}
+
+{% block title %}{{ is_edit ? 'Modifier une entreprise' : 'Ajouter une entreprise' }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+    /* ===== HERO premium ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      flex: 0 0 auto;
+    }
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow: hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0;
+      font-weight:900;
+      letter-spacing:-.01em;
+      color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip-soft{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ===== Form polish ===== */
+    label.form-label{ font-weight: 800; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+      min-height: 44px;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect polish */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+      min-height: 44px !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown{ z-index: 9999 !important; }
+
+    /* Google Places dropdown over everything */
+    .pac-container{
+      z-index: 10650 !important;
+      border-radius: 14px;
+      box-shadow: 0 18px 55px rgba(15,23,42,.18);
+      border: 1px solid rgba(15,23,42,.10);
+    }
+    .pac-item{ padding: .5rem .75rem; }
+    .pac-item:hover{ background: rgba(15,23,42,.04); }
+
+    /* Address helper box */
+    .soft-box{
+      border-radius: 16px;
+      border: 1px dashed rgba(15,35,54,.18);
+      background: rgba(248,251,254,.75);
+      padding: 1rem;
+    }
+
+    /* Sticky actions (right column) */
+    .sticky-actions{
+      position: sticky;
+      top: 14px;
+      z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .9rem;
+      box-shadow: var(--shadow);
+    }
+
+
+    .btn-ghost{
+      border-radius: 14px;
+      font-weight: 800;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.75);
+    }
+
+    .mini-map{
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      overflow: hidden;
+      background: #fff;
+      min-height: 220px;
+    }
+    .mini-map-placeholder{
+      height: 220px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:.5rem;
+      color: var(--muted);
+      background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+    }
+    .mini-map-placeholder i{ color: var(--theme-color-secondaire); }
+
+    @media (max-width: 992px){
+      .sticky-actions{ position: static; }
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-buildings me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ is_edit ? 'Modifier une entreprise' : 'Créer une entreprise' }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            {{ is_edit
+              ? 'Mettre à jour l’identité, la facturation et les coordonnées.'
+              : 'Créer une entreprise et définir ses informations de facturation et de contact.'
+            }}
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-buildings"></i> Entreprise</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="bi bi-pencil-square"></i> {{ is_edit ? 'Mode édition' : 'Mode création' }}</span>
+            <span class="chip chip--pill">
+              <i class="bi bi-clock-history"></i>
+              <span id="hero-last-refresh">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ path('app_administrateur_entreprise_index', { entite: entite.id }) }}"
+             class="btn btn-outline-theme btn-sm fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+          <button type="button" class="btn btn-light btn-sm fw-semibold"
+                  onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">
+            <i class="bi bi-arrow-down me-1"></i> Actions
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { novalidate: 'novalidate', id: 'entrepriseForm' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ===== LEFT ===== #}
+    <div class="col-lg-8">
+
+
+
+    {# ===== Adresse (avec Google Places) ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-geo-alt text-warning"></i> Adresse</h5>
+          <span class="chip-soft">Étape 1</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="soft-box mb-3">
+            <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+              <div>
+                <div class="fw-bold"><i class="bi bi-google me-2 text-warning"></i> Autocomplétion Google</div>
+                <div class="small text-muted mt-1">Commence à taper une adresse, puis sélectionne un résultat.</div>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-clear-address">
+                <i class="bi bi-x-lg me-1"></i> Réinitialiser
+              </button>
+            </div>
+
+            <div class="mt-3">
+              <label class="form-label">Recherche d’adresse</label>
+              <div class="input-group">
+                <span class="input-group-text" style="border-radius:14px 0 0 14px; border-color: var(--stroke); background: rgba(248,251,254,.75);">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  type="text"
+                  id="adresse-autocomplete"
+                  class="form-control"
+                  placeholder="Ex : 10 rue de la Paix, Paris"
+                  autocomplete="off"
+                  spellcheck="false"
+                >
+              </div>
+              <div class="form-text mt-2">
+                Le champ “Adresse” ci-dessous sera rempli automatiquement (rue + numéro, CP, ville, pays).
+              </div>
+            </div>
+          </div>
+
+          {{ form_row(form.adresse) }}
+          {{ form_row(form.complement) }}
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              {{ form_row(form.codePostal) }}
+            </div>
+            <div class="col-md-8">
+              {{ form_row(form.ville) }}
+            </div>
+          </div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-md-6">
+              {{ form_row(form.departement) }}
+            </div>
+            <div class="col-md-6">
+              {{ form_row(form.region) }}
+            </div>
+          </div>
+
+          <div class="mt-3">
+            {{ form_row(form.pays) }}
+          </div>
+
+          {# mini map (optionnelle) #}
+          <div class="mini-map mt-3" id="entreprise-mini-map">
+            <div class="mini-map-placeholder">
+              <i class="bi bi-geo-alt"></i>
+              <span class="small">Sélectionne une adresse pour afficher l’emplacement</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Identité ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Identité</h5>
+          <span class="chip-soft">Étape 2</span>
+        </div>
+        <div class="p-3 p-md-4">
+          {{ form_row(form.raisonSociale) }}
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              {{ form_row(form.siret) }}
+            </div>
+            <div class="col-md-6">
+              {{ form_row(form.numeroTVA) }}
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="fw-bold mb-3">
+            <i class="bi bi-envelope-at me-2 text-warning"></i> Emails
+          </h6>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              {{ form_row(form.emailFacturation) }}
+            </div>
+            <div class="col-md-6">
+              {{ form_row(form.email) }}
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="fw-bold mb-3">
+            <i class="bi bi-person-badge me-2 text-warning"></i> Représentant
+          </h6>
+
+          <div class="row g-3">
+            <div class="col-12">
+              {{ form_row(form.representant) }}
+            </div>
+          </div>
+
+          {% if locked %}
+            <div class="alert alert-info mt-3 mb-0">
+              <i class="bi bi-info-circle"></i>
+              Entreprise utilisée (inscriptions / conventions / factures) :
+              <strong>raison sociale</strong>, <strong>SIRET</strong> (et éventuellement <strong>TVA</strong>) ne sont plus modifiables.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      
+
+      {# ===== Actions ===== #}
+      <div class="d-flex justify-content-end gap-2 mt-3 mb-3">
+        <a href="{{ path('app_administrateur_entreprise_index', { entite: entite.id }) }}" class="btn btn-secondary">
+          Annuler
+        </a>
+        <button type="submit" class="btn btn-gradient">
+          <i class="bi bi-check"></i> {{ is_edit ? 'Enregistrer' : 'Créer' }}
+        </button>
+      </div>
+    </div>
+
+    {# ===== RIGHT (sticky summary) ===== #}
+    <div class="col-lg-4">
+      <div class="sticky-actions">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div>
+            <div class="fw-bold">Résumé</div>
+            <div class="small text-muted">Vérifie avant d’enregistrer.</div>
+          </div>
+          <span id="resume-valid-pill"
+                class="badge rounded-pill px-3 py-2"
+                style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+            ⚠️ Incomplet
+          </span>
+        </div>
+
+        <hr style="border-color: var(--stroke);">
+
+        <div class="small">
+          <div class="d-flex justify-content-between gap-3 py-1">
+            <span class="text-muted">Raison sociale</span>
+            <span class="fw-semibold text-end" id="resume-raison">—</span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 py-1">
+            <span class="text-muted">SIRET</span>
+            <span class="fw-semibold text-end" id="resume-siret">—</span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 py-1">
+            <span class="text-muted">TVA</span>
+            <span class="fw-semibold text-end" id="resume-tva">—</span>
+          </div>
+
+          <hr class="my-2" style="border-color: var(--stroke);">
+
+          <div class="d-flex justify-content-between gap-3 py-1">
+            <span class="text-muted">Adresse</span>
+            <span class="fw-semibold text-end" id="resume-adresse">—</span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 py-1">
+            <span class="text-muted">CP / Ville</span>
+            <span class="fw-semibold text-end" id="resume-cpville">—</span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 py-1">
+            <span class="text-muted">Pays</span>
+            <span class="fw-semibold text-end" id="resume-pays">—</span>
+          </div>
+
+          <hr class="my-2" style="border-color: var(--stroke);">
+
+          <div class="d-grid gap-2 mt-2">
+            <button type="submit" class="btn btn-gradient">
+              <i class="bi bi-check"></i> {{ is_edit ? 'Enregistrer' : 'Créer' }}
+            </button>
+            <a href="{{ path('app_administrateur_entreprise_index', { entite: entite.id }) }}"
+               class="btn btn-ghost">
+              <i class="bi bi-arrow-left me-1"></i> Retour
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+
+
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script>
+    // ===== TOMSELECT REPRESENTANT =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.querySelector('#{{ form.representant.vars.id }}');
+      if (el && !el.tomselect) {
+        new TomSelect(el, {
+          plugins: ['clear_button'],
+          placeholder: 'Choisir un représentant…',
+          allowEmptyOption: true,
+          closeAfterSelect: true,
+          maxOptions: 2000,
+          render: {
+            option: function(data, escape) {
+              const parts = (data.text || '').split(' - ');
+              const name = parts[0] || data.text;
+              const email = parts[1] || '';
+              return `
+                <div class="py-1">
+                  <div class="fw-semibold">${escape(name)}</div>
+                  ${email ? `<div class="text-muted small">${escape(email)}</div>` : ``}
+                </div>
+              `;
+            },
+            item: function(data, escape) {
+              return `<div>${escape(data.text || '')}</div>`;
+            }
+          }
+        });
+      }
+    });
+  </script>
+
+  <script>
+    // ===== Résumé live (col droite) =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const idRaison = {{ form.raisonSociale.vars.id|json_encode|raw }};
+      const idSiret  = {{ form.siret.vars.id|json_encode|raw }};
+      const idTva    = {{ form.numeroTVA.vars.id|json_encode|raw }};
+
+      const idAdr    = {{ form.adresse.vars.id|json_encode|raw }};
+      const idCp     = {{ form.codePostal.vars.id|json_encode|raw }};
+      const idVille  = {{ form.ville.vars.id|json_encode|raw }};
+      const idPays   = {{ form.pays.vars.id|json_encode|raw }};
+
+      const $raison = document.getElementById(idRaison);
+      const $siret  = document.getElementById(idSiret);
+      const $tva    = document.getElementById(idTva);
+
+      const $adr    = document.getElementById(idAdr);
+      const $cp     = document.getElementById(idCp);
+      const $ville  = document.getElementById(idVille);
+      const $pays   = document.getElementById(idPays);
+
+      const $r = {
+        pill: document.getElementById('resume-valid-pill'),
+        raison: document.getElementById('resume-raison'),
+        siret: document.getElementById('resume-siret'),
+        tva: document.getElementById('resume-tva'),
+        adresse: document.getElementById('resume-adresse'),
+        cpville: document.getElementById('resume-cpville'),
+        pays: document.getElementById('resume-pays'),
+      };
+
+      function setText(el, v){ if(el) el.textContent = (v && String(v).trim()) ? String(v).trim() : '—'; }
+
+      function refresh(){
+        setText($r.raison, $raison?.value);
+        setText($r.siret, $siret?.value);
+        setText($r.tva, $tva?.value);
+
+        setText($r.adresse, $adr?.value);
+        const cpville = [($cp?.value||'').trim(), ($ville?.value||'').trim()].filter(Boolean).join(' ');
+        setText($r.cpville, cpville);
+        setText($r.pays, $pays?.value);
+
+        const ok = !!(($raison?.value||'').trim());
+        if ($r.pill) {
+          if (ok) {
+            $r.pill.textContent = '✅ Prêt';
+            $r.pill.style.background = 'rgba(25,135,84,.15)';
+            $r.pill.style.borderColor = 'rgba(25,135,84,.35)';
+          } else {
+            $r.pill.textContent = '⚠️ Incomplet';
+            $r.pill.style.background = 'rgba(255,193,7,.15)';
+            $r.pill.style.borderColor = 'rgba(255,193,7,.35)';
+          }
+        }
+      }
+
+      [$raison,$siret,$tva,$adr,$cp,$ville,$pays].forEach(el => {
+        el?.addEventListener('input', refresh);
+        el?.addEventListener('change', refresh);
+      });
+
+      refresh();
+
+      const stamp = document.getElementById('hero-last-refresh');
+      if (stamp) {
+        const d = new Date();
+        stamp.textContent = 'Maj : ' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      }
+    });
+  </script>
+
+  <script>
+    // ===== Google Places Autocomplete (Adresse OU Entreprise) + Mini Map + Pays/Dpt/Région =====
+    window.__initEntrepriseAdressePlaces = function() {
+      const input = document.getElementById('adresse-autocomplete');
+      if (!input || !window.google?.maps?.places) return;
+
+      // Champs Symfony
+      const idAdr   = {{ form.adresse.vars.id|json_encode|raw }};
+      const idCp    = {{ form.codePostal.vars.id|json_encode|raw }};
+      const idVille = {{ form.ville.vars.id|json_encode|raw }};
+      const idPays  = {{ form.pays.vars.id|json_encode|raw }};
+      const idDept  = {{ form.departement.vars.id|json_encode|raw }};
+      const idReg   = {{ form.region.vars.id|json_encode|raw }};
+      const idRaison= {{ form.raisonSociale.vars.id|json_encode|raw }};
+
+      const $adr    = document.getElementById(idAdr);
+      const $cp     = document.getElementById(idCp);
+      const $ville  = document.getElementById(idVille);
+      const $pays   = document.getElementById(idPays);
+      const $dept   = document.getElementById(idDept);
+      const $reg    = document.getElementById(idReg);
+      const $raison = document.getElementById(idRaison);
+
+      function getComp(components, type){
+        const c = components?.find(x => x.types?.includes(type));
+        return c ? (c.long_name || c.short_name || '') : '';
+      }
+
+      // ✅ Set value for <input> OR <select>
+      function setFieldValue(el, value){
+        if (!el || !value) return;
+        const v = String(value).trim();
+        if (!v) return;
+
+        const tag = (el.tagName || '').toLowerCase();
+        if (tag === 'select') {
+          // try match by option text first, then by value
+          const opts = Array.from(el.options || []);
+          let found = opts.find(o => (o.textContent || '').trim().toLowerCase() === v.toLowerCase());
+          if (!found) found = opts.find(o => (o.value || '').trim().toLowerCase() === v.toLowerCase());
+          if (found) {
+            el.value = found.value;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+          }
+          // if select doesn't contain it, we leave it untouched (better than wrong value)
+          return;
+        }
+
+        el.value = v;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      // Mini map
+      let map = null, marker = null;
+      function resetMiniMap(){
+        const wrap = document.getElementById('entreprise-mini-map');
+        if (!wrap) return;
+        wrap.innerHTML = `
+          <div class="mini-map-placeholder">
+            <i class="bi bi-geo-alt"></i>
+            <span class="small">Sélectionne une adresse pour afficher l’emplacement</span>
+          </div>
+        `;
+        map = null; marker = null;
+      }
+      function renderMiniMap(latLng){
+        const wrap = document.getElementById('entreprise-mini-map');
+        if (!wrap || !window.google?.maps || !latLng) return;
+        wrap.innerHTML = '';
+        map = new google.maps.Map(wrap, {
+          center: latLng,
+          zoom: 16,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        });
+        marker = new google.maps.Marker({ map, position: latLng });
+      }
+
+      // ✅ Autoriser la saisie "Nom de société" : on passe en establishment
+      // - l'utilisateur peut taper "Orange Montpellier" et choisir un résultat
+      // - si Google renvoie une adresse, on remplit les champs adresse/CP/ville/pays/dpt/région
+      // - et on peut aussi auto-remplir la raison sociale avec place.name (optionnel)
+      const ac = new google.maps.places.Autocomplete(input, {
+        types: ['establishment'], // 👈 société / lieu
+        componentRestrictions: { country: ['fr'] },
+        fields: ['name','formatted_address','address_components','geometry'],
+      });
+
+      ac.addListener('place_changed', function(){
+        const place = ac.getPlace();
+        if (!place) return;
+
+        // ✅ Remplir la raison sociale avec le nom de l’établissement sélectionné
+        // - si champ disabled (locked), on ne touche pas
+        // - sinon on remplit TOUJOURS (car tu tapes le nom de société ici)
+        if ($raison && place.name && !$raison.disabled) {
+          const current = ($raison.value || '').trim();
+          const typedInSearch = (input.value || '').trim();
+
+          // si l’utilisateur n’a rien mis, ou si la valeur actuelle ressemble à ce qu’il vient de chercher, on remplit
+          if (!current || current === typedInSearch) {
+            $raison.value = place.name;
+            $raison.dispatchEvent(new Event('input', { bubbles: true }));
+            $raison.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+
+        if (!place.address_components) return;
+
+        const comps = place.address_components;
+
+        const streetNumber = getComp(comps, 'street_number');
+        const route        = getComp(comps, 'route');
+        const postal       = getComp(comps, 'postal_code');
+
+        const locality =
+          getComp(comps, 'locality') ||
+          getComp(comps, 'postal_town') ||
+          getComp(comps, 'administrative_area_level_2') ||
+          getComp(comps, 'administrative_area_level_1');
+
+        const country = getComp(comps, 'country') || 'France';
+        const departement = getComp(comps, 'administrative_area_level_2') || '';
+        const region      = getComp(comps, 'administrative_area_level_1') || '';
+
+        const street = [streetNumber, route].filter(Boolean).join(' ').trim();
+
+        if ($adr && street)  { $adr.value = street;  $adr.dispatchEvent(new Event('input', { bubbles:true })); }
+        if ($cp && postal)   { $cp.value = postal;   $cp.dispatchEvent(new Event('input', { bubbles:true })); }
+        if ($ville && locality){ $ville.value = locality; $ville.dispatchEvent(new Event('input', { bubbles:true })); }
+
+        setFieldValue($pays, country);
+        setFieldValue($dept, departement);
+        setFieldValue($reg, region);
+
+        const loc = place?.geometry?.location;
+        if (loc && typeof loc.lat === 'function') {
+          renderMiniMap({ lat: loc.lat(), lng: loc.lng() });
+        }
+      });
+
+      // Clear button
+      const btnClear = document.getElementById('btn-clear-address');
+      btnClear?.addEventListener('click', () => {
+        input.value = '';
+        resetMiniMap();
+      });
+
+      resetMiniMap();
+    };
+  </script>
+
+  {# ✅ Google Places: utilise ta clé twig existante googleMapsBrowserKey #}
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&callback=__initEntrepriseAdressePlaces"
+    async defer
+  ></script>
+{% endblock %}

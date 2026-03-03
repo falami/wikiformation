@@ -1,0 +1,1512 @@
+{# templates/administrateur/dashboard/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme facture) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    
+
+    /* ===== KPI ===== */
+    .kpi-card{
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 26px rgba(0,0,0,.06);
+      border-radius:18px;
+      background:#fff;
+      overflow:hidden;
+    }
+    .kpi-ico{
+      width:46px;height:46px;border-radius:16px;
+      display:grid;place-items:center;
+      background:rgba(0,0,0,.03);
+      border:1px solid rgba(0,0,0,.06);
+    }
+    .kpi-label{ color:rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight:900; font-size:1.55rem; letter-spacing:-.02em }
+    .kpi-sub{ color:rgba(0,0,0,.50); font-size:.82rem }
+
+    /* ===== PANELS ===== */
+    .panel{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .panel .head{
+      padding:.85rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+    }
+    .panel .title{ font-weight:900; margin:0; }
+    .panel .body{ padding:1rem; }
+
+    /* ===== MINI LISTS ===== */
+    .mini-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:flex;
+      flex-direction:column;
+      gap:.5rem;
+    }
+    .mini-item{
+      padding:.65rem .75rem;
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:14px;
+      display:flex;
+      gap:.75rem;
+      align-items:flex-start;
+      background:linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+    }
+    .mini-item .badge{ border-radius:999px; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    /* ===== FILTERBAR ===== */
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      overflow-y:visible;
+    }
+    .filterbar__top{
+      padding:.9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;align-items:center;gap:.75rem;
+    }
+    .filterbar__title{ font-weight:900; margin:0; font-size:1rem }
+    .filterbar__hint{ color:rgba(0,0,0,.55); font-size:.85rem }
+    .filterbar__body{ padding:1rem; }
+    .filtergrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap:.75rem;
+      align-items:end;
+    }
+    .fcol-formation{ grid-column: span 3; }
+    .fcol-formateur{ grid-column: span 3; }
+    .fcol-sessionstatus{ grid-column: span 2; }
+    .fcol-insstatus{ grid-column: span 2; }
+    .fcol-period{ grid-column: span 2; }
+    @media (max-width: 1200px){
+      .fcol-formation{ grid-column: span 6; }
+      .fcol-formateur{ grid-column: span 6; }
+      .fcol-sessionstatus{ grid-column: span 6; }
+      .fcol-insstatus{ grid-column: span 6; }
+      .fcol-period{ grid-column: span 12; }
+    }
+    .filter-control .form-label{
+      font-size:.78rem;font-weight:800;color:rgba(0,0,0,.55);
+      text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;
+    }
+    .filterbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+    }
+    .filterbox:focus-within{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .filterbox .form-select,.filterbox .form-control{
+      border:0!important;
+      box-shadow:none!important;
+      padding-left:0!important;
+      padding-right:0!important;
+      background:transparent!important;
+    }
+    .filterrow{ display:flex; gap:.6rem; align-items:center; }
+    .filter-icon{
+      width:34px;height:34px;border-radius:12px;
+      display:grid;place-items:center;
+      background:rgba(0,0,0,.04);
+      border:1px solid rgba(0,0,0,.06);
+      color:rgba(0,0,0,.55);
+      flex:0 0 auto;
+    }
+
+    /* ===== TABLE PRO (premium for all tables) ===== */
+    .table-pro{
+      background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 14px 36px rgba(0,0,0,.06);
+      border-radius:18px;
+      overflow:hidden;
+    }
+    .table-pro__head{
+      padding:.85rem 1rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background:
+        radial-gradient(900px 220px at 20% 0%, rgba(255,193,7,.10), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+    }
+    .table-pro__title{
+      font-weight:900;
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+      margin:0;
+    }
+    .table-pro__count{
+      font-weight:900;
+      font-size:.78rem;
+      padding:.2rem .55rem;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(0,0,0,.03);
+      color:rgba(0,0,0,.65);
+    }
+    .table-pro__tools{ display:flex; gap:.5rem; align-items:center; }
+    .table-pro__search{ position:relative; min-width:240px; }
+    .table-pro__search i{
+      position:absolute; top:50%; left:.6rem; transform:translateY(-50%);
+      color:rgba(0,0,0,.45);
+    }
+    .table-pro__search input{
+      padding-left:2rem;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      box-shadow:0 10px 18px rgba(0,0,0,.04);
+    }
+    .table-pro__search input:focus{
+      border-color:rgba(255,193,7,.55);
+      box-shadow:0 0 0 .2rem rgba(255,193,7,.18), 0 12px 22px rgba(0,0,0,.05);
+    }
+    .table-pro__body{ padding:0; }
+    .table-pro__table{ margin:0; border-collapse:separate; border-spacing:0; }
+    .table-pro__table thead th{
+      position:sticky; top:0; z-index:2;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-weight:900;
+      color:rgba(0,0,0,.58);
+      background:rgba(0,0,0,.02);
+      border-bottom:1px solid rgba(0,0,0,.06);
+      padding:.75rem .75rem;
+      white-space:nowrap;
+    }
+    .table-pro__table tbody td{
+      padding:.72rem .75rem;
+      border-top:1px solid rgba(0,0,0,.04);
+      vertical-align:middle;
+    }
+    .table-pro__table tbody tr{ transition:background .12s ease; }
+    .table-pro__table tbody tr:hover{ background:rgba(255,193,7,.06); }
+    .table-pro__foot{
+      padding:.65rem 1rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+      border-top:1px solid rgba(0,0,0,.06);
+      background:linear-gradient(180deg, transparent, rgba(0,0,0,.015));
+    }
+    @media (max-width: 768px){
+      .table-pro__head{ flex-direction:column; align-items:stretch; }
+      .table-pro__search{ min-width:100%; }
+    }
+
+    /* badges premium */
+    .badge-pro{
+      border-radius:999px;
+      padding:.25rem .55rem;
+      font-weight:900;
+      font-size:.76rem;
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(0,0,0,.03);
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+    }
+    .badge-pro--danger{ background:rgba(220,53,69,.10); border-color:rgba(220,53,69,.20); color:#b02a37; }
+    .badge-pro--warn{ background:rgba(255,193,7,.14); border-color:rgba(255,193,7,.25); color:#7a5b00; }
+    .badge-pro--ok{ background:rgba(25,135,84,.10); border-color:rgba(25,135,84,.20); color:#0f5132; }
+
+    /* DataTables integration */
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_length{ display:none !important; }
+    .dataTables_wrapper .dataTables_paginate{
+      display:flex;
+      gap:.35rem;
+      align-items:center;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button{
+      border:1px solid rgba(0,0,0,.10) !important;
+      border-radius:999px !important;
+      padding:.25rem .55rem !important;
+      background:rgba(0,0,0,.02) !important;
+      color:rgba(0,0,0,.70) !important;
+      margin:0 !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current{
+      background:rgba(255,193,7,.20) !important;
+      border-color:rgba(255,193,7,.35) !important;
+      font-weight:900 !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover{
+      background:rgba(0,0,0,.04) !important;
+    }
+
+    /* ===== CHARTS / TOMSELECT ===== */
+    canvas{ max-height:320px; }
+    .ts-dropdown{ z-index: 2000 !important; }
+
+    /* ===== MODAL PIECE : aperçu plus petit ===== */
+    #pieceModal .modal-dialog{ max-width: 980px; }
+    #pieceModal .preview-wrap{
+      height: 52vh; max-height: 520px; min-height: 260px;
+    }
+    @media (max-width: 768px){
+      #pieceModal .modal-dialog{ max-width: 95vw; margin: .75rem auto; }
+      #pieceModal .preview-wrap{ height: 42vh; max-height: 420px; min-height: 220px; }
+    }
+
+    /* accordion emargements */
+    .em-acc .accordion-item { border-radius: 14px; overflow: hidden; border:1px solid rgba(0,0,0,.06); }
+    .em-acc .accordion-button { padding:.65rem .85rem; font-weight:800; }
+    .em-acc .accordion-body { padding:.65rem .85rem; background: rgba(0,0,0,.015); }
+    .em-row { display:flex; gap:.6rem; align-items:flex-start; padding:.45rem .5rem; border-radius:12px; }
+    .em-row + .em-row { margin-top:.35rem; }
+    .em-meta { color: rgba(0,0,0,.55); font-size:.82rem; }
+    .em-badges .badge { border-radius:999px; }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+
+
+
+  {# ===== HERO (comme session) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-speedometer2"></i> Tableau de bord
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Tout ce qui manque : documents, émargements, finances, sessions à venir.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-speedometer2"></i> Tableau de bord</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+
+          <button class="btn btn-light btn-sm fw-semibold" id="btnRefresh">
+            <i class="bi bi-arrow-repeat"></i> Actualiser
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Filterbar #}
+  <div class="filterbar mb-3">
+    <div class="filterbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
+        <div>
+          <div class="filterbar__title">Filtres</div>
+          <div class="filterbar__hint">Formation • Formateur • Statuts • Période</div>
+        </div>
+      </div>
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm fw-semibold" id="btnReset">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+      </div>
+    </div>
+
+    <div class="filterbar__body">
+      <div class="filtergrid">
+        <div class="filter-control fcol-formation">
+          <div class="form-label">Formation</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-mortarboard"></i></div>
+              <select id="formationFilter" class="form-select form-select-sm">
+                <option value="all">Toutes</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-formateur">
+          <div class="form-label">Formateur</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-person-badge"></i></div>
+              <select id="formateurFilter" class="form-select form-select-sm">
+                <option value="all">Tous</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-sessionstatus">
+          <div class="form-label">Statut session</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-flag"></i></div>
+              <select id="sessionStatusFilter" class="form-select form-select-sm">
+                <option value="all">Tous</option>
+                <option value="draft">Brouillon</option>
+                <option value="published">Publié</option>
+                <option value="full">Complet</option>
+                <option value="canceled">Annulé</option>
+                <option value="done">Terminée</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-insstatus">
+          <div class="form-label">Statut inscription</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-person-check"></i></div>
+              <select id="inscriptionStatusFilter" class="form-select form-select-sm">
+                <option value="all">Tous</option>
+                <option value="preinscrit">Préinscrit</option>
+                <option value="confirme">Confirmé</option>
+                <option value="en_cours">En cours</option>
+                <option value="termine">Terminé</option>
+                <option value="annule">Annulé</option>
+                <option value="absent">Absent</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-period">
+          <div class="form-label">Période</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-calendar-range"></i></div>
+              <input type="text" id="dateRange" class="form-control form-control-sm" placeholder="Période" />
+              <input type="hidden" id="dateFrom" />
+              <input type="hidden" id="dateTo" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# KPIs #}
+  <div class="row g-3 mb-3">
+    {% set cards = [
+      ['Sessions', 'bi-collection', 'kpi-sessions', 'Selon filtres'],
+      ['Inscriptions', 'bi-people', 'kpi-inscriptions', 'Stagiaires engagés'],
+      ['Taux de réussite', 'bi-award', 'kpi-reussite', '<span id="kpi-reussis">—</span> réussites'],
+      ['Encaissements', 'bi-currency-euro', 'kpi-encaisse', 'Facturé <span id="kpi-facture">—</span> • Reste <span id="kpi-reste">—</span>'],
+      ['Factures dues', 'bi-receipt', 'kpi-factures-due', '<span class="mono" id="kpi-factures-due-count">—</span> factures'],
+      ['Docs manquants', 'bi-folder-x', 'kpi-docs-missing', 'Dossiers incomplets'],
+      ['Émargements manquants', 'bi-pen', 'kpi-em-missing', 'Signatures / lignes absentes'],
+      ['Sessions à venir', 'bi-calendar-event', 'kpi-upcoming', 'Planification'],
+      ['Sessions passées', 'bi-calendar-check', 'kpi-past', 'Historique'],
+      ['Jours / demi-journées', 'bi-calendar-range', 'kpi-days', '<span id="kpi-halfdays">—</span> demi-journées'],
+      ['Devis', 'bi-file-earmark-text', 'kpi-devis', 'Sur la période'],
+      ['Attestations', 'bi-file-earmark-check', 'kpi-attestations', 'Délivrées'],
+    ] %}
+    {% for c in cards %}
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="kpi-card h-100">
+          <div class="p-3 d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi {{ c[1] }} fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">{{ c[0] }}</div>
+              <div class="kpi-value" id="{{ c[2] }}">—</div>
+              <div class="kpi-sub">{{ c[3]|raw }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# Alertes (listes) #}
+  <div class="row g-3 mb-4 mt-1">
+    <div class="col-12 col-xl-6">
+      <div class="panel">
+        <div class="head">
+          <h6 class="title mb-0"><i class="bi bi-folder-x me-2"></i>Documents manquants (Top)</h6>
+          <span class="text-muted small" id="docs-count">—</span>
+        </div>
+        <div class="body">
+          <ul class="mini-list" id="docs-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="panel">
+        <div class="head">
+          <h6 class="title mb-0"><i class="bi bi-pen me-2"></i>Émargements non signés</h6>
+          <span class="text-muted small" id="em-unsigned-count">—</span>
+        </div>
+        <div class="body">
+          <div id="em-unsigned-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Tables TOP 20 – premium #}
+  <div class="row g-3 mt-1">
+
+    <div class="col-12 col-xl-6 mb-3">
+      <div class="table-pro p-3">
+        <div class="table-pro__head">
+          <h6 class="table-pro__title mb-0">
+            <i class="bi bi-folder-x me-1"></i> Dossiers incomplets (Top 20)
+            <span class="table-pro__count" id="tblDocsMissingCount">—</span>
+          </h6>
+          <div class="table-pro__tools">
+            <div class="table-pro__search">
+              <i class="bi bi-search"></i>
+              <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblDocsMissing">
+            </div>
+          </div>
+        </div>
+        <div class="table-pro__body">
+          <div class="table-responsive">
+            <table class="table table-sm table-pro__table w-100" id="tblDocsMissing">
+              <thead>
+                <tr>
+                  <th>Session</th>
+                  <th>Stagiaire</th>
+                  <th>Manquants</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-pro__foot">
+          <div class="text-muted small" id="tblDocsMissingInfo">—</div>
+          <div class="text-muted small">Top 20</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6 mb-3">
+      <div class="table-pro">
+        <div class="table-pro__head">
+          <h6 class="table-pro__title mb-0">
+            <i class="bi bi-pen me-1"></i> Émargements non signés (Top 20)
+            <span class="table-pro__count" id="tblUnsignedCount">—</span>
+          </h6>
+          <div class="table-pro__tools">
+            <div class="table-pro__search">
+              <i class="bi bi-search"></i>
+              <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblUnsigned">
+            </div>
+          </div>
+        </div>
+        <div class="table-pro__body">
+          <div class="table-responsive">
+            <table class="table table-sm table-pro__table w-100" id="tblUnsigned">
+              <thead>
+                <tr>
+                  <th>Session</th>
+                  <th>Personne</th>
+                  <th>Date</th>
+                  <th>Période</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-pro__foot">
+          <div class="text-muted small" id="tblUnsignedInfo">—</div>
+          <div class="text-muted small">Top 20</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# DataTables – premium #}
+  <div class="col-12 mb-3">
+    <div class="table-pro">
+      <div class="table-pro__head">
+        <h6 class="table-pro__title mb-0">
+          <i class="bi bi-calendar-event me-1"></i> Sessions à venir
+          <span class="table-pro__count" id="dtAvenirCount">—</span>
+        </h6>
+
+        <div class="table-pro__tools">
+          <div class="table-pro__search">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-dt-search="#dtSessionsAvenir">
+          </div>
+
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+              <i class="bi bi-sliders"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end p-2">
+              <button class="dropdown-item" data-dt-length="10" data-dt="#dtSessionsAvenir">10 lignes</button>
+              <button class="dropdown-item" data-dt-length="25" data-dt="#dtSessionsAvenir">25 lignes</button>
+              <button class="dropdown-item" data-dt-length="50" data-dt="#dtSessionsAvenir">50 lignes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-pro__body">
+        <div class="table-responsive">
+          <table class="table table-sm table-pro__table w-100" id="dtSessionsAvenir">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Formation</th>
+                <th>Dates</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-pro__foot">
+        <div class="text-muted small" data-dt-info="#dtSessionsAvenir">—</div>
+        <div data-dt-pager="#dtSessionsAvenir"></div>
+      </div>
+    </div>
+  </div>
+
+  {# Charts #}
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="panel">
+        <div class="head">
+          <h6 class="title mb-0">Inscriptions par statut</h6>
+          <span class="text-muted small">Répartition</span>
+        </div>
+        <div class="body">
+          <canvas id="chartInscriptions"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="panel">
+        <div class="head">
+          <h6 class="title mb-0">Encaissements par mois</h6>
+          <span class="text-muted small">€</span>
+        </div>
+        <div class="body">
+          <canvas id="chartCash"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="panel">
+        <div class="head">
+          <h6 class="title mb-0">Sessions par formation (Top)</h6>
+          <span class="text-muted small">volume</span>
+        </div>
+        <div class="body">
+          <canvas id="chartSessionsFormation"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+<script>
+  window.CSRF_VALIDATE_PIECE = "{{ csrf_token('validate_piece') }}";
+</script>
+
+{# Modal pièce dossier #}
+<div class="modal fade" id="pieceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="pieceModalTitle">Pièce</h5>
+          <div class="text-muted small" id="pieceModalMeta">—</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-2 mb-3">
+          <a class="btn btn-outline-secondary btn-sm" id="pieceModalOpen" href="#" target="_blank" rel="noopener">
+            <i class="bi bi-box-arrow-up-right"></i> Ouvrir dans un onglet
+          </a>
+
+          <a class="btn btn-outline-primary btn-sm" id="pieceModalDownload" href="#" download>
+            <i class="bi bi-download"></i> Télécharger
+          </a>
+
+          <div class="ms-auto">
+            <button class="btn btn-success btn-sm fw-semibold" id="pieceModalValidate" type="button">
+              <i class="bi bi-check2-circle"></i> Valider
+            </button>
+          </div>
+        </div>
+
+        <div class="preview-wrap border rounded-3 overflow-hidden bg-light d-flex align-items-center justify-content-center">
+          <img id="pieceModalImg" alt="Aperçu" style="display:none; width:100%; height:100%; object-fit:contain;" />
+          <iframe id="pieceModalFrame" src="about:blank" style="display:none; width:100%; height:100%; border:0"></iframe>
+        </div>
+
+        <div class="text-muted small mt-2" id="pieceModalHint">
+          Si la prévisualisation ne s’affiche pas (selon le type de fichier), utilise “Ouvrir” ou “Télécharger”.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* =========================
+     Helpers (robustes)
+  ========================= */
+  const fmtMoney = (cents) => (Number(cents||0)/100).toLocaleString('fr-FR', {style:'currency', currency:'EUR'});
+  const safeText = (v, fallback='—') => (v === null || v === undefined || v === '') ? fallback : String(v);
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const nowLabel = () => {
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  };
+
+  /* =========================
+     DOM
+  ========================= */
+  const $formation     = document.getElementById('formationFilter');
+  const $formateur     = document.getElementById('formateurFilter');
+  const $sessionStatus = document.getElementById('sessionStatusFilter');
+  const $insStatus     = document.getElementById('inscriptionStatusFilter');
+
+  let tsFormation=null, tsFormateur=null, tsSessStatus=null, tsInsStatus=null;
+  let fpRange=null;
+
+  function buildParams(){
+    const p = new URLSearchParams();
+    p.set('formation', $formation?.value || 'all');
+    p.set('formateur', $formateur?.value || 'all');
+    p.set('sessionStatus', $sessionStatus?.value || 'all');
+    p.set('inscriptionStatus', $insStatus?.value || 'all');
+    p.set('from', (document.getElementById('dateFrom')?.value || '').trim());
+    p.set('to', (document.getElementById('dateTo')?.value || '').trim());
+    return p;
+  }
+
+  /* =========================
+     TomSelect / Flatpickr
+  ========================= */
+  function initTomSelect(){
+    const common = { create:false, maxItems:1, allowEmptyOption:true, plugins:['clear_button'] };
+
+    tsFormation?.destroy(); tsFormateur?.destroy(); tsSessStatus?.destroy(); tsInsStatus?.destroy();
+
+    if (document.querySelector('#formationFilter'))         tsFormation = new TomSelect('#formationFilter', {...common});
+    if (document.querySelector('#formateurFilter'))         tsFormateur = new TomSelect('#formateurFilter', {...common});
+    if (document.querySelector('#sessionStatusFilter'))     tsSessStatus = new TomSelect('#sessionStatusFilter', {...common});
+    if (document.querySelector('#inscriptionStatusFilter')) tsInsStatus  = new TomSelect('#inscriptionStatusFilter', {...common});
+
+    [tsFormation, tsFormateur, tsSessStatus, tsInsStatus].filter(Boolean).forEach(ts=>{
+      ts.on('change', ()=> refreshAll());
+    });
+  }
+
+  function initFlatpickr(){
+    fpRange?.destroy?.();
+    if (!document.querySelector('#dateRange')) return;
+
+    fpRange = flatpickr("#dateRange", {
+      locale: "fr",
+      mode: "range",
+      dateFormat: "d/m/Y",
+      allowInput: true,
+      disableMobile: true,
+      onClose: function(selectedDates){
+        const from = selectedDates[0] ? selectedDates[0].toISOString().slice(0,10) : '';
+        const to   = selectedDates[1] ? selectedDates[1].toISOString().slice(0,10) : '';
+        document.getElementById('dateFrom').value = from;
+        document.getElementById('dateTo').value = to;
+        refreshAll();
+      }
+    });
+  }
+
+  /* =========================
+     Load META
+  ========================= */
+  async function loadMeta(){
+    const url = "{{ path('app_administrateur_dashboard_meta', { entite: entite.id }) }}";
+    const res = await fetch(url, {headers:{'Accept':'application/json'}});
+    if(!res.ok) return;
+    const json = await res.json().catch(()=>null);
+    if (!json) return;
+
+    if (tsFormation){
+      tsFormation.clearOptions();
+      tsFormation.addOption({value:'all', text:'Toutes'});
+      (json.formations||[]).forEach(f=> tsFormation.addOption({value:String(f.id), text:f.label}));
+      tsFormation.refreshOptions(false);
+      tsFormation.setValue('all', true);
+    }
+    if (tsFormateur){
+      tsFormateur.clearOptions();
+      tsFormateur.addOption({value:'all', text:'Tous'});
+      (json.formateurs||[]).forEach(f=> tsFormateur.addOption({value:String(f.id), text:f.label}));
+      tsFormateur.refreshOptions(false);
+      tsFormateur.setValue('all', true);
+    }
+  }
+
+  /* =========================
+     KPI
+  ========================= */
+  async function loadKpis(){
+    const url = "{{ path('app_administrateur_dashboard_kpis', { entite: entite.id }) }}?" + buildParams().toString();
+    const res = await fetch(url, {headers:{'Accept':'application/json'}});
+    if(!res.ok) return;
+    const k = await res.json().catch(()=>null);
+    if (!k) return;
+
+    const setTxt = (id, v) => { const el=document.getElementById(id); if(el) el.textContent = safeText(v); };
+
+    setTxt('kpi-sessions', k.sessions);
+    setTxt('kpi-inscriptions', k.inscriptions);
+    setTxt('kpi-reussite', (k.tauxReussite ?? 0) + '%');
+    setTxt('kpi-reussis', k.reussis);
+
+    document.getElementById('kpi-facture')?.replaceChildren(document.createTextNode(fmtMoney(k.caFactureCents)));
+    document.getElementById('kpi-encaisse')?.replaceChildren(document.createTextNode(fmtMoney(k.encaisseCents)));
+    document.getElementById('kpi-reste')?.replaceChildren(document.createTextNode(fmtMoney(k.resteCents)));
+
+    setTxt('kpi-factures-due', fmtMoney(k.facturesDueCents));
+    setTxt('kpi-factures-due-count', k.facturesEnAttente);
+
+    setTxt('kpi-docs-missing', k.dossiersSansDossier);
+    setTxt('kpi-em-missing', k.unsignedEmargements);
+
+    setTxt('kpi-upcoming', k.sessionsAVenir);
+    setTxt('kpi-past', k.sessionsPassees);
+
+    const kpiDays = document.getElementById('kpi-days');
+    if (kpiDays) kpiDays.textContent = (k.jours ?? '—') + ' j';
+    setTxt('kpi-halfdays', k.demiJournees);
+
+    setTxt('kpi-devis', k.devis);
+    setTxt('kpi-attestations', k.attestations);
+
+    document.getElementById('hero-last-refresh')?.replaceChildren(document.createTextNode('Maj : ' + nowLabel()));
+  }
+
+  /* =========================
+     Charts
+  ========================= */
+  let chartInscriptions=null, chartCash=null, chartSessionsFormation=null;
+
+  function baseChartOptions(){
+    return { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } } };
+  }
+
+  async function loadCharts(){
+    const url = "{{ path('app_administrateur_dashboard_charts', { entite: entite.id }) }}?" + buildParams().toString();
+    const res = await fetch(url, {headers:{'Accept':'application/json'}});
+    if(!res.ok) return;
+    const d = await res.json().catch(()=>null);
+    if (!d) return;
+
+    const elIns = document.getElementById('chartInscriptions');
+    if (elIns){
+      chartInscriptions?.destroy();
+      chartInscriptions = new Chart(elIns, {
+        type:'doughnut',
+        data:{ labels: d.inscriptionsByStatus?.labels || [], datasets:[{ data: d.inscriptionsByStatus?.data || [] }]},
+        options: baseChartOptions()
+      });
+    }
+
+    const elCash = document.getElementById('chartCash');
+    if (elCash){
+      chartCash?.destroy();
+      chartCash = new Chart(elCash, {
+        type:'line',
+        data:{
+          labels: d.cashByMonth?.labels || [],
+          datasets:[{ label:'€ encaissés', data: d.cashByMonth?.data || [], tension: 0.25 }]
+        },
+        options:{
+          ...baseChartOptions(),
+          scales:{ y:{ ticks:{ callback:(v)=> (Number(v)).toLocaleString('fr-FR') + ' €' } } }
+        }
+      });
+    }
+
+    const elSF = document.getElementById('chartSessionsFormation');
+    if (elSF){
+      chartSessionsFormation?.destroy();
+      chartSessionsFormation = new Chart(elSF, {
+        type:'bar',
+        data:{ labels: d.sessionsByFormation?.labels || [], datasets:[{ label:'Sessions', data: d.sessionsByFormation?.data || [] }]},
+        options:{ ...baseChartOptions(), scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } }
+      });
+    }
+  }
+
+  /* =========================
+     Plain tables search (Top 20)
+  ========================= */
+  function bindPlainSearch(){
+    document.querySelectorAll('[data-plain-search]').forEach(input=>{
+      const sel = input.getAttribute('data-plain-search');
+      const table = sel ? document.querySelector(sel) : null;
+      if (!table) return;
+
+      input.addEventListener('input', ()=>{
+        const q = (input.value || '').toLowerCase();
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(tr=>{
+          const txt = (tr.innerText || '').toLowerCase();
+          tr.style.display = txt.includes(q) ? '' : 'none';
+        });
+      });
+    });
+  }
+
+  /* =========================
+     DataTables tools (premium wrapper)
+  ========================= */
+  function bindTableProTools(){
+    // Search
+    document.querySelectorAll('[data-dt-search]').forEach(input=>{
+      const sel = input.getAttribute('data-dt-search');
+      const table = sel ? document.querySelector(sel) : null;
+      if (!table) return;
+
+      input.addEventListener('input', ()=>{
+        const dt = DataTable.getInstance(table);
+        if (!dt) return;
+        dt.search(input.value).draw();
+      });
+    });
+
+    // Length
+    document.querySelectorAll('[data-dt-length]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const len = Number(btn.getAttribute('data-dt-length')||10);
+        const sel = btn.getAttribute('data-dt') || '';
+        const table = sel ? document.querySelector(sel) : null;
+        if (!table) return;
+
+        const dt = DataTable.getInstance(table);
+        if (!dt) return;
+        dt.page.len(len).draw();
+      });
+    });
+
+    // Info
+    document.querySelectorAll('[data-dt-info]').forEach(el=>{
+      const sel = el.getAttribute('data-dt-info');
+      const table = sel ? document.querySelector(sel) : null;
+      if (!table) return;
+
+      const dt = DataTable.getInstance(table);
+      if (!dt) return;
+
+      const refresh = ()=>{
+        const info = dt.page.info();
+        el.textContent = `Affichage ${info.start + 1} → ${info.end} sur ${info.recordsDisplay} (total ${info.recordsTotal})`;
+        const countEl = document.getElementById('dtAvenirCount');
+        if (countEl) countEl.textContent = `${info.recordsDisplay} résultats`;
+      };
+
+      table.addEventListener('draw.dt', refresh);
+      refresh();
+    });
+
+    // Pager injection
+    document.querySelectorAll('[data-dt-pager]').forEach(el=>{
+      const sel = el.getAttribute('data-dt-pager');
+      const table = sel ? document.querySelector(sel) : null;
+      if (!table) return;
+
+      const wrapper = table.closest('.dataTables_wrapper');
+      if (!wrapper) return;
+
+      const paginate = wrapper.querySelector('.dataTables_paginate');
+      if (paginate){
+        el.innerHTML = '';
+        el.appendChild(paginate);
+      }
+    });
+  }
+
+  /* =========================
+     TODO lists + Top tables
+  ========================= */
+  async function loadTodo(){
+    const url = "{{ path('app_administrateur_dashboard_todo', { entite: entite.id }) }}?" + buildParams().toString();
+    const res = await fetch(url, {headers:{'Accept':'application/json'}});
+    if(!res.ok) return;
+    const t = await res.json().catch(()=>null);
+    if (!t) return;
+
+    const docs = t.docsMissing || [];
+    const em   = t.unsignedEmargements || [];
+
+    // counts top tables
+    document.getElementById('tblDocsMissingCount')?.replaceChildren(document.createTextNode(`${docs.length} lignes`));
+    document.getElementById('tblUnsignedCount')?.replaceChildren(document.createTextNode(`${em.length} lignes`));
+    document.getElementById('tblDocsMissingInfo')?.replaceChildren(document.createTextNode(`${docs.length} résultat(s)`));
+    document.getElementById('tblUnsignedInfo')?.replaceChildren(document.createTextNode(`${em.length} résultat(s)`));
+
+    // docs list
+    const docsCount = document.getElementById('docs-count');
+    if (docsCount) docsCount.textContent = docs.length ? (docs.length + ' alertes') : 'Aucune alerte';
+
+    const docsList = document.getElementById('docs-list');
+    if (docsList){
+      docsList.innerHTML = docs.length ? '' : '<div class="text-muted small">Rien à signaler ✅</div>';
+      docs.forEach(x=>{
+        const li = document.createElement('li');
+        li.className = 'mini-item';
+        li.innerHTML = `
+          <span class="badge-pro badge-pro--warn"><i class="bi bi-exclamation-triangle"></i>${escapeHtml(x.missingCount ?? 0)}</span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">${escapeHtml(x.userLabel ?? '—')}</div>
+            <div class="text-muted small">Session: <span class="mono">${escapeHtml(x.sessionLabel ?? '—')}</span></div>
+
+            ${(x.missingLabels && x.missingLabels.length) ? `
+              <div class="small mt-2">
+                ${x.missingLabels.map(l=>`
+                  <span class="badge-pro badge-pro--danger me-1 mb-1"><i class="bi bi-x-circle"></i>${escapeHtml(l)}</span>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            ${(x.pendingPieces && x.pendingPieces.length) ? `
+              <div class="small mt-2">
+                ${x.pendingPieces.map(p=>`
+                  <button type="button"
+                          class="btn btn-sm btn-outline-warning me-1 mb-1 js-open-piece"
+                          data-piece-id="${escapeHtml(p.pieceId)}"
+                          style="border-radius:999px">
+                    <i class="bi bi-hourglass-split me-1"></i>${escapeHtml(p.label)}
+                    ${p.uploadedAt ? `<span class="opacity-75 ms-1">(${escapeHtml(p.uploadedAt)})</span>` : ''}
+                    <i class="bi bi-chevron-right ms-1"></i>
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+
+          </div>
+        `;
+        docsList.appendChild(li);
+      });
+    }
+
+    // emargements accordion
+    const emCount = document.getElementById('em-unsigned-count');
+    if (emCount) emCount.textContent = em.length ? (em.length + ' signatures manquantes') : 'Aucune';
+
+    const emList = document.getElementById('em-unsigned-list');
+    if (emList){
+      if (!em.length){
+        emList.innerHTML = '<div class="text-muted small">Rien à signer ✅</div>';
+      } else {
+        const groups = new Map();
+        for (const x of em){
+          const key = String(x.sessionId ?? x.sessionLabel ?? 'unknown');
+          if (!groups.has(key)){
+            groups.set(key, { sessionId: x.sessionId ?? null, sessionLabel: x.sessionLabel ?? '—', items: [] });
+          }
+          groups.get(key).items.push(x);
+        }
+
+        const sortedGroups = Array.from(groups.values()).sort((a,b)=> (b.items.length - a.items.length));
+
+        const accId = 'emAcc';
+        emList.innerHTML = `
+          <div class="accordion em-acc" id="${accId}">
+            ${sortedGroups.map((g, idx)=>{
+              const items = (g.items||[]).slice().sort((a,b)=>{
+                const da = a.date || ''; const db = b.date || '';
+                if (da !== db) return da.localeCompare(db);
+                const pa = (a.periode||''); const pb = (b.periode||'');
+                return pa.localeCompare(pb);
+              });
+
+              const headId = `emHead${idx}`;
+              const bodyId = `emBody${idx}`;
+              const previewMax = 4;
+              const preview = items.slice(0, previewMax);
+              const rest = items.slice(previewMax);
+              const badgeDanger = items.filter(i=>i.type==='unsigned').length;
+              const badgeWarn   = items.filter(i=>i.type==='missing').length;
+
+              return `
+                <div class="accordion-item mb-2">
+                  <h2 class="accordion-header" id="${headId}">
+                    <button class="accordion-button ${idx===0?'':'collapsed'}" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#${bodyId}"
+                            aria-expanded="${idx===0?'true':'false'}" aria-controls="${bodyId}">
+                      <div class="d-flex w-100 align-items-center gap-2">
+                        <span class="mono">${escapeHtml(g.sessionLabel)}</span>
+                        <div class="ms-auto em-badges d-flex gap-1">
+                          ${badgeWarn ? `<span class="badge text-bg-warning">Manquants ${badgeWarn}</span>` : ``}
+                          ${badgeDanger ? `<span class="badge text-bg-danger">Non signés ${badgeDanger}</span>` : ``}
+                          <span class="badge text-bg-secondary">Total ${items.length}</span>
+                        </div>
+                      </div>
+                    </button>
+                  </h2>
+
+                  <div id="${bodyId}" class="accordion-collapse collapse ${idx===0?'show':''}"
+                      aria-labelledby="${headId}" data-bs-parent="#${accId}">
+                    <div class="accordion-body">
+
+                      ${preview.map(x=>{
+                        const isMissing = (x.type === 'missing');
+                        const badgeCls = isMissing ? 'text-bg-warning' : 'text-bg-danger';
+                        const badgeTxt = x.badge ?? (isMissing ? 'Manquant' : 'Non signé');
+
+                        return `
+                          <div class="em-row bg-white border">
+                            <span class="badge ${badgeCls}">${escapeHtml(badgeTxt)}</span>
+                            <div class="flex-grow-1">
+                              <div class="fw-semibold">${escapeHtml(x.userLabel ?? '—')}</div>
+                              <div class="em-meta">${escapeHtml(x.date ?? '—')} • ${escapeHtml(x.periode ?? '—')}</div>
+                            </div>
+                          </div>
+                        `;
+                      }).join('')}
+
+                      ${rest.length ? `
+                        <div class="mt-2">
+                          <button class="btn btn-sm btn-outline-secondary w-100 js-em-showmore"
+                                  data-target="#emMore${idx}">
+                            Voir +${rest.length} lignes
+                          </button>
+                          <div id="emMore${idx}" class="collapse mt-2">
+                            ${rest.map(x=>{
+                              const isMissing = (x.type === 'missing');
+                              const badgeCls = isMissing ? 'text-bg-warning' : 'text-bg-danger';
+                              const badgeTxt = x.badge ?? (isMissing ? 'Manquant' : 'Non signé');
+
+                              return `
+                                <div class="em-row bg-white border">
+                                  <span class="badge ${badgeCls}">${escapeHtml(badgeTxt)}</span>
+                                  <div class="flex-grow-1">
+                                    <div class="fw-semibold">${escapeHtml(x.userLabel ?? '—')}</div>
+                                    <div class="em-meta">${escapeHtml(x.date ?? '—')} • ${escapeHtml(x.periode ?? '—')}</div>
+                                  </div>
+                                </div>
+                              `;
+                            }).join('')}
+                          </div>
+                        </div>
+                      ` : ''}
+
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+
+        emList.querySelectorAll('.js-em-showmore').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            const target = btn.getAttribute('data-target');
+            const el = emList.querySelector(target);
+            if (!el) return;
+            const c = bootstrap.Collapse.getOrCreateInstance(el, {toggle:false});
+            const isShown = el.classList.contains('show');
+            if (isShown) c.hide(); else c.show();
+            btn.textContent = isShown ? 'Voir plus' : 'Masquer';
+          });
+        });
+      }
+    }
+
+    // TOP tables fill
+    const tbody1 = document.querySelector('#tblDocsMissing tbody');
+    if (tbody1){
+      tbody1.innerHTML = '';
+      docs.forEach(r=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(r.sessionLabel ?? '—')}</td>
+          <td>${escapeHtml(r.userLabel ?? '—')}</td>
+          <td><span class="badge-pro badge-pro--warn">${escapeHtml(r.missingCount ?? 0)}</span></td>
+        `;
+        tbody1.appendChild(tr);
+      });
+    }
+
+    const tbody2 = document.querySelector('#tblUnsigned tbody');
+    if (tbody2){
+      tbody2.innerHTML = '';
+      em.forEach(r=>{
+        const tr = document.createElement('tr');
+        const isMissing = (r.type === 'missing');
+        const badgeTxt = r.badge ?? (isMissing ? 'Manquant' : 'Non signé');
+        const cls = isMissing ? 'badge-pro--warn' : 'badge-pro--danger';
+
+        tr.innerHTML = `
+          <td>${escapeHtml(r.sessionLabel ?? '—')}</td>
+          <td>${escapeHtml(r.userLabel ?? '—')}</td>
+          <td>${escapeHtml(r.date ?? '—')}</td>
+          <td><span class="badge-pro ${cls}">${escapeHtml(badgeTxt)}</span> ${escapeHtml(r.periode ?? '—')}</td>
+        `;
+        tbody2.appendChild(tr);
+      });
+    }
+
+    // bind search for top tables (once)
+    bindPlainSearch();
+  }
+
+  /* =========================
+     Modal Piece
+  ========================= */
+  let currentPieceId = null;
+  const modalEl = document.getElementById('pieceModal');
+  const pieceModal = modalEl ? new bootstrap.Modal(modalEl) : null;
+
+  async function openPieceModal(pieceId){
+    currentPieceId = pieceId;
+
+    const infoUrl = "{{ path('app_administrateur_dashboard_piece_info', { entite: entite.id, id: 0 }) }}"
+      .replace('/0/info', `/${pieceId}/info`);
+
+    const res = await fetch(infoUrl, { headers:{'Accept':'application/json'} });
+    const json = await res.json().catch(()=>null);
+
+    if (!res.ok || !json?.ok) {
+      alert(json?.error || "Impossible d’ouvrir la pièce.");
+      return;
+    }
+
+    document.getElementById('pieceModalTitle').textContent = json.label || 'Pièce';
+    document.getElementById('pieceModalMeta').textContent  = json.meta || '—';
+
+    const fileUrl = json.fileUrl;
+    const dlUrl   = json.downloadUrl || fileUrl;
+
+    const $open = document.getElementById('pieceModalOpen');
+    const $dl   = document.getElementById('pieceModalDownload');
+    const $frm  = document.getElementById('pieceModalFrame');
+    const $img  = document.getElementById('pieceModalImg');
+    const $val  = document.getElementById('pieceModalValidate');
+
+    if ($open) $open.href = fileUrl;
+    if ($dl)   $dl.href = dlUrl;
+
+    // reset
+    if ($img) { $img.style.display = 'none'; $img.removeAttribute('src'); }
+    if ($frm) { $frm.style.display = 'none'; $frm.src = 'about:blank'; }
+
+    if (json.isImage) {
+      $img.src = fileUrl;
+      $img.style.display = 'block';
+    } else {
+      $frm.src = fileUrl;
+      $frm.style.display = 'block';
+    }
+
+    if ($val) $val.disabled = !!json.isValide;
+    pieceModal?.show();
+  }
+
+  // listener global unique
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-open-piece');
+    if (!btn) return;
+    const pieceId = btn.dataset.pieceId;
+    if (!pieceId) return;
+    openPieceModal(pieceId);
+  });
+
+  // validation depuis le modal
+  document.getElementById('pieceModalValidate')?.addEventListener('click', async () => {
+    if (!currentPieceId) return;
+
+    const btn = document.getElementById('pieceModalValidate');
+    btn.disabled = true;
+
+    try {
+      const url = "{{ path('app_administrateur_dashboard_piece_validate', { entite: entite.id, id: 0 }) }}"
+        .replace('/0/validate', `/${currentPieceId}/validate`);
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': window.CSRF_VALIDATE_PIECE || ''
+        }
+      });
+
+      const json = await res.json().catch(()=>null);
+      if (!res.ok || !json?.ok) {
+        alert(json?.error || "Impossible de valider la pièce.");
+        btn.disabled = false;
+        return;
+      }
+
+      pieceModal?.hide();
+      await refreshAll();
+    } catch (err) {
+      btn.disabled = false;
+      alert("Erreur réseau.");
+    }
+  });
+
+  // clean preview on close
+  modalEl?.addEventListener('hidden.bs.modal', () => {
+    currentPieceId = null;
+    const $frm = document.getElementById('pieceModalFrame');
+    const $img = document.getElementById('pieceModalImg');
+    if ($frm) { $frm.src = 'about:blank'; $frm.style.display = 'none'; }
+    if ($img) { $img.removeAttribute('src'); $img.style.display = 'none'; }
+  });
+
+  /* =========================
+     DataTables
+  ========================= */
+  let dtAvenir = null;
+  let dtReady = false;
+  let toolsBound = false;
+
+  function initDataTables(){
+    if (dtReady) return;
+    dtReady = true;
+
+    const baseParams = () => Object.fromEntries(buildParams().entries());
+
+    if (document.querySelector('#dtSessionsAvenir')) {
+      dtAvenir = new DataTable('#dtSessionsAvenir', {
+        ajax: {
+          url: "{{ path('app_administrateur_dashboard_sessions_avenir', { entite: entite.id }) }}",
+          data: baseParams,
+          dataSrc: 'data'
+        },
+        columns: [
+          { data: 'code' },
+          { data: 'formation' },
+          { data: 'dates' },
+          { data: 'status' },
+        ],
+        pageLength: 10,
+        order: [[2,'asc']],
+        language: { url: "https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json" }
+      });
+
+      // bind tools after DT created (once)
+      if (!toolsBound){
+        toolsBound = true;
+        bindTableProTools();
+      }
+    }
+  }
+
+  /* =========================
+     Refresh global (robuste)
+  ========================= */
+  let isRefreshing = false;
+
+  async function refreshAll(){
+    if (isRefreshing) return;
+    isRefreshing = true;
+
+    try {
+      await Promise.all([loadKpis(), loadCharts(), loadTodo()]);
+      initDataTables();
+      dtAvenir?.ajax?.reload?.();
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  /* =========================
+     UI actions
+  ========================= */
+  document.getElementById('btnRefresh')?.addEventListener('click', refreshAll);
+
+  document.getElementById('btnReset')?.addEventListener('click', ()=>{
+    tsFormation?.setValue('all', true);
+    tsFormateur?.setValue('all', true);
+    tsSessStatus?.setValue('all', true);
+    tsInsStatus?.setValue('all', true);
+
+    fpRange?.clear();
+    document.getElementById('dateRange')?.setAttribute('value','');
+    const df = document.getElementById('dateFrom');
+    const dt = document.getElementById('dateTo');
+    if (df) df.value = '';
+    if (dt) dt.value = '';
+    refreshAll();
+  });
+
+  /* =========================
+     INIT
+  ========================= */
+  initTomSelect();
+  initFlatpickr();
+  loadMeta().then(refreshAll);
+
+})();
+</script>
+
+
+<script>
+  (function(){
+    function nowLabel(){
+      const d = new Date();
+      return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    }
+    const el = document.getElementById('hero-last-refresh');
+    if(el) el.textContent = 'Maj : ' + nowLabel();
+  })();
+</script>
+{% endblock %}

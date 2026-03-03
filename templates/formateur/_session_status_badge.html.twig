@@ -1,0 +1,15 @@
+{# templates/formateur/_session_status_badge.html.twig #}
+
+{% set key = (state ?? 'unknown')|lower %}
+
+{% set map = {
+  'upcoming': { cls:'bg-warning text-dark', icon:'fa-clock',        label:'À venir' },
+  'ongoing':  { cls:'bg-info text-dark',    icon:'fa-play',         label:'En cours' },
+  'done':     { cls:'bg-success',           icon:'fa-circle-check', label:'Terminée' },
+} %}
+
+{% set conf = map[key] ?? { cls:'bg-secondary', icon:'fa-circle-question', label:'—' } %}
+
+<span class="badge {{ conf.cls }}">
+  <i class="fa {{ conf.icon }} me-1"></i>{{ conf.label }}
+</span>

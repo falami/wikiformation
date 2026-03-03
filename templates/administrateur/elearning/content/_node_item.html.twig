@@ -1,0 +1,78 @@
+<li class="list-group-item node-item mb-2" data-id="{{ n.id }}">
+
+  <div class="d-flex align-items-center gap-2">
+    <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+
+    <div class="flex-grow-1">
+      <div class="fw-semibold">{{ n.titre }}</div>
+      <div class="small text-muted">
+        {{ n.parent ? 'SOUS-CHAPITRE' : 'CHAPITRE' }}
+        {% if n.dureeMinutes %}
+          · {{ n.dureeMinutes }} min
+        {% endif %}
+        {% if n.isPublished %}
+          · <span class="badge bg-success-subtle text-success border border-success-subtle">Publié</span>
+        {% else %}
+          · <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Brouillon</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex gap-1">
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ path('app_administrateur_elearning_content_node_edit', { entite: entite.id, course: course.id, node: n.id }) }}">
+        <i class="bi bi-pencil"></i>
+      </a>
+
+      <a class="btn btn-sm btn-outline-primary"
+         href="{{ path('app_administrateur_elearning_content_node_add', { entite: entite.id, course: course.id, parentId: n.id }) }}"
+         title="Ajouter un sous-chapitre">
+        <i class="bi bi-plus"></i>
+      </a>
+
+      <a class="btn btn-sm btn-outline-primary"
+         href="{{ path('app_administrateur_elearning_content_block_add', { entite: entite.id, course: course.id, node: n.id }) }}"
+         title="Ajouter un bloc">
+        <i class="bi bi-file-earmark-plus"></i>
+      </a>
+    </div>
+  </div>
+
+  {# BLOCS #}
+  {% if n.blocks|length %}
+    <ul class="list-group mt-2 block-sortable"
+        data-node-id="{{ n.id }}"
+        data-url="{{ path('app_administrateur_elearning_content_block_reorder', { entite: entite.id, course: course.id }) }}"
+        data-csrf="{{ csrf_token('reorder_blocks_' ~ course.id) }}">
+      {% for b in n.blocks %}
+        <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ b.id }}">
+          <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ b.type.value }}</div>
+            <div class="small text-muted text-truncate">{{ b.content|striptags|slice(0,80) }}</div>
+          </div>
+
+          <div class="d-flex gap-1">
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{{ path('app_administrateur_elearning_content_block_edit', { entite: entite.id, course: course.id, block: b.id }) }}">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {# SOUS-CHAPITRES #}
+  {% if n.children|length %}
+    <ul class="list-group node-sortable node-children mt-3"
+        data-parent-id="{{ n.id }}"
+        data-url="{{ path('app_administrateur_elearning_content_node_reorder', { entite: entite.id, course: course.id }) }}"
+        data-csrf="{{ csrf_token('reorder_nodes_' ~ course.id) }}">
+      {% for c in n.children %}
+        {% include 'administrateur/elearning/content/_node_item.html.twig' with { entite: entite, course: course, n: c } %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+</li>

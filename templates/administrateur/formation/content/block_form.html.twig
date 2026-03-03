@@ -1,0 +1,1184 @@
+{# templates/administrateur/formation/content/block_form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d’un bloc — {{ node.titre }}{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+}
+
+/* Habillage global */
+.section-title { font-weight:600; }
+.text-theme-secondaire { color: var(--theme-color-secondaire) !important; }
+.bg-theme-tertiaire { background: var(--theme-color-tertiaire) !important; }
+.text-theme-quaternaire { color: var(--theme-color-quaternaire) !important; }
+
+/* Icône champ flottant */
+.form-icon{ pointer-events:none; z-index:2; }
+.form-floating .form-control.with-icon{ padding-left: 2.4rem; }
+.form-floating .form-control.with-icon ~ label{ padding-left: 2.4rem; }
+
+/* Liste des blocs (pour le tri) */
+.tree{ list-style:none; padding-left:0; margin:0; }
+.tree > li{ margin-bottom:.55rem; }
+.node-card{
+  background:#0f2230; border:1px solid rgba(255,255,255,.08);
+  border-radius:.8rem; padding:.7rem .75rem;
+}
+.node-header{ display:flex; align-items:center; gap:.65rem; justify-content:space-between; }
+.node-left{ display:flex; align-items:center; gap:.55rem; }
+.node-title{ font-weight:600; color: #FFFFFF;}
+.node-meta{ font-size:.9rem; opacity:.85; }
+.drag{ cursor:grab; opacity:.9; }
+.badge-soft{
+  background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
+  color:#cfe8f6; border-radius: 999px; padding:.2rem .5rem; font-size:.8rem;
+}
+</style>
+
+
+<style>
+/* -------- Premium Quiz Editor -------- */
+.quiz-shell{ --card:#0f2230; --ink:#eaf6ff; --muted:#a8c9da; --stroke:rgba(255,255,255,.10); }
+.quiz-shell .subtle{ color: var(--muted); font-weight:500; letter-spacing:.02em; }
+
+/* Carte “section” */
+.section-card{
+  background: linear-gradient(180deg, rgba(15,27,40,.80), rgba(15,27,40,.92));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+
+/* Questions container */
+#quiz-questions{ counter-reset: q; }
+
+/* Question card */
+.question-item{
+  background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00));
+  border: 1px solid var(--stroke);
+  border-radius: 14px; padding: 0; overflow: hidden; color: #fff !important;
+}
+.question-head{
+  display: grid; grid-template-columns: auto 1fr auto; gap: .75rem;
+  align-items: center; padding: .75rem .9rem;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), transparent);
+  border-bottom: 1px dashed var(--stroke);
+}
+.q-badge{
+  width: 2.1rem; height: 2.1rem; border-radius: 999px;
+  background: linear-gradient(135deg, var(--theme-color-secondaire), #ffd86b);
+  color:#0c1220; font-weight:700; display:grid; place-items:center; font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+}
+.question-item{ counter-increment: q; }
+
+.question-title{
+  display:flex; gap:.6rem; align-items:center;
+  color: var(--ink);
+}
+.question-actions .btn-icon{
+  --bg: rgba(255,255,255,.06);
+  background: var(--bg); border:1px solid rgba(255,255,255,.12);
+  color:#cfe8f6; width:36px; height:36px; border-radius:10px;
+  display:grid; place-items:center;
+}
+.question-actions .btn-icon:hover{ background: rgba(255,255,255,.12); }
+
+.question-body{ padding: .9rem .9rem 1rem ; }
+
+select{ margin: 1rem 0 1rem 0 ; }
+textarea{ margin: 1rem 0 1rem 0 ; }
+
+/* Champs en grille */
+.q-grid{ display:grid; gap: .75rem; }
+@media (max-width: 992px){ .q-grid{ grid-template-columns: 1fr; } }
+
+/* Bloc “Choix” */
+.choices-wrap{
+  margin-top: .6rem; padding: .6rem; border-radius: 12px;
+  background: rgba(255,255,255,.03); border:1px dashed var(--stroke);
+}
+.choices-head{ display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom:.35rem;}
+.choice-item{
+  background:#0e2130; border:1px solid var(--stroke);
+  border-radius: 10px; padding:.65rem .65rem .4rem; position: relative;
+}
+.choice-grid{ display:grid; gap:.6rem; }
+@media (max-width: 768px){ .choice-grid{ } }
+
+/* Boutons “chips” */
+.btn-chip{
+  border:1px solid rgba(255,255,255,.15); color:#dff3ff; background: rgba(255,255,255,.05);
+  padding:.35rem .6rem; border-radius: 999px; font-weight:600;
+}
+.btn-chip:hover{ background: rgba(255,255,255,.12); }
+
+/* Micro améliorations Bootstrap */
+.form-floating > textarea.form-control{ min-height: 120px; }
+.form-check.form-switch .form-check-input{ cursor: pointer; }
+.form-text{ color: var(--muted); }
+
+/* Collapse indicator */
+.btn-toggle{ display:flex; align-items:center; gap:.4rem; }
+.btn-toggle .chev{ transition: transform .2s ease; }
+.question-item.collapsed .btn-toggle .chev{ transform: rotate(-90deg); }
+.question-item.collapsed .question-body{ display:none; }
+
+
+
+/* Masquer uniquement les labels auto des sous-champs de choix (Symfony prototype) */
+.choice-item > .choice-grid label:not(.form-check-label) {
+  display: none !important;
+}
+
+/* Afficher le libellé du switch "Correcte ?" */
+.choice-item .form-check-label {
+  display: inline-block !important;
+}
+
+
+
+
+/* Masquer automatiquement les champs d’ordre si drag & drop activé */
+.question-item [name$="[position]"],
+.choice-item [name$="[position]"],
+.question-item label[for*="_position"],
+.choice-item small.form-hint {
+  display: none !important;
+}
+
+
+
+</style>
+
+
+<link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+<link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %}
+
+{% block body %}
+  <h2 class="mb-3">
+    <i class="fa fa-cube text-theme-secondaire me-2"></i>{{ modeEdition ? 'Modifier' : 'Ajouter' }} un bloc
+    <small class="text-muted">— {{ node.titre }}</small>
+  </h2>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# Action du formulaire (ajout/édition) #}
+  {% set blockId = form.vars.value.id ?? null %}
+  {% set actionPath = modeEdition and blockId
+    ? path('app_administrateur_formation_content_block_edit', { entite: entite.id, formation: formation.id, node: node.id, block: blockId })
+    : path('app_administrateur_formation_content_block_add',  { entite: entite.id, formation: formation.id, node: node.id })
+  %}
+  
+
+  {{ form_start(form, { action: actionPath, attr: { novalidate:'novalidate', name:'content_block', enctype:'multipart/form-data' } }) }}
+  {{ form_errors(form) }}
+
+  {# ================== Propriétés du bloc ================== #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+      <i class="fa fa-info-circle text-theme-secondaire me-2"></i> Informations du bloc
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <div class="form-floating">
+            {{ form_widget(form.type, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Type'}}) }}
+            <label for="{{ form.type.vars.id }}">Type</label>
+          </div>
+          {{ form_errors(form.type) }}
+        </div>
+
+        {{ form_widget(form.position) }}
+
+        <div class="col-12">
+          <div class="form-check form-switch">
+            {{ form_widget(form.isRequired, {'attr': {'class': 'form-check-input'}}) }}
+            <label class="form-check-label" for="{{ form.isRequired.vars.id }}">Obligatoire</label>
+          </div>
+          {{ form_errors(form.isRequired) }}
+          <div class="form-text mt-2">Si activé, l’apprenant doit compléter ce bloc pour continuer.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ================== Contenu ================== #}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+      <i class="fa fa-align-left text-theme-secondaire me-2"></i> Contenu
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        {# ---- QUIZ PREMIUM ---- #}
+        <div class="col-12 quiz-shell" id="quiz-wrapper" style="display:none;">
+        {% if form.quiz is defined %}
+          <div class="col-12 quiz-shell">
+            <div class="section-card p-3 p-md-4">
+
+              <div class="row g-3 align-items-center text-light">
+                <div class="col-md-6">
+                  {{ form_row(form.quiz.title, { label: 'Titre du quiz' }) }}
+                </div>
+                <div class="col-md-3">
+                  {{ form_row(form.quiz.settingsTimeLimitSec, { label: 'Limite (sec)' }) }}
+                </div>
+                <div class="col-md-3 d-flex flex-wrap gap-3">
+                  <div class="form-check form-switch m-0">
+                    {{ form_widget(form.quiz.settingsShuffleQuestions) }}
+                    <label class="form-check-label" for="{{ form.quiz.settingsShuffleQuestions.vars.id }}">Mélanger les questions</label>
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    {{ form_widget(form.quiz.settingsShuffleChoices) }}
+                    <label class="form-check-label" for="{{ form.quiz.settingsShuffleChoices.vars.id }}">Mélanger les choix</label>
+                  </div>
+                </div>
+              </div>
+
+              <hr class="my-3">
+
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="subtle"><i class="fa fa-list-check me-2"></i>Questions</div>
+                <button type="button" class="btn btn-chip" id="add-question">
+                  <i class="fa fa-plus me-1"></i> Ajouter une question
+                </button>
+              </div>
+              <div id="quiz-questions" data-index="{{ form.quiz.questions|length }}">
+                <template id="tpl-question">
+                  <div class="q-grid">
+                    <div>{{ form_row(form.quiz.questions.vars.prototype.type, { label:'Type' }) }}</div>
+                    <div>{{ form_row(form.quiz.questions.vars.prototype.text, { label:'Question' }) }}</div>
+                  </div>
+
+                  {{ form_widget(form.quiz.questions.vars.prototype.position) }}
+
+                  <div class="q-grid mt-2">
+                    <div>{{ form_row(form.quiz.questions.vars.prototype.explanation, { label:'Explication (facultatif)' }) }}</div>
+                  </div>
+
+                  <div class="mt-2 expected-text-group">
+                    {{ form_row(form.quiz.questions.vars.prototype.expectedText, { label:'Réponse attendue (si "réponse libre")' }) }}
+                  </div>
+
+                  <div class="choices-wrap" data-index="0">
+                    {# ✅ IMPORTANT: On stocke le prototype dans un data-attribute pour y accéder facilement #}
+                    <div class="choices-head">
+                      <div class="subtle">Choix</div>
+                      <button type="button" class="btn btn-chip btn-add-choice">
+                        <i class="fa fa-plus me-1"></i> Ajouter une réponse
+                      </button>
+                    </div>
+
+                    <div class="choices-list"></div>
+                    
+                    {# ✅ Template du choix accessible même après clonage #}
+                    <template class="tpl-choice">
+                      {{ form_widget(form.quiz.questions.vars.prototype.choices.vars.prototype) }}
+                    </template>
+                  </div>
+                </template>
+
+                {% for q in form.quiz.questions %}
+                  <div class="question-item mb-3">
+                    <div class="question-head">
+                      <div class="q-badge"></div>
+                      <div class="question-title">
+                        <button class="btn btn-icon btn-toggle" type="button">
+                          <i class="fa fa-chevron-down chev"></i>
+                        </button>
+                        <span class="subtle">Question</span>
+                      </div>
+                      <div class="question-actions">
+                        <button type="button" class="btn btn-icon btn-del-question" title="Supprimer">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="question-body">
+                      <div class="q-grid">
+                        <div class="">{{ form_row(q.type, { label: 'Type' }) }}</div>
+                        <div>{{ form_row(q.text, { label: 'Question' }) }}</div>
+                      </div>
+                      <div class="q-grid mt-2">
+                        <div>{{ form_row(q.position, { label: 'Ordre' }) }}</div>
+                        <div>{{ form_row(q.explanation, { label: 'Explication (facultatif)' }) }}</div>
+                      </div>
+                      <div class="mt-2 expected-text-group">
+                        {{ form_row(q.expectedText, { label: 'Réponse attendue (si “réponse libre”)' }) }}
+                      </div>
+                      <div class="choices-wrap" data-index="{{ q.choices is defined ? q.choices|length : 0 }}">
+                        {% if q.choices is defined %}
+                          <template class="tpl-choice">
+                            {{ form_widget(q.choices.vars.prototype) }}
+                          </template>
+                        {% else %}
+                          <template class="tpl-choice"></template>
+                        {% endif %}
+
+                        <div class="choices-head">
+                          <div class="subtle">Choix</div>
+                          <button type="button" class="btn btn-chip btn-add-choice">
+                            <i class="fa fa-plus me-1"></i> Ajouter une réponse
+                          </button>
+                        </div>
+
+                        <div class="choices-list">
+                          {% for ch in (q.choices is defined ? q.choices : []) %}
+                            {# ...dans la boucle {% for ch in q.choices %} ... #}
+                            <div class="choice-item mb-2">
+                            <div class="choice-grid">
+                                <div>
+                                {{ form_widget(ch.label, {
+                                    attr: {
+                                    placeholder: 'Réponse',
+                                    class: 'form-control form-control-sm'
+                                    }
+                                }) }}
+                                </div>
+
+                                <div>
+                                {{ form_widget(ch.position, {
+                                    attr: {
+                                    class: 'form-control form-control-sm text-center w-100',
+                                    inputmode: 'numeric',
+                                    min: 0
+                                    }
+                                }) }}
+                                <small class="form-hint d-block mt-1 opacity-75">Ordre</small>
+                                </div>
+
+                                <div class="d-flex align-items-center justify-content-end gap-2">
+                                <div class="form-check form-switch m-0">
+                                    {{ form_widget(ch.isCorrect, { attr: { class: 'form-check-input' } }) }}
+                                    <label class="form-check-label ms-2" for="{{ ch.isCorrect.vars.id }}">Correcte ?</label>
+                                </div>
+                                </div>
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-icon btn-del-choice bg-danger position-absolute top-0 end-0 m-2"
+                                    title="Retirer">
+                                <i class="fa fa-xmark"></i>
+                            </button>
+                            </div>
+
+                          {% endfor %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+
+            </div>
+          </div>
+        {% endif %}
+        </div>
+
+        {# ---- Contenu texte / code ---- #}
+        {% if form.content is defined %}
+          <div class="col-12" id="content-wrapper">
+            <div class="form-floating">
+              {{ form_widget(form.content, {'attr': {
+                'class':'form-control rounded-3 shadow-sm',
+                'placeholder':'Contenu (HTML/texte/code/JSON)',
+                'style':'min-height:140px'
+              }}) }}
+              <label for="{{ form.content.vars.id }}">Contenu</label>
+            </div>
+            {{ form_errors(form.content) }}
+          </div>
+        {% endif %}
+
+        {# ---- URL vidéo ---- #}
+        {% if form.mediaUrl is defined %}
+          <div class="col-12" id="mediaUrl-wrapper">
+            <div class="form-floating position-relative">
+              {{ form_widget(form.mediaUrl, {'attr': {
+                'class':'form-control rounded-3 shadow-sm with-icon',
+                'placeholder':'URL vidéo (YouTube/Vimeo/mp4)'
+              }}) }}
+              <label for="{{ form.mediaUrl.vars.id }}">URL vidéo</label>
+              <i class="fa fa-link position-absolute top-50 start-0 translate-middle-y ms-3 text-muted form-icon"></i>
+            </div>
+            {{ form_errors(form.mediaUrl) }}
+          </div>
+        {% endif %}
+
+        {# ---- Upload ---- #}
+        {% if form.upload is defined %}
+          <div class="col-12" id="upload-wrapper">
+            <label class="form-label" for="{{ form.upload.vars.id }}">Fichier / Photo (upload)</label>
+            {{ form_widget(form.upload, {'attr': {'class':'form-control rounded-3 shadow-sm'}}) }}
+            {{ form_errors(form.upload) }}
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+
+
+  {# ================== Actions ================== #}
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    <a href="{{ path('app_administrateur_formation_content_index', { entite: entite.id, formation: formation.id }) }}" class="btn btn-secondary">
+      <i class="fa fa-arrow-left me-1"></i> Retour
+    </a>
+    <button type="submit" class="btn btn-gradient">
+      <i class="fa fa-check me-1"></i>{{ modeEdition ? 'Enregistrer' : 'Créer' }}
+    </button>
+  </div>
+
+  {# on rend le token CSRF si besoin (ou form_rest dans un hidden wrapper) #}
+  {% if form._token is defined %}
+    {{ form_widget(form._token) }}
+  {% endif %}
+
+
+  {# ⚠️ empêche Symfony d'afficher les champs non rendus (sinon "Questions 0 Choix") #}
+  {{ form_end(form, { render_rest: false }) }}
+
+
+  {# ================== Blocs du chapitre (drag & drop) ================== #}
+  <div class="card shadow-sm mt-4"
+       id="blocks-card"
+       data-reorder-url="{{ path('app_administrateur_formation_content_block_reorder', { entite: entite.id, formation: formation.id }) }}">
+    <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
+      <i class="fa fa-diagram-project text-theme-secondaire me-2"></i> Blocs de « {{ node.titre }} »
+    </div>
+    <div class="card-body">
+      {% set blocks = node.blocks ?? [] %}
+      {% include 'administrateur/formation/content/_blocks_list.html.twig' %}
+    </div>
+  </div>
+<script>
+/**
+ * ContentBlock Form — Init unique ré-entrant (support remplacement AJAX du <form>)
+ * - type switch (quiz/content/video/upload)
+ * - quiz editor (questions/choices)
+ * - blocks reorder + delete
+ * - ajax submit + autosave
+ */
+(function(){
+  // ================== Helpers ==================
+  const qs  = (s, r=document) => r.querySelector(s);
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+  function show(el, v){ if (el) el.style.display = v ? '' : 'none'; }
+  function setDisplay(el, v){ if (el) el.style.display = v ? '' : 'none'; }
+
+  function htmlToElement(html){
+    const t = document.createElement('template');
+    t.innerHTML = String(html || '').trim();
+    return t.content.firstElementChild;
+  }
+
+  function toast(msg, ok=true){
+    const el = document.createElement('div');
+    el.className = 'position-fixed top-0 start-50 translate-middle-x mt-3 px-3 py-2 rounded-3 shadow ' +
+      (ok ? 'bg-success text-white' : 'bg-danger text-white');
+    el.style.zIndex = 1080;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 1800);
+  }
+
+  function scrollFirstInvalid(scope){
+    const inv = scope.querySelector(':invalid, .is-invalid');
+    if (inv) inv.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  // ================== Init global (ré-entrant) ==================
+  window.initContentBlockForm = function initContentBlockForm(root=document){
+    const form = qs('form[name="content_block"]', root);
+    if (!form) return;
+
+    // Evite double init sur le même form
+    if (form.dataset.cbInit === '1') return;
+    form.dataset.cbInit = '1';
+
+    // ---------- TomSelect type + syncByType ----------
+    const typeSelId = "{{ form.type.vars.id }}";
+    const typeSel = qs('#' + CSS.escape(typeSelId), root);
+
+    // TomSelect uniquement si pas déjà instancié
+    if (window.TomSelect && typeSel && !typeSel.tomselect) {
+      new TomSelect(typeSel, { create:false, allowEmptyOption:true });
+    }
+
+    const contentWrap = qs('#content-wrapper', root);
+    const mediaWrap   = qs('#mediaUrl-wrapper', root);
+    const uploadWrap  = qs('#upload-wrapper', root);
+    const quizWrap    = qs('#quiz-wrapper', root);
+
+    function getTypeValue(){
+      if (!typeSel) return '';
+      return typeSel.tomselect ? typeSel.tomselect.getValue() : typeSel.value;
+    }
+
+    function syncByType(){
+      const val = String(getTypeValue() || '').toUpperCase();
+      const isQuiz     = val.includes('QUIZ');
+      const isTextLike = ['RICHTEXT','CODE','CHECKLIST'].some(k => val.includes(k));
+      const isVideo    = val.includes('VIDEO');
+      const isUpload   = val.includes('IMAGE') || val.includes('FILE');
+
+      show(quizWrap,   isQuiz);
+      show(contentWrap, isTextLike || (!isQuiz && !isVideo && !isUpload));
+      show(mediaWrap,   !isQuiz && isVideo);
+      show(uploadWrap,  !isQuiz && isUpload);
+    }
+
+    syncByType();
+
+    if (typeSel){
+      if (typeSel.tomselect){
+        typeSel.tomselect.off?.('change'); // selon versions
+        typeSel.tomselect.on('change', syncByType);
+      } else {
+        typeSel.addEventListener('change', syncByType);
+      }
+    }
+
+    // ---------- Validation douce (html5) ----------
+    form.addEventListener('submit', (e)=>{
+      const inv = form.querySelectorAll(':invalid');
+      if (inv.length){
+        inv.forEach(x=>x.classList.add('is-invalid'));
+        inv[0]?.scrollIntoView({behavior:'smooth', block:'center'});
+        e.preventDefault();
+      }
+    }, { capture:true });
+
+    // ================== Blocks reorder + delete ==================
+    (function initBlocksList(){
+      const blocksCard = qs('#blocks-card', root);
+      const reorderUrl = blocksCard?.dataset.reorderUrl || '';
+      const rootUl     = qs('#blocks-root', root);
+
+      if (rootUl && window.Sortable && !rootUl.dataset.sortableInit){
+        new Sortable(rootUl, {
+          group: 'blocks',
+          animation: 150,
+          handle: '.drag',
+          onEnd: async () => {
+            const items = [...rootUl.children]
+              .filter(li => li.classList.contains('block'))
+              .map((li, idx) => ({ id: li.dataset.blockId, position: idx }));
+
+            if (!reorderUrl) return;
+
+            try{
+              const res = await fetch(reorderUrl, {
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+                body: JSON.stringify(items)
+              });
+              if(!res.ok) throw new Error('HTTP '+res.status);
+            }catch(e){
+              console.error('Reorder error:', e);
+              alert("Impossible d’enregistrer le nouvel ordre des blocs.");
+            }
+          }
+        });
+        rootUl.dataset.sortableInit = '1';
+      }
+
+      // delete block (event delegation)
+      document.addEventListener('click', async (e)=>{
+        const btn = e.target.closest('.btn-block-delete[data-del-url]');
+        if (!btn) return;
+        e.preventDefault();
+        if (!confirm('Supprimer ce bloc ?')) return;
+
+        const url = btn.dataset.delUrl;
+        const tok = btn.dataset.csrf;
+
+        try{
+          const res = await fetch(url, {
+            method:'POST',
+            headers:{
+              'Content-Type':'application/x-www-form-urlencoded',
+              'X-Requested-With':'XMLHttpRequest'
+            },
+            body: new URLSearchParams({_token: tok})
+          });
+          if(!res.ok) throw new Error('HTTP '+res.status);
+          btn.closest('li.block')?.remove();
+        }catch(err){
+          console.error(err);
+          alert("Erreur lors de la suppression.");
+        }
+      }, { once:false });
+    })();
+
+    // ================== Quiz editor ==================
+    (function initQuiz(){
+      const questions = qs('#quiz-questions', root);
+      if (!questions) return;
+
+      // éviter double init
+      if (questions.dataset.quizInit === '1') return;
+      questions.dataset.quizInit = '1';
+
+      // ---------- helpers quiz ----------
+      function stripChoiceLabels(scope){
+        if (!scope) return;
+        scope.querySelectorAll('.choice-item .choice-grid label:not(.form-check-label)')
+          .forEach(l => l.remove());
+      }
+
+      function normalizeChoiceNames(qItem){
+        const list = qs('.choices-list', qItem); if(!list) return;
+        const items = qsa('.choice-item', list);
+
+        items.forEach((item, i) => {
+          item.querySelectorAll('input, textarea, select').forEach(el => {
+            if (el.name) el.name = el.name.replace(/(\[choices])\[(\d+)\]/, `$1[${i}]`);
+            if (el.id)   el.id   = el.id.replace(/(_choices_)(\d+)(_)/, `$1${i}$3`);
+          });
+          item.querySelectorAll('label[for]').forEach(lab => {
+            lab.htmlFor = lab.htmlFor.replace(/(_choices_)(\d+)(_)/, `$1${i}$3`);
+          });
+
+          const pos = item.querySelector('[name$="[position]"]');
+          if (pos) pos.value = i;
+        });
+      }
+
+      function renumberQuestions(){
+        qsa('.question-item', questions).forEach((q, i) => {
+          const badge = qs('.q-badge', q); if (badge) badge.textContent = String(i+1);
+          const pos   = q.querySelector('[name$="[position]"]'); if (pos) pos.value = i;
+        });
+      }
+
+      // ✅ Delegation globale: quand on change le type d’une question, on sync immédiatement
+      if (!questions.dataset.typeDelegationBound){
+        questions.dataset.typeDelegationBound = '1';
+        const onTypeChange = (e) => {
+          const target = e.target;
+          if (!(target instanceof Element)) return;
+          if (!target.matches('[name$="[type]"]')) return;
+
+          const card = target.closest('.question-item');
+          if (!card) return;
+
+          // ✅ au cas où le wrap n'était pas encore initialisé
+          initChoicesForQuestion(card);
+          syncQuestionByType(card);
+        };
+
+        questions.addEventListener('change', onTypeChange);
+        questions.addEventListener('input', onTypeChange);
+
+      }
+
+
+      function renumberChoices(qItem){
+        const list = qs('.choices-list', qItem); if (!list) return;
+        qsa('.choice-item', list).forEach((c, i) => {
+          const pos = c.querySelector('[name$="[position]"]'); if (pos) pos.value = i;
+        });
+      }
+
+      function maxChoiceIndex(scope){
+        let max = -1;
+        scope.querySelectorAll('input[name*="[choices]"], textarea[name*="[choices]"]').forEach(el=>{
+          const m = el.name.match(/\[choices]\[(\d+)]/);
+          if (m) max = Math.max(max, parseInt(m[1],10));
+        });
+        return max;
+      }
+      function nextChoiceIndex(scope){ return maxChoiceIndex(scope) + 1; }
+
+      function styleChoiceNode(protoHTML){
+        const html = String(protoHTML || '').trim();
+        if (!html) {
+          console.error('Prototype CHOICE vide → impossible d’ajouter une réponse (tpl-choice vide).');
+          return null;
+        }
+
+        const raw = htmlToElement(html);
+        if (!raw) {
+          console.error('Prototype CHOICE invalide → htmlToElement() retourne null.', html);
+          return null;
+        }
+
+        const shell = document.createElement('div');
+        shell.className = 'choice-item mb-2';
+        shell.innerHTML = `
+          <div class="choice-grid">${raw.innerHTML}</div>
+          <button type="button" class="btn btn-icon btn-del-choice btn-danger position-absolute top-0 end-0 m-2" title="Retirer">
+            <i class="fa fa-xmark"></i>
+          </button>
+        `;
+        stripChoiceLabels(shell);
+        return shell;
+      }
+
+
+      function addBooleanDefaultChoices(wrap, list){
+        for (let k=0; k<2; k++){
+          const idx = nextChoiceIndex(list);
+          const tpl = qs('template.tpl-choice', wrap);
+          const protoHtml = tpl ? tpl.innerHTML : '';
+          const proto = protoHtml.replace(/__name__/g, String(idx));
+          const node = styleChoiceNode(proto);
+          if (!node) return;
+
+
+          const label = node.querySelector('textarea, input[type="text"]');
+          const ok    = node.querySelector('input[type="checkbox"]');
+
+          if (label) label.value = (k === 0 ? 'Oui' : 'Non');
+          if (ok)    ok.checked  = (k === 0);
+
+          list.appendChild(node);
+        }
+      }
+
+      function addBlankChoices(wrap, list, n=2){
+        console.log('📝 addBlankChoices appelée, wrap:', wrap, 'list:', list, 'n:', n);
+        
+        const tpl = qs('template.tpl-choice', wrap);
+        console.log('🔍 Template trouvé:', tpl);
+        
+        if (!tpl) {
+          console.error('❌ Template tpl-choice introuvable dans wrap:', wrap);
+          // Essayer de trouver le template ailleurs
+          const globalTpl = qs('#tpl-question template.tpl-choice');
+          console.log('🔍 Recherche globale du template:', globalTpl);
+          return;
+        }
+        
+        const protoHtml = tpl.innerHTML;
+        console.log('📄 Contenu du prototype:', protoHtml.substring(0, 100));
+        
+        if (!protoHtml || protoHtml.trim() === '') {
+          console.error('❌ Template tpl-choice vide');
+          return;
+        }
+        
+        for (let k=0; k<n; k++){
+          const idx = nextChoiceIndex(list);
+          console.log(`➕ Ajout choix ${k+1}/${n}, index: ${idx}`);
+          
+          const proto = protoHtml.replace(/__name__/g, String(idx));
+          const node = styleChoiceNode(proto);
+          
+          if (!node) {
+            console.error(`❌ Impossible de créer le node pour choix ${k+1}`);
+            return;
+          }
+
+          const label = node.querySelector('textarea, input[type="text"]');
+          if (label && !label.value) {
+            label.placeholder = `Réponse ${k+1}`;
+          }
+
+          list.appendChild(node);
+          console.log(`✅ Choix ${k+1} ajouté, list.children.length:`, list.children.length);
+          
+          stripChoiceLabels(node);
+        }
+        
+        // Force reflow
+        list.style.display = 'none';
+        list.offsetHeight;
+        list.style.display = '';
+        
+        console.log('✅ addBlankChoices terminée, total choix:', list.children.length);
+      }
+
+      function getQuestionTypeKey(typeSelect){
+        if (!typeSelect) return '';
+        const val = String(typeSelect.value || '');
+        const label = String(typeSelect.selectedOptions?.[0]?.textContent || '');
+        // on concatène value + label pour matcher dans tous les cas (Enum, int, string, etc.)
+        return (val + ' ' + label).toLowerCase();
+      }
+
+      function syncQuestionByType(qItem){
+        const wrap = qs('.choices-wrap', qItem);
+        const typeSelect = qItem.querySelector('[name$="[type]"]');
+
+        const key = getQuestionTypeKey(typeSelect);
+
+        const expectedGroup = qs('.expected-text-group', qItem);
+        const list = wrap ? qs('.choices-list', wrap) : null;
+
+        // ✅ match robustes (value OU libellé)
+        const isText     = /(text|réponse libre|reponse libre|free)/i.test(key);
+        const isBoolean  = /(bool|boolean|vrai|faux|true|false|oui|non)/i.test(key);
+        const isSingle = /(single|unique|radio)/i.test(key) || /choix/.test(key) && /unique/.test(key) || /un\s+seul/i.test(key);
+        const isMultiple = /(multiple|checkbox)/i.test(key) || /choix/.test(key) && /multiple/.test(key) || /plusieurs/i.test(key);
+
+        // --- TEXT ---
+        if (isText){
+          setDisplay(wrap, false);
+          if (list) list.replaceChildren();
+          setDisplay(expectedGroup, true);
+          return;
+        }
+
+        // --- CHOICES MODES ---
+        setDisplay(expectedGroup, false);
+        setDisplay(wrap, true);
+        if (!wrap || !list) return;
+
+        // ✅ Détection fiable : liste vide OU aucun label rempli
+        const labelInputs = qsa('input[type="text"], textarea', list);
+        const hasFilledLabel = labelInputs.some(inp => String(inp.value || '').trim() !== '');
+        const isEmptyList = list.children.length === 0;
+
+        if (isBoolean && (isEmptyList || !hasFilledLabel)){
+          list.replaceChildren();
+          addBooleanDefaultChoices(wrap, list);
+          renumberChoices(qItem);
+          normalizeChoiceNames(qItem);
+          stripChoiceLabels(list);
+          return;
+        }
+
+        if ((isSingle || isMultiple) && (isEmptyList || !hasFilledLabel)){
+
+          console.log('🔄 Ajout de choix vides pour:', isSingle ? 'SINGLE' : 'MULTIPLE');
+          list.replaceChildren();
+          addBlankChoices(wrap, list, 2);
+          console.log('✅ Choix ajoutés:', list.children.length);
+          renumberChoices(qItem);
+          normalizeChoiceNames(qItem);
+          stripChoiceLabels(list);
+          
+          // ✅ AJOUT : Force le re-render visuel
+          setTimeout(() => {
+            stripChoiceLabels(list);
+            list.querySelectorAll('.choice-item').forEach(item => {
+              item.style.display = 'none';
+              item.offsetHeight; // Force reflow
+              item.style.display = '';
+            });
+          }, 10);
+          return;
+        }
+
+        // Sinon on garde les choix existants mais on recale
+        normalizeChoiceNames(qItem);
+        renumberChoices(qItem);
+        stripChoiceLabels(list);
+      }
+
+
+
+      function initChoicesForQuestion(qItem){
+        const wrap = qs('.choices-wrap', qItem);
+        if (!wrap) return;
+        const list = qs('.choices-list', wrap);
+        if (!list) return;
+
+        stripChoiceLabels(list);
+        // ✅ Après injection de choix via prototype, on re-nettoie les labels
+        stripChoiceLabels(qItem);
+
+
+        // sortable choices
+        if (window.Sortable && !list.dataset.sortableInit){
+          new Sortable(list, {
+            animation:150,
+            handle:'.choice-grid',
+            onEnd: () => {
+              renumberChoices(qItem);
+              normalizeChoiceNames(qItem);
+            }
+          });
+          list.dataset.sortableInit = '1';
+        }
+
+        // add choice
+        const addBtn = qs('.btn-add-choice', qItem);
+        if (addBtn && !addBtn.dataset.bound){
+          addBtn.dataset.bound = '1';
+          addBtn.addEventListener('click', () => {
+            const idx = nextChoiceIndex(list);
+            const tpl = qs('template.tpl-choice', wrap);
+            const protoHtml = tpl ? tpl.innerHTML : '';
+            const proto = protoHtml.replace(/__name__/g, String(idx));
+
+            const node = styleChoiceNode(proto);
+            list.appendChild(node);
+
+            renumberChoices(qItem);
+            normalizeChoiceNames(qItem);
+          });
+        }
+
+        // delete choice (delegation per question)
+        if (!qItem.dataset.choiceDelBound){
+          qItem.dataset.choiceDelBound = '1';
+          qItem.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-del-choice');
+            if (!btn) return;
+            btn.closest('.choice-item')?.remove();
+            normalizeChoiceNames(qItem);
+            renumberChoices(qItem);
+          });
+        }
+
+        normalizeChoiceNames(qItem);
+        renumberChoices(qItem);
+      }
+
+
+
+      function initQuestionCard(card){
+        // toggle collapse
+        const tgl = qs('.btn-toggle', card);
+        if (tgl && !tgl.dataset.bound){
+          tgl.dataset.bound = '1';
+          tgl.addEventListener('click', () => card.classList.toggle('collapsed'));
+        }
+
+        // delete question
+        const delQ = qs('.btn-del-question', card);
+        if (delQ && !delQ.dataset.bound){
+          delQ.dataset.bound = '1';
+          delQ.addEventListener('click', () => {
+            card.remove();
+            renumberQuestions();
+          });
+        }
+
+        initChoicesForQuestion(card);
+        syncQuestionByType(card);
+
+        stripChoiceLabels(card);
+        normalizeChoiceNames(card);
+        renumberChoices(card);
+      }
+
+      // add question
+      // add question
+      const addQBtn = qs('#add-question', root);
+      if (addQBtn && !addQBtn.dataset.bound){
+        addQBtn.dataset.bound = '1';
+        addQBtn.addEventListener('click', () => {
+          console.log('🆕 Ajout d\'une nouvelle question');
+          
+          const nextIdx = Number(questions.dataset.index || 0);
+          questions.dataset.index = String(nextIdx + 1);
+
+          const tpl = qs('#tpl-question', root);
+          if (!tpl) {
+            console.error('❌ Template #tpl-question introuvable');
+            return;
+          }
+          
+          const protoHtml = tpl.innerHTML;
+          const proto = protoHtml.replace(/__name__/g, String(nextIdx));
+          
+          // ✅ Créer un conteneur temporaire pour parser le HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = proto;
+
+          const card = document.createElement('div');
+          card.className = 'question-item mb-3';
+          card.innerHTML = `
+            <div class="question-head">
+              <div class="q-badge"></div>
+              <div class="question-title">
+                <button class="btn btn-icon btn-toggle" type="button"><i class="fa fa-chevron-down chev"></i></button>
+                <span class="subtle">Question</span>
+              </div>
+              <div class="question-actions">
+                <button type="button" class="btn btn-icon btn-del-question" title="Supprimer"><i class="fa fa-trash"></i></button>
+              </div>
+            </div>
+            <div class="question-body">${tempDiv.innerHTML}</div>
+          `;
+
+          questions.appendChild(card);
+          
+          console.log('🔧 Initialisation de la carte question');
+          initQuestionCard(card);
+          renumberQuestions();
+          
+          console.log('✅ Question ajoutée et initialisée');
+        });
+      }
+
+      // init existing
+      qsa('.question-item', questions).forEach(initQuestionCard);
+      renumberQuestions();
+    })();
+
+    // ================== AJAX submit (remplace form en 422) ==================
+    (function initAjaxSubmit(){
+      // éviter double bind
+      if (form.dataset.ajaxSubmitBound === '1') return;
+      form.dataset.ajaxSubmitBound = '1';
+
+      const blocksCard = qs('#blocks-card');
+      const submitBtn  = qs('button[type="submit"]', form);
+
+      form.addEventListener('submit', async (e) => {
+        // si un handler "validation douce" a preventDefault, on respecte
+        if (e.defaultPrevented) return;
+
+        e.preventDefault();
+
+        const action = form.getAttribute('action') || form.action;
+        const fd = new FormData(form);
+        const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+
+        const oldHtml = submitBtn?.innerHTML;
+        if (submitBtn){
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i>Enregistrement…';
+        }
+
+        try{
+          const res  = await fetch(action, { method:'POST', body: fd, headers });
+          const data = await res.json();
+
+          if (!res.ok || !data.success){
+            if (res.status === 422 && data.formHtml){
+              const wrapper = document.createElement('div');
+              wrapper.innerHTML = data.formHtml;
+
+              const newForm = wrapper.querySelector('form[name="content_block"]');
+              if (newForm){
+                form.replaceWith(newForm);
+                toast('Veuillez corriger les erreurs.', false);
+                scrollFirstInvalid(newForm);
+
+                // 🔁 RE-INIT complet sur le nouveau form
+                window.initContentBlockForm(document);
+              } else {
+                toast('Erreur de validation.', false);
+              }
+            } else {
+              console.error('Submit error:', data);
+              toast('Erreur serveur.', false);
+            }
+            return;
+          }
+
+          // update blocks list
+          if (data.blocksHtml && blocksCard){
+            const container = blocksCard.querySelector('.card-body');
+            const tmp = document.createElement('div');
+            tmp.innerHTML = data.blocksHtml;
+            const ul = tmp.querySelector('#blocks-root');
+            if (container && ul){
+              const oldUl = container.querySelector('#blocks-root');
+              if (oldUl) oldUl.replaceWith(ul);
+              else container.appendChild(ul);
+
+              // ré-init sortable sur la nouvelle liste
+              window.initContentBlockForm(document);
+            }
+          }
+
+          // switch to edit URL after create
+          if (data.editUrl){
+            window.history.replaceState({}, '', data.editUrl);
+            const f2 = document.querySelector('form[name="content_block"]');
+            if (f2) f2.setAttribute('action', data.editUrl);
+          }
+
+          toast(data.message || 'Enregistré.');
+        }catch(err){
+          console.error(err);
+          toast('Erreur réseau.', false);
+        }finally{
+          if (submitBtn){
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = oldHtml;
+          }
+        }
+      });
+    })();
+
+    // ================== AutoSave debounce ==================
+    (function initAutosave(){
+      if (form.dataset.autosaveBound === '1') return;
+      form.dataset.autosaveBound = '1';
+
+      let tId = null, busy = false;
+
+      async function autoSave(){
+        if (busy) return;
+        busy = true;
+
+        try{
+          const fd = new FormData(form);
+          const r  = await fetch(form.action, {
+            method:'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+
+          const ct  = r.headers.get('content-type') || '';
+          const raw = await r.text();
+          const data = ct.includes('application/json') ? (JSON.parse(raw || '{}')) : null;
+
+          if (!r.ok){
+            console.error('AutoSave HTTP '+r.status, data?.error || raw);
+            return;
+          }
+
+          if (data?.success && data.editUrl){
+            window.history.replaceState({}, '', data.editUrl);
+            form.setAttribute('action', data.editUrl);
+          }
+        }catch(e){
+          console.error('AutoSave network/error:', e);
+        }finally{
+          busy = false;
+        }
+      }
+
+      // debounce input
+      form.addEventListener('input', () => {
+        clearTimeout(tId);
+        tId = setTimeout(autoSave, 900);
+      });
+    })();
+  };
+
+  // init au chargement
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => window.initContentBlockForm(document));
+  } else {
+    window.initContentBlockForm(document);
+  }
+})();
+</script>
+
+
+
+
+
+
+{% endblock %}
+

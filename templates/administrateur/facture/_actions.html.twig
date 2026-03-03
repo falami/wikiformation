@@ -1,0 +1,69 @@
+{# templates/administrateur/facture/_actions.html.twig #}
+{% set remaining = remainingCents|default(0) %}
+{% set status = (f.status.value ?? '') %}
+
+<div class="btn-group btn-group-sm facture-actions" role="group">
+
+  {# ✅ Bouton principal = Paiement (ou OK) #}
+  {% if remaining > 0 and status != 'canceled' %}
+    <a class="btn btn-light facture-main"
+       data-bs-toggle="tooltip" title="Ajouter un paiement"
+       href="{{ path('app_administrateur_paiement_new', { entite: entite.id, facture: f.id }) }}">
+      <i class="bi bi-plus-circle"></i>
+      <span class="d-none d-lg-inline">Paiement</span>
+    </a>
+  {% else %}
+    <button class="btn btn-light facture-main" disabled
+            data-bs-toggle="tooltip" title="Aucun paiement à ajouter">
+      <i class="bi bi-check2-circle"></i>
+      <span class="d-none d-lg-inline">OK</span>
+    </button>
+  {% endif %}
+
+  {# ✅ Split dropdown #}
+  <button type="button"
+          class="btn btn-light dropdown-toggle dropdown-toggle-split facture-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Actions</span>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end facture-menu">
+
+    <li>
+      <a class="dropdown-item"
+         data-bs-toggle="tooltip" title="Télécharger PDF"
+         href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
+        <i class="bi bi-file-earmark-pdf me-2"></i> PDF
+      </a>
+    </li>
+
+    <li>
+      <form method="post"
+            action="{{ path('app_administrateur_facture_send', { entite: entite.id, id: f.id }) }}"
+            onsubmit="return confirm('Envoyer la facture {{ f.numero ?: ('#' ~ f.id) }} par email ?');">
+        <input type="hidden" name="_token" value="{{ csrf_token('facture_send_' ~ f.id) }}">
+        <button class="dropdown-item d-flex align-items-center"
+                type="submit" {% if status == 'canceled' %}disabled{% endif %}>
+          <i class="bi bi-send me-2"></i> Envoyer
+        </button>
+      </form>
+    </li>
+
+    <li>
+      <a class="dropdown-item d-flex align-items-center"
+         href="{{ path('app_administrateur_facture_edit', {entite: entite.id, id: f.id}) }}">
+        <i class="bi bi-pencil-square me-2"></i> Éditer
+      </a>
+    </li>
+
+    <li><hr class="dropdown-divider"></li>
+
+    <li>
+      <a class="dropdown-item d-flex align-items-center"
+         href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: f.id}) }}">
+        <i class="bi bi-eye me-2"></i> Aperçu
+      </a>
+    </li>
+
+  </ul>
+</div>

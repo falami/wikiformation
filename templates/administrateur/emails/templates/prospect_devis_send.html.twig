@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+</head>
+<body style="margin:0;background:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;">
+  <div style="max-width:720px;margin:0 auto;padding:24px;">
+    <div style="background:#ffffff;border:1px solid rgba(0,0,0,.06);border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.06);">
+      <div style="padding:18px 18px;background:linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));color:#fff;">
+        <div style="font-size:14px;opacity:.9;">{{ entite.nom ?? 'Wiki Formation' }}</div>
+        <div style="font-size:20px;font-weight:800;margin-top:2px;">
+          Votre devis {{ devis.numero ?? ('#' ~ devis.id) }}
+        </div>
+      </div>
+
+      <div style="padding:18px;">
+        <p style="margin:0 0 10px 0;color:#111827;">
+          Bonjour {{ prospect.prenom ?? '' }} {{ prospect.nom ?? '' }},
+        </p>
+
+        {% if message is defined and message|trim %}
+          <div style="white-space:pre-wrap;color:#111827;line-height:1.55;margin:0 0 12px 0;">
+            {{ message }}
+          </div>
+        {% else %}
+          <p style="margin:0 0 12px 0;color:#111827;line-height:1.55;">
+            Veuillez trouver votre devis en pièce jointe.  
+            Je reste à votre disposition si vous avez la moindre question.
+          </p>
+        {% endif %}
+
+        <div style="border-top:1px solid #e5e7eb;margin-top:14px;padding-top:12px;color:#6b7280;font-size:12px;">
+          <div><strong>Référence :</strong> {{ devis.numero ?? devis.id }}</div>
+          <div><strong>Émis le :</strong> {{ devis.dateEmission ? devis.dateEmission|date('d/m/Y') : '—' }}</div>
+        </div>
+      </div>
+
+      <div style="padding:14px 18px;background:#f9fafb;color:#6b7280;font-size:12px;">
+        {{ entite.nom ?? 'Wiki Formation' }}{% if entite.telephone %} — {{ entite.telephone }}{% endif %}{% if entite.email %} — {{ entite.email }}{% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

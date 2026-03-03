@@ -1,0 +1,419 @@
+{# templates/public/categorie/show.html.twig #}
+{% extends 'base_public.html.twig' %}
+
+{% block title %}{{ categorie.nom }} — Catégorie{% endblock %}
+{% block meta_description %}Explorez {{ categorie.nom }} : sous-catégories et formations associées.{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --bg:#0e2a3b;
+      --panel:#0e2433;
+      --panel-2:#112a3b;
+      --glow:#1c4a66;
+      --stroke:rgba(255,255,255,.10);
+      --ink:#eaf6ff;
+      --muted:#a8c9da;
+      --amber:#ffc107;
+      --ring: 0 0 0 3px rgba(58,160,255,.22), 0 18px 55px rgba(0,0,0,.35);
+      --shadow: 0 18px 55px rgba(0,0,0,.35);
+      --radius:22px;
+    }
+
+
+
+    /* ===== HERO PREMIUM ===== */
+    .hero{
+      position:relative;
+      border-radius: var(--radius);
+      overflow:hidden;
+      border:1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      background: linear-gradient(135deg, rgba(17,42,59,.92), rgba(15,27,40,.92));
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(900px 320px at 12% 10%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 340px at 86% 20%, rgba(255,193,7,.16), transparent 55%),
+        radial-gradient(700px 300px at 55% 100%, rgba(58,160,255,.12), transparent 55%);
+      pointer-events:none;
+    }
+
+    /* visuel catégorie à droite */
+    .hero-media{
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg, rgba(15,27,40,.96) 0%, rgba(15,27,40,.85) 45%, rgba(15,27,40,.35) 75%, rgba(15,27,40,0) 100%),
+        radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.12), transparent 55%),
+        var(--hero-cover) center/cover no-repeat;
+      opacity:.95;
+    }
+
+    /* texture discrète */
+    .hero::after{
+      content:"";
+      position:absolute; inset:0;
+      background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);
+      background-size: 18px 18px;
+      opacity:.08;
+      pointer-events:none;
+    }
+
+    .hero-inner{
+      position:relative;
+      z-index:2;
+      padding: 1.35rem 1.35rem 1.15rem;
+    }
+
+    .crumbs{
+      display:flex; flex-wrap:wrap; gap:.5rem;
+      align-items:center;
+      font-size:.86rem;
+      color: rgba(255,255,255,.80);
+    }
+
+    .crumbs a{
+      color: rgba(255,255,255,.86);
+      text-decoration:none;
+      border-bottom:1px dashed rgba(255,255,255,.22);
+    }
+    .crumbs a:hover{ color:#fff; border-bottom-color: rgba(255,255,255,.45); }
+
+    .pill{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem;
+      border-radius:999px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(6px);
+      font-size:.80rem;
+    }
+
+    .hero-title{
+      font-weight:950;
+      letter-spacing:-.02em;
+      margin: .65rem 0 .25rem;
+      line-height:1.1;
+      font-size: clamp(1.55rem, 2.2vw, 2.2rem);
+    }
+
+    .hero-sub{
+      color: rgba(255,255,255,.74);
+      max-width: 58ch;
+      margin: 0;
+    }
+
+    .hero-actions{
+      margin-top: 1rem;
+      display:flex;
+      flex-wrap:wrap;
+      gap:.6rem;
+      align-items:center;
+    }
+
+    .btn-ghost{
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.06);
+      color:#fff;
+      font-weight:800;
+      padding: .55rem .9rem;
+    }
+    .btn-ghost:hover{ background: rgba(255,255,255,.10); }
+
+    .btn-amber{
+      border-radius: 14px;
+      border:0;
+      background: var(--amber);
+      color:#0b1a24;
+      font-weight:900;
+      padding: .55rem .9rem;
+      box-shadow: 0 10px 26px rgba(255,193,7,.22);
+    }
+    .btn-amber:hover{ filter: brightness(1.05); }
+
+    .kpis{
+      margin-top: .9rem;
+      display:flex;
+      flex-wrap:wrap;
+      gap:.5rem;
+    }
+    .kpi{
+      display:inline-flex; gap:.5rem; align-items:center;
+      border-radius: 14px;
+      padding:.5rem .7rem;
+      background: rgba(13,22,34,.55);
+      border:1px solid rgba(255,255,255,.10);
+      color: rgba(255,255,255,.84);
+      font-size:.86rem;
+    }
+    .kpi i{ color: rgba(255,193,7,.95); }
+
+    /* ===== SECTION TITLES ===== */
+    .section-head{
+      display:flex;
+      align-items:end;
+      justify-content:space-between;
+      gap: 1rem;
+      margin: 1.25rem 0 .75rem;
+    }
+    .section-title{
+      font-weight:950;
+      letter-spacing:-.02em;
+      margin:0;
+      font-size: clamp(1.25rem, 1.5vw, 1.6rem);
+    }
+    .section-note{ margin:0; color: var(--muted); font-size:.95rem; }
+
+    /* ===== GRID TILES PRO ===== */
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0,1fr));
+      gap: 1rem;
+    }
+
+    .tile{
+      grid-column: span 4;
+      position:relative;
+      border-radius: 20px;
+      overflow:hidden;
+      min-height: 240px;
+      display:block;
+      text-decoration:none;
+      color:#fff;
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: 0 14px 40px rgba(0,0,0,.30);
+      transform: translateY(0);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      background:
+        radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.07), transparent 60%),
+        var(--bgimg) center/cover no-repeat;
+    }
+
+    .tile:hover{
+      transform: translateY(-3px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.42);
+      border-color: rgba(255,193,7,.26);
+    }
+
+    .tile::after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.12) 0%, rgba(0,0,0,.72) 100%);
+    }
+
+    .tile__content{
+      position:absolute; inset:0;
+      z-index:2;
+      padding: 1rem;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-end;
+      gap:.5rem;
+    }
+
+    .tile__chip{
+      align-self:flex-start;
+      display:inline-flex; align-items:center; gap:.45rem;
+      border-radius:999px;
+      padding: .28rem .6rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(8px);
+      font-size: .80rem;
+    }
+
+    .tile__title{
+      font-weight:950;
+      letter-spacing:-.01em;
+      font-size: 1.15rem;
+      line-height:1.15;
+      margin:0;
+    }
+
+    .tile__sub{
+      color: rgba(255,255,255,.78);
+      font-size: .92rem;
+      display:flex;
+      align-items:center;
+      gap:.4rem;
+    }
+
+    .tile__arrow{
+      width: 34px; height:34px;
+      border-radius: 12px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(255,193,7,.18);
+      border: 1px solid rgba(255,193,7,.25);
+    }
+
+    /* Responsive */
+    @media (max-width: 992px){
+      .tile{ grid-column: span 6; min-height: 210px; }
+      .hero-inner{ padding: 1.1rem; }
+      .hero-media{ background:
+        linear-gradient(180deg, rgba(15,27,40,.96) 0%, rgba(15,27,40,.65) 55%, rgba(15,27,40,.25) 100%),
+        var(--hero-cover) center/cover no-repeat;
+      }
+    }
+    @media (max-width: 576px){
+      .tile{ grid-column: span 12; min-height: 185px; }
+      .hero-actions{ gap:.5rem; }
+      .btn-ghost, .btn-amber{ width: 100%; justify-content:center; }
+    }
+
+    /* Small list block for formations */
+    .formation-row{
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(15,27,40,.55);
+      box-shadow: 0 10px 28px rgba(0,0,0,.25);
+      padding: 1rem 1.1rem;
+    }
+    .formation-row a{ color: var(--amber); text-decoration:none; font-weight:900; }
+    .formation-row a:hover{ text-decoration:underline; }
+    .formation-meta{ color: rgba(255,255,255,.70); font-size:.92rem; }
+  </style>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  {% set heroCover =
+    (categorie.photo ? asset('uploads/photos/categorie/' ~ categorie.photo) :
+    (categorie.parent and categorie.parent.photo ? asset('uploads/photos/categorie/' ~ categorie.parent.photo) :
+    asset('dist/img/placeholder-cat.png')))
+  %}
+
+
+    <div class="hero mb-4" style="--hero-cover:url('{{ heroCover|e('html_attr') }}');">
+      <div class="hero-media"></div>
+
+      <div class="hero-inner">
+        <div class="crumbs mb-2">
+          <span class="pill"><i class="bi bi-diagram-3"></i> Catégories</span>
+
+          <span class="text-white-50">/</span>
+          <a href="{{ path('app_public') }}"><i class="bi bi-house-door me-1"></i>Accueil</a>
+
+          {% if categorie.parent %}
+            <span class="text-white-50">/</span>
+            <a href="{{ path('app_public_categorie_show', {slug: categorie.parent.slug}) }}">
+              <i class="bi bi-folder2-open me-1"></i>{{ categorie.parent.nom }}
+            </a>
+          {% endif %}
+
+          <span class="text-white-50">/</span>
+          <span class="pill"><i class="bi bi-folder"></i> {{ categorie.nom }}</span>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-end gap-3">
+          <div class="me-auto">
+            <h1 class="hero-title">{{ categorie.nom }}</h1>
+            <p class="hero-sub">
+              {% if showFormations %}
+                Découvrez les formations disponibles dans <strong>{{ categorie.nom }}</strong>.
+              {% else %}
+                Choisis une sous-catégorie pour accéder aux formations.
+              {% endif %}
+            </p>
+
+            <div class="kpis">
+              {% if not showFormations %}
+                <div class="kpi"><i class="bi bi-collection"></i> {{ children|length }} sous-catégorie{% if children|length > 1 %}s{% endif %}</div>
+              {% else %}
+                <div class="kpi"><i class="bi bi-mortarboard"></i> {{ formations|length }} formation{% if formations|length > 1 %}s{% endif %}</div>
+              {% endif %}
+              <div class="kpi"><i class="bi bi-shield-check"></i> Catalogue public</div>
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            {% if categorie.parent %}
+              <a class="btn btn-ghost" href="{{ path('app_public_categorie_show', {slug: categorie.parent.slug}) }}">
+                <i class="bi bi-arrow-left me-2"></i>Retour
+              </a>
+            {% else %}
+              <a class="btn btn-ghost" href="{{ path('app_public') }}">
+                <i class="bi bi-arrow-left me-2"></i>Retour calendrier
+              </a>
+            {% endif %}
+
+            <a class="btn btn-amber" href="{{ path('app_public_catalogue') }}">
+              <i class="bi bi-grid-3x3-gap me-2"></i>Catalogue complet
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if not showFormations %}
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Sous-catégories</h2>
+          <p class="section-note">Clique sur une sous-catégorie pour voir les formations.</p>
+        </div>
+      </div>
+
+      <div class="grid">
+        {% for sc in children %}
+          {% set cover = sc.photo ? asset('uploads/photos/categorie/' ~ sc.photo) : asset('dist/img/placeholder-cat.png') %}
+          <a class="tile"
+             href="{{ path('app_public_categorie_show', {slug: sc.slug}) }}"
+             style="--bgimg:url('{{ cover|e('html_attr') }}');">
+            <div class="tile__content">
+              <div class="tile__chip"><i class="bi bi-folder2-open"></i> Sous-catégorie</div>
+              <p class="tile__title mb-0">{{ sc.nom }}</p>
+              <div class="tile__sub">
+                <span class="tile__arrow"><i class="bi bi-arrow-right"></i></span>
+                Voir les formations
+              </div>
+            </div>
+          </a>
+        {% else %}
+          <div class="text-white-50">Aucune sous-catégorie pour le moment.</div>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Formations</h2>
+          <p class="section-note">Accède à la fiche formation et aux prochaines sessions publiées.</p>
+        </div>
+      </div>
+
+      <div class="vstack gap-3 pb-4">
+        {% for item in formations %}
+          {% set f = item.formation %}
+          {% set s = item.nextSession %}
+          <div class="formation-row">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <div class="fw-bold text-white">{{ f.titre }}</div>
+              <span class="text-white-50">•</span>
+              <a href="{{ path('app_public_show', {slug: f.slug}) }}">Voir la fiche</a>
+            </div>
+            <div class="formation-meta mt-1">
+              {% if s %}
+                <i class="bi bi-calendar3 me-1"></i>
+                Prochaine session : {{ s.dateDebut ? s.dateDebut|date('d/m/Y') : 'Date à définir' }}
+              {% else %}
+                <i class="bi bi-info-circle me-1"></i>
+                Pas de session publiée pour le moment.
+              {% endif %}
+            </div>
+          </div>
+        {% else %}
+          <div class="text-white-50">Aucune formation dans cette sous-catégorie.</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,372 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}
+  {{ modeEdition ? 'Modifier un cours e-learning' : 'Nouveau cours e-learning' }}
+{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+
+  <style>
+  :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+      --bg:#f5f7fb;
+      --panel:#fff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --radius:18px;
+    }
+
+      /* ✅ HERO — identique QCM */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ✅ chips QCM */
+    .hero .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero .meta-chip i{ color: var(--theme-color-secondaire); }
+
+    /* ✅ boutons hero QCM */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-hero{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-hero:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius: 16px; }
+    }
+
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+    }
+    .cardx-h{
+      padding:.9rem 1.1rem;
+      border-bottom:1px solid var(--stroke);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .cardx-title{
+      margin:0;
+      font-weight:800;
+      color:var(--ink);
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+    }
+
+    label.form-label{ font-weight:700; }
+    .form-control, .form-select{
+      border-radius:14px;
+      padding:.65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: var(--theme-color-principal);
+      box-shadow: 0 0 0 .2rem rgba(35,51,66,.15);
+    }
+
+    /* input suffix euro (comme Depense) */
+    .input-euro .form-control{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .input-euro .euro-suffix{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      font-weight: 800;
+      letter-spacing: .02em;
+      color: var(--theme-color-principal);
+      border-color: var(--stroke);
+      min-width: 46px;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(0,0,0,.02), #fff);
+    }
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-mortarboard me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ modeEdition ? 'Modifier le cours' : 'Nouveau cours e-learning' }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Informations générales, visibilité et tarification du cours.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="meta-chip"><i class="bi bi-mortarboard"></i> E-learning</span>
+            <span class="meta-chip"><i class="bi bi-journal-richtext"></i> Cours</span>
+            <span class="meta-chip">
+              <i class="bi bi-pencil-square"></i>
+              {{ modeEdition ? 'Modification' : 'Création' }}
+            </span>
+            <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-hero btn-sm fw-semibold"
+            href="{{ path('app_administrateur_elearning_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <button form="{{ form.vars.id }}"
+                  type="submit"
+                  class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-check2 me-1"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, {
+    attr: {
+      id: form.vars.id,
+      novalidate: 'novalidate'
+    }
+  }) }}
+
+
+  {# Erreurs globales #}
+{{ form_errors(form) }}
+
+{# Debug optionnel (à enlever ensuite) #}
+{% if form.vars.submitted and not form.vars.valid %}
+  <div class="alert alert-danger">
+    <div class="fw-bold mb-2">Le formulaire est invalide :</div>
+    <ul class="mb-0">
+      {% for err in form.vars.errors %}
+        <li>{{ err.message }}</li>
+      {% endfor %}
+      {% for child in form %}
+        {% for err in child.vars.errors %}
+          <li><strong>{{ child.vars.name }}</strong> : {{ err.message }}</li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+
+  <div class="row g-4">
+
+    {# ===== COL LEFT ===== #}
+    <div class="col-lg-8">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="bi bi-info-circle-fill text-warning"></i>
+            Informations du cours
+          </h5>
+          <span class="badge rounded-pill bg-light text-muted">Étape 1</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+
+            <div class="col-12">
+              {{ form_row(form.titre) }}
+            </div>
+
+            <div class="col-12">
+              {{ form_row(form.description) }}
+            </div>
+
+            <div class="col-md-6">
+              {{ form_row(form.dureeMinutes) }}
+            </div>
+
+            <div class="col-md-6">
+              {{ form_label(form.prixCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.prixCents, {'attr': {'class':'form-control text-end', 'placeholder':'0,00'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_errors(form.prixCents) }}
+
+              <div class="form-text">
+                <i class="bi bi-currency-euro me-1"></i>
+                0 € ou vide = cours gratuit
+              </div>
+            </div>
+
+
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="bi bi-eye-fill text-warning"></i>
+            Visibilité
+          </h5>
+          <span class="badge rounded-pill bg-light text-muted">Publication</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="form-check form-switch mb-3">
+            {{ form_widget(form.isPublic) }}
+            {{ form_label(form.isPublic) }}
+            <div class="form-text">
+              Visible publiquement (catalogue, landing…)
+            </div>
+          </div>
+
+          <div class="form-check form-switch">
+            {{ form_widget(form.isPublished) }}
+            {{ form_label(form.isPublished) }}
+            <div class="form-text">
+              Accessible aux apprenants (sinon brouillon)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a class="btn btn-light"
+           href="{{ path('app_administrateur_elearning_index', { entite: entite.id }) }}">
+          Annuler
+        </a>
+        <button type="submit" class="btn btn-gradient fw-semibold">
+          <i class="bi bi-check2"></i> Enregistrer
+        </button>
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT ===== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="bi bi-clipboard2-check-fill text-warning"></i>
+            Résumé
+          </h5>
+          <span class="badge rounded-pill bg-light text-muted">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4 small">
+
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Titre</span>
+            <strong>{{ form.vars.value.titre ?: '—' }}</strong>
+          </div>
+
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Durée</span>
+            <strong>
+              {{ form.vars.value.dureeMinutes ? form.vars.value.dureeMinutes ~ ' min' : '—' }}
+            </strong>
+          </div>
+
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Prix</span>
+            <strong>
+              {% if form.vars.value.prixCents %}
+                {{ (form.vars.value.prixCents / 100)|number_format(2, ',', ' ') }} €
+              {% else %}
+                Gratuit
+              {% endif %}
+            </strong>
+          </div>
+
+          <hr>
+
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Statut</span>
+            {% if form.vars.value.isPublished %}
+              <span class="badge bg-success">Publié</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Brouillon</span>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  {{ form_end(form) }}
+{% endblock %}

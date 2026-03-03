@@ -1,0 +1,170 @@
+{# templates/emails/compte_nouveau.html.twig #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ isFormateur ? 'Votre compte formateur' : 'Votre compte stagiaire' }}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #f2f6fa;
+      margin: 0;
+      padding: 0;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      margin: 30px auto;
+      background: #ffffff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+
+    .header {
+      background: #0f1b28;
+      color: #ffffff;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header img {
+      max-height: 80px;
+      display: block;
+      margin: 0 auto 12px;
+    }
+
+    .content {
+      padding: 25px 30px;
+      text-align: left;
+    }
+
+    p {
+      font-size: 15px;
+      color: #555;
+      margin-bottom: 15px;
+    }
+
+    .button-wrapper {
+      text-align: center;
+      margin: 25px 0;
+    }
+
+    .button {
+      display: inline-block;
+      background-color: #0f1b28;
+      color: #fff !important;
+      text-decoration: none;
+      padding: 14px 30px;
+      border-radius: 30px;
+      font-weight: 600;
+      transition: background 0.3s;
+      max-width: 300px;
+      width: 80%;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .button:hover {
+      background-color: #0056b3;
+    }
+
+    .footer {
+      background: #f8f9fa;
+      text-align: center;
+      padding: 15px;
+      font-size: 12px;
+      color: #888;
+      border-top: 1px solid #e4e4e4;
+    }
+
+    .footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        margin: 10px;
+        border-radius: 8px;
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .header h2 {
+        font-size: 18px;
+        white-space: normal !important;
+      }
+
+      .button {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 14px 0 !important;
+        font-size: 17px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <div class="header">
+      {% if entite is defined and entite.logo %}
+        <img class="logo" src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom }}">
+      {% endif %}
+      <h2>
+        {{ isFormateur ? 'Votre compte formateur' : 'Votre compte stagiaire' }}
+      </h2>
+    </div>
+
+    <div class="content">
+      <p>Bonjour {{ user.prenom }} {{ user.nom }},</p>
+
+      {% if isFormateur %}
+        <p>Un compte <strong>formateur</strong> vient d’être créé pour vous sur <strong>{{ entite.nom ?? 'WikiFormation' }}</strong>.</p>
+      {% else %}
+        <p>Un compte <strong>stagiaire</strong> vient d’être créé pour vous sur <strong>{{ entite.nom ?? 'WikiFormation' }}</strong>.</p>
+      {% endif %}
+
+      <p>Voici vos identifiants de connexion&nbsp;:</p>
+
+      <ul>
+        <li><strong>Email :</strong> {{ user.email }}</li>
+        <li><strong>Mot de passe provisoire :</strong> {{ plainPassword }}</li>
+      </ul>
+
+      <p>
+        Nous vous recommandons de vous connecter dès que possible puis de
+        <strong>modifier votre mot de passe</strong> depuis votre espace personnel.
+      </p>
+
+      {# Si tu ajoutes "loginUrl" dans le contexte, tu peux afficher le bouton #}
+      {# 
+      {% if loginUrl is defined %}
+        <div class="button-wrapper">
+          <a href="{{ loginUrl }}" class="button" target="_blank" rel="noopener noreferrer">
+            Accéder à la plateforme
+          </a>
+        </div>
+      {% endif %}
+      #}
+
+      <p>À très bientôt,<br>L’équipe <b>Wiki Formation</b></p>
+    </div>
+
+    <div class="footer">
+      <p>&copy; {{ "now"|date("Y") }} Wiki Formation<br>
+      <a href="https://wikiformation.fr">wikiformation.fr</a> — contact@wikiformation.fr</p>
+    </div>
+
+  </div>
+
+</body>
+</html>

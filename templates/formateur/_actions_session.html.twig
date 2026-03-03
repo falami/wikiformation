@@ -1,0 +1,58 @@
+{# templates/formateur/_actions_session.html.twig #}
+<div class="d-grid gap-2">
+
+  {# Supports #}
+  <a class="btn btn-sm btn-outline-primary"
+     href="{{ path('app_formateur_session_supports', { entite: entite.id, id: s.id }) }}"
+     title="Supports rattachés à cette session">
+    <i class="bi bi-journal-arrow-up"></i> Supports
+  </a>
+
+  {# Récap #}
+  <a class="btn btn-sm btn-outline-secondary"
+     href="{{ path('app_formateur_emargement_liste', { entite: entite.id, id: s.id }) }}"
+     title="Récapitulatif des signatures par journée">
+    <i class="bi bi-list-check"></i> Récapitulatif
+  </a>
+
+  {# PDF (aujourd’hui) #}
+  <a class="btn btn-sm btn-outline-secondary"
+     target="_blank"
+     href="{{ path('app_formateur_emargement_pdf', {
+       entite: entite.id,
+       session: s.id,
+       date: 'now'|date('Y-m-d')
+     }) }}"
+     title="Feuille d’émargement PDF (aujourd’hui)">
+    <i class="bi bi-filetype-pdf"></i> PDF
+  </a>
+
+  {# Ouvrir la modale émargements (comme stagiaire) #}
+  {% set sessionLabel = (s.code ? s.code ~ ' - ' : '') ~ (s.formation ? s.formation.titre : 'Session') %}
+  <button class="btn btn-sm btn-outline-success js-emargement"
+          type="button"
+          data-session-id="{{ s.id }}"
+          data-session-label="{{ sessionLabel }}">
+    <i class="bi bi-clipboard-check"></i> Émargements
+  </button>
+
+  {# Appréciation (optionnel) #}
+  <button class="btn btn-sm btn-outline-warning js-satisfaction"
+          type="button"
+          data-session-id="{{ s.id }}">
+    <i class="bi bi-chat-square-heart"></i> Appréciation
+  </button>
+
+    {# Rapports formateur (liste) #}
+    {# Nouveau rapport #}
+  {# Nouveau rapport pré-rempli avec la session #}
+  <a class="btn btn-sm btn-outline-dark"
+    href="{{ path('app_formateur_rapport_new', {
+      entite: entite.id,
+      session: s.id
+    }) }}"
+    title="Créer un nouveau rapport pour cette session">
+    <i class="bi bi-plus-circle"></i> Rapport
+  </a>
+
+</div>

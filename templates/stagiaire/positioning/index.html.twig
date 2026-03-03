@@ -1,0 +1,151 @@
+{# templates/formateur/positioning/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Positionnements — Formateur{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+      overflow:hidden;
+    }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      white-space:nowrap;
+    }
+    .cardx{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .badge-soft{
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      border-radius:999px;
+      padding:.25rem .55rem;
+      font-weight:800;
+      font-size:.8rem;
+    }
+    .table thead th{
+      background:#f7f8fa!important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:rgba(0,0,0,.55);
+      vertical-align:middle;
+      white-space:nowrap;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3">
+
+  <div class="hero p-4 mb-4">
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <span class="meta-chip"><i class="bi bi-person-badge"></i> Formateur</span>
+      <span class="meta-chip"><i class="bi bi-ui-checks"></i> Positionnements</span>
+      <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+      <span class="meta-chip"><i class="bi bi-inbox"></i> {{ attempts|length }} à traiter</span>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-end gap-2">
+      <div class="me-auto">
+        <h2 class="fw-bold mb-1">Positionnements assignés</h2>
+        <div class="opacity-75">Réponses soumises par les stagiaires + conclusion formateur.</div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="cardx">
+    <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
+      <div class="fw-bold"><i class="bi bi-list-check"></i> Mes tentatives</div>
+      <span class="text-muted small">{{ attempts|length }} tentative(s)</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Stagiaire</th>
+            <th>Questionnaire</th>
+            <th>Session</th>
+            <th>Soumis</th>
+            <th>Conclusion</th>
+            <th class="text-end"></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for a in attempts %}
+          <tr>
+            <td class="fw-semibold">
+              {{ a.stagiaire.nomComplet|default(a.stagiaire.email|default('—')) }}
+            </td>
+
+            <td>{{ a.questionnaire.title|default('—') }}</td>
+
+            <td class="text-muted">
+              {% if a.session %}
+                #{{ a.session.id }}
+              {% elseif a.inscription and a.inscription.session %}
+                #{{ a.inscription.session.id }}
+              {% else %}
+                Hors session
+              {% endif %}
+            </td>
+
+            <td class="text-muted small">
+              {{ a.submittedAt ? a.submittedAt|date('d/m/Y H:i') : '—' }}
+            </td>
+
+            <td>
+              {% if a.formateurConclusion %}
+                <span class="badge-soft"><i class="bi bi-check2"></i> Rédigée</span>
+              {% else %}
+                <span class="badge-soft"><i class="bi bi-pencil"></i> À faire</span>
+              {% endif %}
+              {% if a.suggestedLevel %}
+                <span class="badge-soft ms-1"><i class="bi bi-mortarboard"></i> {{ a.suggestedLevel }}</span>
+              {% endif %}
+            </td>
+
+            <td class="text-end">
+              <a class="btn btn-sm btn-warning fw-semibold"
+                 href="{{ path('app_formateur_positioning_show', { entite: entite.id, attempt: a.id }) }}">
+                <i class="bi bi-eye"></i> Ouvrir
+              </a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">Aucun positionnement assigné.</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

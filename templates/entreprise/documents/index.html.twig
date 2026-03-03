@@ -1,0 +1,1035 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Espace entreprise — Documents{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --ink:#0f2336;
+      --muted:#6b7b8a;
+      --line:rgba(15,35,54,.10);
+      --radius:20px;
+      --shadow: 0 18px 50px rgba(0,0,0,.10);
+      --shadow-soft: 0 12px 28px rgba(0,0,0,.06);
+    }
+
+    .pageWrap{ width:100%; padding-top:0 !important; }
+
+    /* ===== Hero glass ===== */
+    /* ===== Hero glass (mêmes couleurs que le hero dashboard) ===== */
+    .stickyHero{
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+
+      border-radius: 24px;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.08);
+
+      /* Fond piloté par les couleurs de l'entité (comme le dashboard) */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+
+      margin: 10px 0 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* léger glass highlight (comme le dashboard) */
+    .stickyHero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* optionnel : si tu veux que l'avatar "reflète" l'accent secondaire */
+    .stickyHero .avatar{
+      box-shadow: 0 10px 26px rgba(0,0,0,.18),
+                  0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 14%, transparent);
+    }
+    .stickyRow{
+      display:flex;
+      gap:14px;
+      padding:14px 16px;
+      align-items:center;
+      flex-wrap: wrap;
+    }
+    .avatar{
+      width:44px; height:44px; border-radius:14px;
+      background: rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:900;
+      box-shadow: 0 10px 26px rgba(0,0,0,.18);
+      backdrop-filter: blur(8px);
+      flex: 0 0 auto;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.08);
+      font-size:12px; white-space:nowrap;
+      backdrop-filter: blur(8px);
+    }
+    .btn-ghost{
+      background: rgba(255,255,255,.10) !important;
+      border: 1px solid rgba(255,255,255,.14) !important;
+      color: #fff !important;
+      border-radius: 14px !important;
+      font-weight: 800;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+      transition: .15s ease;
+    }
+    .btn-ghost:hover{ transform: translateY(-1px); }
+
+    .hint{ font-size:12px; color: rgba(255,255,255,.75); }
+
+    /* ===== Tabs wrapper ===== */
+    .tabsWrap{
+      background: var(--bs-body-bg);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      overflow: visible;
+    }
+    .tabsHead{
+      position: sticky;
+      top: 56px;
+      z-index: 15;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    @media (max-width: 992px){
+      .tabsHead{ top: 64px; }
+    }
+    .tabsScroller{
+      display:flex;
+      gap:10px;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    .tabsScroller::-webkit-scrollbar{ height: 6px; }
+    .tabsScroller::-webkit-scrollbar-thumb{ background: rgba(15,35,54,.15); border-radius: 999px; }
+
+    .nav-pills .nav-link{
+      border-radius: 14px;
+      font-weight: 900;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .nav-pills .nav-link.active{
+      background: var(--theme-color-principal);
+      box-shadow: 0 10px 24px rgba(0,0,0,.10);
+      color: #fff;
+    }
+
+    /* ===== Cards ===== */
+    .cardX{
+      background: var(--bs-body-bg);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+    }
+    .cardX-h{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+    }
+    .cardX-b{ padding:16px; }
+    .titleX{ display:flex; align-items:center; gap:10px; font-weight:900; margin:0; }
+    .titleX i{ color: var(--theme-color-secondaire); }
+    .actionsRight{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+    /* ===== Toolbar ===== */
+    .toolbarX{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(15,35,54,.03);
+    }
+    .toolbarLeft{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .toolbarRight{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .form-select.form-select-sm,
+    .btn.btn-sm{ border-radius: 14px; font-weight: 800; }
+
+    /* ===== DataTables polish ===== */
+    table.dataTable{ border-collapse: separate !important; border-spacing: 0 10px !important; }
+    table.dataTable thead th{
+      border-bottom: 0 !important;
+      color: var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    table.dataTable tbody tr{
+      background: var(--bs-body-bg);
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 18px rgba(0,0,0,.04);
+    }
+    table.dataTable tbody td{
+      border-top: 1px solid rgba(0,0,0,0) !important;
+      border-bottom: 1px solid rgba(0,0,0,0) !important;
+      vertical-align: middle;
+    }
+    .dt-actions{ white-space:nowrap; }
+    .dt-actions .btn{
+      border-width:1px;
+      padding:.35rem .55rem;
+      font-size:.85rem;
+      transition: transform .12s ease, box-shadow .12s ease;
+      border-radius: 12px;
+    }
+    .dt-actions .btn:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(0,0,0,.08);
+    }
+
+    /* mini badges */
+    .badge-soft{
+      background: var(--theme-color-secondaire);
+      border: 1px solid rgba(255,193,7,.28);
+      color: #1a2430;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    /* pagination buttons nicer */
+    .dataTables_paginate .paginate_button{
+      border-radius: 12px !important;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3 px-lg-4 pageWrap">
+
+  {% set rs = entreprise.raisonSociale|default('Entreprise') %}
+  {% set initials = (rs|slice(0,1))|upper %}
+
+  <div class="stickyHero">
+    <div class="stickyRow">
+      <div class="avatar">{{ initials ?: 'E' }}</div>
+
+      <div class="flex-grow-1">
+        <div class="small opacity-75">Espace entreprise</div>
+        <div class="fw-bold" style="font-size:18px;">Documents & suivis</div>
+
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          <span class="chip"><i class="bi bi-building"></i> {{ entreprise.raisonSociale }}</span>
+          <span class="chip"><i class="bi bi-diagram-3"></i> {{ entite.nom ?? '—' }}</span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-ghost btn-sm" type="button" id="btnGlobalReload">
+          <i class="bi bi-arrow-repeat"></i> Tout actualiser
+        </button>
+      </div>
+
+      <div class="w-100 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="hint">
+          <i class="bi bi-shield-check"></i>
+          PDF sécurisés + historique (QCM, satisfaction, émargements, assiduité).
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <span class="badge-soft"><i class="bi bi-receipt me-1"></i> Devis</span>
+          <span class="badge-soft"><i class="bi bi-file-earmark-text me-1"></i> Factures</span>
+          <span class="badge-soft"><i class="bi bi-file-earmark-lock me-1"></i> Conventions</span>
+          <span class="badge-soft"><i class="bi bi-pen me-1"></i> Émargements</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="tabsWrap mb-3">
+    <div class="tabsHead">
+      <div class="tabsScroller">
+        <ul class="nav nav-pills gap-2 m-0" role="tablist" id="docsTabs">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-devis" data-bs-toggle="pill" data-bs-target="#pane-devis" type="button" role="tab">
+              <i class="bi bi-receipt me-1"></i> Devis
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-factures" data-bs-toggle="pill" data-bs-target="#pane-factures" type="button" role="tab">
+              <i class="bi bi-file-earmark-text me-1"></i> Factures
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-conventions" data-bs-toggle="pill" data-bs-target="#pane-conventions" type="button" role="tab">
+              <i class="bi bi-file-earmark-lock me-1"></i> Conventions
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-emargements" data-bs-toggle="pill" data-bs-target="#pane-emargements" type="button" role="tab">
+              <i class="bi bi-pen me-1"></i> Émargements
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-positionnement" data-bs-toggle="pill" data-bs-target="#pane-positionnement" type="button" role="tab">
+              <i class="bi bi-signpost-split me-1"></i> Positionnement
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-qcm" data-bs-toggle="pill" data-bs-target="#pane-qcm" type="button" role="tab">
+              <i class="bi bi-ui-checks-grid me-1"></i> QCM niveau
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-satis-stag" data-bs-toggle="pill" data-bs-target="#pane-satis-stag" type="button" role="tab">
+              <i class="bi bi-emoji-smile me-1"></i> Stagiaires
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-satis-form" data-bs-toggle="pill" data-bs-target="#pane-satis-form" type="button" role="tab">
+              <i class="bi bi-person-badge me-1"></i> Formateur
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-assiduite" data-bs-toggle="pill" data-bs-target="#pane-assiduite" type="button" role="tab">
+              <i class="bi bi-clipboard-data me-1"></i> Assiduité
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tab-content p-3">
+
+      {# ===================== DEVIS ===================== #}
+      <div class="tab-pane fade show active" id="pane-devis" role="tabpanel" aria-labelledby="tab-devis">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-receipt"></i> Devis</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadDevis"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="devisStatus" style="min-width:240px;">
+                  <option value="all">Tous statuts</option>
+                  <option value="draft">Brouillon</option>
+                  <option value="sent">Envoyé</option>
+                  <option value="accepted">Accepté</option>
+                  <option value="invoiced">Facturé</option>
+                  <option value="canceled">Annulé</option>
+                </select>
+                <span class="text-muted small d-none d-md-inline"><i class="bi bi-search"></i> Recherche par numéro (champ DataTables)</span>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnDevisClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-devis" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:140px;">Date</th>
+                    <th>Numéro</th>
+                    <th class="text-end" style="width:140px;">TTC</th>
+                    <th style="width:160px;">Statut</th>
+                    <th class="text-end" style="width:120px;">PDF</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== FACTURES ===================== #}
+      <div class="tab-pane fade" id="pane-factures" role="tabpanel" aria-labelledby="tab-factures">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-file-earmark-text"></i> Factures</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadFactures"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="factureStatus" style="min-width:240px;">
+                  <option value="all">Tous statuts</option>
+                  <option value="due">À payer</option>
+                  <option value="paid">Payée</option>
+                  <option value="canceled">Annulée</option>
+                </select>
+                <span class="text-muted small d-none d-md-inline"><i class="bi bi-lock"></i> Accès contrôlé (entreprise destinataire)</span>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnFactClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-factures" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:140px;">Date</th>
+                    <th>Numéro</th>
+                    <th class="text-end" style="width:140px;">TTC</th>
+                    <th style="width:160px;">Statut</th>
+                    <th class="text-end" style="width:120px;">PDF</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# ===================== CONVENTIONS / CONTRATS ===================== #}
+      <div class="tab-pane fade" id="pane-conventions" role="tabpanel" aria-labelledby="tab-conventions">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-file-earmark-lock"></i> Conventions / Contrats</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadConventions"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="convSign" style="min-width:240px;">
+                  <option value="all">Toutes</option>
+                  <option value="signed">Signées</option>
+                  <option value="pending">En attente</option>
+                </select>
+                <span class="text-muted small d-none d-md-inline"><i class="bi bi-pen"></i> Statut = signatures (entreprise/stagiaire/OF)</span>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnConvClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-conventions" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:140px;">Créée</th>
+                    <th style="width:170px;">Numéro</th>
+                    <th>Session</th>
+                    <th>Stagiaire</th>
+                    <th style="width:160px;">Signatures</th>
+                    <th class="text-end" style="width:120px;">PDF</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== EMARGEMENTS ===================== #}
+      <div class="tab-pane fade" id="pane-emargements" role="tabpanel" aria-labelledby="tab-emargements">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-pen"></i> Émargements</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadEmargements"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="emarSigned" style="min-width:240px;">
+                  <option value="all">Tous</option>
+                  <option value="signed">Signés</option>
+                  <option value="missing">Manquants</option>
+                </select>
+                <span class="text-muted small d-none d-md-inline"><i class="bi bi-calendar3"></i> Filtre par jour + demi-journée (si besoin côté serveur)</span>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnEmarClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-emargements" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th style="width:260px;">Période</th>
+                    <th style="width:160px;">Signatures</th>
+                    <th style="width:160px;">Statut</th>
+                    <th class="text-end" style="width:140px;">PDF</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+            <div class="small text-muted mt-2">
+              “Preuve” peut être un PDF (feuille) ou un lien “voir signature” selon ta logique.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== POSITIONNEMENT ===================== #}
+      <div class="tab-pane fade" id="pane-positionnement" role="tabpanel" aria-labelledby="tab-positionnement">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-signpost-split"></i> Questionnaires de positionnement</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadPos"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="posState" style="min-width:240px;">
+                  <option value="all">Tous</option>
+                  <option value="submitted">Soumis</option>
+                  <option value="started">Démarrés</option>
+                  <option value="pending">Non commencés</option>
+                </select>
+                <span class="text-muted small d-none d-md-inline"><i class="bi bi-info-circle"></i> Le “résumé” peut inclure niveau suggéré / conclusion</span>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnPosClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-positionnement" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:140px;">Démarré</th>
+                    <th>Session</th>
+                    <th>Stagiaire</th>
+                    <th style="width:160px;">Soumis</th>
+                    <th style="width:200px;">Synthèse</th>
+                    <th class="text-end" style="width:140px;">Détails</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== QCM NIVEAU ===================== #}
+      <div class="tab-pane fade" id="pane-qcm" role="tabpanel" aria-labelledby="tab-qcm">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-ui-checks-grid"></i> Questionnaires de niveau (QCM)</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadQcm"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="qcmPhase" style="min-width:240px;">
+                  <option value="all">Toutes phases</option>
+                  <option value="pre">Pré</option>
+                  <option value="post">Post</option>
+                </select>
+                <select class="form-select form-select-sm" id="qcmState" style="min-width:240px;">
+                  <option value="all">Tous statuts</option>
+                  <option value="assigned">Assigné</option>
+                  <option value="submitted">Soumis</option>
+                </select>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnQcmClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-qcm" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:140px;">Assigné</th>
+                    <th>Session</th>
+                    <th>Stagiaire</th>
+                    <th style="width:140px;">Phase</th>
+                    <th style="width:160px;">Score</th>
+                    <th class="text-end" style="width:140px;">Détails</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== SATISFACTION STAGIAIRES ===================== #}
+      <div class="tab-pane fade" id="pane-satis-stag" role="tabpanel" aria-labelledby="tab-satis-stag">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-emoji-smile"></i> Appréciations stagiaires</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadSatisStag"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="satisStagState" style="min-width:240px;">
+                  <option value="all">Tous</option>
+                  <option value="submitted">Soumis</option>
+                  <option value="pending">En attente</option>
+                </select>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnSatisStagClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-satis-stag" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:140px;">Créé</th>
+                    <th>Session</th>
+                    <th>Stagiaire</th>
+                    <th style="width:200px;">Notes</th>
+                    <th style="width:160px;">Statut</th>
+                    <th class="text-end" style="width:140px;">Détails</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== SATISFACTION FORMATEUR ===================== #}
+      <div class="tab-pane fade" id="pane-satis-form" role="tabpanel" aria-labelledby="tab-satis-form">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-person-badge"></i> Appréciations formateur</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadSatisForm"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="satisFormState" style="min-width:240px;">
+                  <option value="all">Tous</option>
+                  <option value="submitted">Soumis</option>
+                  <option value="pending">En attente</option>
+                </select>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnSatisFormClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-satis-form" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:140px;">Créé</th>
+                    <th>Session</th>
+                    <th style="width:220px;">Formateur</th>
+                    <th style="width:200px;">Synthèse</th>
+                    <th style="width:160px;">Statut</th>
+                    <th class="text-end" style="width:140px;">Détails</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== ASSIDUITE ===================== #}
+      <div class="tab-pane fade" id="pane-assiduite" role="tabpanel" aria-labelledby="tab-assiduite">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-clipboard-data"></i> Fiches d’assiduité</h5>
+            <div class="actionsRight">
+              <button class="btn btn-sm btn-outline-secondary" id="btnReloadAssiduite"><i class="bi bi-arrow-repeat"></i></button>
+            </div>
+          </div>
+          <div class="cardX-b">
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <select class="form-select form-select-sm" id="assiduiteState" style="min-width:240px;">
+                  <option value="all">Toutes</option>
+                  <option value="ok">OK</option>
+                  <option value="low">Assiduité faible</option>
+                  <option value="missing">Incomplète</option>
+                </select>
+              </div>
+              <div class="toolbarRight">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="btnAssiduiteClear"><i class="bi bi-eraser"></i> Reset</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table id="dt-assiduite" class="table align-middle w-100 mb-0">
+                <thead>
+                  <tr>
+                    <th>Session</th>
+                    <th>Stagiaire</th>
+                    <th style="width:170px;">Taux</th>
+                    <th style="width:160px;">Statut</th>
+                    <th class="text-end" style="width:140px;">PDF</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+            <div class="small text-muted mt-2">
+              Cette table peut être alimentée depuis <code>Inscription.tauxAssiduite</code> + génération PDF “fiche assiduité”.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+
+  <script>
+  (function(){
+    const urls = {
+      devisAjax:        "{{ path('app_entreprise_documents_devis_ajax', { entite: entite.id }) }}",
+      facturesAjax:     "{{ path('app_entreprise_documents_factures_ajax', { entite: entite.id }) }}",
+
+      conventionsAjax:  "{{ path('app_entreprise_documents_conventions_ajax', { entite: entite.id }) }}",
+      emargementsAjax:  "{{ path('app_entreprise_documents_emargements_ajax', { entite: entite.id }) }}",
+      positionnementAjax:"{{ path('app_entreprise_documents_positionnement_ajax', { entite: entite.id }) }}",
+      qcmAjax:          "{{ path('app_entreprise_documents_qcm_ajax', { entite: entite.id }) }}",
+      satisStagAjax:    "{{ path('app_entreprise_documents_satisfaction_stagiaires_ajax', { entite: entite.id }) }}",
+      satisFormAjax:    "{{ path('app_entreprise_documents_satisfaction_formateur_ajax', { entite: entite.id }) }}",
+      assiduiteAjax:    "{{ path('app_entreprise_documents_assiduite_ajax', { entite: entite.id }) }}",
+    };
+
+    function dtDefaults(){
+      return {
+        serverSide:true,
+        processing:true,
+        pageLength:10,
+        lengthMenu:[10,25,50],
+        order:[[0,'desc']],
+        language:{ url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' },
+        drawCallback: function(){
+          $('.dataTables_paginate .paginate_button').addClass('btn btn-sm btn-light border-0 mx-1');
+        }
+      };
+    }
+
+    let DT = {
+      devis:null, fact:null,
+      conv:null, emar:null,
+      pos:null, qcm:null,
+      satisStag:null, satisForm:null,
+      assiduite:null
+    };
+
+    /* ===================== DEVIS ===================== */
+    function initDevis(){
+      if (DT.devis) return;
+      DT.devis = $('#dt-devis').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.devisAjax, type:'POST', data: d => { d.statusFilter = $('#devisStatus').val() || 'all'; } },
+        columns:[
+          {data:'date'},
+          {data:'numero'},
+          {data:'ttc', className:'text-end'},
+          {data:'status', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+      }));
+
+      $('#devisStatus').on('change', ()=> DT.devis.ajax.reload());
+      $('#btnReloadDevis').on('click', ()=> DT.devis.ajax.reload(null,false));
+      $('#btnDevisClear').on('click', ()=>{
+        $('#devisStatus').val('all');
+        DT.devis.search('').draw();
+        DT.devis.ajax.reload();
+      });
+    }
+
+    /* ===================== FACTURES ===================== */
+    function initFactures(){
+      if (DT.fact) return;
+      DT.fact = $('#dt-factures').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.facturesAjax, type:'POST', data: d => { d.statusFilter = $('#factureStatus').val() || 'all'; } },
+        columns:[
+          {data:'date'},
+          {data:'numero'},
+          {data:'ttc', className:'text-end'},
+          {data:'status', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+      }));
+
+      $('#factureStatus').on('change', ()=> DT.fact.ajax.reload());
+      $('#btnReloadFactures').on('click', ()=> DT.fact.ajax.reload(null,false));
+      $('#btnFactClear').on('click', ()=>{
+        $('#factureStatus').val('all');
+        DT.fact.search('').draw();
+        DT.fact.ajax.reload();
+      });
+    }
+
+    /* ===================== CONVENTIONS ===================== */
+    function initConventions(){
+      if (DT.conv) return;
+      DT.conv = $('#dt-conventions').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.conventionsAjax, type:'POST', data: d => { d.signFilter = $('#convSign').val() || 'all'; } },
+        columns:[
+          {data:'created'},
+          {data:'numero'},
+          {data:'session'},
+          {data:'stagiaire'},
+          {data:'signatures', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+      }));
+
+      $('#convSign').on('change', ()=> DT.conv.ajax.reload());
+      $('#btnReloadConventions').on('click', ()=> DT.conv.ajax.reload(null,false));
+      $('#btnConvClear').on('click', ()=>{
+        $('#convSign').val('all');
+        DT.conv.search('').draw();
+        DT.conv.ajax.reload();
+      });
+    }
+
+    /* ===================== EMARGEMENTS ===================== */
+    function initEmargements(){
+      if (DT.emar) return;
+      DT.emar = $('#dt-emargements').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.emargementsAjax, type:'POST', data: d => { d.signedFilter = $('#emarSigned').val() || 'all'; } },
+        columns:[
+          {data:'session'},
+          {data:'periode', orderable:false, searchable:false},
+          {data:'signatures', orderable:false, searchable:false},
+          {data:'status', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+        order:[[0,'asc']], // ou [[1,'desc']] selon ton tri souhaité
+      }));
+
+      $('#emarSigned').on('change', ()=> DT.emar.ajax.reload());
+      $('#btnReloadEmargements').on('click', ()=> DT.emar.ajax.reload(null,false));
+      $('#btnEmarClear').on('click', ()=>{
+        $('#emarSigned').val('all');
+        DT.emar.search('').draw();
+        DT.emar.ajax.reload();
+      });
+    }
+
+
+    /* ===================== POSITIONNEMENT ===================== */
+    function initPositionnement(){
+      if (DT.pos) return;
+      DT.pos = $('#dt-positionnement').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.positionnementAjax, type:'POST', data: d => { d.stateFilter = $('#posState').val() || 'all'; } },
+        columns:[
+          {data:'started'},
+          {data:'session'},
+          {data:'stagiaire'},
+          {data:'submitted'},
+          {data:'summary', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+      }));
+
+      $('#posState').on('change', ()=> DT.pos.ajax.reload());
+      $('#btnReloadPos').on('click', ()=> DT.pos.ajax.reload(null,false));
+      $('#btnPosClear').on('click', ()=>{
+        $('#posState').val('all');
+        DT.pos.search('').draw();
+        DT.pos.ajax.reload();
+      });
+    }
+
+    /* ===================== QCM ===================== */
+    function initQcm(){
+      if (DT.qcm) return;
+      DT.qcm = $('#dt-qcm').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.qcmAjax, type:'POST', data: d => {
+          d.phaseFilter = $('#qcmPhase').val() || 'all';
+          d.stateFilter = $('#qcmState').val() || 'all';
+        }},
+        columns:[
+          {data:'assigned'},
+          {data:'session'},
+          {data:'stagiaire'},
+          {data:'phase', orderable:false, searchable:false},
+          {data:'score', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+      }));
+
+      $('#qcmPhase,#qcmState').on('change', ()=> DT.qcm.ajax.reload());
+      $('#btnReloadQcm').on('click', ()=> DT.qcm.ajax.reload(null,false));
+      $('#btnQcmClear').on('click', ()=>{
+        $('#qcmPhase').val('all');
+        $('#qcmState').val('all');
+        DT.qcm.search('').draw();
+        DT.qcm.ajax.reload();
+      });
+    }
+
+    /* ===================== SATIS STAGIAIRES ===================== */
+    function initSatisStag(){
+      if (DT.satisStag) return;
+      DT.satisStag = $('#dt-satis-stag').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.satisStagAjax, type:'POST', data: d => { d.stateFilter = $('#satisStagState').val() || 'all'; } },
+        columns:[
+          {data:'created'},
+          {data:'session'},
+          {data:'stagiaire'},
+          {data:'notes', orderable:false, searchable:false},
+          {data:'status', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+      }));
+
+      $('#satisStagState').on('change', ()=> DT.satisStag.ajax.reload());
+      $('#btnReloadSatisStag').on('click', ()=> DT.satisStag.ajax.reload(null,false));
+      $('#btnSatisStagClear').on('click', ()=>{
+        $('#satisStagState').val('all');
+        DT.satisStag.search('').draw();
+        DT.satisStag.ajax.reload();
+      });
+    }
+
+    /* ===================== SATIS FORMATEUR ===================== */
+    function initSatisForm(){
+      if (DT.satisForm) return;
+      DT.satisForm = $('#dt-satis-form').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.satisFormAjax, type:'POST', data: d => { d.stateFilter = $('#satisFormState').val() || 'all'; } },
+        columns:[
+          {data:'created'},
+          {data:'session'},
+          {data:'formateur'},
+          {data:'summary', orderable:false, searchable:false},
+          {data:'status', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+      }));
+
+      $('#satisFormState').on('change', ()=> DT.satisForm.ajax.reload());
+      $('#btnReloadSatisForm').on('click', ()=> DT.satisForm.ajax.reload(null,false));
+      $('#btnSatisFormClear').on('click', ()=>{
+        $('#satisFormState').val('all');
+        DT.satisForm.search('').draw();
+        DT.satisForm.ajax.reload();
+      });
+    }
+
+    /* ===================== ASSIDUITE ===================== */
+    function initAssiduite(){
+      if (DT.assiduite) return;
+      DT.assiduite = $('#dt-assiduite').DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url: urls.assiduiteAjax, type:'POST', data: d => { d.stateFilter = $('#assiduiteState').val() || 'all'; } },
+        columns:[
+          {data:'session'},
+          {data:'stagiaire'},
+          {data:'taux', orderable:false, searchable:false},
+          {data:'status', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions'},
+        ],
+        order:[[0,'desc']],
+      }));
+
+      $('#assiduiteState').on('change', ()=> DT.assiduite.ajax.reload());
+      $('#btnReloadAssiduite').on('click', ()=> DT.assiduite.ajax.reload(null,false));
+      $('#btnAssiduiteClear').on('click', ()=>{
+        $('#assiduiteState').val('all');
+        DT.assiduite.search('').draw();
+        DT.assiduite.ajax.reload();
+      });
+    }
+
+    /* ===== boot ===== */
+    $(function(){
+      initDevis();
+
+      // lazy per tab
+      document.getElementById('tab-factures')?.addEventListener('shown.bs.tab', ()=>{ initFactures(); DT.fact?.columns?.adjust(); });
+      document.getElementById('tab-conventions')?.addEventListener('shown.bs.tab', ()=>{ initConventions(); DT.conv?.columns?.adjust(); });
+      document.getElementById('tab-emargements')?.addEventListener('shown.bs.tab', ()=>{ initEmargements(); DT.emar?.columns?.adjust(); });
+      document.getElementById('tab-positionnement')?.addEventListener('shown.bs.tab', ()=>{ initPositionnement(); DT.pos?.columns?.adjust(); });
+      document.getElementById('tab-qcm')?.addEventListener('shown.bs.tab', ()=>{ initQcm(); DT.qcm?.columns?.adjust(); });
+      document.getElementById('tab-satis-stag')?.addEventListener('shown.bs.tab', ()=>{ initSatisStag(); DT.satisStag?.columns?.adjust(); });
+      document.getElementById('tab-satis-form')?.addEventListener('shown.bs.tab', ()=>{ initSatisForm(); DT.satisForm?.columns?.adjust(); });
+      document.getElementById('tab-assiduite')?.addEventListener('shown.bs.tab', ()=>{ initAssiduite(); DT.assiduite?.columns?.adjust(); });
+
+      // reload global
+      document.getElementById('btnGlobalReload')?.addEventListener('click', ()=>{
+        Object.values(DT).forEach(x => { try{ x?.ajax?.reload?.(null,false); }catch(e){} });
+      });
+    });
+  })();
+  </script>
+{% endblock %}

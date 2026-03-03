@@ -1,0 +1,950 @@
+{# templates/administrateur/positioning/questionnaire/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Questionnaires de positionnement{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* ===== HERO (même base que Sessions) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* ===== Boutons HERO ===== */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius:16px; }
+    }
+    /* ===== KPI ===== */
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 26px rgba(0,0,0,.06);
+      border-radius: 18px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight:800; font-size:1.6rem; letter-spacing:-.02em }
+    .kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem }
+
+    /* ===== Filterbar ===== */
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      overflow: visible;
+    }
+    .filterbar__top{
+      padding: .9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
+    .filterbar__title{ font-weight:800; letter-spacing:-.01em; margin:0; font-size:1rem; }
+    .filterbar__hint{ color: rgba(0,0,0,.55); font-size:.85rem; margin-left:.25rem; }
+    .filterbar__body{ padding: 1rem; }
+
+    .filtergrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: .75rem;
+      align-items:end;
+    }
+    .fcol-search{ grid-column: span 6; }
+    .fcol-published{ grid-column: span 3; }
+    .fcol-actions{ grid-column: span 3; }
+
+    @media (max-width: 1200px){
+      .fcol-search{ grid-column: span 6; }
+      .fcol-published{ grid-column: span 6; }
+      .fcol-actions{ grid-column: span 12; }
+    }
+    @media (max-width: 768px){
+      .filterbar__body{ padding:.85rem; }
+      .fcol-search, .fcol-published, .fcol-actions{ grid-column: span 12; }
+      .hero{ border-radius:16px; }
+    }
+
+    .filter-control .form-label{
+      font-size:.78rem;
+      font-weight:700;
+      color: rgba(0,0,0,.55);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      margin-bottom:.25rem;
+    }
+    .filterbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.04);
+    }
+    .filterbox:focus-within{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .filterrow{ display:flex; gap:.6rem; align-items:center; }
+
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .filterbox .form-select,
+    .filterbox .form-control{
+      border:0 !important;
+      box-shadow:none !important;
+      padding-left:0 !important;
+      padding-right:0 !important;
+      background:transparent !important;
+    }
+
+    /* Reset (look sessions) */
+    .resetbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+      cursor:pointer;
+      user-select:none;
+      transition: all .16s ease;
+      width: 100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .resetbox:hover{
+      border-color: rgba(0,0,0,.14);
+      box-shadow: 0 10px 20px rgba(0,0,0,.06);
+      transform: translateY(-1px);
+    }
+    .resetbox.is-active{
+      border-color: rgba(255,193,7,.35);
+      background: rgba(255,193,7,.06);
+    }
+    .resetbox:disabled{ cursor: default; opacity: .55; transform:none; }
+    .resetbox__text{ font-size:.9rem; font-weight:800; color: rgba(0,0,0,.65); }
+    .resetbox__badge{
+      min-width: 28px;
+      height: 22px;
+      padding: 0 .5rem;
+      border-radius: 999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:.78rem;
+      font-weight:800;
+      background: rgba(0,0,0,.06);
+      color: rgba(0,0,0,.65);
+      border: 1px solid rgba(0,0,0,.08);
+      margin-left:.5rem;
+    }
+    .resetbox.is-active .resetbox__badge{
+      background: rgba(255,193,7,.22);
+      border-color: rgba(255,193,7,.30);
+      color: rgba(0,0,0,.75);
+    }
+
+    .active-filters{
+      padding: .65rem 1rem;
+      border-top:1px solid rgba(0,0,0,.06);
+      background:#fff;
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+    }
+    .active-filters .label{
+      font-size:.8rem;
+      color: rgba(0,0,0,.55);
+      font-weight:800;
+      margin-right:.25rem;
+    }
+    .af-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      padding:.35rem .6rem;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      font-size:.82rem;
+      cursor:pointer;
+      user-select:none;
+    }
+    .af-badge:hover{ background: rgba(255,193,7,.12); border-color: rgba(255,193,7,.25); }
+    .af-badge i{ opacity:.7; }
+
+    /* ===== Table card + DataTables ===== */
+    .table-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow: visible;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      background:#f7f8fa!important;
+      border-bottom:1px solid rgba(0,0,0,.08)!important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color: rgba(0,0,0,.55);
+      text-align:center !important;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    #tableauQuestionnaires tbody td{
+      padding-top:.65rem!important;
+      padding-bottom:.65rem!important;
+      vertical-align: middle;
+      text-align:center !important;
+    }
+
+    /* Zebra + hover */
+    #tableauQuestionnaires tbody tr:nth-child(even) > *{ background:rgba(35,51,66,.035)!important; }
+    #tableauQuestionnaires tbody tr:hover > *{ background:rgba(255,193,7,.08)!important; }
+
+    /* Wrap sur titre */
+    #tableauQuestionnaires th:nth-child(1),
+    #tableauQuestionnaires td:nth-child(1){
+      text-align:left !important;
+      white-space: normal !important;
+    }
+
+    /* =========================
+      ✅ Actions questionnaires — colonne mini + sticky mobile + anti-clipping
+      ========================= */
+
+    /* colonne actions : ultra compacte */
+    #tableauQuestionnaires th.action-column,
+    #tableauQuestionnaires td.action-column{
+      width: 1% !important;
+      min-width: 0 !important;
+      white-space: nowrap !important;
+      text-align: right !important;
+    }
+
+    /* cellule actions : padding minimal + pas de relative (sticky + dropdown fiables) */
+    #tableauQuestionnaires td.action-column{
+      padding-left: .15rem !important;
+      padding-right: .15rem !important;
+      overflow: visible !important;
+    }
+
+    /* sticky mobile (TH + TD) */
+    @media (max-width:768px){
+      #tableauQuestionnaires th.action-column,
+      #tableauQuestionnaires td.action-column{
+        position: sticky;
+        right: 0;
+        z-index: 5;
+        background: #fff !important;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+
+      /* zebra/hover cohérents sur la cellule sticky */
+      #tableauQuestionnaires tbody tr:nth-child(even) > td.action-column{
+        background: rgba(35,51,66,.035) !important;
+      }
+      #tableauQuestionnaires tbody tr:hover > td.action-column{
+        background: rgba(255,193,7,.08) !important;
+      }
+    }
+
+
+    /* Badge published “soft” */
+    .badge-soft{
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:999px;
+      padding:.25rem .55rem;
+      font-weight:800;
+      font-size:.8rem;
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      white-space: nowrap;
+    }
+    .badge-soft.badge-yes{
+      background: rgba(25,135,84,.12);
+      border-color: rgba(25,135,84,.35);
+      color: #146c43;
+    }
+    .badge-soft.badge-no{
+      background: rgba(108,117,125,.12);
+      border-color: rgba(108,117,125,.35);
+      color: #495057;
+    }
+
+    /* TomSelect dropdown au-dessus */
+    .filterbar .ts-dropdown{ z-index: 2000 !important; }
+
+
+
+    /* =========================
+      ✅ Actions questionnaires (pill + split)
+      ========================= */
+
+    .questionnaire-actions .btn{
+      padding: .28rem .50rem;
+    }
+
+    .questionnaire-actions .questionnaire-main{
+      background: rgba(255,255,255,.85);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    .questionnaire-actions .questionnaire-main:hover{
+      box-shadow: 0 14px 28px rgba(0,0,0,.10);
+      border-color: rgba(0,0,0,.18);
+    }
+
+    .questionnaire-actions .questionnaire-split{
+      padding-left: .50rem;
+      padding-right: .50rem;
+      border-color: rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+    }
+
+    .questionnaire-actions.btn-group .questionnaire-main{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .questionnaire-actions.btn-group .questionnaire-split{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      margin-left: -1px;
+      position: relative;
+    }
+    .questionnaire-actions.btn-group .questionnaire-split:before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:20%;
+      bottom:20%;
+      width:1px;
+      background: rgba(0,0,0,.10);
+    }
+
+    .questionnaire-actions .questionnaire-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .55rem;
+      background:
+        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        #fff;
+      overflow: hidden;
+    }
+    .questionnaire-actions .questionnaire-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .50rem .60rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+    }
+    .questionnaire-actions .questionnaire-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.22);
+    }
+
+    /* menu flottant au-dessus du scroll DT */
+    body .questionnaire-floating-dropdown{ z-index: 20000 !important; }
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# --- HTML HERO (à mettre dans ton block body, à la place du hero actuel) --- #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-ui-checks-grid me-2" style="color:var(--theme-color-secondaire)"></i>
+            Questionnaires de positionnement
+          </h2>
+          <div class="opacity-75 mt-1">Créer, publier et administrer les questionnaires.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-journal-text"></i> Questionnaires</span>
+            <span class="chip"><i class="bi bi-ui-checks"></i> Positionnement</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_positioning_questionnaire_new', { entite: entite.id }) }}">
+            <i class="bi bi-plus-circle me-1"></i> Nouveau questionnaire
+          </a>
+
+          {# optionnel si tu veux un bouton "Reset" ici aussi #}
+          {# <button type="button" class="btn btn-outline-theme btn-sm fw-semibold" id="btnResetTop">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+          </button> #}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# KPIs (calculés côté JS sur les lignes filtrées) #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100"><div class="p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="kpi-ico"><i class="bi bi-collection fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Questionnaires</div>
+            <div class="kpi-value" id="kpi-count">—</div>
+            <div class="kpi-sub">Total (filtre appliqué)</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100"><div class="p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="kpi-ico"><i class="bi bi-broadcast-pin fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Publiés</div>
+            <div class="kpi-value" id="kpi-published">—</div>
+            <div class="kpi-sub">Dans le filtre</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100"><div class="p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="kpi-ico"><i class="bi bi-eye-slash fs-4"></i></div>
+          <div class="flex-grow-1">
+            <div class="kpi-label">Non publiés</div>
+            <div class="kpi-value" id="kpi-unpublished">—</div>
+            <div class="kpi-sub">Dans le filtre</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="filterbar mb-3">
+    <div class="filterbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
+        <div>
+          <div class="filterbar__title">Filtres</div>
+          <div class="filterbar__hint">Recherche + statut de publication</div>
+        </div>
+      </div>
+
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm fw-semibold d-md-none"
+                type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+          <i class="bi bi-sliders"></i> Filtres
+        </button>
+
+        <a class="btn btn-warning btn-sm fw-semibold d-none d-md-inline-flex"
+           href="{{ path('app_administrateur_positioning_questionnaire_new', { entite: entite.id }) }}">
+          <i class="bi bi-plus-circle"></i> Nouveau
+        </a>
+      </div>
+    </div>
+
+    <div class="collapse d-md-block" id="filtersCollapse">
+      <div class="filterbar__body">
+        <div class="filtergrid">
+
+          <div class="filter-control fcol-search">
+            <div class="form-label">Recherche</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-search"></i></div>
+                <input type="text" id="searchFilter" class="form-control form-control-sm" placeholder="Titre / logiciel…" />
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-published">
+            <div class="form-label">Publié</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-broadcast-pin"></i></div>
+                <select id="publishedFilter" class="form-select form-select-sm js-tomselect" data-placeholder="Tous">
+                  <option value="all">Tous</option>
+                  <option value="yes">Oui</option>
+                  <option value="no">Non</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-actions">
+            <div class="form-label">&nbsp;</div>
+            <button id="btnReset" type="button" class="resetbox" title="Réinitialiser les filtres">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>
+              <span class="resetbox__text">Reset</span>
+              <span class="resetbox__badge" id="resetCount" style="display:none;">0</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="active-filters" id="activeFilters">
+        <span class="label"><i class="bi bi-lightning-charge"></i> Actifs :</span>
+        <span class="text-muted small" id="activeFiltersEmpty">Aucun</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card mb-4 p-3">
+    <table id="tableauQuestionnaires" class="table table-hover align-middle mb-0 w-100">
+      <thead>
+        <tr>
+          <th>Titre</th>
+          <th>Logiciel</th>
+          <th>Publié</th>
+          <th>Créé</th>
+          <th class="action-column text-end"></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+
+    </table>
+  </div>
+
+
+
+
+
+{# ✅ Modale delete (comme Sites) #}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-trash me-2 text-danger"></i> Confirmer la suppression
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        Cette suppression est définitive. Continuer ?
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+
+        <form id="deleteForm" method="post" action="">
+          <input type="hidden" name="_token" id="deleteToken" value="">
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash"></i> Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+$(function(){
+  const $search = $('#searchFilter');
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  // TomSelect
+  let tsPublished = null;
+  function initTomSelect(){
+    const el = document.getElementById('publishedFilter');
+    if(!el) return;
+
+    tsPublished?.destroy();
+    tsPublished = new TomSelect(el, {
+      create:false,
+      allowEmptyOption:true,
+      maxItems:1,
+      plugins:['clear_button'],
+      placeholder:'Tous',
+      render:{ no_results: () => '<div class="px-2 py-1 text-muted">Aucun résultat</div>' }
+    });
+
+    tsPublished.on('change', ()=> refreshAll(true));
+  }
+
+  // ✅ DataTables server-side
+  const table = $('#tableauQuestionnaires').DataTable({
+    serverSide: true,
+    processing: true,
+    autoWidth: false,        // ✅ important
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,       // ✅ recommandé avec scrollX + actions sticky
+
+    ajax:{
+      url:"{{ path('app_administrateur_positioning_questionnaire_ajax', { entite: entite.id }) }}",
+      type:"POST",
+      data: d => {
+        d.publishedFilter = (tsPublished ? tsPublished.getValue() : ($('#publishedFilter').val() || 'all'));
+      }
+    },
+
+    searching: true,
+    order: [[3,'desc']],
+
+    columns:[
+      {data:'title', name:'title'},
+      {data:'software', name:'software'},
+      {data:'published', name:'published', orderable:true, searchable:false},
+      {data:'createdAt', name:'createdAt', orderable:true, searchable:false},
+      {data:'actions', name:'actions', orderable:false, searchable:false}
+    ],
+
+    columnDefs:[
+      {targets: 4, className:'action-column text-end', orderable:false, searchable:false},
+      {targets: [1,2,3], className:'text-center'}
+    ],
+
+    language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+
+    drawCallback: function(){
+      // KPI
+      const info = table.page.info();
+      const total = info ? info.recordsDisplay : 0;
+
+      let pub=0, unpub=0;
+      table.rows({page:'current'}).every(function(){
+        const row = this.data();
+        const html = row?.published || '';
+        if(String(html).includes('badge-yes')) pub++;
+        else if(String(html).includes('badge-no')) unpub++;
+      });
+
+      $('#kpi-count').text(total);
+      $('#kpi-published').text(pub);
+      $('#kpi-unpublished').text(unpub);
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+
+      // ✅ tooltips bootstrap si tu en utilises dans les actions
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        try { bootstrap.Tooltip.getOrCreateInstance(el); } catch(e){}
+      });
+
+      safeAdjust();
+    }
+  });
+
+
+
+  // ✅ branche la modale delete sur les boutons du menu
+  $(document).on('click', '.delete-btn', function(){
+    const url = $(this).data('url');
+    const token = $(this).data('token');
+
+    $('#deleteForm').attr('action', url || '');
+    $('#deleteToken').val(token || '');
+  });
+
+
+
+
+
+  // ✅ Dropdown actions questionnaires : menu flottant hors du scroll DataTables (anti-clipping)
+  (function enableQuestionnaireActionsFloatingDropdown(){
+    document.addEventListener('show.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.questionnaire-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      const menu = dd.querySelector('.dropdown-menu');
+      if (!menu) return;
+
+      if (!menu.__originalParent) menu.__originalParent = dd;
+
+      document.body.appendChild(menu);
+      menu.classList.add('questionnaire-floating-dropdown');
+
+      const rect = toggle.getBoundingClientRect();
+
+      menu.style.position = 'absolute';
+      menu.style.top = '0px';
+      menu.style.left = '0px';
+      menu.style.display = 'block';
+
+      const menuRect = menu.getBoundingClientRect();
+      const top = rect.bottom + window.scrollY + 6;
+
+      let left = rect.right + window.scrollX - menuRect.width;
+      left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+    }, true);
+
+    document.addEventListener('hidden.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.questionnaire-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      document.querySelectorAll('body .questionnaire-floating-dropdown').forEach(menu => {
+        if (menu.__originalParent === dd) {
+          dd.appendChild(menu);
+          menu.classList.remove('questionnaire-floating-dropdown');
+          menu.style.position = '';
+          menu.style.top = '';
+          menu.style.left = '';
+          menu.style.display = '';
+        }
+      });
+    }, true);
+
+    // ✅ ferme le menu au scroll/resize
+    window.addEventListener('scroll', () => {
+      document.querySelectorAll('.questionnaire-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.questionnaire-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+  })();
+
+
+  // ✅ évite le ResizeObserver crash (wrapper pas prêt / non visible)
+  function safeAdjust(){
+    const wrapper = document.querySelector('#tableauQuestionnaires_wrapper');
+    const tableEl = document.getElementById('tableauQuestionnaires');
+    if(!wrapper || !tableEl) return;
+
+    // si caché (display:none), ne pas adjust maintenant
+    const rect = tableEl.getBoundingClientRect();
+    if(rect.width === 0) return;
+
+    table.columns.adjust();
+  }
+
+  function updateResetUi(count){
+    const btn = document.getElementById('btnReset');
+    const badge = document.getElementById('resetCount');
+    if(!btn || !badge) return;
+
+    if(count > 0){
+      btn.disabled = false;
+      btn.classList.add('is-active');
+      badge.style.display = 'inline-flex';
+      badge.textContent = String(count);
+    } else {
+      btn.disabled = true;
+      btn.classList.remove('is-active');
+      badge.style.display = 'none';
+      badge.textContent = '0';
+    }
+  }
+
+  function buildActiveFilters(){
+    const items = [];
+    const s = ($search.val() || '').trim();
+    if(s) items.push({ key:'search', label:'Recherche', value:s });
+
+    const p = tsPublished ? tsPublished.getValue() : ($('#publishedFilter').val() || 'all');
+    if(p && p !== 'all'){
+      items.push({ key:'published', label:'Publié', value: $('#publishedFilter option:selected').text() });
+    }
+
+    const $wrap = $('#activeFilters');
+    $wrap.find('.af-badge').remove();
+
+    if(items.length === 0){
+      $('#activeFiltersEmpty').show();
+      updateResetUi(0);
+      return;
+    }
+    $('#activeFiltersEmpty').hide();
+    updateResetUi(items.length);
+
+    items.forEach(it=>{
+      const $b = $(`<span class="af-badge" data-key="${it.key}">
+        <strong>${it.label} :</strong> ${it.value} <i class="bi bi-x-lg ms-1"></i>
+      </span>`);
+
+      $b.on('click', ()=>{
+        if(it.key === 'search') $search.val('');
+        if(it.key === 'published') tsPublished?.setValue('all', true);
+        refreshAll(true);
+      });
+
+      $wrap.append($b);
+    });
+  }
+
+  function refreshAll(resetPaging=false){
+    const s = ($search.val() || '').trim();
+    table.search(s);
+    table.ajax.reload(null, !resetPaging ? false : true);
+    buildActiveFilters();
+  }
+
+  // Debounce search
+  let t = null;
+  $search.on('input', ()=>{
+    clearTimeout(t);
+    t = setTimeout(()=> refreshAll(true), 250);
+  });
+
+  // Reset
+  $('#btnReset').on('click', function(){
+    $search.val('');
+    tsPublished?.setValue('all', true);
+    table.search('');
+    refreshAll(true);
+  });
+
+  // ✅ quand on ouvre le collapse (mobile), la table devient visible -> adjust
+  document.getElementById('filtersCollapse')?.addEventListener('shown.bs.collapse', () => {
+    setTimeout(safeAdjust, 60);
+  });
+
+  // Resize window
+  window.addEventListener('resize', () => setTimeout(safeAdjust, 150));
+
+  // Init
+  initTomSelect();
+  updateResetUi(0);
+  $('#hero-last-refresh').text('Maj : ' + nowLabel());
+  buildActiveFilters();
+  setTimeout(safeAdjust, 80);
+});
+</script>
+
+{% endblock %}

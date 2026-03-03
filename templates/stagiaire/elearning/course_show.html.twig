@@ -1,0 +1,1395 @@
+{# templates/stagiaire/elearning/course_show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ course.titre }} - E-learning{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+      --p: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --s: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --bg:#f5f7fb; --panel:#fff; --ink:#0f172a; --muted:rgba(15,23,42,.62);
+      --stroke: rgba(15,23,42,.10);
+      --shadow: 0 18px 50px rgba(15,23,42,.10);
+      --shadow2: 0 22px 70px rgba(15,23,42,.14);
+      --r: 18px;
+    }
+    
+
+    .hero{
+      position:relative; border-radius: 22px; overflow:hidden;
+      background:
+        radial-gradient(1200px 420px at 14% 0%, rgba(255,255,255,.13), transparent 62%),
+        radial-gradient(900px 360px at 88% 14%, rgba(255,193,7,.18), transparent 58%),
+        linear-gradient(135deg, color-mix(in srgb, var(--p) 92%, #000 8%), color-mix(in srgb, var(--p) 78%, #000 22%));
+      box-shadow: var(--shadow2);
+      color:#fff;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .hero:after{ content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(255,255,255,.08), transparent 60%); pointer-events:none; }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.82rem;
+    }
+    .accent{ width:12px; border-radius:999px; background: var(--s); box-shadow: 0 0 0 6px color-mix(in srgb, var(--s) 18%, transparent); }
+
+    .cardx{
+      border-radius: var(--r);
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      box-shadow: 0 12px 30px rgba(15,23,42,.06);
+    }
+
+    .pbar{ height:12px; border-radius:999px; background: white; overflow:hidden; border:1px solid var(--theme-color-secondaire); }
+    .pbar > span{ display:block; height:100%; width: var(--w,0%); background: linear-gradient(90deg, var(--s), rgba(255,193,7,.55)); }
+    .pmeta{ font-size:.88rem; font-weight:800; }
+
+    /* ===== TOC PREMIUM (accordion chapitres / sous-chapitres) ===== */
+    .tocbox{ position: sticky; top: 10px; } /* garde le sommaire visible */
+    @media (max-width: 991.98px){ .tocbox{ position: static; top:auto; } }
+
+    .toc-acc .accordion-item{
+      border: 1px solid rgba(15,23,42,.10);
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(15,23,42,.01);
+      box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    }
+    .toc-acc .accordion-item + .accordion-item{ margin-top: .6rem; }
+
+    .toc-acc .accordion-button{
+      padding: .75rem .75rem;
+      gap: .65rem;
+      background: rgba(255,255,255,.70);
+      box-shadow: none;
+      font-weight: 950;
+      color: rgba(15,23,42,.90);
+    }
+    .toc-acc .accordion-button:not(.collapsed){
+      background: rgba(255,193,7,.10);
+      color: rgba(15,23,42,.95);
+    }
+    .toc-acc .accordion-button::after{
+      margin-left: auto;
+      opacity: .75;
+    }
+    .toc-acc .toc-num{
+      width: 30px; height: 30px;
+      border-radius: 10px;
+      display: inline-flex; align-items:center; justify-content:center;
+      background: rgba(255,193,7,.18);
+      border: 1px solid rgba(255,193,7,.28);
+      font-weight: 950;
+      flex: 0 0 auto;
+    }
+    .toc-acc .toc-title{ min-width:0; }
+    .toc-acc .toc-title .t{ font-weight: 950; line-height:1.2; }
+    .toc-acc .toc-title .m{
+      font-weight: 800;
+      font-size: .85rem;
+      color: rgba(15,23,42,.62);
+      margin-top: .12rem;
+      display:flex; gap:.55rem; flex-wrap:wrap;
+    }
+    .toc-acc .toc-pill{
+      display:inline-flex; align-items:center; gap:.35rem;
+      padding:.18rem .5rem; border-radius:999px;
+      border: 1px solid rgba(15,23,42,.10);
+      background: rgba(15,23,42,.03);
+      font-weight: 900;
+      font-size: .78rem;
+      color: rgba(15,23,42,.75);
+    }
+
+    .toc-acc .accordion-body{ padding: .6rem .65rem .75rem; background: #fff; }
+
+    .toc-link{
+      display:flex; align-items:center; gap:.6rem;
+      padding:.55rem .6rem;
+      border-radius: 14px;
+      text-decoration:none;
+      border: 1px solid rgba(15,23,42,.08);
+      background: rgba(15,23,42,.02);
+      color: rgba(15,23,42,.88);
+      transition: .15s ease;
+    }
+    .toc-link:hover{
+      border-color: rgba(255,193,7,.40);
+      background: rgba(255,193,7,.10);
+      transform: translateY(-1px);
+    }
+    .toc-link.active{
+      border-color: rgba(255,193,7,.60);
+      background: rgba(255,193,7,.14);
+    }
+    .toc-link .subdot{
+      width: 8px; height: 8px; border-radius: 999px;
+      background: rgba(255,193,7,.85);
+      box-shadow: 0 0 0 4px rgba(255,193,7,.14);
+      flex: 0 0 auto;
+    }
+    .toc-link .label{ min-width:0; }
+    .toc-link .label .t{ font-weight: 900; line-height:1.2; }
+    .toc-link .label .m{ font-size:.82rem; color: rgba(15,23,42,.62); margin-top:.1rem; }
+
+    .toc-go{
+      margin-left: auto;
+      width: 34px; height: 34px;
+      border-radius: 12px;
+      display:inline-flex; align-items:center; justify-content:center;
+      border: 1px solid rgba(255,193,7,.28);
+      background: rgba(255,193,7,.16);
+      color: rgba(15,23,42,.90);
+      flex: 0 0 auto;
+    }
+    .toc-go:hover{ filter: brightness(1.03); }
+
+    /* petit séparateur visuel entre sous-chapitres */
+    .toc-sublist{ display:grid; gap:.45rem; margin-top:.55rem; }
+
+
+    .node{
+      border-radius: 18px;
+      border: 1px solid rgba(15,23,42,.10);
+      overflow:hidden;
+      background:#fff;
+    }
+    .node-h{
+      padding: .9rem 1rem;
+      display:flex; align-items:center; gap:.8rem;
+      background: linear-gradient(180deg, rgba(15,23,42,.02), rgba(15,23,42,.00));
+    }
+    .node-title{ font-weight:950; margin:0; }
+    .node-sub{ color: rgba(15,23,42,.62); font-size:.92rem; }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:.4rem;
+      padding:.22rem .55rem; border-radius:999px;
+      border:1px solid rgba(15,23,42,.12);
+      background: rgba(15,23,42,.03);
+      font-weight:900; font-size:.78rem; color: rgba(15,23,42,.75);
+      white-space:nowrap;
+    }
+    .chip.req{ border-color: rgba(255,193,7,.35); background: rgba(255,193,7,.12); }
+    .chip.kind{
+      border-color: rgba(59,130,246,.22);
+      background: rgba(59,130,246,.10);
+      color: rgba(30,58,138,.85);
+    }
+
+    .block{
+      border-top: 1px solid rgba(15,23,42,.08);
+      padding: .95rem 1rem;
+    }
+    .block-title{ font-weight:950; margin:0; }
+    .block-muted{ color: rgba(15,23,42,.70); }
+    .block-body{ margin-top:.55rem; }
+
+    /* Richtext (safe) */
+    .rtx{ line-height:1.65; }
+    .rtx p{ margin: .45rem 0; }
+    .rtx h1,.rtx h2,.rtx h3{ margin: .85rem 0 .35rem; font-weight:950; }
+    .rtx ul{ padding-left: 1.25rem; }
+
+    /* Media */
+    .media-card{
+      border-radius: 16px;
+      border: 1px solid rgba(15,23,42,.10);
+      background: rgba(15,23,42,.02);
+      overflow:hidden;
+    }
+    .media-img{
+      display:block; width:100%; height:auto;
+    }
+    .video-wrap{
+      position:relative; padding-top: 56.25%;
+      background:#000;
+    }
+    .video-wrap iframe, .video-wrap video{
+      position:absolute; inset:0; width:100%; height:100%;
+      border:0;
+    }
+
+    /* Code */
+    pre.codebox{
+      margin:0;
+      border-radius: 16px;
+      padding: .85rem 1rem;
+      background: #0b1220;
+      color: #e8f3ff;
+      border: 1px solid rgba(255,255,255,.10);
+      overflow:auto;
+      font-size: .92rem;
+      line-height: 1.55;
+    }
+
+    /* Checklist */
+    .checklist{
+      display:grid; gap:.5rem;
+    }
+    .check-item{
+      display:flex; align-items:flex-start; gap:.6rem;
+      padding:.6rem .75rem;
+      border-radius: 14px;
+      border: 1px solid rgba(15,23,42,.10);
+      background: rgba(15,23,42,.02);
+    }
+    .check-item input{ margin-top:.18rem; }
+    .check-item.done{
+      border-color: rgba(34,197,94,.22);
+      background: rgba(34,197,94,.08);
+    }
+
+    /* File */
+    .filebox{
+      display:flex; align-items:center; gap:.8rem;
+      padding:.7rem .85rem;
+      border-radius: 16px;
+      border:1px solid rgba(15,23,42,.10);
+      background: rgba(15,23,42,.02);
+    }
+    .file-ico{
+      width:38px; height:38px; border-radius: 14px;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(255,193,7,.18);
+      border: 1px solid rgba(255,193,7,.25);
+      flex: 0 0 auto;
+    }
+    .file-meta{ min-width:0; }
+    .file-meta .name{ font-weight:950; }
+    .file-meta .sub{ color: rgba(15,23,42,.62); font-size:.9rem; }
+    .btn-pill{ border-radius:999px !important; font-weight:900 !important; padding:.45rem .85rem !important; }
+
+    /* Quiz */
+    .quizbox{
+      border-radius: 16px;
+      border:1px solid rgba(15,23,42,.10);
+      background: rgba(59,130,246,.06);
+      padding:.8rem .9rem;
+    }
+    .quizbox .title{ font-weight:950; }
+    .quizbox .sub{ color: rgba(15,23,42,.68); }
+
+    @media (max-width: 992px){
+      .hero{ border-radius:16px; }
+    }
+
+
+
+    /* ===== TOC: chapitre = scroll, chevron = toggle ===== */
+.toc-head{
+  display:flex;
+  align-items:stretch;
+  gap:.5rem;
+}
+
+.toc-chapter{
+  flex:1 1 auto;
+  display:flex;
+  align-items:center;
+  gap:.65rem;
+  padding:.75rem .75rem;
+  border-radius: 16px;
+  text-decoration:none;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.70);
+  box-shadow: none;
+  color: rgba(15,23,42,.92);
+  transition: .15s ease;
+}
+
+.toc-chapter:hover{
+  border-color: rgba(255,193,7,.45);
+  background: rgba(255,193,7,.10);
+  transform: translateY(-1px);
+}
+
+.toc-chapter.active{
+  border-color: rgba(255,193,7,.60);
+  background: rgba(255,193,7,.14);
+}
+
+.toc-toggle{
+  width: 42px;
+  flex: 0 0 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.70);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: rgba(15,23,42,.75);
+  transition: .15s ease;
+}
+
+.toc-toggle:hover{
+  border-color: rgba(255,193,7,.45);
+  background: rgba(255,193,7,.10);
+}
+
+.toc-toggle i{
+  transition: transform .18s ease;
+}
+
+/* rotation quand ouvert */
+.toc-toggle:not(.collapsed) i{
+  transform: rotate(180deg);
+}
+
+
+
+/* ===============================
+   TOC PREMIUM COMPACT (typo + densité)
+   =============================== */
+
+/* base typographique du bloc sommaire */
+.tocbox{
+  font-size: .95rem; /* ↓ baisse la base dans le sommaire */
+}
+
+/* espace global plus compact */
+.toc-acc .accordion-item{
+  border-radius: 14px;
+}
+.toc-acc .accordion-item + .accordion-item{
+  margin-top: .55rem;
+}
+
+/* header (ligne chapitre) */
+.toc-head{ gap: .45rem; }
+
+/* le “chapitre cliquable” : padding + hauteur + bordures plus premium */
+.toc-chapter{
+  padding: .60rem .65rem;   /* ↓ avant .75rem */
+  border-radius: 14px;
+  align-items: flex-start;  /* évite l’effet “gros bloc centré” */
+}
+
+/* num plus discret */
+.toc-acc .toc-num{
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  font-size: .85rem;
+  margin-top: .05rem;
+}
+
+/* titre chapitre : taille maîtrisée + clamp 2 lignes */
+.toc-acc .toc-title .t{
+  font-size: 1.00rem;     /* ✅ avant: non défini → héritage trop gros */
+  line-height: 1.15;
+  letter-spacing: -.01em;
+  font-weight: 950;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;  /* max 2 lignes */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* meta (pills) sous le titre */
+.toc-acc .toc-title .m{
+  margin-top: .25rem;
+  font-size: .78rem;      /* ↓ */
+  gap: .45rem;
+}
+
+/* pills plus fins */
+.toc-acc .toc-pill{
+  padding: .14rem .45rem; /* ↓ */
+  font-size: .72rem;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+/* bouton chevron plus petit */
+.toc-toggle{
+  width: 38px;
+  flex: 0 0 38px;
+  border-radius: 12px;
+}
+.toc-toggle i{
+  font-size: .95rem;
+}
+
+/* sous-chapitres : plus fins */
+.toc-acc .accordion-body{
+  padding: .55rem .60rem .65rem;
+}
+.toc-link{
+  padding: .50rem .55rem;
+  border-radius: 12px;
+}
+.toc-link .label .t{
+  font-size: .92rem;
+  line-height: 1.15;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.toc-link .label .m{
+  font-size: .76rem;
+  margin-top: .18rem;
+}
+.toc-go{
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+}
+
+/* option : encore plus compact sur laptop si tu veux */
+@media (min-width: 1200px){
+  .tocbox{ font-size: .92rem; }
+  .toc-acc .toc-title .t{ font-size: .98rem; }
+}
+
+
+
+.quizbox{
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.10);
+  background:
+    radial-gradient(900px 240px at 10% 0%, rgba(255,193,7,.12), transparent 60%),
+    linear-gradient(135deg, rgba(15,27,40,.06), rgba(15,27,40,.02));
+  box-shadow: 0 12px 30px rgba(15,23,42,.06);
+}
+.quizbox .title{ font-weight: 950; letter-spacing: -.01em; }
+.quizbox .sub{ color: rgba(15,23,42,.70); font-weight: 700; }
+
+
+
+
+
+/* ===== QUIZ INLINE PREMIUM ===== */
+.quiz-panel{
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(15,23,42,.02);
+  padding: .85rem;
+}
+
+.quiz-q{
+  border-radius: 16px;
+}
+
+.quiz-choices{
+  display:grid;
+  gap:.45rem;
+}
+
+.quiz-choice{
+  display:flex;
+  align-items:flex-start;
+  gap:.35rem;
+  padding:.55rem .65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.70);
+  cursor:pointer;
+  transition: .15s ease;
+}
+.quiz-choice:hover{
+  border-color: rgba(255,193,7,.45);
+  background: rgba(255,193,7,.08);
+  transform: translateY(-1px);
+}
+.quiz-choice input{ margin-top:.18rem; }
+
+
+
+.quiz-choice.is-correct{
+  border-color: rgba(34,197,94,.45);
+  background: rgba(34,197,94,.10);
+}
+.quiz-choice.is-wrong{
+  border-color: rgba(239,68,68,.45);
+  background: rgba(239,68,68,.10);
+}
+.quiz-choice.is-disabled{
+  opacity:.85;
+  pointer-events:none;
+}
+.quiz-feedback{
+  padding:.55rem .65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.75);
+  font-weight: 800;
+}
+.quiz-feedback.ok{
+  border-color: rgba(34,197,94,.35);
+  background: rgba(34,197,94,.08);
+}
+.quiz-feedback.ko{
+  border-color: rgba(239,68,68,.35);
+  background: rgba(239,68,68,.08);
+}
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="meta-chip"><i class="bi bi-mortarboard"></i> E-learning</span>
+        <span class="meta-chip"><i class="bi bi-shield-check"></i> Accès stagiaire</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">{{ course.titre }}</h2>
+          <div class="opacity-75">{{ course.description ?: 'Suivi de progression, chapitres, contenu, quiz.' }}</div>
+
+          <div class="mt-3">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <div class="pmeta"><i class="bi bi-graph-up-arrow me-1"></i> Progression</div>
+              <div class="pmeta" id="progressPctValue">{{ progressPct }}%</div>
+            </div>
+            <div class="pbar"><span id="progressBarSpan" style="--w: {{ progressPct }}%"></span></div>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-light btn-sm fw-semibold btn-pill" href="{{ path('app_stagiaire_elearning_index', {entite: entite.id}) }}">
+            <i class="bi bi-arrow-left"></i> Mes cours
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 pb-4">
+    {# TOC #}
+    <div class="col-12 col-lg-4">
+      <div class="cardx p-3 tocbox">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="fw-bold"><i class="bi bi-list-ul me-2"></i>Sommaire</div>
+          {% set visibleNodes = course.nodes|filter(n => n.isPublished and (n.parent is null or n.parent.isPublished)) %}
+
+            {# ===========================================================
+              ✅ orderedNodes = chapitres triés + leurs sous-chapitres triés
+              =========================================================== #}
+            {% set orderedNodes = [] %}
+
+            {# 1) map des chapitres racines #}
+            {% set rootsMap = {} %}
+            {% for n in visibleNodes|filter(n => n.parent is null) %}
+              {% set pos = (n.position is not null) ? (n.position + 0) : 999999 %}
+              {% set id  = (n.id is not null) ? (n.id + 0) : 0 %}
+              {% set key = '%010d-%010d'|format(pos, id) %}
+              {% set rootsMap = rootsMap|merge({ (key): n }) %}
+            {% endfor %}
+
+            {# 2) on déroule les chapitres triés, puis leurs enfants triés #}
+            {% for rKey in rootsMap|keys|sort %}
+              {% set ch = rootsMap[rKey] %}
+              {% set orderedNodes = orderedNodes|merge([ch]) %}
+
+              {# enfants publiés du chapitre #}
+              {% set childrenMap = {} %}
+              {% for sub in (ch.children ?? [])|filter(c => c.isPublished and c.parent and c.parent.isPublished) %}
+                {% set pos = (sub.position is not null) ? (sub.position + 0) : 999999 %}
+                {% set id  = (sub.id is not null) ? (sub.id + 0) : 0 %}
+                {% set key = '%010d-%010d'|format(pos, id) %}
+                {% set childrenMap = childrenMap|merge({ (key): sub }) %}
+              {% endfor %}
+
+              {% for cKey in childrenMap|keys|sort %}
+                {% set orderedNodes = orderedNodes|merge([ childrenMap[cKey] ]) %}
+              {% endfor %}
+            {% endfor %}
+
+          <span class="chip"><i class="bi bi-layers"></i> {{ visibleNodes|length }} sections</span>
+
+        </div>
+
+        <div class="accordion toc-acc" id="toc-accordion">
+          {# On affiche uniquement les chapitres racines, chacun ouvre ses sous-chapitres #}
+          {# chapitres déjà triés via orderedNodes #}
+          {% set chapitres = orderedNodes|filter(n => n.parent is null) %}
+
+
+          {% for ch in chapitres %}
+            {# enfants triés par position #}
+            {% set childrenMap = {} %}
+            {% for sub in (ch.children ?? [])|filter(c => c.isPublished and c.parent and c.parent.isPublished) %}
+              {% set pos = (sub.position is not null) ? (sub.position + 0) : 999999 %}
+              {% set id  = (sub.id is not null) ? (sub.id + 0) : 0 %}
+              {% set key = '%010d-%010d'|format(pos, id) %}
+              {% set childrenMap = childrenMap|merge({ (key): sub }) %}
+            {% endfor %}
+            {% set children = [] %}
+            {% for cKey in childrenMap|keys|sort %}
+              {% set children = children|merge([ childrenMap[cKey] ]) %}
+            {% endfor %}
+
+            {% set chapIndex = loop.index %}
+            {% set collapseId = 'toc-coll-' ~ ch.id %}
+
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="h-{{ ch.id }}">
+                <div class="toc-head">
+                  {# ✅ 1) CLIC CHAPITRE = SCROLL #}
+                  <a class="toc-chapter"
+                    href="#node-{{ ch.id }}"
+                    data-scrollto="node-{{ ch.id }}"
+                    aria-label="Aller au chapitre {{ chapIndex }}">
+
+                    <span class="toc-num">{{ chapIndex }}</span>
+
+                    <span class="toc-title">
+                      <div class="t">{{ ch.titre }}</div>
+                      <div class="m">
+                        <span class="toc-pill"><i class="bi bi-boxes"></i> {{ ch.blocks|length }} bloc{% if ch.blocks|length>1 %}s{% endif %}</span>
+                        {% if ch.dureeMinutes %}<span class="toc-pill"><i class="bi bi-clock"></i> {{ ch.dureeMinutes }} min</span>{% endif %}
+                        {% if children|length %}<span class="toc-pill"><i class="bi bi-diagram-2"></i> {{ children|length }} sous</span>{% endif %}
+                      </div>
+                    </span>
+                  </a>
+
+                  {# ✅ 2) PETIT CHEVRON SEUL = OUVRIR/FERMER #}
+                  {% if children|length %}
+                    <button class="toc-toggle collapsed"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#{{ collapseId }}"
+                            aria-expanded="false"
+                            aria-controls="{{ collapseId }}"
+                            aria-label="Ouvrir/fermer les sous-chapitres">
+                      <i class="bi bi-chevron-down"></i>
+                    </button>
+                  {% endif %}
+                </div>
+              </h2>
+
+
+              <div id="{{ collapseId }}" class="accordion-collapse collapse"
+                  aria-labelledby="h-{{ ch.id }}"
+                  data-bs-parent="#toc-accordion">
+                <div class="accordion-body">
+                  {% if children|length %}
+                    <div class="toc-sublist">
+                      {% for sub in children %}
+                        <a class="toc-link" href="#node-{{ sub.id }}" data-scrollto="node-{{ sub.id }}">
+                          <span class="subdot"></span>
+                          <span class="label">
+                            <div class="t">{{ chapIndex }}.{{ loop.index }} - {{ sub.titre }}</div>
+                            <div class="m">
+                              {{ sub.blocks|length }} bloc{% if sub.blocks|length>1 %}s{% endif %}
+                              {% if sub.dureeMinutes %} • {{ sub.dureeMinutes }} min{% endif %}
+                            </div>
+                          </span>
+                          <span class="toc-go"><i class="bi bi-arrow-right"></i></span>
+                        </a>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <div class="text-muted small">Aucun sous-chapitre.</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted small">Aucune section.</div>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
+
+
+    {# CONTENT #}
+    <div class="col-12 col-lg-8">
+      <div class="d-grid gap-3">
+        {% for n in orderedNodes %}
+          {% set isDone = (n.id in completedNodeIds) %}
+          <div class="node" id="node-{{ n.id }}">
+            <div class="node-h">
+              <div class="chip"><i class="bi bi-bookmark"></i> Section {{ loop.index }}</div>
+              {% if n.dureeMinutes %}<div class="chip"><i class="bi bi-clock"></i> {{ n.dureeMinutes }} min</div>{% endif %}
+
+              <div class="ms-auto d-flex align-items-center gap-2">
+                <span class="chip {{ isDone ? '' : '' }}" data-node-status="{{ n.id }}">
+                  <i class="bi {{ isDone ? 'bi-check2-circle' : 'bi-hourglass-split' }}"></i>
+                  {{ isDone ? 'Terminé' : 'En cours' }}
+                </span>
+
+                <button type="button"
+                        class="btn btn-sm btn-pill {{ isDone ? 'btn-success' : 'btn-outline-success' }}"
+                        data-node-toggle="{{ n.id }}"
+                        data-url="{{ path('app_stagiaire_elearning_node_toggle_complete', {entite: entite.id, course: course.id, node: n.id}) }}"
+                        data-token="{{ csrf_token('toggle_node_' ~ n.id) }}">
+                  {% if isDone %}
+                    <i class="bi bi-check2-circle"></i> Terminé
+                  {% else %}
+                    <i class="bi bi-check2-circle"></i> Marquer terminé
+                  {% endif %}
+                </button>
+              </div>
+            </div>
+
+
+            <div class="px-3 pb-3">
+              <h4 class="node-title mb-1">{{ n.titre }}</h4>
+              <div class="node-sub">{{ n.slug }}</div>
+            </div>
+
+
+            {# ✅ blocks triés par position puis id #}
+            {% set sortedBlocks = n.blocks|sort((a,b) =>
+              (a.position ?? 0) <=> (b.position ?? 0)
+              ?: (a.id ?? 0) <=> (b.id ?? 0)
+            ) %}
+
+            {% for b in sortedBlocks %}
+              {% set meta = b.meta ?? {} %}
+
+              {# ✅ type normalisé : marche avec Enum, string, meta.type, et casse/majuscule #}
+              {% set typeRaw =
+                (b.type is defined and b.type)
+                  ? (b.type.value ?? b.type.name ?? b.type)
+                  : (meta.type ?? 'richtext')
+              %}
+              {% set type = (typeRaw|default('richtext'))|trim|lower %}
+
+              <div class="block">
+                <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                  <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <p class="block-title mb-0">
+                      <i class="bi bi-square-fill me-2" style="color: var(--s)"></i>
+                      Bloc {{ loop.index }}
+                    </p>
+
+                    <span class="chip kind">
+                      {% if type == 'richtext' %}<i class="bi bi-text-paragraph"></i> Texte{% endif %}
+                      {% if type == 'image' %}<i class="bi bi-image"></i> Image{% endif %}
+                      {% if type == 'video' %}<i class="bi bi-play-btn"></i> Vidéo{% endif %}
+                      {% if type == 'file' %}<i class="bi bi-paperclip"></i> Fichier{% endif %}
+                      {% if type == 'code' %}<i class="bi bi-braces"></i> Code{% endif %}
+                      {% if type == 'checklist' %}<i class="bi bi-list-check"></i> Checklist{% endif %}
+                      {% if type == 'quiz' %}<i class="bi bi-patch-question"></i> Quiz{% endif %}
+                      <span class="ms-1 text-lowercase">{{ type }}</span>
+                    </span>
+
+                    {% if b.isRequired %}
+                      <span class="chip req"><i class="bi bi-asterisk"></i> Obligatoire</span>
+                    {% endif %}
+                  </div>
+
+                  <div class="text-muted small">
+                    {% if meta.duration is defined %}<span class="chip"><i class="bi bi-clock"></i> {{ meta.duration }} min</span>{% endif %}
+                  </div>
+                </div>
+
+                <div class="block-body">
+
+                  {# ===== RICHTEXT ===== #}
+                  {% if type == 'richtext' %}
+                    {% if b.content %}
+                      <div class="rtx">{{ b.content|raw }}</div>
+                    {% else %}
+                      <div class="block-muted">Contenu non renseigné.</div>
+                    {% endif %}
+
+                  {# ===== IMAGE ===== #}
+                  {% elseif type == 'image' %}
+                    {% set imgUrl =
+                      b.mediaUrl
+                      ?? (b.mediaFilename ? asset('uploads/elearning/' ~ b.mediaFilename) : null)
+                    %}
+                    {% if imgUrl %}
+                      <div class="media-card">
+                        <img src="{{ imgUrl }}" alt="" class="media-img">
+                      </div>
+                      {% if b.content %}
+                        <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                      {% endif %}
+                    {% else %}
+                      <div class="block-muted">Image manquante.</div>
+                    {% endif %}
+
+                  {# ===== VIDEO (embed robuste) ===== #}
+                  {% elseif type == 'video' %}
+                    {% set raw = (b.mediaUrl ?? b.content ?? '')|trim %}
+                    {% set embed = '' %}
+
+                    {# YouTube: watch?v=ID #}
+                    {% if raw and ('youtube.com/watch' in raw) and ('v=' in raw) %}
+                      {% set id = raw|split('v=')|last|split('&')|first %}
+                      {% set embed = 'https://www.youtube-nocookie.com/embed/' ~ id %}
+
+                    {# YouTube: youtu.be/ID #}
+                    {% elseif raw and ('youtu.be/' in raw) %}
+                      {% set id = raw|split('youtu.be/')|last|split('?')|first|split('&')|first %}
+                      {% set embed = 'https://www.youtube-nocookie.com/embed/' ~ id %}
+
+                    {# YouTube: déjà embed #}
+                    {% elseif raw and ('youtube.com/embed/' in raw) %}
+                      {% set embed = raw %}
+
+                    {# Vimeo: vimeo.com/ID #}
+                    {% elseif raw and ('vimeo.com/' in raw) %}
+                      {% set id = raw|split('vimeo.com/')|last|split('?')|first|split('&')|first %}
+                      {% set embed = 'https://player.vimeo.com/video/' ~ id %}
+
+                    {% endif %}
+
+                    {% if embed %}
+                      <div class="media-card">
+                        <div class="video-wrap">
+                          <iframe
+                            src="{{ embed|e('html_attr') }}"
+                            loading="lazy"
+                            allowfullscreen
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share">
+                          </iframe>
+                        </div>
+                      </div>
+
+                    {% elseif raw and (raw ends with '.mp4' or raw ends with '.webm' or raw ends with '.ogg') %}
+                      <div class="media-card">
+                        <div class="video-wrap" style="padding-top:56.25%">
+                          <video src="{{ raw|e('html_attr') }}" controls playsinline style="position:absolute;inset:0;width:100%;height:100%"></video>
+                        </div>
+                      </div>
+
+                    {% elseif raw %}
+                      <div class="block-muted">
+                        URL vidéo non reconnue pour l’embed.
+                        <div class="mt-2">
+                          <a class="btn btn-sm btn-warning btn-pill" href="{{ raw|e('html_attr') }}" target="_blank" rel="noopener">
+                            <i class="bi bi-box-arrow-up-right"></i> Ouvrir la vidéo
+                          </a>
+                        </div>
+                      </div>
+
+                    {% else %}
+                      <div class="block-muted">URL vidéo manquante.</div>
+                    {% endif %}
+
+
+                  {# ===== FILE ===== #}
+                  {% elseif type == 'file' %}
+                    {% set fileUrl =
+                      b.mediaUrl
+                      ?? (b.mediaFilename ? asset('uploads/elearning/' ~ b.mediaFilename) : null)
+                    %}
+                    {% if fileUrl %}
+                      <div class="filebox">
+                        <div class="file-ico"><i class="bi bi-file-earmark-text"></i></div>
+                        <div class="file-meta flex-grow-1">
+                          <div class="name">{{ meta.filename ?? b.mediaFilename ?? 'Pièce jointe' }}</div>
+                          <div class="sub">
+                            {% if meta.size is defined %}{{ meta.size }} • {% endif %}
+                            Téléchargement / consultation
+                          </div>
+                        </div>
+                        <a class="btn btn-sm btn-warning btn-pill" href="{{ fileUrl }}" target="_blank" rel="noopener">
+                          <i class="bi bi-download"></i> Ouvrir
+                        </a>
+                      </div>
+                      {% if b.content %}
+                        <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                      {% endif %}
+                    {% else %}
+                      <div class="block-muted">Fichier manquant.</div>
+                    {% endif %}
+
+                  {# ===== CODE ===== #}
+                  {% elseif type == 'code' %}
+                    {% set lang = meta.lang ?? meta.language ?? 'txt' %}
+                    {% set code = meta.code ?? b.content ?? '' %}
+                    {% if code %}
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="chip"><i class="bi bi-braces"></i> {{ lang }}</div>
+                        <button class="btn btn-sm btn-outline-secondary btn-pill"
+                                type="button"
+                                data-copy="{{ code|e('html_attr') }}">
+                          <i class="bi bi-clipboard"></i> Copier
+                        </button>
+                      </div>
+                      <pre class="codebox"><code>{{ code }}</code></pre>
+                    {% else %}
+                      <div class="block-muted">Bloc code vide.</div>
+                    {% endif %}
+
+                  {# ===== CHECKLIST ===== #}
+                  {% elseif type == 'checklist' %}
+                    {# meta.items attendu: [{label:"...", done:true/false}] ou ["..."] #}
+                    {% set items = meta.items ?? [] %}
+                    {% if items is iterable and items|length > 0 %}
+                      <div class="checklist">
+                        {% for it in items %}
+                          {% if it is iterable %}
+                            {% set label = it.label ?? it.text ?? '' %}
+                            {% set done  = it.done ?? false %}
+                          {% else %}
+                            {% set label = it %}
+                            {% set done  = false %}
+                          {% endif %}
+                          <label class="check-item {{ done ? 'done' : '' }}">
+                            <input type="checkbox" class="form-check-input" {{ done ? 'checked' : '' }} disabled>
+                            <div class="flex-grow-1">
+                              <div class="fw-bold">{{ label }}</div>
+                              {% if it.help is defined and it.help %}
+                                <div class="small text-muted">{{ it.help }}</div>
+                              {% endif %}
+                            </div>
+                          </label>
+                        {% endfor %}
+                      </div>
+                      {% if b.content %}
+                        <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                      {% endif %}
+                    {% else %}
+                      <div class="block-muted">Checklist vide.</div>
+                    {% endif %}
+
+                  {# ===== QUIZ ===== #}
+                  {% elseif type == 'quiz' or b.quiz is defined and b.quiz or meta.quiz is defined and meta.quiz %}
+                    {% set quizTitle =
+                      (b.quiz.title ?? meta.title ?? meta.quiz.title ?? 'Évaluation')
+                    %}
+                    {% set qCount =
+                      (b.quiz.questions is defined ? (b.quiz.questions|length) : (meta.quiz.questions is defined ? (meta.quiz.questions|length) : null))
+                    %}
+
+                    <div class="quizbox">
+                      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                        <div>
+                          <div class="title">
+                            <i class="bi bi-patch-question me-1"></i> {{ quizTitle }}
+                          </div>
+                          <div class="sub">
+                            {% if qCount is not null %}
+                              {{ qCount }} question{% if qCount > 1 %}s{% endif %}
+                            {% else %}
+                              Quiz prêt à démarrer
+                            {% endif %}
+                          </div>
+                        </div>
+
+                        {# ✅ bouton inline #}
+                        <button type="button"
+                                class="btn btn-sm btn-warning btn-pill"
+                                data-quiz-toggle="quiz-{{ b.id }}">
+                          <i class="bi bi-play-fill"></i> Démarrer
+                        </button>
+                      </div>
+
+                      {# ✅ panneau QUIZ : en dessous (pas dans la ligne flex) #}
+                      <div id="quiz-{{ b.id }}" class="quiz-panel d-none mt-3">
+                        {% set quiz = b.quiz ?? meta.quiz ?? null %}
+
+                        {% if quiz and quiz.questions is defined and quiz.questions|length %}
+                          <div class="quiz-steps">
+                            {% for q in quiz.questions %}
+                              <div class="quiz-q cardx p-3 mb-2">
+                                <div class="d-flex align-items-start gap-2">
+                                  <span class="chip kind"><i class="bi bi-question-circle"></i> Q{{ loop.index }}</span>
+                                  <div class="flex-grow-1">
+                                    <div class="fw-bold mb-2">{{ q.label ?? q.question ?? q.titre ?? 'Question' }}</div>
+
+                                    {% set choices = q.choices ?? q.reponses ?? q.options ?? [] %}
+                                    {% if choices is iterable and choices|length %}
+                                      <div class="quiz-choices">
+                                        {% for c in choices %}
+                                          {% set label = c.label ?? c.text ?? c %}
+
+                                          {# ✅ Si c est un QuizChoice (objet), c.isCorrect appelle isCorrect() #}
+                                          {# ✅ Si c est un tableau, isCorrect/correct/is_correct seront lus #}
+                                          {# ✅ Si c est une string, tout ça est undefined => false #}
+                                          {% set isCorrect = c.isCorrect ?? c.correct ?? c.is_correct ?? false %}
+
+
+                                          <label class="quiz-choice" data-correct="{{ isCorrect ? '1' : '0' }}">
+                                            <input class="form-check-input me-2"
+                                                  type="radio"
+                                                  name="quiz-{{ b.id }}-q{{ loop.parent.loop.index }}"
+                                                  value="{{ loop.index }}"
+                                                  autocomplete="off">
+                                            <span>{{ label }}</span>
+                                          </label>
+                                        {% endfor %}
+                                      </div>
+                                    {% else %}
+                                      <div class="text-muted small">Aucune réponse configurée.</div>
+                                    {% endif %}
+                                  </div>
+                                </div>
+
+                                <div class="quiz-feedback mt-2 d-none"></div>
+                                <div class="d-flex justify-content-end mt-2">
+                                  <button type="button"
+                                          class="btn btn-sm btn-outline-secondary btn-pill d-none"
+                                          data-quiz-retry>
+                                    <i class="bi bi-arrow-counterclockwise"></i> Réessayer
+                                  </button>
+                                </div>
+
+                              </div>
+                            {% endfor %}
+                          </div>
+                        {% else %}
+                          <div class="text-muted small">Quiz non configuré (pas de questions).</div>
+                        {% endif %}
+                      </div>
+                    </div>
+
+
+                    {% if b.content %}
+                      <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                    {% endif %}
+
+
+                  {# ===== fallback ===== #}
+                  {% else %}
+                    {% if b.content %}
+                      <div class="rtx">{{ b.content|raw }}</div>
+                    {% else %}
+                      <div class="block-muted">Contenu non renseigné.</div>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+            {% else %}
+              <div class="block block-muted">Aucun bloc dans cette section.</div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block javascripts_bottom %}
+  {{ parent() }}
+  <script>
+    // Copie bloc code
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-copy]');
+      if(!btn) return;
+      const txt = btn.getAttribute('data-copy') || '';
+      navigator.clipboard.writeText(txt).then(() => {
+        btn.innerHTML = '<i class="bi bi-check2"></i> Copié';
+        setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i> Copier', 1200);
+      });
+    });
+  </script>
+
+
+
+  <script>
+  // Scroll doux vers l’ancre + offset (évite que le titre colle sous un header)
+  const SCROLL_OFFSET = 96;
+
+  function smoothScrollTo(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  }
+
+
+  // Intercepte les liens du sommaire (data-scrollto)
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[data-scrollto]');
+    if(!a) return;
+    const id = a.getAttribute('data-scrollto');
+    if(!id) return;
+    e.preventDefault();
+    history.replaceState(null, '', '#' + id);
+    smoothScrollTo(id);
+  });
+
+  // Ouvre l'accordéon correspondant au hash #node-XX au chargement
+  function openAccordionForHash(){
+    const hash = (location.hash || '').replace('#','');
+    if(!hash.startsWith('node-')) return;
+    const nodeId = hash.replace('node-','');
+    // Cherche le bouton d'accordéon qui pointe vers toc-coll-ID du chapitre parent
+    // Ici on utilise une astuce: on ouvre tous les accordéons qui contiennent un lien vers ce node
+    const link = document.querySelector('.toc-acc a[data-scrollto="'+hash+'"]');
+    if(!link) return;
+    const collapse = link.closest('.accordion-collapse');
+    if(!collapse) return;
+
+    // Bootstrap 5 collapse
+    const bs = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+    bs.show();
+  }
+  document.addEventListener('DOMContentLoaded', openAccordionForHash);
+  window.addEventListener('hashchange', openAccordionForHash);
+
+
+
+
+
+  // ✅ Le chevron ne doit jamais déclencher un scroll (au cas où clic/drag)
+  document.addEventListener('click', (e) => {
+    const tgl = e.target.closest('.toc-toggle');
+    if (!tgl) return;
+    e.stopPropagation();
+  }, true);
+
+  // ✅ Sync classe .collapsed sur le chevron selon l'état du collapse (Bootstrap events)
+  document.querySelectorAll('.toc-acc .accordion-collapse').forEach((collapseEl) => {
+    const btn = document.querySelector('[data-bs-target="#' + collapseEl.id + '"]');
+    if(!btn) return;
+
+    collapseEl.addEventListener('show.bs.collapse', () => btn.classList.remove('collapsed'));
+    collapseEl.addEventListener('hide.bs.collapse', () => btn.classList.add('collapsed'));
+  });
+
+</script>
+
+
+
+<script>
+  // ===== ACTIVE LINK STABLE (scroll position based) =====
+  const tocLinks = Array.from(document.querySelectorAll('.toc-acc a[data-scrollto]'));
+  const nodes = tocLinks
+    .map(a => {
+      const id = a.getAttribute('data-scrollto');
+      return { id, el: document.getElementById(id), link: a };
+    })
+    .filter(x => x.el);
+
+  const OFFSET = 96; // doit matcher ton smoothScrollTo (-84). Mets 96 pour être large.
+
+  function setActive(id){
+    tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('data-scrollto') === id));
+
+    // Ouvre l'accordéon si besoin
+    const activeLink = tocLinks.find(a => a.getAttribute('data-scrollto') === id);
+    const collapse = activeLink?.closest('.accordion-collapse');
+    if(collapse){
+      const bs = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+      bs.show();
+    }
+  }
+
+  function getCurrentNodeId(){
+    // Le node "actif" = le dernier node dont le top est <= OFFSET
+    const y = window.scrollY + OFFSET;
+
+    let current = nodes[0]?.id || null;
+    for(const n of nodes){
+      const top = n.el.getBoundingClientRect().top + window.scrollY;
+      if(top <= y) current = n.id;
+      else break; // comme ils sont dans l'ordre DOM, on peut break
+    }
+    return current;
+  }
+
+  // throttle via requestAnimationFrame
+  let ticking = false;
+  function onScroll(){
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const id = getCurrentNodeId();
+      if(id) setActive(id);
+    });
+  }
+
+  // Initial + events
+  document.addEventListener('DOMContentLoaded', () => {
+    onScroll();
+  });
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+
+  // Quand on clique dans le sommaire, on force l'active immédiatement
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[data-scrollto]');
+    if(!a) return;
+    const id = a.getAttribute('data-scrollto');
+    if(id) setActive(id);
+  });
+</script>
+
+
+
+<script>
+  // Toggle quiz inline
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-quiz-toggle]');
+    if(!btn) return;
+
+    const id = btn.getAttribute('data-quiz-toggle');
+    const panel = document.getElementById(id);
+    if(!panel) return;
+
+    panel.classList.toggle('d-none');
+
+    const opened = !panel.classList.contains('d-none');
+    btn.innerHTML = opened
+      ? '<i class="bi bi-x-lg"></i> Fermer'
+      : '<i class="bi bi-play-fill"></i> Démarrer';
+  });
+</script>
+
+<script>
+  // ✅ Correction instantanée + bouton "Réessayer"
+  document.addEventListener('change', (e) => {
+    const input = e.target.closest('.quiz-panel input[type="radio"]');
+    if(!input) return;
+
+    const choice = input.closest('.quiz-choice');
+    if(!choice) return;
+
+    const qCard = choice.closest('.quiz-q');
+    if(!qCard) return;
+
+    // Empêche de répondre 2 fois tant qu'on n'a pas "Réessayer"
+    if(qCard.dataset.answered === '1') return;
+
+    const allChoices = Array.from(qCard.querySelectorAll('.quiz-choice'));
+    const fb = qCard.querySelector('.quiz-feedback');
+    const retryBtn = qCard.querySelector('[data-quiz-retry]');
+
+    // Vérifie si le choix cliqué est correct
+    const pickedCorrect = choice.getAttribute('data-correct') === '1';
+
+    if(pickedCorrect){
+      choice.classList.add('is-correct');
+      if(fb){
+        fb.classList.remove('d-none', 'ko');
+        fb.classList.add('ok');
+        fb.innerHTML = '✅ Bonne réponse';
+      }
+    }else{
+      choice.classList.add('is-wrong');
+
+      // Met en évidence la bonne réponse
+      const good = allChoices.find(el => el.getAttribute('data-correct') === '1');
+      if(good) good.classList.add('is-correct');
+
+      if(fb){
+        fb.classList.remove('d-none', 'ok');
+        fb.classList.add('ko');
+        fb.innerHTML = '❌ Mauvaise réponse';
+      }
+    }
+
+    // Désactive la question après réponse
+    allChoices.forEach(el => el.classList.add('is-disabled'));
+    qCard.dataset.answered = '1';
+
+    // Affiche "Réessayer"
+    if(retryBtn) retryBtn.classList.remove('d-none');
+  });
+
+  // ✅ Réessayer : reset une question
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-quiz-retry]');
+    if(!btn) return;
+
+    const qCard = btn.closest('.quiz-q');
+    if(!qCard) return;
+
+    const allChoices = Array.from(qCard.querySelectorAll('.quiz-choice'));
+    const inputs = Array.from(qCard.querySelectorAll('input[type="radio"]'));
+    const fb = qCard.querySelector('.quiz-feedback');
+
+    // reset radios
+    inputs.forEach(i => { i.checked = false; });
+
+    // reset styles
+    allChoices.forEach(el => {
+      el.classList.remove('is-correct', 'is-wrong', 'is-disabled');
+    });
+
+    // reset feedback
+    if(fb){
+      fb.classList.add('d-none');
+      fb.classList.remove('ok', 'ko');
+      fb.innerHTML = '';
+    }
+
+    // reset state
+    delete qCard.dataset.answered;
+
+    // cache le bouton
+    btn.classList.add('d-none');
+  });
+</script>
+
+
+<script>
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-node-toggle]');
+  if(!btn) return;
+
+  const nodeId = btn.getAttribute('data-node-toggle');
+  const url = btn.getAttribute('data-url');
+  const token = btn.getAttribute('data-token');
+
+  btn.disabled = true;
+
+  try {
+    const body = new URLSearchParams();
+    body.set('_token', token);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: body.toString()
+    });
+
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.message || 'Erreur');
+
+    // Update bouton + chip statut
+    const completed = !!json.completed;
+
+    btn.classList.toggle('btn-success', completed);
+    btn.classList.toggle('btn-outline-success', !completed);
+    btn.innerHTML = completed
+      ? '<i class="bi bi-check2-circle"></i> Terminé'
+      : '<i class="bi bi-check2-circle"></i> Marquer terminé';
+
+    const statusChip = document.querySelector('[data-node-status="' + nodeId + '"]');
+    if(statusChip){
+      statusChip.innerHTML = completed
+        ? '<i class="bi bi-check2-circle"></i> Terminé'
+        : '<i class="bi bi-hourglass-split"></i> En cours';
+    }
+
+    // Update progression hero
+    const pct = parseInt(json.progressPct || 0, 10);
+    const pctEl = document.getElementById('progressPctValue');
+    const barEl = document.getElementById('progressBarSpan');
+    if(pctEl) pctEl.textContent = pct + '%';
+    if(barEl) barEl.style.setProperty('--w', pct + '%');
+
+  } catch(err){
+    alert(err.message || 'Erreur');
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+
+
+{% endblock %}

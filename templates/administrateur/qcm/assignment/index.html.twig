@@ -1,0 +1,648 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* chips façon session */
+    .hero .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero .meta-chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* bouton outline du hero */
+    .hero .btn-outline-hero{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-hero:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+    }
+
+    .table-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:visible;
+    }
+
+    table.dataTable thead th{
+      background:#f7f8fa!important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:rgba(0,0,0,.55);
+    }
+    table.dataTable td{ vertical-align: middle; }
+
+    /* ✅ Colonne actions compacte + hover reveal */
+    #dt th.action-column,
+    #dt td.action-column{
+      width: 90px !important;
+      max-width: 90px !important;
+      min-width: 90px !important;
+      padding-left: .25rem !important;
+      padding-right: .25rem !important;
+      white-space: nowrap !important;
+      overflow: visible !important;
+    }
+
+    #dt{ table-layout: fixed !important; width: 100% !important; }
+
+    #dt td.action-column .btn-group{
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(2px);
+      pointer-events: none;
+      transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+    }
+
+    #dt tbody tr:hover td.action-column .btn-group,
+    #dt td.action-column:focus-within .btn-group{
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    @media (hover: none){
+      #dt td.action-column .btn-group{
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        pointer-events: auto;
+      }
+    }
+
+    /* TomSelect confort */
+    .ts-control{ min-height: calc(1.5em + .75rem + 2px); }
+
+    /* =========================
+      ✅ Actions split (style devis)
+      ========================= */
+    .qcm-actions .btn{ padding: .32rem .55rem; }
+
+    .qcm-actions .qcm-main{
+      background: rgba(255,255,255,.85);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    .qcm-actions .qcm-main:hover{
+      box-shadow: 0 14px 28px rgba(0,0,0,.10);
+      border-color: rgba(0,0,0,.18);
+    }
+
+    .qcm-actions .qcm-split{
+      padding-left: .55rem;
+      padding-right: .55rem;
+      border-color: rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+    }
+
+    .qcm-actions .qcm-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .55rem;
+      background: radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%), #fff;
+      overflow: hidden;
+    }
+    .qcm-actions .qcm-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .50rem .60rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+    }
+    .qcm-actions .qcm-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.22);
+    }
+
+    .qcm-actions.btn-group .qcm-main{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .qcm-actions.btn-group .qcm-split{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      margin-left: -1px;
+      position: relative;
+    }
+    .qcm-actions.btn-group .qcm-split:before{
+      content:"";
+      position:absolute;
+      left:0; top:20%; bottom:20%;
+      width:1px;
+      background: rgba(0,0,0,.10);
+    }
+
+    body .qcm-floating-dropdown{ z-index: 20000 !important; }
+
+    /* ✅ ne pas masquer quand dropdown ouvert */
+    #dt td.action-column .qcm-actions{
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    #dt td.action-column .qcm-actions:focus-within{
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-ui-checks me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ title }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Affecte 2 QCM par stagiaire : <strong>PRE</strong> (début) + <strong>POST</strong> (fin).
+            <span class="ms-2"><strong>{{ entite.nom }}</strong></span>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="meta-chip"><i class="bi bi-ui-checks"></i> QCM</span>
+            <span class="meta-chip"><i class="bi bi-diagram-3"></i> Affectations</span>
+            <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="meta-chip"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-hero btn-sm fw-semibold"
+            href="{{ path('app_administrateur_qcm_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> QCM
+          </a>
+
+          <button type="button" class="btn btn-light btn-sm fw-semibold"
+                  onclick="document.getElementById('bulkSession')?.scrollIntoView({behavior:'smooth', block:'center'})">
+            <i class="bi bi-magic me-1"></i> Affectation rapide
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ✅ Affectation rapide (premium card) #}
+  <div class="table-card p-3 mb-3">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <div class="fw-bold"><i class="bi bi-magic"></i> Affectation rapide</div>
+      <div class="text-muted small">crée les assignments manquants (anti-doublon)</div>
+    </div>
+
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="form-label small text-muted fw-bold">Session</label>
+        <select id="bulkSession" class="form-select form-select-sm js-tomselect" data-placeholder="— Choisir —">
+          <option value="">— Choisir —</option>
+          {% for s in sessions %}
+            <option value="{{ s.id }}">
+              {{ s.code is defined and s.code ? s.code : ('Session #'~s.id) }}
+              {% if s.formation is defined and s.formation %} - {{ s.formation.titre }}{% else %} - {{ s.formationIntituleLibre }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="form-label small text-muted fw-bold">QCM PRE</label>
+        <select id="bulkQcmPre" class="form-select form-select-sm js-tomselect" data-placeholder="— Choisir —">
+          <option value="">— Choisir —</option>
+          {% for q in qcms %}
+            <option value="{{ q.id }}">{{ q.titre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="form-label small text-muted fw-bold">QCM POST</label>
+        <select id="bulkQcmPost" class="form-select form-select-sm js-tomselect" data-placeholder="— Choisir —">
+          <option value="">— Choisir —</option>
+          {% for q in qcms %}
+            <option value="{{ q.id }}">{{ q.titre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 d-flex justify-content-end">
+        <button id="btnBulkAssign" class="btn btn-gradient btn-sm fw-semibold">
+          <i class="bi bi-send-check"></i> Affecter PRE + POST
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ✅ Filtres (premium filterbar) #}
+  <div class="filterbar p-3 mb-3">
+    <div class="fw-bold mb-2"><i class="bi bi-funnel"></i> Filtres</div>
+
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="form-label small text-muted fw-bold">Session</label>
+        <select id="sessionFilter" class="form-select form-select-sm js-tomselect" data-placeholder="Toutes">
+          <option value="all">Toutes</option>
+          {% for s in sessions %}
+            <option value="{{ s.id }}">{{ s.code is defined and s.code ? s.code : ('Session #'~s.id) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-md-2">
+        <label class="form-label small text-muted fw-bold">Phase</label>
+        <select id="phaseFilter" class="form-select form-select-sm js-tomselect" data-placeholder="Toutes">
+          <option value="all">Toutes</option>
+          <option value="pre">PRE</option>
+          <option value="post">POST</option>
+        </select>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <label class="form-label small text-muted fw-bold">Statut</label>
+        <select id="statusFilter" class="form-select form-select-sm js-tomselect" data-placeholder="Tous">
+          <option value="all">Tous</option>
+          <option value="assigned">Assigné</option>
+          <option value="started">En cours</option>
+          <option value="submitted">Soumis</option>
+          <option value="review_required">À relire</option>
+          <option value="validated">Validé</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <label class="form-label small text-muted fw-bold">Stagiaire (texte)</label>
+        <input id="stagiaireFilter" class="form-control form-control-sm" placeholder="Nom / prénom / email">
+      </div>
+
+      <div class="col-12 col-md-2 ms-auto">
+        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold w-100" type="button">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ✅ Table (premium table-card) #}
+  <div class="table-card p-2">
+    <table id="dt" class="table table-hover align-middle mb-0 w-100">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Stagiaire</th>
+          <th>Email</th>
+          <th>Session</th>
+          <th>QCM</th>
+          <th>Phase</th>
+          <th>Statut</th>
+          <th>Assigné</th>
+          <th>Soumis</th>
+          <th class="action-column text-end"></th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script>
+    (function(){
+      const ajaxUrl = "{{ path('app_administrateur_qcm_assignment_ajax', { entite: entite.id }) }}";
+      const assignUrlTpl = "{{ path('app_administrateur_qcm_assignment_assign_session', { entite: entite.id, session: 0 }) }}";
+      let dt = null;
+
+      function initTomSelect(){
+        document.querySelectorAll('select.js-tomselect').forEach((el)=>{
+          if (el.tomselect) return;
+          new TomSelect(el, {
+            plugins: ['clear_button'],
+            create: false,
+            allowEmptyOption: true,
+            maxItems: 1,
+            placeholder: el.dataset.placeholder || 'Rechercher…',
+            render: { no_results: () => '<div class="px-2 py-1 text-muted">Aucun résultat</div>' }
+          });
+        });
+      }
+
+      function init(){
+        initTomSelect();
+
+        // init hero clock au chargement
+        (() => {
+          const el = document.getElementById('hero-last-refresh');
+          if (!el) return;
+          const d = new Date();
+          el.textContent = 'Maj : ' + d.toLocaleDateString('fr-FR') + ' ' +
+            d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        })();
+
+        const table = document.querySelector('#dt');
+        if (!table) return;
+
+        if (!dt) {
+          dt = new DataTable('#dt', {
+            serverSide: true,
+            processing: true,
+            searching: true,
+            pageLength: 25,
+            autoWidth: false,
+            scrollX: true,
+            order: [[0,'desc']],
+            ajax: {
+              url: ajaxUrl,
+              type: 'POST',
+              data: function(d){
+                d.sessionFilter   = document.getElementById('sessionFilter')?.value || 'all';
+                d.phaseFilter     = document.getElementById('phaseFilter')?.value || 'all';
+                d.statusFilter    = document.getElementById('statusFilter')?.value || 'all';
+                d.stagiaireFilter = document.getElementById('stagiaireFilter')?.value || '';
+              }
+            },
+            columns: [
+              { data: 'id', width:'70px' },
+              { data: 'stagiaire' },
+              { data: 'email' },
+              { data: 'session' },
+              { data: 'qcm' },
+              { data: 'phase', orderable:false, searchable:false },
+              { data: 'status', orderable:false, searchable:false },
+              { data: 'assignedAt' },
+              { data: 'submittedAt' },
+              { data: 'actions', orderable:false, searchable:false, className:'action-column text-end' },
+            ],
+            columnDefs: [
+              { targets: [0,5,6,7,8], className: 'text-center' },
+              { targets: 9, className: 'action-column text-end' }
+            ],
+            language: { url: "https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json" }
+          });
+        }
+
+        (function enableQcmFloatingDropdown(){
+          document.addEventListener('show.bs.dropdown', function(e){
+            const toggle = e.target;
+            if (!toggle.closest('.qcm-actions')) return;
+
+            const group = toggle.closest('.btn-group');
+            const menu = group?.querySelector('.dropdown-menu');
+            if (!menu) return;
+
+            if (!menu.__originalParent) menu.__originalParent = group;
+
+            document.body.appendChild(menu);
+            menu.classList.add('qcm-floating-dropdown');
+
+            const rect = toggle.getBoundingClientRect();
+            menu.style.position = 'absolute';
+            menu.style.top = '0px';
+            menu.style.left = '0px';
+            menu.style.display = 'block';
+
+            const menuRect = menu.getBoundingClientRect();
+            const top = rect.bottom + window.scrollY + 6;
+            let left = (rect.right + window.scrollX - menuRect.width);
+
+            left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+          }, true);
+
+          document.addEventListener('hidden.bs.dropdown', function(e){
+            const toggle = e.target;
+            if (!toggle.closest('.qcm-actions')) return;
+
+            document.querySelectorAll('body .qcm-floating-dropdown').forEach(menu => {
+              if (menu.__originalParent) {
+                menu.__originalParent.appendChild(menu);
+                menu.classList.remove('qcm-floating-dropdown');
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.left = '';
+                menu.style.display = '';
+              }
+            });
+          }, true);
+        })();
+
+        const refresh = ()=> dt.ajax.reload(null, false);
+        const oldRefresh = refresh;
+        const refreshWithHero = ()=>{
+          const el = document.getElementById('hero-last-refresh');
+          if(el){
+            const d = new Date();
+            el.textContent = 'Maj : ' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+          }
+          oldRefresh();
+        };
+
+        ['sessionFilter','phaseFilter','statusFilter'].forEach(id=>{
+          document.getElementById(id)?.addEventListener('change', refreshWithHero);
+        });
+
+        let t;
+        document.getElementById('stagiaireFilter')?.addEventListener('input', ()=>{
+          clearTimeout(t);
+          t = setTimeout(refreshWithHero, 250);
+        });
+
+        document.getElementById('btnReset')?.addEventListener('click', ()=>{
+          document.getElementById('sessionFilter').value = 'all';
+          document.getElementById('phaseFilter').value = 'all';
+          document.getElementById('statusFilter').value = 'all';
+          document.getElementById('stagiaireFilter').value = '';
+
+          document.getElementById('sessionFilter')?.tomselect?.setValue('all', true);
+          document.getElementById('phaseFilter')?.tomselect?.setValue('all', true);
+          document.getElementById('statusFilter')?.tomselect?.setValue('all', true);
+
+          refreshWithHero();
+        });
+
+        async function postForm(url, body){
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+              'Accept': 'application/json',
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams(body),
+            credentials: 'same-origin'
+          });
+
+          const ct = r.headers.get('content-type') || '';
+          const payload = ct.includes('application/json') ? await r.json() : { ok:false, message: await r.text() };
+
+          if (!r.ok || payload?.ok === false) throw new Error(payload?.message || `Erreur (${r.status})`);
+          return payload;
+        }
+
+        document.getElementById('btnBulkAssign')?.addEventListener('click', async (e)=>{
+          e.preventDefault();
+
+          const sid  = document.getElementById('bulkSession')?.value || '';
+          const pre  = document.getElementById('bulkQcmPre')?.value || '';
+          const post = document.getElementById('bulkQcmPost')?.value || '';
+
+          if (!sid || !pre || !post) {
+            alert('Choisis une session + un QCM PRE + un QCM POST.');
+            return;
+          }
+          if (!confirm('Créer les affectations manquantes PRE + POST pour tous les inscrits ?')) return;
+
+          const url = assignUrlTpl.replace('/0', '/'+sid);
+          try{
+            const payload = await postForm(url, { qcmPreId: pre, qcmPostId: post });
+            alert(`OK — ${payload.created} affectation(s) créée(s).`);
+            refreshWithHero();
+          }catch(err){
+            console.error(err);
+            alert(err?.message || 'Action impossible');
+          }
+        });
+
+        // delegation actions (force attempt)
+        document.addEventListener('click', async (e)=>{
+          const btn = e.target.closest('.js-force-attempt');
+          if (!btn) return;
+
+          e.preventDefault();
+          if (!confirm('Créer la tentative ?')) return;
+
+          const url = btn.getAttribute('data-url');
+          if (!url) return;
+
+          const old = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+          try{
+            await postForm(url, {});
+            refreshWithHero();
+          }catch(err){
+            console.error(err);
+            alert(err?.message || 'Action impossible');
+          }finally{
+            btn.disabled = false;
+            btn.innerHTML = old;
+          }
+        }, true);
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
+      document.addEventListener('turbo:load', init);
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,561 @@
+{# templates/stagiaire/dossier/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .section-title{ font-weight:600 }
+    .text-theme-secondaire{ color:var(--theme-color-secondaire)!important }
+    .bg-theme-tertiaire{ background:var(--theme-color-tertiaire)!important }
+    .text-theme-quaternaire{ color:var(--theme-color-quaternaire)!important }
+    .piece-item .card{ border-style:dashed }
+
+    .piece-item .card-title{
+      font-size: .9rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: .75rem;
+    }
+
+    /* ============ e-sign convention UI ============ */
+    .convention-card{
+      border:1px solid rgba(0,0,0,.06);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.75));
+      box-shadow: 0 14px 40px rgba(15,35,54,.10);
+    }
+    .convention-badge{
+      display:inline-flex; align-items:center; gap:.45rem;
+      border-radius: 999px; padding:.35rem .65rem;
+      font-weight:700; font-size:.9rem;
+      background: rgba(25,135,84,.10);
+      color: #198754;
+      border:1px solid rgba(25,135,84,.25);
+    }
+    .convention-muted{
+      color: rgba(15,35,54,.65);
+    }
+    .pdf-frame{
+      width:100%; height: 70vh;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      background:#fff;
+    }
+
+    /* Signature */
+    #conventionSignatureCanvas{
+      display:block; width:100%; height:210px; touch-action:none;
+      background:#fff; border:2px solid #dee2e6; border-radius:.75rem;
+    }
+    .sig-help{
+      font-size:.9rem; color: rgba(15,35,54,.65);
+    }
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+  {# Signature pad (si tu ne l’as pas déjà globalement dans base) #}
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+<h1 class="h4 mb-3">
+  {{ title }} — Inscription #{{ inscription.id }}
+</h1>
+
+{% include 'flagMessage.html.twig' %}
+
+{# ============================================
+   SECTION : Convention (upload OU e-sign)
+   ============================================ #}
+{# Hypothèses de variables (à fournir depuis le contrôleur) :
+   - conventionPdfUrl : string|null  (URL du PDF généré côté admin)
+   - conventionSignedAt : string|null (date déjà signée stagiaire, format libre)
+   - conventionCanESign : bool (si true => on propose la signature en ligne)
+   - conventionSignUrl : string (POST vers ton ConventionSignatureStagiaireController e-sign, ex /.../signature-stagiaire)
+   - csrfConventionToken : string (token)
+   - conventionUploadHelp : string|null (optionnel)
+#}
+
+<div class="convention-card p-3 mb-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <h2 class="h6 mb-0 fw-bold"><i class="fa fa-file-signature me-2 text-theme-secondaire"></i>Convention de formation</h2>
+
+        {% if conventionSignedAt is defined and conventionSignedAt %}
+
+          <span class="convention-badge">
+            <i class="fa fa-check-circle"></i>
+            Signée {{ conventionSignedAt }}
+          </span>
+        {% endif %}
+      </div>
+      <div class="convention-muted small mt-1">
+        Vous pouvez soit <strong>uploader</strong> la convention signée, soit <strong>signer en ligne</strong> (si disponible).
+        {% if conventionUploadHelp %}<span class="ms-1">{{ conventionUploadHelp }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+      {% if conventionPdfUrl %}
+        <a class="btn btn-outline-secondary btn-sm" href="{{ conventionPdfUrl }}" target="_blank">
+          <i class="fa fa-eye me-1"></i> Ouvrir le PDF
+        </a>
+      {% endif %}
+
+      {% if conventionCanESign and conventionPdfUrl and not conventionSignedAt %}
+        <button type="button" class="btn btn-primary btn-sm" id="btnOpenConventionESign">
+          <i class="fa fa-pen-nib me-1"></i> Signer en ligne
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Petit état si pas de PDF #}
+  {% if not conventionPdfUrl %}
+    <div class="alert alert-warning mt-3 mb-0">
+      <i class="fa fa-triangle-exclamation me-1"></i>
+      La convention PDF n’est pas disponible pour le moment (elle doit être générée côté administrateur).
+      Vous pouvez quand même déposer votre convention signée via les pièces du dossier.
+    </div>
+  {% endif %}
+
+  {% if conventionPdfUrl and not conventionCanESign %}
+    <div class="alert alert-info mt-3 mb-0">
+      <i class="fa fa-info-circle me-1"></i>
+      Signature en ligne non activée pour cette inscription — vous pouvez déposer la convention signée via les pièces du dossier.
+    </div>
+  {% endif %}
+</div>
+
+{# ===== Modal : lecture + signature ===== #}
+<div class="modal fade" id="conventionESignModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Convention de formation — Signature en ligne</h5>
+          <div class="small text-muted">Lisez le document puis signez dans le cadre en bas.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        {% if conventionPdfUrl %}
+          <iframe class="pdf-frame mb-3" src="{{ conventionPdfUrl }}"></iframe>
+        {% else %}
+          <div class="alert alert-warning">
+            PDF non disponible.
+          </div>
+        {% endif %}
+
+        <div class="p-3 border rounded-3 bg-light">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <div class="sig-help">
+              <i class="fa fa-info-circle me-1"></i> Signez ci-dessous (souris / tactile), puis cliquez sur <strong>Valider la signature</strong>.
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearConventionSig">
+                <i class="fa fa-eraser me-1"></i> Effacer
+              </button>
+              <button type="button" class="btn btn-success btn-sm" id="btnSubmitConventionSig"
+                data-sign-url="{{ conventionSignUrl|default('') }}"
+                data-csrf="{{ csrfConventionToken|default('') }}">
+                <i class="fa fa-check-circle me-1"></i> Valider la signature
+              </button>
+            </div>
+          </div>
+
+          <div style="background:#fff; padding:1rem; border-radius:.75rem;">
+            <canvas id="conventionSignatureCanvas"></canvas>
+          </div>
+
+          <div class="small text-muted mt-2">
+            En validant, vous confirmez avoir lu et accepté la convention. Une trace horodatée est enregistrée.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ============================================
+   FORM : dossier + pièces (upload etc.)
+   ============================================ #}
+
+{{ form_start(form, {attr:{novalidate:'novalidate', name:'dossier_inscription_form'}}) }}
+{{ form_errors(form) }}
+
+{# ====== Carte: Informations administratives ====== #}
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title d-flex align-items-center">
+    <i class="fa fa-briefcase text-theme-secondaire me-2"></i>
+    <span>Informations administratives</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        {{ form_row(form.employeur) }}
+      </div>
+      <div class="col-md-6">
+        {{ form_row(form.opco) }}
+      </div>
+      <div class="col-md-4">
+        {{ form_row(form.numDossierOpco) }}
+      </div>
+      <div class="col-md-4 d-flex align-items-center">
+        {{ form_row(form.amenagementHandicap) }}
+      </div>
+      <div class="col-md-12" id="details-amenagement-wrap">
+        {{ form_row(form.detailsAmenagement) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ====== Prototype custom des pièces ====== #}
+{% set piecePrototype %}
+  <div class="card p-3">
+    <div class="card-title d-flex justify-content-between align-items-center">
+      <span>Pièce du dossier</span>
+      <small class="text-muted">Nouvelle pièce</small>
+    </div>
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-6">
+        {{ form_row(form.pieces.vars.prototype.type) }}
+      </div>
+      <div class="col-12 col-md-6">
+        {{ form_row(form.pieces.vars.prototype.filename) }}
+      </div>
+      <div class="col-12 d-flex justify-content-end mt-2">
+        <button type="button" class="btn btn-outline-danger btn-sm btn-remove-piece">
+          <i class="fa fa-trash me-1"></i> Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+{% endset %}
+
+{# ====== Carte: Pièces du dossier ====== #}
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title d-flex align-items-center">
+    <i class="fa fa-file text-theme-secondaire me-2"></i>
+    <span>Pièces du dossier</span>
+  </div>
+  <div class="card-body">
+
+    <p class="text-muted small mb-3">
+      Ajoutez ici les documents nécessaires : CNI, règlement intérieur signé, pièces OPCO, justificatif de domicile,
+      certificat médical, etc.
+    </p>
+
+    <div id="pieces-collection"
+         data-prototype="{{ piecePrototype|e('html_attr') }}">
+      {# Rend chacun des items existants #}
+      {% for pieceForm in form.pieces %}
+        <div class="piece-item mb-3">
+          <div class="card p-3">
+            <div class="card-title d-flex justify-content-between align-items-center">
+              <span>Pièce du dossier</span>
+              {% if pieceForm.type.vars.value %}
+                <small class="text-muted">
+                  {{ pieceForm.type.vars.label|default('Pièce') }}
+                </small>
+              {% else %}
+                <small class="text-muted">Pièce existante</small>
+              {% endif %}
+            </div>
+            <div class="row g-3 align-items-end">
+              <div class="col-12 col-md-6">
+                {{ form_row(pieceForm.type) }}
+              </div>
+              <div class="col-12 col-md-6">
+                {{ form_row(pieceForm.filename) }}
+              </div>
+              <div class="col-12 d-flex justify-content-end mt-2">
+                <button type="button" class="btn btn-outline-danger btn-sm btn-remove-piece">
+                  <i class="fa fa-trash me-1"></i> Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="btn btn-outline-primary mt-3" id="btn-add-piece">
+      <i class="fa fa-plus me-1"></i> Ajouter une pièce
+    </button>
+  </div>
+</div>
+
+<div class="mt-3 d-flex gap-2">
+  <button class="btn btn-primary">
+    <i class="fa fa-check me-1"></i> Enregistrer
+  </button>
+  <a class="btn btn-light"
+    href="{{ path('app_stagiaire_dashboard', { entite: entite.id }) }}">
+    Retour
+  </a>
+</div>
+
+{{ form_end(form) }}
+
+{# ====== JS: toggle aménagement + collection pièces + Flatpickr + validation + e-sign ====== #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // --- Flatpickr ---
+  if (window.flatpickr) {
+    flatpickr('.flatpickr-date', { dateFormat: 'd/m/Y', locale: 'fr' });
+    flatpickr('.flatpickr-datetime', { enableTime: true, dateFormat: 'd/m/Y H:i', time_24hr: true, locale: 'fr' });
+  }
+
+  // --- Toggle "Détails aménagement" ---
+  const chk = document.getElementById('{{ form.amenagementHandicap.vars.id }}');
+  const wrap = document.getElementById('details-amenagement-wrap');
+  const detailsInput = document.getElementById('{{ form.detailsAmenagement.vars.id }}');
+
+  function toggleDetailsAmenagement(){
+    const on = chk?.checked;
+    if (!wrap) return;
+    wrap.style.display = on ? '' : 'none';
+    if (detailsInput){
+      detailsInput.toggleAttribute('required', !!on);
+      detailsInput.classList.toggle('is-invalid', !!on && !detailsInput.value.trim());
+    }
+  }
+  if (chk){
+    chk.addEventListener('change', toggleDetailsAmenagement);
+    toggleDetailsAmenagement();
+  }
+
+  // --- Collection "Pièces" ---
+  const collection = document.getElementById('pieces-collection');
+  const proto = collection?.dataset?.prototype;
+  let index = {{ form.pieces|length }};
+
+  function bindRemove(container){
+    if (!container) return;
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-remove-piece');
+      if (btn){
+        e.preventDefault();
+        const item = btn.closest('.piece-item');
+        if (item) item.remove();
+      }
+    });
+  }
+
+  function addPiece(){
+    if (!proto || !collection) return;
+    const html = proto.replace(/__name__/g, index++);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'piece-item mb-3';
+    wrapper.innerHTML = html;
+    collection.appendChild(wrapper);
+
+    // Re-init Flatpickr dans le bloc ajouté
+    if (window.flatpickr) {
+      wrapper.querySelectorAll('.flatpickr-date').forEach(el => flatpickr(el, { dateFormat:'d/m/Y', locale:'fr' }));
+      wrapper.querySelectorAll('.flatpickr-datetime').forEach(el => flatpickr(el, { enableTime:true, dateFormat:'d/m/Y H:i', time_24hr:true, locale:'fr' }));
+    }
+  }
+
+  bindRemove(collection);
+
+  const addBtn = document.getElementById('btn-add-piece');
+  if (addBtn) addBtn.addEventListener('click', addPiece);
+
+  // --- Validation légère ---
+  initFormValidation({ formName: 'dossier_inscription_form' });
+
+  // ======================================================
+  // E-SIGN Convention
+  // ======================================================
+  const btnOpen = document.getElementById('btnOpenConventionESign');
+  const modalEl = document.getElementById('conventionESignModal');
+  const canvas  = document.getElementById('conventionSignatureCanvas');
+  const btnClear = document.getElementById('btnClearConventionSig');
+  const btnSubmit = document.getElementById('btnSubmitConventionSig');
+
+  let sigPad = null;
+
+  function initCanvas(){
+    if (!canvas) return;
+
+    // resize propre (retina)
+    const parent = canvas.parentElement;
+    const cssWidth  = parent ? (parent.clientWidth) : (canvas.clientWidth || 800);
+    const cssHeight = 210;
+    canvas.style.width  = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width  = Math.floor(cssWidth * ratio);
+    canvas.height = Math.floor(cssHeight * ratio);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(ratio, ratio);
+
+    if (typeof window.SignaturePad !== 'function') {
+      console.error('SignaturePad non chargé');
+      return;
+    }
+    sigPad = new SignaturePad(canvas, { throttle: 16, minWidth: 0.6, maxWidth: 2.5, backgroundColor: 'rgb(255,255,255)' });
+  }
+
+  function openESign(){
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+
+  if (btnOpen && modalEl){
+    btnOpen.addEventListener('click', (e)=>{
+      e.preventDefault();
+      openESign();
+    });
+
+    // init à l’ouverture réelle (dimensions OK)
+    modalEl.addEventListener('shown.bs.modal', ()=>{
+      // (re)init
+      try{ sigPad?.off?.(); }catch(_){}
+      sigPad = null;
+      initCanvas();
+    });
+
+    // nettoyer
+    modalEl.addEventListener('hidden.bs.modal', ()=>{
+      try{ sigPad?.clear?.(); }catch(_){}
+    });
+  }
+
+  if (btnClear){
+    btnClear.addEventListener('click', ()=>{
+      sigPad?.clear?.();
+    });
+  }
+
+  if (btnSubmit){
+    btnSubmit.addEventListener('click', async ()=>{
+      const url = btnSubmit.dataset.signUrl || '';
+      const csrf = btnSubmit.dataset.csrf || '';
+      if (!url){
+        alert("URL de signature manquante (conventionSignUrl).");
+        return;
+      }
+      if (!sigPad || sigPad.isEmpty()){
+        alert("Veuillez signer dans le cadre.");
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i> Validation...';
+
+      try{
+        const dataUrl = sigPad.toDataURL('image/png');
+
+        const form = new FormData();
+        form.append('_token', csrf);
+        form.append('signatureData', dataUrl);
+
+        const res = await fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: form
+        });
+
+        // Ton controller actuel fait un redirect => si tu veux une UX sans refresh,
+        // fais-le répondre en JSON si AJAX. Ici on gère les 2 cas.
+        const ct = (res.headers.get('content-type') || '');
+        if (ct.includes('application/json')){
+          const json = await res.json();
+          if (!res.ok || json.success !== true){
+            alert(json.message || json.error || ('HTTP ' + res.status));
+            return;
+          }
+          // ferme + refresh page pour refléter l’état (badge "Signée")
+          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+          window.location.reload();
+        } else {
+          // si redirect HTML, on suit et recharge
+          if (res.redirected){
+            window.location.href = res.url;
+          } else {
+            window.location.reload();
+          }
+        }
+      } catch(e){
+        console.error(e);
+        alert("Erreur lors de la validation de la signature.");
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="fa fa-check-circle me-1"></i> Valider la signature';
+      }
+    });
+  }
+});
+
+/**
+ * Validation simple (affiche une alerte si champs HTML5 invalides)
+ */
+function initFormValidation({ formName }){
+  const form = document.querySelector(`form[name="${formName}"]`);
+  if (!form) return;
+
+  let errorAlert = document.getElementById('form-error-alert');
+  if (!errorAlert) {
+    errorAlert = document.createElement('div');
+    errorAlert.className = 'alert alert-danger d-none mt-3';
+    errorAlert.id = 'form-error-alert';
+    form.appendChild(errorAlert);
+  }
+
+  form.addEventListener('submit', e => {
+    const messages = new Set();
+    let first = null;
+
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+    form.querySelectorAll(':invalid').forEach(el => {
+      el.classList.add('is-invalid');
+      if(!first) first = el;
+      const l = form.querySelector(`label[for="${el.id}"]`);
+      if (l) messages.add(`- ${l.textContent.trim()}`);
+    });
+
+    if (messages.size) {
+      e.preventDefault();
+      errorAlert.innerHTML = `<strong>Champs requis manquants :</strong><br>${[...messages].join('<br>')}`;
+      errorAlert.classList.remove('d-none');
+      first?.scrollIntoView?.({behavior:'smooth', block:'center'});
+      setTimeout(()=>errorAlert.classList.add('d-none'), 6000);
+    }
+  });
+}
+</script>
+{% endblock %}

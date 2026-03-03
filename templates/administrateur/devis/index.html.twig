@@ -1,0 +1,998 @@
+{# templates/administrateur/devis/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Devis{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .hero .subtitle{ opacity:.86 }
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius:14px;
+      font-weight:800;
+    }
+    .hero .subtitle{ opacity:.86; }
+
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 26px rgba(0,0,0,.06);
+      border-radius: 18px;
+      overflow:hidden;
+      background: #fff;
+      position:relative;
+    }
+    .kpi-card:before{ content:""; position:absolute; inset:0; background: radial-gradient(700px 120px at 20% 0%, rgba(255,193,7,.12), transparent 55%); pointer-events:none; }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight: 800; font-size: 1.6rem; letter-spacing:-.02em }
+    .kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem }
+    .kpi-bar{ height: 6px; border-radius: 999px; background: rgba(0,0,0,.06); overflow:hidden; }
+    .kpi-bar > span{ display:block; height:100%; width: 0%; background: var(--theme-color-secondaire); border-radius: 999px; transition: width .35s ease; }
+
+    .toolbar{
+      border-radius: 16px; background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .85rem;
+    }
+    .toolbar .hint{ font-size:.85rem; color: rgba(0,0,0,.55); }
+    .chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .7rem; border-radius:999px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size:.85rem;
+      color: rgba(0,0,0,.65);
+    }
+
+    .table-card{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      position: sticky; top: 0; z-index: 2;
+      background: #f7f8fa !important;
+      border-bottom: 1px solid rgba(0,0,0,.08) !important;
+      text-transform: uppercase;
+      font-size: .78rem;
+      letter-spacing:.06em;
+      color: rgba(0,0,0,.55);
+      text-align: center;
+      vertical-align: middle;
+    }
+    .dataTables_wrapper .dataTables_filter input{
+      border-radius: 999px !important;
+      padding: .45rem .85rem !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      padding: .35rem .7rem !important;
+    }
+    .dt-top{ padding: .75rem .85rem; border-bottom: 1px solid rgba(0,0,0,.06); background: #fff; }
+    .dt-bottom-internal{ padding: 1rem .85rem !important; background: #fff; border-top: 1px solid rgba(0,0,0,.06); }
+
+    #tableauDevis tbody tr:nth-child(odd) > *{ background-color:#fff !important; }
+    #tableauDevis tbody tr:nth-child(even) > *{ background-color: rgba(35,51,66,.035) !important; }
+    #tableauDevis tbody tr:hover > *{ background-color: rgba(255,193,7,.08) !important; }
+    #tableauDevis tbody td{ padding-top: .75rem !important; padding-bottom: .75rem !important; }
+
+    @media (max-width: 768px){
+      table.dataTable td.action-column{
+        position: sticky; right:0; background:#fff; z-index:5;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+      .hero{ border-radius: 16px; }
+    }
+
+
+
+    /* =========================
+   ✅ Actions devis (même design que Dépenses)
+   ========================= */
+
+/* largeur mini colonne actions */
+#tableauDevis th:last-child,
+#tableauDevis td:last-child{
+  width: 1% !important;
+  min-width: 0 !important;
+  white-space: nowrap;
+}
+
+/* boutons compacts */
+.devis-actions .btn{
+  padding: .32rem .55rem;
+}
+
+/* bouton principal */
+.devis-actions .devis-main{
+  background: rgba(255,255,255,.85);
+  border-color: rgba(0,0,0,.12);
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+.devis-actions .devis-main:hover{
+  box-shadow: 0 14px 28px rgba(0,0,0,.10);
+  border-color: rgba(0,0,0,.18);
+}
+
+/* bouton secondaire (envoyer) */
+.devis-actions .devis-secondary{
+  background: rgba(255,255,255,.85);
+  border-color: rgba(0,0,0,.12);
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+  padding: .40rem .40rem !important;
+}
+.devis-actions .devis-secondary:hover{
+  box-shadow: 0 14px 28px rgba(0,0,0,.10);
+  border-color: rgba(0,0,0,.18);
+}
+
+/* split */
+.devis-actions .devis-split{
+  padding-left: .55rem;
+  padding-right: .55rem;
+  border-color: rgba(0,0,0,.12);
+  background: rgba(255,255,255,.85);
+}
+
+/* menu dropdown */
+.devis-actions .devis-menu{
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,.10);
+  box-shadow: 0 18px 46px rgba(0,0,0,.18);
+  padding: .55rem;
+  background:
+    radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+    #fff;
+  overflow: hidden;
+}
+.devis-actions .devis-menu .dropdown-item{
+  border-radius: 12px;
+  padding: .50rem .60rem;
+  margin: .10rem 0;
+  border: 1px solid transparent;
+}
+.devis-actions .devis-menu .dropdown-item:hover{
+  background: rgba(255,193,7,.10);
+  border-color: rgba(255,193,7,.22);
+}
+
+/* fusion pill (main + split) */
+.devis-actions.btn-group .devis-main{
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.devis-actions.btn-group .devis-split{
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  margin-left: -1px;
+  position: relative;
+}
+.devis-actions.btn-group .devis-split:before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:20%;
+  bottom:20%;
+  width:1px;
+  background: rgba(0,0,0,.10);
+}
+
+/* si tu as un bouton secondaire, on le “colle” au milieu */
+.devis-actions.btn-group .devis-secondary{
+  border-radius: 0 !important;
+}
+
+/* ne jamais masquer quand dropdown ouvert */
+#tableauDevis td.action-column .devis-actions{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+#tableauDevis td.action-column .devis-actions:focus-within{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* alignement colonne */
+#tableauDevis td.action-column{
+  padding-left: 0 !important;
+  padding-right: .15rem !important;
+  text-align: right;
+}
+
+
+/* ✅ Menu actions "floaté" au-dessus de tout */
+body .devis-floating-dropdown{
+  z-index: 20000 !important;
+}
+
+
+
+
+
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+  {# HERO (même style que Sessions / site/index) #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-file-earmark-text me-2" style="color:var(--theme-color-secondaire)"></i>
+            Devis
+          </h2>
+
+          <div class="subtitle mt-1">
+            Pilotage : volumes, total TTC, 30 derniers jours, exports.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip">
+              <i class="bi bi-clipboard-check"></i>
+              Devis
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip chip--pill">
+              <i class="bi bi-clock-history"></i>
+              <span id="hero-last-refresh">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_devis_new', {'entite': entite.id}) }}">
+            <i class="bi bi-file-earmark-plus me-1"></i> Nouveau devis
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-files fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Devis</div>
+              <div class="kpi-value" id="kpi-devis-count">—</div>
+              <div class="kpi-sub">{{ entite.nom }}</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-devis-count"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-cash-stack fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Total TTC</div>
+              <div class="kpi-value" id="kpi-devis-ttc">—</div>
+              <div class="kpi-sub">Somme des devis</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-devis-ttc"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-calendar-range fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">30 derniers jours</div>
+              <div class="kpi-value" id="kpi-devis-30d-ttc">—</div>
+              <div class="kpi-sub"><span id="kpi-devis-30d-count">—</span> devis</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-devis-30d"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+        <span class="chip">
+          <i class="bi bi-funnel"></i>
+          Statut
+          <select id="devisStatusFilter" class="form-select form-select-sm ms-2" style="width:auto">
+            <option value="all">Tous</option>
+            <option value="draft">Brouillons</option>
+            <option value="sent">Envoyés</option>
+            <option value="accepted">Acceptés</option>
+            <option value="invoiced">Facturés</option>
+            <option value="canceled">Annulés</option>
+          </select>
+        </span>
+
+        <span class="hint d-none d-lg-inline">
+          Recherche : numéro, email, nom/prénom.
+        </span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card mb-4 p-3">
+    <table id="tableauDevis" class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+        <tr>
+          <th>Numéro</th>
+          <th>Destinataire</th>
+          <th>Montant TTC</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody><tr><td colspan="6"></td></tr></tbody>
+    </table>
+  </div>
+
+
+
+{# ✅ host modale (pour openDevisEmailModal) #}
+<div id="devisEmailModalHost"></div>
+
+
+
+
+{# Host: modale unique (évite 1 modale par ligne) #}
+<div class="modal fade modal-premium" id="devisToInvoiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-receipt-cutoff me-2"></i> Transformer en facture
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-3 align-items-start">
+          <div class="flex-shrink-0 premiumWarnIcon">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-semibold mb-1">
+              Tu es sur le point de transformer <span class="text-dark" id="jsDevisLabel">ce devis</span> en facture.
+            </div>
+
+            <ul class="small text-muted mb-0 ps-3">
+              <li>Une facture sera créée à partir du devis.</li>
+              <li>Le devis restera accessible (historique conservé).</li>
+              <li>Action généralement <strong>irréversible</strong> selon ton workflow.</li>
+            </ul>
+
+            <div class="alert alert-light border mt-3 mb-0 d-flex align-items-center gap-2">
+              <i class="bi bi-info-circle text-warning"></i>
+              <div class="small">
+                Statut actuel : <span class="fw-semibold" id="jsDevisStatus">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" value="1" id="confirmDevisToInvoiceCheck">
+          <label class="form-check-label small" for="confirmDevisToInvoiceCheck">
+            Je confirme vouloir créer la facture.
+          </label>
+        </div>
+
+        <input type="hidden" id="jsDevisIdToSubmit" value="">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-success fw-semibold" id="btnConfirmDevisToInvoice" disabled>
+          <i class="bi bi-check2-circle me-1"></i> Créer la facture
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+$(function () {
+  const $statusFilter = $('#devisStatusFilter');
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function formatEUR(cents){
+    const val = (Number(cents || 0) / 100);
+    return val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+
+  function setBar($el, pct){
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    $el.css('width', p + '%');
+  }
+
+  async function loadDevisKpis(){
+    try {
+      const url = "{{ path('app_administrateur_devis_kpis', { entite: entite.id }) }}";
+      const params = new URLSearchParams({ statusFilter: ($statusFilter.val() || 'all') });
+
+      const res = await fetch(url + '?' + params.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const j = await res.json();
+
+      const count = Number(j.count || 0);
+      const ttcCents = Number(j.ttcCents || 0);
+      const last30Count = Number(j.last30Count || 0);
+      const last30TtcCents = Number(j.last30TtcCents || 0);
+
+      $('#kpi-devis-count').text(count.toLocaleString('fr-FR'));
+      $('#kpi-devis-ttc').text(formatEUR(ttcCents));
+      $('#kpi-devis-30d-count').text(last30Count.toLocaleString('fr-FR'));
+      $('#kpi-devis-30d-ttc').text(formatEUR(last30TtcCents));
+
+      // barres: échelle "douce"
+      const countMax = Math.max(20, Math.ceil(count / 10) * 10);
+      setBar($('#kpi-bar-devis-count'), (count / countMax) * 100);
+
+      const ttcMax = Math.max(10000, ttcCents); // min 100€ en cents => 10000
+      setBar($('#kpi-bar-devis-ttc'), (ttcCents / ttcMax) * 100);
+
+      setBar($('#kpi-bar-devis-30d'), (last30TtcCents / ttcMax) * 100);
+
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    } catch (e) {
+      console.error('KPI devis error:', e);
+      $('#hero-last-refresh').text('Maj : —');
+    }
+  }
+
+  function initTooltips(){
+    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+  }
+
+  // ✅ premier chargement KPI
+  loadDevisKpis();
+
+  const table = $('#tableauDevis').DataTable({
+    processing: true,
+    serverSide: true,
+    autoWidth: false,
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,
+
+    ajax: {
+      url: "{{ path('app_administrateur_devis_ajax', { entite: entite.id }) }}",
+      type: "POST",
+      data: function (d) {
+        d.statusFilter = $statusFilter.val() || 'all';
+      }
+    },
+
+    dom:
+      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+        + '<"dt-actions d-flex gap-2 align-items-center"B>'
+        + '<"dt-search"f>'
+      + '>'
+      + 'rt'
+      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+    buttons: [
+      { extend: 'copy',  title: 'Devis', text: 'Copier' },
+      { extend: 'csv',   title: 'Devis', text: 'CSV' },
+      { extend: 'excel', title: 'Devis', text: 'Excel' },
+      { extend: 'pdf',   title: 'Devis', text: 'PDF' },
+      { extend: 'print', title: 'Devis', text: 'Imprimer' },
+    ],
+
+    lengthMenu: [[10,25,50,100,500],[10,25,50,100,500]],
+
+    columns: [
+      { data:'numero' },
+      { data:'dest' },
+      { data:'ttc' },
+      { data:'status' },
+      { data:'actions' }
+    ],
+
+    columnDefs: [
+      { targets:2, className:'text-end', createdCell: function(td){ $(td).addClass('text-end'); } },
+      { targets:2, createdRow: function(){ } },
+      // ✅ colonnes texte (évite XSS + DT stable)
+      { targets:[0,1,2], render: $.fn.dataTable.render.text() },
+
+      // ✅ status/actions = HTML server-side (badges + boutons)
+      { targets:[3,4], orderable:false, searchable:false, render: function(data, type){
+          // type 'display' -> on affiche le HTML, sinon on renvoie une version texte minimale
+          if (type === 'display') return data || '';
+          return (data || '').toString().replace(/<[^>]*>/g,'').trim();
+        }
+      },
+
+      { targets:4, className:'action-column text-end' },
+      { targets:2, className:'text-end' },
+    ],
+
+    order: [[0,'desc']],
+    language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+    deferRender: true,
+
+    initComplete: function(){
+      const api = this.api();
+      const container = api.buttons().container();
+      const $btns = $(container).find('button');
+
+      $('#exportMenu').empty();
+
+      $btns.each(function(){
+        const $b = $(this);
+        const label = $b.text().trim();
+
+        const icon = label === 'Excel' ? 'bi-file-earmark-excel' :
+                     label === 'PDF' ? 'bi-file-earmark-pdf' :
+                     label === 'CSV' ? 'bi-filetype-csv' :
+                     label === 'Imprimer' ? 'bi-printer' :
+                     label === 'Copier' ? 'bi-clipboard' : 'bi-download';
+
+        const $item = $(`
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+              <i class="bi ${icon}"></i> <span>${label}</span>
+            </a>
+          </li>
+        `);
+
+        $item.on('click', function(e){
+          e.preventDefault();
+          $b.trigger('click');
+        });
+
+        $('#exportMenu').append($item);
+      });
+
+      $(container).hide();
+      initTooltips();
+    }
+  });
+
+
+  // ✅ Dropdown actions devis : on "flotte" le menu hors du scroll DataTables (sinon il est clippé)
+  (function enableDevisActionsFloatingDropdown(){
+    document.addEventListener('show.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.devis-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      const menu = dd.querySelector('.dropdown-menu');
+      if (!menu) return;
+
+      // mémorise le parent original
+      if (!menu.__originalParent) menu.__originalParent = dd;
+
+      // move to body + classe z-index
+      document.body.appendChild(menu);
+      menu.classList.add('devis-floating-dropdown');
+
+      // positionne le menu sous le toggle
+      const rect = toggle.getBoundingClientRect();
+
+      // important : forcer la mesure après appendChild
+      menu.style.position = 'absolute';
+      menu.style.top = '0px';
+      menu.style.left = '0px';
+      menu.style.display = 'block'; // au cas où
+      const menuRect = menu.getBoundingClientRect();
+
+      const isEnd = menu.classList.contains('dropdown-menu-end') || menu.classList.contains('dropdown-menu-end');
+      const top = rect.bottom + window.scrollY + 6;
+
+      let left = isEnd
+        ? (rect.right + window.scrollX - menuRect.width)
+        : (rect.left + window.scrollX);
+
+      // clamp dans la fenêtre
+      left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+    }, true);
+
+    document.addEventListener('hidden.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.devis-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      // remettre uniquement le menu lié à ce groupe
+      document.querySelectorAll('body .devis-floating-dropdown').forEach(menu => {
+        if (menu.__originalParent === dd) {
+          dd.appendChild(menu);
+          menu.classList.remove('devis-floating-dropdown');
+          menu.style.position = '';
+          menu.style.top = '';
+          menu.style.left = '';
+          menu.style.display = '';
+        }
+      });
+    }, true);
+
+    // ✅ si scroll/resize : ferme les menus ouverts
+    window.addEventListener('scroll', () => {
+      document.querySelectorAll('.devis-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.devis-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+  })();
+
+
+  table.on('draw.dt', function(){
+    initTooltips();
+  });
+
+  $statusFilter.on('change', function () {
+    table.ajax.reload(null, true);
+    loadDevisKpis();
+  });
+
+  $('#btnReset').on('click', function () {
+    $statusFilter.val('all');
+    table.search('');
+    table.order([[0, 'desc']]);
+    table.ajax.reload(null, true);
+    loadDevisKpis();
+  });
+
+
+  /* =========================================================================
+   * ✅ MODALE ENVOI EMAIL DEVIS (Prospect)
+   * ========================================================================= */
+
+  window.openDevisEmailModal = async function(prospectId, devisId){
+    const url = "{{ path('app_administrateur_prospect_devis_modal', { entite: entite.id, prospect: 0, devis: 0 }) }}"
+      .replace('/0/devis/0/modal', '/' + prospectId + '/devis/' + devisId + '/modal');
+
+    const res = await fetch(url, { headers: { 'X-Requested-With':'XMLHttpRequest' }});
+    const html = await res.text();
+    document.getElementById('devisEmailModalHost').innerHTML = html;
+
+    const modalEl = document.getElementById('devisEmailModal');
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+
+    const form = modalEl.querySelector('#devisSendForm');
+    const previewZone = modalEl.querySelector('#devisPreviewZone');
+    const statusEl = modalEl.querySelector('#devisSendStatus');
+
+    async function doPreview(){
+      const fd = new URLSearchParams();
+      fd.set('to', form.querySelector('[name$="[to]"]').value || '');
+      fd.set('subject', form.querySelector('[name$="[subject]"]').value || '');
+      fd.set('message', form.querySelector('[name$="[message]"]').value || '');
+
+      const urlPreview = "{{ path('app_administrateur_prospect_devis_preview', { entite: entite.id, prospect: 0, devis: 0 }) }}"
+        .replace('/0/devis/0/preview', '/' + prospectId + '/devis/' + devisId + '/preview');
+
+      const r = await fetch(urlPreview, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' }});
+      const j = await r.json();
+
+      if(!j.ok){
+        previewZone.innerHTML = '<div class="text-danger">Erreur aperçu</div>';
+        return;
+      }
+
+      // ✅ isolation CSS: l'email est rendu dans un iframe
+      previewZone.innerHTML = `
+        <iframe
+          id="emailPreviewFrame"
+          style="width:100%; border:0; border-radius:12px; min-height:420px; background:#fff;"
+          sandbox="allow-same-origin"
+        ></iframe>
+      `;
+
+      const frame = previewZone.querySelector('#emailPreviewFrame');
+      frame.srcdoc = j.html;
+
+      // (optionnel) ajuste la hauteur après chargement (simple)
+      frame.onload = () => {
+        try {
+          const h = frame.contentWindow.document.documentElement.scrollHeight;
+          frame.style.height = Math.min(Math.max(h, 420), 900) + 'px';
+        } catch(e) {
+          // si sandbox bloque, on garde min-height
+        }
+      };
+    }
+
+
+    modalEl.querySelector('#btnDevisPreview')?.addEventListener('click', doPreview);
+
+    let sending = false;
+    modalEl.querySelector('#btnDevisSend')?.addEventListener('click', async (e) => {
+      if (sending) return;
+      sending = true;
+
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const old = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Envoi…';
+      statusEl.textContent = '';
+
+      try{
+        const fd = new URLSearchParams();
+        fd.set('to', form.querySelector('[name$="[to]"]').value || '');
+        fd.set('subject', form.querySelector('[name$="[subject]"]').value || '');
+        fd.set('message', form.querySelector('[name$="[message]"]').value || '');
+        fd.set('attachPdf', form.querySelector('[name$="[attachPdf]"]').checked ? '1' : '0');
+        fd.set('idemKey', form.querySelector('[name$="[idemKey]"]').value || '');
+
+        const urlSend = "{{ path('app_administrateur_prospect_devis_send', { entite: entite.id, prospect: 0, devis: 0 }) }}"
+          .replace('/0/devis/0/send', '/' + prospectId + '/devis/' + devisId + '/send');
+
+        const r = await fetch(urlSend, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' }});
+        const j = await r.json();
+
+        if(!j.ok){
+          statusEl.textContent = j.error || 'Erreur envoi';
+          btn.disabled = false;
+          btn.innerHTML = old;
+          sending = false;
+          return;
+        }
+
+        statusEl.textContent = '✅ Devis envoyé.';
+        setTimeout(() => bsModal.hide(), 600);
+        setTimeout(() => window.location.reload(), 900);
+      } catch(err){
+        statusEl.textContent = 'Erreur technique.';
+        btn.disabled = false;
+        btn.innerHTML = old;
+        sending = false;
+      }
+    });
+
+    await doPreview();
+  };
+});
+</script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modalEl  = document.getElementById('devisToInvoiceModal');
+  if (!modalEl) return;
+
+  const labelEl  = document.getElementById('jsDevisLabel');
+  const statusEl = document.getElementById('jsDevisStatus');
+  const hiddenId = document.getElementById('jsDevisIdToSubmit');
+
+  const chk      = document.getElementById('confirmDevisToInvoiceCheck');
+  const btnOk    = document.getElementById('btnConfirmDevisToInvoice');
+
+  const bsModal = new bootstrap.Modal(modalEl);
+
+  // Ouvre la modale depuis n’importe quel bouton "Transformer"
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-bs-target="#devisToInvoiceModal"]');
+    if (!btn) return;
+
+    // si disabled, Bootstrap ne l’ouvrira pas normalement — sécurité
+    if (btn.hasAttribute('disabled') || btn.classList.contains('disabled')) return;
+
+    const devisId = btn.getAttribute('data-devis-id') || '';
+    const numero  = btn.getAttribute('data-devis-numero') || ('Devis #' + devisId);
+    const st      = btn.getAttribute('data-devis-status') || '—';
+
+    hiddenId.value = devisId;
+    if (labelEl)  labelEl.textContent  = numero;
+    if (statusEl) statusEl.textContent = st;
+
+    // reset checkbox / bouton
+    chk.checked = false;
+    btnOk.disabled = true;
+
+    bsModal.show();
+  });
+
+  // checkbox -> active le bouton
+  chk.addEventListener('change', () => {
+    btnOk.disabled = !chk.checked;
+  });
+
+  // Soumission
+  btnOk.addEventListener('click', () => {
+    if (btnOk.disabled) return;
+
+    const devisId = hiddenId.value;
+    if (!devisId) return;
+
+    const form = document.getElementById('devisToInvoiceForm-' + devisId);
+    if (!form) return;
+
+    btnOk.disabled = true;
+    btnOk.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Création…';
+
+    form.submit();
+  });
+
+  // Reset quand on ferme
+  modalEl.addEventListener('hidden.bs.modal', () => {
+    chk.checked = false;
+    btnOk.disabled = true;
+    btnOk.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Créer la facture';
+    hiddenId.value = '';
+    if (labelEl) labelEl.textContent = 'ce devis';
+    if (statusEl) statusEl.textContent = '—';
+  });
+});
+</script>
+{% endblock %}

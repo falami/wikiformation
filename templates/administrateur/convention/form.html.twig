@@ -1,0 +1,658 @@
+{# templates/administrateur/convention/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#fff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius:18px;
+    }
+
+
+    body{ background: var(--bg); }
+
+    /* ===== HERO (même esprit que facture) ===== */
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+      overflow:hidden;
+      position:relative;
+    }
+    .hero .accent{
+      width:12px;
+      background:var(--theme-color-secondaire);
+      border-radius:999px;
+      box-shadow:0 0 0 6px rgba(255,193,7,.10);
+    }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      white-space: nowrap;
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select, textarea.form-control{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus, textarea.form-control:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown, .ts-dropdown.form-control, .ts-dropdown .ts-dropdown-content{
+      z-index: 1080 !important;
+    }
+
+    /* Badge résumé inscription */
+    .info-box{
+      border:1px solid var(--stroke);
+      border-radius: 18px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent), transparent);
+      padding: 1rem;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  {# ✅ Ne charge jQuery que si ta base_admin ne le charge pas déjà.
+     Si base_admin charge déjà jQuery, SUPPRIME cette ligne. #}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  {# ✅ Flatpickr : lien correct + locale FR #}
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="meta-chip"><i class="bi bi-file-text"></i> Convention</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+        <span class="meta-chip"><i class="bi bi-pencil-square"></i> {{ title }}</span>
+        {% if form.vars.value and form.vars.value.id %}
+          <span class="meta-chip"><i class="bi bi-shield-check"></i> Déjà créée</span>
+        {% endif %}
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">{{ title }}</h2>
+          <div class="opacity-75">Références, signatures et conditions — UI cohérente (TomSelect + Flatpickr).</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+             href="{{ path('app_administrateur_convention_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left"></i> Annuler
+          </a>
+
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-check2"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== Résumé inscription (si fourni) ===== #}
+  {% if inscription is defined and inscription %}
+    <div class="info-box mb-4">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="fw-bold"><i class="bi bi-info-circle me-2"></i>Inscription liée</div>
+        <span class="badge rounded-pill"
+              style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+          #{{ inscription.id }}
+        </span>
+      </div>
+      <div class="small mt-2">
+        <div class="d-flex justify-content-between gap-3 py-1">
+          <span class="text-muted">Session</span>
+          <span class="fw-semibold text-end">{{ inscription.session.code }} — {{ inscription.session.formation.titre }}</span>
+        </div>
+        <div class="d-flex justify-content-between gap-3 py-1">
+          <span class="text-muted">Stagiaire</span>
+          <span class="fw-semibold text-end">{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }} ({{ inscription.stagiaire.email }})</span>
+        </div>
+        {% if inscription.entreprise %}
+          <div class="d-flex justify-content-between gap-3 py-1">
+            <span class="text-muted">Entreprise</span>
+            <span class="fw-semibold text-end">{{ inscription.entreprise.raisonSociale }}</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'convention_form' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+
+    {# ===== COL LEFT ===== #}
+    <div class="col-lg-8">
+
+      {# ===== Références ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-link text-warning"></i> Références</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+
+            <div class="col-md-6">
+              {{ form_row(form.session) }}
+            </div>
+
+            <div class="col-md-6">
+              {{ form_row(form.entreprise) }}
+              <div class="form-text">Entreprise = prise en charge.</div>
+            </div>
+
+            <div class="col-md-6">
+              {{ form_row(form.stagiaire) }}
+              <div class="form-text">Stagiaire = financement individuel.</div>
+            </div>
+
+            <div class="col-md-12">
+              {{ form_row(form.inscriptions) }}
+              <div class="form-text">Sélection multiple possible (TomSelect).</div>
+            </div>
+
+            <div class="col-12">
+              <div class="form-text">
+                Astuce : choisis <strong>Entreprise</strong> <em>ou</em> <strong>Stagiaire</strong> (exclusif).
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# ===== Signatures ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-file-signature text-warning"></i> Signatures</h5>
+          <span class="chip">Info</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-4">
+              {# Ajoute class flatpickr-date si pas déjà dans ton FormType #}
+              {{ form_row(form.dateSignatureStagiaire, { attr: { class: (form.dateSignatureStagiaire.vars.attr.class|default('') ~ ' flatpickr-date')|trim } }) }}
+            </div>
+            <div class="col-md-4">
+              {{ form_row(form.dateSignatureEntreprise, { attr: { class: (form.dateSignatureEntreprise.vars.attr.class|default('') ~ ' flatpickr-date')|trim } }) }}
+            </div>
+            <div class="col-md-4">
+              {{ form_row(form.dateSignatureOf, { attr: { class: (form.dateSignatureOf.vars.attr.class|default('') ~ ' flatpickr-date')|trim } }) }}
+            </div>
+          </div>
+
+          <div class="form-text mt-2">
+            Dates informatives (souvent verrouillées). Flatpickr ne gêne pas même si les champs sont disabled.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Conditions financières ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-euro-sign text-warning"></i> Conditions financières</h5>
+          <span class="chip">Étape 2</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          {{ form_row(form.conditionsFinancieres) }}
+          <div class="form-text mt-2">
+            Précise tarifs, prises en charge, échéances, etc.
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa fa-check"></i> Enregistrer
+        </button>
+        <a class="btn btn-light" href="{{ path('app_administrateur_convention_index', { entite: entite.id }) }}">
+          Annuler
+        </a>
+      </div>
+    </div>
+
+    {# ===== COL RIGHT (résumé léger, dans l’esprit “facture”) ===== #}
+    <div class="col-lg-4">
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="info-box mb-3">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Choix actuels</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Session</span>
+                <span class="fw-semibold text-end" id="resume-session">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Entreprise</span>
+                <span class="fw-semibold text-end" id="resume-entreprise">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Stagiaire</span>
+                <span class="fw-semibold text-end" id="resume-stagiaire">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Inscriptions</span>
+                <span class="fw-semibold text-end" id="resume-inscriptions">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Sign. stagiaire</span>
+                <span class="fw-semibold text-end" id="resume-s1">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Sign. entreprise</span>
+                <span class="fw-semibold text-end" id="resume-s2">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Sign. OF</span>
+                <span class="fw-semibold text-end" id="resume-s3">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="{{ path('app_administrateur_convention_index', { entite: entite.id }) }}">
+              Annuler
+            </a>
+            <button type="submit" class="btn btn-primary w-50">
+              <i class="fa fa-check"></i> Enregistrer
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {{ form_end(form) }}
+
+<script>
+/* =========================================================
+   Helpers (select text)
+========================================================= */
+function getSelectedText(selectEl){
+  if (!selectEl || !selectEl.value) return '';
+  const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+  return (opt ? opt.textContent : '').trim();
+}
+function getSelectedTexts(selectEl){
+  if (!selectEl) return [];
+  const opts = Array.from(selectEl.selectedOptions || []);
+  return opts.map(o => (o.textContent || '').trim()).filter(Boolean);
+}
+
+/* =========================================================
+   VALIDATION (même logique “facture”, TomSelect + Flatpickr safe)
+========================================================= */
+function initFormValidation({ formName, alertMount = 'top', autoHideMs = 6000 } = {}) {
+  const form =
+    document.forms[formName] ||
+    document.querySelector(`form[name="${formName}"]`) ||
+    document.querySelector('form');
+
+  if (!form) return;
+
+  let errorAlert = document.getElementById('form-error-alert');
+  if (!errorAlert) {
+    errorAlert = document.createElement('div');
+    errorAlert.className = 'alert alert-danger d-none';
+    errorAlert.id = 'form-error-alert';
+    if (alertMount === 'top') form.prepend(errorAlert);
+    else form.appendChild(errorAlert);
+  }
+
+  const isVisible = (el) => {
+    if (!el) return false;
+    if (el.disabled) return false;
+    if (el.type === 'hidden') return false;
+    const parent = el.closest('[hidden], .d-none');
+    if (parent) return false;
+    if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+    return true;
+  };
+
+  const getLabelText = (el) => {
+    try{
+      if (el.id) {
+        const l = form.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        if (l?.textContent) return l.textContent.trim();
+      }
+    }catch(e){}
+    return (el.getAttribute('data-label') || el.getAttribute('placeholder') || el.name || 'Champ').trim();
+  };
+
+  const clearInvalidUI = (el) => {
+    if (!el) return;
+    el.classList.remove('is-invalid');
+    if (el.tomselect) {
+      const w = el.tomselect.wrapper;
+      w?.classList.remove('is-invalid');
+      w?.querySelector('.ts-control')?.classList.remove('is-invalid');
+    }
+    if (el._flatpickr?.altInput) el._flatpickr.altInput.classList.remove('is-invalid');
+  };
+
+  const markInvalidUI = (el) => {
+    if (!el) return;
+    if (el.tomselect) {
+      const ctrl = el.tomselect.wrapper?.querySelector('.ts-control');
+      ctrl?.classList.add('is-invalid');
+      el.tomselect.wrapper?.classList.add('is-invalid');
+      return;
+    }
+    if (el._flatpickr?.altInput) { el._flatpickr.altInput.classList.add('is-invalid'); return; }
+    el.classList.add('is-invalid');
+  };
+
+  const scrollToField = (el) => {
+    if (!el) return;
+    if (el.tomselect?.wrapper) {
+      el.tomselect.wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.tomselect.focus();
+      return;
+    }
+    if (el._flatpickr?.altInput) {
+      el._flatpickr.altInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el._flatpickr.altInput.focus();
+      return;
+    }
+    el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    el.focus?.({ preventScroll: true });
+  };
+
+  form.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    clearInvalidUI(el);
+  }, true);
+
+  form.addEventListener('change', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLElement)) return;
+    clearInvalidUI(el);
+  }, true);
+
+  form.addEventListener('submit', (e) => {
+    errorAlert.classList.add('d-none');
+    errorAlert.innerHTML = '';
+
+    const messages = new Set();
+    let firstInvalid = null;
+
+    const invalids = Array.from(form.querySelectorAll(':invalid'));
+    invalids.forEach((el) => {
+      if (!isVisible(el)) return;
+      markInvalidUI(el);
+      if (!firstInvalid) firstInvalid = el;
+      messages.add(`- ${getLabelText(el)}`);
+    });
+
+    if (messages.size) {
+      e.preventDefault();
+      errorAlert.innerHTML = `<strong>Champs requis manquants :</strong><br>` + [...messages].join('<br>');
+      errorAlert.classList.remove('d-none');
+      if (alertMount === 'top') errorAlert.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      scrollToField(firstInvalid);
+      if (autoHideMs) {
+        window.clearTimeout(errorAlert._hideTimer);
+        errorAlert._hideTimer = window.setTimeout(() => errorAlert.classList.add('d-none'), autoHideMs);
+      }
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+
+  // IDs (Symfony)
+  const idSession     = '#{{ form.session.vars.id }}';
+  const idEntreprise  = '#{{ form.entreprise.vars.id }}';
+  const idStagiaire   = '#{{ form.stagiaire.vars.id }}';
+  const idInscriptions= '#{{ form.inscriptions.vars.id }}';
+
+  const idS1 = '#{{ form.dateSignatureStagiaire.vars.id }}';
+  const idS2 = '#{{ form.dateSignatureEntreprise.vars.id }}';
+  const idS3 = '#{{ form.dateSignatureOf.vars.id }}';
+
+  const formEl = document.querySelector('form[name="convention_form"]');
+  const submitButtons = formEl ? [...formEl.querySelectorAll('button[type="submit"]')] : [];
+
+  const $resume = {
+    pill: document.getElementById('resume-valid-pill'),
+    session: document.getElementById('resume-session'),
+    entreprise: document.getElementById('resume-entreprise'),
+    stagiaire: document.getElementById('resume-stagiaire'),
+    inscriptions: document.getElementById('resume-inscriptions'),
+    s1: document.getElementById('resume-s1'),
+    s2: document.getElementById('resume-s2'),
+    s3: document.getElementById('resume-s3'),
+  };
+
+  /* =========================================================
+     TomSelect (cohérent facture)
+  ========================================================= */
+  function initTomSelect(selector, opts = {}){
+    const el = document.querySelector(selector);
+    if (!el || el.tomselect) return el;
+
+    new TomSelect(el, Object.assign({
+      create:false,
+      allowEmptyOption:true,
+      plugins: el.multiple ? ['remove_button'] : [],
+      sortField: { field:'text', direction:'asc' }
+    }, opts));
+
+    return el;
+  }
+
+  const elSession      = initTomSelect(idSession);
+  const elEntreprise   = initTomSelect(idEntreprise);
+  const elStagiaire    = initTomSelect(idStagiaire);
+  const elInscriptions = initTomSelect(idInscriptions);
+
+  /* =========================================================
+     Flatpickr FR
+  ========================================================= */
+  if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
+
+  document.querySelectorAll('.flatpickr-date').forEach(el => {
+    // évite double init
+    if (el._flatpickr) return;
+    flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
+  });
+
+  /* =========================================================
+     Exclusivité Entreprise / Stagiaire
+  ========================================================= */
+  function clearSelect(el){
+    if (!el) return;
+    if (el.tomselect) el.tomselect.clear(true);
+    else el.value = '';
+  }
+
+  if (elEntreprise && elStagiaire){
+    elEntreprise.addEventListener('change', () => { if (elEntreprise.value) clearSelect(elStagiaire); refreshResume(); });
+    elStagiaire.addEventListener('change',  () => { if (elStagiaire.value)  clearSelect(elEntreprise); refreshResume(); });
+  }
+
+  /* =========================================================
+     Résumé + “pill” complet/incomplet
+  ========================================================= */
+  function refreshResume(){
+    const s  = document.querySelector(idSession);
+    const e  = document.querySelector(idEntreprise);
+    const st = document.querySelector(idStagiaire);
+    const ins= document.querySelector(idInscriptions);
+
+    const ds1 = document.querySelector(idS1);
+    const ds2 = document.querySelector(idS2);
+    const ds3 = document.querySelector(idS3);
+
+    if ($resume.session)    $resume.session.textContent = getSelectedText(s) || '—';
+    if ($resume.entreprise) $resume.entreprise.textContent = getSelectedText(e) || '—';
+    if ($resume.stagiaire)  $resume.stagiaire.textContent = getSelectedText(st) || '—';
+
+    const insTexts = getSelectedTexts(ins);
+    if ($resume.inscriptions) $resume.inscriptions.textContent = insTexts.length ? insTexts.join(', ') : '—';
+
+    if ($resume.s1) $resume.s1.textContent = (ds1?.value || '').trim() || '—';
+    if ($resume.s2) $resume.s2.textContent = (ds2?.value || '').trim() || '—';
+    if ($resume.s3) $resume.s3.textContent = (ds3?.value || '').trim() || '—';
+
+    const sessionOk = !!(s?.value && s.value.trim());
+    const linkOk    = !!((e?.value && e.value.trim()) || (st?.value && st.value.trim()));
+    const okHtml    = formEl ? formEl.checkValidity() : true;
+
+    // Ici : session obligatoire + (entreprise OU stagiaire)
+    const ok = sessionOk && linkOk && okHtml;
+    submitButtons.forEach(b => b.disabled = !ok);
+
+    if ($resume.pill) {
+      if (ok) {
+        $resume.pill.textContent = '✅ Complet';
+        $resume.pill.style.background = 'rgba(25,135,84,.15)';
+        $resume.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      } else {
+        $resume.pill.textContent = '⚠️ Incomplet';
+        $resume.pill.style.background = 'rgba(255,193,7,.15)';
+        $resume.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      }
+    }
+  }
+
+  [idSession, idEntreprise, idStagiaire, idInscriptions, idS1, idS2, idS3].forEach(sel=>{
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.addEventListener('change', refreshResume);
+    el.addEventListener('input', refreshResume);
+  });
+
+  /* =========================================================
+     INIT
+  ========================================================= */
+  initFormValidation({ formName: 'convention_form' });
+  refreshResume();
+
+});
+</script>
+{% endblock %}

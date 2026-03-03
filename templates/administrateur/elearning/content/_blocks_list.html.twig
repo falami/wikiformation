@@ -1,0 +1,43 @@
+{# templates/administrateur/elearning/content/_blocks_list.html.twig #}
+{% set blocks = node.blocks ?? [] %}
+<ul class="tree" id="blocks-root">
+  {% for b in blocks|sort((a,b)=> a.position <=> b.position) %}
+    <li class="block" data-block-id="{{ b.id }}">
+      <div class="node-card">
+        <div class="node-header">
+          <div class="node-left">
+            <span class="drag" title="Déplacer"><i class="fa fa-grip-vertical"></i></span>
+            <span class="badge-soft">{{ b.type.name|default(b.type) }}</span>
+            <span class="node-title">Bloc #{{ b.position }}</span>
+            {% if b.isRequired %}<span class="badge-soft">Obligatoire</span>{% endif %}
+          </div>
+
+          <div class="node-actions d-flex gap-1">
+            <a class="btn btn-sm btn-outline-primary"
+               href="{{ path('app_administrateur_elearning_content_block_edit', {
+                 entite: entite.id,
+                 course: course.id,
+                 node: node.id,
+                 block: b.id
+               }) }}">
+              <i class="fa fa-pen"></i>
+            </a>
+
+            <button type="button"
+                    class="btn btn-sm btn-outline-danger btn-block-delete"
+                    data-del-url="{{ path('app_administrateur_elearning_content_block_delete', {
+                      entite: entite.id,
+                      course: course.id,
+                      block: b.id
+                    }) }}"
+                    data-csrf="{{ csrf_token('del_block_' ~ b.id) }}">
+              <i class="fa fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+  {% else %}
+    <li class="text-muted">Aucun bloc pour l’instant.</li>
+  {% endfor %}
+</ul>

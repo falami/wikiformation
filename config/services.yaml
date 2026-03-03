@@ -1,0 +1,151 @@
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+  logo_entite: "%kernel.project_dir%/public/uploads/photos/entite/logo"
+  formation_upload_dir: "%kernel.project_dir%/public/uploads/photos/formation"
+  engin_upload_dir: "%kernel.project_dir%/public/uploads/photos/engin"
+  formateur_upload_dir: "%kernel.project_dir%/public/uploads/photos/formateur"
+  emargement_upload_dir: "%kernel.project_dir%/public/uploads/supports"
+  pdf_output_dir: "%kernel.project_dir%/public/uploads/pdf"
+  piece_dossier_dir: "%kernel.project_dir%/public/uploads/pieces"
+  fullcalendar_scheduler_key: "%env(string:FULLCALENDAR_SCHEDULER_KEY)%"
+  GOOGLE_MAPS_SERVER_KEY: "%env(string:GOOGLE_MAPS_SERVER_KEY)%"
+  GOOGLE_MAPS_BROWSER_KEY: "%env(string:GOOGLE_MAPS_BROWSER_KEY)%"
+  KM_RATE_EUR: "%env(float:KM_RATE_EUR)%"
+  upload_categorie_dir: "%kernel.project_dir%/public/uploads/photos/categorie"
+  upload_proofs_dir: "%kernel.project_dir%/public/uploads/proofs"
+  session_piece_dir: "%kernel.project_dir%/public/uploads/session/pieces"
+  contrat_signature_organisme_dir: "%kernel.project_dir%/public/uploads/signatures/organisme"
+  contrat_signature_organisme_public_prefix: "/uploads/signatures/organisme"
+  upload_depense_dir: "%kernel.project_dir%/public/uploads/depense"
+  depense_public_prefix: "/uploads/depense"
+  gcp_project_id: "%env(string:GCP_PROJECT_ID)%"
+  gcp_credentials_path: "%env(string:GOOGLE_APPLICATION_CREDENTIALS)%"
+  gcp_gcs_bucket: "%env(default::string:GCP_GCS_BUCKET)%"
+  elearning_upload_dir: "%kernel.project_dir%/public/uploads/elearning"
+  stripe.secret_key: "%env(STRIPE_SECRET_KEY)%"
+  stripe.public_key: "%env(STRIPE_PUBLIC_KEY)%"
+  stripe.webhook_secret: "%env(STRIPE_WEBHOOK_SECRET)%"
+  app.url: "%env(APP_URL)%"
+  billing.app_trial_days: "%env(int:BILLING_APP_TRIAL_DAYS)%"
+  stripe_webhook_secret: "%env(STRIPE_WEBHOOK_SECRET)%"
+  app.base_domain: "%env(APP_BASE_DOMAIN)%"
+  insee_client_id: "%env(string:INSEE_CLIENT_ID)%"
+  insee_client_secret: "%env(string:INSEE_CLIENT_SECRET)%"
+
+services:
+  # default configuration for services in *this* file
+  _defaults:
+    autowire: true # Automatically injects dependencies in your services.
+    autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+    bind:
+      string $stripeWebhookSecret: "%stripe_webhook_secret%"
+
+  # makes classes in src/ available to be used as services
+  # this creates a service per class whose id is the fully-qualified class name
+  App\:
+    resource: "../src/"
+
+  App\Twig\EuroExtension:
+    tags: ["twig.extension"]
+
+  App\Form\DataTransformer\EurosToCentsTransformer: ~
+
+  App\Service\Phone\PhoneNormalizer:
+    arguments:
+      $defaultRegion: "%app.phone_default_region%"
+
+  App\Service\Pdf\PdfManager:
+    arguments:
+      $pdfOutputDir: "%pdf_output_dir%"
+
+  App\Controller\Administrateur\AttestationController:
+    arguments:
+      $projectDir: "%kernel.project_dir%"
+      $publicDir: "%kernel.project_dir%/public"
+  App\Twig\MoneyExtension:
+    tags: ["twig.extension"]
+
+  App\Service\Geocoding\NominatimGeocoder:
+    arguments:
+      $userAgent: "wikiformation/1.0 (contact@wikiformation.fr)"
+
+  App\Controller\Administrateur\ConventionContratController:
+    arguments:
+      $projectDir: "%kernel.project_dir%"
+  App\Controller\Administrateur\DossierInscriptionController:
+    arguments:
+      $uploadDir: "%piece_dossier_dir%"
+  App\EventSubscriber\Positioning\AutoCreateAttemptsOnFlushSubscriber:
+    tags: ["doctrine.event_subscriber"]
+
+  App\EventSubscriber\Positioning\InscriptionPositioningSubscriber:
+    tags: ["doctrine.event_subscriber"]
+
+  App\Service\Bpf\BpfCalculator: ~
+
+  App\EventSubscriber\SessionCodeSubscriber:
+    tags: ["doctrine.event_subscriber"]
+
+  App\EventSubscriber\InscriptionQcmSubscriber:
+    tags: ["doctrine.event_subscriber"]
+
+  App\Service\Depense\DepenseUploader:
+    arguments:
+      $uploadDepenseDir: "%upload_depense_dir%"
+      $publicPrefix: "%depense_public_prefix%"
+
+  App\Service\Entreprise\EntrepriseDocStorage:
+    arguments:
+      $projectDir: "%kernel.project_dir%"
+
+  App\EventSubscriber\BillingAccessSubscriber:
+    tags: ["kernel.event_subscriber"]
+
+  App\Service\Billing\StripeBillingService:
+    arguments:
+      $stripeSecretKey: "%stripe.secret_key%"
+      $appUrl: "%app.url%"
+
+  App\Controller\Administrateur\SessionStagiairePieceController:
+    arguments:
+      $uploadDir: "%piece_dossier_dir%"
+
+  App\Doctrine\EntiteActivitySubscriber:
+    tags:
+      - { name: doctrine.event_subscriber }
+
+  App\Tenant\TenantResolver:
+    arguments:
+      $baseDomain: "%app.base_domain%"
+
+  App\Tenant\TenantRequestSubscriber:
+    tags: ["kernel.event_subscriber"]
+
+  App\Service\Entreprise\SireneClient:
+    arguments:
+      $clientId: "%insee_client_id%"
+      $clientSecret: "%insee_client_secret%"
+      # $cache et $http sont autowirés automatiquement
+
+  App\Service\Depense\ReceiptParser: ~
+  App\Service\Depense\ReceiptScanService:
+    ~
+
+    # ✅ OCR receipts via Google Vision
+  App\Service\Depense\ReceiptOcrProviderInterface: '@App\Service\Depense\GoogleVisionReceiptOcrProvider'
+  App\Service\Depense\GoogleVisionReceiptOcrProvider: ~
+
+  # Choisis ton provider OCR :
+  App\Service\Ocr\GoogleVisionOcrService:
+    arguments:
+      $gcpProjectId: "%gcp_project_id%"
+      $credentialsPath: "%gcp_credentials_path%"
+      $gcsBucket: "%gcp_gcs_bucket%"
+      $gcsPrefix: "ocr-output"
+
+  # add more service definitions when explicit configuration is needed
+  # please note that last definitions always *replace* previous ones

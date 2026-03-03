@@ -1,0 +1,1020 @@
+{# templates/administrateur/engin/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d'un engin{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+
+    /* =========================
+      HERO (identique Sessions)
+      ========================= */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    /* Bouton outline en blanc dans le hero */
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ===== Form polish (comme session) ===== */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect polish + FIX dropdown */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown{ z-index: 9999 !important; }
+    .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
+    .card, .card-body, .container, .container-fluid, .cardx, .cardx *{ overflow: visible; }
+
+    /* ===== Sticky actions (col droite) ===== */
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+    /* ======================================================================
+       === TES STYLES EXISTANTS (upload/gallery/switch) CONSERVÉS ============
+       ====================================================================== */
+
+    /* ---------- Zones d’upload ---------- */
+    .upload-zone{
+      position: relative;
+      background: #0f2230; border:1.5px dashed var(--theme-color-secondaire);
+      border-radius: .9rem; padding: 1.25rem; text-align: center; color:#cfe8f6;
+      transition: .2s ease; cursor: pointer;
+    }
+    .upload-zone:hover{ box-shadow: 0 0 0 .2rem rgba(255,193,7,.15); }
+    .upload-zone.dragover{ background:#102a3a; border-color:#ffd24d; }
+    .upload-zone .hint{ font-size: .9rem; opacity: .85; }
+    .upload-zone .preview img{ max-height: 180px; border-radius:.65rem; border:1px solid rgba(255,255,255,.15); }
+
+    /* ---------- Galerie ---------- */
+    .gallery-grid{ display:flex; flex-wrap:wrap; gap:.9rem; }
+    .gallery-item{
+      position: relative; width: 150px; height: 120px;
+      border-radius: .8rem; overflow: hidden; background: #0f2230;
+      border:1px solid rgba(255,255,255,.08); box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    }
+    .gallery-item img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .gallery-item .drag-handle{
+      position:absolute; left:.4rem; top:.4rem; z-index:2;
+      background: rgba(0,0,0,.45); color:#fff; border-radius:.5rem; padding:.15rem .4rem;
+      font-size:.95rem; cursor:grab;
+    }
+    .gallery-item .btn-delete{
+      position:absolute; right:.4rem; top:.4rem; z-index:2;
+      border:none; border-radius:.5rem; padding:.2rem .45rem; color:#fff;
+      background: linear-gradient(180deg, #ff5a5f, #e73d45);
+    }
+    .gallery-item.pending-delete{ opacity:.35; filter: grayscale(1); }
+    #reorderHelp{ font-size:.92rem; color:#a8c9da; }
+
+    /* ================= Switch rows (style session) ================= */
+    .soft-box{
+      border-radius: 16px;
+      border: 1px dashed rgba(15,35,54,.18);
+      background: rgba(248,251,254,.75);
+      padding: 1rem;
+    }
+    .switch-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 1rem;
+      padding:.8rem .9rem;
+      border-radius:14px;
+      border:1px solid rgba(15,35,54,.08);
+      background:#fff;
+    }
+    .switch-row + .switch-row{ margin-top:.65rem; }
+    .switch-row .title{ font-weight:700; line-height:1.15; }
+    .switch-row .desc{ margin-top:.25rem; font-size:.85rem; color:#6b7280; }
+    .switch-row .form-check.form-switch{ margin:0; }
+    .switch-row .form-check-input{ width:2.6em; height:1.35em; }
+    .switch-row .form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+    }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js')}}"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# =========================
+    HERO (identique Sessions)
+    ========================= #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-truck me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ modeEdition ? 'Modification' : 'Ajout' }} d’un engin
+          </h2>
+          <div class="opacity-75 mt-1">Infos, capacités, images & équipements.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-ship"></i> Engin</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill">
+              <i class="bi bi-pencil-square"></i> {{ modeEdition ? 'Modification' : 'Création' }}
+            </span>
+            {% if form.vars.value and form.vars.value.id %}
+              <span class="chip"><i class="bi bi-hash"></i> #{{ form.vars.value.id }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold" href="javascript:history.back()">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+            <i class="bi bi-check2 me-1"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate', name:'engin_administrateur' } }) }}
+  {{ form_errors(form) }}
+
+  {# ordre des photos (rempli par JS lors du drag) #}
+  <input type="hidden" id="photos_order" name="photos_order" value="">
+
+  <div class="row g-4">
+    {# ====================== COL LEFT ====================== #}
+    <div class="col-lg-8">
+
+      {# ===== Infos ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-info-circle text-warning"></i> Informations</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.nom) }}</div>
+            <div class="col-md-6">{{ form_row(form.site) }}</div>
+            <div class="col-md-4">{{ form_row(form.type) }}</div>
+            <div class="col-md-4">{{ form_row(form.annee) }}</div>
+            <div class="col-md-4">{{ form_row(form.personnes) }}</div>
+            <div class="col-12">{{ form_row(form.caracteristique) }}</div>
+          </div>
+
+          <hr class="my-4" />
+
+          <div class="row g-3">
+            <div class="col-md-4">{{ form_row(form.longueurHt) }}</div>
+            <div class="col-md-4">{{ form_row(form.largeurMax) }}</div>
+            <div class="col-md-4">{{ form_row(form.tirantEau) }}</div>
+            <div class="col-md-6">{{ form_row(form.reservoirFuel) }}</div>
+            <div class="col-md-6">{{ form_row(form.reservoirEau) }}</div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Images (bannière + couverture) ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-images text-warning"></i> Images principales</h5>
+          <span class="chip">Média</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-4 align-items-start">
+
+            <div class="col-lg-6">
+              <label class="form-label fw-semibold">Photo de bannière</label>
+              <div class="upload-zone" id="banniere-zone" data-input-id="{{ form.photoBanniere.vars.id }}">
+                <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block"></i>
+                <div class="hint">Glissez une image ici ou cliquez pour choisir un fichier</div>
+
+                {{ form_widget(form.photoBanniere, {'attr': {'class':'d-none', 'accept': 'image/*'}}) }}
+
+                <div class="preview mt-3 d-flex flex-column align-items-center gap-2">
+                  {% if engin.photoBanniere %}
+                    <img class="img-fluid" src="{{ asset('uploads/photos/engin/' ~ engin.photoBanniere) }}" alt="Bannière">
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-sm btn-outline-danger" id="banniere-delete-btn">
+                        <i class="fa fa-trash me-1"></i> Supprimer
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="banniere-undo-btn">
+                        Annuler
+                      </button>
+                    </div>
+                  {% else %}
+                    <img class="img-fluid d-none" alt="Aperçu bannière">
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-sm btn-outline-danger d-none" id="banniere-delete-btn">
+                        <i class="fa fa-trash me-1"></i> Supprimer
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="banniere-undo-btn">
+                        Annuler
+                      </button>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <label class="form-label fw-semibold">Photo de couverture</label>
+              <div class="upload-zone" id="cover-zone" data-input-id="{{ form.photoCouverture.vars.id }}">
+                <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block"></i>
+                <div class="hint">Glissez une image ici ou cliquez pour choisir un fichier</div>
+
+                {{ form_widget(form.photoCouverture, {'attr': {'class':'d-none', 'accept': 'image/*'}}) }}
+
+                <div class="preview mt-3 d-flex flex-column align-items-center gap-2">
+                  {% if engin.photoCouverture %}
+                    <img class="img-fluid" src="{{ asset('uploads/photos/engin/' ~ engin.photoCouverture) }}" alt="Couverture">
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-sm btn-outline-danger" id="cover-delete-btn">
+                        <i class="fa fa-trash me-1"></i> Supprimer
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="cover-undo-btn">
+                        Annuler
+                      </button>
+                    </div>
+                  {% else %}
+                    <img class="img-fluid d-none" alt="Aperçu couverture">
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-sm btn-outline-danger d-none" id="cover-delete-btn">
+                        <i class="fa fa-trash me-1"></i> Supprimer
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="cover-undo-btn">
+                        Annuler
+                      </button>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# ===== Galerie ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-collection text-warning"></i> Galerie</h5>
+          <span class="chip">Tri & suppression</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <label class="form-label fw-semibold">Galerie</label>
+
+          <div class="upload-zone mb-2" id="gallery-zone" data-input-id="{{ form.galleryFiles.vars.id }}">
+            <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block"></i>
+            <div class="hint">Glissez plusieurs images ici ou cliquez pour sélectionner</div>
+            {{ form_widget(form.galleryFiles, {'attr': {'class':'d-none', 'multiple':'multiple', 'accept':'image/*'}}) }}
+          </div>
+
+          <div id="reorderHelp" class="mt-1">
+            Glissez-déposez les vignettes existantes pour réordonner. Cliquez sur la croix pour supprimer.
+          </div>
+
+          <div id="gallery-sortable"
+               class="gallery-grid mt-3"
+               data-reorder-url="{% if engin.id %}{{ path('app_administrateur_engin_photos_reorder', {id: engin.id, entite: entite.id})|default('') }}{% endif %}">
+            {% for p in engin.photos %}
+              <div class="gallery-item" data-photo-id="{{ p.id }}">
+                <span class="drag-handle"><i class="fa fa-grip-vertical"></i></span>
+                <img src="{{ asset('uploads/photos/engin/' ~ p.filename) }}" alt="{{ p.alt ?? '' }}">
+                <button type="button"
+                        class="btn-delete"
+                        title="Supprimer"
+                        data-del-url="{{ path('app_administrateur_engin_photo_supprimer', {id: p.id, entite: entite.id}) }}"
+                        data-csrf="{{ csrf_token('del_photo_' ~ p.id) }}">
+                  <i class="fa fa-times"></i>
+                </button>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div id="gallery-pending" class="gallery-grid mt-3"></div>
+
+          {% if engin.photos|length == 0 %}
+            <div class="text-muted mt-2" id="gallery-empty-msg">Aucune image dans la galerie pour le moment.</div>
+          {% endif %}
+
+          <div class="mt-3 d-flex gap-2 align-items-center">
+            <button type="button" id="saveOrderBtn" class="btn btn-outline-primary btn-sm">
+              <i class="fa fa-floppy-disk me-1"></i> Enregistrer l’ordre
+            </button>
+            <span class="text-muted small" id="saveOrderMsg" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Capacités ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-person-badge text-warning"></i> Capacités</h5>
+          <span class="chip">Config</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-4">{{ form_row(form.capacite) }}</div>
+            <div class="col-md-4">{{ form_row(form.capaciteCouchage) }}</div>
+            <div class="col-md-4">{{ form_row(form.cabine) }}</div>
+
+            <div class="col-md-4">{{ form_row(form.cabinesDoubles) }}</div>
+            <div class="col-md-4">{{ form_row(form.couchagesCarres) }}</div>
+            <div class="col-md-4">{{ form_row(form.couchagesRecommandes) }}</div>
+
+            <div class="col-md-4">{{ form_row(form.douche) }}</div>
+            <div class="col-md-4">{{ form_row(form.chambre) }}</div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Équipements ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-plug text-warning"></i> Équipements</h5>
+          <span class="chip">Switchs</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="soft-box">
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Dessalinisateur</div>
+                    <div class="desc">Production d’eau douce à bord.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.dessalinisateur, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.dessalinisateur) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Panneaux solaires</div>
+                    <div class="desc">Autonomie électrique accrue.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.panneauxSolaires, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.panneauxSolaires) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Réfrigérateur</div>
+                    <div class="desc">Confort à bord (froid alimentaire).</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.refrigerateur, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.refrigerateur) }}
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="soft-box">
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Prise (220V/USB)</div>
+                    <div class="desc">Prises disponibles à bord.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.prise, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.prise) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Propulseur d’étrave</div>
+                    <div class="desc">Aide aux manœuvres de port.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.propulseurEtrave, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.propulseurEtrave) }}
+
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">GPS</div>
+                    <div class="desc">Navigation assistée / positionnement.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.gps, { attr: { class: 'form-check-input' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.gps) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="form-text mt-2">
+            Ces équipements sont affichés sur la fiche engin et peuvent servir de filtres.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Actions bas ===== #}
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <a href="javascript:history.back()" class="btn btn-secondary">
+          <i class="fa fa-arrow-left"></i> Retour
+        </a>
+        <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
+          <i class="fa fa-check"></i> {{ modeEdition ? 'Modifier' : 'Ajouter & Terminer' }}
+        </button>
+      </div>
+
+    </div>
+
+    {# ====================== COL RIGHT ====================== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="border rounded-4 p-3 mb-3"
+               style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Engin</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Nom</span>
+                <span class="fw-semibold text-end" id="resume-nom">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Site</span>
+                <span class="fw-semibold text-end" id="resume-site">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Type</span>
+                <span class="fw-semibold text-end" id="resume-type">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Année</span>
+                <span class="fw-semibold text-end" id="resume-annee">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Pers.</span>
+                <span class="fw-semibold text-end" id="resume-personnes">—</span>
+              </div>
+              <hr class="my-2" style="border-color: var(--stroke);">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Capacité</span>
+                <span class="fw-semibold text-end" id="resume-capacite">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Couchages</span>
+                <span class="fw-semibold text-end" id="resume-couchage">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="javascript:history.back()">Annuler</a>
+            <button type="submit" class="btn btn-gradient w-50" id="btnRightSubmit">
+              <i class="fa fa-check"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> nom + site + type requis.
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-check2"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+  
+
+{# ================== JS (TomSelect dropdownParent + validation + résumé live + ton upload/sortable) ================== #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // Flatpickr FR (si un jour tu en ajoutes)
+  if (window.flatpickr && window.flatpickr.l10ns && window.flatpickr.l10ns.fr) {
+    flatpickr.localize(flatpickr.l10ns.fr);
+  }
+
+  // TomSelect avec dropdownParent body (FIX z-index/overflow comme Session)
+  function initTomSelectOn(el, opts={}){
+    if (!el) return;
+    if (el.tomselect) return;
+    new TomSelect(el, Object.assign({
+      dropdownParent: 'body',
+      create:false,
+      allowEmptyOption:true,
+      sortField:{field:'text',direction:'asc'},
+      plugins:['remove_button'],
+      onChange: refreshResume
+    }, opts));
+  }
+
+  const $nom       = document.getElementById('{{ form.nom.vars.id }}');
+  const $site      = document.getElementById('{{ form.site.vars.id }}');
+  const $type      = document.getElementById('{{ form.type.vars.id }}');
+  const $annee     = document.getElementById('{{ form.annee.vars.id }}');
+  const $personnes = document.getElementById('{{ form.personnes.vars.id }}');
+  const $capacite  = document.getElementById('{{ form.capacite.vars.id }}');
+  const $couchage  = document.getElementById('{{ form.capaciteCouchage.vars.id }}');
+
+  initTomSelectOn($site);
+  initTomSelectOn($type);
+
+  // Validation (même logique que ta version)
+  initFormValidation({
+    formName: 'engin_administrateur',
+    tomSelectFields: [
+      { id:'{{ form.site.vars.id }}', label:'*Site' },
+      { id:'{{ form.type.vars.id }}', label:'*Type' },
+    ]
+  });
+
+  // Résumé live + complétude (style session)
+  const formMain = document.querySelector('form[name="engin_administrateur"]');
+  const submitButtons = formMain ? [...formMain.querySelectorAll('button[type="submit"]')] : [];
+
+  const $r = {
+    nom: document.getElementById('resume-nom'),
+    site: document.getElementById('resume-site'),
+    type: document.getElementById('resume-type'),
+    annee: document.getElementById('resume-annee'),
+    personnes: document.getElementById('resume-personnes'),
+    capacite: document.getElementById('resume-capacite'),
+    couchage: document.getElementById('resume-couchage'),
+    pill: document.getElementById('resume-valid-pill')
+  };
+
+  function selectedText(selectEl){
+    if (!selectEl || !selectEl.value) return '';
+    const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+    return (opt ? opt.textContent : '').trim();
+  }
+
+  function refreshResume(){
+    if ($r.nom) $r.nom.textContent = ($nom?.value || '').trim() || '—';
+    if ($r.site) $r.site.textContent = selectedText($site) || '—';
+    if ($r.type) $r.type.textContent = selectedText($type) || '—';
+    if ($r.annee) $r.annee.textContent = ($annee?.value || '').trim() || '—';
+    if ($r.personnes) $r.personnes.textContent = ($personnes?.value || '').trim() || '—';
+    if ($r.capacite) $r.capacite.textContent = ($capacite?.value || '').trim() || '—';
+    if ($r.couchage) $r.couchage.textContent = ($couchage?.value || '').trim() || '—';
+
+    const hasNom  = !!(($nom?.value || '').trim());
+    const hasSite = !!(($site?.value || '').trim());
+    const hasType = !!(($type?.value || '').trim());
+
+    const ok = hasNom && hasSite && hasType && (formMain ? formMain.checkValidity() : true);
+
+    submitButtons.forEach(b => b.disabled = !ok);
+
+    if ($r.pill) {
+      if (ok) {
+        $r.pill.textContent = '✅ Complet';
+        $r.pill.style.background = 'rgba(25,135,84,.15)';
+        $r.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $r.pill.style.color = 'var(--ink)';
+      } else {
+        $r.pill.textContent = '⚠️ Incomplet';
+        $r.pill.style.background = 'rgba(255,193,7,.15)';
+        $r.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $r.pill.style.color = 'var(--ink)';
+      }
+    }
+  }
+
+  [$nom,$annee,$personnes,$capacite,$couchage].forEach(el=>{
+    el?.addEventListener('input', refreshResume);
+    el?.addEventListener('change', refreshResume);
+  });
+  $site?.addEventListener('change', refreshResume);
+  $type?.addEventListener('change', refreshResume);
+
+  refreshResume();
+
+  // ===== Uploads / Sortable : TON CODE (repris) =====
+  initUploadZone('banniere-zone');
+  initUploadZone('cover-zone');
+  initUploadZone('gallery-zone', { multiple: true, type: 'gallery' });
+
+  const dbContainer = document.getElementById('gallery-sortable');
+  let dbSortable = null;
+  if (dbContainer && dbContainer.children.length) {
+    dbSortable = new Sortable(dbContainer, {
+      animation: 150,
+      handle: '.drag-handle',
+      ghostClass: 'bg-dark-subtle',
+      onEnd: () => updateOrderField()
+    });
+  }
+
+  function collectIds(){
+    if (!dbContainer) return [];
+    return [...dbContainer.querySelectorAll('.gallery-item[data-photo-id]')].map(el => el.dataset.photoId);
+  }
+  function updateOrderField(){
+    const ids = collectIds();
+    const hidden = document.getElementById('photos_order');
+    if (hidden) hidden.value = ids.join(',');
+  }
+  updateOrderField();
+
+  const saveBtn = document.getElementById('saveOrderBtn');
+  const saveMsg = document.getElementById('saveOrderMsg');
+  if (saveBtn){
+    saveBtn.addEventListener('click', async () => {
+      if (!dbContainer) return;
+      const url = dbContainer.dataset.reorderUrl;
+      const ids = collectIds();
+      updateOrderField();
+      if (!url) { saveMsg.textContent = "Ordre prêt — sera enregistré à la sauvegarde du formulaire."; return; }
+      saveBtn.disabled = true; saveMsg.textContent = "Enregistrement…";
+      try{
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+          body: JSON.stringify({ order: ids })
+        });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        saveMsg.textContent = "Ordre enregistré.";
+      }catch(e){ console.error(e); saveMsg.textContent = "Erreur lors de l’enregistrement."; }
+      finally{ saveBtn.disabled = false; setTimeout(()=> saveMsg.textContent = '', 2500); }
+    });
+  }
+
+  function initUploadZone(wrapperId, opts = {}){
+    const zone = document.getElementById(wrapperId);
+    if (!zone) return;
+
+    const { multiple=false, type='cover' } = opts;
+    const inputId = zone.dataset.inputId;
+    const input = document.getElementById(inputId) || zone.querySelector('input[type="file"]');
+    const previewImg = zone.querySelector('.preview img');
+    const pending = document.getElementById('gallery-pending');
+    const emptyMsg = document.getElementById('gallery-empty-msg');
+
+    const toArray = fl => Array.from(fl || []);
+    function mergeFiles(existing, added){
+      const dt = new DataTransfer();
+      toArray(existing).forEach(f => dt.items.add(f));
+      toArray(added).forEach(f => dt.items.add(f));
+      return dt.files;
+    }
+    function rebuildFiles(exceptIndex){
+      const dt = new DataTransfer();
+      toArray(input.files).forEach((f, i) => { if (i !== exceptIndex) dt.items.add(f); });
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change', { bubbles:true }));
+    }
+    function showCover(file){
+      if (!previewImg) return;
+      const rdr = new FileReader();
+      rdr.onload = ev => { previewImg.src = ev.target.result; previewImg.classList.remove('d-none'); };
+      rdr.readAsDataURL(file);
+    }
+
+    zone.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('form')) return;
+      input?.click();
+    });
+
+    input?.addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (!files || !files.length) return;
+
+      if (type === 'gallery') {
+        if (pending) pending.innerHTML = '';
+        toArray(files).forEach((file, i) => {
+          const url = URL.createObjectURL(file);
+          const item = document.createElement('div');
+          item.className = 'gallery-item';
+          item.setAttribute('data-pending-index', i);
+          item.innerHTML = `
+            <span class="drag-handle"><i class="fa fa-grip-vertical"></i></span>
+            <img src="${url}" alt="">
+            <button type="button" class="btn-delete" title="Supprimer"><i class="fa fa-times"></i></button>
+          `;
+          item.querySelector('.btn-delete').addEventListener('click', (ev)=>{
+            ev.stopPropagation();
+            const pos = [...pending.children].indexOf(item);
+            item.remove();
+            [...pending.children].forEach((el, k)=> el.dataset.pendingIndex = k);
+            rebuildFiles(pos);
+          });
+          pending.appendChild(item);
+        });
+
+        if (pending && !pending.dataset.sortableInit){
+          new Sortable(pending, { animation:150, handle: '.drag-handle' });
+          pending.dataset.sortableInit = '1';
+        }
+        emptyMsg?.remove();
+      } else {
+        showCover(files[0]);
+      }
+    });
+
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('dragover');
+      if (!input) return;
+
+      const dropped = e.dataTransfer?.files || [];
+      if (!dropped.length) return;
+
+      if (multiple) {
+        input.files = mergeFiles(input.files, dropped);
+      } else {
+        const dt = new DataTransfer();
+        dt.items.add(dropped[0]);
+        input.files = dt.files;
+      }
+      input.dispatchEvent(new Event('change', { bubbles:true }));
+    });
+  }
+
+  function initFormValidation({ formName, tomSelectFields=[] }){
+    const form = document.querySelector(`form[name="${formName}"]`);
+    if (!form) return;
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (!submitButton) return;
+
+    let errorAlert = document.getElementById('form-error-alert');
+    if (!errorAlert) {
+      errorAlert = document.createElement('div');
+      errorAlert.className = 'alert alert-danger d-none';
+      errorAlert.id = 'form-error-alert';
+      submitButton.parentElement.prepend(errorAlert);
+    }
+
+    form.addEventListener('submit', e=>{
+      const messages = new Set();
+      let first = null;
+
+      tomSelectFields.forEach(({id,label})=>{
+        const f = document.getElementById(id);
+        if (f && f.hasAttribute('required') && (!f.value || !f.value.trim())) {
+          f.classList.add('is-invalid');
+          messages.add(`- ${label}`);
+          if(!first) first=f;
+        }
+      });
+
+      form.querySelectorAll(':invalid').forEach(el=>{
+        el.classList.add('is-invalid');
+        if(!first) first=el;
+        const l = form.querySelector(`label[for="${el.id}"]`);
+        if (l) messages.add(`- ${l.textContent.trim()}`);
+      });
+
+      if (messages.size) {
+        e.preventDefault();
+        errorAlert.innerHTML = `<strong>Champs requis manquants :</strong><br>${[...messages].join('<br>')}`;
+        errorAlert.classList.remove('d-none');
+        if (first && first.scrollIntoView) first.scrollIntoView({behavior:'smooth', block:'center'});
+        setTimeout(()=>errorAlert.classList.add('d-none'), 6000);
+      }
+    });
+  }
+
+});
+
+// Suppression photo (POST via fetch) - évite les <form> imbriqués
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.btn-delete[data-del-url]');
+  if (!btn) return;
+  e.preventDefault();
+
+  if (!confirm('Supprimer cette photo ?')) return;
+
+  const url = btn.dataset.delUrl;
+  const token = btn.dataset.csrf;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({ _token: token })
+    });
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    btn.closest('.gallery-item')?.remove();
+
+    // Mets à jour l’ordre
+    const hidden = document.getElementById('photos_order');
+    const cont = document.getElementById('gallery-sortable');
+    if (hidden && cont) {
+      hidden.value = [...cont.querySelectorAll('.gallery-item[data-photo-id]')].map(x=>x.dataset.photoId).join(',');
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Erreur lors de la suppression de l’image.");
+  }
+});
+</script>
+{% endblock %}

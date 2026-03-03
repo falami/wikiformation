@@ -1,0 +1,1239 @@
+{# templates/administrateur/utilisateur/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Clients{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ===== HERO (identique sessions) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem; border-radius:999px; font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .chip i{ color: var(--theme-color-secondaire); }
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Filterbar (identique sessions) ===== */
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      overflow: visible;
+    }
+    .filterbar__top{
+      padding: .9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+    }
+    .filterbar__title{ font-weight:800; letter-spacing:-.01em; margin:0; font-size:1rem; }
+    .filterbar__hint{ color: rgba(0,0,0,.55); font-size:.85rem; margin-left:.25rem; }
+    .filterbar__body{ padding: 1rem; }
+
+    .filtergrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: .75rem;
+      align-items:end;
+    }
+
+    .fcol-role{ grid-column: span 3; }
+    .fcol-verified{ grid-column: span 3; }
+    .fcol-locked{ grid-column: span 3; }
+    .fcol-search{ grid-column: span 2; }
+    .fcol-actions{ grid-column: span 1; }
+
+    @media (max-width: 1200px){
+      .fcol-role{ grid-column: span 6; }
+      .fcol-verified{ grid-column: span 6; }
+      .fcol-locked{ grid-column: span 6; }
+      .fcol-search{ grid-column: span 6; }
+      .fcol-actions{ grid-column: span 12; }
+    }
+    @media (max-width: 768px){
+      .filterbar__body{ padding:.85rem; }
+      .fcol-role, .fcol-verified, .fcol-locked, .fcol-search, .fcol-actions{ grid-column: span 12; }
+      .hero{ border-radius:16px; }
+    }
+
+    .filter-control .form-label{
+      font-size:.78rem;
+      font-weight:700;
+      color: rgba(0,0,0,.55);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      margin-bottom:.25rem;
+    }
+    .filterbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.04);
+    }
+    .filterbox:focus-within{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .filterrow{ display:flex; gap:.6rem; align-items:center; }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .filterbox .form-select,
+    .filterbox .form-control{
+      border:0 !important;
+      box-shadow:none !important;
+      padding-left:0 !important;
+      padding-right:0 !important;
+      background:transparent !important;
+    }
+
+    .resetbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+      cursor:pointer;
+      user-select:none;
+      transition: all .16s ease;
+      width: 100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .resetbox:hover{
+      border-color: rgba(0,0,0,.14);
+      box-shadow: 0 10px 20px rgba(0,0,0,.06);
+      transform: translateY(-1px);
+    }
+    .resetbox:focus,
+    .resetbox:focus-visible{
+      outline: none;
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .resetbox.is-active{
+      border-color: rgba(255,193,7,.35);
+      background: rgba(255,193,7,.06);
+    }
+    .resetbox:disabled{ cursor: default; opacity: .55; transform:none; }
+    .resetbox__text{ font-size:.9rem; font-weight:800; color: rgba(0,0,0,.65); }
+    .resetbox__badge{
+      min-width: 28px;
+      height: 22px;
+      padding: 0 .5rem;
+      border-radius: 999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:.78rem;
+      font-weight:800;
+      background: rgba(0,0,0,.06);
+      color: rgba(0,0,0,.65);
+      border: 1px solid rgba(0,0,0,.08);
+      margin-left:.5rem;
+    }
+    .resetbox.is-active .resetbox__badge{
+      background: rgba(255,193,7,.22);
+      border-color: rgba(255,193,7,.30);
+      color: rgba(0,0,0,.75);
+    }
+
+    .active-filters{
+      padding: .65rem 1rem;
+      border-top:1px solid rgba(0,0,0,.06);
+      background:#fff;
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+    }
+    .active-filters .label{
+      font-size:.8rem;
+      color: rgba(0,0,0,.55);
+      font-weight:800;
+      margin-right:.25rem;
+    }
+    .af-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      padding:.35rem .6rem;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      font-size:.82rem;
+      cursor:pointer;
+      user-select:none;
+    }
+    .af-badge:hover{ background: rgba(255,193,7,.12); border-color: rgba(255,193,7,.25); }
+    .af-badge i{ opacity:.7; }
+
+    /* ===== Table card + DataTables (identique sessions) ===== */
+    .table-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow: visible;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      background:#f7f8fa!important;
+      border-bottom:1px solid rgba(0,0,0,.08)!important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color: rgba(0,0,0,.55);
+      text-align:center !important;
+      vertical-align: middle;
+    }
+    #tableauUtilisateur tbody td{
+      padding-top:.65rem!important;
+      padding-bottom:.65rem!important;
+      vertical-align: middle;
+      text-align:center !important;
+    }
+    #tableauUtilisateur tbody tr:nth-child(even) > *{ background:rgba(35,51,66,.035)!important; }
+    #tableauUtilisateur tbody tr:hover > *{ background:rgba(255,193,7,.08)!important; }
+
+    #tableauUtilisateur_wrapper .dataTables_scrollBody{
+      overflow-x:auto !important;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-gutter: stable both-edges;
+    }
+
+    #tableauUtilisateur td.action-column{
+      overflow: visible !important;
+      white-space: nowrap !important;
+      min-width: 140px;
+      text-align:right !important;
+    }
+
+    #tableauUtilisateur td.action-column .hover-actions{ z-index:50; }
+    @media (max-width: 768px){
+      /* ✅ Colonne actions sticky à droite */
+      #tableauUtilisateur td.action-column,
+      #tableauUtilisateur th.action-column{
+        position: sticky;
+        right: 0;
+        z-index: 5;
+        background: #fff;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+
+      #tableauUtilisateur td.action-column{
+        padding-left: .25rem !important;
+        padding-right: .15rem !important;
+      }
+    }
+
+
+    /* TomSelect dropdown au-dessus */
+    .filterbar .ts-dropdown{ z-index: 2000 !important; }
+
+    /* ===== Badges roles (ton existant) ===== */
+    .role-badges{ display:flex; flex-wrap:wrap; gap:.35rem; justify-content:center; }
+    .role-badge{
+      display:inline-flex; align-items:center; gap:.35rem;
+      padding:.28rem .55rem; border-radius:999px;
+      font-size:.78rem; font-weight:700; letter-spacing:.2px;
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(0,0,0,.04);
+      color:#0f2336;
+      white-space:nowrap;
+    }
+    .role-badge i{ font-size:.9rem; opacity:.9; }
+
+    .rb-stagiaire{ background:rgba(13,110,253,.10); border-color:rgba(13,110,253,.18); color:#0b3b8a; }
+    .rb-formateur{ background:rgba(25,135,84,.12); border-color:rgba(25,135,84,.20); color:#0a4b2e; }
+    .rb-admin{ background:rgba(255,193,7,.16); border-color:rgba(255,193,7,.26); color:#6a4a00; }
+    .rb-entreprise{ background:rgba(108,117,125,.14); border-color:rgba(108,117,125,.25); color:#2c3338; }
+    .rb-commercial{ background:rgba(13,202,240,.14); border-color:rgba(13,202,240,.26); color:#035d6f; }
+    .rb-super{ background:rgba(220,53,69,.12); border-color:rgba(220,53,69,.22); color:#7a1420; }
+
+
+
+    /* =========================
+      ✅ Actions utilisateurs (même design que Devis)
+      ========================= */
+
+    #tableauUtilisateur th:last-child,
+    #tableauUtilisateur td:last-child{
+      width: 1% !important;
+      min-width: 0 !important;
+      white-space: nowrap;
+    }
+
+    /* boutons compacts */
+    .user-actions .btn{
+      padding: .32rem .55rem;
+    }
+
+    /* bouton principal */
+    .user-actions .user-main{
+      background: rgba(255,255,255,.85);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    .user-actions .user-main:hover{
+      box-shadow: 0 14px 28px rgba(0,0,0,.10);
+      border-color: rgba(0,0,0,.18);
+    }
+
+    /* split */
+    .user-actions .user-split{
+      padding-left: .55rem;
+      padding-right: .55rem;
+      border-color: rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+    }
+
+    /* menu dropdown */
+    .user-actions .user-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .55rem;
+      background:
+        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        #fff;
+      overflow: hidden;
+    }
+    .user-actions .user-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .50rem .60rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+    }
+    .user-actions .user-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.22);
+    }
+
+    /* fusion pill (main + split) */
+    .user-actions.btn-group .user-main{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .user-actions.btn-group .user-split{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      margin-left: -1px;
+      position: relative;
+    }
+    .user-actions.btn-group .user-split:before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:20%;
+      bottom:20%;
+      width:1px;
+      background: rgba(0,0,0,.10);
+    }
+
+    /* alignement colonne */
+    #tableauUtilisateur td.action-column{
+      padding-left: 0 !important;
+      padding-right: .15rem !important;
+      text-align: right;
+    }
+
+    /* ✅ Menu actions "floaté" au-dessus de tout */
+    body .user-floating-dropdown{
+      z-index: 20000 !important;
+    }
+
+
+
+    @media (max-width: 768px){
+      /* ✅ Zebra identique sur la cellule sticky */
+      #tableauUtilisateur tbody tr:nth-child(even) > td.action-column{
+        background: rgba(35,51,66,.035) !important;
+      }
+
+      #tableauUtilisateur tbody tr:hover > td.action-column{
+        background: rgba(255,193,7,.08) !important;
+      }
+    }
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+  {# HERO #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-people me-2" style="color:var(--theme-color-secondaire)"></i>
+            Clients
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Stagiaires / comptes rattachés à l’entité.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="bi bi-shield-check"></i> Admin</span>
+            <span class="chip"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_utilisateur_ajouter', { entite: entite.id }) }}">
+            <i class="bi bi-person-plus me-1"></i> Nouveau client
+          </a>
+
+          <button type="button" class="btn btn-outline-light btn-sm fw-semibold"
+                  onclick="document.getElementById('filtersCollapse')?.scrollIntoView({behavior:'smooth'})">
+            <i class="bi bi-funnel me-1"></i> Filtres
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# FILTERBAR #}
+  <div class="filterbar mb-3">
+    <div class="filterbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
+        <div>
+          <div class="filterbar__title">Filtres</div>
+          <div class="filterbar__hint">Affiner par rôle, statut de compte, recherche…</div>
+        </div>
+      </div>
+
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm fw-semibold d-md-none"
+                type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+          <i class="bi bi-sliders"></i> Filtres
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="collapse d-md-block" id="filtersCollapse">
+      <div class="filterbar__body">
+        <div class="filtergrid">
+
+          <div class="filter-control fcol-role">
+            <div class="form-label">Rôle</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-person-badge"></i></div>
+                <select id="rolesFilter" class="form-select form-select-sm">
+                  <option value="all">Tous</option>
+                  <option value="TENANT_STAGIAIRE">Stagiaire</option>
+                  <option value="TENANT_FORMATEUR">Formateur</option>
+                  <option value="TENANT_ADMIN">Administrateur</option>
+                  <option value="TENANT_ENTREPRISE">Entreprise</option>
+                  <option value="TENANT_OF">Organisme de formation</option>
+                  <option value="TENANT_OPCO">OPCO</option>
+                  <option value="TENANT_COMMERCIAL">Commercial</option>
+                  <option value="TENANT_DIRIGEANT">Dirigeant</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-verified">
+            <div class="form-label">Vérifié</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-patch-check"></i></div>
+                <select id="verifiedFilter" class="form-select form-select-sm">
+                  <option value="all">Tous</option>
+                  <option value="1">Oui</option>
+                  <option value="0">Non</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-locked">
+            <div class="form-label">Verrouillé</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-lock"></i></div>
+                <select id="lockedFilter" class="form-select form-select-sm">
+                  <option value="all">Tous</option>
+                  <option value="1">Oui</option>
+                  <option value="0">Non</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-search">
+            <div class="form-label">Recherche</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-search"></i></div>
+                <input type="text" id="searchName" class="form-control form-control-sm" placeholder="Nom / prénom / email" />
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-actions">
+            <div class="form-label">&nbsp;</div>
+            <button id="btnReset" type="button" class="resetbox" title="Réinitialiser les filtres">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>
+              <span class="resetbox__text">Reset</span>
+              <span class="resetbox__badge" id="resetCount" style="display:none;">0</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="active-filters" id="activeFilters">
+        <span class="label"><i class="bi bi-lightning-charge"></i> Actifs :</span>
+        <span class="text-muted small" id="activeFiltersEmpty">Aucun</span>
+      </div>
+    </div>
+  </div>
+
+  {# TABLE #}
+  <div class="table-card mb-4 p-3">
+    <table id="tableauUtilisateur" class="table table-hover align-middle mb-0 w-100">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nom</th>
+          <th>Prénom</th>
+          <th>Email</th>
+          <th>Rôles</th>
+          <th>Inscriptions</th>
+          <th>Vérifié</th>
+          <th>Verrouillé</th>
+          <th class="action-column text-end"></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+
+
+{# Modal : Email d'activation #}
+<div class="modal fade modal-premium" id="activationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-envelope-check me-2"></i> Envoyer l’email d’activation
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-3 align-items-start">
+          <div class="flex-shrink-0"
+               style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                      background: rgba(25,135,84,.14); border:1px solid rgba(25,135,84,.20);">
+            <i class="bi bi-shield-check" style="font-size:20px;color:#198754;"></i>
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-semibold mb-1">
+              Tu vas envoyer un lien de validation à :
+              <div class="text-dark mt-1" id="activationUserLabel">—</div>
+            </div>
+
+            <ul class="small text-muted mb-0 ps-3">
+              <li>Le lien permet d’activer le compte et définir le mot de passe.</li>
+              <li>Un nouveau token sera généré (expiration 48h).</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" value="1" id="confirmActivationCheck">
+          <label class="form-check-label small" for="confirmActivationCheck">
+            Je confirme l’envoi de l’email d’activation.
+          </label>
+        </div>
+
+        <form id="activationForm" method="post" class="d-none">
+          <input type="hidden" name="_token" id="activationToken" value="">
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-success fw-semibold" id="btnConfirmActivation" disabled>
+          <i class="bi bi-send me-1"></i> Envoyer
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+
+
+{# Modal : Reset mot de passe #}
+<div class="modal fade modal-premium" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-key me-2"></i> Réinitialiser le mot de passe
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-3 align-items-start">
+          <div class="flex-shrink-0"
+               style="width:44px;height:44px;border-radius:14px;
+                      display:flex;align-items:center;justify-content:center;
+                      background: rgba(13,110,253,.14);
+                      border:1px solid rgba(13,110,253,.20);">
+            <i class="bi bi-shield-lock" style="font-size:20px;color:#0d6efd;"></i>
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-semibold mb-1">
+              Générer un lien de réinitialisation pour :
+              <div class="text-dark mt-1" id="resetUserLabel">—</div>
+            </div>
+
+            <ul class="small text-muted mb-0 ps-3">
+              <li>Un nouveau lien sécurisé sera généré.</li>
+              <li>L’ancien lien (s’il existe) deviendra invalide.</li>
+              <li>L’utilisateur recevra un email immédiatement.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" id="confirmResetCheck">
+          <label class="form-check-label small" for="confirmResetCheck">
+            Je confirme la génération du lien de réinitialisation.
+          </label>
+        </div>
+
+        <form id="resetPasswordForm" method="post" class="d-none">
+          <input type="hidden" name="_token" id="resetPasswordToken">
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button"
+                class="btn btn-primary fw-semibold"
+                id="btnConfirmReset"
+                disabled>
+          <i class="bi bi-send me-1"></i> Générer le lien
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+
+{% include 'partials/_modales_index_generiques.html.twig' %}
+
+<script>
+$(function(){
+  const $roles    = $('#rolesFilter');
+  const $verified = $('#verifiedFilter');
+  const $locked   = $('#lockedFilter');
+  const $search   = $('#searchName');
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[s]));
+  }
+
+  let tsRoles = null, tsVerified = null, tsLocked = null;
+  function initTomSelect(){
+    const common = {
+      create: false,
+      allowEmptyOption: true,
+      maxItems: 1,
+      plugins: ['clear_button'],
+      render: { no_results: () => '<div class="px-2 py-1 text-muted">Aucun résultat</div>' }
+    };
+    tsRoles?.destroy(); tsVerified?.destroy(); tsLocked?.destroy();
+    tsRoles    = new TomSelect('#rolesFilter',    {...common, placeholder:'Tous'});
+    tsVerified = new TomSelect('#verifiedFilter', {...common, placeholder:'Tous'});
+    tsLocked   = new TomSelect('#lockedFilter',   {...common, placeholder:'Tous'});
+
+    tsRoles.on('change',    () => refreshAll(true));
+    tsVerified.on('change', () => refreshAll(true));
+    tsLocked.on('change',   () => refreshAll(true));
+  }
+
+  function updateResetUi(count){
+    const btn = document.getElementById('btnReset');
+    const badge = document.getElementById('resetCount');
+    if(!btn || !badge) return;
+
+    if(count > 0){
+      btn.disabled = false;
+      btn.classList.add('is-active');
+      badge.style.display = 'inline-flex';
+      badge.textContent = String(count);
+    } else {
+      btn.disabled = true;
+      btn.classList.remove('is-active');
+      badge.style.display = 'none';
+      badge.textContent = '0';
+    }
+  }
+
+  function buildActiveFilters(){
+    const items = [];
+
+    const r = $roles.val();
+    if(r && r !== 'all') items.push({ key:'role', label:'Rôle', value: $('#rolesFilter option:selected').text() });
+
+    const v = $verified.val();
+    if(v && v !== 'all') items.push({ key:'verified', label:'Vérifié', value: (v === '1' ? 'Oui' : 'Non') });
+
+    const l = $locked.val();
+    if(l && l !== 'all') items.push({ key:'locked', label:'Verrouillé', value: (l === '1' ? 'Oui' : 'Non') });
+
+    const s = ($search.val() || '').trim();
+    if(s) items.push({ key:'search', label:'Recherche', value: s });
+
+    const $wrap = $('#activeFilters');
+    $wrap.find('.af-badge').remove();
+
+    if(items.length === 0){
+      $('#activeFiltersEmpty').show();
+      updateResetUi(0);
+      return;
+    }
+
+    $('#activeFiltersEmpty').hide();
+    updateResetUi(items.length);
+
+    items.forEach(it=>{
+      const $b = $(`<span class="af-badge" data-key="${it.key}">
+        <strong>${it.label} :</strong> ${escapeHtml(it.value)} <i class="bi bi-x-lg ms-1"></i>
+      </span>`);
+
+      $b.on('click', ()=>{
+        switch(it.key){
+          case 'role':     tsRoles.setValue('all', true); break;
+          case 'verified': tsVerified.setValue('all', true); break;
+          case 'locked':   tsLocked.setValue('all', true); break;
+          case 'search':   $search.val(''); break;
+        }
+        refreshAll(true);
+      });
+
+      $wrap.append($b);
+    });
+  }
+
+
+  // ✅ Dropdown actions users : on "flotte" le menu hors du scroll DataTables (sinon il est clippé)
+  (function enableUserActionsFloatingDropdown(){
+    document.addEventListener('show.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.user-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      const menu = dd.querySelector('.dropdown-menu');
+      if (!menu) return;
+
+      if (!menu.__originalParent) menu.__originalParent = dd;
+
+      document.body.appendChild(menu);
+      menu.classList.add('user-floating-dropdown');
+
+      const rect = toggle.getBoundingClientRect();
+
+      menu.style.position = 'absolute';
+      menu.style.top = '0px';
+      menu.style.left = '0px';
+      menu.style.display = 'block';
+      const menuRect = menu.getBoundingClientRect();
+
+      const isEnd = menu.classList.contains('dropdown-menu-end') || menu.classList.contains('dropdown-menu-end');
+      const top = rect.bottom + window.scrollY + 6;
+
+      let left = isEnd
+        ? (rect.right + window.scrollX - menuRect.width)
+        : (rect.left + window.scrollX);
+
+      left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+    }, true);
+
+    document.addEventListener('hidden.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.user-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      document.querySelectorAll('body .user-floating-dropdown').forEach(menu => {
+        if (menu.__originalParent === dd) {
+          dd.appendChild(menu);
+          menu.classList.remove('user-floating-dropdown');
+          menu.style.position = '';
+          menu.style.top = '';
+          menu.style.left = '';
+          menu.style.display = '';
+        }
+      });
+    }, true);
+
+    // ferme les menus ouverts si scroll/resize
+    window.addEventListener('scroll', () => {
+      document.querySelectorAll('.user-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.user-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+  })();
+
+
+  const table = $('#tableauUtilisateur').DataTable({
+    serverSide:true,
+    processing:true,
+    autoWidth: false,
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,
+
+    ajax:{
+      url:"{{ path('app_administrateur_utilisateur_ajax', { entite: entite.id }) }}",
+      type:"POST",
+      data: d => {
+        d.rolesFilter    = $roles.val() || 'all';
+        d.verifiedFilter = $verified.val() || 'all';
+        d.lockedFilter   = $locked.val() || 'all';
+        d.searchName     = $search.val() || '';
+      }
+    },
+
+    dom:
+      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+        + '<"dt-actions d-flex gap-2 align-items-center"B>'
+        + '<"dt-search"f>'
+      + '>'
+      + 'rt'
+      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+    buttons:['copy','csv','excel','pdf','print'],
+    lengthMenu:[[10,25,50,500],[10,25,50,500]],
+
+    columns:[
+      {data:'id', name:'id'},
+      {data:'nom', name:'nom'},
+      {data:'prenom', name:'prenom'},
+      {data:'email', name:'email'},
+      {
+        data:'roles',
+        name:'roles',
+        orderable:false,
+        render: function(data, type, row){
+          if(type !== 'display') return data || '';
+
+          const raw = (data || '').split(',').map(s => s.trim()).filter(Boolean);
+
+          const map = {
+            'TENANT_STAGIAIRE':  { label:'Stagiaire',              cls:'rb-stagiaire',  icon:'bi-mortarboard',    prio: 10 },
+            'TENANT_FORMATEUR':  { label:'Formateur',              cls:'rb-formateur',  icon:'bi-easel2',         prio: 20 },
+            'TENANT_ADMIN':      { label:'Administrateur',         cls:'rb-admin',      icon:'bi-shield-check',   prio: 30 },
+            'TENANT_ENTREPRISE': { label:'Entreprise',             cls:'rb-entreprise', icon:'bi-building',       prio: 15 },
+            'TENANT_OF':         { label:'Organisme de formation', cls:'rb-entreprise', icon:'bi-building',       prio: 15 },
+            'TENANT_OPCO':       { label:'OPCO',                   cls:'rb-entreprise', icon:'bi-building',       prio: 15 },
+            'TENANT_COMMERCIAL': { label:'Commercial',             cls:'rb-commercial', icon:'bi-graph-up-arrow', prio: 25 },
+            'TENANT_DIRIGEANT':  { label:'Dirigeant',              cls:'rb-admin',      icon:'bi-award',          prio: 28 },
+          };
+
+          const picked = raw
+            .map(r => map[r] ? ({ code:r, ...map[r] }) : ({ code:r, label:r.replace('ROLE_',''), cls:'', icon:'bi-person', prio: 1 }))
+            .filter(x => x.code !== 'ROLE_USER')
+            .sort((a,b)=> b.prio - a.prio);
+
+          if (!picked.length) return '<span class="text-muted">—</span>';
+
+          const badges = picked.map(r =>
+            `<span class="role-badge ${r.cls}"><i class="bi ${r.icon}"></i>${escapeHtml(r.label)}</span>`
+          ).join('');
+
+          return `<div class="role-badges">${badges}</div>`;
+        }
+      },
+      {data:'inscriptions', name:'inscriptions'},
+      {data:'verified', name:'verified'},
+      {data:'locked', name:'locked'},
+      {data:'actions', name:'actions'}
+    ],
+
+    columnDefs:[
+      {targets:8, className:'action-column text-end', orderable:false, searchable:false},
+      {targets:[6,7], visible:false},
+      {targets:[1,2,3,4,5], className:'text-center'}
+    ],
+
+    order:[[0,'desc']],
+    language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+
+    initComplete:function(){
+      const api = this.api();
+      const $btns = $(api.buttons().container()).find('button');
+
+      $('#exportMenu').empty();
+      $btns.each(function(){
+        const $b=$(this);
+        $('<li><a class="dropdown-item" href="#">'+$b.text()+'</a></li>')
+          .on('click',e=>{e.preventDefault();$b.click();})
+          .appendTo('#exportMenu');
+      });
+      $(api.buttons().container()).hide();
+      api.columns.adjust();
+    }
+  });
+
+  function refreshAll(resetPaging=false){
+    table.ajax.reload(null, !resetPaging ? false : true);
+    buildActiveFilters();
+    $('#hero-last-refresh').text('Maj : ' + nowLabel());
+  }
+
+  function dtAdjust(){ table.columns.adjust(); }
+  table.on('init.dt', () => setTimeout(dtAdjust, 60));
+  table.on('draw.dt', () => dtAdjust());
+  window.addEventListener('resize', () => setTimeout(dtAdjust, 150));
+
+  // Search debounce (filtre “Recherche” local)
+  let tSearch = null;
+  $search.on('input', ()=>{
+    clearTimeout(tSearch);
+    tSearch = setTimeout(()=>refreshAll(true), 300);
+  });
+
+  // Reset
+  $('#btnReset').on('click', function(){
+    tsRoles.setValue('all', true);
+    tsVerified.setValue('all', true);
+    tsLocked.setValue('all', true);
+    $search.val('');
+    table.search('');
+    refreshAll(true);
+  });
+
+  // Delete modal
+  $(document).on('click', '.delete-btn', function () {
+    const url   = $(this).data('url');
+    const token = $(this).data('token');
+
+    $('#deleteForm').attr('action', url);
+    $('#deleteToken').val(token);
+  });
+
+
+  // Init
+  initTomSelect();
+  buildActiveFilters();
+  $('#hero-last-refresh').text('Maj : ' + nowLabel());
+
+
+
+
+
+  // ✅ Helper anti double-clic + loading pour une modal "submit"
+  function bindConfirmModal({
+    modalId,
+    triggerSelector,
+    labelId,
+    checkId,
+    btnId,
+    formId,
+    tokenId,
+    lockedText,     // ex: "Envoi..."
+    lockedIconHtml  // ex: '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>'
+  }) {
+    const modalEl = document.getElementById(modalId);
+    if (!modalEl) return;
+
+    const label = document.getElementById(labelId);
+    const chk   = document.getElementById(checkId);
+    const btn   = document.getElementById(btnId);
+    const form  = document.getElementById(formId);
+    const token = document.getElementById(tokenId);
+
+    let submitting = false;
+    let originalBtnHtml = btn ? btn.innerHTML : '';
+
+    const closeBtn = modalEl.querySelector('.btn-close');
+
+    function lockUI() {
+      submitting = true;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.innerHTML = (lockedIconHtml || '') + (lockedText || 'Traitement...');
+      }
+
+      // optionnel : éviter fermeture pendant l'envoi
+      if (closeBtn) closeBtn.disabled = true;
+
+      // optionnel : empêcher backdrop/esc
+      const instance = bootstrap.Modal.getInstance(modalEl);
+      if (instance) {
+        modalEl.setAttribute('data-bs-backdrop', 'static');
+        modalEl.setAttribute('data-bs-keyboard', 'false');
+      }
+    }
+
+    function unlockUI() {
+      submitting = false;
+
+      if (btn) {
+        btn.disabled = !(chk && chk.checked);
+        btn.removeAttribute('aria-busy');
+        btn.innerHTML = originalBtnHtml;
+      }
+      if (closeBtn) closeBtn.disabled = false;
+
+      modalEl.removeAttribute('data-bs-backdrop');
+      modalEl.removeAttribute('data-bs-keyboard');
+    }
+
+    function resetState() {
+      submitting = false;
+      if (label) label.textContent = '—';
+      if (chk) chk.checked = false;
+      if (btn) {
+        btn.disabled = true;
+        btn.removeAttribute('aria-busy');
+        btn.innerHTML = originalBtnHtml;
+      }
+      if (form) form.setAttribute('action', '#');
+      if (token) token.value = '';
+      if (closeBtn) closeBtn.disabled = false;
+    }
+
+    // Remplissage depuis le trigger
+    document.addEventListener('click', function (e) {
+      const trigger = e.target.closest(triggerSelector);
+      if (!trigger) return;
+
+      const user = trigger.getAttribute('data-user') || trigger.dataset.user || '—';
+      const url  = trigger.getAttribute('data-url')  || trigger.dataset.url  || '#';
+      const csrf = trigger.getAttribute('data-token')|| trigger.dataset.token|| '';
+
+      if (label) label.textContent = user;
+      if (form)  form.setAttribute('action', url);
+      if (token) token.value = csrf;
+
+      // reset checkbox / bouton à l'ouverture
+      if (chk) chk.checked = false;
+      if (btn) btn.disabled = true;
+      unlockUI();
+    });
+
+    // Checkbox => active/désactive le bouton
+    chk?.addEventListener('change', () => {
+      if (!btn) return;
+      if (submitting) { btn.disabled = true; return; }
+      btn.disabled = !chk.checked;
+    });
+
+    // Click confirmer => lock + submit
+    btn?.addEventListener('click', () => {
+      if (submitting) return;
+      if (!chk || !chk.checked) return;
+
+      lockUI();
+
+      // 🔒 sécurité ultime : empêche double submit même si submit appelé ailleurs
+      if (form && !form.dataset.submitted) {
+        form.dataset.submitted = '1';
+        form.submit();
+      }
+    });
+
+    // Empêche Enter de resoumettre si quelqu'un focus un champ (ici il n'y en a pas, mais safe)
+    form?.addEventListener('submit', (e) => {
+      if (submitting) return;
+      // si un submit "manuel" arrive, on lock quand même
+      lockUI();
+    });
+
+    // Reset à la fermeture
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      if (form) delete form.dataset.submitted;
+      resetState();
+    });
+  }
+
+
+  // ✅ Bind 1 : activation
+  bindConfirmModal({
+    modalId: 'activationModal',
+    triggerSelector: '.js-open-activation-modal',
+    labelId: 'activationUserLabel',
+    checkId: 'confirmActivationCheck',
+    btnId: 'btnConfirmActivation',
+    formId: 'activationForm',
+    tokenId: 'activationToken',
+    lockedText: 'Envoi...',
+    lockedIconHtml: '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>'
+  });
+
+  // ✅ Bind 2 : reset password
+  bindConfirmModal({
+    modalId: 'resetPasswordModal',
+    triggerSelector: '.js-open-reset-modal',
+    labelId: 'resetUserLabel',
+    checkId: 'confirmResetCheck',
+    btnId: 'btnConfirmReset',
+    formId: 'resetPasswordForm',
+    tokenId: 'resetPasswordToken',
+    lockedText: 'Génération...',
+    lockedIconHtml: '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>'
+  });
+
+
+
+
+
+});
+</script>
+{% endblock %}

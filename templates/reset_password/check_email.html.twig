@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Email de réinitialisation envoyé{% endblock %}{% block stylesheets %}
+     <!-- ===============================================-->
+    <!--    Stylesheets-->
+    <!-- ===============================================-->
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <style>
+
+            body {
+                background-color: #233342;
+                color: white;
+            }
+        </style>
+{% endblock %}
+
+{% block body %}
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="col-md-6">
+        <div class="card shadow-lg">
+            <div class="card-header bg-success text-white text-center">
+                <h4><i class="bi bi-envelope-check"></i> Email envoyé</h4>
+            </div>
+            <div class="card-body text-center">
+                <p class="lead">
+                    📩 Si un compte correspond à votre email, un message contenant un lien de réinitialisation vous a été envoyé.
+                </p>
+                <p>
+                    Ce lien expirera dans <strong>{{ resetToken.expirationMessageKey|trans(resetToken.expirationMessageData, 'ResetPasswordBundle') }}</strong>.
+                </p>
+                <p>
+                    Si vous ne recevez pas d'email, vérifiez votre dossier spam ou <a href="{{ path('app_forgot_password_request') }}" class="text-primary fw-bold">essayez à nouveau</a>.
+                </p>
+                <div class="d-flex justify-content-center gap-3 mt-4">
+                    <a href="{{ path('app_forgot_password_request') }}" class="btn btn-warning"><i class="bi bi-arrow-clockwise"></i> Réessayer</a>
+                    <a href="{{ path('app_login') }}" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Retour à la connexion</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

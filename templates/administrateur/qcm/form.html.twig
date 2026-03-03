@@ -1,0 +1,821 @@
+{# templates/administrateur/qcm/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% set is_edit = (qcm is defined and qcm and qcm.id is not null) %}
+
+{% block title %}{{ is_edit ? 'Modifier' : 'Créer' }} un QCM{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+
+    /* ===== HERO (style Session) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color:#fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+    .hero .accent{
+      width:12px;
+      border-radius:999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* chips façon session */
+    .hero .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* bouton outline du hero (cohérent) */
+    .hero .btn-outline-hero{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-hero:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ===== Form polish ===== */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* ===== Question cards ===== */
+    .q-card{
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 6%, transparent), transparent);
+      box-shadow: 0 10px 26px rgba(15,23,42,.06);
+      overflow:hidden;
+    }
+    .q-head{
+      padding: .85rem 1rem;
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255,255,255,.55);
+    }
+    .q-badge{
+      display:inline-flex; align-items:center; gap:.4rem;
+      border-radius:999px;
+      padding:.25rem .6rem;
+      border:1px solid var(--stroke);
+      background: rgba(255,193,7,.14);
+      color: var(--ink);
+      font-weight: 800;
+      font-size:.78rem;
+      white-space:nowrap;
+    }
+    .q-actions .btn{ border-radius: 12px; }
+
+    /* ===== Options ===== */
+    .opt-row{
+      border-radius: 16px;
+      border: 1px dashed color-mix(in srgb, var(--theme-color-principal) 16%, var(--stroke));
+      background: rgba(255,255,255,.75);
+      padding:.75rem .75rem .65rem .75rem;
+    }
+    .opt-row:hover{
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 55%, var(--stroke));
+      box-shadow: 0 0 0 .18rem color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Sticky actions ===== */
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ===== helper ===== */
+    .vstack.gap-3 > *{ margin:0; }
+
+    .q-handle{ cursor: grab; border-radius: 12px; }
+    .q-card.sortable-ghost{ opacity:.6; }
+    .q-card.sortable-chosen{ box-shadow: 0 18px 50px rgba(15,23,42,.18); }
+
+    .q-item.sortable-ghost { opacity: .6; }
+    .q-item.sortable-chosen .q-card { box-shadow: 0 18px 50px rgba(15,23,42,.18); }
+
+
+    .opt-handle{ cursor: grab; border-radius: 12px; }
+    .opt-row.sortable-ghost{ opacity:.6; }
+    .opt-row.sortable-chosen{ box-shadow: 0 14px 40px rgba(15,23,42,.16); }
+
+
+
+
+
+
+    /* ===== Media Dropzone (Question/Option images) ===== */
+    .media-dropzone{
+      display:flex; align-items:center; gap:1rem;
+      padding: .85rem 1rem;
+      border-radius: 16px;
+      border: 2px dashed rgba(15,35,54,.22);
+      background: rgba(248,251,254,.75);
+      cursor: pointer;
+      transition: .25s ease;
+      min-height: 88px;
+    }
+    .media-dropzone:hover{
+      background: rgba(255,193,7,.08);
+      border-color: rgba(255,193,7,.6);
+    }
+    .media-dropzone.dragover{
+      background: rgba(59,130,246,.10);
+      border-color:#3b82f6;
+    }
+
+    .media-preview{
+      width: 72px; height: 72px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #eef2f6;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+      border: 1px solid rgba(15,35,54,.14);
+    }
+    .media-preview img{ width:100%; height:100%; object-fit: cover; }
+    .media-placeholder{ font-size: 1.6rem; color: #9aa9b7; }
+
+    .media-meta .title{ font-weight: 800; color: var(--ink); line-height: 1.1; }
+    .media-meta .sub{ font-size: .82rem; color: var(--muted); }
+
+    .media-actions{
+      display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem;
+    }
+    .media-actions .btn{ border-radius: 12px; }
+
+
+  </style>
+{% endblock %}
+
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO ===== #}
+  {# ===== HERO (style Session) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-ui-checks-grid me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ is_edit ? 'Modifier' : 'Créer' }} un QCM
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Titre, paramètres, questions & réponses.
+            <span class="ms-2"><strong>{{ entite.nom }}</strong></span>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="bi bi-pencil-square"></i> {{ is_edit ? 'Modification' : 'Création' }}</span>
+            {% if is_edit %}
+              <span class="chip"><i class="bi bi-hash"></i> #{{ qcm.id }}</span>
+            {% endif %}
+            <span class="chip"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-hero btn-sm fw-semibold"
+            href="{{ path('app_administrateur_qcm_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          {# IMPORTANT : submit vers TON form #}
+          <button type="submit" form="{{ form.vars.id }}" class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-check2 me-1"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ====================== COL LEFT ====================== #}
+    <div class="col-lg-8">
+
+      {# ===== Infos QCM ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-card-text text-warning"></i> Informations</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            {# adapte les champs selon ton FormType #}
+            {% if form.titre is defined %}
+              <div class="col-md-8">{{ form_row(form.titre) }}</div>
+            {% endif %}
+            {% if form.isActive is defined %}
+              <div class="col-md-4">{{ form_row(form.isActive) }}</div>
+            {% endif %}
+            {% if form.description is defined %}
+              <div class="col-12">{{ form_row(form.description) }}</div>
+            {% endif %}
+          </div>
+
+          <div class="form-text mt-2">
+            Donne un titre clair (ex: “Positionnement Excel — débutant”). Active le QCM quand il est prêt.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Questions ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-question-circle text-warning"></i> Questions</h5>
+          <div class="d-flex gap-2 align-items-center">
+            <span class="chip">
+              <span id="chip-q-count">{{ form.questions|length }}</span> question{{ form.questions|length > 1 ? 's' : '' }}
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" data-action="qcm-add-question">
+              <i class="bi bi-plus-circle"></i> Ajouter
+            </button>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">
+            Chaque question peut contenir des réponses, une image, et un mode (simple/multiple).
+          </div>
+
+          <div
+            id="qcm-questions"
+            class="vstack gap-3"
+            data-index="{{ form.questions|length }}"
+            data-prototype="{{ include('administrateur/qcm/_question_prototype.html.twig', { form: form.questions.vars.prototype })|e('html_attr') }}"
+          >
+            {% for q in form.questions %}
+              {% include 'administrateur/qcm/_question_item.html.twig' with { qForm: q, loopIndex: loop.index } %}
+            {% endfor %}
+          </div>
+
+          <div class="form-text mt-3">
+            Astuce : commence par 5–10 questions, puis enrichis. Pense à équilibrer difficulté et notation.
+          </div>
+        </div>
+      </div>
+
+      {# ===== Actions bas (mobile friendly) ===== #}
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <a class="btn btn-light" href="{{ path('app_administrateur_qcm_index', { entite: entite.id }) }}">Annuler</a>
+        <button type="submit" class="btn btn-gradient fw-semibold">
+          <i class="bi bi-check2"></i> {{ is_edit ? 'Enregistrer' : 'Créer le QCM' }}
+        </button>
+      </div>
+
+    </div>
+
+    {# ====================== COL RIGHT ====================== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="border rounded-4 p-3 mb-3"
+               style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">QCM</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Titre</span>
+                <span class="fw-semibold text-end" id="resume-titre">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Actif</span>
+                <span class="fw-semibold text-end" id="resume-active">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Questions</span>
+                <span class="fw-semibold text-end" id="resume-questions">{{ form.questions|length }}</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Réponses</span>
+                <span class="fw-semibold text-end" id="resume-options">0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="{{ path('app_administrateur_qcm_index', { entite: entite.id }) }}">Annuler</a>
+            <button type="submit" class="btn btn-gradient w-50 fw-semibold">
+              <i class="bi bi-check2"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> ajoute au moins 1 question + 2 réponses.
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-check2"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# IMPORTANT : afficher le token si présent #}
+  {% if form._token is defined %}
+    {{ form_row(form._token) }}
+  {% endif %}
+  {{ form_end(form, { render_rest: false }) }}
+
+
+{# ================== JS (questions/options) ================== #}
+<script>
+(function () {
+  const questionsWrap = document.getElementById('qcm-questions');
+  if (!questionsWrap) return;
+
+  const chipCount = document.getElementById('chip-q-count');
+  const resumeQuestions = document.getElementById('resume-questions');
+  const resumeOptions = document.getElementById('resume-options');
+  const resumePill = document.getElementById('resume-valid-pill');
+
+  const inputTitre = document.getElementById('{{ form.titre is defined ? form.titre.vars.id : "" }}');
+  const inputActive = document.getElementById('{{ form.isActive is defined ? form.isActive.vars.id : "" }}');
+
+  function htmlToElement(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html.trim();
+    return tpl.content.firstElementChild;
+  }
+
+  function initTomSelect(scope){
+    if (!window.TomSelect) return;
+    (scope || document).querySelectorAll('select.js-tomselect').forEach((el) => {
+      if (el.tomselect) return;
+      new TomSelect(el, {
+        dropdownParent: 'body',
+        create: false,
+        allowEmptyOption: true,
+        plugins: ['remove_button'],
+        sortField: { field: 'text', direction: 'asc' },
+      });
+    });
+  }
+
+  function countQuestions(){
+    return questionsWrap.querySelectorAll('[data-role="question-item"]').length;
+  }
+
+  function countOptions(){
+    return questionsWrap.querySelectorAll('[data-role="option-row"]').length;
+  }
+
+  if (window.Sortable) {
+    new Sortable(questionsWrap, {
+      animation: 150,
+      handle: '.q-handle',
+      draggable: '[data-role="question-item"]',
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      onEnd: function () {
+        syncQuestionsOrder();
+        refreshSummary();
+      }
+    });
+  }
+
+  syncQuestionsOrder();
+
+
+
+  function syncOptionsOrder(optionsWrap){
+    if (!optionsWrap) return;
+    const rows = Array.from(optionsWrap.querySelectorAll('[data-role="option-row"]'));
+
+    rows.forEach((row, i) => {
+      // position / ordre hidden
+      const input = row.querySelector('input.js-opt-order') 
+        || row.querySelector('input[name$="[position]"]')
+        || row.querySelector('input[name$="[ordre]"]');
+
+      if (input) input.value = String(i + 1);
+    });
+
+    // optionnel : mettre à jour le compteur "Réponses:"
+    const card = optionsWrap.closest('[data-role="question-card"]');
+    const optCount = card ? card.querySelector('[data-role="opt-count"]') : null;
+    if (optCount) optCount.textContent = String(rows.length);
+  }
+
+
+  function initSortableOptions(scope){
+    if (!window.Sortable) return;
+
+    (scope || document).querySelectorAll('[data-role="options-wrap"]').forEach((wrap) => {
+      if (wrap.__sortable_inited) return;
+
+      wrap.__sortable_inited = true;
+
+      new Sortable(wrap, {
+        animation: 150,
+        handle: '.opt-handle',
+        draggable: '[data-role="option-row"]',
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: function () {
+          syncOptionsOrder(wrap);
+          refreshSummary();
+        }
+      });
+
+      // sync au chargement
+      syncOptionsOrder(wrap);
+    });
+  }
+
+
+
+
+  function refreshSummary(){
+    const q = countQuestions();
+    const o = countOptions();
+
+    if (chipCount) chipCount.textContent = String(q);
+    if (resumeQuestions) resumeQuestions.textContent = String(q);
+    if (resumeOptions) resumeOptions.textContent = String(o);
+
+    const titleOk = inputTitre ? (inputTitre.value || '').trim().length > 0 : true;
+    const ok = titleOk && q >= 1 && o >= 2;
+
+    if (resumePill) {
+      if (ok) {
+        resumePill.textContent = '✅ Complet';
+        resumePill.style.background = 'rgba(25,135,84,.15)';
+        resumePill.style.borderColor = 'rgba(25,135,84,.35)';
+      } else {
+        resumePill.textContent = '⚠️ Incomplet';
+        resumePill.style.background = 'rgba(255,193,7,.15)';
+        resumePill.style.borderColor = 'rgba(255,193,7,.35)';
+      }
+      resumePill.style.color = 'var(--ink)';
+    }
+
+    const rt = document.getElementById('resume-titre');
+    const ra = document.getElementById('resume-active');
+    if (rt && inputTitre) rt.textContent = (inputTitre.value || '').trim() || '—';
+    if (ra && inputActive) ra.textContent = inputActive.checked ? 'Oui' : 'Non';
+  }
+
+  function syncQuestionsOrder(){
+    const items = Array.from(questionsWrap.querySelectorAll('[data-role="question-item"]'));
+
+    items.forEach((item, i) => {
+      // 1) update hidden input ordre
+      const inputOrdre = item.querySelector('input.js-q-order')
+        || item.querySelector('input[name$="[ordre]"]')
+        || item.querySelector('input[name$="[position]"]');
+
+      if (inputOrdre) inputOrdre.value = String(i + 1);
+
+      // 2) update badge "Question #X"
+      const badge = item.querySelector('.q-badge');
+      if (badge) badge.innerHTML = `<i class="bi bi-question-circle"></i> Question #${i + 1}`;
+    });
+
+    if (chipCount) chipCount.textContent = String(items.length);
+    if (resumeQuestions) resumeQuestions.textContent = String(items.length);
+  }
+
+
+  function reindexOptionsWrap(optionsWrap){
+    const rows = optionsWrap.querySelectorAll('[data-role="option-row"]');
+    optionsWrap.dataset.index = String(rows.length);
+  }
+
+
+
+  function addQuestion() {
+    const proto = questionsWrap.dataset.prototype;
+    let index = parseInt(questionsWrap.dataset.index || '0', 10);
+
+    const html = proto.replace(/__q__/g, String(index));
+    const el = htmlToElement(html);
+
+    questionsWrap.appendChild(el);
+    syncQuestionsOrder();
+
+    questionsWrap.dataset.index = String(index + 1);
+
+    initTomSelect(el);
+    initSortableOptions(el);  // ✅ AJOUTE ÇA
+    initMediaDropzones(el);
+    refreshSummary();
+  }
+
+
+  document.addEventListener('click', function (e) {
+    const btnAddQ = e.target.closest('[data-action="qcm-add-question"]');
+    if (btnAddQ) {
+      e.preventDefault();
+      addQuestion();
+      return;
+    }
+
+    const btnRemoveQ = e.target.closest('[data-action="qcm-remove-question"]');
+    if (btnRemoveQ) {
+      e.preventDefault();
+
+      const item = btnRemoveQ.closest('[data-role="question-item"]');
+      if (!item) return;
+
+      item.remove();
+
+      syncQuestionsOrder();
+      refreshSummary();
+      return;
+    }
+
+
+
+    const btnAddOpt = e.target.closest('[data-action="qcm-add-option"]');
+    if (btnAddOpt) {
+      e.preventDefault();
+      const card = btnAddOpt.closest('[data-role="question-card"]');
+      if (!card) return;
+
+      const optionsWrap = card.querySelector('[data-role="options-wrap"]');
+      if (!optionsWrap) return;
+
+      const proto = optionsWrap.dataset.prototype;
+      let index = parseInt(optionsWrap.dataset.index || '0', 10);
+
+      const html = proto.replace(/__o__/g, String(index));
+      const el = htmlToElement(html);
+
+      optionsWrap.appendChild(el);
+      optionsWrap.dataset.index = String(index + 1);
+
+      initSortableOptions(card);     // pour que le nouveau wrap soit prêt (ou re-check)
+      syncOptionsOrder(optionsWrap); // met à jour positions
+
+
+      initTomSelect(el);
+      refreshSummary();
+      return;
+    }
+
+    const btnRemoveOpt = e.target.closest('[data-action="qcm-remove-option"]');
+    if (btnRemoveOpt) {
+      e.preventDefault();
+
+      const row = btnRemoveOpt.closest('[data-role="option-row"]');
+      const optionsWrap = btnRemoveOpt.closest('[data-role="options-wrap"]') || row?.closest('[data-role="options-wrap"]');
+
+      if (row) row.remove();
+
+      if (optionsWrap) {
+        reindexOptionsWrap(optionsWrap);
+        syncOptionsOrder(optionsWrap);
+      }
+
+      refreshSummary();
+      return;
+    }
+
+  });
+
+  if (inputTitre) inputTitre.addEventListener('input', refreshSummary);
+  if (inputActive) inputActive.addEventListener('change', refreshSummary);
+
+  
+
+
+
+
+  function initMediaDropzones(scope){
+    (scope || document).querySelectorAll('.js-media-dropzone').forEach(zone => {
+      if (zone.__inited) return;
+      zone.__inited = true;
+
+      const inputId = zone.getAttribute('data-input-id');
+      const previewId = zone.getAttribute('data-preview-id');
+      const removeId = zone.getAttribute('data-remove-id');
+
+      const input = document.getElementById(inputId);
+      const preview = document.getElementById(previewId);
+      const removeBtn = removeId ? document.getElementById(removeId) : null;
+      const browseBtn = zone.querySelector('.js-media-browse');
+
+      if (!input || !preview) return;
+
+      const setPreview = (file) => {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.alt = 'Aperçu image';
+        preview.innerHTML = '';
+        preview.appendChild(img);
+        removeBtn?.classList.remove('d-none');
+      };
+
+      const clearPreview = () => {
+        preview.innerHTML = `<div class="media-placeholder"><i class="bi bi-image"></i></div>`;
+        input.value = '';
+        removeBtn?.classList.add('d-none');
+      };
+
+      zone.addEventListener('click', (e) => {
+        if (e.target.closest('.js-media-remove')) return;
+        if (e.target.closest('.js-media-browse')) return;
+        input.click();
+      });
+
+      browseBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        input.click();
+      });
+
+      removeBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        clearPreview();
+      });
+
+      input.addEventListener('change', () => {
+        const f = input.files && input.files[0];
+        if (f) setPreview(f);
+      });
+
+      ['dragenter','dragover'].forEach(evt => zone.addEventListener(evt, (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.add('dragover');
+      }));
+      ['dragleave','drop'].forEach(evt => zone.addEventListener(evt, (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.remove('dragover');
+      }));
+      zone.addEventListener('drop', (e)=>{
+        const f = e.dataTransfer?.files?.[0];
+        if (!f) return;
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        input.files = dt.files;
+        setPreview(f);
+      });
+    });
+  }
+
+
+  // init
+  initTomSelect(document);
+  initSortableOptions(document);
+  initMediaDropzones(document);
+  refreshSummary();
+
+
+})();
+</script>
+<script>
+(function(){
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  const el = document.getElementById('hero-last-refresh');
+  if(el) el.textContent = 'Maj : ' + nowLabel();
+})();
+</script>
+
+{% endblock %}

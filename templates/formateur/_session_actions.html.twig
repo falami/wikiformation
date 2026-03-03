@@ -1,0 +1,44 @@
+{# templates/formateur/_session_actions.html.twig #}
+
+{% set sid = s.id %}
+{% set canExport = canExport|default(true) %}
+
+<div class="btn-group btn-group-sm" role="group">
+
+  {# ✅ Action principale #}
+  <a class="btn btn-outline-primary"
+     data-bs-toggle="tooltip" title="Ouvrir la session"
+     href="{{ path('app_formateur_session_show', { entite: entite.id, id: sid }) }}">
+    <i class="bi bi-folder2-open"></i>
+    <span class="d-none d-lg-inline">Ouvrir</span>
+  </a>
+
+  {# ✅ Dropdown secondaires #}
+  <button type="button"
+          class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Actions</span>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li>
+      <a class="dropdown-item"
+         href="{{ path('app_formateur_session_show', { entite: entite.id, id: sid }) }}">
+        <i class="bi bi-eye me-2"></i>Voir détails
+      </a>
+    </li>
+
+    <li><hr class="dropdown-divider"></li>
+
+    <li>
+      <a class="dropdown-item {% if not canExport %}disabled{% endif %}"
+         {% if canExport %}
+           href="{{ path('app_formateur_emargement_export', { entite: entite.id, id: sid }) }}"
+         {% else %}
+           href="#"
+         {% endif %}>
+        <i class="bi bi-filetype-csv me-2"></i>Exporter émargements (CSV)
+      </a>
+    </li>
+  </ul>
+</div>

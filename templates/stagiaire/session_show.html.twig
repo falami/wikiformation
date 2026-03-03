@@ -1,0 +1,697 @@
+{# templates/stagiaire/session_show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Session {{ session.code ?? ('#' ~ session.id) }} — Stagiaire{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --ink:#0f2336;
+      --muted:#6f8897;
+      --card:#ffffff;
+      --card-2:#f7fafc;
+      --line:#e6eef5;
+      --radius:18px;
+      --shadow:0 18px 55px rgba(15,35,54,.10);
+    }
+
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(900px 280px at 10% 0%, rgba(255,255,255,.14), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.86));
+      color:#fff;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.12);
+      overflow:hidden;
+      position:relative;
+    }
+    .hero:after{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(600px 260px at 85% 20%, rgba(255,193,7,.20), transparent 55%),
+        radial-gradient(420px 220px at 65% 90%, rgba(255,255,255,.08), transparent 55%);
+      pointer-events:none;
+      mix-blend-mode: screen;
+    }
+
+    .badge-soft{
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.18);
+      color:#fff;
+      border-radius: 999px;
+      padding: .35rem .65rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .section-card{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .section-card .card-header{
+      background: linear-gradient(180deg, rgba(255,255,255,.70), rgba(255,255,255,0));
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kpi{
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: .85rem .95rem;
+      min-width: 210px;
+    }
+    .kpi .label{ color: var(--muted); font-size:.85rem; }
+    .kpi .value{ color: var(--ink); font-size:1.25rem; font-weight:900; letter-spacing:-.02em; }
+
+    .meta-list{ display:grid; gap:.55rem; }
+    .meta-item{ display:flex; gap:.6rem; align-items:flex-start; }
+    .meta-ic{
+      width: 34px; height: 34px;
+      border-radius: 12px;
+      display:grid; place-items:center;
+      background: rgba(13,110,253,.10);
+      border:1px solid rgba(13,110,253,.12);
+      color: #0d6efd;
+      flex: 0 0 auto;
+    }
+    .meta-title{ font-weight: 900; color: var(--ink); }
+    .meta-sub{ color: var(--muted); font-size:.9rem; }
+
+    /* Supports */
+    .asset-grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: .8rem;
+    }
+    .asset-card{
+      grid-column: span 12;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: .85rem .9rem;
+      display:flex;
+      gap:.75rem;
+      align-items:center;
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    @media (min-width: 768px){
+      .asset-card{ grid-column: span 6; }
+    }
+    .asset-card:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 12px 30px rgba(15,35,54,.10);
+    }
+    .asset-ic{
+      width: 42px; height: 42px;
+      border-radius: 14px;
+      display:grid; place-items:center;
+      background: rgba(255,193,7,.18);
+      border: 1px solid rgba(255,193,7,.24);
+      color: #b78103;
+      flex: 0 0 auto;
+    }
+    .asset-title{ font-weight: 900; color: var(--ink); line-height: 1.15; }
+    .asset-sub{ color: var(--muted); font-size:.85rem; }
+    .asset-actions .btn{ border-radius: 12px; }
+
+    /* Signature */
+    .sign-wrap{
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: .85rem;
+    }
+    .period-pill .btn{ border-radius: 999px !important; font-weight: 900; }
+    .sign-pad{
+      border: 1px dashed rgba(111,136,151,.55);
+      border-radius: 14px;
+      background: var(--card);
+    }
+    .hint{ color: var(--muted); font-size: .85rem; }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      border-radius:999px;
+      padding:.35rem .6rem;
+      font-weight:900;
+      border:1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .status-ok{ border-color: rgba(25,135,84,.25); background: rgba(25,135,84,.10); color:#198754; }
+    .status-warn{ border-color: rgba(255,193,7,.30); background: rgba(255,193,7,.15); color:#a07806; }
+    .status-bad{ border-color: rgba(220,53,69,.28); background: rgba(220,53,69,.12); color:#dc3545; }
+
+    /* Timeline */
+    .timeline{
+      display:flex;
+      gap:.65rem;
+      overflow:auto;
+      padding:.25rem .15rem .65rem;
+      scroll-snap-type: x mandatory;
+    }
+    .tl-item{
+      scroll-snap-align: start;
+      min-width: 260px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      padding: .75rem .85rem;
+      box-shadow: 0 10px 26px rgba(15,35,54,.06);
+      cursor:pointer;
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    .tl-item:hover{ transform: translateY(-1px); box-shadow: 0 14px 34px rgba(15,35,54,.10); }
+    .tl-item.active{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 18px 44px rgba(255,193,7,.12);
+    }
+    .tl-date{ font-weight: 950; color: var(--ink); }
+    .tl-sub{ color: var(--muted); font-size:.85rem; }
+    .tl-chips{ display:flex; gap:.5rem; margin-top:.55rem; flex-wrap:wrap; }
+    .tl-chip{
+      display:inline-flex; align-items:center; gap:.4rem;
+      padding:.28rem .55rem; border-radius:999px;
+      border:1px solid var(--line); background: var(--card-2);
+      font-weight:900; font-size:.82rem; color: var(--ink);
+      white-space: nowrap;
+    }
+    .tl-chip.ok{ border-color: rgba(25,135,84,.25); background: rgba(25,135,84,.10); color:#198754; }
+    .tl-chip.todo{ border-color: rgba(255,193,7,.30); background: rgba(255,193,7,.15); color:#a07806; }
+  </style>
+{% endblock %}
+
+{% block body %}
+{% set dayNames = {1:'Lundi',2:'Mardi',3:'Mercredi',4:'Jeudi',5:'Vendredi',6:'Samedi',7:'Dimanche'} %}
+
+
+  {# HERO #}
+  <div class="hero p-3 p-md-4 mb-3">
+    <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 position-relative" style="z-index:1;">
+      <div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <span class="badge-soft"><i class="bi bi-mortarboard"></i> Stagiaire</span>
+          <span class="badge-soft"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+          <span class="badge-soft"><i class="bi bi-hash"></i> Code {{ session.code }}</span>
+        </div>
+
+        <h3 class="mb-1">{{ session.formation.titre }}</h3>
+        <div class="opacity-75 small">
+          Supports + émargement (signature) — tous les jours de la formation sont signables.
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a href="{{ path('app_stagiaire_dashboard', { entite: entite.id }) }}" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {# LEFT #}
+    <div class="col-12 col-xl-8">
+
+      {# DETAILS SESSION #}
+      <div class="section-card mb-3">
+        <div class="card-header px-3 px-md-4 py-3 d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center justify-content-between">
+          <div>
+            <div class="fw-semibold">Détails de la session</div>
+            <div class="text-muted small">Horaires, lieu et timeline.</div>
+          </div>
+
+          <div class="kpi">
+            <div class="label">Journées</div>
+            <div class="value">{{ session.jours|length }}</div>
+          </div>
+        </div>
+
+        <div class="card-body px-3 px-md-4 py-3">
+          <div class="meta-list">
+            <div class="meta-item">
+              <div class="meta-ic"><i class="bi bi-journal-text"></i></div>
+              <div>
+                <div class="meta-title">{{ session.formation.titre }}</div>
+                <div class="meta-sub">Formation</div>
+              </div>
+            </div>
+
+            <div class="meta-item">
+              <div class="meta-ic"><i class="bi bi-geo-alt"></i></div>
+              <div>
+                <div class="meta-title">{{ session.site.nom ?? 'Site non renseigné' }}</div>
+                <div class="meta-sub">Lieu</div>
+              </div>
+            </div>
+
+            <div class="meta-item">
+              <div class="meta-ic"><i class="bi bi-person-badge"></i></div>
+              <div>
+                <div class="meta-title">
+                  {{ session.formateur ? (session.formateur.utilisateur.prenom ~ ' ' ~ session.formateur.utilisateur.nom) : 'Formateur non renseigné' }}
+                </div>
+                <div class="meta-sub">Formateur</div>
+              </div>
+            </div>
+          </div>
+
+          {# TIMELINE #}
+          <div class="mt-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold"><i class="bi bi-calendar-week"></i> Timeline des journées</div>
+              <div class="text-muted small">Clique sur un jour pour le sélectionner</div>
+            </div>
+
+            <div class="timeline" id="timeline">
+              {% for d in days %}
+                {% set k = d.date %}
+                {% set am = signStates[k].AM ?? false %}
+                {% set pm = signStates[k].PM ?? false %}
+                {% set dow = d.start|date('N') %}
+
+                <div class="tl-item" data-date="{{ k }}">
+                  <div class="tl-date">{{ dayNames[dow] ?? '' }} {{ d.start|date('d/m/Y') }}</div>
+                  <div class="tl-sub">
+                    {{ d.start|date('H:i') }} → {{ d.end|date('H:i') }}
+                    {% if session.site %} • {{ session.site.nom }}{% endif %}
+                  </div>
+
+                  <div class="tl-chips">
+                    <span class="tl-chip {{ am ? 'ok' : 'todo' }}">
+                      <i class="bi {{ am ? 'bi-check2-circle' : 'bi-hourglass-split' }}"></i> AM
+                      <span class="ms-1">{{ am ? 'Signé' : 'À signer' }}</span>
+                    </span>
+                    <span class="tl-chip {{ pm ? 'ok' : 'todo' }}">
+                      <i class="bi {{ pm ? 'bi-check2-circle' : 'bi-hourglass-split' }}"></i> PM
+                      <span class="ms-1">{{ pm ? 'Signé' : 'À signer' }}</span>
+                    </span>
+                  </div>
+                </div>
+              {% else %}
+                <div class="text-muted">Aucune journée planifiée.</div>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {# SUPPORTS #}
+      <div class="section-card">
+        <div class="card-header px-3 px-md-4 py-3 d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center justify-content-between">
+          <div>
+            <div class="fw-semibold">Supports accessibles</div>
+            <div class="text-muted small">Documents visibles pour toi (session + personnels).</div>
+          </div>
+
+          <div class="kpi">
+            <div class="label">Supports</div>
+            <div class="value">{{ supports|length }}</div>
+          </div>
+        </div>
+
+        <div class="card-body px-3 px-md-4 py-3">
+          {% if supports is empty %}
+            <div class="alert alert-light border mb-0" role="alert">
+              <div class="d-flex gap-2 align-items-start">
+                <i class="bi bi-info-circle mt-1"></i>
+                <div>
+                  <div class="fw-semibold">Aucun support disponible</div>
+                  <div class="text-muted small">Ton formateur n’a pas encore rendu de documents visibles pour cette session.</div>
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="asset-grid">
+              {% for d in supports %}
+                {% set mime = (d.mimeType ?? '')|lower %}
+                {% set ic = 'bi-file-earmark' %}
+                {% if 'pdf' in mime %}{% set ic = 'bi-file-earmark-pdf' %}{% endif %}
+                {% if 'image' in mime %}{% set ic = 'bi-file-earmark-image' %}{% endif %}
+                {% if 'spreadsheet' in mime or 'excel' in mime %}{% set ic = 'bi-file-earmark-spreadsheet' %}{% endif %}
+                {% if 'word' in mime %}{% set ic = 'bi-file-earmark-word' %}{% endif %}
+                {% if 'zip' in mime %}{% set ic = 'bi-file-earmark-zip' %}{% endif %}
+
+                <div class="asset-card">
+                  <div class="asset-ic"><i class="bi {{ ic }}"></i></div>
+
+                  <div class="flex-grow-1">
+                    <div class="asset-title">{{ d.titre ?? d.originalName ?? 'Document' }}</div>
+                    <div class="asset-sub">
+                      {{ d.originalName ?? '' }}
+                      {% if d.mimeType %} • {{ d.mimeType }}{% endif %}
+                    </div>
+                  </div>
+
+                  <div class="asset-actions d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ d.url }}" target="_blank" rel="noopener">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    <a class="btn btn-sm btn-primary" href="{{ d.url }}" download>
+                      <i class="bi bi-download"></i>
+                    </a>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+    {# RIGHT: SIGNATURE #}
+    <div class="col-12 col-xl-4">
+      <div class="section-card">
+        <div class="card-header px-3 px-md-4 py-3">
+          <div class="fw-semibold">Émargement</div>
+          <div class="text-muted small">Choisis un jour dans la timeline ou via le calendrier.</div>
+        </div>
+
+        <div class="card-body px-3 px-md-4 py-3">
+
+          <div class="sign-wrap mb-3">
+            <label class="form-label fw-semibold mb-1">
+              <i class="bi bi-calendar-date"></i> Jour
+            </label>
+
+            {# flatpickr => input text #}
+            <input type="text" id="sign-date" class="form-control" placeholder="Choisir un jour…">
+            <div class="hint mt-2">Seuls les jours de formation sont sélectionnables.</div>
+          </div>
+
+          <div class="mb-2 d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">
+              <i class="bi bi-clock"></i> Période
+            </div>
+            <span class="status-pill status-warn" id="period-pill">
+              <i class="bi bi-sunrise"></i> Matin
+            </span>
+          </div>
+
+          <div class="btn-group w-100 period-pill mb-2" role="group" aria-label="Période">
+            <button type="button" class="btn btn-outline-primary active" data-periode="AM">
+              <i class="bi bi-sunrise"></i> Matin
+            </button>
+            <button type="button" class="btn btn-outline-primary" data-periode="PM">
+              <i class="bi bi-sunset"></i> Après-midi
+            </button>
+          </div>
+
+          <div class="mt-2 d-flex align-items-center justify-content-between">
+            <div class="small text-muted">État pour ce jour</div>
+            <span class="status-pill" id="signed-pill"><i class="bi bi-dot"></i> —</span>
+          </div>
+
+          <div class="mt-3 mb-2 d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">
+              <i class="bi bi-pen"></i> Signature
+            </div>
+            <span class="status-pill" id="sign-badge">
+              <i class="bi bi-dot"></i> Prêt
+            </span>
+          </div>
+
+          <canvas id="pad" width="520" height="180" class="sign-pad w-100"></canvas>
+
+          <div class="d-flex gap-2 mt-3">
+            <button id="pad-clear" class="btn btn-outline-secondary">
+              <i class="bi bi-eraser"></i> Effacer
+            </button>
+            <button id="pad-save" class="btn btn-success ms-auto">
+              <i class="bi bi-check2-circle"></i> Signer
+            </button>
+          </div>
+
+          <div class="small mt-2" id="sign-status" style="color: var(--muted)"></div>
+
+          <div class="hint mt-3">
+            Conseil : signe lisiblement (nom + prénom) pour éviter les refus de conformité.
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# URL signature stagiaire #}
+  <div id="sig-url-tpl"
+       data-url="{{ path('app_stagiaire_emargement_sign', { entite: entite.id, id: session.id }) }}"
+       hidden></div>
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@5.0.4/dist/signature_pad.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+  <script>
+  (function(){
+    function initPage(){
+      const canvas = document.getElementById('pad');
+      const dateInput = document.getElementById('sign-date');
+      const urlHolder = document.getElementById('sig-url-tpl');
+      if (!canvas || !dateInput || !urlHolder) return;
+
+      if (canvas.dataset.sigInit === '1') return;
+      canvas.dataset.sigInit = '1';
+
+      // Etats signés depuis PHP
+      const signStates = {{ signStates|json_encode|raw }};
+      const enabledDays = Object.keys(signStates).sort(); // 'YYYY-mm-dd'
+      const firstDay = enabledDays[0] || null;
+
+      let periode = 'AM';
+      let selectedDate = firstDay;
+
+      const periodPill = document.getElementById('period-pill');
+      const signedPill = document.getElementById('signed-pill');
+      const signBadge  = document.getElementById('sign-badge');
+      const saveBtn    = document.getElementById('pad-save');
+      const clearBtn   = document.getElementById('pad-clear');
+      const statusEl   = document.getElementById('sign-status');
+
+      function setPeriodUI(p){
+        periode = p;
+        const isAM = (p === 'AM');
+        if (periodPill){
+          periodPill.innerHTML = isAM
+            ? '<i class="bi bi-sunrise"></i> Matin'
+            : '<i class="bi bi-sunset"></i> Après-midi';
+        }
+        refreshSignedUI();
+      }
+
+      function setActiveTimeline(dateStr){
+        document.querySelectorAll('#timeline .tl-item').forEach(el=>{
+          el.classList.toggle('active', el.dataset.date === dateStr);
+        });
+      }
+
+      function refreshSignedUI(){
+        if (!selectedDate) return;
+
+        const signed = !!(signStates?.[selectedDate]?.[periode]);
+
+        if (signedPill){
+          signedPill.classList.remove('status-ok','status-warn','status-bad');
+          signedPill.classList.add(signed ? 'status-ok' : 'status-warn');
+          signedPill.innerHTML = signed
+            ? '<i class="bi bi-check2-circle"></i> Déjà signé'
+            : '<i class="bi bi-hourglass-split"></i> À signer';
+        }
+
+        if (saveBtn){
+          saveBtn.innerHTML = signed
+            ? '<i class="bi bi-arrow-repeat"></i> Re-signer'
+            : '<i class="bi bi-check2-circle"></i> Signer';
+        }
+
+        if (signBadge){
+          signBadge.classList.remove('status-ok','status-warn','status-bad');
+          signBadge.classList.add(signed ? 'status-ok' : '');
+          signBadge.innerHTML = signed
+            ? '<i class="bi bi-check2-circle"></i> Validé'
+            : '<i class="bi bi-dot"></i> Prêt';
+        }
+      }
+
+      // flatpickr (jours autorisés uniquement)
+      const fp = flatpickr(dateInput, {
+        locale: 'fr',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'l d/m/Y',
+        defaultDate: firstDay,
+        disableMobile: true,
+        enable: enabledDays,
+        onChange: function(selectedDates, dateStr){
+          selectedDate = dateStr;
+          setActiveTimeline(selectedDate);
+          refreshSignedUI();
+          statusEl.textContent = '';
+        }
+      });
+
+      // Timeline click -> set flatpickr date
+      document.querySelectorAll('#timeline .tl-item').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          const d = el.dataset.date;
+          if (!d) return;
+          selectedDate = d;
+          fp.setDate(d, true);
+          setActiveTimeline(d);
+          refreshSignedUI();
+          statusEl.textContent = '';
+        });
+      });
+
+      // period buttons
+      document.querySelectorAll('[data-periode]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          document.querySelectorAll('[data-periode]').forEach(x=>x.classList.remove('active'));
+          b.classList.add('active');
+          setPeriodUI(b.dataset.periode);
+          statusEl.textContent = '';
+        });
+      });
+
+      // SignaturePad
+      const pad = new SignaturePad(canvas, { backgroundColor:'#fff', penColor:'#111' });
+
+      function fixDpi(){
+        const ratio = window.devicePixelRatio || 1;
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        if (!w || !h) return;
+
+        canvas.width  = Math.floor(w * ratio);
+        canvas.height = Math.floor(h * ratio);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.scale(ratio, ratio);
+        pad.clear();
+      }
+      window.addEventListener('resize', fixDpi);
+      fixDpi();
+
+      // init default
+      setPeriodUI('AM');
+      if (firstDay) setActiveTimeline(firstDay);
+      refreshSignedUI();
+
+      if (clearBtn) clearBtn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        pad.clear();
+        statusEl.textContent = '';
+        refreshSignedUI();
+      });
+
+      if (saveBtn) saveBtn.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!selectedDate){
+          alert("Sélectionne un jour de formation.");
+          return;
+        }
+        if (pad.isEmpty()){
+          alert("Merci de signer.");
+          return;
+        }
+
+        const url = urlHolder.dataset.url;
+
+        // Date => D/M/Y pour ton endpoint
+        const [Y,M,D] = selectedDate.split('-');
+
+        const fd = new FormData();
+        fd.append('signatureData', pad.toDataURL('image/png'));
+        fd.append('periode', periode);
+        fd.append('date', `${D}/${M}/${Y}`);
+
+        // UI pending
+        statusEl.textContent = 'Enregistrement en cours...';
+        if (signBadge){
+          signBadge.classList.remove('status-ok','status-bad');
+          signBadge.classList.add('status-warn');
+          signBadge.innerHTML = '<i class="bi bi-hourglass-split"></i> Envoi...';
+        }
+
+        const res = await fetch(url, {
+          method:'POST',
+          headers:{ 'X-Requested-With':'XMLHttpRequest' },
+          body: fd
+        });
+
+        const json = await res.json().catch(()=>null);
+
+        if (json && json.success){
+          statusEl.textContent = 'Signature enregistrée.';
+
+          // met à jour l’état local
+          signStates[selectedDate] = signStates[selectedDate] || {};
+          signStates[selectedDate][periode] = true;
+
+          // met à jour les chips de la timeline
+          const tl = document.querySelector(`#timeline .tl-item[data-date="${selectedDate}"]`);
+          if (tl){
+            const chips = tl.querySelectorAll('.tl-chip');
+            chips.forEach(ch=>{
+              const isAM = ch.textContent.includes('AM');
+              const isPM = ch.textContent.includes('PM');
+              if ((periode === 'AM' && isAM) || (periode === 'PM' && isPM)){
+                ch.classList.remove('todo');
+                ch.classList.add('ok');
+                const icon = ch.querySelector('i');
+                if (icon){
+                  icon.classList.remove('bi-hourglass-split');
+                  icon.classList.add('bi-check2-circle');
+                }
+                const span = ch.querySelector('span.ms-1');
+                if (span) span.textContent = 'Signé';
+              }
+            });
+          }
+
+          refreshSignedUI();
+          pad.clear();
+        } else {
+          statusEl.textContent = (json?.message || 'Erreur.');
+          if (signBadge){
+            signBadge.classList.remove('status-warn','status-ok');
+            signBadge.classList.add('status-bad');
+            signBadge.innerHTML = '<i class="bi bi-x-circle"></i> Erreur';
+          }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', initPage);
+    document.addEventListener('turbo:load', initPage);
+  })();
+  </script>
+{% endblock %}

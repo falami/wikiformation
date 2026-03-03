@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body{ font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color:#111; }
+    h1{ font-size: 16px; margin: 0 0 6px 0; }
+    h2{ font-size: 13px; margin: 14px 0 6px 0; }
+    .muted{ color:#666; }
+    .kpi{ width:100%; border-collapse: collapse; margin-top:10px; }
+    .kpi td{ padding:6px 8px; border:1px solid #ddd; }
+    table{ width:100%; border-collapse: collapse; margin-top:6px; }
+    th, td{ border:1px solid #ddd; padding:6px 8px; }
+    th{ background:#f2f2f2; }
+    .right{ text-align:right; }
+  </style>
+</head>
+<body>
+
+  <h1>Bilan Pédagogique & Financier (BPF) — {{ year }}</h1>
+  <div class="muted">
+    Exercice : {{ bpf.start|date('d/m/Y') }} → {{ bpf.end|date('d/m/Y') }}
+  </div>
+
+  <table class="kpi">
+    <tr>
+      <td><b>Sessions réalisées</b><br>{{ bpf.nbSessions }}</td>
+      <td><b>Heures de formation</b><br>{{ bpf.heuresFormation|number_format(2, ',', ' ') }}</td>
+      <td><b>Heures-stagiaires</b><br>{{ bpf.heuresStagiaires|number_format(2, ',', ' ') }}</td>
+    </tr>
+    <tr>
+      <td><b>Stagiaires distincts</b><br>{{ bpf.nbStagiaires }}</td>
+      <td><b>Inscriptions</b><br>{{ bpf.nbInscriptions }}</td>
+      <td><b>Produits TTC facturés</b><br>{{ (bpf.produits.ttcCents / 100)|number_format(2, ',', ' ') }} €</td>
+    </tr>
+  </table>
+
+  <h2>Activité par formation</h2>
+  {% if bpf.formations is empty %}
+    <div class="muted">Néant sur l’exercice.</div>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>Formation</th>
+          <th class="right">Sessions</th>
+          <th class="right">Heures</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in bpf.formations %}
+          <tr>
+            <td><b>{{ f.titre }}</b></td>
+            <td class="right">{{ f.sessions }}</td>
+            <td class="right">{{ f.heures|number_format(2, ',', ' ') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <h2>Financements (répartition)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Catégorie</th>
+        <th class="right">Stagiaires</th>
+        <th class="right">Heures-stagiaires</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for k, v in bpf.financement %}
+        <tr>
+          <td>{{ k }}</td>
+          <td class="right">{{ v.stagiaires }}</td>
+          <td class="right">{{ v.heuresStagiaires|number_format(2, ',', ' ') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Bilan financier (extrait)</h2>
+  <table>
+    <tbody>
+      <tr>
+        <td>Produits HT</td>
+        <td class="right">{{ (bpf.produits.htCents / 100)|number_format(2, ',', ' ') }} €</td>
+      </tr>
+      <tr>
+        <td>TVA</td>
+        <td class="right">{{ (bpf.produits.tvaCents / 100)|number_format(2, ',', ' ') }} €</td>
+      </tr>
+      <tr>
+        <td><b>Produits TTC</b></td>
+        <td class="right"><b>{{ (bpf.produits.ttcCents / 100)|number_format(2, ',', ' ') }} €</b></td>
+      </tr>
+      <tr>
+        <td>Encaissements</td>
+        <td class="right">{{ (bpf.produits.encaissementsCents / 100)|number_format(2, ',', ' ') }} €</td>
+      </tr>
+      <tr>
+        <td>Charges formateurs (contrats)</td>
+        <td class="right">{{ (bpf.charges.formateursCents / 100)|number_format(2, ',', ' ') }} €</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="muted" style="margin-top:10px;">
+    Document interne d’aide à la saisie BPF (DREETS). Les rubriques officielles peuvent demander des ventilations supplémentaires selon ton activité.
+  </div>
+
+</body>
+</html>

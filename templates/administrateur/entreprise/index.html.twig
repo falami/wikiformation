@@ -1,0 +1,829 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Entreprises{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem; border-radius:999px; font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .chip i{ color: var(--theme-color-secondaire); }
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Filterbar ===== */
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      overflow: visible;
+    }
+    .filterbar__top{
+      padding: .9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+    }
+    .filterbar__title{ font-weight:800; letter-spacing:-.01em; margin:0; font-size:1rem; }
+    .filterbar__hint{ color: rgba(0,0,0,.55); font-size:.85rem; margin-left:.25rem; }
+    .filterbar__body{ padding: 1rem; }
+
+    .filtergrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: .75rem;
+      align-items:end;
+    }
+    .fcol-locked{ grid-column: span 3; }
+    .fcol-search{ grid-column: span 8; }
+    .fcol-actions{ grid-column: span 1; }
+
+    @media (max-width: 1200px){
+      .fcol-locked{ grid-column: span 6; }
+      .fcol-search{ grid-column: span 6; }
+      .fcol-actions{ grid-column: span 12; }
+    }
+    @media (max-width: 768px){
+      .filterbar__body{ padding:.85rem; }
+      .fcol-locked, .fcol-search, .fcol-actions{ grid-column: span 12; }
+      .hero{ border-radius:16px; }
+    }
+
+    .filter-control .form-label{
+      font-size:.78rem;
+      font-weight:700;
+      color: rgba(0,0,0,.55);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      margin-bottom:.25rem;
+    }
+    .filterbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.04);
+    }
+    .filterbox:focus-within{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .filterrow{ display:flex; gap:.6rem; align-items:center; }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .filterbox .form-select,
+    .filterbox .form-control{
+      border:0 !important;
+      box-shadow:none !important;
+      padding-left:0 !important;
+      padding-right:0 !important;
+      background:transparent !important;
+    }
+
+    /* Reset */
+    .resetbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+      cursor:pointer;
+      user-select:none;
+      transition: all .16s ease;
+      width: 100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .resetbox:hover{
+      border-color: rgba(0,0,0,.14);
+      box-shadow: 0 10px 20px rgba(0,0,0,.06);
+      transform: translateY(-1px);
+    }
+    .resetbox.is-active{
+      border-color: rgba(255,193,7,.35);
+      background: rgba(255,193,7,.06);
+    }
+    .resetbox:disabled{ cursor: default; opacity: .55; transform:none; }
+    .resetbox__text{ font-size:.9rem; font-weight:800; color: rgba(0,0,0,.65); }
+    .resetbox__badge{
+      min-width: 28px;
+      height: 22px;
+      padding: 0 .5rem;
+      border-radius: 999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:.78rem;
+      font-weight:800;
+      background: rgba(0,0,0,.06);
+      color: rgba(0,0,0,.65);
+      border: 1px solid rgba(0,0,0,.08);
+      margin-left:.5rem;
+    }
+    .resetbox.is-active .resetbox__badge{
+      background: rgba(255,193,7,.22);
+      border-color: rgba(255,193,7,.30);
+      color: rgba(0,0,0,.75);
+    }
+
+    .active-filters{
+      padding: .65rem 1rem;
+      border-top:1px solid rgba(0,0,0,.06);
+      background:#fff;
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+    }
+    .active-filters .label{
+      font-size:.8rem;
+      color: rgba(0,0,0,.55);
+      font-weight:800;
+      margin-right:.25rem;
+    }
+    .af-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      padding:.35rem .6rem;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      font-size:.82rem;
+      cursor:pointer;
+      user-select:none;
+    }
+    .af-badge:hover{ background: rgba(255,193,7,.12); border-color: rgba(255,193,7,.25); }
+    .af-badge i{ opacity:.7; }
+
+    /* ===== Table card + DataTables ===== */
+    .table-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow: visible;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      background:#f7f8fa!important;
+      border-bottom:1px solid rgba(0,0,0,.08)!important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color: rgba(0,0,0,.55);
+      text-align:center !important;
+      vertical-align: middle;
+    }
+    #tableauEntreprise tbody td{
+      padding-top:.65rem!important;
+      padding-bottom:.65rem!important;
+      vertical-align: middle;
+      text-align:center !important;
+    }
+    #tableauEntreprise tbody tr:nth-child(even) > *{ background:rgba(35,51,66,.035)!important; }
+    #tableauEntreprise tbody tr:hover > *{ background:rgba(255,193,7,.08)!important; }
+
+    #tableauEntreprise_wrapper .dataTables_scrollBody{
+      overflow-x:auto !important;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-gutter: stable both-edges;
+    }
+
+    #tableauEntreprise td.action-column .hover-actions{ z-index:50; }
+    
+
+    /* TomSelect dropdown au-dessus */
+    .filterbar .ts-dropdown{ z-index: 2000 !important; }
+
+
+
+
+    /* =========================
+      ✅ Actions entreprises (pill + split) + colonne mini
+      ========================= */
+
+    /* colonne actions : la plus petite possible */
+    #tableauEntreprise th:last-child,
+    #tableauEntreprise td.action-column{
+      width: 1% !important;
+      min-width: 0 !important;
+      white-space: nowrap;
+    }
+
+
+    /* boutons compacts */
+    .entreprise-actions .btn{
+      padding: .32rem .55rem;
+    }
+
+    /* bouton principal */
+    .entreprise-actions .entreprise-main{
+      background: rgba(255,255,255,.85);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    .entreprise-actions .entreprise-main:hover{
+      box-shadow: 0 14px 28px rgba(0,0,0,.10);
+      border-color: rgba(0,0,0,.18);
+    }
+
+    /* split */
+    .entreprise-actions .entreprise-split{
+      padding-left: .55rem;
+      padding-right: .55rem;
+      border-color: rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+    }
+
+    /* fusion pill (main + split) */
+    .entreprise-actions.btn-group .entreprise-main{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .entreprise-actions.btn-group .entreprise-split{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      margin-left: -1px;
+      position: relative;
+    }
+    .entreprise-actions.btn-group .entreprise-split:before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:20%;
+      bottom:20%;
+      width:1px;
+      background: rgba(0,0,0,.10);
+    }
+
+    /* menu dropdown */
+    .entreprise-actions .entreprise-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .55rem;
+      background:
+        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        #fff;
+      overflow: hidden;
+    }
+    .entreprise-actions .entreprise-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .50rem .60rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+    }
+    .entreprise-actions .entreprise-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.22);
+    }
+
+    /* ✅ Menu actions "floaté" au-dessus de tout */
+    body .entreprise-floating-dropdown{ z-index: 20000 !important; }
+
+
+    /* =========================
+      ✅ Actions entreprises — colonne mini + sticky mobile + anti-clipping
+      ========================= */
+
+    /* colonne actions : la plus petite possible */
+    #tableauEntreprise th.action-column,
+    #tableauEntreprise td.action-column{
+      width: 1% !important;
+      min-width: 0 !important;
+      white-space: nowrap !important;
+      text-align: right !important;
+    }
+
+    /* td actions : pas de relative (sticky + dropdown plus fiables) */
+    #tableauEntreprise td.action-column{
+      overflow: visible !important;
+      padding-left: .15rem !important;
+      padding-right: .15rem !important;
+    }
+
+    /* ✅ Sticky mobile (TH + TD) + zebra/hover cohérents */
+    @media (max-width: 768px){
+      #tableauEntreprise th.action-column,
+      #tableauEntreprise td.action-column{
+        position: sticky;
+        right: 0;
+        z-index: 5;
+        background: #fff !important;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+
+      /* zebra/hover sur la cellule sticky (sinon elle reste blanche) */
+      #tableauEntreprise tbody tr:nth-child(even) > td.action-column{
+        background: rgba(35,51,66,.035) !important;
+      }
+      #tableauEntreprise tbody tr:hover > td.action-column{
+        background: rgba(255,193,7,.08) !important;
+      }
+    }
+
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-buildings me-2" style="color:var(--theme-color-secondaire)"></i>
+            Entreprises
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Référentiel (raison sociale / SIRET / facturation).
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-buildings"></i> Entreprise</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_entreprise_ajouter', { entite: entite.id }) }}">
+            <i class="bi bi-plus-circle me-1"></i> Nouvelle entreprise
+          </a>
+
+          <button type="button" class="btn btn-outline-light btn-sm fw-semibold"
+                  onclick="document.getElementById('filtersCollapse')?.scrollIntoView({behavior:'smooth'})">
+            <i class="bi bi-funnel me-1"></i> Filtres
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="filterbar mb-3">
+    <div class="filterbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
+        <div>
+          <div class="filterbar__title">Filtres</div>
+          <div class="filterbar__hint">Recherche + verrouillage.</div>
+        </div>
+      </div>
+
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm fw-semibold d-md-none"
+                type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+          <i class="bi bi-sliders"></i> Filtres
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="collapse d-md-block" id="filtersCollapse">
+      <div class="filterbar__body">
+        <div class="filtergrid">
+
+          <div class="filter-control fcol-locked">
+            <div class="form-label">Verrouillé</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-lock"></i></div>
+                <select id="lockedFilter" class="form-select form-select-sm">
+                  <option value="all">Tous</option>
+                  <option value="1">Oui</option>
+                  <option value="0">Non</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-search">
+            <div class="form-label">Recherche</div>
+            <div class="filterbox">
+              <div class="filterrow">
+                <div class="filter-icon"><i class="bi bi-search"></i></div>
+                <input type="text" id="searchName" class="form-control form-control-sm"
+                      placeholder="Raison sociale / SIRET / email facturation" />
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-control fcol-actions">
+            <div class="form-label">&nbsp;</div>
+            <button id="btnReset" type="button" class="resetbox" title="Réinitialiser les filtres">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>
+              <span class="resetbox__text">Reset</span>
+              <span class="resetbox__badge" id="resetCount" style="display:none;">0</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="active-filters" id="activeFilters">
+        <span class="label"><i class="bi bi-lightning-charge"></i> Actifs :</span>
+        <span class="text-muted small" id="activeFiltersEmpty">Aucun</span>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <div class="table-card mb-4 p-3">
+    <table id="tableauEntreprise" class="table table-hover align-middle mb-0 w-100">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Raison sociale</th>
+          <th>SIRET</th>
+          <th>Email facturation</th>
+          <th>Inscriptions</th>
+          <th>Factures</th>
+          <th>Verrouillé</th>
+          <th class="action-column text-end"></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+
+{% include 'partials/_modales_index_generiques.html.twig' %}
+<script>
+$(function(){
+  const $locked = $('#lockedFilter');
+  const $search = $('#searchName');
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[s]));
+  }
+
+  let tsLocked = null;
+  function initTomSelect(){
+    const common = {
+      create:false, allowEmptyOption:true, maxItems:1,
+      plugins:['clear_button'],
+      render:{ no_results: () => '<div class="px-2 py-1 text-muted">Aucun résultat</div>' }
+    };
+    tsLocked?.destroy();
+    tsLocked = new TomSelect('#lockedFilter', {...common, placeholder:'Tous'});
+    tsLocked.on('change', ()=> refreshAll(true));
+  }
+
+  const table = $('#tableauEntreprise').DataTable({
+    serverSide:true,
+    processing:true,
+    autoWidth: false,
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,
+
+    ajax:{
+      url:"{{ path('app_administrateur_entreprise_ajax', { entite: entite.id }) }}",
+      type:"POST",
+      data: d => {
+        d.lockedFilter = $locked.val() || 'all';
+        d.searchName   = ($search.val() || '').trim();
+      }
+    },
+
+    dom:
+      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+        + '<"dt-actions d-flex gap-2 align-items-center"B>'
+        + '<"dt-search"f>'
+      + '>'
+      + 'rt'
+      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+    buttons:['copy','csv','excel','pdf','print'],
+    lengthMenu:[[10,25,50,500],[10,25,50,500]],
+
+    columns:[
+      {data:'id', name:'id'},
+      {data:'raisonSociale', name:'raisonSociale'},
+      {data:'siret', name:'siret'},
+      {data:'emailFacturation', name:'emailFacturation'},
+      {data:'inscriptions', name:'inscriptions', orderable:false, searchable:false},
+      {data:'factures', name:'factures', orderable:false, searchable:false},
+      {data:'locked', name:'locked', orderable:false, searchable:false},
+      {data:'actions', name:'actions', orderable:false, searchable:false},
+    ],
+
+    columnDefs:[
+      {targets:7, className:'action-column text-end'}
+    ],
+
+    order:[[0,'desc']],
+    language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+
+    initComplete:function(){
+      const api = this.api();
+      const $btns = $(api.buttons().container()).find('button');
+
+      $('#exportMenu').empty();
+      $btns.each(function(){
+        const $b=$(this);
+        $('<li><a class="dropdown-item" href="#">'+$b.text()+'</a></li>')
+          .on('click',e=>{e.preventDefault();$b.click();})
+          .appendTo('#exportMenu');
+      });
+      $(api.buttons().container()).hide();
+      api.columns.adjust();
+    }
+  });
+
+
+
+  // ✅ Dropdown actions entreprises : menu hors du scroll DataTables (sinon il est clippé)
+  (function enableEntrepriseActionsFloatingDropdown(){
+    document.addEventListener('show.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.entreprise-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      const menu = dd.querySelector('.dropdown-menu');
+      if (!menu) return;
+
+      if (!menu.__originalParent) menu.__originalParent = dd;
+
+      document.body.appendChild(menu);
+      menu.classList.add('entreprise-floating-dropdown');
+
+      const rect = toggle.getBoundingClientRect();
+
+      menu.style.position = 'absolute';
+      menu.style.top = '0px';
+      menu.style.left = '0px';
+      menu.style.display = 'block';
+
+      const menuRect = menu.getBoundingClientRect();
+      const top = rect.bottom + window.scrollY + 6;
+
+      let left = (rect.right + window.scrollX - menuRect.width);
+      left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+    }, true);
+
+    document.addEventListener('hidden.bs.dropdown', function(e){
+      const toggle = e.target;
+      if (!toggle.closest('.entreprise-actions')) return;
+
+      const dd = toggle.closest('.dropdown, .btn-group');
+      if (!dd) return;
+
+      document.querySelectorAll('body .entreprise-floating-dropdown').forEach(menu => {
+        if (menu.__originalParent === dd) {
+          dd.appendChild(menu);
+          menu.classList.remove('entreprise-floating-dropdown');
+          menu.style.position = '';
+          menu.style.top = '';
+          menu.style.left = '';
+          menu.style.display = '';
+        }
+      });
+    }, true);
+
+    window.addEventListener('scroll', () => {
+      document.querySelectorAll('.entreprise-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.entreprise-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+        .forEach(btn => btn.click());
+    }, true);
+  })();
+
+
+  function updateResetUi(count){
+    const btn = document.getElementById('btnReset');
+    const badge = document.getElementById('resetCount');
+    if(!btn || !badge) return;
+
+    if(count > 0){
+      btn.disabled = false;
+      btn.classList.add('is-active');
+      badge.style.display = 'inline-flex';
+      badge.textContent = String(count);
+    } else {
+      btn.disabled = true;
+      btn.classList.remove('is-active');
+      badge.style.display = 'none';
+      badge.textContent = '0';
+    }
+  }
+
+  function buildActiveFilters(){
+    const items = [];
+
+    const lf = $locked.val();
+    if(lf && lf !== 'all'){
+      items.push({ key:'locked', label:'Verrouillé', value: (lf === '1' ? 'Oui' : 'Non') });
+    }
+
+    const q = ($search.val() || '').trim();
+    if(q){
+      items.push({ key:'search', label:'Recherche', value: q });
+    }
+
+    const $wrap = $('#activeFilters');
+    $wrap.find('.af-badge').remove();
+
+    if(items.length === 0){
+      $('#activeFiltersEmpty').show();
+      updateResetUi(0);
+      return;
+    }
+
+    $('#activeFiltersEmpty').hide();
+    updateResetUi(items.length);
+
+    items.forEach(it=>{
+      const $b = $(`<span class="af-badge" data-key="${it.key}">
+        <strong>${it.label} :</strong> ${escapeHtml(it.value)} <i class="bi bi-x-lg ms-1"></i>
+      </span>`);
+
+      $b.on('click', ()=>{
+        if(it.key === 'locked') tsLocked.setValue('all', true);
+        if(it.key === 'search') $search.val('');
+        refreshAll(true);
+      });
+
+      $wrap.append($b);
+    });
+  }
+
+  function refreshAll(resetPaging=false){
+    table.ajax.reload(null, !resetPaging ? false : true);
+    buildActiveFilters();
+    $('#hero-last-refresh').text('Maj : ' + nowLabel());
+  }
+
+  // Ajustements colonnes
+  function dtAdjust(){ table.columns.adjust(); }
+  table.on('init.dt', () => setTimeout(dtAdjust, 60));
+  table.on('draw.dt', () => dtAdjust());
+  window.addEventListener('resize', () => setTimeout(dtAdjust, 150));
+
+  // Search debounce
+  let tSearch = null;
+  $search.on('input', ()=>{
+    clearTimeout(tSearch);
+    tSearch = setTimeout(()=>refreshAll(true), 250);
+  });
+
+  // Reset
+  $('#btnReset').on('click', function(){
+    tsLocked.setValue('all', true);
+    $search.val('');
+    table.search('');
+    refreshAll(true);
+  });
+
+  // Delete modal
+  $(document).on('click','.delete-btn',e=>$('#confirmDelete').attr('href', $(e.currentTarget).data('url')));
+
+  // Init
+  initTomSelect();
+  buildActiveFilters();
+  $('#hero-last-refresh').text('Maj : ' + nowLabel());
+});
+</script>
+
+{% endblock %}

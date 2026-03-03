@@ -1,0 +1,46 @@
+{# templates/administrateur/formateur/contrat/_actions.html.twig #}
+
+<div class="hover-actions end-0 me-2 d-flex gap-1 justify-content-end">
+
+  {# Modifier seulement si brouillon #}
+  {% if status == 'BROUILLON' %}
+    <a href="{{ path('app_administrateur_formateurs_contrats_edit', { entite: entite.id, id: c.id }) }}"
+       class="btn btn-warning btn-sm"
+       data-bs-toggle="tooltip"
+       data-bs-title="Modifier">
+      <i class="bi bi-pencil"></i>
+    </a>
+  {% endif %}
+
+  {# Voir comme formateur #}
+  <a href="{{ path('app_formateur_contrat_sign', { entite: entite.id, contrat: c.id }) }}"
+     class="btn btn-primary btn-sm"
+     data-bs-toggle="tooltip"
+     data-bs-title="Voir / Signer">
+    <i class="bi bi-eye"></i>
+  </a>
+
+  {# PDF #}
+  {% if c.pdfPath %}
+    <a href="{{ asset(c.pdfPath) }}" target="_blank" rel="noopener"
+       class="btn btn-dark btn-sm"
+       data-bs-toggle="tooltip"
+       data-bs-title="PDF">
+      <i class="bi bi-file-earmark-pdf"></i>
+    </a>
+  {% endif %}
+
+  {# ✅ Supprimer (ouvre #deleteModal) #}
+  {% if status == 'BROUILLON' %}
+    <button type="button"
+            class="btn btn-danger btn-sm delete-btn"
+            data-bs-toggle="modal"
+            data-bs-target="#deleteModal"
+            data-url="{{ path('app_administrateur_formateurs_contrats_supprimer', { entite: entite.id, id: c.id }) }}"
+            data-token="{{ csrf_token('delete_contrat_formateur_' ~ c.id) }}"
+            data-bs-title="Supprimer">
+      <i class="bi bi-trash"></i>
+    </button>
+  {% endif %}
+
+</div>

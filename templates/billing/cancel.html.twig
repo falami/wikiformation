@@ -1,0 +1,162 @@
+{# templates/billing/cancel.html.twig #}
+{% extends 'base_public.html.twig' %}
+{% block title %}Paiement annulé{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    .billing-hero{
+      border-radius:24px;
+      padding:28px;
+      background:
+        radial-gradient(1200px 400px at 12% 0%, rgba(245,158,11,.22), transparent 60%),
+        radial-gradient(900px 350px at 88% 10%, rgba(239,68,68,.16), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78));
+      border:1px solid rgba(15,23,42,.08);
+      box-shadow: 0 18px 60px rgba(2,6,23,.08);
+      position:relative;
+      overflow:hidden;
+    }
+    .billing-card{
+      border-radius:22px;
+      border:1px solid rgba(15,23,42,.10);
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 16px 46px rgba(2,6,23,.08);
+      overflow:hidden;
+    }
+    .muted{ color: rgba(2,6,23,.65); font-size:14px; }
+    .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      border:1px solid rgba(15,23,42,.10);
+      background: rgba(255,255,255,.75);
+      border-radius:999px; padding:.42rem .7rem;
+      font-size: 13px; color: rgba(2,6,23,.72);
+    }
+    .icon-bubble{
+      width:64px; height:64px; border-radius:18px;
+      display:grid; place-items:center;
+      background: rgba(245,158,11,.12);
+      border:1px solid rgba(245,158,11,.22);
+      box-shadow: 0 12px 30px rgba(245,158,11,.10);
+    }
+    .help-card{
+      border-radius:18px;
+      border:1px solid rgba(15,23,42,.08);
+      background: rgba(255,255,255,.72);
+      padding:14px 14px;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  <div class="container py-5">
+
+    <div class="billing-hero mb-4">
+      <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+        <div class="d-flex align-items-start gap-3">
+          <div class="icon-bubble">
+            <i class="bi bi-x-circle fs-2 text-warning"></i>
+          </div>
+          <div>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              <span class="chip"><i class="bi bi-arrow-counterclockwise"></i> Paiement annulé</span>
+              <span class="chip"><i class="bi bi-shield"></i> Aucun débit effectué</span>
+              {% if app.user %}
+                <span class="chip"><i class="bi bi-person"></i> {{ app.user.email }}</span>
+              {% endif %}
+            </div>
+            <h1 class="fw-bold mb-1">Vous avez annulé le paiement</h1>
+            <div class="muted">
+              Aucun paiement n’a été enregistré. Vous pouvez réessayer quand vous voulez — vos choix ne sont pas perdus.
+            </div>
+          </div>
+        </div>
+
+        <div class="text-lg-end">
+          <a class="btn btn-warning btn-lg px-4 text-dark" href="{{ path('app_public_pricing') }}">
+            <i class="bi bi-arrow-repeat me-2"></i> Revenir aux tarifs
+          </a>
+          <div class="muted mt-2">Vous pouvez relancer la souscription en 1 clic.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-lg-7">
+        <div class="billing-card p-4 h-100">
+          <h3 class="mb-2">Pourquoi ça peut arriver</h3>
+          <div class="muted mb-3">Quelques causes fréquentes, sans stress :</div>
+
+          <div class="d-grid gap-3">
+            <div class="help-card d-flex gap-3">
+              <div class="pt-1"><i class="bi bi-credit-card fs-4 text-danger"></i></div>
+              <div>
+                <div class="fw-semibold">Authentification bancaire</div>
+                <div class="muted">3D Secure / validation mobile : vous pouvez réessayer et confirmer.</div>
+              </div>
+            </div>
+
+            <div class="help-card d-flex gap-3">
+              <div class="pt-1"><i class="bi bi-wifi-off fs-4 text-secondary"></i></div>
+              <div>
+                <div class="fw-semibold">Interruption / navigation</div>
+                <div class="muted">Un onglet fermé ou retour arrière peut annuler le flow.</div>
+              </div>
+            </div>
+
+            <div class="help-card d-flex gap-3">
+              <div class="pt-1"><i class="bi bi-sliders fs-4 text-warning"></i></div>
+              <div>
+                <div class="fw-semibold">Changement d’offre</div>
+                <div class="muted">Vous avez peut-être hésité : comparez les plans et repartez.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <a href="{{ path('app_public_pricing') }}" class="btn btn-outline-dark px-3">
+              <i class="bi bi-ui-checks-grid me-2"></i> Voir les plans
+            </a>
+            <a href="{{ path('app_public_pricing') }}" class="btn btn-outline-secondary px-3">
+              <i class="bi bi-life-preserver me-2"></i> Contacter le support
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-5">
+        <div class="billing-card p-4 h-100">
+          <h3 class="mb-2">Reprendre en 10 secondes</h3>
+          <div class="muted mb-3">On vous remet sur la bonne voie.</div>
+
+          <div class="border rounded-4 p-3" style="border-color: rgba(15,23,42,.10) !important; background: rgba(255,255,255,.65);">
+            <div class="d-flex align-items-start gap-2">
+              <i class="bi bi-lightning-charge-fill text-warning mt-1"></i>
+              <div>
+                <div class="fw-semibold">Astuce</div>
+                <div class="small muted mb-0">
+                  Retournez aux tarifs, choisissez votre plan puis relancez la souscription.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-warning mt-3 mb-0 d-flex gap-2 align-items-start">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <div>
+              <div class="fw-semibold">Besoin d’aide ?</div>
+              <div class="small">Si l’erreur se répète, dites-nous le navigateur + l’heure du test.</div>
+            </div>
+          </div>
+
+          <a class="btn btn-warning w-100 btn-lg mt-3 text-dark" href="{{ path('app_public_pricing') }}">
+            <i class="bi bi-arrow-repeat me-2"></i> Relancer la souscription
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+{% endblock %}

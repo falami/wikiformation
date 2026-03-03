@@ -1,0 +1,104 @@
+{# templates/administrateur/qcm/_option_item.html.twig #}
+<div class="opt-row" data-role="option-row">
+
+  {# ✅ IMPORTANT : le hidden doit être rendu pour être posté #}
+  {% if optForm.ordre is defined %}
+    {{ form_widget(optForm.ordre) }}
+  {% endif %}
+
+  {# ===== Ligne 1 : handle + texte + correct + delete ===== #}
+  <div class="row g-2 align-items-end">
+    <div class="col-auto">
+      <button type="button" class="btn btn-sm btn-light border opt-handle" title="Déplacer" aria-label="Déplacer">
+        <i class="bi bi-grip-vertical"></i>
+      </button>
+    </div>
+
+    <div class="col">
+      {% if optForm.label is defined %}
+        {{ form_row(optForm.label, { label: 'Réponse' }) }}
+      {% elseif optForm.texte is defined %}
+        {{ form_row(optForm.texte, { label: 'Réponse' }) }}
+      {% endif %}
+    </div>
+
+    <div class="col-auto">
+      <div class="form-check mb-2">
+        {% if optForm.isCorrect is defined %}
+          {{ form_widget(optForm.isCorrect, { attr: { class: 'form-check-input' } }) }}
+          <label class="form-check-label small fw-semibold" for="{{ optForm.isCorrect.vars.id }}">Bonne</label>
+          {{ form_errors(optForm.isCorrect) }}
+        {% elseif optForm.correct is defined %}
+          {{ form_widget(optForm.correct, { attr: { class: 'form-check-input' } }) }}
+          <label class="form-check-label small fw-semibold" for="{{ optForm.correct.vars.id }}">Bonne</label>
+          {{ form_errors(optForm.correct) }}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-auto text-end">
+      <button type="button"
+              class="btn btn-sm btn-outline-danger"
+              data-action="qcm-remove-option"
+              title="Supprimer la réponse">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+
+  {# ===== Ligne 2 : vidéo + image ===== #}
+  <div class="row g-2 mt-1 align-items-end">
+    <div class="col-12 col-md-6">
+      {% if optForm.videoUrl is defined %}
+        {{ form_row(optForm.videoUrl, { label: 'Vidéo (URL)' }) }}
+      {% endif %}
+    </div>
+
+    <div class="col-12 col-md-6">
+      {% if optForm.imageFile is defined %}
+        {# URL de l'image existante (en base) #}
+        {% set existingOptImg = (optForm.vars.value and optForm.vars.value.image)
+          ? asset('uploads/qcm/options/' ~ optForm.vars.value.image)
+          : null
+        %}
+
+        <label class="form-label">Image (optionnel)</label>
+
+        <div class="media-dropzone js-media-dropzone"
+             data-input-id="{{ optForm.imageFile.vars.id }}"
+             data-preview-id="prev-{{ optForm.imageFile.vars.id }}"
+             data-remove-id="rm-{{ optForm.imageFile.vars.id }}">
+
+          <div class="media-preview" id="prev-{{ optForm.imageFile.vars.id }}">
+            {% if existingOptImg %}
+              <img src="{{ existingOptImg }}" alt="Image réponse">
+            {% else %}
+              <div class="media-placeholder"><i class="bi bi-image"></i></div>
+            {% endif %}
+          </div>
+
+          <div class="media-meta flex-grow-1">
+            <div class="title">Déposer une image</div>
+            <div class="sub">PNG/JPG/WebP • 8 Mo max</div>
+
+            <div class="media-actions">
+              <button type="button" class="btn btn-sm btn-outline-secondary js-media-browse">
+                <i class="bi bi-upload"></i> Parcourir
+              </button>
+              <button type="button"
+                      class="btn btn-sm btn-outline-danger js-media-remove {% if not existingOptImg %}d-none{% endif %}"
+                      id="rm-{{ optForm.imageFile.vars.id }}">
+                <i class="bi bi-trash"></i> Retirer
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {# input file rendu mais masqué #}
+        {{ form_widget(optForm.imageFile, { attr: { class: 'd-none' } }) }}
+        {{ form_errors(optForm.imageFile) }}
+      {% endif %}
+    </div>
+  </div>
+
+</div>

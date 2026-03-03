@@ -1,0 +1,53 @@
+{# templates/administrateur/prospects/_devis_actions_row.html.twig #}
+
+<div class="btn-group btn-group-sm devis-actions-compact"
+     role="group"
+     aria-label="Actions devis">
+
+  {# ✏️ Ouvrir / Modifier #}
+  <a class="btn btn-outline-primary"
+     href="{{ path('app_administrateur_devis_edit', { entite: entite.id, id: d.id }) }}"
+     data-bs-toggle="tooltip"
+     title="Ouvrir / Modifier le devis"
+     aria-label="Ouvrir le devis">
+    <i class="bi bi-pencil-square"></i>
+  </a>
+
+  {# ✉️ Envoyer (modal si dispo, sinon POST) #}
+  {% set sendUrl = path('app_administrateur_devis_send', { entite: entite.id, id: d.id }) %}
+  <button type="button"
+          class="btn btn-outline-success"
+          data-bs-toggle="tooltip"
+          title="Envoyer le devis par email"
+          aria-label="Envoyer le devis"
+          onclick="
+            if (window.openDevisEmailModal) {
+              window.openDevisEmailModal({{ d.id }});
+            } else {
+              if(confirm('Envoyer ce devis par email ?')) {
+                document.getElementById('sendDevisForm-{{ d.id }}').submit();
+              }
+            }
+          ">
+    <i class="bi bi-envelope"></i>
+  </button>
+
+  {# 📄 PDF / Aperçu #}
+  <a class="btn btn-outline-secondary"
+     href="{{ path('app_administrateur_devis_pdf', { entite: entite.id, id: d.id }) }}"
+     target="_blank"
+     data-bs-toggle="tooltip"
+     title="Ouvrir le PDF"
+     aria-label="Voir le PDF">
+    <i class="bi bi-file-earmark-pdf"></i>
+  </a>
+
+</div>
+
+{# Fallback POST pour l’envoi email #}
+<form id="sendDevisForm-{{ d.id }}"
+      method="post"
+      action="{{ sendUrl }}"
+      class="d-none">
+  <input type="hidden" name="_token" value="{{ csrf_token('devis_send_' ~ d.id) }}">
+</form>

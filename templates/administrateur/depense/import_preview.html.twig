@@ -1,0 +1,1951 @@
+{# templates/administrateur/depense/import_preview.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Proposition d’import{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .hero{
+      border-radius:22px; overflow:hidden;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+    }
+    .imp-card{
+      border-radius:18px;
+      background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+      position:relative;
+    }
+    .imp-card.dup{
+      border-color: rgba(220,53,69,.35);
+      box-shadow: 0 14px 34px rgba(220,53,69,.10);
+    }
+    .imp-head{
+      padding:.85rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    }
+    .imp-badge{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.25rem .6rem; border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.02);
+      font-size:.82rem;
+    }
+    .imp-card.dup .imp-badge.dup-badge{
+      border-color: rgba(220,53,69,.25);
+      background: rgba(220,53,69,.08);
+      color: #b02a37;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .8fr .7fr .7fr .9fr .9fr;
+      gap:.75rem;
+    }
+    @media (max-width: 1200px){ .grid{ grid-template-columns: 1fr 1fr; } }
+    label{ font-weight:700; font-size:.82rem; color:rgba(0,0,0,.65); }
+    .form-control, .form-select{ border-radius:14px; }
+    .money{ text-align:right; }
+    .footerbar{
+      position: sticky; bottom: 0; z-index: 20;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-top:1px solid rgba(0,0,0,.08);
+      padding: .8rem 0;
+      margin-top: 1.2rem;
+    }
+
+
+    .imp-preview .pv-ttc{ font-size: 1.05rem; }
+    @media (max-width: 1199px){
+      .imp-preview{ position: static !important; top:auto !important; }
+    }
+
+
+    /* ===== Premium form tokens ===== */
+    :root{
+      --bg-soft: #f6f8fc;
+      --ink: #0f172a;
+      --muted: rgba(15,23,42,.62);
+      --stroke: rgba(15,23,42,.10);
+      --stroke2: rgba(15,23,42,.14);
+      --shadow-sm: 0 10px 24px rgba(15,23,42,.06);
+      --shadow-md: 0 18px 40px rgba(15,23,42,.10);
+      --ring: 0 0 0 .22rem rgba(255,193,7,.22);
+    }
+
+    /* Carte : plus “soft” + depth */
+    .imp-card{
+      background: linear-gradient(180deg, #fff, #fff 55%, rgba(15,23,42,.015));
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow-sm);
+    }
+    .imp-card:hover{ box-shadow: var(--shadow-md); }
+
+    /* Header : un peu plus premium */
+    .imp-head{
+      background:
+        radial-gradient(900px 140px at 20% 0%, rgba(255,193,7,.12), transparent 60%),
+        linear-gradient(180deg, rgba(15,23,42,.02), transparent);
+    }
+
+    /* ===== Grille : auto-fit => champs plus larges / plus lisibles ===== */
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .9rem 1rem;
+    }
+
+    /* Labels : style “form premium” */
+    .grid label{
+      display:flex; align-items:center; gap:.45rem;
+      font-weight: 800;
+      letter-spacing: .02em;
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+
+    /* Inputs / selects : fond doux + focus ring + padding */
+    .form-control, .form-select, .ts-control{
+      border-radius: 14px !important;
+      border: 1px solid var(--stroke2) !important;
+      background: var(--bg-soft) !important;
+      padding: .58rem .75rem !important;
+      box-shadow: none !important;
+    }
+
+    .form-control:focus, .form-select:focus,
+    .ts-control:focus-within{
+      border-color: rgba(255,193,7,.55) !important;
+      box-shadow: var(--ring) !important;
+      background: #fff !important;
+    }
+
+    /* TomSelect : look bootstrap+premium */
+    .ts-wrapper.single .ts-control{
+      padding-right: 2.25rem !important;
+    }
+    .ts-wrapper .ts-control .item{
+      font-weight: 650;
+      color: var(--ink);
+    }
+    .ts-wrapper .ts-dropdown{
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid var(--stroke2);
+      box-shadow: 0 18px 40px rgba(15,23,42,.12);
+    }
+
+    /* Groupe € : plus clean */
+    .input-group .form-control{
+      background: var(--bg-soft) !important;
+    }
+    .input-group-text{
+      border-radius: 14px !important;
+      border: 1px solid var(--stroke2) !important;
+      background: rgba(15,23,42,.04) !important;
+      font-weight: 800;
+      color: rgba(15,23,42,.65);
+    }
+
+    /* Money fields : lisibles */
+    .money{
+      text-align:right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+
+    /* ===== Field actions (select + boutons) ===== */
+    .field-actions{
+      display:flex; gap:.5rem; align-items:stretch;
+    }
+    .field-actions .ts-wrapper, 
+    .field-actions .form-select{
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .field-actions .btn{
+      border-radius: 14px;
+      padding: .52rem .62rem;
+      border: 1px solid var(--stroke2) !important;
+      background: #fff;
+    }
+    .field-actions .btn:hover{
+      background: rgba(15,23,42,.03);
+    }
+
+    /* Preview : plus premium */
+    .imp-preview .p-3{
+      border-radius: 18px !important;
+      border: 1px solid var(--stroke2) !important;
+      background:
+        radial-gradient(900px 220px at 20% 0%, rgba(255,193,7,.10), transparent 55%),
+        linear-gradient(180deg, rgba(15,23,42,.03), rgba(255,255,255,.92));
+      box-shadow: 0 18px 40px rgba(15,23,42,.08);
+    }
+    .imp-preview .pv-ttc{ font-size: 1.1rem; }
+
+    /* Deductible switch : plus visible */
+    .form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+    }
+
+
+    /* =============================
+      Fix € input-group (arrondi à droite uniquement)
+    ============================= */
+
+    /* Champ montant : arrondi à gauche uniquement */
+    .input-group > .form-control.money{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+
+    /* Symbole € : arrondi à droite uniquement */
+    .input-group > .input-group-text{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+
+      border-top-right-radius: 14px !important;
+      border-bottom-right-radius: 14px !important;
+
+      min-width: 46px;
+      justify-content: center;
+    }
+
+
+    /* Mise en valeur montants */
+    .input-group .form-control.money{
+      font-size: .95rem;
+      letter-spacing: .02em;
+    }
+
+    .input-group-text{
+      font-size: .85rem;
+      opacity: .75;
+    }
+
+
+
+
+    /* ===== Libellé : prendre 2 colonnes (desktop) + meilleure lisibilité ===== */
+    .field-libelle{
+      grid-column: 1 / -1; /* par défaut: full width */
+    }
+
+    /* Sur grand écran: libellé très large mais pas forcément full (plus équilibré) */
+    @media (min-width: 1200px){
+      .field-libelle{
+        grid-column: span 3; /* occupe 3 "cases" dans auto-fit */
+      }
+    }
+
+    /* Libellé façon Excel : multi-lignes + retours à la ligne conservés */
+    textarea.form-control.libelle{
+      white-space: pre-wrap;     /* conserve \n */
+      overflow-wrap: anywhere;   /* évite les débordements */
+      line-height: 1.25;
+      min-height: 44px;          /* hauteur “input-like” */
+      max-height: 140px;         /* évite que ça prenne tout l’écran */
+      resize: vertical;          /* l'utilisateur peut agrandir */
+    }
+
+
+
+
+  /* Input-group : assure le même rendu pour % que pour € */
+  .input-group > .form-control.pctInput{
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+
+
+  /* retire les spinners sur input number */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
+  input[type=number]{ -moz-appearance: textfield; }
+
+
+  /* Select dans input-group : arrondi à gauche seulement */
+  .input-group > .form-select.tauxSelect{
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+
+
+
+
+
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="hero p-4 mb-4">
+    <div class="d-flex flex-wrap align-items-end gap-2">
+      <div class="me-auto">
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <span class="badge rounded-pill" style="background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18);">
+            <i class="bi bi-list-check"></i> Proposition
+          </span>
+          <span class="badge rounded-pill" style="background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18);">
+            <i class="bi bi-building"></i> {{ entite.nom }}
+          </span>
+          <span class="badge rounded-pill" style="background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18);">
+            {{ proposals|length }} ligne(s)
+          </span>
+        </div>
+        <h2 class="fw-bold mb-1">Valide / ajuste tes dépenses</h2>
+        <div class="opacity-75">
+          Les doublons (même date + même TTC) sont en rouge. Tu peux les ignorer, ou importer quand même.
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-light btn-sm fw-semibold"
+           href="{{ path('app_administrateur_depense_import', {entite: entite.id}) }}">
+          <i class="bi bi-arrow-left"></i> Revenir à l’import
+        </a>
+        <button type="button" class="btn btn-light btn-sm fw-semibold" id="btnSelectNonDup">
+          <i class="bi bi-check2-square"></i> Sélectionner non-doublons
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <form method="post"
+        action="{{ path('app_administrateur_depense_import_commit', {entite: entite.id}) }}"
+        enctype="multipart/form-data"
+        id="importForm">
+
+    <div class="row g-3">
+      {% for p in proposals %}
+        {% set key = (p.date ~ '|' ~ p.montantTtcCents) %}
+        {% set isDup = dupMap[key] is defined %}
+        <div class="col-12">
+          <div class="imp-card {{ isDup ? 'dup' : '' }}" data-idx="{{ p.idx }}" data-dup="{{ isDup ? 1 : 0 }}">
+            <div class="imp-head">
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="imp-badge"><i class="bi bi-hash"></i> {{ p.idx + 1 }}</span>
+                <span class="imp-badge"><i class="bi bi-calendar"></i> {{ p.dateFr ?: '—' }}</span>
+                <span class="imp-badge"><i class="bi bi-cash-coin"></i> {{ (p.montantTtcCents/100)|number_format(2, ',', ' ') }} €</span>
+
+                {% if isDup %}
+                  <div class="dup-zone d-flex gap-2 {{ isDup ? '' : 'd-none' }}">
+                    <span class="imp-badge dup-badge dup-label">
+                      <i class="bi bi-exclamation-triangle"></i> Doublon probable
+                    </span>
+
+                    <a class="imp-badge dup-badge dup-link {{ isDup ? '' : 'disabled' }}"
+                      href="#"
+                      {{ isDup ? ('data-existing-id="' ~ dupMap[key].depenseId ~ '"') : '' }}
+                      aria-label="Voir existant (modal)"
+                      aria-disabled="{{ isDup ? 'false' : 'true' }}">
+                      <i class="bi bi-eye"></i> Voir existant
+                    </a>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="d-flex gap-2 align-items-center">
+                <div class="form-check form-switch">
+                  <input class="form-check-input accept-switch" type="checkbox"
+                         name="rows[{{ p.idx }}][accept]" value="1"
+                         id="accept_{{ p.idx }}" checked>
+                  <label class="form-check-label" for="accept_{{ p.idx }}">Importer</label>
+                </div>
+
+                <button type="button" class="btn btn-outline-secondary btn-sm btnRemoveCard">
+                  <i class="bi bi-x-lg"></i> Retirer
+                </button>
+              </div>
+            </div>
+
+
+            
+
+            <div class="p-3 p-md-4">
+
+
+              <div class="row g-3">
+                <div class="col-xl-9">
+                  <div class="grid">
+                    <div class="field-libelle">
+                      <label>Libellé</label>
+                      <textarea class="form-control libelle"
+                        name="rows[{{ p.idx }}][libelle]"
+                        maxlength="2000"
+                        rows="1">{{ p.libelle|e }}</textarea>
+
+                      <div class="small text-muted mt-1 libelle-hint"></div>
+                    </div>
+                    <div>
+                      <label>Date</label>
+                      <input class="form-control js-date"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        placeholder="jj/mm/aaaa"
+                        data-default-date="{{ p.date }}"
+                        name="rows[{{ p.idx }}][date]"
+                        value="{{ p.date }}">
+
+                    </div>
+
+
+                    <div>
+                      <label>Payeur</label>
+                      <select class="form-select ts"
+                              name="rows[{{ p.idx }}][payeurId]">
+                        <option value="">—</option>
+                        {% for u in payeurs %}
+                          <option value="{{ u.id }}" {{ p.payeurId == u.id ? 'selected' : '' }}>
+                            {{ (u.nom ~ ' ' ~ u.prenom)|trim ?: u.email }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label>Devise</label>
+                      <select class="form-select"
+                              name="rows[{{ p.idx }}][devise]">
+                        {% for code in ['EUR','USD','CHF','GBP'] %}
+                          <option value="{{ code }}" {{ p.devise == code ? 'selected' : '' }}>{{ code }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label>Catégorie</label>
+
+                      <div class="field-actions">
+                        <select class="form-select ts ts-cat" name="rows[{{ p.idx }}][categorieId]">
+                          <option value="">—</option>
+                          {% for c in categories %}
+                            <option
+                              value="{{ c.id }}"
+                              {{ p.categorieId == c.id ? 'selected' : '' }}
+                              data-type="{{ c.type }}"
+                              data-actif="{{ c.actif ? 1 : 0 }}"
+                              data-include-charts="{{ c.includeInFinanceCharts ? 1 : 0 }}"
+                            >
+                              {{ c.libelle }}
+                            </option>
+                          {% endfor %}
+                        </select>
+
+                        <button type="button" class="btn"
+                                data-bs-toggle="modal" data-bs-target="#modalAddCategorie"
+                                title="Ajouter une catégorie">
+                          <i class="bi bi-plus-lg"></i>
+                        </button>
+
+                        <button type="button" class="btn btnEditCategorieOpen"
+                                title="Éditer la catégorie sélectionnée">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                      </div>
+                    </div>
+
+
+                    <div>
+                      <label>Fournisseur</label>
+
+                      <div class="field-actions">
+                        <select class="form-select ts ts-four" name="rows[{{ p.idx }}][fournisseurId]">
+                          <option value="">—</option>
+                          {% for f in fournisseurs %}
+                            <option value="{{ f.id }}" {{ p.fournisseurId == f.id ? 'selected' : '' }}>{{ f.nom }}</option>
+                          {% endfor %}
+                        </select>
+
+                        <button type="button" class="btn"
+                                data-bs-toggle="modal" data-bs-target="#modalAddFournisseur"
+                                title="Ajouter un fournisseur">
+                          <i class="bi bi-plus-lg"></i>
+                        </button>
+
+                        <button type="button" class="btn btnEditFournisseurOpen"
+                                title="Éditer le fournisseur sélectionné">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                      </div>
+                    </div>
+
+
+
+                    <div>
+                      <label>Justificatif</label>
+                      <input class="form-control"
+                            type="file"
+                            name="proofs[{{ p.idx }}]"
+                            accept="application/pdf,image/jpeg,image/png,image/webp">
+                      <div class="small text-muted mt-1">
+                        PDF / JPG / PNG / WebP
+                      </div>
+
+                    </div>
+
+
+                    
+
+                    <div>
+                      <label>TVA déductible</label>
+
+                      <div class="d-flex align-items-center justify-content-between gap-2"
+                          style="min-height:42px; background: var(--bg-soft); border:1px solid var(--stroke2); border-radius:14px; padding:.5rem .75rem;">
+                        <div class="small fw-semibold" style="color: var(--muted);">
+                          <span class="ded-label">{{ (p.tvaDeductible ?? 1) ? 'Oui' : 'Non' }}</span>
+                        </div>
+
+                        <div class="form-check form-switch m-0">
+                          <input class="form-check-input dedSwitch"
+                                type="checkbox"
+                                id="ded_{{ p.idx }}"
+                                {{ (p.tvaDeductible ?? 1) ? 'checked' : '' }}>
+                          <label class="form-check-label visually-hidden" for="ded_{{ p.idx }}">TVA déductible</label>
+                        </div>
+                      </div>
+
+                      <input type="hidden"
+                            name="rows[{{ p.idx }}][tvaDeductible]"
+                            value="{{ (p.tvaDeductible ?? 1) ? 1 : 0 }}"
+                            class="dedVal">
+                    </div>
+
+
+
+                    <div>
+                      <label>Taux TVA</label>
+                      <div class="input-group">
+                        <select class="form-select taux tauxSelect"
+                                name="rows[{{ p.idx }}][tauxTva]">
+                          {% for v in [20,10,5.5,2.1,0] %}
+                            <option value="{{ v }}" {{ p.tauxTva == v ? 'selected' : '' }}>
+                              {{ v|replace({'.':','}) }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                        <span class="input-group-text">%</span>
+                      </div>
+                    </div>
+
+
+                    <div>
+                      <label>% TVA déductible</label>
+                      <div class="input-group">
+                        <input class="form-control pct money pctInput"
+                              name="rows[{{ p.idx }}][tvaDeductiblePct]"
+                              value="{{ p.tvaDeductiblePct ?? 80 }}"
+                              step="0.5" min="0" max="100" type="number">
+                        <span class="input-group-text">%</span>
+                      </div>
+                    </div>
+
+
+                    {# ===== Montant HT (visible € + hidden cents) ===== #}
+                    <div>
+                      <label>Montant HT</label>
+                      <div class="input-group">
+                        <input class="form-control money htEuro"
+                              type="text"
+                              inputmode="decimal"
+                              value="{{ (p.montantHtCents/100)|number_format(2, ',', ' ') }}"
+                              placeholder="0,00">
+                        <span class="input-group-text">€</span>
+                      </div>
+                      <input type="hidden" class="htCents"
+                            name="rows[{{ p.idx }}][montantHtCents]"
+                            value="{{ p.montantHtCents }}">
+                    </div>
+
+                    {# ===== Montant TVA ===== #}
+                    <div>
+                      <label>Montant TVA</label>
+                      <div class="input-group">
+                        <input class="form-control money tvaEuro"
+                              type="text"
+                              inputmode="decimal"
+                              value="{{ (p.montantTvaCents/100)|number_format(2, ',', ' ') }}"
+                              placeholder="0,00">
+                        <span class="input-group-text">€</span>
+                      </div>
+                      <input type="hidden" class="tvaCents"
+                            name="rows[{{ p.idx }}][montantTvaCents]"
+                            value="{{ p.montantTvaCents }}">
+                    </div>
+
+                    {# ===== Montant TTC ===== #}
+                    <div>
+                      <label>Montant TTC</label>
+                      <div class="input-group">
+                        <input class="form-control money ttcEuro"
+                              type="text"
+                              inputmode="decimal"
+                              value="{{ (p.montantTtcCents/100)|number_format(2, ',', ' ') }}"
+                              placeholder="0,00">
+                        <span class="input-group-text">€</span>
+                      </div>
+                      <input type="hidden" class="ttcCents"
+                            name="rows[{{ p.idx }}][montantTtcCents]"
+                            value="{{ p.montantTtcCents }}">
+                      <div class="small text-muted mt-1">banque (débit)</div>
+                    </div>
+
+
+                    
+                  </div>
+                </div>
+
+                <div class="col-xl-3">
+                  <div class="imp-preview sticky-top" style="top: 96px;">
+                    <div class="p-3" style="border:1px solid rgba(0,0,0,.08); border-radius:16px; background:rgba(0,0,0,.02);">
+                      <div class="small text-muted mb-2"><i class="bi bi-eye"></i> Aperçu</div>
+
+                      <div class="d-flex justify-content-between small py-1">
+                        <span class="text-muted">HT</span>
+                        <span class="fw-semibold pv-ht">—</span>
+                      </div>
+                      <div class="d-flex justify-content-between small py-1">
+                        <span class="text-muted">TVA</span>
+                        <span class="fw-semibold pv-tva">—</span>
+                      </div>
+                      <div class="d-flex justify-content-between small py-1">
+                        <span class="text-muted">TTC</span>
+                        <span class="fw-bold pv-ttc">—</span>
+                      </div>
+
+                      <hr class="my-2">
+
+                      <div class="small">
+                        <div class="d-flex justify-content-between py-1">
+                          <span class="text-muted">Cat.</span>
+                          <span class="fw-semibold pv-cat text-end">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                          <span class="text-muted">Four.</span>
+                          <span class="fw-semibold pv-four text-end">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                          <span class="text-muted">Déduct.</span>
+                          <span class="fw-semibold pv-ded text-end">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                          <span class="text-muted">TVA déd.</span>
+                          <span class="fw-semibold pv-tvaded text-end">—</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+              <div class="mt-3 small text-muted">
+                <i class="bi bi-info-circle"></i>
+                Astuce : si tu touches le <strong>TTC</strong> ou le <strong>taux</strong>, HT/TVA se recalculent automatiquement.
+              </div>
+
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="footerbar">
+      <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+        <div class="small text-muted">
+          <span id="selectedCount">0</span> ligne(s) sélectionnée(s) pour import.
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-light fw-semibold"
+              href="{{ path('app_administrateur_depense_index', {entite: entite.id}) }}">
+            Annuler
+          </a>
+          <button class="btn btn-warning fw-semibold" type="submit">
+            <i class="bi bi-check2-circle"></i> Importer la sélection
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+
+
+
+{# =========================
+   MODAL: AJOUT CATEGORIE
+========================= #}
+{# =========================
+   MODAL: AJOUT CATEGORIE (FIX)
+========================= #}
+<div class="modal fade" id="modalAddCategorie" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-tags"></i> Nouvelle catégorie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="catErr" class="alert alert-danger d-none mb-3"></div>
+
+        <label class="form-label fw-semibold">Libellé</label>
+        <input type="text" id="newCategorieLibelle" class="form-control" maxlength="120"
+               placeholder="Ex : Loyer, Fournitures, Logiciels...">
+
+        <label class="form-label fw-semibold mt-3">Type</label>
+        <select class="form-select" id="newCategorieType">
+          <option value="operating" selected>Exploitation</option>
+          <option value="tax">Taxes / impôts</option>
+          <option value="payroll">Social / salaires</option>
+          <option value="finance">Frais financiers</option>
+          <option value="internal">Interne / transferts</option>
+          <option value="other">Autre</option>
+        </select>
+
+        <div class="form-check form-switch mt-3">
+          <input class="form-check-input" type="checkbox" id="newCategorieActif" checked>
+          <label class="form-check-label" for="newCategorieActif">Catégorie active</label>
+        </div>
+
+        <div class="form-check form-switch mt-2">
+          <input class="form-check-input" type="checkbox" id="newCategorieIncludeCharts" checked>
+          <label class="form-check-label" for="newCategorieIncludeCharts">Inclure dans les graphiques finance</label>
+        </div>
+
+        <div class="form-text">
+          Le type sert au classement, et “graphes” masque/affiche dans les stats.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-warning fw-semibold" id="btnCreateCategorie">
+          <i class="bi bi-check2-circle"></i> Créer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{# =========================
+   MODAL: AJOUT FOURNISSEUR
+========================= #}
+<div class="modal fade" id="modalAddFournisseur" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-truck"></i> Nouveau fournisseur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="fourErr" class="alert alert-danger d-none mb-3"></div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nom</label>
+          <input type="text" id="newFournisseurNom" class="form-control" maxlength="160"
+                 placeholder="Ex : Orange, Amazon, EDF...">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">SIRET (optionnel)</label>
+          <input type="text" id="newFournisseurSiret" class="form-control" maxlength="60"
+                 placeholder="Ex : 123 456 789 00012">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label fw-semibold">% Couleur (optionnel)</label>
+          <div class="d-flex gap-2 align-items-center">
+            <input type="color" id="newFournisseurColor" class="form-control form-control-color" value="#2563eb"
+                   title="Choisir une couleur">
+            <input type="text" id="newFournisseurColorText" class="form-control" value="#2563eb" maxlength="7"
+                   placeholder="#RRGGBB">
+          </div>
+          <div class="form-text">Format attendu : <code>#RRGGBB</code>. Sert juste pour l’UI.</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal">
+          Annuler
+        </button>
+        <button type="button" class="btn btn-warning fw-semibold" id="btnCreateFournisseur">
+          <i class="bi bi-check2-circle"></i> Créer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+{# =========================
+   MODAL: EDIT CATEGORIE
+========================= #}
+<div class="modal fade" id="modalEditCategorie" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Modifier la catégorie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="catEditErr" class="alert alert-danger d-none mb-3"></div>
+
+        <input type="hidden" id="editCategorieId">
+
+        <label class="form-label fw-semibold">Libellé</label>
+        <input type="text" id="editCategorieLibelle" class="form-control" maxlength="120">
+
+        <label class="form-label fw-semibold mt-3">Type</label>
+        <select class="form-select" id="editCategorieType">
+          <option value="operating">Exploitation</option>
+          <option value="tax">Taxes / impôts</option>
+          <option value="payroll">Social / salaires</option>
+          <option value="finance">Frais financiers</option>
+          <option value="internal">Interne / transferts</option>
+          <option value="other">Autre</option>
+        </select>
+
+        <div class="form-check form-switch mt-3">
+          <input class="form-check-input" type="checkbox" id="editCategorieActif" checked>
+          <label class="form-check-label" for="editCategorieActif">Catégorie active</label>
+        </div>
+
+        <div class="form-check form-switch mt-2">
+          <input class="form-check-input" type="checkbox" id="editCategorieIncludeCharts" checked>
+          <label class="form-check-label" for="editCategorieIncludeCharts">Inclure dans les graphiques finance</label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-warning fw-semibold" id="btnUpdateCategorie">
+          <i class="bi bi-check2-circle"></i> Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{# =========================
+   MODAL: EDIT FOURNISSEUR
+========================= #}
+<div class="modal fade" id="modalEditFournisseur" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Modifier le fournisseur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="fourEditErr" class="alert alert-danger d-none mb-3"></div>
+
+        <input type="hidden" id="editFournisseurId">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nom</label>
+          <input type="text" id="editFournisseurNom" class="form-control" maxlength="160">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">SIRET (optionnel)</label>
+          <input type="text" id="editFournisseurSiret" class="form-control" maxlength="60">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Couleur (optionnel)</label>
+          <div class="d-flex gap-2 align-items-center">
+            <input type="color" id="editFournisseurColor" class="form-control form-control-color" value="#2563eb">
+            <input type="text" id="editFournisseurColorText" class="form-control" value="#2563eb" maxlength="7">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-warning fw-semibold" id="btnUpdateFournisseur">
+          <i class="bi bi-check2-circle"></i> Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<div class="modal fade" id="modalDupCompare" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle">
+            <i class="bi bi-exclamation-triangle"></i> Doublon probable
+          </span>
+          <h5 class="modal-title fw-bold mb-0">Comparaison import vs existant</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="dupCompareErr" class="alert alert-danger d-none mb-3"></div>
+
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="p-3" style="border:1px solid rgba(0,0,0,.10); border-radius:16px; background:rgba(15,23,42,.02);">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-bold"><i class="bi bi-upload"></i> Ligne importée</div>
+                <span class="small text-muted" id="cmpImportMeta">—</span>
+              </div>
+
+              <div class="small text-muted mb-1">Libellé</div>
+              <div class="fw-semibold mb-2" id="cmpImportLibelle">—</div>
+
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="small text-muted">Date</div>
+                  <div class="fw-semibold" id="cmpImportDate">—</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted">Payeur</div>
+                  <div class="fw-semibold" id="cmpImportPayeur">—</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted">Catégorie</div>
+                  <div class="fw-semibold" id="cmpImportCat">—</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted">Fournisseur</div>
+                  <div class="fw-semibold" id="cmpImportFour">—</div>
+                </div>
+              </div>
+
+              <hr class="my-3">
+
+              <div class="row g-2">
+                <div class="col-4">
+                  <div class="small text-muted">HT</div>
+                  <div class="fw-bold" id="cmpImportHT">—</div>
+                </div>
+                <div class="col-4">
+                  <div class="small text-muted">TVA</div>
+                  <div class="fw-bold" id="cmpImportTVA">—</div>
+                </div>
+                <div class="col-4">
+                  <div class="small text-muted">TTC</div>
+                  <div class="fw-bold" id="cmpImportTTC">—</div>
+                </div>
+              </div>
+
+              <div class="mt-2 small text-muted">
+                TVA: <span class="fw-semibold" id="cmpImportTaux">—</span>,
+                Déductible: <span class="fw-semibold" id="cmpImportDed">—</span>
+                (<span class="fw-semibold" id="cmpImportDedPct">—</span>)
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="p-3" style="border:1px solid rgba(0,0,0,.10); border-radius:16px; background:#fff;">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-bold"><i class="bi bi-database"></i> Dépense existante</div>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-outline-secondary btn-sm fw-semibold d-none" id="cmpExistingOpen" target="_blank" rel="noopener">
+                    <i class="bi bi-box-arrow-up-right"></i> Ouvrir
+                  </a>
+                  <a class="btn btn-outline-secondary btn-sm fw-semibold d-none" id="cmpExistingProof" target="_blank" rel="noopener">
+                    <i class="bi bi-file-earmark-text"></i> Justificatif
+                  </a>
+                </div>
+              </div>
+
+              <div class="small text-muted mb-1">Libellé</div>
+              <div class="fw-semibold mb-2" id="cmpExistLibelle">—</div>
+
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="small text-muted">Date</div>
+                  <div class="fw-semibold" id="cmpExistDate">—</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted">Payeur</div>
+                  <div class="fw-semibold" id="cmpExistPayeur">—</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted">Catégorie</div>
+                  <div class="fw-semibold" id="cmpExistCat">—</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted">Fournisseur</div>
+                  <div class="fw-semibold" id="cmpExistFour">—</div>
+                </div>
+              </div>
+
+              <hr class="my-3">
+
+              <div class="row g-2">
+                <div class="col-4">
+                  <div class="small text-muted">HT</div>
+                  <div class="fw-bold" id="cmpExistHT">—</div>
+                </div>
+                <div class="col-4">
+                  <div class="small text-muted">TVA</div>
+                  <div class="fw-bold" id="cmpExistTVA">—</div>
+                </div>
+                <div class="col-4">
+                  <div class="small text-muted">TTC</div>
+                  <div class="fw-bold" id="cmpExistTTC">—</div>
+                </div>
+              </div>
+
+              <div class="mt-2 small text-muted">
+                TVA: <span class="fw-semibold" id="cmpExistTaux">—</span>,
+                Déductible: <span class="fw-semibold" id="cmpExistDed">—</span>
+                (<span class="fw-semibold" id="cmpExistDedPct">—</span>)
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+<script>
+/* =============================
+  Helpers FR
+============================= */
+function parseNumberFR(v){
+  if (v === null || v === undefined) return 0;
+  v = String(v).trim().replace(/\s/g,'').replace('\u202F','').replace(',', '.');
+  v = v.replace(/[^\d.\-]/g,'');
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+function formatMoneyFR(n){
+  if (!isFinite(n)) n = 0;
+  try {
+    return new Intl.NumberFormat('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }).format(n);
+  } catch(e){
+    return (Number(n).toFixed(2)).replace('.', ',');
+  }
+}
+function eurosToCents(euros){
+  return Math.max(0, Math.round((parseNumberFR(euros) || 0) * 100));
+}
+function centsToEuros(cents){
+  return (parseInt(cents || 0, 10) || 0) / 100;
+}
+function recalcFromTtcCents(ttcCents, taux){
+  ttcCents = parseInt(ttcCents || 0, 10) || 0;
+  taux = parseFloat(taux || 0) || 0;
+  if (ttcCents <= 0) return { ht: 0, tva: 0 };
+  if (taux <= 0.0001) return { ht: ttcCents, tva: 0 };
+  const ht = Math.round(ttcCents / (1 + (taux/100)));
+  const tva = Math.max(0, ttcCents - ht);
+  return { ht, tva };
+}
+function getTsText(selectEl){
+  if (!selectEl) return '';
+  if (selectEl.tomselect){
+    const v = selectEl.tomselect.getValue();
+    if (!v) return '';
+    const opt = selectEl.querySelector(`option[value="${CSS.escape(v)}"]`);
+    return (opt ? opt.textContent : '').trim();
+  }
+  const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+  return (opt ? opt.textContent : '').trim();
+}
+
+/* =============================
+  Ajax helper
+============================= */
+function postForm(url, data){
+  return fetch(url, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8' },
+    body:new URLSearchParams(data)
+  }).then(async r => {
+    const json = await r.json().catch(()=>null);
+    if (!r.ok) throw (json || {message:'Erreur serveur'});
+    return json;
+  });
+}
+
+/* =============================
+  UI helpers
+============================= */
+function refreshSelectedCount(){
+  const n = document.querySelectorAll('.accept-switch:checked').length;
+  const el = document.getElementById('selectedCount');
+  if (el) el.textContent = n;
+}
+
+function refreshCardPreview(card){
+  const htEuro = card.querySelector('.htEuro');
+  const tvaEuro = card.querySelector('.tvaEuro');
+  const ttcEuro = card.querySelector('.ttcEuro');
+
+  const catSel = card.querySelector('select.ts-cat');
+  const fourSel = card.querySelector('select.ts-four');
+
+  const dedSwitch = card.querySelector('.dedSwitch');
+  const pct = card.querySelector('.pct');
+
+  const pvHt = card.querySelector('.pv-ht');
+  const pvTva = card.querySelector('.pv-tva');
+  const pvTtc = card.querySelector('.pv-ttc');
+  const pvCat = card.querySelector('.pv-cat');
+  const pvFour = card.querySelector('.pv-four');
+  const pvDed = card.querySelector('.pv-ded');
+  const pvTvaDed = card.querySelector('.pv-tvaded');
+
+  const ht = parseNumberFR(htEuro?.value || 0);
+  const tv = parseNumberFR(tvaEuro?.value || 0);
+  const ttc = parseNumberFR(ttcEuro?.value || 0);
+
+  if (pvHt) pvHt.textContent = ht > 0 ? (formatMoneyFR(ht) + ' €') : '—';
+  if (pvTva) pvTva.textContent = tv > 0 ? (formatMoneyFR(tv) + ' €') : '—';
+  if (pvTtc) pvTtc.textContent = ttc > 0 ? (formatMoneyFR(ttc) + ' €') : '—';
+
+  if (pvCat) pvCat.textContent = getTsText(catSel) || '—';
+  if (pvFour) pvFour.textContent = getTsText(fourSel) || '—';
+
+  const isDed = !!(dedSwitch && dedSwitch.checked);
+  const pctVal = Math.max(0, Math.min(100, parseNumberFR(pct?.value || 0)));
+  const tvaDed = isDed ? (tv * (pctVal/100)) : 0;
+
+  if (pvDed) pvDed.textContent = isDed ? 'Oui' : 'Non';
+  if (pvTvaDed) pvTvaDed.textContent = (tvaDed > 0) ? (formatMoneyFR(tvaDed) + ' €') : '—';
+}
+
+
+/* =============================
+  Main
+============================= */
+document.addEventListener('DOMContentLoaded', function(){
+
+
+
+
+  const DUP_CHECK_URL = "{{ path('app_administrateur_depense_import_dup_check', { entite: entite.id }) }}";
+
+  function debounce(fn, delay=250){
+    let t = null;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), delay);
+    };
+  }
+
+  async function checkDuplicateForCard(card){
+    const dateEl = card.querySelector('input.js-date');
+    const ttcCentsEl = card.querySelector('.ttcCents');
+    if (!dateEl || !ttcCentsEl) return;
+
+    const date = (dateEl.value || '').trim();            // Y-m-d (value flatpickr)
+    const ttcCents = parseInt(ttcCentsEl.value || '0', 10) || 0;
+
+    // pas de check si incomplet
+    if (!date || ttcCents <= 0) {
+      applyDupUI(card, { exists:false, depenseId:null });
+      return;
+    }
+
+    try{
+      const res = await postForm(DUP_CHECK_URL, { date, ttcCents });
+      applyDupUI(card, res);
+    } catch(e){
+      // en cas d'erreur serveur: on ne casse pas l'UI
+    }
+  }
+
+  function applyDupUI(card, res){
+    const exists = !!res?.exists;
+    const depenseId = res?.depenseId ? String(res.depenseId) : null;
+
+    card.classList.toggle('dup', exists);
+    card.setAttribute('data-dup', exists ? '1' : '0');
+
+    const zone = card.querySelector('.dup-zone');
+    const link = card.querySelector('.dup-link');
+
+    if (zone) zone.classList.toggle('d-none', !exists);
+
+    if (link){
+      if (exists && depenseId){
+        link.setAttribute('data-existing-id', depenseId);  // ✅ IMPORTANT
+        link.classList.remove('disabled');
+        link.setAttribute('aria-disabled', 'false');
+        link.href = '#';                                   // ✅ on garde le mode modal
+      } else {
+        link.removeAttribute('data-existing-id');
+        link.href = '#';
+        link.classList.add('disabled');
+        link.setAttribute('aria-disabled', 'true');
+      }
+    }
+  }
+
+
+
+
+  // mémorise la card qui a ouvert une modale (+ ou crayon)
+  let lastOpenCard = null;
+
+  // Quand on ouvre la modale "ajout catégorie"
+  document.getElementById('modalAddCategorie')?.addEventListener('show.bs.modal', (ev) => {
+    lastOpenCard = ev.relatedTarget?.closest('.imp-card') || null;
+  });
+
+  // Quand on ouvre la modale "ajout fournisseur"
+  document.getElementById('modalAddFournisseur')?.addEventListener('show.bs.modal', (ev) => {
+    lastOpenCard = ev.relatedTarget?.closest('.imp-card') || null;
+  });
+
+
+
+  function initTomSelect(root=document){
+    root.querySelectorAll('select.ts').forEach(el => {
+      if (el.tomselect) return;
+
+      new TomSelect(el, {
+        create: false,
+        persist: false,
+        plugins: ['dropdown_input'],
+        sortField: [{ field: 'text', direction: 'asc' }],
+        placeholder: el.getAttribute('placeholder') || '—',
+      });
+    });
+  }
+
+  function initDatepickers(root=document){
+    root.querySelectorAll('input.js-date').forEach(el => {
+      if (el._flatpickr) return;
+
+      const def = el.dataset.defaultDate || el.value || null;
+
+      flatpickr(el, {
+        locale: 'fr',
+        dateFormat: 'Y-m-d',      // valeur envoyée au backend (ton importCommit attend Y-m-d)
+        altInput: true,
+        altFormat: 'd/m/Y',       // affichage utilisateur
+        defaultDate: def,
+        allowInput: true,
+        disableMobile: true,
+        onChange: () => {
+          // optionnel : si tu veux rafraîchir la preview quand on change la date
+          const card = el.closest('.imp-card');
+          if (card) refreshCardPreview(card);
+        }
+      });
+    });
+  }
+
+  // init global
+  initTomSelect(document);
+  initDatepickers(document);
+
+
+
+
+
+
+
+
+
+  const EXISTING_URL_TPL = "{{ path('app_administrateur_depense_import_existing', { entite: entite.id, id: 999999 }) }}";
+  const cmpModalEl = document.getElementById('modalDupCompare');
+  const cmpModal = cmpModalEl ? bootstrap.Modal.getOrCreateInstance(cmpModalEl) : null;
+
+  function setCmpErr(msg){
+    const el = document.getElementById('dupCompareErr');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('d-none', !msg);
+  }
+
+  function moneyFromCents(c){ return formatMoneyFR(centsToEuros(c || 0)) + ' €'; }
+
+  function fillImportFromCard(card){
+    const dateAlt = card.querySelector('input.js-date')?._flatpickr?.altInput?.value || '';
+    const dateRaw = card.querySelector('input.js-date')?.value || '';
+
+    const lib = (card.querySelector('textarea.libelle')?.value || '').trim();
+    const paySel = card.querySelector('select.ts[name*="[payeurId]"]') || card.querySelector('select.ts');
+    const catSel = card.querySelector('select.ts-cat');
+    const fourSel = card.querySelector('select.ts-four');
+
+    const htC = parseInt(card.querySelector('.htCents')?.value || '0', 10) || 0;
+    const tvC = parseInt(card.querySelector('.tvaCents')?.value || '0', 10) || 0;
+    const ttcC = parseInt(card.querySelector('.ttcCents')?.value || '0', 10) || 0;
+
+    const taux = card.querySelector('.taux')?.value || '—';
+    const ded = !!card.querySelector('.dedSwitch')?.checked;
+    const dedPct = card.querySelector('.pct')?.value || '0';
+
+    document.getElementById('cmpImportMeta').textContent = `#${card.getAttribute('data-idx') ?? '—'}`;
+    document.getElementById('cmpImportLibelle').textContent = lib || '—';
+    document.getElementById('cmpImportDate').textContent = dateAlt || dateRaw || '—';
+    document.getElementById('cmpImportPayeur').textContent = getTsText(paySel) || '—';
+    document.getElementById('cmpImportCat').textContent = getTsText(catSel) || '—';
+    document.getElementById('cmpImportFour').textContent = getTsText(fourSel) || '—';
+
+    document.getElementById('cmpImportHT').textContent = htC ? moneyFromCents(htC) : '—';
+    document.getElementById('cmpImportTVA').textContent = tvC ? moneyFromCents(tvC) : '—';
+    document.getElementById('cmpImportTTC').textContent = ttcC ? moneyFromCents(ttcC) : '—';
+
+    document.getElementById('cmpImportTaux').textContent = (taux !== '—') ? (String(taux).replace('.', ',') + ' %') : '—';
+    document.getElementById('cmpImportDed').textContent = ded ? 'Oui' : 'Non';
+    document.getElementById('cmpImportDedPct').textContent = ded ? (String(dedPct).replace('.', ',') + ' %') : '0 %';
+  }
+
+  function fillExisting(data){
+    document.getElementById('cmpExistLibelle').textContent = (data.libelle || '—');
+    document.getElementById('cmpExistDate').textContent = (data.dateFr || data.date || '—');
+    document.getElementById('cmpExistPayeur').textContent = (data.payeur || '—');
+    document.getElementById('cmpExistCat').textContent = (data.categorie || '—');
+    document.getElementById('cmpExistFour').textContent = (data.fournisseur || '—');
+
+    document.getElementById('cmpExistHT').textContent = data.montantHtCents ? moneyFromCents(data.montantHtCents) : '—';
+    document.getElementById('cmpExistTVA').textContent = data.montantTvaCents ? moneyFromCents(data.montantTvaCents) : '—';
+    document.getElementById('cmpExistTTC').textContent = data.montantTtcCents ? moneyFromCents(data.montantTtcCents) : '—';
+
+    document.getElementById('cmpExistTaux').textContent = (data.tauxTva ?? null) !== null ? (String(data.tauxTva).replace('.', ',') + ' %') : '—';
+    document.getElementById('cmpExistDed').textContent = data.tvaDeductible ? 'Oui' : 'Non';
+    document.getElementById('cmpExistDedPct').textContent = data.tvaDeductible ? (String(data.tvaDeductiblePct || 0).replace('.', ',') + ' %') : '0 %';
+
+    const open = document.getElementById('cmpExistingOpen');
+    if (open && data.showUrl){
+      open.href = data.showUrl;
+      open.classList.remove('d-none');
+    } else if (open){
+      open.classList.add('d-none');
+    }
+
+    const proof = document.getElementById('cmpExistingProof');
+    if (proof && data.proofUrl){
+      proof.href = data.proofUrl;
+      proof.classList.remove('d-none');
+    } else if (proof){
+      proof.classList.add('d-none');
+    }
+  }
+
+  // Delegation click sur "Voir existant"
+  document.addEventListener('click', async (e) => {
+    const a = e.target.closest('.dup-link');
+    if (!a) return;
+
+    e.preventDefault();
+    setCmpErr('');
+
+    const card = a.closest('.imp-card');
+    const existingId = a.getAttribute('data-existing-id');
+    if (!card || !existingId) return;
+
+    fillImportFromCard(card);
+
+    try{
+      const url = EXISTING_URL_TPL.replace('999999', encodeURIComponent(existingId));
+      const r = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+      const json = await r.json().catch(()=>null);
+      if (!r.ok || !json) throw new Error(json?.message || 'Impossible de charger la dépense existante.');
+      fillExisting(json);
+      cmpModal?.show();
+    } catch(err){
+      setCmpErr(err?.message || 'Erreur lors du chargement.');
+      cmpModal?.show();
+    }
+  });
+
+
+
+
+
+  // remove card
+  document.querySelectorAll('.btnRemoveCard').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const col = btn.closest('.col-12');
+      if (col) col.remove();
+      refreshSelectedCount();
+    });
+  });
+
+  // compteur sélection
+  document.querySelectorAll('.accept-switch').forEach(chk => {
+    chk.addEventListener('change', refreshSelectedCount);
+  });
+  refreshSelectedCount();
+
+  // bouton “select non doublons”
+  document.getElementById('btnSelectNonDup')?.addEventListener('click', () => {
+    document.querySelectorAll('.imp-card').forEach(card => {
+      const isDup = card.getAttribute('data-dup') === '1';
+      const chk = card.querySelector('.accept-switch');
+      if (chk) chk.checked = !isDup;
+    });
+    refreshSelectedCount();
+  });
+
+
+  // par card : euros -> cents + recalcul + preview
+  document.querySelectorAll('.imp-card').forEach(card => {
+    const htEuro = card.querySelector('.htEuro');
+    const tvaEuro = card.querySelector('.tvaEuro');
+    const ttcEuro = card.querySelector('.ttcEuro');
+
+    const htCents = card.querySelector('.htCents');
+    const tvaCents = card.querySelector('.tvaCents');
+    const ttcCents = card.querySelector('.ttcCents');
+
+    const taux = card.querySelector('.taux');
+
+    const dedSwitch = card.querySelector('.dedSwitch');
+    const dedLabel = card.querySelector('.ded-label');
+    const dedVal = card.querySelector('.dedVal');
+    const pct = card.querySelector('.pct');
+
+    const catSel = card.querySelector('select.ts-cat');
+    const fourSel = card.querySelector('select.ts-four');
+
+    function syncCentsFromEuros(){
+      if (htCents) htCents.value = String(eurosToCents(htEuro?.value || 0));
+      if (tvaCents) tvaCents.value = String(eurosToCents(tvaEuro?.value || 0));
+      if (ttcCents) ttcCents.value = String(eurosToCents(ttcEuro?.value || 0));
+    }
+
+    function doRecalcFromTtcEuro(){
+      const ttc = eurosToCents(ttcEuro?.value || 0);
+      const r = recalcFromTtcCents(ttc, taux?.value || 0);
+
+      // update € fields
+      if (htEuro) htEuro.value = formatMoneyFR(centsToEuros(r.ht));
+      if (tvaEuro) tvaEuro.value = formatMoneyFR(centsToEuros(r.tva));
+
+      // update hidden cents
+      if (ttcCents) ttcCents.value = String(ttc);
+      if (htCents) htCents.value = String(r.ht);
+      if (tvaCents) tvaCents.value = String(r.tva);
+    }
+
+    // init hidden from initial
+    syncCentsFromEuros();
+    refreshCardPreview(card);
+
+    // listeners money
+    ttcEuro?.addEventListener('input', () => {
+      doRecalcFromTtcEuro();
+      refreshCardPreview(card);
+    });
+
+    taux?.addEventListener('change', () => {
+      doRecalcFromTtcEuro();
+      refreshCardPreview(card);
+    });
+
+    // si l'utilisateur touche HT/TVA manuellement : on sync cents + maj aperçu
+    htEuro?.addEventListener('input', () => { syncCentsFromEuros(); refreshCardPreview(card); });
+    tvaEuro?.addEventListener('input', () => { syncCentsFromEuros(); refreshCardPreview(card); });
+
+
+
+    // ✅ DUP CHECK : debounce par carte
+    const debouncedDupCheck = debounce(() => checkDuplicateForCard(card), 300);
+
+    // Quand TTC change
+    ttcEuro?.addEventListener('input', () => {
+      doRecalcFromTtcEuro();
+      refreshCardPreview(card);
+      debouncedDupCheck();
+    });
+
+    // Quand taux change
+    taux?.addEventListener('change', () => {
+      doRecalcFromTtcEuro();
+      refreshCardPreview(card);
+      debouncedDupCheck();
+    });
+
+    // Quand date change (saisie manuelle)
+    card.querySelector('input.js-date')?.addEventListener('change', debouncedDupCheck);
+
+    // Check initial
+    checkDuplicateForCard(card);
+
+
+    // déductible -> hidden value + pct enable
+    if (dedSwitch && dedVal && pct){
+      const applyDed = () => {
+        const v = !!dedSwitch.checked;
+        dedVal.value = v ? '1' : '0';
+        if (dedLabel) dedLabel.textContent = v ? 'Oui' : 'Non';
+
+        pct.disabled = !v;
+        if (!v) pct.value = 0;
+        else if (parseFloat(pct.value || '0') <= 0) pct.value = 80;
+
+        refreshCardPreview(card);
+      };
+
+      dedSwitch.addEventListener('change', applyDed);
+      pct.addEventListener('input', () => refreshCardPreview(card));
+
+      applyDed(); // init (important)
+    }
+
+    // catégories/fournisseurs -> preview refresh
+    catSel?.addEventListener('change', () => refreshCardPreview(card));
+    fourSel?.addEventListener('change', () => refreshCardPreview(card));
+
+    // quand TomSelect change (click)
+    catSel?.tomselect?.on('change', () => refreshCardPreview(card));
+    fourSel?.tomselect?.on('change', () => refreshCardPreview(card));
+  });
+
+  /* =============================
+    Ajout catégorie / fournisseur
+    (met à jour TOUS les selects)
+  ============================= */
+  function showErr(id, msg){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('d-none', !msg);
+  }
+
+  const catModalEl = document.getElementById('modalAddCategorie');
+  const fourModalEl = document.getElementById('modalAddFournisseur');
+  const catModal = catModalEl ? bootstrap.Modal.getOrCreateInstance(catModalEl) : null;
+  const fourModal = fourModalEl ? bootstrap.Modal.getOrCreateInstance(fourModalEl) : null;
+
+  function setOptionCategoryMeta(opt, meta){
+    if (!opt) return;
+    opt.dataset.type = meta.type ?? 'operating';
+    opt.dataset.actif = String(meta.actif ?? 1);
+    opt.dataset.includeCharts = String(meta.includeInFinanceCharts ?? 1);
+  }
+
+  /* =============================
+    CREATE CATEGORIE (FIX)
+  ============================= */
+  document.getElementById('btnCreateCategorie')?.addEventListener('click', async () => {
+    showErr('catErr','');
+
+    const libelle = (document.getElementById('newCategorieLibelle')?.value || '').trim();
+    const type = (document.getElementById('newCategorieType')?.value || 'operating').trim();
+    const actif = document.getElementById('newCategorieActif')?.checked ? 1 : 0;
+    const includeInFinanceCharts = document.getElementById('newCategorieIncludeCharts')?.checked ? 1 : 0;
+
+    if (!libelle){ showErr('catErr','Le libellé est requis.'); return; }
+
+    try {
+      const url = "{{ path('app_administrateur_depense_ajax_categorie_create', { entite: entite.id }) }}";
+      const res = await postForm(url, { libelle, type, actif, includeInFinanceCharts });
+      const id = String(res.id);
+      const text = String(res.text || libelle);
+
+      // ✅ 1) ajoute/maj partout + stocke META dans option.dataset
+      document.querySelectorAll('select.ts-cat').forEach(sel => {
+        let opt = sel.querySelector(`option[value="${CSS.escape(id)}"]`);
+        if (!opt){
+          opt = new Option(text, id, false, false);
+          sel.add(opt);
+        } else {
+          opt.textContent = text;
+        }
+
+        setOptionCategoryMeta(opt, {
+          type: res.type ?? type,
+          actif: res.actif ?? actif,
+          includeInFinanceCharts: res.includeInFinanceCharts ?? includeInFinanceCharts
+        });
+
+        if (sel.tomselect){
+          sel.tomselect.addOption({ value: id, text });
+          sel.tomselect.refreshOptions(false);
+        }
+      });
+
+      // ✅ 2) sélectionne sur la card qui a ouvert la modale
+      const active = (lastOpenCard?.querySelector('select.ts-cat')) || document.querySelector('select.ts-cat');
+      if (active?.tomselect){
+        active.tomselect.addItem(id, true);
+      } else if (active){
+        active.value = id;
+        active.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+
+      // reset + close
+      document.getElementById('newCategorieLibelle').value = '';
+      document.getElementById('newCategorieType').value = 'operating';
+      document.getElementById('newCategorieActif').checked = true;
+      document.getElementById('newCategorieIncludeCharts').checked = true;
+
+      catModal?.hide();
+
+      if (lastOpenCard) refreshCardPreview(lastOpenCard);
+
+    } catch(e){
+      showErr('catErr', e?.message || 'Impossible de créer la catégorie.');
+    }
+  });
+
+
+  function normalizeHex(v){
+    v = String(v || '').trim();
+    if (!v) return '';
+    if (v[0] !== '#') v = '#'+v;
+    v = v.toUpperCase();
+    return /^#([0-9A-F]{6})$/.test(v) ? v : '';
+  }
+
+  const $fourColor = document.getElementById('newFournisseurColor');
+  const $fourColorText = document.getElementById('newFournisseurColorText');
+  if ($fourColor && $fourColorText){
+    $fourColor.addEventListener('input', () => { $fourColorText.value = $fourColor.value.toUpperCase(); });
+    $fourColorText.addEventListener('input', () => {
+      const hex = normalizeHex($fourColorText.value);
+      if (hex) $fourColor.value = hex;
+    });
+  }
+
+  document.getElementById('btnCreateFournisseur')?.addEventListener('click', async () => {
+    showErr('fourErr','');
+    const nom = (document.getElementById('newFournisseurNom')?.value || '').trim();
+    const siret = (document.getElementById('newFournisseurSiret')?.value || '').trim();
+    const couleurHex = normalizeHex(document.getElementById('newFournisseurColorText')?.value || '');
+
+    if (!nom){ showErr('fourErr','Le nom est requis.'); return; }
+    if (document.getElementById('newFournisseurColorText')?.value && !couleurHex){
+      showErr('fourErr','Couleur invalide (format attendu: #RRGGBB).'); return;
+    }
+
+    try {
+      const url = "{{ path('app_administrateur_depense_ajax_fournisseur_create', { entite: entite.id }) }}";
+      const res = await postForm(url, { nom, siret, couleurHex }); // {id,text,color?}
+
+      const id = String(res.id);
+      const text = String(res.text || nom);
+      const color = String(res.color || couleurHex || '');
+
+      document.querySelectorAll('select.ts-four').forEach(sel => {
+        if (!sel.querySelector(`option[value="${CSS.escape(id)}"]`)){
+          const opt = new Option(text, id, false, false);
+          opt.dataset.color = color;
+          opt.dataset.siret = siret;
+          sel.add(opt);
+        }
+
+        if (sel.tomselect){
+          sel.tomselect.addOption({ value: id, text });
+          sel.tomselect.refreshOptions(false);
+        }
+      });
+
+      const active = (lastOpenCard?.querySelector('select.ts-four')) || document.querySelector('select.ts-four');
+      if (active?.tomselect){
+        active.tomselect.addItem(id, true);
+      } else if (active){
+        active.value = id;
+        active.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+
+      document.getElementById('newFournisseurNom').value = '';
+      document.getElementById('newFournisseurSiret').value = '';
+      document.getElementById('newFournisseurColor').value = '#2563eb';
+      document.getElementById('newFournisseurColorText').value = '#2563eb';
+
+      fourModal?.hide();
+
+      if (lastOpenCard) refreshCardPreview(lastOpenCard);
+
+    } catch(e){
+      showErr('fourErr', e?.message || 'Impossible de créer le fournisseur.');
+    }
+  });
+
+
+
+
+
+  /* =============================
+    EDIT modals wiring
+  ============================= */
+  let lastEditContext = { type: null, card: null }; // pour rafraîchir l'aperçu de la bonne carte
+
+  const catEditModalEl = document.getElementById('modalEditCategorie');
+  const fourEditModalEl = document.getElementById('modalEditFournisseur');
+  const catEditModal = catEditModalEl ? bootstrap.Modal.getOrCreateInstance(catEditModalEl) : null;
+  const fourEditModal = fourEditModalEl ? bootstrap.Modal.getOrCreateInstance(fourEditModalEl) : null;
+
+  function setErr(elId, msg){
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('d-none', !msg);
+  }
+
+  // Ouvrir modal edit categorie (par carte)
+  
+  /* =============================
+    OPEN EDIT CATEGORIE (FIX)
+  ============================= */
+  document.querySelectorAll('.btnEditCategorieOpen').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.imp-card');
+      const sel = card?.querySelector('select.ts-cat');
+      const id = sel?.tomselect ? sel.tomselect.getValue() : sel?.value;
+
+      if (!id) {
+        setErr('catEditErr', 'Sélectionne une catégorie à modifier.');
+        catEditModal?.show();
+        return;
+      }
+
+      const opt = sel.querySelector(`option[value="${CSS.escape(String(id))}"]`);
+      const label = (opt?.textContent || '').trim();
+
+      document.getElementById('editCategorieId').value = String(id);
+      document.getElementById('editCategorieLibelle').value = label;
+
+      document.getElementById('editCategorieType').value = (opt?.dataset?.type || 'operating');
+      document.getElementById('editCategorieActif').checked = (opt?.dataset?.actif ?? '1') === '1';
+      document.getElementById('editCategorieIncludeCharts').checked = (opt?.dataset?.includeCharts ?? '1') === '1';
+
+      setErr('catEditErr', '');
+      lastEditContext = { type: 'cat', card };
+      catEditModal?.show();
+    });
+  });
+
+  // Ouvrir modal edit fournisseur (par carte)
+  document.querySelectorAll('.btnEditFournisseurOpen').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.imp-card');
+      const sel = card?.querySelector('select.ts-four');
+      const id = sel?.tomselect ? sel.tomselect.getValue() : sel?.value;
+
+      if (!id) {
+        setErr('fourEditErr', 'Sélectionne un fournisseur à modifier.');
+        fourEditModal?.show();
+        return;
+      }
+
+      const opt = sel.querySelector(`option[value="${CSS.escape(String(id))}"]`);
+      const nom = (opt?.textContent || '').trim();
+      const siret = opt?.dataset?.siret || '';
+      const color = opt?.dataset?.color || '#2563eb';
+
+      document.getElementById('editFournisseurId').value = String(id);
+      document.getElementById('editFournisseurNom').value = nom;
+      document.getElementById('editFournisseurSiret').value = siret;
+      document.getElementById('editFournisseurColor').value = (color && /^#([A-F0-9]{6})$/i.test(color)) ? color : '#2563eb';
+      document.getElementById('editFournisseurColorText').value = (color && /^#([A-F0-9]{6})$/i.test(color)) ? color : '#2563eb';
+
+      setErr('fourEditErr', '');
+      lastEditContext = { type: 'four', card };
+      fourEditModal?.show();
+    });
+  });
+
+  // sync color text <-> picker (edit fournisseur)
+  (function(){
+    const c = document.getElementById('editFournisseurColor');
+    const t = document.getElementById('editFournisseurColorText');
+    if (!c || !t) return;
+
+    c.addEventListener('input', () => t.value = c.value.toUpperCase());
+    t.addEventListener('input', () => {
+      const hex = normalizeHex(t.value);
+      if (hex) c.value = hex;
+    });
+  })();
+
+  // Submit update categorie
+  /* =============================
+    UPDATE CATEGORIE (FIX)
+  ============================= */
+  document.getElementById('btnUpdateCategorie')?.addEventListener('click', async () => {
+    setErr('catEditErr','');
+
+    const id = (document.getElementById('editCategorieId')?.value || '').trim();
+    const libelle = (document.getElementById('editCategorieLibelle')?.value || '').trim();
+    const type = (document.getElementById('editCategorieType')?.value || 'operating').trim();
+    const actif = document.getElementById('editCategorieActif')?.checked ? 1 : 0;
+    const includeInFinanceCharts = document.getElementById('editCategorieIncludeCharts')?.checked ? 1 : 0;
+
+    if (!id) { setErr('catEditErr','Catégorie introuvable.'); return; }
+    if (!libelle) { setErr('catEditErr','Libellé requis.'); return; }
+
+    try {
+      const urlTpl = "{{ path('app_administrateur_depense_ajax_categorie_update', { entite: entite.id, id: 999999 }) }}";
+      const url = urlTpl.replace('999999', encodeURIComponent(id));
+      const res = await postForm(url, { libelle, type, actif, includeInFinanceCharts });
+
+      const text = String(res.text || libelle);
+
+      // ✅ update partout + meta
+      document.querySelectorAll('select.ts-cat').forEach(sel => {
+        const opt = sel.querySelector(`option[value="${CSS.escape(String(res.id))}"]`);
+        if (opt){
+          opt.textContent = text;
+          setOptionCategoryMeta(opt, {
+            type: res.type ?? type,
+            actif: res.actif ?? actif,
+            includeInFinanceCharts: res.includeInFinanceCharts ?? includeInFinanceCharts
+          });
+        }
+
+        if (sel.tomselect) {
+          sel.tomselect.updateOption(String(res.id), { value:String(res.id), text });
+          sel.tomselect.refreshOptions(false);
+        }
+      });
+
+      catEditModal?.hide();
+
+      if (lastEditContext?.card) refreshCardPreview(lastEditContext.card);
+
+    } catch(e){
+      setErr('catEditErr', e?.message || 'Impossible de modifier la catégorie.');
+    }
+  });
+
+  // Submit update fournisseur
+  document.getElementById('btnUpdateFournisseur')?.addEventListener('click', async () => {
+    setErr('fourEditErr','');
+    const id = (document.getElementById('editFournisseurId')?.value || '').trim();
+    const nom = (document.getElementById('editFournisseurNom')?.value || '').trim();
+    const siret = (document.getElementById('editFournisseurSiret')?.value || '').trim();
+    const couleurHex = normalizeHex(document.getElementById('editFournisseurColorText')?.value || '');
+
+    if (!id) { setErr('fourEditErr','Fournisseur introuvable.'); return; }
+    if (!nom) { setErr('fourEditErr','Nom requis.'); return; }
+    if (document.getElementById('editFournisseurColorText')?.value && !couleurHex){
+      setErr('fourEditErr','Couleur invalide (format attendu: #RRGGBB).'); return;
+    }
+
+    try {
+      const urlTpl = "{{ path('app_administrateur_depense_ajax_fournisseur_update', { entite: entite.id, id: 999999 }) }}";
+      const url = urlTpl.replace('999999', encodeURIComponent(id));
+      const res = await postForm(url, { nom, siret, couleurHex });
+
+      // update options partout
+      document.querySelectorAll('select.ts-four').forEach(sel => {
+        const opt = sel.querySelector(`option[value="${CSS.escape(String(res.id))}"]`);
+        if (opt) {
+          opt.textContent = res.text;
+          opt.dataset.siret = siret || '';
+          opt.dataset.color = res.color || '';
+        }
+        if (sel.tomselect) {
+          sel.tomselect.updateOption(String(res.id), { value:String(res.id), text:res.text });
+        }
+      });
+
+      fourEditModal?.hide();
+
+      if (lastEditContext?.card) refreshCardPreview(lastEditContext.card);
+
+    } catch(e){
+      setErr('fourEditErr', e?.message || 'Impossible de modifier le fournisseur.');
+    }
+  });
+
+
+
+  // Libellé : autosize + compteur + warning longueur
+  document.querySelectorAll('.imp-card').forEach(card => {
+    const ta = card.querySelector('textarea.libelle');
+    const hint = card.querySelector('.libelle-hint');
+    if (!ta || !hint) return;
+
+    function autosize(){
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 140) + 'px'; // cap = max-height
+    }
+
+    function update(){
+      autosize();
+
+      const len = (ta.value || '').length;
+      const max = parseInt(ta.getAttribute('maxlength') || '2000', 10);
+
+      hint.textContent = len ? `${len} caractère(s)` : '';
+
+      const near = Math.max(0, max - 120); // petit warning quand on approche (optionnel)
+      hint.classList.toggle('text-danger', len > max);
+      hint.classList.toggle('text-warning', len >= near && len <= max);
+      hint.classList.toggle('text-muted', len < near);
+
+      if (len > max) hint.textContent += ` — dépasse ${max} (sera tronqué/refusé)`;
+      else if (len >= near && len < max) hint.textContent += ` — proche de la limite (${max})`;
+    }
+
+
+    ta.addEventListener('input', update);
+    update(); // init
+  });
+
+
+
+
+});
+</script>
+
+{% endblock %}

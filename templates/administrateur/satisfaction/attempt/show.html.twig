@@ -1,0 +1,418 @@
+{# templates/administrateur/satisfaction/attempt/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    .hero{
+      border-radius: 18px;
+      background:
+        radial-gradient(900px 280px at 10% 0%, rgba(255,255,255,.10), transparent 60%),
+        radial-gradient(700px 260px at 85% 10%, rgba(255,193,7,.16), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow: 0 18px 55px rgba(0,0,0,.14);
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.12);
+    }
+
+    .cardx{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .cardx .cardx-h{
+      padding:.9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      font-weight:800;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+    }
+    .cardx .cardx-b{ padding: 1rem; }
+
+    .meta{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      border-radius:999px;
+      padding:.35rem .65rem;
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(255,255,255,.08);
+      color: rgba(255,255,255,.92);
+      font-size:.82rem;
+      font-weight:800;
+      white-space: nowrap;
+      backdrop-filter: blur(6px);
+    }
+    .chip i{ opacity:.92; }
+    .chip.dark{
+      background: rgba(0,0,0,.06);
+      border-color: rgba(0,0,0,.12);
+      color: #111;
+      backdrop-filter:none;
+    }
+
+    .kpis{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:.75rem; }
+    @media (max-width: 1200px){ .kpis{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 576px){ .kpis{ grid-template-columns: 1fr; } }
+    .kpi{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .9rem;
+      display:flex;
+      gap:.75rem;
+      align-items:flex-start;
+    }
+    .kpi .ico{
+      width: 42px; height: 42px;
+      border-radius: 14px;
+      display:grid; place-items:center;
+      background: rgba(255,193,7,.15);
+      border: 1px solid rgba(255,193,7,.28);
+      flex: 0 0 auto;
+    }
+    .kpi .lbl{ font-size:.78rem; color:#6c757d; font-weight:700; margin-bottom:.05rem; }
+    .kpi .val{ font-size:1.05rem; font-weight:900; color:#0f2336; line-height:1.15; }
+    .kpi .sub{ font-size:.78rem; color:#6c757d; }
+
+    .answers-head{
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      margin-bottom:.75rem;
+    }
+
+    pre.jsonbox{
+      background: #0b1020;
+      color:#d6e1ff;
+      border-radius:14px;
+      padding:14px;
+      overflow:auto;
+      max-height: 540px;
+      border: 1px solid rgba(255,255,255,.06);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
+      font-size: .9rem;
+      line-height: 1.35;
+      margin: 0;
+    }
+
+    /* petit bouton copy */
+    .btn-copy{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      border-radius: 12px;
+      font-weight: 800;
+    }
+
+    /* table “interprétée” */
+    .qa{
+      border:1px solid rgba(0,0,0,.06);
+      border-radius: 16px;
+      overflow:hidden;
+    }
+    .qa .rowx{
+      display:grid;
+      grid-template-columns: 140px 1fr;
+      gap:.75rem;
+      padding:.75rem 1rem;
+      border-top:1px solid rgba(0,0,0,.06);
+      background:#fff;
+    }
+    .qa .rowx:first-child{ border-top:none; }
+    .qa .qkey{
+      font-weight:900;
+      color:#0f2336;
+      font-size:.9rem;
+      white-space:nowrap;
+    }
+    .qa .qval{
+      color:#122c44;
+      font-weight:600;
+      word-break: break-word;
+    }
+
+    /* badge statut */
+    .badge-soft{
+      border-radius:999px;
+      padding:.35rem .6rem;
+      font-weight:900;
+      border:1px solid rgba(0,0,0,.08);
+    }
+    .badge-soft.success{ background: rgba(25,135,84,.12); color:#146c43; border-color: rgba(25,135,84,.24); }
+    .badge-soft.primary{ background: rgba(13,110,253,.12); color:#0b5ed7; border-color: rgba(13,110,253,.24); }
+    .badge-soft.muted{ background: rgba(108,117,125,.12); color:#495057; border-color: rgba(108,117,125,.20); }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3 py-3">
+
+  {# Helpers #}
+  {% set assignment = assignment ?? attempt.assignment ?? null %}
+  {% set session = session ?? assignment.session ?? null %}
+  {% set stagiaire = stagiaire ?? assignment.stagiaire ?? null %}
+  {% set template = template ?? assignment.template ?? null %}
+  {% set answers = attempt.answers ?? {} %}
+  {% set note = attribute(attempt, 'noteGlobale') is defined ? attempt.noteGlobale : null %}
+
+  {# HERO #}
+  <div class="hero p-4 mb-3">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+      <div>
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <span class="chip"><i class="bi bi-ui-checks"></i> Satisfaction</span>
+          <span class="chip"><i class="bi bi-hash"></i> Tentative #{{ attempt.id }}</span>
+          {% if session %}
+            <span class="chip"><i class="bi bi-calendar3"></i> {{ session.code is defined and session.code ? session.code : ('Session #' ~ session.id) }}</span>
+          {% endif %}
+          {% if template %}
+            <span class="chip"><i class="bi bi-journal-text"></i> {{ template.titre }}</span>
+          {% endif %}
+          {% if session and session.formation is defined and session.formation %}
+            <span class="chip"><i class="bi bi-mortarboard"></i> {{ session.formation.titre }}</span>
+          {% endif %}
+          {% if note is not null %}
+            <span class="chip"><i class="bi bi-star-fill"></i> Note globale : {{ note }}/5</span>
+          {% endif %}
+        </div>
+
+        <h2 class="fw-bold mb-1">{{ title }}</h2>
+        <div class="opacity-75">
+          Détails d’une tentative (réponses + meta)
+        </div>
+
+        <div class="meta mt-3">
+          <span class="chip">
+            <i class="bi bi-person"></i>
+            {{ stagiaire ? (stagiaire.prenom ~ ' ' ~ stagiaire.nom) : '—' }}
+          </span>
+          <span class="chip">
+            <i class="bi bi-envelope"></i>
+            {{ stagiaire and stagiaire.email is defined ? stagiaire.email : '—' }}
+          </span>
+
+          {% if attempt.submittedAt %}
+            <span class="chip"><i class="bi bi-check2-circle"></i> <span class="badge-soft success">Soumis</span></span>
+          {% elseif attempt.startedAt %}
+            <span class="chip"><i class="bi bi-play"></i> <span class="badge-soft primary">En cours</span></span>
+          {% else %}
+            <span class="chip"><i class="bi bi-dash-circle"></i> <span class="badge-soft muted">Non démarré</span></span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <a class="btn btn-outline-light fw-semibold" href="{{ path('app_administrateur_satisfaction_assignment_index', { entite: entite.id }) }}">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# KPIs #}
+  <div class="kpis mb-3">
+    <div class="kpi">
+      <div class="ico"><i class="bi bi-clock-history"></i></div>
+      <div>
+        <div class="lbl">Créée</div>
+        <div class="val">{{ attempt.createdAt ? attempt.createdAt|date('d/m/Y H:i') : '—' }}</div>
+        <div class="sub">Timestamp de création</div>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="ico"><i class="bi bi-play-circle"></i></div>
+      <div>
+        <div class="lbl">Démarrée</div>
+        <div class="val">{{ attempt.startedAt ? attempt.startedAt|date('d/m/Y H:i') : '—' }}</div>
+        <div class="sub">Début de saisie</div>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="ico"><i class="bi bi-check2-circle"></i></div>
+      <div>
+        <div class="lbl">Soumise</div>
+        <div class="val">{{ attempt.submittedAt ? attempt.submittedAt|date('d/m/Y H:i') : '—' }}</div>
+        <div class="sub">Validation finale</div>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="ico"><i class="bi bi-list-check"></i></div>
+      <div>
+        <div class="lbl">Réponses</div>
+        <div class="val">{{ answers is empty ? 0 : answers|length }}</div>
+        <div class="sub">Nb d’entrées JSON</div>
+      </div>
+    </div>
+  </div>
+
+  {# CONTENU #}
+  <div class="row g-3">
+    <div class="col-12 col-xxl-7">
+      <div class="cardx">
+        <div class="cardx-h">
+          <span><i class="bi bi-table"></i> Lecture rapide</span>
+          <span class="text-muted small">clé → valeur</span>
+        </div>
+        <div class="cardx-b">
+          {% if answers is empty %}
+            <div class="alert alert-light border mb-0">
+              <i class="bi bi-info-circle"></i> Aucune réponse enregistrée.
+            </div>
+          {% else %}
+            <div class="qa">
+              {% for k,v in answers %}
+                <div class="rowx">
+                  <div class="qkey">
+                    {% if k matches '/^\\d+$/' %}
+                      Q{{ k }}
+                    {% else %}
+                      {{ k }}
+                    {% endif %}
+                  </div>
+                  <div class="qval">
+                    {% if v is iterable %}
+                      {{ v|json_encode }}
+                    {% else %}
+                      {{ v }}
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="form-text mt-2">
+              Astuce : les clés numériques correspondent généralement aux IDs de questions.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xxl-5">
+      <div class="cardx">
+        <div class="cardx-h">
+          <span><i class="bi bi-braces"></i> JSON (source)</span>
+          <span class="text-muted small">lecture seule</span>
+        </div>
+        <div class="cardx-b">
+          <div class="answers-head">
+            <div class="text-muted small">
+              {% if answers is empty %}
+                Rien à afficher
+              {% else %}
+                {{ answers|length }} entrée(s)
+              {% endif %}
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-copy" id="btnCopy" {% if answers is empty %}disabled{% endif %}>
+                <i class="bi bi-clipboard"></i> Copier
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-copy" id="btnTogglePretty" {% if answers is empty %}disabled{% endif %}>
+                <i class="bi bi-code-slash"></i> Pretty
+              </button>
+            </div>
+          </div>
+
+          {% if answers is empty %}
+            <div class="alert alert-light border mb-0">
+              <i class="bi bi-info-circle"></i> Aucune réponse enregistrée.
+            </div>
+          {% else %}
+            <pre class="jsonbox" id="jsonbox"
+                 data-pretty="{{ answers|json_encode(constant('JSON_PRETTY_PRINT'))|e('html_attr') }}"
+                 data-compact="{{ answers|json_encode|e('html_attr') }}">{{ answers|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+
+            <div class="form-text mt-2">
+              Le JSON affiché est celui stocké dans <code>SatisfactionAttempt.answers</code>.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script>
+    (function(){
+      const box = document.getElementById('jsonbox');
+      const btnCopy = document.getElementById('btnCopy');
+      const btnToggle = document.getElementById('btnTogglePretty');
+
+      if (!box || !btnCopy || !btnToggle) return;
+
+      let isPretty = true;
+
+      function toast(msg){
+        // fallback simple (tu as déjà ton système de flash ; ici c'est ultra léger)
+        const t = document.createElement('div');
+        t.className = 'position-fixed bottom-0 end-0 m-3 px-3 py-2 bg-dark text-white rounded-3 shadow';
+        t.style.zIndex = 9999;
+        t.style.opacity = '0';
+        t.style.transform = 'translateY(6px)';
+        t.style.transition = 'all .18s ease';
+        t.innerText = msg;
+        document.body.appendChild(t);
+        requestAnimationFrame(()=>{ t.style.opacity='1'; t.style.transform='translateY(0)'; });
+        setTimeout(()=>{
+          t.style.opacity='0'; t.style.transform='translateY(6px)';
+          setTimeout(()=> t.remove(), 220);
+        }, 1200);
+      }
+
+      btnCopy.addEventListener('click', async ()=>{
+        try{
+          await navigator.clipboard.writeText(box.textContent || '');
+          toast('JSON copié');
+        }catch(e){
+          // fallback: selection
+          const r = document.createRange();
+          r.selectNodeContents(box);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(r);
+          document.execCommand('copy');
+          sel.removeAllRanges();
+          toast('JSON copié');
+        }
+      });
+
+      btnToggle.addEventListener('click', ()=>{
+        const pretty = box.dataset.pretty || '';
+        const compact = box.dataset.compact || '';
+        isPretty = !isPretty;
+        box.textContent = isPretty ? pretty : compact;
+        toast(isPretty ? 'Affichage pretty' : 'Affichage compact');
+      });
+    })();
+  </script>
+{% endblock %}

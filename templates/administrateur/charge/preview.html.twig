@@ -1,0 +1,1383 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Preview Charges{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+      --bg:#f5f7fb; --panel:#fff; --ink:#0f172a; --muted:#64748b; --stroke: rgba(15,23,42,.10); --radius:18px;
+    }
+    body{ background:var(--bg); }
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== HERO chips (style site/index) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* boutons du hero (cohérents partout) */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+    .cardx{ background:var(--panel); border:1px solid var(--stroke); border-radius:var(--radius); box-shadow:0 10px 28px rgba(15,23,42,.08); }
+    .cardx-h{ padding:.95rem 1.05rem; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--stroke); }
+    .cardx-title{ margin:0; font-weight:800; letter-spacing:-.01em; color:var(--ink); display:flex; align-items:center; gap:.6rem; }
+    .chip{ font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border:1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted); white-space:nowrap; }
+    .kpi{ border:1px solid var(--stroke); border-radius:18px; padding: .9rem 1rem;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent), transparent); }
+    .kpi .v{ font-weight:900; font-size:1.35rem; letter-spacing:-.02em; }
+    table thead th{ text-transform:uppercase; font-size:.78rem; letter-spacing:.06em; color: rgba(0,0,0,.55); background:#f7f8fa; }
+    .mono{ font-variant-numeric: tabular-nums; white-space:nowrap; }
+
+ 
+    .quickbar-left{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:.75rem;
+    }
+    .seg{
+      display:inline-flex;
+      border:1px solid var(--stroke);
+      border-radius:999px;
+      overflow:hidden;
+      background: rgba(255,255,255,.65);
+    }
+    .seg-btn{
+      border:0;
+      background:transparent;
+      padding:.45rem .75rem;
+      font-weight:800;
+      color: var(--ink);
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+    }
+    .seg-btn:hover{ background: rgba(0,0,0,.04); }
+    .seg-btn.is-active{
+      background: color-mix(in srgb, var(--theme-color-principal) 14%, transparent);
+      box-shadow: inset 0 0 0 999px rgba(0,0,0,.00);
+    }
+    .quick-controls{
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+    }
+    .quick-controls .form-select{
+      border-radius:14px;
+      min-width: 170px;
+    }
+    .quick-actions{
+      display:flex;
+      gap:.4rem;
+      align-items:center;
+    }
+    .quick-actions .btn{
+      border-radius:14px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.45rem .75rem;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.12);
+      color:#fff;
+      font-weight:800;
+      white-space:nowrap;
+    }
+
+
+    .kpi-breakdown{
+      display:flex;
+      flex-direction:column;
+      gap:.65rem;
+      margin-top:.75rem;
+    }
+    .kpi-breakdown .bd-item{ min-width:0; }
+    .kpi-breakdown .bd-top{
+      display:flex;
+      justify-content:space-between;
+      gap:.75rem;
+      font-size:.86rem;
+    }
+    .kpi-breakdown .bd-label{
+      color: var(--muted);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width: 100%;
+    }
+    .kpi-breakdown .bd-val{
+      font-weight:800;
+    }
+    .kpi-breakdown .bd-bar{
+      height:8px;
+      border-radius:999px;
+      background: rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .kpi-breakdown .bd-bar > span{
+      display:block;
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background: linear-gradient(90deg,
+        var(--theme-color-secondaire),
+        color-mix(in srgb, var(--theme-color-principal) 55%, #fff)
+      );
+    }
+
+
+
+
+    .quickbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  flex-wrap: wrap;              /* ✅ permet de passer à la ligne */
+}
+
+.quickbar-left{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.75rem;
+  flex: 1 1 640px;              /* ✅ prend la place, peut rétrécir */
+  min-width: 0;
+}
+
+.quickbar-right{
+  display:flex;
+  gap:.75rem;
+  align-items:center;
+  justify-content:flex-end;
+  flex: 0 0 auto;               /* ✅ ne s'écrase pas */
+  flex-wrap: wrap;              /* ✅ si besoin, passe aussi à la ligne */
+  margin-left:auto;
+}
+
+/* sur petits écrans : tout s'aligne proprement */
+@media (max-width: 992px){
+  .quickbar-right{
+    width:100%;
+    justify-content:space-between;
+  }
+  .quickbar-right .seg{
+    width:100%;
+    justify-content:center;
+  }
+}
+
+
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+
+{% block body %}
+
+  {# ===== HERO (style site/index) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-graph-up me-2" style="color:var(--theme-color-secondaire)"></i>
+            Projection charges & taxes
+          </h2>
+          <div class="opacity-75 mt-1">
+            Basée sur tes règles + tes flux (factures/paiements/dépenses).
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-calculator"></i> Preview charges</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-calendar3"></i> {{ from|date('d/m/Y') }} → {{ to|date('d/m/Y') }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_charge_rule_index', { entite: entite.id }) }}">
+            <i class="bi bi-sliders me-1"></i> Règles
+          </a>
+
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_charge_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-funnel text-warning"></i> Période</h5>
+      <span class="chip">Filtre</span>
+    </div>
+    <div class="p-3 p-md-4">
+      <form method="get" class="row g-3 align-items-end" id="periodForm">
+
+        {# ---- Quick select premium ---- #}
+        <div class="col-12">
+          <div class="quickbar">
+            <div class="quickbar-left">
+              <div class="seg" role="group" aria-label="Mode période">
+                <button type="button" class="seg-btn is-active" data-mode="month">
+                  <i class="bi bi-calendar-month"></i> Mois
+                </button>
+
+                <button type="button" class="seg-btn" data-mode="quarter">
+                  <i class="bi bi-calendar2-range"></i> Trimestre
+                </button>
+
+                <button type="button" class="seg-btn" data-mode="year">
+                  <i class="bi bi-calendar-event"></i> Année
+                </button>
+
+                <button type="button" class="seg-btn" data-mode="custom">
+                  <i class="bi bi-sliders"></i> Personnalisé
+                </button>
+              </div>
+
+
+              <div class="quick-controls" id="monthControls">
+                <select class="form-select" id="yearMonth"></select>
+                <select class="form-select" id="monthSelect"></select>
+              </div>
+
+              <div class="quick-controls d-none" id="quarterControls">
+                <select class="form-select" id="yearQuarter"></select>
+                <select class="form-select" id="quarterSelect">
+                  <option value="1">T1 (janv–mars)</option>
+                  <option value="2">T2 (avr–juin)</option>
+                  <option value="3">T3 (juil–sept)</option>
+                  <option value="4">T4 (oct–déc)</option>
+                </select>
+              </div>
+
+              <div class="quick-controls d-none" id="yearControls">
+                <select class="form-select" id="yearSelect"></select>
+              </div>
+
+
+              <div class="quick-actions">
+                <button type="button" class="btn btn-outline-secondary fw-semibold" id="btnThisPeriod">
+                  <i class="bi bi-bullseye"></i> Période courante
+                </button>
+                <button type="button" class="btn btn-outline-secondary fw-semibold" id="btnYtd">
+                  <i class="bi bi-calendar-check"></i> YTD
+                </button>
+                <button type="button" class="btn btn-outline-secondary fw-semibold" id="btnPrev">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary fw-semibold" id="btnNext">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="quickbar-right">
+              <span class="pill">
+                <i class="bi bi-calendar3"></i>
+                <span id="periodHuman">{{ from|date('d/m/Y') }} → {{ to|date('d/m/Y') }}</span>
+              </span>
+
+              <div class="seg" role="group" aria-label="Granularité">
+                <button type="button"
+                        class="seg-btn {{ granularity == 'month' ? 'is-active' : '' }}"
+                        data-gran="month">
+                  <i class="bi bi-bar-chart"></i> Mensuel
+                </button>
+                <button type="button"
+                        class="seg-btn {{ granularity != 'month' ? 'is-active' : '' }}"
+                        data-gran="quarter">
+                  <i class="bi bi-bar-chart-steps"></i> Trimestriel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# ---- From/To (conservés) ---- #}
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Du</label>
+          <input name="from" id="fromInput" class="form-control flatpickr-date" value="{{ from|date('d/m/Y') }}">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Au</label>
+          <input name="to" id="toInput" class="form-control flatpickr-date" value="{{ to|date('d/m/Y') }}">
+        </div>
+
+        <div class="col-md-4 d-flex gap-2">
+          <button class="btn btn-warning fw-semibold w-100" type="submit">
+            <i class="bi bi-play-fill"></i> Recalculer
+          </button>
+        </div>
+
+        <div class="col-12">
+          <div class="text-muted small">
+            Astuce : utilise “Mois” pour un preview mensuel, “Trimestre” pour URSSAF AE (déclaration trimestrielle).
+          </div>
+        </div>
+        <input type="hidden" name="granularity" id="granularityInput" value="{{ granularity|default('quarter') }}">
+        <input type="hidden" name="mode" id="modeInput" value="{{ app.request.query.get('mode')|default('custom') }}">
+
+
+      </form>
+
+      <div class="text-muted small mt-2">
+        Astuce : tu peux faire un preview mensuel (du 1er au 1er du mois suivant).
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="kpi">
+        <div class="text-muted small">Total charges estimées</div>
+        <div id="kpiChargesTotal">
+          {{ result.totalEur|number_format(0, ',', ' ') }} €
+        </div>
+
+        <div class="text-muted small">Somme des règles actives</div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="kpi h-100">
+        <div class="text-muted small mb-2">Bases utilisées (cents)</div>
+        <div class="d-flex flex-wrap gap-2" id="baseTotalsWrap">
+          {% for k,v in result.baseTotalsEur %}
+            {{ v|number_format(0) }} €
+          {% endfor %}
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-currency-euro text-warning"></i> CA encaissé</h5>
+      <span class="chip">{{ granularity == 'month' ? 'Mensuel' : 'Trimestriel' }}</span>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <div class="row g-3">
+        <div class="col-lg-8">
+          <canvas id="caChart" height="120"></canvas>
+        </div>
+        <div class="col-lg-4">
+          <div class="kpi h-100">
+            <div class="text-muted small">Total CA encaissé TTC (Hors frais débours)</div>
+            <div class="v mono" id="kpiCaTtc">{{ caSeries.sumTtc|number_format(0, ',', ' ') }} €</div>
+
+            <div class="text-muted small mt-3">Total CA encaissé HT (prorata & Hors frais débours)</div>
+            <div class="v mono" id="kpiCaHt">{{ caSeries.sumHt|number_format(0, ',', ' ') }} €</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+
+
+
+
+
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-graph-up text-warning"></i> Projection sur la période</h5>
+      <span class="chip" id="seriesChip">
+        {{ granularity == 'month' ? 'Mensuel' : 'Trimestriel' }} • {{ series.rows|length }} point(s)
+      </span>
+
+    </div>
+
+    <div class="p-3 p-md-4">
+      <div class="row g-3">
+        <div class="col-lg-8">
+          <canvas id="chargesChart" height="120"></canvas>
+        </div>
+        <div class="col-lg-4">
+          <div class="kpi h-100">
+            <div class="text-muted small d-flex justify-content-between align-items-center">
+              <span>Total période</span>
+              <span class="chip">{{ series.datasets|length }} taxe(s)</span>
+            </div>
+
+            <div class="v mono" id="kpiTotal">
+              {{ series.sum|number_format(0, ',', ' ') }} €
+            </div>
+
+            <div class="text-muted small mt-2" id="kpiHint">
+              Affiché en {{ granularity == 'month' ? 'mensuel' : 'trimestriel' }} selon ton filtre.
+            </div>
+
+            {# --- Détail par taxe (par défaut = total période) --- #}
+            {% set totalEur = series.sum|default(0) %}
+            {% if series.datasets is defined and series.datasets|length %}
+              <div class="kpi-breakdown" id="taxBreakdown">
+                {% for ds in series.datasets %}
+                  {# Somme ds.data sans filtre sum #}
+                  {% set v = 0 %}
+                  {% for n in ds.data|default([]) %}
+                    {% set v = v + (n|default(0)) %}
+                  {% endfor %}
+
+                  {% set pct = (totalEur > 0) ? (v / totalEur * 100) : 0 %}
+
+                  <div class="bd-item">
+                    <div class="bd-top">
+                      <span class="bd-label" title="{{ ds.label }}">{{ ds.label }}</span>
+                      <span class="bd-val mono">{{ v|number_format(0, ',', ' ') }} €</span>
+                    </div>
+                    <div class="bd-bar" aria-hidden="true">
+                      <span style="width: {{ pct|number_format(2, '.', '') }}%"></span>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+
+      </div>
+
+      <hr class="my-3" style="border-color: var(--stroke);">
+
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Période</th>
+              <th>Du</th>
+              <th>Au</th>
+              <th class="text-end">Estimation</th>
+            </tr>
+          </thead>
+          <tbody id="projectionTbody">
+            {% for r in series.rows %}
+              <tr>
+                <td class="fw-bold">{{ r.label }}</td>
+                <td class="mono">{{ r.from }}</td>
+                <td class="mono">{{ r.to }}</td>
+                <td class="text-end mono fw-bold">{{ r.eur|number_format(0, ',', ' ') }} €</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+
+  
+
+
+
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-list-check text-warning"></i> Détail</h5>
+      <span class="chip">{{ (result.items|length) }} règle(s)</span>
+    </div>
+
+    <div class="p-0">
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Libellé</th>
+              <th>Type</th>
+              <th>Base</th>
+              <th class="text-end">Assiette</th>
+              <th class="text-end">Taux</th>
+              <th class="text-end">Forfait</th>
+              <th class="text-end">Montant</th>
+            </tr>
+          </thead>
+          <tbody id="rulesTbody">
+          {% for it in result.items %}
+            <tr>
+              <td class="fw-bold">{{ it.code }}</td>
+              <td>{{ it.label }}</td>
+              <td><span class="badge bg-secondary-subtle text-secondary border">{{ it.kind }}</span></td>
+              <td><span class="badge bg-light text-dark border">{{ it.base }}</span></td>
+              <td class="text-end mono">{{ (it.baseCents/100)|number_format(0, ',', ' ') }} €</td>
+              <td class="text-end mono">{{ it.rate ? (it.rate|number_format(4, ',', ' ')) ~ ' %' : '—' }}</td>
+              <td class="text-end mono">{{ it.flatCents ? ((it.flatCents/100)|number_format(0, ',', ' ') ~ ' €') : '—' }}</td>
+              <td class="text-end mono fw-bold">{{ (it.amountCents/100)|number_format(0, ',', ' ') }} €</td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center text-muted p-4">
+                Aucune règle active sur la période.
+                <div class="mt-2">
+                  <a class="btn btn-outline-primary btn-sm" href="{{ path('app_administrateur_charge_rule_new', {entite: entite.id}) }}">
+                    <i class="bi bi-plus"></i> Créer une règle
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+
+<script>
+  window.PREVIEW_JSON_URL = "{{ path('app_administrateur_charge_preview_json', { entite: entite.id }) }}";
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  'use strict';
+
+  // -----------------------------------
+  // Helpers
+  // -----------------------------------
+  const $ = (id) => document.getElementById(id);
+  const qs = (sel, root = document) => root.querySelector(sel);
+  const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const fmtFR = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+  const parseFR = (s) => {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((s || '').trim());
+    if (!m) return null;
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 12, 0, 0);
+  };
+
+  const escapeHtml = (s) => String(s ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  const fmtEur = (v) =>
+    Number(v || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+  const fmtEurFromCents = (cents) => fmtEur((Number(cents || 0) / 100));
+
+  // -----------------------------------
+  // DOM refs
+  // -----------------------------------
+  const form = $('periodForm');
+  const fromEl = $('fromInput');
+  const toEl = $('toInput');
+  const human = $('periodHuman');
+
+  const monthControls = $('monthControls');
+  const quarterControls = $('quarterControls');
+  const yearControls = $('yearControls');
+
+  const yearMonth = $('yearMonth');
+  const monthSelect = $('monthSelect');
+
+  const yearQuarter = $('yearQuarter');
+  const quarterSelect = $('quarterSelect');
+
+  const yearSelect = $('yearSelect');
+
+  const btnPrev = $('btnPrev');
+  const btnNext = $('btnNext');
+  const btnThis = $('btnThisPeriod');
+  const btnYtd = $('btnYtd');
+
+  const modeInput = $('modeInput');
+  const granInput = $('granularityInput');
+
+  // UI updated by AJAX
+  const kpiChargesTotalEl = $('kpiChargesTotal');
+  const baseTotalsWrap = $('baseTotalsWrap');
+  const projectionTbody = $('projectionTbody');
+  const rulesTbody = $('rulesTbody');
+  const seriesChip = $('seriesChip');
+
+  // Right KPI breakdown (chart panel)
+  const breakdownEl = $('taxBreakdown');
+  const kpiTotalEl = $('kpiTotal');
+  const kpiHintEl = $('kpiHint');
+
+  // -----------------------------------
+  // Safety checks
+  // -----------------------------------
+  if (!form || !fromEl || !toEl || !granInput || !modeInput) {
+    console.warn('[preview] Missing required DOM elements.');
+    return;
+  }
+
+  const jsonUrl = window.PREVIEW_JSON_URL;
+  if (!jsonUrl) console.warn('[preview] window.PREVIEW_JSON_URL is missing.');
+
+  // -----------------------------------
+  // flatpickr locale + instances
+  // -----------------------------------
+  if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
+
+  const fpFrom = window.flatpickr ? flatpickr(fromEl, { dateFormat: 'd/m/Y', allowInput: true }) : null;
+  const fpTo = window.flatpickr ? flatpickr(toEl, { dateFormat: 'd/m/Y', allowInput: true }) : null;
+
+  // -----------------------------------
+  // Mode / period computation
+  // -----------------------------------
+  const modeBtns = qsa('[data-mode]');
+  let mode = 'custom';
+  let isInit = true;
+
+  const lastDayOfMonth = (y, mIndex) => new Date(y, mIndex + 1, 0, 12, 0, 0);
+
+  const applyMonth = (y, mIndex) => {
+    const from = new Date(y, mIndex, 1, 12, 0, 0);
+    const to = lastDayOfMonth(y, mIndex);
+    setPeriod(from, to);
+  };
+
+  const applyQuarter = (y, q) => {
+    const startMonth = (q - 1) * 3;
+    const from = new Date(y, startMonth, 1, 12, 0, 0);
+    const to = lastDayOfMonth(y, startMonth + 2);
+    setPeriod(from, to);
+  };
+
+  const applyYear = (y) => {
+    const from = new Date(y, 0, 1, 12, 0, 0);
+    const to = new Date(y, 11, 31, 12, 0, 0);
+    setPeriod(from, to);
+  };
+
+  const currentQuarter = (date) => Math.floor(date.getMonth() / 3) + 1;
+
+  const fillYears = (selectEl) => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const years = [];
+    for (let i = y - 5; i <= y + 1; i++) years.push(i);
+    selectEl.innerHTML = years.map((v) => `<option value="${v}">${v}</option>`).join('');
+  };
+
+  const fillMonths = (selectEl) => {
+    const names = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    selectEl.innerHTML = names.map((n, i) => `<option value="${i}">${n}</option>`).join('');
+  };
+
+  function setPeriod(fromDate, toDate) {
+    fromEl.value = fmtFR(fromDate);
+    toEl.value = fmtFR(toDate);
+
+    // keep flatpickr in sync (without triggering weird loops)
+    fpFrom?.setDate(fromEl.value, false, 'd/m/Y');
+    fpTo?.setDate(toEl.value, false, 'd/m/Y');
+
+    if (human) human.textContent = `${fromEl.value} → ${toEl.value}`;
+
+    // No fetch during init
+    if (!isInit) fetchPreviewSoon();
+  }
+
+  function setMode(next) {
+    mode = next || 'custom';
+
+    modeBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.mode === mode));
+
+    // hide all controls
+    monthControls?.classList.add('d-none');
+    quarterControls?.classList.add('d-none');
+    yearControls?.classList.add('d-none');
+
+    if (mode === 'month') {
+      monthControls?.classList.remove('d-none');
+      fromEl.readOnly = true; toEl.readOnly = true;
+      applyMonth(Number(yearMonth.value), Number(monthSelect.value));
+    } else if (mode === 'quarter') {
+      quarterControls?.classList.remove('d-none');
+      fromEl.readOnly = true; toEl.readOnly = true;
+      applyQuarter(Number(yearQuarter.value), Number(quarterSelect.value));
+    } else if (mode === 'year') {
+      yearControls?.classList.remove('d-none');
+      fromEl.readOnly = true; toEl.readOnly = true;
+      applyYear(Number(yearSelect.value));
+    } else { // custom
+      fromEl.readOnly = false; toEl.readOnly = false;
+      if (human) human.textContent = `${fromEl.value} → ${toEl.value}`;
+    }
+
+    modeInput.value = mode;
+  }
+
+  // -----------------------------------
+  // AJAX: fetch preview.json (debounced + abort)
+  // -----------------------------------
+  let fetchT = null;
+  let abortCtrl = null;
+  let lastQuery = null;
+
+  function fetchPreviewSoon() {
+    clearTimeout(fetchT);
+    fetchT = setTimeout(() => fetchPreview({ pushUrl: true }), 180);
+  }
+
+  function setLoading(on) {
+    // Disable only interactive controls (keep layout stable)
+    const controls = qsa('#periodForm button, #periodForm select');
+    controls.forEach((el) => (el.disabled = !!on));
+
+    // Inputs: lock according to mode; for custom allow typing even during fetch
+    if (mode !== 'custom') {
+      fromEl.disabled = !!on;
+      toEl.disabled = !!on;
+    }
+
+    // Optional: change cursor
+    document.body.style.cursor = on ? 'progress' : '';
+  }
+
+  async function fetchPreview({ pushUrl } = { pushUrl: true }) {
+    if (!jsonUrl) return;
+
+    const q = `${fromEl.value}|${toEl.value}|${granInput.value}|${modeInput.value}`;
+    if (q === lastQuery) return;
+    lastQuery = q;
+
+    // Abort previous in-flight request
+    if (abortCtrl) abortCtrl.abort();
+    abortCtrl = new AbortController();
+
+    const params = new URLSearchParams();
+    params.set('from', fromEl.value);
+    params.set('to', toEl.value);
+    params.set('granularity', granInput.value || 'quarter');
+    params.set('mode', modeInput.value || 'custom');
+
+    try {
+      setLoading(true);
+
+      const res = await fetch(`${jsonUrl}?${params.toString()}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: abortCtrl.signal,
+        credentials: 'same-origin',
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const payload = await res.json();
+
+      // Update URL (shareable) without reload
+      if (pushUrl) {
+        const u = new URL(window.location.href);
+        u.searchParams.set('from', fromEl.value);
+        u.searchParams.set('to', toEl.value);
+        u.searchParams.set('granularity', granInput.value || 'quarter');
+        u.searchParams.set('mode', modeInput.value || 'custom');
+        window.history.replaceState({}, '', u.toString());
+      }
+
+      // Sync human label from server
+      if (payload?.from && payload?.to && human) {
+        human.textContent = `${payload.from} → ${payload.to}`;
+      }
+
+      // Render everything
+      renderTopKpis(payload);
+      renderProjection(payload?.series || {});
+      renderRules(payload);
+      updateChartAndBreakdown(payload?.series || {});
+
+      // ✅ AJOUT : update CA chart + KPI
+      updateCaChart(payload?.ca || null);
+
+    } catch (e) {
+      if (e?.name === 'AbortError') return;
+      console.error('[preview] ajax error', e);
+    } finally {
+      setLoading(false);
+      // ensure readOnly matches mode
+      fromEl.readOnly = (mode !== 'custom');
+      toEl.readOnly = (mode !== 'custom');
+      fromEl.disabled = false;
+      toEl.disabled = false;
+    }
+  }
+
+  function renderTopKpis(payload) {
+    const totalEur = payload?.result?.totalEur ?? 0;
+
+
+    const baseTotals = payload?.result?.baseTotals ?? {};
+
+    kpiChargesTotalEl.textContent = fmtEur(totalEur);
+
+    if (baseTotalsWrap) {
+      const keys = Object.keys(baseTotals);
+      if (!keys.length) {
+        baseTotalsWrap.innerHTML = `<span class="text-muted small">Aucune base</span>`;
+      } else {
+        baseTotalsWrap.innerHTML = keys.map((k) => `
+          <span class="badge rounded-pill bg-light text-dark border mono">
+            ${escapeHtml(k)} : ${fmtEurFromCents(baseTotals[k])}
+          </span>
+        `).join('');
+      }
+    }
+  }
+
+  function renderProjection(series) {
+    const rows = Array.isArray(series?.rows) ? series.rows : [];
+    if (projectionTbody) {
+      projectionTbody.innerHTML = rows.length
+        ? rows.map((r) => `
+          <tr>
+            <td class="fw-bold">${escapeHtml(r.label || '')}</td>
+            <td class="mono">${escapeHtml(r.from || '')}</td>
+            <td class="mono">${escapeHtml(r.to || '')}</td>
+            <td class="text-end mono fw-bold">${Number(r.eur || 0).toLocaleString('fr-FR')} €</td>
+          </tr>
+        `).join('')
+        : `<tr><td colspan="4" class="text-center text-muted p-4">Aucune donnée</td></tr>`;
+    }
+
+    if (seriesChip) {
+      const g = (series?.granularity === 'month') ? 'Mensuel' : 'Trimestriel';
+      seriesChip.textContent = `${g} • ${rows.length} point(s)`;
+    }
+  }
+
+  function renderRules(payload) {
+    const items = Array.isArray(payload?.result?.items) ? payload.result.items : [];
+
+    if (!rulesTbody) return;
+
+    if (!items.length) {
+      rulesTbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="text-center text-muted p-4">
+            Aucune règle active sur la période.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    rulesTbody.innerHTML = items.map((it) => {
+      const rate = it.rate;
+      const rateTxt = (rate !== null && rate !== undefined && rate !== '')
+        ? (Number(rate).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 4 }) + ' %')
+        : '—';
+
+      const flatTxt = (Number(it.flatCents || 0) > 0) ? fmtEurFromCents(it.flatCents) : '—';
+
+      return `
+        <tr>
+          <td class="fw-bold">${escapeHtml(it.code || '')}</td>
+          <td>${escapeHtml(it.label || '')}</td>
+          <td><span class="badge bg-secondary-subtle text-secondary border">${escapeHtml(it.kind || '')}</span></td>
+          <td><span class="badge bg-light text-dark border">${escapeHtml(it.base || '')}</span></td>
+          <td class="text-end mono">${fmtEurFromCents(it.baseCents || 0)}</td>
+          <td class="text-end mono">${rateTxt}</td>
+          <td class="text-end mono">${flatTxt}</td>
+          <td class="text-end mono fw-bold">${fmtEurFromCents(it.amountCents || 0)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // -----------------------------------
+  // Chart.js (persistant) + Breakdown hover
+  // -----------------------------------
+  const ctx = $('chargesChart');
+  let chart = null;
+  const caCtx = document.getElementById('caChart');
+  let caChart = null;
+
+  let caLabels = localizeLabelsFR({{ caSeries.labels|default([])|json_encode|raw }});
+  let caDatasets = {{ caSeries.datasets|default([])|json_encode|raw }};
+
+
+  // Initial series from Twig (keeps first render identical)
+  let currentLabels = localizeLabelsFR({{ series.labels|default([])|json_encode|raw }});
+  let currentDatasets = {{ series.datasets|default([])|json_encode|raw }};
+
+  function buildBreakdownHTML(items, total) {
+    const totalVal = Number(total || 0);
+    return items.map((it) => {
+      const v = Number(it.value || 0);
+      const pct = totalVal > 0 ? (v / totalVal * 100) : 0;
+      return `
+        <div class="bd-item">
+          <div class="bd-top">
+            <span class="bd-label" title="${escapeHtml(it.label)}">${escapeHtml(it.label)}</span>
+            <span class="bd-val mono">${fmtEur(v)}</span>
+          </div>
+          <div class="bd-bar" aria-hidden="true">
+            <span style="width:${pct.toFixed(2)}%"></span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+
+  function ensureCaChart() {
+    if (!caCtx || !window.Chart) return;
+    if (caChart) return;
+
+    caChart = new Chart(caCtx, {
+      type: 'line',
+      data: { labels: caLabels, datasets: caDatasets },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (c) => `${c.dataset.label} : ${fmtEur(Number(c.raw || 0))}`,
+            }
+          }
+        },
+        scales: {
+          y: { ticks: { callback: (v) => `${Number(v).toLocaleString('fr-FR')} €` } }
+        }
+      }
+    });
+  }
+
+  function updateCaChart(payloadCa) {
+    if (!payloadCa) return;
+
+    caLabels = localizeLabelsFR(Array.isArray(payloadCa.labels) ? payloadCa.labels : []);
+    caDatasets = Array.isArray(payloadCa.datasets) ? payloadCa.datasets : [];
+
+    ensureCaChart();
+
+    if (caChart) {
+      caChart.data.labels = caLabels;
+      caChart.data.datasets = caDatasets;
+      caChart.update();
+    }
+
+    // KPI
+    const ttc = Number(payloadCa.sumTtc || 0);
+    const ht  = Number(payloadCa.sumHt || 0);
+    const k1 = document.getElementById('kpiCaTtc');
+    const k2 = document.getElementById('kpiCaHt');
+    if (k1) k1.textContent = fmtEur(ttc);
+    if (k2) k2.textContent = fmtEur(ht);
+  }
+
+
+
+  function totalsAllPeriods(labels, datasets) {
+    const items = (datasets || []).map((ds) => {
+      const arr = Array.isArray(ds.data) ? ds.data : [];
+      const sum = arr.reduce((s, n) => s + Number(n || 0), 0);
+      return { label: ds.label, value: Number(sum.toFixed(2)) };
+    });
+    const total = items.reduce((s, it) => s + Number(it.value || 0), 0);
+    return { items, total: Number(total.toFixed(2)) };
+  }
+
+  function totalsForIndex(index, labels, datasets) {
+    const items = (datasets || []).map((ds) => {
+      const arr = Array.isArray(ds.data) ? ds.data : [];
+      const v = Number(arr[index] || 0);
+      return { label: ds.label, value: Number(v.toFixed(2)) };
+    });
+    const total = items.reduce((s, it) => s + Number(it.value || 0), 0);
+    return { items, total: Number(total.toFixed(2)) };
+  }
+
+  function renderAllBreakdown() {
+    if (!breakdownEl) return;
+    const { items, total } = totalsAllPeriods(currentLabels, currentDatasets);
+    if (kpiTotalEl) kpiTotalEl.textContent = fmtEur(total);
+    if (kpiHintEl) kpiHintEl.textContent = 'Total sur toute la période.';
+    breakdownEl.innerHTML = buildBreakdownHTML(items, total);
+  }
+
+  function renderIndexBreakdown(i) {
+    if (!breakdownEl) return;
+    const { items, total } = totalsForIndex(i, currentLabels, currentDatasets);
+    if (kpiTotalEl) kpiTotalEl.textContent = fmtEur(total);
+    if (kpiHintEl) kpiHintEl.textContent = `Détail pour : ${currentLabels[i] ?? ''}`;
+    breakdownEl.innerHTML = buildBreakdownHTML(items, total);
+  }
+
+
+  // --- Labels FR pour l'axe X (Chart.js) ---
+  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+  function labelToFrench(label) {
+    const s = String(label || '').trim();
+
+    // 1) "2026-01" ou "2026-1"
+    let m = /^(\d{4})-(\d{1,2})$/.exec(s);
+    if (m) {
+      const y = Number(m[1]);
+      const mo = Number(m[2]) - 1;
+      if (mo >= 0 && mo < 12) return `${MONTHS_FR[mo]} ${y}`;
+      return s;
+    }
+
+    // 2) "01/2026" ou "1/2026"
+    m = /^(\d{1,2})\/(\d{4})$/.exec(s);
+    if (m) {
+      const mo = Number(m[1]) - 1;
+      const y = Number(m[2]);
+      if (mo >= 0 && mo < 12) return `${MONTHS_FR[mo]} ${y}`;
+      return s;
+    }
+
+    // 3) "2026-01-15" => mois+année
+    m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+    if (m) {
+      const y = Number(m[1]);
+      const mo = Number(m[2]) - 1;
+      if (mo >= 0 && mo < 12) return `${MONTHS_FR[mo]} ${y}`;
+      return s;
+    }
+
+    // 4) "Jan 2026", "January 2026", etc.
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' })
+        .format(d)
+        .replace(/^./, (c) => c.toUpperCase());
+    }
+
+    // Sinon on ne touche pas (ex: "T1 2026")
+    return s;
+  }
+
+  function localizeLabelsFR(labels) {
+    const arr = Array.isArray(labels) ? labels : [];
+    return arr.map(labelToFrench);
+  }
+
+  function ensureChart() {
+    if (!ctx || !window.Chart) return;
+    if (chart) return;
+
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: currentLabels, datasets: currentDatasets },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: (c) => `${c.dataset.label} : ${fmtEur(Number(c.raw || 0))}`,
+              footer: (items) => {
+                const total = items.reduce((s, i) => s + Number(i.raw || 0), 0);
+                return `Total : ${fmtEur(total)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true },
+          y: {
+            stacked: true,
+            ticks: { callback: (v) => `${Number(v).toLocaleString('fr-FR')} €` }
+          }
+        },
+        onHover: (evt, activeEls) => {
+          if (!activeEls || !activeEls.length) {
+            renderAllBreakdown();
+            return;
+          }
+          renderIndexBreakdown(activeEls[0].index);
+        }
+      }
+    });
+
+    ctx.addEventListener('mouseleave', () => renderAllBreakdown());
+    ctx.addEventListener('touchend', () => renderAllBreakdown());
+  }
+
+  function updateChartAndBreakdown(series) {
+    currentLabels = localizeLabelsFR(Array.isArray(series?.labels) ? series.labels : []);
+    currentDatasets = Array.isArray(series?.datasets) ? series.datasets : [];
+
+    ensureChart();
+
+    if (chart) {
+      chart.data.labels = currentLabels;
+      chart.data.datasets = currentDatasets;
+      chart.update();
+    }
+
+    renderAllBreakdown();
+  }
+
+
+  // -----------------------------------
+  // Init selects based on current inputs
+  // -----------------------------------
+  // Fill options
+  fillYears(yearMonth);
+  fillYears(yearQuarter);
+  fillYears(yearSelect);
+  fillMonths(monthSelect);
+
+  const fromD = parseFR(fromEl.value) || new Date();
+  yearMonth.value = String(fromD.getFullYear());
+  monthSelect.value = String(fromD.getMonth());
+  yearQuarter.value = String(fromD.getFullYear());
+  quarterSelect.value = String(currentQuarter(fromD));
+  yearSelect.value = String(fromD.getFullYear());
+
+  // -----------------------------------
+  // Events: mode buttons
+  // -----------------------------------
+  modeBtns.forEach((btn) => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
+  yearMonth?.addEventListener('change', () => applyMonth(Number(yearMonth.value), Number(monthSelect.value)));
+  monthSelect?.addEventListener('change', () => applyMonth(Number(yearMonth.value), Number(monthSelect.value)));
+  yearQuarter?.addEventListener('change', () => applyQuarter(Number(yearQuarter.value), Number(quarterSelect.value)));
+  quarterSelect?.addEventListener('change', () => applyQuarter(Number(yearQuarter.value), Number(quarterSelect.value)));
+  yearSelect?.addEventListener('change', () => applyYear(Number(yearSelect.value)));
+
+  btnPrev?.addEventListener('click', () => {
+    if (mode === 'month') {
+      let y = Number(yearMonth.value), m = Number(monthSelect.value);
+      m--; if (m < 0) { m = 11; y--; }
+      yearMonth.value = String(y); monthSelect.value = String(m);
+      applyMonth(y, m);
+    } else if (mode === 'quarter') {
+      let y = Number(yearQuarter.value), q = Number(quarterSelect.value);
+      q--; if (q < 1) { q = 4; y--; }
+      yearQuarter.value = String(y); quarterSelect.value = String(q);
+      applyQuarter(y, q);
+    } else if (mode === 'year') {
+      let y = Number(yearSelect.value);
+      y--;
+      yearSelect.value = String(y);
+      applyYear(y);
+    }
+  });
+
+  btnNext?.addEventListener('click', () => {
+    if (mode === 'month') {
+      let y = Number(yearMonth.value), m = Number(monthSelect.value);
+      m++; if (m > 11) { m = 0; y++; }
+      yearMonth.value = String(y); monthSelect.value = String(m);
+      applyMonth(y, m);
+    } else if (mode === 'quarter') {
+      let y = Number(yearQuarter.value), q = Number(quarterSelect.value);
+      q++; if (q > 4) { q = 1; y++; }
+      yearQuarter.value = String(y); quarterSelect.value = String(q);
+      applyQuarter(y, q);
+    } else if (mode === 'year') {
+      let y = Number(yearSelect.value);
+      y++;
+      yearSelect.value = String(y);
+      applyYear(y);
+    }
+  });
+
+  btnThis?.addEventListener('click', () => {
+    const d = new Date();
+    if (mode === 'month') {
+      yearMonth.value = String(d.getFullYear());
+      monthSelect.value = String(d.getMonth());
+      applyMonth(d.getFullYear(), d.getMonth());
+    } else if (mode === 'quarter') {
+      yearQuarter.value = String(d.getFullYear());
+      quarterSelect.value = String(currentQuarter(d));
+      applyQuarter(d.getFullYear(), currentQuarter(d));
+    } else if (mode === 'year') {
+      yearSelect.value = String(d.getFullYear());
+      applyYear(d.getFullYear());
+    } else {
+      setMode('month');
+    }
+  });
+
+  btnYtd?.addEventListener('click', () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const from = new Date(y, 0, 1, 12, 0, 0);
+    const to = new Date(y, d.getMonth(), d.getDate(), 12, 0, 0);
+    setMode('custom');
+    setPeriod(from, to);
+  });
+
+  // Manual edit (custom): fetch on blur/change (not on each keystroke)
+  fromEl.addEventListener('change', () => { if (mode === 'custom') fetchPreviewSoon(); });
+  toEl.addEventListener('change', () => { if (mode === 'custom') fetchPreviewSoon(); });
+
+  // -----------------------------------
+  // Granularity toggle (AJAX)
+  // -----------------------------------
+  qsa('[data-gran]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      qsa('[data-gran]').forEach((b) => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      granInput.value = btn.dataset.gran || 'quarter';
+      fetchPreviewSoon();
+    });
+  });
+
+  // -----------------------------------
+  // Intercept submit => AJAX
+  // -----------------------------------
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    fetchPreview({ pushUrl: true });
+  });
+
+  // -----------------------------------
+  // Start mode from hidden/url
+  // -----------------------------------
+  const initialMode = (modeInput.value || 'custom');
+  setMode(initialMode);
+
+  // init done
+  isInit = false;
+
+  // -----------------------------------
+  // Init chart + breakdown (from Twig initial)
+  // -----------------------------------
+  ensureChart();
+  renderAllBreakdown();
+  ensureCaChart();
+
+
+  // ✅ Init CA depuis Twig (premier affichage avant AJAX)
+  updateCaChart({
+    labels: {{ caSeries.labels|default([])|json_encode|raw }},
+    datasets: {{ caSeries.datasets|default([])|json_encode|raw }},
+    sumTtc: {{ caSeries.sumTtc|default(0)|json_encode|raw }},
+    sumHt: {{ caSeries.sumHt|default(0)|json_encode|raw }},
+  });
+
+
+
+  // Optional: first AJAX sync to ensure everything is consistent with server
+  // (useful if server normalizes dates or if user lands with query params)
+  fetchPreview({ pushUrl: false });
+});
+
+</script>
+
+
+
+{% endblock %}

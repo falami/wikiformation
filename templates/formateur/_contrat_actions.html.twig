@@ -1,0 +1,65 @@
+{# templates/formateur/_contrat_actions.html.twig #}
+
+{% set ct = contrat ?? c %}
+{% set status = (ct.status.value ?? ct.status.name ?? ct.status)|lower %}
+{% set hasPdf = ct.pdfPath is not empty %}
+
+<div class="btn-group btn-group-sm" role="group">
+
+  {# ✅ Action principale contextuelle #}
+  {% if status == 'envoye' %}
+    <a class="btn btn-outline-success"
+       data-bs-toggle="tooltip" title="Signer le contrat"
+       href="{{ path('app_formateur_contrat_sign', { entite: entite.id, contrat: ct.id }) }}">
+      <i class="bi bi-pen"></i>
+      <span class="d-none d-lg-inline">Signer</span>
+    </a>
+  {% else %}
+    <a class="btn btn-outline-primary"
+       data-bs-toggle="tooltip" title="Voir le contrat"
+       href="{{ path('app_formateur_contrat_sign', { entite: entite.id, contrat: ct.id }) }}">
+      <i class="bi bi-eye"></i>
+      <span class="d-none d-lg-inline">Voir</span>
+    </a>
+  {% endif %}
+
+  {# ✅ Dropdown actions secondaires #}
+  <button type="button"
+          class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Actions</span>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end">
+    {% if hasPdf %}
+      <li>
+        <a class="dropdown-item" target="_blank" href="{{ asset(ct.pdfPath) }}">
+          <i class="bi bi-file-earmark-pdf me-2"></i>PDF
+        </a>
+      </li>
+    {% else %}
+      <li>
+        <button class="dropdown-item" type="button" disabled>
+          <i class="bi bi-file-earmark-pdf me-2"></i>PDF indisponible
+        </button>
+      </li>
+    {% endif %}
+
+    <li>
+      <a class="dropdown-item"
+         href="{{ path('app_formateur_contrat_sign', { entite: entite.id, contrat: ct.id }) }}">
+        <i class="bi bi-box-arrow-up-right me-2"></i>Ouvrir
+      </a>
+    </li>
+
+    {% if status == 'signe' %}
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <a class="dropdown-item"
+           href="{{ path('app_formateur_contrat_regen_pdf', { entite: entite.id, contrat: ct.id }) }}">
+          <i class="bi bi-arrow-clockwise me-2"></i>Regénérer PDF
+        </a>
+      </li>
+    {% endif %}
+  </ul>
+</div>

@@ -1,0 +1,55 @@
+{# templates/administrateur/satisfaction/result/session.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Résultats — Satisfaction{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+    }
+    .cardx{ border:1px solid rgba(0,0,0,.06); border-radius:18px; box-shadow:0 12px 30px rgba(0,0,0,.06); }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+    <div>
+      <h2 class="fw-bold mb-0">Résultats satisfaction — Session {{ session.code }}</h2>
+      <div class="text-muted">{{ session.formation.titre }} — {{ items|length }} réponse(s)</div>
+    </div>
+  </div>
+
+  <div class="cardx bg-white p-3">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Stagiaire</th>
+            <th>Soumis le</th>
+            <th>Note globale</th>
+            <th>Réponses (JSON)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q in items %}
+            <tr>
+              <td class="fw-semibold">{{ q.stagiaire.prenom }} {{ q.stagiaire.nom }}</td>
+              <td>{{ q.submittedAt ? q.submittedAt|date('d/m/Y H:i') : '—' }}</td>
+              <td>{{ q.noteGlobale ?? '—' }}</td>
+              <td><code style="white-space:pre-wrap">{{ q.reponses|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Aucune réponse pour l’instant.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

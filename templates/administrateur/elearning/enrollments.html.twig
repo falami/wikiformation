@@ -1,0 +1,494 @@
+{# templates/administrateur/elearning/enrollments.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Inscriptions e-learning — {{ course.titre }}{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css">
+
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  --p: var(--theme-color-principal);
+  --s: var(--theme-color-secondaire);
+  --t: var(--theme-color-tertiaire);
+  --q: var(--theme-color-quaternaire);
+
+  --bg:#f5f7fb;
+  --panel:#fff;
+  --ink:#0f172a;
+  --muted: rgba(15,23,42,.62);
+  --stroke: rgba(15,23,42,.10);
+  --shadow: 0 18px 50px rgba(15,23,42,.10);
+  --shadow2: 0 22px 70px rgba(15,23,42,.14);
+  --r: 18px;
+}
+
+
+/* HERO */
+.hero{
+  position:relative;
+  border-radius: 22px;
+  overflow:hidden;
+  background:
+    radial-gradient(1200px 420px at 14% 0%, rgba(255,255,255,.13), transparent 62%),
+    radial-gradient(900px 360px at 88% 14%, rgba(255,193,7,.18), transparent 58%),
+    linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+  box-shadow: var(--shadow2);
+  color:#fff;
+}
+.hero:after{
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(90deg, rgba(255,255,255,.08), transparent 60%);
+  pointer-events:none;
+}
+.hero .meta-chip{
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.35rem .65rem;
+  border-radius:999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(6px);
+  font-size:.825rem;
+}
+.hero .accent{
+  width: 12px; border-radius: 999px;
+  background: var(--s);
+  box-shadow: 0 0 0 6px rgba(255,193,7,.10);
+}
+
+/* TABLE */
+.table-card{
+  border-radius: var(--r);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  box-shadow: 0 12px 30px rgba(15,23,42,.06);
+  overflow:hidden;
+}
+.dt-top{
+  padding: .8rem .9rem;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  background: #fff;
+}
+.dt-bottom-internal{
+  padding: 1rem .9rem !important;
+  background: #fff;
+  border-top: 1px solid rgba(0,0,0,.06);
+}
+.dataTables_wrapper .dataTables_filter input{
+  border-radius: 999px !important;
+  padding: .45rem .85rem !important;
+  border: 1px solid rgba(0,0,0,.12) !important;
+  outline: none !important;
+  box-shadow:none !important;
+}
+.dataTables_wrapper .dataTables_length select{
+  border-radius: 999px !important;
+  border: 1px solid rgba(0,0,0,.12) !important;
+  padding: .35rem .7rem !important;
+}
+table.dataTable{ margin:0 !important; }
+table.dataTable thead th{
+  position: sticky; top: 0; z-index: 2;
+  background: #f7f8fa !important;
+  border-bottom: 1px solid rgba(0,0,0,.08) !important;
+  text-transform: uppercase;
+  font-size: .78rem;
+  letter-spacing:.06em;
+  color: rgba(0,0,0,.55);
+  white-space: nowrap;
+}
+#tableEnrollments tbody tr:nth-child(even) > *{ background-color: rgba(35,51,66,.03) !important; }
+#tableEnrollments tbody tr:hover > *{ background-color: rgba(255,193,7,.08) !important; }
+#tableEnrollments tbody td{ padding-top:.80rem !important; padding-bottom:.80rem !important; vertical-align: middle; }
+.action-column{ white-space: nowrap; text-align:right; }
+
+div.dataTables_processing{
+  border-radius: 16px !important;
+  border: 1px solid rgba(15,23,42,.12) !important;
+  box-shadow: 0 18px 55px rgba(15,23,42,.12) !important;
+  padding: 14px 18px !important;
+}
+
+/* badges + progress */
+.badge-state{ display:inline-flex; align-items:center; gap:.45rem; padding:.28rem .65rem; border-radius:999px; border:1px solid rgba(15,23,42,.10); font-weight:900; font-size:.78rem; }
+.badge-state .dot{ width:8px; height:8px; border-radius:999px; }
+.badge-state.active{ background: rgba(34,197,94,.10); border-color: rgba(34,197,94,.20); color:#166534; }
+.badge-state.active .dot{ background: rgba(34,197,94,.95); }
+.badge-state.upcoming{ background: rgba(255,193,7,.12); border-color: rgba(255,193,7,.24); color: rgba(15,23,42,.78); }
+.badge-state.upcoming .dot{ background: var(--s); }
+.badge-state.expired{ background: rgba(148,163,184,.18); border-color: rgba(148,163,184,.25); color: rgba(15,23,42,.70); }
+.badge-state.expired .dot{ background: rgba(100,116,139,.85); }
+.badge-state.suspended{ background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.22); color:#7f1d1d; }
+.badge-state.suspended .dot{ background: rgba(239,68,68,.95); }
+.badge-state.completed{ background: rgba(59,130,246,.10); border-color: rgba(59,130,246,.22); color:#1e3a8a; }
+.badge-state.completed .dot{ background: rgba(59,130,246,.95); }
+
+.pbar{ height:10px; border-radius:999px; background: rgba(15,23,42,.08); overflow:hidden; border:1px solid rgba(15,23,42,.08); }
+.pbar > span{ display:block; height:100%; width: var(--w,0%); background: linear-gradient(90deg, var(--s), rgba(255,193,7,.55)); }
+.pmeta{ font-size:.82rem; color: rgba(15,23,42,.65); font-weight:800; }
+
+/* inputs */
+.ts-wrapper .ts-control,
+.flatpickr-input{ border-radius: 16px !important; border: 1px solid rgba(15,23,42,.12) !important; }
+.ts-dropdown{ border-radius: 14px !important; overflow:hidden; z-index: 99999 !important; }
+
+.tool-pill{ display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .65rem; border-radius:999px; background: rgba(15,23,42,.03); border:1px solid rgba(15,23,42,.08); font-weight:800; color: rgba(15,23,42,.72); }
+.btn-pill{ border-radius:999px !important; font-weight:800 !important; padding:.42rem .8rem !important; }
+
+@media (max-width: 768px){
+  .hero{ border-radius: 16px; }
+  table.dataTable td.action-column{
+    position: sticky; right:0; background:#fff; z-index:5;
+    box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+  }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <span class="meta-chip"><i class="bi bi-mortarboard"></i> E-learning</span>
+        <span class="meta-chip"><i class="bi bi-people"></i> Inscriptions</span>
+        <span class="meta-chip"><i class="bi bi-book"></i> {{ course.titre }}</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Stagiaires inscrits</h2>
+          <div class="opacity-75">Accès, dates, statut, progression</div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-light btn-sm fw-semibold btn-pill"
+             href="{{ path('app_administrateur_elearning_enrollment_assign', { entite: entite.id, course: course.id }) }}">
+            <i class="bi bi-person-plus"></i> Attribuer un accès
+          </a>
+
+          <a class="btn btn-outline-light btn-sm fw-semibold btn-pill"
+             href="{{ path('app_administrateur_elearning_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="table-card mb-4 p-3">
+  <div class="dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <span class="tool-pill"><i class="bi bi-funnel"></i> Filtres</span>
+
+      <select id="filter-state" class="form-select form-select-sm" style="min-width:220px;">
+        <option value="">Tous les états</option>
+        <option value="active">Actif</option>
+        <option value="upcoming">À venir</option>
+        <option value="expired">Expiré</option>
+        <option value="suspended">Suspendu</option>
+        <option value="completed">Terminé</option>
+      </select>
+
+      <button class="btn btn-sm btn-warning btn-pill" id="btn-refresh" type="button">
+        <i class="bi bi-arrow-clockwise"></i> Actualiser
+      </button>
+    </div>
+
+    {# DataTables injectera la search ici via layout (topEnd) #}
+    <div id="dt-search-slot" class="ms-auto"></div>
+  </div>
+
+    <table id="tableEnrollments" class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+        <tr>
+          <th style="width:90px">#</th>
+          <th>Stagiaire</th>
+          <th style="width:140px">État</th>
+          <th style="width:170px">Début</th>
+          <th style="width:170px">Fin</th>
+          <th style="width:190px">Progression</th>
+          <th class="text-end" style="width:1px">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+
+{% include 'administrateur/elearning/_enrollment_modal_dates.html.twig' %}
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+
+{% endblock %}
+
+
+
+
+{% block javascripts_bottom %}
+
+
+  {# ⚠️ Important : assure-toi de ne pas inclure ces libs ailleurs sur la page #}
+  
+
+  <script>
+  (function(){
+    const TABLE_ID = 'tableEnrollments';
+
+    function hardResetTable() {
+      const tbl = document.getElementById(TABLE_ID);
+      if(!tbl) return null;
+
+      // Si DataTables existe déjà, on détruit
+      if ($.fn.dataTable.isDataTable(tbl)) {
+        $(tbl).DataTable().clear().destroy(true); // true => supprime wrapper
+      }
+
+      // ✅ purge wrappers fantômes si init multiple a déjà eu lieu
+      document.querySelectorAll('#' + TABLE_ID + '_wrapper').forEach(w => w.remove());
+
+      // ✅ purge thead/tbody au besoin
+      // (souvent pas nécessaire, mais ça évite les résidus)
+      return tbl;
+    }
+
+    function init() {
+      const tbl = hardResetTable();
+      if(!tbl) return;
+
+      // ✅ Guard ultime (même si script rejoué)
+      if (tbl.dataset.dtInit === '1') return;
+      tbl.dataset.dtInit = '1';
+
+      console.count('INIT DataTable enrollments');
+
+      const table = $('#' + TABLE_ID).DataTable({
+        serverSide: true,
+        processing: true,
+        autoWidth: false,
+        scrollX: true,
+        scrollCollapse: true,
+
+        ajax: {
+          url: "{{ path('app_administrateur_elearning_enrollment_ajax', { entite: entite.id, course: course.id }) }}",
+          type: "POST",
+          data: function(d){
+            d.state = document.getElementById('filter-state')?.value || '';
+          }
+        },
+
+        // ✅ DataTables v2 : layout propre (remplace dom)
+        layout: {
+          topStart: null,                // on gère notre barre nous-mêmes
+          topEnd: { search: { container: '#dt-search-slot' } }, // met la search dans notre slot
+          bottomStart: 'info',
+          bottomEnd: 'paging'
+        },
+
+        columns: [
+          { data:'id' },
+          { data:'stagiaire' },
+          { data:'status' },
+          { data:'startsAt' },
+          { data:'endsAt' },
+          { data:'progress' },
+          { data:'actions', orderable:false, searchable:false }
+        ],
+        columnDefs: [
+          { targets: 6, className:'action-column text-end' },
+          { targets: [1,2,5,6], render: d => d }
+        ],
+        order: [[0,'desc']],
+        language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' }
+      });
+
+      // filtre
+      const sel = document.getElementById('filter-state');
+      sel?.addEventListener('change', () => table.ajax.reload(null, true));
+
+      // refresh
+      $(document).off('click', '#btn-refresh').on('click', '#btn-refresh', () => table.ajax.reload(null, false));
+
+
+
+      // Flatpickr modal (date+heure)
+      flatpickr('.dtp', {
+        locale:'fr',
+        enableTime:true,
+        time_24hr:true,
+        dateFormat:'Y-m-d H:i',
+        allowInput:true
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  })();
+  </script>
+
+
+<script>
+(function(){
+  const TABLE_ID = 'tableEnrollments';
+  const MODAL_ID = 'modalEnrollmentDates';
+
+  function getDT(){
+    const el = document.getElementById(TABLE_ID);
+    if(!el) return null;
+    if (!$.fn.dataTable.isDataTable(el)) return null;
+    return $(el).DataTable();
+  }
+
+  function ensureBootstrap(){
+    if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+      console.error('Bootstrap JS (bundle) non chargé => modal impossible.');
+      return false;
+    }
+    return true;
+  }
+
+  // ---------- MODAL DATES ----------
+  function openDatesModal(btn){
+    if(!ensureBootstrap()) return;
+
+    document.getElementById('enroll-id').value = btn.dataset.id || '';
+    document.getElementById('enroll-start').value = btn.dataset.start || '';
+    document.getElementById('enroll-end').value = btn.dataset.end || '';
+
+    const modalEl = document.getElementById(MODAL_ID);
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  // ---------- POST helper (symfony) ----------
+  async function postJson(url, payload){
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: new URLSearchParams(payload).toString()
+    });
+
+    // On tente JSON, sinon erreur
+    const ct = res.headers.get('content-type') || '';
+    const data = ct.includes('application/json') ? await res.json() : null;
+
+    if (!res.ok || (data && data.ok === false)) {
+      const msg = (data && data.message) ? data.message : `Erreur (${res.status})`;
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  // ---------- EVENTS (delegation) ----------
+  document.addEventListener('click', async function(e){
+    // ouvrir modal dates
+    const btnDates = e.target.closest('.btn-edit-dates');
+    if (btnDates) {
+      e.preventDefault();
+      openDatesModal(btnDates);
+      return;
+    }
+
+    // toggle status
+    const btnToggle = e.target.closest('.btn-toggle-status');
+    if (btnToggle) {
+      e.preventDefault();
+
+      const url = btnToggle.dataset.url || '';
+      const csrf = btnToggle.dataset.csrf || '';
+      if (!url || !csrf) return;
+
+      btnToggle.disabled = true;
+
+      try {
+        await postJson(url, { _token: csrf });
+        // reload datatable
+        const dt = getDT();
+        dt ? dt.ajax.reload(null, false) : window.location.reload();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Erreur lors du changement de statut');
+      } finally {
+        btnToggle.disabled = false;
+      }
+      return;
+    }
+
+    // delete enrollment
+    const btnDel = e.target.closest('.btn-del-enroll');
+    if (btnDel) {
+      e.preventDefault();
+
+      if (!confirm("Retirer l'accès à ce stagiaire ?")) return;
+
+      const url = btnDel.dataset.url || '';
+      const csrf = btnDel.dataset.csrf || '';
+      if (!url || !csrf) return;
+
+      btnDel.disabled = true;
+
+      try {
+        await postJson(url, { _token: csrf });
+        const dt = getDT();
+        dt ? dt.ajax.reload(null, false) : window.location.reload();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Erreur lors de la suppression");
+      } finally {
+        btnDel.disabled = false;
+      }
+      return;
+    }
+  });
+
+  // ---------- +1/+7 jours dans la modal ----------
+  document.addEventListener('click', function(e){
+    const b = e.target.closest('#' + MODAL_ID + ' [data-add-days]');
+    if(!b) return;
+
+    const days = parseInt(b.dataset.addDays || '0', 10);
+    if(!days) return;
+
+    const startInput = document.getElementById('enroll-start');
+    const endInput = document.getElementById('enroll-end');
+
+    const baseStr = (endInput.value || startInput.value || '').trim();
+    const base = baseStr ? new Date(baseStr.replace(' ', 'T')) : new Date();
+    if (isNaN(base.getTime())) return;
+
+    base.setDate(base.getDate() + days);
+
+    const pad = (n) => String(n).padStart(2,'0');
+    endInput.value = `${base.getFullYear()}-${pad(base.getMonth()+1)}-${pad(base.getDate())} ${pad(base.getHours())}:${pad(base.getMinutes())}`;
+  });
+
+})();
+</script>
+
+
+{% endblock %}
+

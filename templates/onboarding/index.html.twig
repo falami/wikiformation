@@ -1,0 +1,1117 @@
+{% extends 'base.html.twig' %}
+{% block title %}Démarrage — WikiFormation{% endblock %}
+
+{% block body %}
+<style>
+  :root{
+    --wk-bg:#f6f8fb;
+    --wk-ink:#0f2336;
+    --wk-muted:rgba(15,35,54,.72);
+    --wk-muted2:rgba(15,35,54,.54);
+    --wk-stroke:rgba(15,35,54,.12);
+    --wk-radius:22px;
+  }
+
+  .wk-wrap{
+    min-height: calc(100vh - 120px);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(13,110,253,.16), transparent 55%),
+      radial-gradient(900px 480px at 100% 10%, rgba(255,193,7,.14), transparent 60%),
+      linear-gradient(180deg, var(--wk-bg), #ffffff 60%);
+  }
+
+  .wk-shell{
+    border-radius: calc(var(--wk-radius) + 6px);
+    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.90));
+    border: 1px solid rgba(255,255,255,.8);
+    box-shadow: 0 30px 70px rgba(15,35,54,.12);
+    overflow: hidden;
+  }
+
+  .wk-head{
+    padding: 28px 28px 18px;
+    background:
+      radial-gradient(900px 220px at 20% 0%, rgba(13,110,253,.12), transparent 60%),
+      radial-gradient(700px 180px at 90% 20%, rgba(255,193,7,.10), transparent 62%),
+      linear-gradient(180deg, rgba(15,35,54,.02), rgba(15,35,54,0));
+    border-bottom: 1px solid var(--wk-stroke);
+  }
+
+  .wk-kicker{
+    display:inline-flex; align-items:center; gap:.55rem;
+    font-weight:900; letter-spacing:.2px; color:var(--wk-ink);
+  }
+  .wk-kicker .dot{
+    width:10px; height:10px; border-radius:999px;
+    background:#0d6efd;
+    box-shadow: 0 0 0 7px rgba(13,110,253,.14);
+  }
+
+  .wk-title{ color:var(--wk-ink); }
+  .wk-sub{ color:var(--wk-muted); }
+  .wk-body{ padding: 22px 28px 28px; }
+
+  .wk-section-title{
+    font-weight: 950;
+    color: var(--wk-ink);
+    letter-spacing: .2px;
+  }
+
+  .wk-divider{ height:1px; background: var(--wk-stroke); margin: 18px 0 18px; }
+
+  /* Toggle */
+  .wk-toggle{
+    display:inline-flex;
+    border:1px solid rgba(15,35,54,.14);
+    border-radius: 999px;
+    overflow:hidden;
+    background: rgba(255,255,255,.8);
+    box-shadow: 0 10px 22px rgba(15,35,54,.06);
+  }
+  .wk-toggle button{
+    border:0; background:transparent;
+    padding:.5rem .9rem;
+    font-weight: 950;
+    color: rgba(15,35,54,.70);
+  }
+  .wk-toggle button.is-active{
+    background: rgba(13,110,253,.12);
+    color: rgba(13,110,253,.95);
+  }
+
+  /* Grid */
+  .wk-plan-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 992px){ .wk-plan-grid{ grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 576px){ .wk-plan-grid{ grid-template-columns: 1fr; } }
+
+  /* Plan card */
+  .wk-plan{
+    --accent:#0d6efd;
+
+    border-radius: 18px;
+    border: 1px solid rgba(15,35,54,.14);
+    background: rgba(255,255,255,.92);
+    padding: 14px 14px 12px;
+    text-align: left;
+    position: relative;
+    width: 100%;
+    min-height: 186px;
+
+    transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, background .14s ease;
+    box-shadow: 0 10px 20px rgba(15,35,54,.06);
+    overflow: hidden;
+  }
+
+  /* Top accent bar */
+  .wk-plan::before{
+    content:"";
+    position:absolute;
+    inset:0 0 auto 0;
+    height:4px;
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 90%, white),
+      color-mix(in srgb, var(--accent) 60%, white)
+    );
+    opacity:.95;
+  }
+
+  .wk-plan:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 18px 38px rgba(15,35,54,.10);
+    border-color: color-mix(in srgb, var(--accent) 40%, rgba(15,35,54,.14));
+  }
+
+  .wk-plan:focus-visible{
+    outline: none;
+    box-shadow:
+      0 18px 42px rgba(15,35,54,.12),
+      0 0 0 .22rem color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  .wk-plan.is-selected{
+    border-color: color-mix(in srgb, var(--accent) 75%, rgba(15,35,54,.14));
+    box-shadow:
+      0 20px 46px rgba(15,35,54,.12),
+      0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+    background: rgba(255,255,255,.97);
+  }
+
+  /* badge */
+  .wk-badge{
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.3rem .6rem;
+    border-radius:999px;
+    background: color-mix(in srgb, var(--accent) 12%, white);
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, white);
+    color: color-mix(in srgb, var(--accent) 85%, black 15%);
+    font-weight: 950;
+    font-size:.78rem;
+    box-shadow: 0 10px 18px rgba(15,35,54,.06);
+  }
+  .wk-badge .b-dot{
+    width:8px; height:8px; border-radius:999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
+  .wk-plan .name{ font-weight: 950; color: var(--wk-ink); }
+  .wk-plan .desc{
+    color: var(--wk-muted2);
+    font-size: .92rem;
+    margin-top: .22rem;
+    line-height: 1.35;
+    max-width: 42ch;
+  }
+
+  .wk-divider-mini{ height:1px; background: rgba(15,35,54,.10); margin: 10px 0 10px; }
+
+  /* Price */
+  .wk-price{ width: 100%; text-align:right; }
+  .wk-amount{
+    font-weight: 950;
+    color: var(--wk-ink);
+    font-size: 1.35rem;
+    line-height: 1.0;
+    letter-spacing: -.2px;
+  }
+  .wk-per{
+    color: var(--wk-muted2);
+    font-weight: 900;
+    font-size: .82rem;
+    margin-top: .15rem;
+  }
+  .wk-save{
+    display:inline-flex;
+    margin-top:.35rem;
+    padding:.18rem .45rem;
+    border-radius:999px;
+    font-size:.74rem;
+    font-weight: 900;
+    border: 1px solid rgba(15,35,54,.12);
+    background: rgba(15,35,54,.03);
+    color: rgba(15,35,54,.72);
+    white-space: nowrap;
+  }
+
+  /* Features */
+  .wk-features{ display:grid; gap:.35rem; margin-top:.25rem; }
+  .wk-feature{
+    color: rgba(15,35,54,.82);
+    font-size:.88rem;
+    display:flex; gap:.45rem; align-items:center;
+  }
+  .wk-feature i{ color: color-mix(in srgb, var(--accent) 65%, #0f2336); }
+
+  /* Meta */
+  .wk-meta{
+    margin-top: .8rem;
+    display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+  }
+  .wk-pill{
+    display:inline-flex; align-items:center; gap:.42rem;
+    padding:.34rem .55rem; border-radius:999px;
+    border: 1px solid rgba(15,35,54,.12);
+    background: rgba(15,35,54,.03);
+    color: rgba(15,35,54,.82);
+    font-size:.82rem;
+    white-space: nowrap;
+  }
+
+  /* Form */
+  .wk-form .form-control,
+  .wk-form .form-select{
+    border-radius: 14px;
+    border-color: rgba(15,35,54,.14);
+    box-shadow: none;
+  }
+  .wk-form .form-control:focus,
+  .wk-form .form-select:focus{
+    border-color: rgba(13,110,253,.45);
+    box-shadow: 0 0 0 .25rem rgba(13,110,253,.12);
+  }
+
+  .wk-cta{
+    border-radius: 16px;
+    padding: 14px 16px;
+    font-weight: 950;
+    letter-spacing: .2px;
+    box-shadow: 0 18px 40px rgba(13,110,253,.18);
+  }
+
+  .wk-footnote{ color: rgba(15,35,54,.55); }
+  .wk-error{
+    border-left: 3px solid #dc3545;
+    background: rgba(220,53,69,.06);
+    padding: .75rem .9rem;
+    border-radius: 14px;
+    color: rgba(15,35,54,.82);
+  }
+
+
+
+  .wk-per{
+    display: inline-flex;
+    flex-direction: column;   /* empile le texte + note */
+    align-items: center;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .wk-per-note{
+    display: block;
+    margin-top: .2rem;
+    font-weight: 800;
+    font-size: .75rem;
+    color: rgba(15,35,54,.55);
+  }
+
+
+
+  /* Price (stack centered) */
+  .wk-price{ width: 100%; }
+
+  .wk-price-stack{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap:.15rem;
+    margin-top:.35rem;
+  }
+
+  .wk-amount{
+    font-weight: 950;
+    color: var(--wk-ink);
+    font-size: 1.55rem;
+    line-height: 1.05;
+    letter-spacing: -.3px;
+  }
+
+  .wk-per{
+    color: var(--wk-muted2);
+    font-weight: 900;
+    font-size: .84rem;
+    line-height: 1.1;
+  }
+
+  .wk-per-note{
+    font-weight: 800;
+    font-size: .76rem;
+    color: rgba(15,35,54,.55);
+    line-height: 1.1;
+  }
+
+  .wk-save{
+    display:inline-flex;
+    margin-top:.55rem;
+    padding:.18rem .5rem;
+    border-radius:999px;
+    font-size:.74rem;
+    font-weight: 900;
+    border: 1px solid rgba(15,35,54,.12);
+    background: rgba(15,35,54,.03);
+    color: rgba(15,35,54,.72);
+    white-space: nowrap;
+  }
+
+
+  /* Réserve toujours la même zone en haut pour l'étiquette */
+  .wk-badge-slot{
+    height: 35px;              /* espace constant */
+    display:flex;
+    justify-content:center;    /* centre le badge */
+    align-items:flex-start;
+  }
+
+  /* Le contenu commence toujours au même endroit */
+  .wk-plan-inner{
+    padding-top: 4px;          /* petit confort, identique partout */
+  }
+
+  /* Le badge n'est plus absolute => il ne perturbe plus l'alignement */
+  .wk-badge{
+    position: static;          /* IMPORTANT */
+    margin-top: 2px;
+  }
+
+
+
+
+  /* Branding block */
+  .wk-brand{
+    border:1px solid rgba(15,35,54,.12);
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.86));
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 12px 26px rgba(15,35,54,.06);
+  }
+
+  .wk-brand-grid{
+    display:grid;
+    grid-template-columns: 1.2fr .8fr;
+    gap: 14px;
+  }
+  @media (max-width: 992px){
+    .wk-brand-grid{ grid-template-columns: 1fr; }
+  }
+
+  /* Dropzone */
+  .wk-drop{
+    border: 1px dashed rgba(15,35,54,.22);
+    border-radius: 16px;
+    background: rgba(15,35,54,.02);
+    padding: 14px;
+    display:flex;
+    gap: 12px;
+    align-items:center;
+    transition: transform .12s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
+    position: relative;
+  }
+
+  .wk-drop:hover{
+    border-color: rgba(13,110,253,.45);
+    background: rgba(13,110,253,.04);
+  }
+
+  .wk-drop.is-dragover{
+    border-color: rgba(13,110,253,.70);
+    background: rgba(13,110,253,.07);
+    box-shadow: 0 14px 30px rgba(13,110,253,.12);
+    transform: translateY(-1px);
+  }
+
+  .wk-logo-preview{
+    width: 100px;
+    height: 100px;
+    border-radius: 16px;
+    border: 1px solid rgba(15,35,54,.12);
+    background: #fff;
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    flex: 0 0 auto;
+  }
+
+  .wk-logo-preview img{
+    width:100%;
+    height:100%;
+    object-fit: contain;
+    padding: 10px;
+  }
+
+  .wk-logo-actions{
+    display:flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    align-items:center;
+  }
+
+  .wk-linkbtn{
+    border:0;
+    background: transparent;
+    font-weight: 950;
+    color: rgba(13,110,253,.95);
+    padding: 0;
+  }
+
+  .wk-ghostbtn{
+    border: 1px solid rgba(15,35,54,.14);
+    background: rgba(255,255,255,.75);
+    padding: .42rem .65rem;
+    border-radius: 12px;
+    font-weight: 900;
+    color: rgba(15,35,54,.82);
+  }
+
+  .wk-ghostbtn.danger{
+    border-color: rgba(220,53,69,.28);
+    color: rgba(220,53,69,.95);
+    background: rgba(220,53,69,.04);
+  }
+
+  /* Palette swatches */
+  .wk-palette{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .wk-swatch{
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    border: 1px solid rgba(15,35,54,.14);
+    box-shadow: 0 8px 18px rgba(15,35,54,.07);
+    cursor:pointer;
+    position: relative;
+  }
+  .wk-swatch[aria-pressed="true"]{
+    outline: none;
+    box-shadow: 0 0 0 .22rem rgba(13,110,253,.16), 0 10px 22px rgba(15,35,54,.10);
+  }
+  .wk-swatch::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius: inherit;
+    background: radial-gradient(12px 12px at 30% 25%, rgba(255,255,255,.55), transparent 55%);
+    opacity:.65;
+    pointer-events:none;
+  }
+
+
+
+  /* Color picker row */
+  .wk-colorrow{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    padding:.55rem .6rem;
+    border: 1px solid rgba(15,35,54,.14);
+    background: rgba(255,255,255,.75);
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(15,35,54,.06);
+  }
+
+  .wk-colorrow .wk-colorchip{
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid rgba(15,35,54,.14);
+    background: #fff;
+    box-shadow: 0 10px 18px rgba(15,35,54,.08);
+    flex: 0 0 auto;
+  }
+
+  .wk-colorrow input[type="color"]{
+    width: 44px;
+    height: 40px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .wk-colorrow input[type="color"]::-webkit-color-swatch-wrapper{ padding:0; }
+  .wk-colorrow input[type="color"]::-webkit-color-swatch{
+    border-radius: 12px;
+    border: 1px solid rgba(15,35,54,.14);
+  }
+
+  .wk-hex{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    letter-spacing: .2px;
+  }
+
+  .wk-hint{
+    font-size:.78rem;
+    color: rgba(15,35,54,.55);
+  }
+</style>
+
+<div class="wk-wrap py-5">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-xl-10">
+
+        <div class="wk-shell">
+          <div class="wk-head">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+              <div>
+                <div class="wk-kicker mb-2"><span class="dot"></span> Onboarding</div>
+                <h1 class="h3 wk-title mb-1">Créez votre organisme</h1>
+                <p class="wk-sub mb-0">
+                  Démarrez avec <strong>{{ trialDays }} jours d’essai</strong> (sans carte bancaire).
+                  <span class="d-inline-block">Choisissez votre plan ci-dessous.</span>
+                </p>
+              </div>
+
+              <div class="text-end d-flex flex-column align-items-end gap-2">
+                <div class="wk-pill"><i class="bi bi-shield-check"></i> Données sécurisées</div>
+                <div class="wk-pill"><i class="bi bi-arrow-repeat"></i> Changeable à tout moment</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="wk-body">
+            {{ form_start(form, {
+              attr: { class: 'wk-form', id: 'onboardingForm', novalidate: 'novalidate' },
+              enctype: 'multipart/form-data'
+            }) }}
+
+              <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+                <div>
+                  <div class="wk-section-title">Choisissez votre plan</div>
+                  <div class="text-muted" style="max-width: 62ch;">
+                    Prix affiché selon la périodicité. Vous pourrez changer plus tard depuis la facturation.
+                  </div>
+                </div>
+
+                <div class="text-end">
+                  <div class="wk-toggle" role="group" aria-label="Périodicité">
+                    <button type="button" class="is-active" data-interval="year">Annuel</button>
+                    <button type="button" data-interval="month">Mensuel</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-3 wk-plan-grid" id="planGrid">
+                {% for plan in plans %}
+                  {% set fallback = ['#2E6BFF','#11B981','#F59E0B','#7C3AED'] %}
+                  {% set accent = plan.accentColor ?: fallback[loop.index0 % 4] %}
+
+                  <button type="button"
+                          class="wk-plan"
+                          style="--accent: {{ accent }};"
+                          data-plan="{{ plan.code }}"
+                          data-month="{{ plan.priceMonthlyCents ?? '' }}"
+                          data-year="{{ plan.priceYearlyCents ?? '' }}">
+                    {% if plan.badge %}
+                      <div class="wk-badge-slot">
+                        {% if plan.badge %}
+                          <div class="wk-badge"><span class="b-dot"></span>{{ plan.badge }}</div>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+
+                    <div class="wk-plan-inner">
+                      <div>
+                        <div class="name">{{ plan.name }}</div>
+                        <div class="desc">{{ plan.tagline ?: ('Accès complet au plan ' ~ plan.code ~ ' pendant l’essai.') }}</div>
+                      </div>
+
+                      <div class="wk-price mt-2">
+                        <div class="wk-price-stack">
+                          <div class="wk-amount" data-price>—</div>
+                          <div class="wk-per" data-per>HT/mois</div>
+                          <div class="wk-per-note d-none" data-per-note>(abonnement annuel)</div>
+                        </div>
+
+                        <div class="wk-save d-none" data-save>—</div>
+                      </div>
+                    </div>
+
+                    <div class="wk-divider-mini"></div>
+
+                    <div class="wk-features">
+                      <div class="wk-feature"><i class="bi bi-people"></i> {{ plan.maxUtilisateursLabel }}</div>
+                      <div class="wk-feature"><i class="bi bi-mortarboard"></i> {{ plan.maxApprenantsLabel }}</div>
+                      <div class="wk-feature"><i class="bi bi-person-badge"></i> {{ plan.maxFormateursLabel }}</div>
+                      {% if plan.supportPrioritaire %}
+                        <div class="wk-feature"><i class="bi bi-lightning-charge"></i> Support prioritaire</div>
+                      {% endif %}
+                    </div>
+
+                    <div class="wk-meta">
+                      <span class="wk-pill"><i class="bi bi-calendar3"></i> Essai {{ trialDays }} j</span>
+                      <span class="wk-pill"><i class="bi bi-stars"></i> Sans CB</span>
+                    </div>
+                  </button>
+                {% else %}
+                  <div class="alert alert-warning mb-0">
+                    Aucun plan n’est disponible pour le moment. Contactez le support.
+                  </div>
+                {% endfor %}
+              </div>
+
+              {{ form_widget(form.planCode) }}
+              {{ form_widget(form.interval) }}
+
+              {% if form.planCode.vars.errors|length %}
+                <div class="wk-error mt-3">{{ form_errors(form.planCode) }}</div>
+              {% endif %}
+
+              <div class="wk-divider"></div>
+
+              <div class="wk-section-title mb-2">Informations de base</div>
+
+
+
+              <div class="wk-divider"></div>
+
+              <div class="wk-section-title mb-2">Branding (optionnel)</div>
+              <div class="text-muted mb-3" style="max-width: 62ch;">
+                Ajoutez votre logo et choisissez des couleurs prédéfinies. Vous pourrez modifier tout cela plus tard.
+              </div>
+
+              <div class="wk-brand">
+
+                  {# --------- LOGO UPLOADER --------- #}
+                  <div>
+                    <div class="fw-bold mb-2" style="color:var(--wk-ink);">Logo de l’organisme</div>
+
+                    {# champ file Symfony (masqué) #}
+                    {{ form_widget(form.logoFile) }}
+
+                    <div class="wk-drop" id="logoDrop">
+                      <div class="wk-logo-preview" id="logoPreview">
+                        <span class="text-muted small" id="logoEmpty">SVG / PNG</span>
+                      </div>
+
+                      <div class="flex-grow-1">
+                        <div class="fw-bold" style="color:var(--wk-ink);">Glissez-déposez votre logo</div>
+                        <div class="small text-muted">ou cliquez pour sélectionner un fichier (max 2 Mo)</div>
+
+                        <div class="wk-logo-actions mt-2">
+                          <button type="button" class="wk-ghostbtn" id="logoPickBtn">
+                            <i class="bi bi-upload me-1"></i> Choisir un fichier
+                          </button>
+
+                          <button type="button" class="wk-ghostbtn danger d-none" id="logoRemoveBtn">
+                            <i class="bi bi-trash3 me-1"></i> Supprimer
+                          </button>
+
+                          <span class="small text-muted" id="logoFileName"></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {% if form.logoFile.vars.errors|length %}
+                      <div class="wk-error mt-3">{{ form_errors(form.logoFile) }}</div>
+                    {% endif %}
+                  </div>
+
+                  {# --------- COLORS --------- #}
+                  <div class="row mt-2">
+                    <div class="fw-bold mb-2" style="color:var(--wk-ink);">Couleurs</div>
+
+                    <div class="mb-3 col-12 col-lg-3">
+                      {{ form_row(form.couleurPrincipal) }}
+
+                      <div class="mt-2 wk-colorrow"
+                          data-color-bind
+                          data-select-id="{{ form.couleurPrincipal.vars.id }}">
+                        <div class="wk-colorchip" data-chip></div>
+                        <input type="color" value="#0d6efd" aria-label="Sélecteur couleur principale" data-picker>
+                        <input type="text"
+                              class="form-control form-control-sm wk-hex"
+                              placeholder="#RRGGBB"
+                              inputmode="text"
+                              autocomplete="off"
+                              spellcheck="false"
+                              data-hex>
+                      </div>
+                    </div>
+
+                    <div class="mb-3 col-12 col-lg-3">
+                      {{ form_row(form.couleurSecondaire) }}
+
+                      <div class="mt-2 wk-colorrow"
+                          data-color-bind
+                          data-select-id="{{ form.couleurSecondaire.vars.id }}">
+                        <div class="wk-colorchip" data-chip></div>
+                        <input type="color" value="#6610f2" aria-label="Sélecteur couleur secondaire" data-picker>
+                        <input type="text" class="form-control form-control-sm wk-hex"
+                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" data-hex>
+                      </div>
+                    </div>
+
+                    <div class="mb-3 col-12 col-lg-3">
+                      {{ form_row(form.couleurTertiaire) }}
+
+                      <div class="mt-2 wk-colorrow"
+                          data-color-bind
+                          data-select-id="{{ form.couleurTertiaire.vars.id }}">
+                        <div class="wk-colorchip" data-chip></div>
+                        <input type="color" value="#198754" aria-label="Sélecteur couleur tertiaire" data-picker>
+                        <input type="text" class="form-control form-control-sm wk-hex"
+                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" data-hex>
+                      </div>
+                    </div>
+
+                    <div class="mb-0 col-12 col-lg-3">
+                      {{ form_row(form.couleurQuaternaire) }}
+
+                      <div class="mt-2 wk-colorrow"
+                          data-color-bind
+                          data-select-id="{{ form.couleurQuaternaire.vars.id }}">
+                        <div class="wk-colorchip" data-chip></div>
+                        <input type="color" value="#ffc107" aria-label="Sélecteur couleur quaternaire" data-picker>
+                        <input type="text" class="form-control form-control-sm wk-hex"
+                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" data-hex>
+                      </div>
+                    </div>
+
+                    <div class="small text-muted mt-2">
+                      Astuce : laissez “Automatique” si vous voulez démarrer vite. Vous pourrez customiser plus tard.
+                    </div>
+                  </div>
+              </div>
+
+
+
+              <div class="wk-divider"></div>
+
+
+
+
+
+
+              <div class="mb-3">{{ form_row(form.nom) }}</div>
+              <div class="row g-3">
+                <div class="col-md-6">{{ form_row(form.email) }}</div>
+                <div class="col-md-6">{{ form_row(form.telephone) }}</div>
+                <div class="col-md-6">{{ form_row(form.siret) }}</div>
+                <div class="col-md-6">{{ form_row(form.ville) }}</div>
+              </div>
+
+              <button class="btn btn-primary btn-lg mt-4 w-100 wk-cta" id="submitBtn" type="submit">
+                Créer mon espace & démarrer l’essai
+              </button>
+
+              <div class="wk-footnote small mt-3">
+                En continuant, vous acceptez la politique de confidentialité.
+              </div>
+
+            {{ form_end(form) }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ============================================================
+  // 1) Plans (pricing) + interval toggle
+  // ============================================================
+  const form = document.getElementById('onboardingForm');
+  const planInput = document.getElementById('{{ form.planCode.vars.id }}');
+  const intervalInput = document.getElementById('{{ form.interval.vars.id }}');
+  const planButtons = Array.from(document.querySelectorAll('#planGrid .wk-plan'));
+  const toggleButtons = Array.from(document.querySelectorAll('.wk-toggle button'));
+  const submitBtn = document.getElementById('submitBtn');
+
+  function parseIntSafe(v){
+    const n = parseInt((v ?? '').toString(), 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatEURFromCents(cents, { maximumFractionDigits = 0 } = {}) {
+    const n = parseIntSafe(cents);
+    if (!n || n <= 0) return 'Sur devis';
+    const value = n / 100;
+    return value.toLocaleString('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits
+    });
+  }
+
+  function computeSavingsPercent(monthCents, yearCents){
+    const m = parseIntSafe(monthCents);
+    const y = parseIntSafe(yearCents);
+    if (!m || !y) return null;
+
+    const yearlyFromMonthly = m * 12;
+    if (yearlyFromMonthly <= 0) return null;
+
+    const pct = Math.round((1 - (y / yearlyFromMonthly)) * 100);
+    if (!Number.isFinite(pct) || pct <= 0) return null;
+    if (pct > 80) return null;
+
+    return pct;
+  }
+
+  function refreshPrices() {
+    const interval = intervalInput?.value || 'year';
+
+    planButtons.forEach(btn => {
+      const month = btn.dataset.month;
+      const year  = btn.dataset.year;
+
+      const amount = btn.querySelector('[data-price]');
+      const per    = btn.querySelector('[data-per]');
+      const save   = btn.querySelector('[data-save]');
+      const perNote = btn.querySelector('[data-per-note]');
+
+      const monthCents = parseIntSafe(month);
+      const yearCents  = parseIntSafe(year);
+
+      if (interval === 'month') {
+        if (amount) amount.textContent = formatEURFromCents(monthCents);
+        if (per) per.textContent = 'HT/mois';
+        if (perNote) perNote.classList.add('d-none');
+      } else {
+        if (!yearCents) {
+          if (amount) amount.textContent = 'Sur devis';
+          if (per) per.textContent = '';
+          if (perNote) perNote.classList.add('d-none');
+        } else {
+          const monthlyEqCents = Math.round(yearCents / 12);
+          if (amount) amount.textContent = formatEURFromCents(monthlyEqCents);
+          if (per) per.textContent = 'HT/mois';
+          if (perNote) perNote.classList.remove('d-none');
+        }
+      }
+
+      if (save) {
+        if (interval === 'year') {
+          const pct = computeSavingsPercent(monthCents, yearCents);
+
+          if (pct) {
+            save.textContent = `Économisez ${pct}%`;
+            save.classList.remove('d-none');
+          } else if (yearCents) {
+            save.textContent = `Facturé ${formatEURFromCents(yearCents)} HT/an`;
+            save.classList.remove('d-none');
+          } else {
+            save.classList.add('d-none');
+          }
+        } else {
+          save.classList.add('d-none');
+        }
+      }
+    });
+  }
+
+  function selectPlan(btn, {scrollToForm = true} = {}) {
+    planButtons.forEach(b => b.classList.remove('is-selected'));
+    btn.classList.add('is-selected');
+    if (planInput) planInput.value = btn.dataset.plan || '';
+
+    if (scrollToForm) {
+      const target = document.querySelector('.wk-divider') || document.getElementById('submitBtn');
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  if (intervalInput && !intervalInput.value) intervalInput.value = 'year';
+
+  toggleButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleButtons.forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      if (intervalInput) intervalInput.value = btn.dataset.interval || 'year';
+      refreshPrices();
+    });
+  });
+
+  planButtons.forEach(btn => {
+    btn.addEventListener('click', () => selectPlan(btn));
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        selectPlan(btn, {scrollToForm: false});
+      }
+    });
+  });
+
+  refreshPrices();
+
+  if (planInput?.value) {
+    const found = planButtons.find(b => (b.dataset.plan || '') === planInput.value);
+    if (found) selectPlan(found, {scrollToForm: false});
+  }
+
+  form?.addEventListener('submit', (e) => {
+    if (planInput && !planInput.value) {
+      e.preventDefault();
+      submitBtn?.blur();
+      document.getElementById('planGrid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      planButtons[0]?.focus();
+    }
+  });
+
+  // ============================================================
+  // 2) Logo upload (drop + preview)
+  // ============================================================
+  const logoInput = document.getElementById('{{ form.logoFile.vars.id }}');
+  const drop = document.getElementById('logoDrop');
+  const pickBtn = document.getElementById('logoPickBtn');
+  const removeBtn = document.getElementById('logoRemoveBtn');
+  const preview = document.getElementById('logoPreview');
+  const fileName = document.getElementById('logoFileName');
+
+  function renderLogo(file){
+    if (!preview) return;
+
+    if (!file) {
+      preview.innerHTML = '<span class="text-muted small" id="logoEmpty">SVG / PNG</span>';
+      if (fileName) fileName.textContent = '';
+      removeBtn?.classList.add('d-none');
+      return;
+    }
+
+    if (fileName) fileName.textContent = file.name;
+    removeBtn?.classList.remove('d-none');
+
+    const url = URL.createObjectURL(file);
+    preview.innerHTML = `<img alt="Logo" src="${url}">`;
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  function setFileFromDrop(file){
+    if (!logoInput) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    logoInput.files = dt.files;
+    renderLogo(file);
+  }
+
+  pickBtn?.addEventListener('click', () => logoInput?.click());
+
+  drop?.addEventListener('click', (e) => {
+    const isButton = e.target.closest('button');
+    if (!isButton) logoInput?.click();
+  });
+
+  logoInput?.addEventListener('change', () => {
+    const f = logoInput.files && logoInput.files[0] ? logoInput.files[0] : null;
+    renderLogo(f);
+  });
+
+  removeBtn?.addEventListener('click', () => {
+    if (logoInput) logoInput.value = '';
+    renderLogo(null);
+  });
+
+  ['dragenter','dragover'].forEach(evt => {
+    drop?.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add('is-dragover');
+    });
+  });
+
+  ['dragleave','drop'].forEach(evt => {
+    drop?.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove('is-dragover');
+    });
+  });
+
+  drop?.addEventListener('drop', (e) => {
+    const files = e.dataTransfer?.files;
+    if (!files || !files.length) return;
+    const file = files[0];
+    if (!file.type.startsWith('image/')) return;
+    setFileFromDrop(file);
+  });
+
+  // ============================================================
+  // 3) Couleurs (TextType) : picker + hex + chip
+  //    - data-color-bind + data-select-id = ID de l'input Symfony
+  // ============================================================
+  function normalizeHex(v){
+    v = (v || '').trim();
+    if (!v) return null;
+    if (v[0] !== '#') v = '#' + v;
+    if (!/^#[0-9a-fA-F]{6}$/.test(v)) return null;
+    return v.toLowerCase();
+  }
+
+  function syncColorRow(row){
+    const inputId = row.getAttribute('data-select-id'); // on garde ton attribut
+    const input = inputId ? document.getElementById(inputId) : null;
+
+    const picker = row.querySelector('[data-picker]');
+    const hexInput = row.querySelector('[data-hex]');
+    const chip = row.querySelector('[data-chip]');
+
+    if (!input) return;
+
+    function setDisabledState(disabled){
+      row.style.opacity = disabled ? '.65' : '1';
+    }
+
+    function applyHex(hex, {fromInput=false} = {}){
+      if (!hex) {
+        // vide => "automatique"
+        setDisabledState(true);
+        if (chip) chip.style.background = '#ffffff';
+        if (hexInput && document.activeElement !== hexInput) hexInput.value = '';
+        return;
+      }
+
+      setDisabledState(false);
+      if (chip) chip.style.background = hex;
+      if (picker) picker.value = hex;
+
+      // ne pas écraser en live si l’utilisateur tape encore des caractères non valides
+      if (hexInput && document.activeElement !== hexInput) {
+        hexInput.value = hex.toUpperCase();
+      }
+
+      if (!fromInput) {
+        input.value = hex.toUpperCase();
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
+    // init depuis l'input Symfony (TextType)
+    const current = normalizeHex(input.value);
+    applyHex(current, {fromInput:true});
+
+    // input Symfony -> UI (cas: back validation, setData, etc.)
+    input.addEventListener('input', () => {
+      const v = normalizeHex(input.value);
+      applyHex(v, {fromInput:true});
+    });
+
+    // picker -> input + UI
+    picker?.addEventListener('input', () => {
+      const hex = normalizeHex(picker.value);
+      applyHex(hex);
+    });
+
+    // saisie hex -> (quand valide) input + UI
+    hexInput?.addEventListener('input', () => {
+      const hex = normalizeHex(hexInput.value);
+      if (!hex) return; // on attend que ce soit valide
+      applyHex(hex);
+    });
+
+    // blur: si invalide, on revient à la valeur actuelle (ou vide)
+    hexInput?.addEventListener('blur', () => {
+      const typed = normalizeHex(hexInput.value);
+      if (typed) return;
+      const back = normalizeHex(input.value);
+      applyHex(back, {fromInput:true});
+    });
+  }
+
+  document.querySelectorAll('[data-color-bind]').forEach(syncColorRow);
+
+  // ============================================================
+  // 4) (Optionnel) Swatches -> cible un input TextType
+  //    Si tu remets une palette, mets: data-target="ID_DU_CHAMP"
+  // ============================================================
+  document.querySelectorAll('.wk-palette').forEach(palette => {
+    const targetId = palette.getAttribute('data-target');
+    const input = targetId ? document.getElementById(targetId) : null;
+    if (!input) return;
+
+    function syncPressed(){
+      const v = (normalizeHex(input.value) || '').toLowerCase();
+      palette.querySelectorAll('.wk-swatch').forEach(b => {
+        const c = (b.getAttribute('data-color') || '').toLowerCase();
+        b.setAttribute('aria-pressed', (v && c === v) ? 'true' : 'false');
+      });
+    }
+
+    palette.addEventListener('click', (e) => {
+      const btn = e.target.closest('.wk-swatch');
+      if (!btn) return;
+
+      const color = normalizeHex(btn.getAttribute('data-color'));
+      if (!color) return;
+
+      input.value = color.toUpperCase();
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      syncPressed();
+    });
+
+    input.addEventListener('input', syncPressed);
+    syncPressed();
+  });
+
+})();
+</script>
+{% endblock %}

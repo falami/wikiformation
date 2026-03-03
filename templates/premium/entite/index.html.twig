@@ -1,0 +1,561 @@
+{# templates/premium/entite/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Paramètres de l’organisme{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  --bg:#f5f7fb;
+  --panel:#ffffff;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --stroke: rgba(15, 23, 42, .10);
+  --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+  --radius: 18px;
+
+  --glass: rgba(255,255,255,.72);
+  --glassStroke: rgba(255,255,255,.35);
+  --soft: rgba(15,23,42,.06);
+}
+
+body{ overflow-x:hidden; }
+.page-wrap{ max-width: 1200px; }
+
+/* ================= HERO ================= */
+.hero{
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,.14);
+  background:
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(1200px 420px at 35% 25%, rgba(255,255,255,.14), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0) 55%);
+  opacity:.9;
+}
+.hero .accent{
+  width: 12px;
+  border-radius: 999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+}
+.hero h2{ letter-spacing: -.02em; }
+.hero .chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.34rem .72rem;
+  border-radius:999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.16);
+  font-size:.82rem;
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  white-space: nowrap;
+}
+.hero .chip i{ color: var(--theme-color-secondaire); }
+.hero .btn{
+  border-radius: 14px;
+  font-weight: 800;
+}
+.hero .btn-outline-light{
+  border-color: rgba(255,255,255,.35);
+}
+.hero .btn-outline-light:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+}
+
+/* ================= PREMIUM CARD ================= */
+.cardx{
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(15,23,42,.08);
+  overflow:hidden;
+  min-width:0;
+}
+.cardx-h{
+  padding: .95rem 1.05rem;
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+  border-bottom: 1px solid var(--stroke);
+}
+.cardx-title{
+  margin:0;
+  font-weight:900;
+  letter-spacing:-.01em;
+  color: var(--ink);
+  display:flex;
+  align-items:center;
+  gap:.65rem;
+}
+.cardx-sub{
+  margin:.25rem 0 0;
+  color: var(--muted);
+  font-size:.9rem;
+}
+.cardx-actions{ display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
+
+.btn-soft{
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.78);
+}
+.btn-soft:hover{ background: rgba(255,255,255,.95); }
+
+/* ================= CHIPS / BADGES ================= */
+.chip-soft{
+  font-size:.78rem;
+  padding:.32rem .65rem;
+  border-radius:999px;
+  border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+  background: color-mix(in srgb, var(--theme-color-principal) 8%, transparent);
+  color: var(--ink);
+  white-space:nowrap;
+}
+.badge-soft{
+  border-radius:999px;
+  padding:.38rem .68rem;
+  border:1px solid var(--stroke);
+  background: rgba(255,255,255,.72);
+  color: var(--ink);
+}
+
+/* ================= INFO GRID ================= */
+.info-grid{
+  display:grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: .85rem;
+}
+@media (min-width: 768px){
+  .info-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+.info-item{
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  padding: .85rem .9rem;
+  background: linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+  min-width:0;
+}
+.info-label{
+  font-size:.74rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color: var(--muted);
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  margin-bottom:.25rem;
+}
+.info-value{
+  font-weight:700;
+  color: var(--ink);
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* ================= LOGO ================= */
+.logo-frame{
+  border-radius: 22px;
+  border: 1px solid var(--stroke);
+  background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+  padding: 1rem;
+  box-shadow: 0 14px 40px rgba(15,23,42,.08);
+}
+
+.logo-img{
+  max-height: 160px;
+  width:auto;
+  max-width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  background:#fff;
+  padding: .5rem;
+}
+
+/* ================= COLORS ================= */
+.color-card{
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: .85rem;
+  background: linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+  height: 100%;
+}
+.color-swatch{
+  height: 68px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.22),
+    0 10px 24px rgba(15,23,42,.10);
+}
+.color-hex{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+/* ================= STRIPE CARD (optional) ================= */
+.status-dot{ width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px; box-shadow:0 0 0 4px rgba(255,255,255,.55); }
+.dot-ok{ background:#22c55e; }
+.dot-warn{ background:#f59e0b; }
+.dot-bad{ background:#ef4444; }
+
+.kpi-row{ display:flex; gap:.55rem; flex-wrap:wrap; justify-content:flex-end; }
+.kpi{
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding:.35rem .7rem;
+  background: rgba(255,255,255,.72);
+  font-weight:800;
+  font-size:.82rem;
+  color: var(--ink);
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+}
+
+/* ================= DARK MODE FRIENDLY ================= */
+body.dark-mode{
+  --bg:#0b1220;
+  --panel: rgba(17, 24, 39, .92);
+  --ink:#e5e7eb;
+  --muted:#9ca3af;
+  --stroke: rgba(148, 163, 184, .18);
+  --shadow: 0 22px 70px rgba(0,0,0,.35);
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# HERO #}
+  <div class="hero p-3 p-md-4 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="fa-solid fa-gear text-theme-secondaire me-2"></i>
+            Paramètres de votre organisme
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Identité, coordonnées et thème visuel
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="fa-solid fa-building"></i> Organisme</span>
+            <span class="chip"><i class="fa-solid fa-location-dot"></i> {{ entite.ville ?? '—' }}</span>
+            <span class="chip"><i class="fa-solid fa-envelope"></i> {{ entite.email ?? '—' }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ path('app_premium_entite_modifier', {'id': entite.id, 'entite': entite.id }) }}"
+             class="btn btn-light btn-sm fw-semibold">
+            <i class="fa-solid fa-pen me-1"></i> Modifier
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# =================== INFOS GÉNÉRALES =================== #}
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <div>
+        <h5 class="cardx-title">
+          <i class="fa-solid fa-building-columns text-theme-secondaire"></i>
+          Informations générales
+        </h5>
+        <div class="cardx-sub">Coordonnées & informations de contact</div>
+      </div>
+
+      <div class="cardx-actions">
+        <span class="badge-soft">
+          <i class="fa-solid fa-id-badge me-1"></i>
+          <strong>{{ entite.nom }}</strong>
+        </span>
+        {% if entite.telephone %}
+          <span class="chip-soft"><i class="fa-solid fa-phone"></i> {{ entite.telephone }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <div class="row g-4 align-items-start">
+
+        <div class="col-lg-7">
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label"><i class="fa-solid fa-signature text-theme-secondaire"></i> Nom</div>
+              <div class="info-value">{{ entite.nom }}</div>
+            </div>
+
+            <div class="info-item">
+              <div class="info-label"><i class="fa-solid fa-envelope text-theme-secondaire"></i> Email</div>
+              <div class="info-value">{{ entite.email ?? '—' }}</div>
+            </div>
+
+            <div class="info-item">
+              <div class="info-label"><i class="fa-solid fa-location-dot text-theme-secondaire"></i> Adresse</div>
+              <div class="info-value">
+                {% if entite.adresse %}
+                  {{ entite.adresse }}
+                  {% if entite.complement %}<br><span class="text-muted">{{ entite.complement }}</span>{% endif %}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info-item">
+              <div class="info-label"><i class="fa-solid fa-map text-theme-secondaire"></i> Ville / CP</div>
+              <div class="info-value">
+                {% if entite.codePostal or entite.ville %}
+                  {{ entite.codePostal ?? '' }} {{ entite.ville ?? '' }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info-item">
+              <div class="info-label"><i class="fa-solid fa-map-location-dot text-theme-secondaire"></i> Département</div>
+              <div class="info-value">{{ entite.departement ?? '—' }}</div>
+            </div>
+
+            <div class="info-item">
+              <div class="info-label"><i class="fa-solid fa-earth-europe text-theme-secondaire"></i> Région / Pays</div>
+              <div class="info-value">
+                {{ entite.region ?? '—' }}{% if entite.pays %} — {{ entite.pays }}{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="logo-frame text-center">
+            {% if entite.logo %}
+              <img class="logo-img"
+                   src="{{ asset('uploads/photos/entite/logo/' ~ entite.logo) }}"
+                   alt="Logo de l’organisme">
+            {% else %}
+              <div class="py-4">
+                <div class="fw-bold mb-1">Aucun logo</div>
+                <div class="text-muted small">Ajoute un logo pour renforcer l’identité visuelle.</div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# =================== COULEURS / THEME =================== #}
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <div>
+        <h5 class="cardx-title">
+          <i class="fa-solid fa-palette text-theme-secondaire"></i>
+          Identité visuelle
+        </h5>
+        <div class="cardx-sub">Couleurs du thème utilisées sur toute la plateforme</div>
+      </div>
+
+      <div class="kpi-row">
+        <span class="kpi"><i class="fa-solid fa-droplet"></i> 4 couleurs</span>
+        <span class="kpi"><i class="fa-solid fa-brush"></i> Thème dynamique</span>
+      </div>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <div class="row g-3">
+        <div class="col-md-6 col-lg-3">
+          <div class="color-card">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-bold">Principale</div>
+              <span class="badge-soft">Primary</span>
+            </div>
+            <div class="color-swatch mb-2" style="background: {{ entite.couleurPrincipal }}"></div>
+            <div class="color-hex">{{ entite.couleurPrincipal }}</div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+          <div class="color-card">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-bold">Secondaire</div>
+              <span class="badge-soft">Accent</span>
+            </div>
+            <div class="color-swatch mb-2" style="background: {{ entite.couleurSecondaire }}"></div>
+            <div class="color-hex">{{ entite.couleurSecondaire }}</div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+          <div class="color-card">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-bold">Tertiaire</div>
+              <span class="badge-soft">Surface</span>
+            </div>
+            <div class="color-swatch mb-2" style="background: {{ entite.couleurTertiaire }}"></div>
+            <div class="color-hex">{{ entite.couleurTertiaire }}</div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+          <div class="color-card">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-bold">Quaternaire</div>
+              <span class="badge-soft">Ink</span>
+            </div>
+            <div class="color-swatch mb-2" style="background: {{ entite.couleurQuaternaire }}"></div>
+            <div class="color-hex">{{ entite.couleurQuaternaire }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3 text-muted small">
+        Astuce : ces couleurs alimentent automatiquement tes <strong>heroes</strong>, tes <strong>chips</strong> et tes <strong>accents</strong> partout dans l’app.
+      </div>
+    </div>
+  </div>
+
+  {# =================== STRIPE CONNECT (OPTIONNEL) ===================
+     Tu peux afficher cette card seulement si tu as les variables / routes.
+     Elle est conservée dans un style ultra premium + ton JS existant est compatible.
+  #}
+
+  {% if stripeStatusUrl is defined and stripeStatusUrl %}
+    <div class="cardx mb-4" id="stripeConnectCard" data-status-url="{{ stripeStatusUrl }}">
+      <div class="cardx-h">
+        <div>
+          <h5 class="cardx-title">
+            <i class="fa-brands fa-stripe text-theme-secondaire"></i>
+            Stripe Connect
+          </h5>
+          <div class="cardx-sub">Statut du compte et éléments requis</div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <span class="badge-soft" id="stripeStatusCharges">
+            <span class="status-dot dot-warn"></span> Encaissements
+          </span>
+          <span class="badge-soft" id="stripeStatusPayouts">
+            <span class="status-dot dot-warn"></span> Virements
+          </span>
+          <span class="badge-soft" id="stripeStatusSubmitted">
+            <span class="status-dot dot-warn"></span> Dossier soumis
+          </span>
+        </div>
+      </div>
+
+      <div class="p-3 p-md-4">
+        <div class="alert alert-info mb-0">
+          <div class="fw-bold"><i class="fa-solid fa-circle-info me-1"></i> Vérification automatique</div>
+          <div class="small">
+            Le statut est mis à jour via un appel AJAX. Si des éléments sont requis, ils apparaîtront ci-dessous.
+          </div>
+        </div>
+
+        <div class="mt-3 d-none" id="stripeTodosWrap">
+          <div class="fw-bold mb-2">Éléments requis</div>
+          <ul class="mb-0" id="stripeTodos"></ul>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+
+<script>
+(function(){
+  const card = document.getElementById('stripeConnectCard');
+  if(!card) return;
+
+  const url = card.dataset.statusUrl;
+  if(!url) return;
+
+  const $charges = document.getElementById('stripeStatusCharges');
+  const $payouts = document.getElementById('stripeStatusPayouts');
+  const $submitted = document.getElementById('stripeStatusSubmitted');
+  const $todosWrap = document.getElementById('stripeTodosWrap');
+  const $todos = document.getElementById('stripeTodos');
+
+  function paint(el, ok){
+    if(!el) return;
+    const dot = el.querySelector('.status-dot');
+    if(!dot) return;
+    dot.className = 'status-dot ' + (ok ? 'dot-ok' : 'dot-warn');
+  }
+
+  fetch(url, { headers: { 'Accept': 'application/json' } })
+    .then(r => r.json())
+    .then(d => {
+      if(!d || !d.ok) return;
+
+      const st = d.status || {};
+      paint($charges, !!st.charges_enabled);
+      paint($payouts, !!st.payouts_enabled);
+      paint($submitted, !!st.details_submitted);
+
+      const todos = [...(st.currently_due||[]), ...(st.past_due||[]), ...(st.pending_verification||[])];
+      if(todos.length && $todosWrap && $todos){
+        $todosWrap.classList.remove('d-none');
+        $todos.innerHTML = '';
+        todos.slice(0,8).forEach(t => {
+          const li = document.createElement('li');
+          li.textContent = String(t).replaceAll('_',' ');
+          $todos.appendChild(li);
+        });
+      }
+    })
+    .catch(()=>{ /* silencieux */ });
+})();
+</script>
+{% endblock %}

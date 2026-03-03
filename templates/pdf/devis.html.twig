@@ -1,0 +1,587 @@
+{# templates/pdf/devis.html.twig #}
+{% import _self as m %}
+{% macro eur(cents) %}{{ ((cents ?? 0) / 100)|number_format(2, ',', ' ') }} €{% endmacro %}
+{% macro pct(v) %}{{ (v ?? 0)|number_format(2, ',', ' ') }} %{% endmacro %}
+
+
+{% set brand = {
+  primary: entite.couleurPrincipal|default('#1e3a5f'),
+  secondary: entite.couleurSecondaire|default('#4ba3ff'),
+  accent: entite.couleurSecondaire|default('#d4a574'),
+  ink: '#0f2336',
+  line: '#e6eef5',
+  bg: '#f7fafc',
+  dark: '#0f1b28'
+} %}
+
+{# Note affichée au-dessus des infos bancaires, dans le footer fixe #}
+{% set meta = devis.meta ?? {} %}
+{% set noteText = (meta.note is defined and meta.note) ? meta.note : 'Devis valable selon les conditions indiquées. Merci pour votre confiance.' %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Devis {{ devis.numero }}</title>
+
+  <style>
+    /* ✅ marges resserrées + espace bas adapté au footer fixe */
+    
+    @page { margin: 10mm 10mm 0mm; size: A4 portrait; }
+
+    body{
+      font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      color:#14212b; font-size:11px; line-height:1.35;
+      padding: 0;
+      margin: 0;
+      /* ❌ PAS de padding-bottom avec un footer fixed */
+    }
+
+    h1,h2,h3,p,table{ margin:0; padding:0 }
+    .wrap{
+      padding-bottom: 0; /* ✅ empêche les totaux de descendre “sous” le footer */
+    }
+
+    /* ================= HEADER (TABLE -> stable DOMPDF) ================= */
+    .header{
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:10mm;
+    }
+    .header td{
+      vertical-align:top; /* ✅ aligne en haut */
+      padding:0;
+    }
+    .header .left{ width:62%; padding-right:8mm; }
+    .header .right{ width:38%; text-align:right; }
+
+    .brand-name{ font-size:18px; font-weight:800; color:{{ brand.primary }}; letter-spacing:.4px }
+    .brand-meta{ margin-top:5px; font-size:9.5px; color:#506576 }
+    .brand-meta p{ line-height:1.25 }
+    .logo{ height:100px; object-fit:contain }
+
+    .doc-badge{ font-weight:900; font-size:20px; letter-spacing:1.2px; color:{{ brand.primary }}; }
+    .doc-meta{ margin-top:6px; font-size:10px; color:#51697c; line-height:1.25; }
+
+    .stamp{
+      display:inline-block; margin-top:6px; padding:3px 9px;
+      border:1.4px solid #2a8f4a; color:#2a8f4a; border-radius:6px;
+      font-size:10px; font-weight:800; letter-spacing:.5px;
+    }
+    .stamp-canceled{ border-color:#9b1c1c; color:#9b1c1c }
+    .stamp-draft{ border-color:#64748b; color:#64748b }
+    .stamp-info{ border-color:#2563eb; color:#2563eb }
+    .stamp-invoiced{ border-color:#7c3aed; color:#7c3aed } /* facturé */
+
+    /* ================= TABLES ================= */
+    table{ width:100%; border-collapse:collapse }
+    th,td{ padding:7px 8px; vertical-align:top }
+    thead th{
+      font-size:10px; letter-spacing:.55px; text-transform:uppercase;
+      background:#f3f7fb; color:#2a4154; border-bottom:1px solid {{ brand.line }};
+    }
+    tbody td{ font-size:10.5px }
+    .num{ text-align:right; white-space:nowrap }
+    .ref{ color:#5c7890; font-size:9.5px }
+    .muted{ color:#688296 }
+
+    /* INFOS TOP TABLE (plus compact) */
+    .head td{ padding:7px 8px; font-size:10.5px; }
+    .titre{
+      background:#f3f7fb; font-size:11px; color:#2a4154;
+      text-align:center; text-transform:uppercase;
+      padding:7px 8px;
+    }
+
+    .rule{
+      height:2px;
+      background:linear-gradient(90deg, {{ brand.primary }}, {{ brand.line }});
+      opacity:.22;
+      margin:6mm 0 5mm;
+    }
+
+    /* TOTALS (resserré) */
+    .totaux{
+      width: 75%;
+      margin-left: auto;   /* ✅ bloc à droite */
+      margin-top: 6mm;
+      border-collapse: collapse;
+    }
+    .totaux td{
+      border-bottom: 1px solid #edf2f7;
+    }
+
+    .totaux .label{ text-align:right; color:#355068 }
+    .totaux .val{ text-align:right; white-space:nowrap }
+
+
+    .totaux .total.titre{
+      background:#f3f7fb;
+      font-weight:900;
+      border-top: 2px solid {{ brand.line }};
+    }
+
+
+    /* ✅ FOOTER FIXE (NOTE + BANQUE) */
+    .footer-wrapper{
+      position: fixed;
+      left: 10mm;
+      right: 10mm;
+      bottom: 10mm;   /* ✅ dans la page */
+      page-break-inside: avoid;
+    }
+
+
+
+    .footer-note{
+      text-align:center;
+      margin:0 0 6px 0;
+      padding:4px 10px;
+      border:1px dashed {{ brand.line }};
+      border-radius:10px;
+      background:#fff;
+      color:#6b7f92;
+      font-style: italic;
+    }
+
+
+    .footer-banque{
+      border:1px solid {{ brand.line }};
+      border-radius:10px;
+      background:#fff;
+      padding:7px 10px;
+      text-align:left; /* ✅ plus pro */
+    }
+
+    .footer-banque-title{
+      text-align:center;
+      font-weight:800;
+      font-size:10px;
+      text-transform:uppercase;
+      color:{{ brand.primary }};
+      border-bottom:1px solid {{ brand.line }};
+      padding-bottom:3px;
+      margin-bottom:3px;
+    }
+    .footer-banque p{ margin:0; line-height:1.25; }
+    /* Sous-lignes de détail (PDF) */
+    .detail-row td{
+      padding-top: 2px;
+      padding-bottom: 2px;
+      border-bottom: none;
+    }
+    .detail-text{
+      font-size: 10px;
+      color:#2a4154;
+    }
+
+
+    tbody tr.empty-row td{
+      height: 18px;
+      border-bottom: 1px solid #f1f5f9; /* très léger */
+    }
+
+
+    tr.line-main td{ border-bottom: none; }               /* on retire la bordure du main */
+    tr.line-end td{ border-bottom: 1px solid #edf2f7; }   /* on met la bordure sur la dernière ligne du bloc */
+    tr.detail-row td{ border-bottom: none; }              /* détails sans bordure */
+
+  .totaux{ page-break-inside: avoid; }
+.footer-wrapper{ page-break-inside: avoid; }
+
+
+
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  {# ================= HEADER ================= #}
+  <table class="header" cellspacing="0" cellpadding="0">
+    <tr>
+      <td class="left">
+        {% if entite.logo %}
+         <img class="logo" src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom }}">
+        {% else %}
+          <div class="brand-name">{{ entite.nom }}</div>
+        {% endif %}
+
+        <div class="brand-meta" style="margin-top:7px">
+          {% if entite.societe %}<p><strong>{{ entite.societe }}</strong></p>{% endif %}
+          {% if entite.nom %}<p><strong>{{ entite.nom }}</strong></p>{% endif %}
+          {% if entite.adresse %}<p>{{ entite.adresse }}</p>{% endif %}
+
+          {% set entite_l2 = [] %}
+          {% if entite.codePostal %}{% set entite_l2 = entite_l2|merge([entite.codePostal]) %}{% endif %}
+          {% if entite.ville %}{% set entite_l2 = entite_l2|merge([entite.ville]) %}{% endif %}
+          {% if entite_l2 is not empty or entite.pays %}
+            <p>{{ entite_l2|join(' ') }}{% if entite.pays %} - {{ entite.pays }}{% endif %}</p>
+          {% endif %}
+
+          {% if entite.telephone %}<p>{{ entite.telephone }}</p>{% endif %}
+          {% if entite.email %}<p>{{ entite.email }}</p>{% endif %}
+          {% if entite.siret %}<p>SIRET : {{ entite.siret }}</p>{% endif %}
+        </div>
+      </td>
+
+      <td class="right">
+        <div class="doc-badge">DEVIS</div>
+        <div class="doc-meta">
+          <div><strong>N°</strong> {{ devis.numero }}</div>
+          <div><strong>Émis le</strong> {{ devis.dateEmission|date('d/m/Y') }}</div>
+          {% if devis.dateValidite %}
+            <div><strong>Valable jusqu’au</strong> {{ devis.dateValidite|date('d/m/Y') }}</div>
+          {% endif %}
+
+          {# ===== Stamp selon DevisStatus: draft/sent/accepted/invoiced/canceled ===== #}
+          {% set st = devis.status.value ?? devis.status %}
+          {% if st == 'invoiced' %}
+            <div class="stamp stamp-invoiced">FACTURÉ</div>
+          {% elseif st == 'accepted' %}
+            <div class="stamp">ACCEPTÉ</div>
+          {% elseif st == 'sent' %}
+            <div class="stamp stamp-info">ENVOYÉ</div>
+          {% elseif st == 'canceled' %}
+            <div class="stamp stamp-canceled">ANNULÉ</div>
+          {% else %}
+            <div class="stamp stamp-draft">BROUILLON</div>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  {# ===== INFOS CLIENT (Prospect > Entreprise > Utilisateur) ===== #}
+  {% set cli_user = devis.destinataire ?? null %}
+  {% set cli_ent  = devis.entrepriseDestinataire ?? null %}
+  {% set cli_pro  = devis.prospect ?? null %}
+
+  {# Priorité: prospect, sinon entreprise, sinon utilisateur #}
+  {% set cli = cli_pro ?: (cli_ent ?: cli_user) %}
+
+  {# Type (pour adapter l'affichage si besoin) #}
+  {% set cliType = cli_pro ? 'prospect' : (cli_ent ? 'entreprise' : (cli_user ? 'utilisateur' : 'aucun')) %}
+
+
+  <table class="head" cellspacing="0" cellpadding="0">
+    <tr>
+      <td class="titre" style="width:40%"><b>Informations du devis</b></td>
+      <td style="width:20%; border:none;"></td>
+      <td class="titre" style="width:40%"><b>Informations du client</b></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #edf2f7;">
+        <p>
+          N° devis : {{ devis.numero ?? '-' }}<br>
+          Émis le : {{ devis.dateEmission|date('d/m/Y') }}<br>
+          {% if devis.dateValidite %}
+            Valable jusqu’au : {{ devis.dateValidite|date('d/m/Y') }}<br>
+          {% endif %}
+          Devise : {{ devis.devise ?? 'EUR' }}<br>
+
+          {% if devis.inscriptions is defined and devis.inscriptions|length > 0 %}
+            <span style="margin-top:4px; display:inline-block;">
+              Réf. inscriptions :
+              {% for ins in devis.inscriptions %}
+                #{{ ins.id }}{% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </span>
+          {% endif %}
+        </p>
+      </td>
+
+      <td style="border:none;"></td>
+
+      <td style="border:1px solid #edf2f7;">
+        {% if cliType == 'prospect' %}
+          {# ===== PROSPECT ===== #}
+          {% set nom = ((cli.civilite ?? '') ~ ' ' ~ (cli.prenom ?? '') ~ ' ' ~ (cli.nom ?? ''))|trim %}
+          {{ nom }}<br>
+
+
+          {% if cli.adresse ?? false %}{{ cli.adresse }}<br>{% endif %}
+          {% if cli.complement ?? false %}{{ cli.complement }}<br>{% endif %}
+
+          {% set cp_ville = [] %}
+          {% if cli.codePostal ?? false %}{% set cp_ville = cp_ville|merge([cli.codePostal]) %}{% endif %}
+          {% if cli.ville ?? false %}{% set cp_ville = cp_ville|merge([cli.ville]) %}{% endif %}
+          {% if cp_ville is not empty %}{{ cp_ville|join(' ') }}<br>{% endif %}
+          {% if cli.pays ?? false %}{{ cli.pays }}<br>{% endif %}
+
+
+          {% if cli.telephone ?? false %}{{ cli.telephone }}<br>{% endif %}
+          {% if cli.email ?? false %}{{ cli.email }}{% endif %}
+
+        {% elseif cliType == 'entreprise' %}
+          {# ===== ENTREPRISE ===== #}
+          {{ cli.raisonSociale ?? cli.nom ?? 'Entreprise' }}<br>
+
+          {% if cli.representant ?? false %}
+          {% set nom = ((cli.representant.civilite ?? '') ~ ' ' ~ (cli.representant.prenom ?? '') ~ ' ' ~ (cli.representant.nom ?? ''))|trim %}
+          {{ nom }}<br>
+          
+          {% endif %}
+          
+
+          {% if cli.adresse ?? false %}{{ cli.adresse }}<br>{% endif %}
+          {% if cli.complement ?? false %}{{ cli.complement }}<br>{% endif %}
+
+          {% set cp_ville = [] %}
+          {% if cli.codePostal ?? false %}{% set cp_ville = cp_ville|merge([cli.codePostal]) %}{% endif %}
+          {% if cli.ville ?? false %}{% set cp_ville = cp_ville|merge([cli.ville]) %}{% endif %}
+          {% if cp_ville is not empty %}{{ cp_ville|join(' ') }}<br>{% endif %}
+          {% if cli.pays ?? false %}{{ cli.pays }}<br>{% endif %}
+
+          {# éventuels champs entreprise #}
+          {% if cli.telephone ?? false %}{{ cli.telephone }}<br>{% endif %}
+          {% if cli.email ?? false %}{{ cli.email }}{% endif %}
+
+        {% elseif cliType == 'utilisateur' %}
+          {# ===== UTILISATEUR ===== #}
+          {% set nom = ((cli.civilite ?? '') ~ ' ' ~ (cli.prenom ?? '') ~ ' ' ~ (cli.nom ?? ''))|trim %}
+          {{ nom }}<br>
+
+          {% if cli.adresse ?? false %}{{ cli.adresse }}<br>{% endif %}
+          {% if cli.complement ?? false %}{{ cli.complement }}<br>{% endif %}
+
+          {% set cp_ville = [] %}
+          {% if cli.codePostal ?? false %}{% set cp_ville = cp_ville|merge([cli.codePostal]) %}{% endif %}
+          {% if cli.ville ?? false %}{% set cp_ville = cp_ville|merge([cli.ville]) %}{% endif %}
+          {% if cp_ville is not empty %}{{ cp_ville|join(' ') }}<br>{% endif %}
+          {% if cli.pays ?? false %}{{ cli.pays }}<br>{% endif %}
+
+          {% if cli.telephone ?? false %}{{ cli.telephone }}<br>{% endif %}
+          {% if cli.email ?? false %}{{ cli.email }}{% endif %}
+
+        {% else %}
+          -
+        {% endif %}
+      </td>
+
+    </tr>
+  </table>
+
+  <div class="rule"></div>
+
+  {# ===== LIGNES + REMISES ===== #}
+  <table>
+    <thead>
+      <tr>
+        <th style="width:8%">Ref.</th>
+        <th style="width:40%">Désignation</th>
+        <th style="width:7%" class="num">Qté</th>
+        <th style="width:11%" class="num">P.U HT</th>
+        <th style="width:12%" class="num">Total HT</th>
+        <th style="width:12%" class="num">Remise</th>
+        <th style="width:12%" class="num">HT net</th>
+        <th style="width:10%" class="num">TVA</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set total_ht_brut = 0 %}
+      {% set total_remises_lignes = 0 %}
+      {% set total_ht_net = 0 %}
+      {% set total_tva = 0 %}
+      {% set printed_rows = 0 %}
+
+      {% for l in devis.lignes %}
+        {% set qte = l.qte ?? 0 %}
+        {% set pu = l.puHtCents ?? 0 %}
+        {% set line_ht = qte * pu %}
+
+        {% set rem_pct = l.remisePourcent ?? null %}
+        {% set rem_cents = l.remiseMontantCents ?? null %}
+
+        {% set line_remise = 0 %}
+        {% if rem_cents is not null and rem_cents > 0 %}
+          {% set line_remise = rem_cents %}
+        {% elseif rem_pct is not null and rem_pct > 0 %}
+          {% set line_remise = (line_ht * rem_pct / 100)|round(0, 'floor') %}
+        {% endif %}
+
+        {% if line_remise > line_ht %}{% set line_remise = line_ht %}{% endif %}
+        {% set line_ht_net = line_ht - line_remise %}
+
+        {% set tva_rate = l.tva ?? 0 %}
+        {% set line_tva = (line_ht_net * tva_rate / 100)|round(0, 'floor') %}
+
+        {% set total_ht_brut = total_ht_brut + line_ht %}
+        {% set total_remises_lignes = total_remises_lignes + line_remise %}
+        {% set total_ht_net = total_ht_net + line_ht_net %}
+        {% set total_tva = total_tva + line_tva %}
+
+        {# ✅ Split du libellé en lignes (détails) #}
+        {% set raw = (l.label ?? '')|replace({"\r\n":"\n", "\r":"\n"}) %}
+        {% set parts = raw|split("\n") %}
+        {% set main = (parts|first)|default('')|trim %}
+
+        {% set details = parts|slice(1) %}
+
+        {# ===== Ligne principale chiffrée ===== #}
+        <tr class="{% if details|length == 0 %}line-end{% else %}line-main{% endif %}">
+
+          <td><span class="ref">{{ l.id ?? '-' }}</span></td>
+          <td>{{ main }}</td>
+          <td class="num">{{ qte }}</td>
+          <td class="num">{{ m.eur(pu) }}</td>
+          <td class="num">{{ m.eur(line_ht) }}</td>
+
+          <td class="num">
+            {% if rem_cents is not null and rem_cents > 0 %}
+              -{{ m.eur(line_remise) }}
+            {% elseif rem_pct is not null and rem_pct > 0 %}
+              -{{ m.eur(line_remise) }} <span class="muted">({{ m.pct(rem_pct) }})</span>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <td class="num">{{ m.eur(line_ht_net) }}</td>
+          <td class="num">{{ m.eur(line_tva) }}</td>
+        </tr>
+        {% set printed_rows = printed_rows + 1 %}
+
+        {# ===== Sous-lignes (détails) : colonnes vides, seulement la désignation ===== #}
+        {% for d in details %}
+          {% set d = d|trim %}
+          {% if d != '' %}
+            <tr class="detail-row {% if loop.last %}line-end{% endif %}">
+              <td></td>
+              <td class="detail-text">- {{ d }}</td>
+              <td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+
+
+      {% else %}
+        <tr><td colspan="8" class="muted">Aucune ligne de devis</td></tr>
+      {% endfor %}
+
+      {# ✅ Pas de remplissage : Dompdf gère l’espace, et ça évite de pousser les totaux page 2 #}
+
+
+    </tbody>
+
+  </table>
+
+  {# ===== REMISE GLOBALE ===== #}
+  {% set rg_pct = devis.remiseGlobalePourcent ?? null %}
+  {% set rg_cents = devis.remiseGlobaleMontantCents ?? null %}
+
+  {% set remise_globale = 0 %}
+  {% if rg_cents is not null and rg_cents > 0 %}
+    {% set remise_globale = rg_cents %}
+  {% elseif rg_pct is not null and rg_pct > 0 %}
+    {% set remise_globale = (total_ht_net * rg_pct / 100)|round(0, 'floor') %}
+  {% endif %}
+
+  {% if remise_globale > total_ht_net %}{% set remise_globale = total_ht_net %}{% endif %}
+
+  {% set total_ht_apres_rg = total_ht_net - remise_globale %}
+
+  {# ✅ TVA recalculée après remise globale (si tu n'as pas un montant TVA stocké) #}
+  {# taux TVA : meta.tva_value si présent, sinon 20 #}
+  {% set tva_value = (meta.tva_value ?? 20) %}
+
+  {% if remise_globale > 0 %}
+    {% set total_tva_apres_rg = (total_ht_apres_rg * tva_value / 100)|round(0, 'floor') %}
+  {% else %}
+    {% set total_tva_apres_rg = total_tva %}
+  {% endif %}
+
+
+  {% set total_ttc_calc = total_ht_apres_rg + total_tva_apres_rg %}
+
+
+  {# ===== TOTAUX ===== #}
+  <table class="totaux" cellspacing="0" cellpadding="0">
+    <tr>
+      <td style="border:none; width:50%"></td>
+      <td class="label" style="width:20%">Total HT (brut)</td>
+      <td class="val" style="width:30%">{{ m.eur(total_ht_brut) }}</td>
+    </tr>
+
+    {% if total_remises_lignes > 0 %}
+      <tr>
+        <td style="border:none"></td>
+        <td class="label">Remises lignes</td>
+        <td class="val">-{{ m.eur(total_remises_lignes) }}</td>
+      </tr>
+    {% endif %}
+
+    {% if remise_globale > 0 %}
+      <tr>
+        <td style="border:none"></td>
+        <td class="label">
+          Remise globale
+          {% if rg_pct is not null and rg_pct > 0 %}
+            <span class="muted">({{ m.pct(rg_pct) }})</span>
+          {% endif %}
+        </td>
+        <td class="val">-{{ m.eur(remise_globale) }}</td>
+      </tr>
+    {% endif %}
+
+    <tr>
+      <td style="border:none"></td>
+      <td class="label">Total HT (net)</td>
+      <td class="val">{{ m.eur(devis.montantHtCents ?? total_ht_apres_rg) }}</td>
+    </tr>
+
+    <tr>
+      <td style="border:none"></td>
+      <td class="label">Montant TVA {{ meta.tva_label ?? '20%' }}</td>
+      <td class="val">{{ m.eur(devis.montantTvaCents ?? total_tva_apres_rg) }}</td>
+    </tr>
+
+    <tr>
+      <td style="border:none"></td>
+      <td class="label total titre">Total TTC</td>
+      <td class="val total titre">
+        {% set htCents  = devis.montantHtCents  ?? total_ht_apres_rg %}
+        {% set tvaCents = devis.montantTvaCents ?? total_tva_apres_rg %}
+        {% set ttcCents = devis.montantTtcCents ?? (htCents + tvaCents) %}
+        {{ m.eur(ttcCents) }}
+
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+{# ✅ plus de note dans le flux : la note est dans le footer fixe #}
+
+  {# ===== FOOTER FIXE : NOTE + BANQUE ===== #}
+  <div class="footer-wrapper">
+
+    <div class="footer-note">{{ noteText }}</div>
+
+    {% if entite.banque %}
+      <div class="footer-banque">
+        <div class="footer-banque-title">Informations bancaires</div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:9.3px;">
+          <tr>
+            <td style="width:50%; padding:2px 4px; text-align:left;">
+              {% if entite.banque %}<strong>Banque :</strong> {{ entite.banque }}<br>{% endif %}
+              {% if entite.codeBanque %}<strong>Code :</strong> {{ entite.codeBanque }}<br>{% endif %}
+              {% if entite.numeroCompte %}<strong>N° compte :</strong> {{ entite.numeroCompte }}{% endif %}
+            </td>
+
+            <td style="width:50%; padding:2px 4px; text-align:left;">
+              {% if entite.iban %}<strong>IBAN :</strong> {{ entite.iban }}<br>{% endif %}
+              {% if entite.bic %}<strong>BIC :</strong> {{ entite.bic }}<br>{% endif %}
+              {% if entite.siret %}<strong>SIRET :</strong> {{ entite.siret }}{% endif %}
+              {% if entite.numeroTva %}<br><strong>TVA :</strong> {{ entite.numeroTva }}{% endif %}
+            </td>
+          </tr>
+        </table>
+
+      </div>
+    {% endif %}
+
+  </div>
+</body>
+</html>

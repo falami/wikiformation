@@ -1,0 +1,704 @@
+{# templates/formateur/supports_library.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Ma bibliothèque de supports{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+
+
+<link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.1.6/datatables.min.css">
+<link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+
+<style>
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  /* aliases locaux (si tu les utilises ailleurs dans la page) */
+  --brand: var(--theme-color-principal);
+  --accent: var(--theme-color-secondaire);
+
+  --ink:#0f2336; --muted:#6c8595;
+  --card:#ffffff; --card-2:#fafcfe; --line:#e8eef5;
+  --r:.9rem; --r-lg:1rem; --shadow:0 10px 30px rgba(15,35,54,.10);
+}
+/* ===== HERO (style QCM, piloté par couleurs entité) ===== */
+.hero{
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,.14);
+  background:
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  opacity:.85;
+}
+.hero .accent{
+  width: 12px;
+  border-radius: 999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+}
+.hero .subtitle{ opacity:.86 }
+
+/* ✅ chips HERO (style QCM) */
+.hero .meta-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  padding:.28rem .65rem;
+  border-radius:999px;
+  font-size:.82rem;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.92);
+  white-space: nowrap;
+}
+.hero .meta-chip i{ color: var(--theme-color-secondaire); }
+
+/* ✅ boutons hero */
+.hero .btn{
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+/* ✅ outline spécifique hero (à la place du btn-chip) */
+.hero .btn-outline-hero{
+  border-color: rgba(255,255,255,.35);
+  color:#fff;
+}
+.hero .btn-outline-hero:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  color:#fff;
+}
+
+@media (max-width:768px){
+  .hero{ border-radius: 16px; }
+}
+.btn-chip{ border-radius:999px; font-weight:700; border:1px solid color-mix(in oklab, var(--brand) 25%, var(--line)); color:white !important; }
+
+/* Cartes/panneaux */
+.panel{ background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow); overflow:hidden; }
+.panel-h{ padding:.8rem 1rem; border-bottom:1px solid var(--line); background:var(--card); }
+.panel-h h5{ margin:0; font-size:1rem; font-weight:800; color:var(--ink); }
+.panel-b{ padding:1rem; }
+
+/* Datatables : en-tête et cellules compactes, actions collées à droite sur mobile */
+table.dataTable thead th{ font-weight:800; color:var(--ink); border-bottom:1px solid var(--line) !important; }
+table.dataTable tbody td{ vertical-align:middle; }
+.badge-type{ font-size:.72rem; font-weight:800; padding:.15rem .42rem; border-radius:.5rem;
+  border:1px solid color-mix(in oklab, var(--accent) 40%, white 60%);
+  background:color-mix(in oklab, var(--accent) 12%, white 88%);
+  color:color-mix(in oklab, var(--accent) 70%, black 30%);
+}
+
+@media (min-width:1200px){ .sticky-panel{ position:sticky; top:1rem; } }
+
+/* Panneau d’affectation */
+.assign-card{
+  border:1px solid var(--line); border-radius:1rem; overflow:hidden;
+  background:linear-gradient(180deg, var(--card), var(--card-2)); box-shadow:var(--shadow);
+  margin-bottom:1rem;
+}
+.assign-card .ac-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.65rem .85rem; background: color-mix(in oklab, var(--brand) 6%, var(--card));
+  border-bottom:1px solid var(--line);
+}
+.assign-card .ac-title{ font-weight:900; color:var(--ink); }
+.count-badge{
+  font-size:.72rem; font-weight:800; border-radius:999px; padding:.2rem .6rem;
+  border:1px solid color-mix(in oklab, var(--brand) 30%, var(--line));
+  background: color-mix(in oklab, var(--brand) 8%, white 92%); color: color-mix(in oklab, var(--brand) 75%, black 25%);
+}
+
+.current-asset{
+  display:flex; align-items:center; gap:.75rem;
+  border:1px solid var(--line); border-radius: .9rem;
+  padding:.7rem .8rem; background:linear-gradient(180deg, var(--card), var(--card-2));
+}
+.current-asset .ca-ico{
+  width:38px; height:38px; border-radius:.55rem; display:grid; place-items:center;
+  background: color-mix(in oklab, var(--brand) 12%, white 88%); color: color-mix(in oklab, var(--brand) 80%, black 20%);
+}
+.current-asset .ca-label{ font-size:.78rem; text-transform:uppercase; letter-spacing:.02em; color:var(--muted); font-weight:700; }
+.current-asset .ca-name{ font-weight:800; line-height:1.2; color:var(--ink); }
+
+#dtAssets td.action-col{ width:1%; white-space:nowrap; }
+#dtSessionsSelect td, #dtUsersSelect td{ white-space:nowrap; }
+
+/* Mobile : action sticky à droite si table déborde */
+@media (max-width:768px){
+  table.dataTable td.action-col{ position:sticky; right:0; background:var(--card); z-index:5; box-shadow:-8px 0 12px -8px rgba(0,0,0,.08); }
+}
+
+
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+}
+</style>
+
+<link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+{% endblock %}
+
+{% block body %}
+
+
+
+  {# ===== HERO (style QCM) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+      <div class="accent"></div>
+
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+          <div>
+            <h2 class="m-0 fw-bold">
+              <i class="bi bi-cloud-arrow-up me-2" style="color:var(--theme-color-secondaire)"></i>
+              Ma bibliothèque de supports
+            </h2>
+
+            <div class="opacity-75 mt-1">
+              Liste, affectation, stagiaires & sessions.
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap mt-3">
+              <span class="meta-chip"><i class="bi bi-person-badge"></i> Formateur</span>
+              <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+              <span class="meta-chip"><i class="bi bi-collection"></i> Supports</span>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-outline-hero btn-sm fw-semibold"
+              href="{{ path('app_formateur_dashboard', { entite: entite.id }) }}">
+              <i class="bi bi-arrow-left me-1"></i> Retour
+            </a>
+          </div>
+        </div>
+      </div>
+  </div>
+
+
+  <div class="row g-4">
+    <!-- GAUCHE : Documents -->
+    <div class="col-12 col-xl-6 col-xxl-6">
+      <div class="panel">
+        <div class="panel-h d-flex align-items-center justify-content-between">
+          <h5>Liste de vos documents</h5>
+          <div class="small text-muted">Derniers en premier</div>
+        </div>
+        <div class="panel-b">
+          <form id="libUploadForm" class="mb-2" method="post" enctype="multipart/form-data"
+                action="{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}">
+            <div class="d-flex gap-2 flex-wrap">
+              <input id="libFiles" type="file" name="files[]" multiple class="form-control" style="max-width:420px">
+              <button class="btn btn-gradient" type="submit"><i class="bi bi-upload"></i> Importer</button>
+              <button class="btn btn-outline-secondary" type="button" id="btnClear"><i class="bi bi-x-circle"></i> Vider</button>
+            </div>
+            <div class="form-text mt-1">Formats usuels (PDF, PPT(X), DOC(X), XLS(X), images).<br />50&nbsp;Mo max/fichier (config serveur).</div>
+          </form>
+
+          <table id="dtAssets" class="table table-sm table-hover w-100">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th style="width:160px;">Date</th>
+                <th class="text-end action-col" style="width:1%;">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- DROITE : Affectation -->
+    <div class="col-12 col-xl-6 col-xxl-6">
+      <div class="panel sticky-panel">
+        <div class="panel-h d-flex align-items-center justify-content-between">
+          <h5 class="m-0"><i class="bi bi-link-45deg me-1"></i> Affectations</h5>
+          <small class="text-muted fw-semibold">Sessions & stagiaires</small>
+        </div>
+
+        <div class="panel-b">
+          <!-- Sélection courante -->
+          <div class="current-asset mb-3">
+            <div class="ca-ico"><i class="bi bi-file-earmark-text"></i></div>
+            <div class="ca-body">
+              <div class="ca-label">Sélection</div>
+              <div class="ca-name" id="currentAssetName">-</div>
+            </div>
+            <div class="ms-auto small text-muted d-none d-xl-block">Clique un document à gauche</div>
+          </div>
+
+          <!-- Carte sessions -->
+          <section class="assign-card">
+            <div class="ac-head">
+              <div class="ac-title"><i class="bi bi-calendar2-week me-1"></i> Sessions</div>
+              <span class="count-badge" id="countSessions">0 sélection</span>
+            </div>
+            <div class="p-2">
+              <table id="dtSessionsSelect" class="table table-sm table-striped w-100">
+                <thead>
+                  <tr>
+                    <th style="width:42px;"></th>
+                    <th>Code</th>
+                    <th>Formation</th>
+                    <th style="width:180px;">Dates</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div class="d-flex align-items-center justify-content-between mt-2">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="visibleSess" checked>
+                  <label class="form-check-label" for="visibleSess">Visible pour les stagiaires</label>
+                </div>
+                <button class="btn btn-gradient" id="btnAssignSessions"><i class="bi bi-link-45deg"></i> Lier aux sessions</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Carte stagiaires -->
+          <section class="assign-card">
+            <div class="ac-head">
+              <div class="ac-title"><i class="bi bi-people me-1"></i> Stagiaires</div>
+              <span class="count-badge" id="countUsers">0 sélection</span>
+            </div>
+            <div class="p-2">
+              <table id="dtUsersSelect" class="table table-sm table-striped w-100">
+                <thead>
+                  <tr>
+                    <th style="width:42px;"></th>
+                    <th>Nom</th>
+                    <th style="width:220px;">Email</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div class="d-flex align-items-center justify-content-between mt-2">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="visibleUsers" checked>
+                  <label class="form-check-label" for="visibleUsers">Visible pour le stagiaire</label>
+                </div>
+                <button class="btn btn-gradient" id="btnAssignUsers"><i class="bi bi-person-plus"></i> Lier aux stagiaires</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Affectations existantes -->
+          <hr class="my-3">
+          <section>
+            <h6 class="fw-bold mb-2"><i class="bi bi-diagram-3 me-1"></i> Affectations existantes</h6>
+
+            <div class="mb-2">
+              <div class="fw-semibold mb-1 text-muted text-uppercase small">Sessions</div>
+              <div id="assignSessions" class="vstack gap-2"></div>
+            </div>
+
+            <div class="mt-2">
+              <div class="fw-semibold mb-1 text-muted text-uppercase small">Stagiaires</div>
+              <div id="assignUsers" class="vstack gap-2"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{# Modales génériques #}
+<div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-3">
+    <div class="modal-header"><h5 class="modal-title" id="appModalTitle">Titre</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+    <div class="modal-body" id="appModalBody">…</div>
+    <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-3">
+    <div class="modal-header"><h5 class="modal-title">Confirmer l’action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+    <div class="modal-body" id="confirmModalBody">Êtes-vous sûr ?</div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+      <button type="button" class="btn btn-danger" id="confirmModalOk">Confirmer</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+{# 1. jQuery (tu l'as déjà) #}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+
+{# 3. DataTables (core + intégration Bootstrap 5 en un seul fichier pratique) #}
+<script src="https://cdn.datatables.net/v/bs5/dt-2.1.6/datatables.min.js"></script>
+
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs5/jszip-2.5.0/dt-1.10.25/b-1.7.1/b-html5-1.7.1/b-print-1.7.1/date-1.1.1/fh-3.1.9/r-2.2.9/rg-1.1.3/sc-2.0.4/sp-1.3.0/datatables.min.js"></script>
+
+<script>
+/* ===== Modales utilitaires (showModal / confirmDialog) ===== */
+(function(){
+  function getBS(){ const c=(window.bootstrap||globalThis.bootstrap||bootstrap||null); return (c && c.Modal)?c:null; }
+  window.showModal = function(title, html, variant='info'){
+    const m=document.getElementById('appModal'), bs=getBS(); if(!m||!bs){ alert((title||'Info')+'\n\n'+(html||'')); return; }
+    m.querySelector('#appModalTitle').textContent = title||'Information';
+    m.querySelector('#appModalBody').innerHTML    = html||'';
+    const ok=m.querySelector('.modal-footer .btn'); ok.className='btn';
+    ok.classList.add({info:'btn-primary',success:'btn-success',warning:'btn-warning',danger:'btn-danger'}[variant]||'btn-primary');
+    bs.Modal.getOrCreateInstance(m, {backdrop:true, focus:true}).show();
+  };
+})();
+</script>
+
+<script>
+(function(){
+  function getBS(){ const c=(window.bootstrap||globalThis.bootstrap||bootstrap||null); return (c && c.Modal)?c:null; }
+
+  window.confirmDialog = function(message, {title='Confirmer', confirmText='Confirmer', variant='danger'} = {}){
+    return new Promise(resolve=>{
+      const bs = getBS();
+      const modal = document.getElementById('confirmModal');
+
+      // Si la modale n'est pas dispo → fallback natif
+      if (!bs || !modal) { resolve(!!confirm((title?title+'\n\n':'')+(message||'Êtes-vous sûr ?'))); return; }
+
+      // Récupère les éléments en vérifiant qu'ils existent
+      const elTitle = modal.querySelector('.modal-title');
+      const elBody  = modal.querySelector('#confirmModalBody');
+      const btnOk   = modal.querySelector('#confirmModalOk');
+
+      // Si un des éléments manque → fallback natif
+      if (!elTitle || !elBody || !btnOk) {
+        resolve(!!confirm((title?title+'\n\n':'')+(message||'Êtes-vous sûr ?')));
+        return;
+      }
+
+      // Remplissage sécurisé
+      elTitle.textContent = title || 'Confirmer';
+      elBody.innerHTML    = message || 'Êtes-vous sûr ?';
+      btnOk.textContent   = confirmText || 'Confirmer';
+      btnOk.className     = 'btn ' + (variant==='danger' ? 'btn-danger'
+                                   : variant==='warning' ? 'btn-warning'
+                                   : variant==='success' ? 'btn-success' : 'btn-primary');
+
+      const inst = bs.Modal.getOrCreateInstance(modal, {backdrop:true, focus:true});
+      const onOk  = ()=>{ cleanup(); inst.hide(); resolve(true);  };
+      const onHide= ()=>{ cleanup();              resolve(false); };
+
+      function cleanup(){
+        btnOk.removeEventListener('click', onOk);
+        modal.removeEventListener('hidden.bs.modal', onHide);
+      }
+
+      btnOk.addEventListener('click', onOk,   {once:true});
+      modal.addEventListener('hidden.bs.modal', onHide, {once:true});
+      inst.show();
+    });
+  };
+})();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Sécurité : jQuery + DataTables requis
+  if (!window.jQuery) {
+    console.error('jQuery non chargé : ajoute');
+    return;
+  }
+  if (!jQuery.fn || !jQuery.fn.DataTable) {
+    console.error('DataTables non chargé : ajoute le JS DataTables AVANT ce script.');
+    return;
+  }
+
+  (function ($) {
+
+    const fmtBytes = b => (b==null)?'-':(b<1024? b+' o' : b<1048576? (b/1024).toFixed(1)+' Ko' : b<1073741824? (b/1048576).toFixed(1)+' Mo' : (b/1073741824).toFixed(1)+' Go');
+    const escapeHtml = s => String(s||'').replace(/[&<>"']/g, m => ({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[m]));
+
+    const iconFor = nameLower =>{
+      if(nameLower.includes('pdf')) return 'bi-file-earmark-pdf-fill';
+      if(nameLower.includes('ppt')) return 'bi-file-earmark-slides-fill';
+      if(nameLower.includes('xls')||nameLower.includes('csv')) return 'bi-file-earmark-spreadsheet-fill';
+      if(nameLower.includes('doc')) return 'bi-file-earmark-word-fill';
+      if(/\.(png|jpg|jpeg|webp|gif)$/i.test(nameLower)) return 'bi-file-earmark-image-fill';
+      return 'bi-file-earmark-text-fill';
+    };
+
+    let CURRENT_ASSET_ID = null;
+    const setCurrentAsset = (id, name) => {
+      CURRENT_ASSET_ID = id || null;
+      const el = document.getElementById('currentAssetName');
+      if (el) el.textContent = name || '-';
+      loadAssignments();
+    };
+
+    // ===== DataTable : Assets =====
+    const dtAssets = $('#dtAssets').DataTable({
+      ajax: {
+        url: "{{ path('app_formateur_supports_assets_feed', {entite: entite.id}) }}",
+        dataSrc: 'data'
+      },
+      columns: [
+        { data:null, render: (r)=>{
+            const title = r.titre || r.originalName || 'Document';
+            const ico = iconFor((title||'').toLowerCase());
+            const typeBadge = /\bpdf\b/i.test(r.mimeType||'')?'PDF': /\bppt/i.test(r.mimeType||'')?'PPT' : /\bexcel|sheet|csv/i.test(r.mimeType||'')?'Excel' : /\.(png|jpg|jpeg|webp|gif)$/i.test(r.originalName||'')?'Image':'Fichier';
+            return `
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge rounded-2 bg-secondary border"><i class="bi ${ico}"></i></span>
+                <div class="flex-grow-1">
+                  <div class="fw-bold">${escapeHtml(title)}</div>
+                  <div class="text-muted small">${fmtBytes(r.size)} · <span class="badge-type">${typeBadge}</span></div>
+                </div>
+              </div>`;
+          }
+        },
+        { data:'uploadedAt' },
+        { data:null, orderable:false, className:'text-end action-col', render:(r)=>{
+            const t = r.titre || r.originalName || 'Document';
+            return `
+              <div class="btn-group">
+                <a class="btn btn-sm btn-outline-secondary" href="${r.url}" target="_blank" title="Télécharger"><i class="bi bi-download"></i></a>
+                <button class="btn btn-sm btn-primary" data-choose data-id="${r.id}" data-name="${escapeHtml(t)}"><i class="bi bi-check2-circle"></i></button>
+              </div>`;
+          }
+        }
+      ],
+      order: [[1,'desc']],
+      deferRender:true, pageLength:10, lengthMenu:[10,25,50,100],
+      dom: '<"row"<"col-md-6"f><"col-md-6 text-end"l>>rt<"row mt-2"<"col-md-6"i><"col-md-6 text-end"p>>',
+      language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+    });
+
+    // Sélection d’un asset (bouton)
+    $('#dtAssets').on('click','[data-choose]', function(){
+      setCurrentAsset(this.dataset.id, this.dataset.name);
+    });
+
+    // Click ligne (hors actions) => sélection
+    $('#dtAssets tbody').on('click', 'tr', function(e){
+      if (e.target.closest('.btn-group')) return;
+      const row = dtAssets.row(this).data(); if(!row) return;
+      const title = row.titre || row.originalName || 'Document';
+      setCurrentAsset(row.id, title);
+    });
+
+    // Upload
+    document.getElementById('libUploadForm')?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const btn=e.currentTarget.querySelector('button[type=submit]'); const old=btn?.innerHTML;
+      if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Import…'; }
+      try{
+        const r = await fetch("{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}", { method:'POST', body:new FormData(e.currentTarget), headers:{'X-Requested-With':'XMLHttpRequest'} });
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        await r.json();
+        $('#dtAssets').DataTable().ajax.reload(null,false);
+        const f=document.getElementById('libFiles'); if(f) f.value='';
+        showModal('Import terminé', 'Fichier(s) importé(s) dans la bibliothèque.', 'success');
+      }catch(err){ showModal('Upload refusé', String(err.message||err), 'danger'); }
+      finally{ if(btn){ btn.disabled=false; btn.innerHTML=old; } }
+    });
+    document.getElementById('btnClear')?.addEventListener('click', ()=>{ const f=document.getElementById('libFiles'); if(f) f.value=''; });
+
+    // ===== DataTable : Sessions (sélection) =====
+    const dtSess = $('#dtSessionsSelect').DataTable({
+      ajax:{ url:"{{ path('app_formateur_supports_sessions_feed', {entite: entite.id}) }}", dataSrc:'data' },
+      columns:[
+        { data:null, orderable:false, render:(r)=>`<input type="checkbox" class="form-check-input" value="${r.id}">` },
+        { data:'code' },
+        { data:'formation' },
+        { data:'dates' }
+      ],
+      order:[[1,'desc']], pageLength:10, lengthMenu:[10,25,50],
+      dom:'t<"d-flex justify-content-between align-items-center mt-2"ip>',
+      language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+    });
+
+    // Toggle checkbox au clic de ligne
+    $('#dtSessionsSelect tbody').on('click', 'tr', function(e){
+      const cb = this.querySelector('input[type=checkbox]'); if(!cb) return;
+      if(e.target !== cb) cb.checked = !cb.checked;
+      updateCounts();
+
+      // ✅ Recharge la liste stagiaires pour la session sélectionnée
+      dtUsers.ajax.reload(null, true);
+    });
+
+
+    // ===== DataTable : Utilisateurs (sélection) =====
+    // Helper : 1ère session cochée
+    function getSelectedSessionId(){
+      const cb = document.querySelector('#dtSessionsSelect input[type=checkbox]:checked');
+      return cb ? cb.value : null;
+    }
+
+    // ===== DataTable : Utilisateurs (sélection) =====
+    const dtUsers = $('#dtUsersSelect').DataTable({
+      ajax: {
+        url: "{{ path('app_formateur_supports_trainees_feed', {entite: entite.id}) }}",
+        dataSrc: 'data',
+        data: function (d) {
+          d.sessionId = getSelectedSessionId() || 0; // IMPORTANT
+        }
+      },
+      columns:[
+        { data:null, orderable:false, render:(r)=>`<input type="checkbox" class="form-check-input" value="${r.id}">` },
+        { data:'nom' },
+        { data:'email' }
+      ],
+      order:[[1,'asc']], pageLength:10, lengthMenu:[10,25,50],
+      dom:'t<"d-flex justify-content-between align-items-center mt-2"ip>',
+      language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+    });
+
+
+    $('#dtUsersSelect tbody').on('click', 'tr', function(e){
+      const cb = this.querySelector('input[type=checkbox]'); if(!cb) return;
+      if(e.target !== cb) cb.checked = !cb.checked;
+      updateCounts();
+    });
+
+    // Compteurs
+    function updateCounts(){
+      const s = $('#dtSessionsSelect input[type=checkbox]:checked').length;
+      const u = $('#dtUsersSelect input[type=checkbox]:checked').length;
+      document.getElementById('countSessions').textContent = (s||0)+' sélection'+(s>1?'s':'');
+      document.getElementById('countUsers').textContent    = (u||0)+' sélection'+(u>1?'s':'');
+    }
+    $('#dtSessionsSelect, #dtUsersSelect').on('change','input[type=checkbox]', updateCounts);
+
+    // Affectations existantes
+    async function loadAssignments(){
+      const as = document.getElementById('assignSessions');
+      const au = document.getElementById('assignUsers');
+      if(!as || !au) return;
+      if(!CURRENT_ASSET_ID){ as.innerHTML='-'; au.innerHTML='-'; return; }
+
+      try{
+        const url = new URL("{{ path('app_formateur_supports_assignments_feed',{entite:entite.id}) }}", window.location.origin);
+        url.searchParams.set('assetId', CURRENT_ASSET_ID);
+        const r = await fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(x=>x.json());
+
+        as.innerHTML=''; (r.sessions||[]).forEach(s=>{
+          as.insertAdjacentHTML('beforeend', `
+            <div class="d-flex align-items-center justify-content-between border rounded p-2">
+              <div><strong>${escapeHtml(s.code)}</strong> - ${escapeHtml(s.formation)}
+                <span class="text-muted small ms-1">${escapeHtml(s.dates)}</span></div>
+              <button type="button" class="btn btn-sm btn-outline-danger" data-unassign="session" data-link-id="${s.linkId}" data-asset-id="${CURRENT_ASSET_ID}">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </div>`);
+        });
+
+        au.innerHTML=''; (r.users||[]).forEach(u=>{
+          au.insertAdjacentHTML('beforeend', `
+            <div class="d-flex align-items-center justify-content-between border rounded p-2">
+              <div>${escapeHtml(u.nom)} <span class="text-muted small ms-1">${escapeHtml(u.email)}</span></div>
+              <button type="button" class="btn btn-sm btn-outline-danger" data-unassign="user" data-link-id="${u.linkId}" data-asset-id="${CURRENT_ASSET_ID}">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </div>`);
+        });
+
+      }catch(err){
+        as.innerHTML = '<div class="text-danger">Erreur de chargement.</div>';
+        au.innerHTML = '<div class="text-danger">Erreur de chargement.</div>';
+      }
+    }
+    window.loadAssignments = loadAssignments;
+
+    // Assigner
+    async function assign(type){
+      if(!CURRENT_ASSET_ID){ showModal('Sélection requise', 'Sélectionne d’abord un document.', 'warning'); return; }
+      const ids = Array.from(document.querySelectorAll(type==='sessions' ? '#dtSessionsSelect input:checked' : '#dtUsersSelect input:checked')).map(i=>i.value);
+      if(!ids.length){ showModal('Sélection requise', type==='sessions'?'Choisis au moins une session.':'Choisis au moins un stagiaire.', 'warning'); return; }
+
+      const btn = document.getElementById(type==='sessions'?'btnAssignSessions':'btnAssignUsers');
+      const old = btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Lien…';
+
+      try{
+        const f = new FormData();
+        f.append('assetId', CURRENT_ASSET_ID);
+        ids.forEach(id => f.append(type==='sessions' ? 'sessionIds[]' : 'userIds[]', id));
+        f.append('visible', document.getElementById(type==='sessions'?'visibleSess':'visibleUsers').checked ? '1' : '0');
+
+        await fetch(type==='sessions'
+            ? "{{ path('app_formateur_supports_assign_sessions',{entite:entite.id}) }}"
+            : "{{ path('app_formateur_supports_assign_users',{entite:entite.id}) }}",
+          { method:'POST', body:f, headers:{'X-Requested-With':'XMLHttpRequest'} });
+
+        await loadAssignments();
+        showModal('Affectation effectuée', type==='sessions'?'Lié aux sessions sélectionnées.':'Lié aux stagiaires sélectionnés.', 'success');
+      }catch(err){
+        showModal('Affectation refusée', String(err.message||err), 'danger');
+      }finally{
+        btn.disabled=false; btn.innerHTML=old;
+      }
+    }
+    document.getElementById('btnAssignSessions')?.addEventListener('click', ()=>assign('sessions'));
+    document.getElementById('btnAssignUsers')?.addEventListener('click',   ()=>assign('users'));
+
+    // Désaffecter (délégation globale)
+    document.addEventListener('click', async (e)=>{
+      const btn = e.target.closest('[data-unassign]'); if(!btn) return;
+      e.preventDefault();
+      const type=btn.getAttribute('data-unassign'), linkId=btn.getAttribute('data-link-id'), assetId=btn.getAttribute('data-asset-id')||CURRENT_ASSET_ID||'';
+      if(!linkId) return;
+      const ok = await window.confirmDialog(type==='session'?'Retirer ce lien de session ?':'Retirer ce lien stagiaire ?', { title:'Supprimer le lien', confirmText:'Retirer', variant:'danger' });
+      if(!ok) return;
+      const old = btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm"></span>';
+      try{
+        const f=new FormData(); f.append('id', linkId); if(assetId) f.append('assetId', assetId);
+        const url = type==='session'
+          ? "{{ path('app_formateur_supports_unassign_session',{entite:entite.id}) }}"
+          : "{{ path('app_formateur_supports_unassign_user',{entite:entite.id}) }}";
+        await fetch(url, { method:'POST', body:f, headers:{'X-Requested-With':'XMLHttpRequest'} });
+        await loadAssignments();
+      }catch(err){ showModal('Action refusée', String(err.message||err), 'danger'); btn.disabled=false; btn.innerHTML=old; }
+    });
+
+    // Init affectations (aucune sélection au départ)
+    loadAssignments();
+
+  })(jQuery);
+});
+</script>
+
+{% endblock %}

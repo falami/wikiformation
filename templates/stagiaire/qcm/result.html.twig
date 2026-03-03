@@ -1,0 +1,623 @@
+{# templates/stagiaire/qcm/result.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Résultat QCM{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* Page */
+    .qcm-hero{
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        radial-gradient(1100px 380px at 10% -10%, rgba(255,255,255,.18), transparent 60%),
+        radial-gradient(800px 280px at 90% 0%, rgba(255,255,255,.10), transparent 55%),
+        linear-gradient(135deg, color-mix(in oklab, var(--theme-color-principal) 92%, #000 8%), var(--theme-color-principal));
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 18px 50px rgba(0,0,0,.18);
+    }
+    .qcm-hero:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(400px 220px at 80% 40%, color-mix(in oklab, var(--theme-color-secondaire) 55%, transparent), transparent 70%);
+      opacity:.75;
+      pointer-events:none;
+    }
+    .qcm-hero .crumb{
+      display:inline-flex; gap:.5rem; align-items:center;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      padding:.35rem .6rem;
+      border-radius: 999px;
+      font-size:.85rem;
+    }
+    .qcm-hero .title{
+      font-size: clamp(1.25rem, 1.1rem + 1vw, 1.75rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .qcm-hero .subtitle{ opacity:.85; }
+
+    /* Cards / KPI */
+    .qcm-card{
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 18px;
+      box-shadow: 0 12px 35px rgba(0,0,0,.06);
+    }
+    .kpi{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: color-mix(in oklab, #fff 92%, var(--theme-color-tertiaire));
+      padding: 14px 14px;
+      color: #000;
+    }
+    .kpi .label{ color: rgba(0,0,0,.55); font-size:.85rem; }
+    .kpi .value{ font-weight: 800; font-size: 1.1rem; }
+    .kpi .icon{
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      display:flex; align-items:center; justify-content:center;
+      background: color-mix(in oklab, var(--theme-color-secondaire) 22%, #fff);
+      color: color-mix(in oklab, var(--theme-color-principal) 75%, #000);
+    }
+
+    /* Status badge */
+    .status-pill{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.5rem .75rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.10);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status-dot{ width:10px; height:10px; border-radius:99px; background: var(--theme-color-secondaire); }
+
+    /* Score ring */
+    .ring{
+      --size: 112px;
+      --thickness: 10px;
+      --percent: 0;
+      width: var(--size);
+      height: var(--size);
+      border-radius: 50%;
+      background:
+        conic-gradient(var(--theme-color-secondaire) calc(var(--percent)*1%), rgba(255,255,255,.22) 0);
+      display:grid;
+      place-items:center;
+      position: relative;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+    }
+    .ring:after{
+      content:"";
+      width: calc(var(--size) - var(--thickness)*2);
+      height: calc(var(--size) - var(--thickness)*2);
+      border-radius: 50%;
+      background: rgba(15, 35, 54, .22);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,.14);
+      position:absolute;
+    }
+    .ring .ring-content{
+      position: relative;
+      z-index: 1;
+      text-align:center;
+      line-height: 1.1;
+    }
+    .ring .ring-content .p{ font-weight: 900; font-size: 1.25rem; }
+    .ring .ring-content .t{ font-size:.8rem; opacity:.85; }
+
+    /* Follow-up note */
+    .followup{
+      border-radius: 18px;
+      border: 1px dashed color-mix(in oklab, var(--theme-color-secondaire) 45%, rgba(0,0,0,.08));
+      background: color-mix(in oklab, var(--theme-color-secondaire) 10%, #fff);
+      padding: 16px;
+    }
+
+    /* Small helpers */
+    .btn-theme{
+      background: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+      color: color-mix(in oklab, var(--theme-color-principal) 78%, #000);
+      font-weight: 800;
+    }
+    .btn-theme:hover{ filter: brightness(.98); }
+    .btn-ghost{
+      border: 1px solid rgba(255,255,255,.22);
+      color: #fff;
+      background: rgba(255,255,255,.06);
+    }
+    .btn-ghost:hover{ background: rgba(255,255,255,.10); color:#fff; }
+
+    /* ===== DÉTAIL QCM ===== */
+    .qa-wrap .accordion-item{
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(0,0,0,.05);
+    }
+    .qa-wrap .accordion-button{
+      background: color-mix(in oklab, #fff 90%, var(--theme-color-tertiaire));
+      font-weight: 800;
+      color: var(--theme-color-quaternaire);
+    }
+    .qa-wrap .accordion-button:not(.collapsed){
+      background: color-mix(in oklab, #fff 82%, var(--theme-color-secondaire));
+      color: color-mix(in oklab, var(--theme-color-principal) 80%, #000);
+      box-shadow: none;
+    }
+    .qa-meta{
+      font-size: .85rem;
+      color: rgba(0,0,0,.55);
+    }
+    .answer-line{
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display:flex;
+      align-items:flex-start;
+      gap: 10px;
+      background: #fff;
+    }
+    .answer-line.is-correct{
+      border-color: rgba(34,197,94,.35);
+      background: color-mix(in oklab, #fff 90%, rgba(34,197,94,.18));
+    }
+    .answer-line.is-wrong{
+      border-color: rgba(239,68,68,.35);
+      background: color-mix(in oklab, #fff 90%, rgba(239,68,68,.16));
+    }
+    .answer-bullet{
+      width: 22px; height: 22px;
+      border-radius: 999px;
+      display:flex; align-items:center; justify-content:center;
+      border: 1px solid rgba(0,0,0,.14);
+      flex: 0 0 auto;
+      margin-top: 1px;
+      background: #fff;
+    }
+    .answer-line.is-correct .answer-bullet{
+      border-color: rgba(34,197,94,.45);
+      background: rgba(34,197,94,.12);
+    }
+    .answer-line.is-wrong .answer-bullet{
+      border-color: rgba(239,68,68,.45);
+      background: rgba(239,68,68,.10);
+    }
+    .answer-text{ flex: 1 1 auto; }
+    .pill{
+      display:inline-flex;
+      gap:.35rem;
+      align-items:center;
+      padding:.25rem .55rem;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: .78rem;
+      border: 1px solid rgba(0,0,0,.10);
+      background: #fff;
+      color: rgba(0,0,0,.75);
+      white-space: nowrap;
+    }
+    .pill.good{ border-color: rgba(34,197,94,.35); color: #166534; background: rgba(34,197,94,.10); }
+    .pill.bad{ border-color: rgba(239,68,68,.35); color: #991b1b; background: rgba(239,68,68,.10); }
+    .pill.neutral{ border-color: rgba(0,0,0,.12); color: rgba(0,0,0,.72); background: rgba(0,0,0,.03); }
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+
+{% block body %}
+  {# Sécurise au cas où scorePercent est une string #}
+  {% set percent = (a.attempt.scorePercent ?? 0)|default(0) %}
+  {% set percent = percent > 100 ? 100 : (percent < 0 ? 0 : percent) %}
+
+  {# ===== IMPORTANT : source des réponses =====
+     Adapte uniquement ICI si besoin.
+     Chaque item doit idéalement exposer :
+     - item.question (ou item.q) avec item.question.intitule / item.question.titre / item.question.enonce
+     - item.choices (ou question.reponses) : liste des propositions
+     - item.selectedChoiceIds (ou item.selected) : réponses données
+     - item.isCorrect (bool) ou item.pointsEarned / item.pointsMax
+     - choice.isCorrect (bool) / choice.isCorrectAnswer / choice.correct
+     - choice.label / choice.texte
+  #}
+  {% set items = items|default([]) %}
+
+
+  <div class="container-fluid py-3 py-lg-4">
+    {# HERO #}
+    <div class="qcm-hero p-3 p-lg-4 mb-3 mb-lg-4">
+      <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3">
+        <div class="position-relative">
+          <div class="crumb mb-2">
+            <i class="bi bi-patch-check"></i>
+            <span>Résultat QCM</span>
+            <span class="opacity-75">•</span>
+            <span class="opacity-75">{{ a.phase.label }}</span>
+          </div>
+
+          <div class="title">{{ a.qcm.titre }}</div>
+          <div class="subtitle small mt-1">
+            <i class="bi bi-calendar-event me-1"></i>{{ a.session.label }}
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 position-relative">
+          {# STATUT #}
+          {% if a.status.value == 'review_required' %}
+            <div class="status-pill">
+              <span class="status-dot" style="background:#ff5b5b"></span>
+              <span>Action admin requise</span>
+            </div>
+          {% elseif a.status.value == 'validated' %}
+            <div class="status-pill">
+              <span class="status-dot" style="background:#4ade80"></span>
+              <span>Validé</span>
+            </div>
+          {% else %}
+            <div class="status-pill">
+              <span class="status-dot"></span>
+              <span>Soumis</span>
+            </div>
+          {% endif %}
+
+          <a class="btn btn-ghost btn-sm" href="{{ path('app_stagiaire_qcm_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+          <a class="btn btn-theme btn-sm"
+            href="{{ path('app_stagiaire_qcm_pdf', { entite: entite.id, id: a.id }) }}">
+            <i class="bi bi-download"></i> Télécharger PDF
+          </a>
+
+        </div>
+      </div>
+
+      <div class="row g-3 align-items-center mt-2 mt-lg-3 position-relative">
+        <div class="col-12 col-lg-8">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="kpi">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="label">Score</div>
+                    <div class="value">
+                      {{ a.attempt.scorePoints }}/{{ a.attempt.maxPoints }}
+                      <span class="ms-1 fw-semibold" style="color: rgba(255,255,255,.85);">
+                        ({{ percent }}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div class="icon" style="background: rgba(255,255,255,.12); color:#fff;">
+                    <i class="bi bi-bar-chart-line"></i>
+                  </div>
+                </div>
+                <div class="small mt-2" style="opacity:.85;">
+                  <i class="bi bi-info-circle me-1"></i>Les résultats sont enregistrés automatiquement.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="kpi">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="label">État</div>
+                    <div class="value">
+                      {% if a.status.value == 'review_required' %}En attente de correction
+                      {% elseif a.status.value == 'validated' %}Validé
+                      {% else %}Soumis{% endif %}
+                    </div>
+                  </div>
+                  <div class="icon" style="background: rgba(255,255,255,.12); color:#fff;">
+                    <i class="bi bi-shield-check"></i>
+                  </div>
+                </div>
+                <div class="small mt-2" style="opacity:.85;">
+                  <i class="bi bi-person-badge me-1"></i>Phase : {{ a.phase.label }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-4 d-flex justify-content-start justify-content-lg-end">
+          <div class="d-flex align-items-center gap-3">
+            <div class="ring" style="--percent: {{ percent }};">
+              <div class="ring-content">
+                <div class="p">{{ percent }}%</div>
+                <div class="t">Réussite</div>
+              </div>
+            </div>
+
+            <div class="text-white">
+              <div class="fw-bold">Synthèse</div>
+              <div class="small opacity-75">Score obtenu sur la tentative</div>
+              <div class="mt-2">
+                <a class="btn btn-theme btn-sm" href="{{ path('app_stagiaire_qcm_index', { entite: entite.id }) }}">
+                  <i class="bi bi-list-check"></i> Voir mes QCM
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# CONTENU #}
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="card qcm-card border-0">
+          <div class="card-body p-3 p-lg-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+              <div>
+                <div class="fw-bold">Détails</div>
+                <div class="text-muted small">
+                  <i class="bi bi-clock me-1"></i>Résultat associé à ta session : <span class="fw-semibold">{{ a.session.label }}</span>
+                </div>
+              </div>
+
+              <div class="text-muted small">
+                {% if a.adminFollowUpNote %}
+                  <span class="badge rounded-pill text-bg-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Action corrective disponible
+                  </span>
+                {% else %}
+                  <span class="badge rounded-pill text-bg-light border">
+                    <i class="bi bi-check2-circle me-1"></i>Aucune action corrective
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if a.adminFollowUpNote %}
+              <div class="followup mt-3">
+                <div class="d-flex align-items-start gap-2">
+                  <div class="mt-1" style="color: var(--theme-color-principal);">
+                    <i class="bi bi-clipboard-check fs-4"></i>
+                  </div>
+                  <div>
+                    <div class="fw-bold mb-1">Action corrective</div>
+                    <div class="text-muted">{{ a.adminFollowUpNote|nl2br }}</div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+
+            {# ===== DÉTAIL QUESTION PAR QUESTION ===== #}
+            <hr class="my-4">
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-2">
+              <div>
+                <div class="fw-bold">Questions & réponses</div>
+                <div class="text-muted small">
+                  <i class="bi bi-list-ol me-1"></i>Visualise ce que tu as répondu et les bonnes réponses.
+                </div>
+              </div>
+
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#qaAll"
+                        aria-expanded="false" aria-controls="qaAll">
+                  <i class="bi bi-arrows-expand"></i> Tout ouvrir/fermer
+                </button>
+              </div>
+            </div>
+
+            {# Switch “tout ouvrir/fermer” (pur Bootstrap, sans JS custom) #}
+            <div class="collapse" id="qaAll"></div>
+
+            <div class="qa-wrap accordion mt-3" id="qaAccordion">
+              {% if items is empty %}
+                <div class="text-muted small">
+                  <i class="bi bi-info-circle me-1"></i>Aucun détail n’est disponible (liste des items vide).
+                  <div class="mt-1">➡️ Assure-toi de passer une collection type <code>a.attempt.items</code> à la vue.</div>
+                </div>
+              {% else %}
+                {% for item in items %}
+                  {% set q = item.question|default(item.q|default(null)) %}
+                  {% set qLabel = q.intitule|default(q.titre|default(q.enonce|default('Question ' ~ loop.index))) %}
+
+                  {# propositions #}
+                  {% set choices = item.choices|default(q.choices|default(q.reponses|default([]))) %}
+
+                  {# sélection utilisateur : on accepte IDs OU objets. #}
+                  {% set selected = item.selected|default(item.selectedChoiceIds|default(item.selectedChoices|default([]))) %}
+
+                  {# Evaluation #}
+                  {% set isCorrect = item.isCorrect|default(false) %}
+                  {% if item.pointsEarned is defined and item.pointsMax is defined and item.pointsMax %}
+                    {% set isCorrect = (item.pointsEarned == item.pointsMax) %}
+                  {% endif %}
+
+                  {% set headingId = 'qaHeading' ~ loop.index %}
+                  {% set collapseId = 'qaCollapse' ~ loop.index %}
+
+                  <div class="accordion-item mb-3">
+                    <h2 class="accordion-header" id="{{ headingId }}">
+                      <button class="accordion-button collapsed" type="button"
+                              data-bs-toggle="collapse" data-bs-target="#{{ collapseId }}"
+                              aria-expanded="false" aria-controls="{{ collapseId }}">
+                        <div class="w-100 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+                          <div class="me-2">
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="badge rounded-pill text-bg-light border">Q{{ loop.index }}</span>
+                              <span>{{ qLabel|raw }}</span>
+                            </div>
+                            <div class="qa-meta mt-1">
+                              {% if q.points is defined %}
+                                <i class="bi bi-award me-1"></i>{{ q.points }} pts
+                              {% endif %}
+                              {% if q.type is defined and q.type %}
+                                <span class="ms-2">
+                                  <i class="bi bi-tag me-1"></i>
+                                  {{ q.type.label() }}
+                                </span>
+                              {% endif %}
+
+                            </div>
+                          </div>
+
+                          <div class="d-flex align-items-center gap-2">
+                            {% if selected is empty %}
+                              <span class="pill neutral"><i class="bi bi-dash-circle"></i> Non répondu</span>
+                            {% else %}
+                              {% if isCorrect %}
+                                <span class="pill good"><i class="bi bi-check-circle"></i> Correct</span>
+                              {% else %}
+                                <span class="pill bad"><i class="bi bi-x-circle"></i> Incorrect</span>
+                              {% endif %}
+                            {% endif %}
+                          </div>
+                        </div>
+                      </button>
+                    </h2>
+
+                    <div id="{{ collapseId }}" class="accordion-collapse collapse"
+                         aria-labelledby="{{ headingId }}" data-bs-parent="#qaAccordion">
+                      <div class="accordion-body">
+
+                        {# énoncé optionnel si différent du label #}
+                        {% if q.enonce is defined and q.enonce and q.enonce != qLabel %}
+                          <div class="mb-3 text-muted">{{ q.enonce|raw }}</div>
+                        {% endif %}
+
+                        <div class="d-grid gap-2">
+                          {% for c in choices %}
+                            {# Text #}
+                            {% set cText = c.label|default(c.texte|default(c.titre|default(c.value|default('Proposition')))) %}
+
+                            {# Correct ? #}
+                            {% set cIsCorrect = c.isCorrect|default(c.correct|default(c.isCorrectAnswer|default(false))) %}
+
+                            {# Selected ? (IDs ou objets) #}
+                            {% set cId = c.id|default(null) %}
+                            {% set isSelected = false %}
+
+                            {# selected peut être: [1,2] OU [Choice, Choice] #}
+                            {% if selected is iterable %}
+                              {% if cId is not null and (cId in selected) %}
+                                {% set isSelected = true %}
+                              {% else %}
+                                {# comparaison par id si selected contient des objets #}
+                                {% for s in selected %}
+                                  {% if s is not null and s.id is defined and cId is not null and s.id == cId %}
+                                    {% set isSelected = true %}
+                                  {% endif %}
+                                {% endfor %}
+                              {% endif %}
+                            {% endif %}
+
+                            {# Style : si sélection utilisateur, on met en avant (correct / wrong) #}
+                            {% set lineClass = '' %}
+                            {% if isSelected and cIsCorrect %}
+                              {% set lineClass = 'is-correct' %}
+                            {% elseif isSelected and (not cIsCorrect) %}
+                              {% set lineClass = 'is-wrong' %}
+                            {% endif %}
+
+                            <div class="answer-line {{ lineClass }}">
+                              <div class="answer-bullet">
+                                {% if isSelected and cIsCorrect %}
+                                  <i class="bi bi-check-lg"></i>
+                                {% elseif isSelected and (not cIsCorrect) %}
+                                  <i class="bi bi-x-lg"></i>
+                                {% elseif cIsCorrect %}
+                                  <i class="bi bi-star-fill" style="font-size:.75rem;"></i>
+                                {% else %}
+                                  <i class="bi bi-circle" style="font-size:.55rem; opacity:.45;"></i>
+                                {% endif %}
+                              </div>
+
+                              <div class="answer-text">
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                  <div class="fw-semibold">{{ cText|raw }}</div>
+
+                                  {% if isSelected %}
+                                    <span class="pill neutral"><i class="bi bi-person-check"></i> Ta réponse</span>
+                                  {% endif %}
+
+                                  {% if cIsCorrect %}
+                                    <span class="pill good"><i class="bi bi-check2-circle"></i> Bonne réponse</span>
+                                  {% endif %}
+                                </div>
+
+                                {# explication optionnelle sur la proposition #}
+                                {% if c.explanation is defined and c.explanation %}
+                                  <div class="small text-muted mt-1">{{ c.explanation|nl2br }}</div>
+                                {% endif %}
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </div>
+
+                        {# explication/feedback optionnelle sur la question #}
+                        {% set qExplain = q.explication|default(q.explanation|default(item.explanation|default(null))) %}
+                        {% if qExplain %}
+                          <div class="mt-3 p-3 rounded-4"
+                               style="background: color-mix(in oklab, var(--theme-color-tertiaire) 55%, #fff);
+                                      border: 1px solid rgba(0,0,0,.06);">
+                            <div class="fw-bold mb-1"><i class="bi bi-lightbulb me-1"></i>Explication</div>
+                            <div class="text-muted">{{ qExplain|nl2br }}</div>
+                          </div>
+                        {% endif %}
+
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+              <div class="text-muted small">
+                <i class="bi bi-shield-lock me-1"></i>
+                Tes réponses sont conservées pour suivi et validation.
+              </div>
+
+              <a class="btn btn-outline-secondary btn-sm"
+                 href="{{ path('app_stagiaire_qcm_index', { entite: entite.id }) }}">
+                <i class="bi bi-arrow-left"></i> Retour à la liste
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# Optionnel: petit JS pour "Tout ouvrir/fermer" via Bootstrap collapse sans dépendre de l'id hack #}
+  <script>
+    (function(){
+      const accordion = document.getElementById('qaAccordion');
+      if(!accordion) return;
+
+      const btn = document.querySelector('[data-bs-target="#qaAll"]');
+      if(!btn) return;
+
+      let opened = false;
+
+      btn.addEventListener('click', function(){
+        const panels = accordion.querySelectorAll('.accordion-collapse');
+        opened = !opened;
+        panels.forEach(p => {
+          const inst = bootstrap.Collapse.getOrCreateInstance(p, { toggle: false });
+          opened ? inst.show() : inst.hide();
+        });
+      });
+    })();
+  </script>
+{% endblock %}

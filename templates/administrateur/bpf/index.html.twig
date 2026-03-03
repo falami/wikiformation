@@ -1,0 +1,413 @@
+{# templates/administrateur/bpf/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}BPF — {{ year }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bpf-radius: 22px;
+      --bpf-stroke: rgba(0,0,0,.08);
+      --bpf-shadow: 0 18px 55px rgba(0,0,0,.10);
+      --bpf-shadow-soft: 0 10px 26px rgba(0,0,0,.08);
+    }
+
+    /* ===== TOOLBAR ===== */
+    .bpf-toolbar{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.10);
+      backdrop-filter: blur(10px);
+      padding: .6rem .75rem;
+    }
+    .bpf-toolbar label{ opacity:.85; }
+    .bpf-toolbar .form-select{ border-radius: 12px; }
+
+    /* ===== KPI CARDS ===== */
+    .kpi-card{
+      border-radius: var(--bpf-radius);
+      border: 1px solid var(--bpf-stroke);
+      background: var(--bs-body-bg);
+      box-shadow: var(--bpf-shadow-soft);
+      overflow:hidden;
+      height:100%;
+    }
+    .kpi-card .top{
+      display:flex; align-items:center; justify-content:space-between;
+      gap: .75rem;
+      padding: .95rem 1rem .7rem;
+    }
+    .kpi-card .icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+
+    .kpi-card .label{ color: var(--bs-secondary-color); font-size: .85rem; }
+    .kpi-card .value{ font-size: 1.55rem; font-weight: 900; letter-spacing:.2px; }
+    .kpi-card .foot{
+      padding: .65rem 1rem .95rem;
+      border-top: 1px solid rgba(0,0,0,.06);
+      color: var(--bs-secondary-color);
+      font-size: .85rem;
+      display:flex; align-items:center; gap:.45rem;
+    }
+
+    /* ===== PANELS ===== */
+    .panel-card{
+      border-radius: var(--bpf-radius);
+      border: 1px solid var(--bpf-stroke);
+      background: var(--bs-body-bg);
+      box-shadow: var(--bpf-shadow-soft);
+      overflow:hidden;
+    }
+    .panel-head{
+      padding: .95rem 1rem;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;
+    }
+    .panel-title{ font-weight: 900; margin:0; }
+    .panel-sub{ margin:0; color: var(--bs-secondary-color); font-size:.88rem; }
+    .panel-body{ padding: 1rem; }
+
+    /* ===== TABLE ===== */
+    .bpf-table thead th{
+      font-size:.82rem;
+      text-transform: uppercase;
+      letter-spacing:.35px;
+      color: var(--bs-secondary-color);
+      white-space: nowrap;
+    }
+    .bpf-table tbody tr:hover{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent);
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:.4rem;
+      padding:.35rem .6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      font-size: .85rem;
+      white-space: nowrap;
+    }
+
+    /* ===== INFO BOX ===== */
+    .insight{
+      border-radius: 18px;
+      border:1px dashed rgba(0,0,0,.18);
+      background: rgba(0,0,0,.02);
+      padding: .85rem 1rem;
+    }
+
+    /* better spacing on mobile */
+    @media (max-width: 576px){
+      .bpf-toolbar{ width:100%; }
+      .bpf-toolbar .btn{ width:100%; }
+    }
+
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO HEADER ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="inner d-flex flex-wrap align-items-end justify-content-between gap-3">
+
+      <div class="me-auto">
+        <div class="kicker">
+          <i class="bi bi-mortarboard-fill"></i>
+          <span>Bilan Pédagogique & Financier</span>
+        </div>
+
+        <h1 class="hero-title mb-1">BPF - {{ year }}</h1>
+
+        <p class="hero-sub mb-0">
+          Exercice : <strong>{{ bpf.start|date('d/m/Y') }}</strong> → <strong>{{ bpf.end|date('d/m/Y') }}</strong>
+          <span class="opacity-75">• Synthèse automatisée à partir des sessions, inscriptions et factures</span>
+        </p>
+      </div>
+
+      <div class="bpf-toolbar d-flex flex-wrap align-items-center gap-2">
+        <form method="get" class="d-flex align-items-center gap-2 m-0">
+          <label class="small mb-0">Année</label>
+          <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% set nowYear = ("now"|date("Y"))|number_format(0, '', '') %}
+            {% for y in range(nowYear, nowYear - 6) %}
+              <option value="{{ y }}" {{ y == year ? 'selected' : '' }}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </form>
+
+        <a class="btn btn-sm btn-light"
+           href="{{ path('app_administrateur_bpf_pdf', {entite: entite.id, year: year}) }}">
+          <i class="bi bi-filetype-pdf me-1"></i> Export PDF
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  {# ===== KPI ROW ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+      <div class="kpi-card">
+        <div class="top">
+          <div>
+            <div class="label">Sessions réalisées</div>
+            <div class="value">{{ bpf.nbSessions }}</div>
+          </div>
+          <div class="icon"><i class="bi bi-calendar2-week"></i></div>
+        </div>
+        <div class="foot"><i class="bi bi-info-circle"></i> Sur l’exercice</div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="kpi-card">
+        <div class="top">
+          <div>
+            <div class="label">Heures de formation</div>
+            <div class="value">{{ bpf.heuresFormation|number_format(2, ',', ' ') }}</div>
+          </div>
+          <div class="icon"><i class="bi bi-clock-history"></i></div>
+        </div>
+        <div class="foot"><i class="bi bi-building"></i> Heures “organisme” (SessionJour)</div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="kpi-card">
+        <div class="top">
+          <div>
+            <div class="label">Heures-stagiaires</div>
+            <div class="value">{{ bpf.heuresStagiaires|number_format(2, ',', ' ') }}</div>
+          </div>
+          <div class="icon"><i class="bi bi-people"></i></div>
+        </div>
+        <div class="foot"><i class="bi bi-graph-up-arrow"></i> Somme des heures suivies par stagiaire</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {# ===== LEFT: ACTIVITY TABLE ===== #}
+    <div class="col-12 col-lg-7">
+      <div class="panel-card">
+        <div class="panel-head">
+          <div>
+            <p class="panel-title mb-1">Activité par formation</p>
+            <p class="panel-sub">Nombre de sessions et heures (basé sur <span class="chip"><i class="bi bi-table"></i> SessionJour</span>)</p>
+          </div>
+
+          {% if bpf.formations is not empty %}
+            {% set top = bpf.formations|first %}
+            <div class="text-end d-none d-md-block">
+              <div class="small text-muted">Formation la plus active</div>
+              <div class="fw-bold">{{ top.titre }}</div>
+              <div class="small text-muted">{{ top.sessions }} sessions • {{ top.heures|number_format(2, ',', ' ') }} h</div>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="panel-body">
+          {% if bpf.formations is empty %}
+            <div class="insight">
+              <div class="fw-semibold mb-1"><i class="bi bi-exclamation-circle me-1"></i> Aucune activité</div>
+              <div class="text-muted small mb-0">Aucune session / heure détectée sur cet exercice.</div>
+            </div>
+          {% else %}
+            <div class="table-responsive">
+              <table class="table table-hover align-middle bpf-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Formation</th>
+                    <th class="text-end">Sessions</th>
+                    <th class="text-end">Heures</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for f in bpf.formations %}
+                    <tr>
+                      <td class="fw-semibold">
+                        {{ f.titre }}
+                        <div class="small text-muted">Synthèse sur l’exercice</div>
+                      </td>
+                      <td class="text-end">
+                        <span class="chip"><i class="bi bi-calendar-check"></i> {{ f.sessions }}</span>
+                      </td>
+                      <td class="text-end fw-bold">
+                        {{ f.heures|number_format(2, ',', ' ') }} h
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ===== RIGHT: SIDE PANELS ===== #}
+    <div class="col-12 col-lg-5">
+
+      <div class="panel-card mb-3">
+        <div class="panel-head">
+          <div>
+            <p class="panel-title mb-1">Stagiaires</p>
+            <p class="panel-sub">Inscriptions retenues (selon tes statuts)</p>
+          </div>
+          <div class="chip"><i class="bi bi-person-vcard"></i> Synthèse</div>
+        </div>
+
+        <div class="panel-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted">Stagiaires distincts</div>
+            <div class="fw-bold fs-5">{{ bpf.nbStagiaires }}</div>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">Inscriptions</div>
+            <div class="fw-bold fs-5">{{ bpf.nbInscriptions }}</div>
+          </div>
+
+          <div class="insight mt-3">
+            <div class="fw-semibold mb-1"><i class="bi bi-lightning-charge me-1"></i> Lecture rapide</div>
+            <div class="small text-muted mb-0">
+              Si tu veux, on peut ajouter un KPI “moyenne heures/stagiaire” et “taux de présence” (si tu as l’émargement).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-card mb-3">
+        <div class="panel-head">
+          <div>
+            <p class="panel-title mb-1">Financements</p>
+            <p class="panel-sub">Répartition (modeFinancement + OPCO)</p>
+          </div>
+          <div class="chip"><i class="bi bi-pie-chart"></i> Répartition</div>
+        </div>
+
+        <div class="panel-body">
+          {% if bpf.financement is empty %}
+            <div class="text-muted">Aucun financement détecté.</div>
+          {% else %}
+            {% for k, v in bpf.financement %}
+              <div class="d-flex justify-content-between align-items-start gap-2 py-2 {% if not loop.last %}border-bottom{% endif %}">
+                <div class="fw-semibold">{{ k }}</div>
+                <div class="text-end">
+                  <div class="fw-bold">{{ v.stagiaires }} <span class="text-muted fw-normal">stag.</span></div>
+                  <div class="small text-muted">{{ v.heuresStagiaires|number_format(2, ',', ' ') }} h-stag.</div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-head">
+          <div>
+            <p class="panel-title mb-1">Bilan financier</p>
+            <p class="panel-sub">Factures / encaissements / charges formateurs</p>
+          </div>
+          <div class="chip"><i class="bi bi-currency-euro"></i> Finance</div>
+        </div>
+
+        <div class="panel-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted">Produits facturés TTC</div>
+            <div class="fw-bold fs-5">{{ (bpf.produits.ttcCents / 100)|number_format(2, ',', ' ') }} €</div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted">Encaissements</div>
+            <div class="fw-bold fs-5">{{ (bpf.produits.encaissementsCents / 100)|number_format(2, ',', ' ') }} €</div>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">Charges formateurs (contrats)</div>
+            <div class="fw-bold fs-5">{{ (bpf.charges.formateursCents / 100)|number_format(2, ',', ' ') }} €</div>
+          </div>
+
+          <div class="insight mt-3">
+            <div class="fw-semibold mb-1"><i class="bi bi-info-circle me-1"></i> Notes</div>
+            <div class="small text-muted mb-0">
+              Tu peux facilement ajouter HT/TVA, marge (Produits - Charges), et un indicateur “reste à encaisser”.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+{% endblock %}

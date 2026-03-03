@@ -1,0 +1,836 @@
+{% extends 'base_admin.html.twig' %}
+
+{% set is_edit = is_edit ?? false %}
+
+{% block title %}
+  {{ is_edit ? 'Modifier le contrat formateur' : 'Nouveau contrat formateur' }}
+{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+    body{ background: var(--bg); }
+
+    /* ===== HERO (même esprit utilisateur) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      white-space: nowrap;
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ===== Form polish ===== */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select, textarea{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+      min-height: 44px;
+    }
+    textarea{ min-height: 120px; }
+    .form-control:focus, .form-select:focus, textarea:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect polish + FIX dropdown */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+      min-height: 44px !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown{ z-index: 9999 !important; }
+    .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
+    .card, .card-body, .container, .container-fluid, .cardx, .cardx *{ overflow: visible; }
+
+    /* ===== Sticky actions (col droite) ===== */
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ===== Soft blocks ===== */
+    .soft-box{
+      border-radius: 16px;
+      border: 1px dashed rgba(15,35,54,.18);
+      background: rgba(248,251,254,.75);
+      padding: 1rem;
+    }
+    .bg-soft{
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 6%, transparent), transparent);
+      padding: 1rem;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+
+    /* Input € premium (sans doublon) */
+    .input-euro .form-control{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .input-euro .euro-suffix{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      font-weight: 800;
+      letter-spacing: .02em;
+      color: var(--theme-color-principal);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-tertiaire) 70%, transparent), #fff);
+      border-color: var(--stroke);
+      min-width: 46px;
+      justify-content: center;
+    }
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="meta-chip"><i class="bi bi-file-earmark-text"></i> Contrat formateur</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+        <span class="meta-chip"><i class="bi bi-pencil-square"></i> {{ is_edit ? 'Modification' : 'Création' }}</span>
+        {% if form.vars.value and form.vars.value.id %}
+          <span class="meta-chip"><i class="bi bi-hash"></i> #{{ form.vars.value.id }}</span>
+        {% endif %}
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">{{ is_edit ? 'Modifier' : 'Créer' }} un contrat formateur</h2>
+          <div class="opacity-75">Formateur, session, statut, rémunération, TVA et clauses.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+             href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+
+          <button form="contratForm" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+            <i class="bi bi-check2"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { id: 'contratForm', novalidate: 'novalidate' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ====================== COL LEFT ====================== #}
+    <div class="col-lg-8">
+
+      {# ===== Informations du contrat ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-info-circle text-warning"></i> Informations du contrat</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              {{ form_row(form.formateur, { attr: { class: (form.formateur.vars.attr.class|default('') ~ ' js-ts')|trim } }) }}
+            </div>
+            <div class="col-12 col-md-4">
+              {{ form_row(form.session, { attr: { class: (form.session.vars.attr.class|default('') ~ ' js-ts')|trim } }) }}
+            </div>
+            <div class="col-12 col-md-4">
+              {{ form_row(form.status, { attr: { class: (form.status.vars.attr.class|default('') ~ ' js-ts')|trim } }) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Montants ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-cash-coin text-warning"></i> Montants</h5>
+          <span class="chip">Étape 2</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              {{ form_label(form.montantPrevuCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantPrevuCents, {
+                  attr: {
+                    class: (form.montantPrevuCents.vars.attr.class|default('') ~ ' form-control text-end')|trim,
+                    placeholder: '0,00'
+                  }
+                }) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_help(form.montantPrevuCents) }}
+              {{ form_errors(form.montantPrevuCents) }}
+            </div>
+
+            <div class="col-12 col-md-6">
+              {{ form_label(form.fraisMissionCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.fraisMissionCents, {
+                  attr: {
+                    class: (form.fraisMissionCents.vars.attr.class|default('') ~ ' form-control text-end')|trim,
+                    placeholder: '0,00'
+                  }
+                }) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_help(form.fraisMissionCents) }}
+              {{ form_errors(form.fraisMissionCents) }}
+            </div>
+
+          </div>
+          <div class="form-text mt-2">
+            Le montant peut être proposé automatiquement selon le formateur & la session (si configuré).
+          </div>
+        </div>
+      </div>
+
+      {# ===== TVA ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-receipt text-warning"></i> TVA</h5>
+          <span class="chip">Étape 3</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              {{ form_row(form.tauxTva, { attr: { class: (form.tauxTva.vars.attr.class|default('') ~ ' js-ts')|trim } }) }}
+            </div>
+            <div class="col-12 col-md-4">
+              {{ form_row(form.numeroTvaIntra) }}
+            </div>
+            <div class="col-12">
+              <div class="soft-box h-100">
+                {{ form_row(form.assujettiTva) }}
+                <div class="small text-muted">
+                  Si coché, on applique le taux sur le total HT (honoraires + frais).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-12"></div>
+            <div class="col-12">
+              <div class="bg-soft h-100">
+                <div class="fw-semibold mb-2">
+                  Récapitulatif TVA <small class="text-muted">(selon profil du formateur)</small>
+                </div>
+                <div class="d-flex justify-content-between small">
+                  N° TVA :
+                  <span id="tva-numero-text" class="fw-semibold">—</span>
+                </div>
+
+                <div class="d-flex justify-content-between small">
+                  Statut TVA formateur :
+                  <span id="tva-statuts-text" class="fw-semibold">—</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                  Taux TVA : 
+                  <span id="tva-taux-text" class="fw-semibold">—</span>
+                </div>
+
+                <hr class="my-2" style="border-color: var(--stroke);">
+
+                <div class="d-flex justify-content-between small">
+                  <span>Total HT (honoraires + frais)</span>
+                  <span id="tva-total-ht">—</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                  <span>Montant TVA</span>
+                  <span id="tva-montant">—</span>
+                </div>
+                <div class="d-flex justify-content-between small fw-semibold">
+                  <span>Total TTC</span>
+                  <span id="tva-total-ttc">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {# ===== Conditions ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-journal-text text-warning"></i> Conditions</h5>
+          <span class="chip">Étape 4</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="mb-3">
+            {{ form_row(form.conditionsGenerales) }}
+            <div class="form-text">Texte générique applicable à tous les contrats de l’entité.</div>
+          </div>
+          <div class="mb-0">
+            {{ form_row(form.conditionsParticulieres) }}
+            <div class="form-text">Adaptations spécifiques (mission, dates, rémunération…)</div>
+          </div>
+        </div>
+      </div>
+
+      {# ===== Clauses ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-shield-check text-warning"></i> Clauses</h5>
+          <span class="chip">Optionnel</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="accordion" id="clausesAcc">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="h1">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c1">
+                  Détails des clauses du contrat
+                </button>
+              </h2>
+              <div id="c1" class="accordion-collapse collapse" data-bs-parent="#clausesAcc">
+                <div class="accordion-body">
+                  <div class="row g-3">
+                    <div class="col-12">{{ form_row(form.clauseEngagement) }}</div>
+                    <div class="col-12">{{ form_row(form.clauseObjet) }}</div>
+                    <div class="col-12">{{ form_row(form.clauseObligations) }}</div>
+                    <div class="col-12">{{ form_row(form.clauseNonConcurrence) }}</div>
+                    <div class="col-12">{{ form_row(form.clauseInexecution) }}</div>
+                    <div class="col-12">{{ form_row(form.clauseAssurance) }}</div>
+                    <div class="col-12">{{ form_row(form.clauseFinContrat) }}</div>
+                    <div class="col-12">{{ form_row(form.clauseProprieteIntellectuelle) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-text mt-2">Tu peux laisser ces champs vides si tu utilises un modèle standard.</div>
+        </div>
+      </div>
+
+      {# ===== Actions bas ===== #}
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <a href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}" class="btn btn-secondary">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+        <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
+          <i class="bi bi-check"></i> {{ is_edit ? 'Modifier & Terminer' : 'Créer & Terminer' }}
+        </button>
+      </div>
+
+    </div>
+
+    {# ====================== COL RIGHT ====================== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="border rounded-4 p-3 mb-3"
+               style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Contrat</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Formateur</span>
+                <span class="fw-semibold text-end" id="resume-formateur">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Session</span>
+                <span class="fw-semibold text-end" id="resume-session">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Statut</span>
+                <span class="fw-semibold text-end" id="resume-status">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Honoraires</span>
+                <span class="fw-semibold text-end" id="resume-montant">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Frais</span>
+                <span class="fw-semibold text-end" id="resume-frais">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">TVA</span>
+                <span class="fw-semibold text-end" id="resume-tva">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Total TTC</span>
+                <span class="fw-semibold text-end" id="resume-ttc">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}">Annuler</a>
+            <button type="submit" class="btn btn-primary w-50" id="btnRightSubmit">
+              <i class="bi bi-check"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> formateur + session + statut.
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-check2"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+      // ===== TomSelect helper =====
+      function initTS(el, opts){
+        if (!el || el.tomselect) return el?.tomselect;
+        return new TomSelect(el, Object.assign({
+          dropdownParent: 'body',
+          create: false,
+          allowEmptyOption: true,
+          maxItems: 1,
+          plugins: ['clear_button']
+        }, opts || {}));
+      }
+
+      const formateurEl = document.getElementById('{{ form.formateur.vars.id }}');
+      const sessionEl   = document.getElementById('{{ form.session.vars.id }}');
+      const statusEl    = document.getElementById('{{ form.status.vars.id }}');
+
+      initTS(formateurEl);
+      initTS(sessionEl);
+      initTS(statusEl);
+
+      {% if form.tauxTva is defined %}
+        const tauxEl = document.getElementById('{{ form.tauxTva.vars.id }}');
+        // si c'est un select, TS l'améliore
+        if (tauxEl && tauxEl.tagName === 'SELECT') initTS(tauxEl);
+      {% endif %}
+
+      // ===== Résumé live (droite) =====
+      const montantEl = document.getElementById('{{ form.montantPrevuCents.vars.id }}');
+      const fraisEl   = document.getElementById('{{ form.fraisMissionCents.vars.id }}');
+
+      const $r = {
+        pill: document.getElementById('resume-valid-pill'),
+        formateur: document.getElementById('resume-formateur'),
+        session: document.getElementById('resume-session'),
+        status: document.getElementById('resume-status'),
+        montant: document.getElementById('resume-montant'),
+        frais: document.getElementById('resume-frais'),
+        tva: document.getElementById('resume-tva'),
+        ttc: document.getElementById('resume-ttc'),
+      };
+
+      function txtSelect(el){
+        if (!el) return '';
+        if (el.tomselect){
+          const v = el.tomselect.getValue();
+          return v ? (el.tomselect.options[v]?.text || '').trim() : '';
+        }
+        const opt = el.options?.[el.selectedIndex];
+        return opt ? (opt.textContent||'').trim() : '';
+      }
+
+      function normalizeToNumber(value) {
+        const v = (value || '').toString().replace(/\s/g, '').replace(',', '.');
+        const n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+      }
+      function formatEuro(n) {
+        return (n || 0).toFixed(2).replace('.', ',') + ' €';
+      }
+
+      // Quand le script métier (TVA) a recalculé : on rafraîchit le résumé
+      document.addEventListener('resume:refresh', refreshResume);
+
+
+      function refreshResume(){
+        if ($r.formateur) $r.formateur.textContent = txtSelect(formateurEl) || '—';
+        if ($r.session)   $r.session.textContent   = txtSelect(sessionEl) || '—';
+        if ($r.status)    $r.status.textContent    = txtSelect(statusEl) || '—';
+
+        const h = normalizeToNumber(montantEl?.value);
+        const f = normalizeToNumber(fraisEl?.value);
+        if ($r.montant) $r.montant.textContent = h ? formatEuro(h) : '—';
+        if ($r.frais)   $r.frais.textContent   = f ? formatEuro(f) : '—';
+
+        // Récup depuis ton recap TVA (déjà calculé)
+        const tvaTxt = document.getElementById('tva-montant')?.textContent || '—';
+        const ttcTxt = document.getElementById('tva-total-ttc')?.textContent || '—';
+        if ($r.tva) $r.tva.textContent = tvaTxt;
+        if ($r.ttc) $r.ttc.textContent = ttcTxt;
+
+        const ok = !!txtSelect(formateurEl) && !!txtSelect(sessionEl) && !!txtSelect(statusEl);
+        if ($r.pill) {
+          if (ok) {
+            $r.pill.textContent = '✅ Complet';
+            $r.pill.style.background = 'rgba(25,135,84,.15)';
+            $r.pill.style.borderColor = 'rgba(25,135,84,.35)';
+          } else {
+            $r.pill.textContent = '⚠️ Incomplet';
+            $r.pill.style.background = 'rgba(255,193,7,.15)';
+            $r.pill.style.borderColor = 'rgba(255,193,7,.35)';
+          }
+        }
+      }
+
+      formateurEl?.tomselect?.on('change', refreshResume);
+      sessionEl?.tomselect?.on('change', refreshResume);
+      statusEl?.tomselect?.on('change', refreshResume);
+
+      [montantEl, fraisEl].forEach(el=>{
+        el?.addEventListener('input', refreshResume);
+        el?.addEventListener('change', refreshResume);
+      });
+
+      refreshResume();
+    });
+  </script>
+
+  {# ===== Ton script métier (TVA + suggestion montant) conservé ===== #}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const selectFormateur = document.getElementById('{{ form.formateur.vars.id }}');
+      const selectSession   = document.getElementById('{{ form.session.vars.id }}');
+      const inputMontant    = document.getElementById('{{ form.montantPrevuCents.vars.id }}');
+      const inputFrais      = document.getElementById('{{ form.fraisMissionCents.vars.id }}');
+      const helpMontant     = document.getElementById('{{ form.montantPrevuCents.vars.id }}_help');
+
+      const spanStatut   = document.getElementById('tva-statuts-text');
+      const spanTaux     = document.getElementById('tva-taux-text');
+      const spanNumero   = document.getElementById('tva-numero-text');
+      const spanTotalHT  = document.getElementById('tva-total-ht');
+      const spanTVA      = document.getElementById('tva-montant');
+      const spanTotalTTC = document.getElementById('tva-total-ttc');
+      const isEdit = {{ is_edit ? 'true' : 'false' }};
+
+
+      // ✅ devient true seulement si l'utilisateur tape réellement
+      let userTouched = false;
+
+      // si on est en édition et que le champ a déjà une valeur, on la protège
+      let existingPersisted = isEdit && (inputMontant?.value || '').trim() !== '';
+
+
+      function normalizeToNumber(value) {
+        const v = (value || '').toString().replace(/\s/g, '').replace(',', '.');
+        const n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+      }
+
+      function formatEuro(n) {
+        return (n || 0).toFixed(2).replace('.', ',');
+      }
+
+      function updateRecap() {
+        if (!selectFormateur) return;
+
+        const opt = selectFormateur.options[selectFormateur.selectedIndex];
+        if (!opt || !opt.value) {
+          spanStatut.textContent   = '—';
+          spanTaux.textContent     = '—';
+          spanNumero.textContent   = '';
+          spanTotalHT.textContent  = '—';
+          spanTVA.textContent      = '—';
+          spanTotalTTC.textContent = '—';
+          return;
+        }
+
+        const assujetti = opt.dataset.assujettiTva === '1';
+        const taux = normalizeToNumber(opt.dataset.tauxTva || '');
+        const numero = opt.dataset.numeroTva || '';
+
+        if (spanStatut) spanStatut.textContent = assujetti ? 'Assujetti à la TVA' : 'Non assujetti / exonéré';
+        if (spanTaux)   spanTaux.textContent   = assujetti && taux > 0 ? (taux.toString().replace('.', ',') + ' %') : '—';
+        if (spanNumero) spanNumero.textContent = numero ? ('N° ' + numero) : '—';
+
+
+        const honoraires = normalizeToNumber(inputMontant?.value);
+        const frais      = normalizeToNumber(inputFrais?.value);
+        const totalHT    = honoraires + frais;
+
+        if (!assujetti || taux <= 0 || totalHT <= 0) {
+          spanTotalHT.textContent  = totalHT > 0 ? formatEuro(totalHT) + ' €' : '—';
+          spanTVA.textContent      = '—';
+          spanTotalTTC.textContent = totalHT > 0 ? formatEuro(totalHT) + ' €' : '—';
+          return;
+        }
+
+        const montantTVA = totalHT * taux / 100;
+        const totalTTC   = totalHT + montantTVA;
+
+        spanTotalHT.textContent  = formatEuro(totalHT) + ' €';
+        spanTVA.textContent      = formatEuro(montantTVA) + ' €';
+        spanTotalTTC.textContent = formatEuro(totalTTC) + ' €';
+      }
+
+      if (inputMontant) {
+        inputMontant.addEventListener('input', () => {
+          userTouched = true;
+          existingPersisted = false; // à partir du moment où l'user touche, on considère que c'est sa valeur
+
+          updateRecap();
+        });
+      }
+      if (inputFrais) {
+        inputFrais.addEventListener('input', updateRecap);
+      }
+
+      async function fetchSuggestionMontant(force = false) {
+        if (!selectFormateur || !selectSession || !inputMontant) return;
+
+        const formateurId = selectFormateur.value;
+        const sessionId   = selectSession.value;
+
+        if (!formateurId || !sessionId) {
+          if (helpMontant) {
+            helpMontant.textContent = 'Sélectionne une session et un formateur pour calculer automatiquement.';
+          }
+          return;
+        }
+
+        const url = '{{ path("app_administrateur_formateurs_contrats_suggest_montant", { entite: entite.id }) }}';
+
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ formateurId, sessionId })
+          });
+
+          const data = await res.json();
+          console.log('[calc montant] response:', data);
+
+          if (!data || !data.success) {
+            if (helpMontant) helpMontant.textContent = data?.message || 'Aucun montant proposé.';
+            updateRecap();
+            return;
+          }
+
+          const champVide = !inputMontant.value || inputMontant.value.trim() === '';
+
+          // ✅ règle claire :
+          // - si force (changement session/formateur) -> on écrase toujours
+          // - sinon -> on écrase uniquement si champ vide OU pas modifié manuellement
+          const canWrite = force || champVide || (!userTouched && !existingPersisted);
+
+
+          if (canWrite) {
+            if (data.montantPrevuEuros) {
+              inputMontant.value = data.montantPrevuEuros; // ex "120,00"
+            } else if (typeof data.montantPrevuCents === 'number') {
+              inputMontant.value = formatEuro(data.montantPrevuCents / 100);
+            }
+            // ⚠️ on ne met PAS montantManuellementModifie=true ici : écriture auto
+          }
+
+          if (helpMontant) {
+            helpMontant.textContent = (data.montantPrevuCents > 0)
+              ? ('Proposition automatique : ' + (data.explication || ''))
+              : 'Aucun montant calculable (heures/jours/taux manquants).';
+          }
+
+          updateRecap();
+
+          // refresh résumé (col droite) si présent
+          document.dispatchEvent(new Event('resume:refresh'));
+
+        } catch (e) {
+          console.error('[calc montant] error', e);
+          if (helpMontant) helpMontant.textContent = 'Erreur lors du calcul automatique.';
+          updateRecap();
+        }
+      }
+
+      selectFormateur.addEventListener('change', () => {
+        userTouched = false;
+        existingPersisted = false;   // on n'est plus dans le cas "montant enregistré pour CE couple"
+        fetchSuggestionMontant(true); // force => écrase
+        updateRecap();
+      });
+
+      selectSession.addEventListener('change', () => {
+        userTouched = false;
+        existingPersisted = false;
+        fetchSuggestionMontant(true);
+        updateRecap();
+      });
+
+
+      updateRecap();
+      fetchSuggestionMontant(false);
+      document.dispatchEvent(new Event('resume:refresh'));
+
+    });
+  </script>
+
+  <script>
+    // mini hook : si le calcul TVA change, on peut rafraîchir le résumé
+    document.addEventListener('resume:refresh', () => {
+      // rien à faire ici si tu relies déjà les events input/change, mais utile si besoin
+    });
+  </script>
+{% endblock %}

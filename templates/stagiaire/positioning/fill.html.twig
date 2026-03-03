@@ -1,0 +1,697 @@
+{# templates/stagiaire/positioning/fill.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Remplir le positionnement{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+     /* ===== HERO (même style que les autres pages) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      flex: 0 0 auto;
+    }
+
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius:16px; }
+    }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      white-space:nowrap;
+    }
+
+    .grid-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .grid-wrap{ overflow:auto; }
+    .grid-table{
+      width:100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 1050px;
+    }
+    .grid-table thead th{
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #f7f8fa;
+      border-bottom: 1px solid rgba(0,0,0,.10);
+      font-size:.78rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: rgba(0,0,0,.60);
+      padding: .65rem .75rem;
+      text-align:center;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .grid-table thead th:first-child{
+      text-align:left;
+      min-width: 520px;
+    }
+    .grid-table tbody td{
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      padding: .65rem .75rem;
+      vertical-align: middle;
+      background:#fff;
+    }
+    .grid-table tbody tr.row-item:nth-child(even) td{ background: rgba(35,51,66,.025); }
+    .grid-table tbody tr.row-item:hover td{ background: rgba(255,193,7,.08); }
+
+    .row-chapter td{
+      background: #eef0f3 !important;
+      border-bottom: 1px solid rgba(0,0,0,.10) !important;
+      padding: .55rem .75rem !important;
+    }
+    .chapter-title{
+      font-weight: 900;
+      letter-spacing: -.01em;
+      color: rgba(0,0,0,.78);
+      font-size: 1rem;
+      display:flex;
+      align-items:center;
+      gap:.55rem;
+    }
+    .chapter-badge{
+      font-size:.75rem;
+      padding:.25rem .55rem;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.65);
+      color: rgba(0,0,0,.65);
+      font-weight: 800;
+    }
+
+    .item-label{ font-weight: 700; color: rgba(0,0,0,.78); line-height: 1.15; white-space: normal; }
+    .item-sub{ font-size: .85rem; color: rgba(0,0,0,.55); margin-top: .15rem; }
+
+    .cell{ width: 56px; min-width: 56px; text-align:center; }
+
+    /* radio caché mais fonctionnel */
+    .posi-input{
+      position:absolute !important;
+      opacity:0 !important;
+      width:1px !important;
+      height:1px !important;
+      pointer-events:none !important;
+    }
+
+    .posi-box{
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,.16);
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition: all .12s ease;
+      user-select:none;
+      gap:.25rem;
+      color: rgba(0,0,0,.72);
+      font-weight: 800;
+    }
+    .posi-box .tick{
+      opacity:0;
+      transform: scale(.9);
+      transition: all .12s ease;
+      color: rgba(0,0,0,.82);
+    }
+    .posi-input:checked + .posi-box{
+      background: rgba(255,193,7,.22);
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .posi-input:checked + .posi-box .tick{
+      opacity:1;
+      transform: scale(1);
+    }
+    .posi-input:focus + .posi-box{
+      outline:none;
+      box-shadow: 0 0 0 .25rem rgba(255,193,7,.22), 0 10px 18px rgba(0,0,0,.06);
+    }
+
+    .h-ico{
+      display:inline-flex; align-items:center; justify-content:center;
+      width: 30px; height: 30px; border-radius: 8px;
+      border:1px solid rgba(0,0,0,.10); background:#fff;
+      font-size: 1.05rem;
+    }
+    .h-lbl{ font-size:.75rem; color: rgba(0,0,0,.60); margin-top:.25rem; }
+
+    textarea.form-control{
+      border-radius: 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      border:1px solid rgba(0,0,0,.10);
+    }
+
+
+    .row-lvl-1 td:first-child { border-left: 6px solid rgba(13,202,240,.55); }
+    .row-lvl-2 td:first-child { border-left: 6px solid rgba(13,110,253,.55); }
+    .row-lvl-3 td:first-child { border-left: 6px solid rgba(255,193,7,.55); }
+    .row-lvl-4 td:first-child { border-left: 6px solid rgba(220,53,69,.55); }
+    .row-item td:first-child { padding-left: .85rem; }
+
+
+
+ /* ===== Chapitre: grille alignée sur les colonnes du tableau ===== */
+.chapter-grid{
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) repeat(7, 56px);
+  grid-template-rows: auto auto;           /* ligne 1 = titres, ligne 2 = icônes */
+  align-items: center;
+  row-gap: .35rem;
+  column-gap: 0;
+}
+
+/* Colonne 1 : titre chapitre */
+.chapter-left{
+  grid-column: 1;
+  grid-row: 1 / span 2;                   /* prend les 2 lignes */
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  font-weight: 900;
+  letter-spacing: -.01em;
+  color: rgba(0,0,0,.78);
+  font-size: 1rem;
+}
+
+/* Titres de groupe au-dessus des colonnes */
+.chapter-group-title{
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(0,0,0,.55);
+  justify-self: center;
+  align-self: end;
+}
+.chapter-group-k{ grid-column: 2 / span 4; grid-row: 1; }
+.chapter-group-i{ grid-column: 6 / span 3; grid-row: 1; }
+
+/* Chaque cellule icône = exactement la largeur d'une colonne checkbox */
+.chapter-legend-cell{
+  grid-row: 2;
+  justify-self: center;
+  text-align: center;
+  width: 56px;                            /* match .cell */
+}
+.chapter-legend-cell .h-ico{
+  margin: 0 auto;
+}
+.chapter-legend-cell .legend-lbl{
+  margin-top: .2rem;
+  font-size: .72rem;
+  font-weight: 800;
+  color: rgba(0,0,0,.55);
+}
+
+/* compact responsive */
+@media (max-width: 992px){
+  .chapter-legend-cell .legend-lbl{ display:none; }
+  .chapter-group-title{ display:none; }
+}
+
+
+/* ===== Modal premium ===== */
+.modal-premium{
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 22px 60px rgba(0,0,0,.18);
+  overflow: hidden;
+}
+
+.modal-premium::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(900px 260px at 10% 0%, rgba(255,255,255,.10), transparent 55%),
+    radial-gradient(700px 240px at 90% 10%, rgba(255,193,7,.18), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 45%);
+  opacity:.9;
+}
+
+.modal-premium .modal-header,
+.modal-premium .modal-body,
+.modal-premium .modal-footer{
+  position: relative;
+  z-index: 1;
+}
+
+.modal-ico{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: color-mix(in srgb, var(--theme-color-secondaire) 22%, #fff 78%);
+  border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 35%, rgba(0,0,0,.08));
+  color: rgba(0,0,0,.72);
+  font-size: 1.2rem;
+}
+
+.modal-note{
+  border-radius: 16px;
+  padding: .9rem 1rem;
+  background: rgba(255,255,255,.75);
+  border: 1px solid rgba(0,0,0,.06);
+}
+
+  </style>
+{% endblock %}
+
+{# ✅ macro : rend un ChoiceType expanded en cases, en ignorant l'option vide (None) #}
+{% macro render_choice_as_cells(field, labelsMap) %}
+  {% for child in field %}
+    {# ✅ skip si Symfony a injecté un choix vide (None) #}
+    {% if child.vars.value is empty %}
+      {# rien #}
+    {% else %}
+      {% set v = child.vars.value %}
+      {% set label = labelsMap[v]|default('') %}
+      <td class="cell">
+        {{ form_widget(child, { attr: { class: 'posi-input' } }) }}
+        <label class="posi-box" for="{{ child.vars.id }}" title="{{ child.vars.label|default('') }}">
+          {{ label|raw }}
+          <i class="bi bi-check-lg tick"></i>
+        </label>
+      </td>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
+{% import _self as ui %}
+
+{% block body %}
+<div class="container-fluid px-3">
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-clipboard-check me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ attempt.questionnaire.title }}
+          </h2>
+          <div class="opacity-75 mt-1">Auto-évaluation par chapitres (style feuille papier)</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-clipboard-check"></i> Positionnement</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+
+            {% if attempt.assignment is not null and attempt.assignment.isRequired %}
+              <span class="chip"><i class="bi bi-exclamation-triangle"></i> Requis</span>
+            {% endif %}
+
+            <span class="chip">
+              <i class="bi bi-collection"></i>
+              Session :
+              {% if attempt.session %}
+                #{{ attempt.session.id }}
+              {% elseif attempt.inscription and attempt.inscription.session %}
+                #{{ attempt.inscription.session.id }}
+              {% else %}
+                Hors session
+              {% endif %}
+            </span>
+
+            {% if attempt.submittedAt %}
+              <span class="chip chip--pill">
+                <i class="bi bi-send-check"></i> Soumis : {{ attempt.submittedAt|date('d/m/Y H:i') }}
+              </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_stagiaire_positioning_list', {entite: entite.id}) }}">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if computedLevelInt %}
+    {% set lvlLabel = {1:'Initial',2:'Intermédiaire',3:'Avancé',4:'Expert'}[computedLevelInt] %}
+    {% set lvlClass = {1:'bg-info text-dark',2:'bg-primary',3:'bg-warning text-dark',4:'bg-danger'}[computedLevelInt] %}
+    <div class="alert alert-light border d-flex align-items-center justify-content-between" style="border-radius:16px;">
+      <div class="fw-bold"><i class="bi bi-bar-chart"></i> Niveau estimé</div>
+      <span class="badge {{ lvlClass }}" style="font-size:.95rem;">{{ lvlLabel }}</span>
+    </div>
+  {% endif %}
+
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ✅ regroupe les items par chapitre, items déjà triés côté controller #}
+  {% set groups = [] %}
+  {% set currentChapterId = null %}
+  {% set current = null %}
+
+  {% for item in items %}
+    {% set ch = item.chapter %}
+    {% set chId = ch ? ch.id : 0 %}
+
+    {% if currentChapterId != chId %}
+      {% if current is not null %}
+        {% set groups = groups|merge([current]) %}
+      {% endif %}
+      {% set currentChapterId = chId %}
+      {% set current = { chapter: ch, items: [] } %}
+    {% endif %}
+
+    {% set current = current|merge({ items: current.items|merge([item]) }) %}
+  {% endfor %}
+
+  {% if current is not null %}
+    {% set groups = groups|merge([current]) %}
+  {% endif %}
+
+  {{ form_start(form) }}
+
+  <div class="grid-card mb-3">
+    <div class="p-3 border-bottom" style="background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="fw-bold"><i class="bi bi-ui-checks"></i> Auto-évaluation</div>
+          <div class="text-muted small">Si vous ne savez pas, passez à la question suivante.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm fw-semibold" type="submit" name="submit_save" value="1">
+            <i class="bi bi-save"></i> Enregistrer
+          </button>
+          <button class="btn btn-warning btn-sm fw-semibold" type="button"
+                  data-bs-toggle="modal" data-bs-target="#modalSubmitFinal">
+            <i class="bi bi-check2-circle"></i> Valider
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-wrap">
+      <table class="grid-table">
+        <thead>
+          <tr>
+            <th>Compétence</th>
+
+            <th colspan="4">
+              <div class="fw-bold" style="text-transform:none; letter-spacing:0; font-size:.9rem;">Connaissance</div>
+              <div class="d-flex justify-content-center gap-3 mt-2">
+                <div class="text-center"><div class="h-ico">😶</div><div class="h-lbl">Aucun</div></div>
+                <div class="text-center"><div class="h-ico">🙂</div><div class="h-lbl">Base</div></div>
+                <div class="text-center"><div class="h-ico">😃</div><div class="h-lbl">Bon</div></div>
+                <div class="text-center"><div class="h-ico">🤩</div><div class="h-lbl">Avancé</div></div>
+              </div>
+            </th>
+
+            <th colspan="3">
+              <div class="fw-bold" style="text-transform:none; letter-spacing:0; font-size:.9rem;">Intérêt à l’étudier</div>
+              <div class="d-flex justify-content-center gap-3 mt-2">
+                <div class="text-center"><div class="h-ico">✅</div><div class="h-lbl">Oui</div></div>
+                <div class="text-center"><div class="h-ico">🚫</div><div class="h-lbl">Non</div></div>
+                <div class="text-center"><div class="h-ico">❓</div><div class="h-lbl">NSP</div></div>
+              </div>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+        {% for g in groups %}
+          {% set ch = g.chapter %}
+          {% set chTitle = ch ? (ch.title|default(ch.label|default('Chapitre'))) : 'Sans chapitre' %}
+
+          <tr class="row-chapter">
+            <td colspan="8">
+              <div class="chapter-grid">
+
+                {# Colonne 1 (Compétence) #}
+                <div class="chapter-left">
+                  <i class="bi bi-folder2-open"></i>
+                  <span>{{ chTitle }}</span>
+                  <span class="chapter-badge">{{ g.items|length }} item{% if g.items|length > 1 %}s{% endif %}</span>
+                </div>
+
+                {# Titres groupes (alignés sur les colonnes) #}
+                <div class="chapter-group-title chapter-group-k">Connaissance</div>
+                <div class="chapter-group-title chapter-group-i">Intérêt</div>
+
+                {# 4 colonnes Connaissance (2..5) #}
+                <div class="chapter-legend-cell">
+                  <div class="h-ico">😶</div><div class="legend-lbl">Aucun</div>
+                </div>
+                <div class="chapter-legend-cell">
+                  <div class="h-ico">🙂</div><div class="legend-lbl">Base</div>
+                </div>
+                <div class="chapter-legend-cell">
+                  <div class="h-ico">😃</div><div class="legend-lbl">Bon</div>
+                </div>
+                <div class="chapter-legend-cell">
+                  <div class="h-ico">🤩</div><div class="legend-lbl">Avancé</div>
+                </div>
+
+                {# 3 colonnes Intérêt (6..8) #}
+                <div class="chapter-legend-cell">
+                  <div class="h-ico">✅</div><div class="legend-lbl">Oui</div>
+                </div>
+                <div class="chapter-legend-cell">
+                  <div class="h-ico">🚫</div><div class="legend-lbl">Non</div>
+                </div>
+                <div class="chapter-legend-cell">
+                  <div class="h-ico">❓</div><div class="legend-lbl">NSP</div>
+                </div>
+
+              </div>
+            </td>
+          </tr>
+
+          {% for item in g.items %}
+            {% set id = item.id %}
+            {% set kField = attribute(form, 'k_' ~ id) %}
+            {% set iField = attribute(form, 'i_' ~ id) %}
+
+            <tr class="row-item row-lvl-{{ item.level|default(1) }}">
+              <td>
+                <div class="item-label">{{ item.label }}</div>
+                <div class="item-sub">Niveau : <strong>{{ item.level }}</strong></div>
+              </td>
+
+              {{ ui.render_choice_as_cells(kField, {
+                'NONE':'<span class="h-ico">😶</span>',
+                'BASIC':'<span class="h-ico">🙂</span>',
+                'GOOD':'<span class="h-ico">😃</span>',
+                'ADVANCED':'<span class="h-ico">🤩</span>'
+              }) }}
+
+              {{ ui.render_choice_as_cells(iField, {
+                'YES':'<span class="h-ico">✅</span>',
+                'NO':'<span class="h-ico">🚫</span>',
+                'UNKNOWN':'<span class="h-ico">❓</span>'
+              }) }}
+            </tr>
+          {% endfor %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid-card mb-3">
+    <div class="p-3 border-bottom" style="background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);">
+      <div class="fw-bold"><i class="bi bi-chat-left-text"></i> Commentaire</div>
+      <div class="text-muted small">Facultatif</div>
+    </div>
+    <div class="p-3">
+      {{ form_widget(form.stagiaireComment, { attr: { class:'form-control', rows: 4, placeholder:'Commentaires, besoins, contexte…' } }) }}
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 justify-content-end mb-4">
+    <button class="btn btn-outline-secondary fw-semibold" type="submit" name="submit_save" value="1">
+      <i class="bi bi-save"></i> Enregistrer
+    </button>
+    <button class="btn btn-warning fw-semibold" type="button"
+            data-bs-toggle="modal" data-bs-target="#modalSubmitFinal">
+      <i class="bi bi-check2-circle"></i> Valider
+    </button>
+  </div>
+
+
+
+
+
+
+  {# ===== Modal confirmation soumission (premium) ===== #}
+<div class="modal fade" id="modalSubmitFinal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-premium">
+      <div class="modal-header border-0 pb-0">
+        <div class="d-flex align-items-center gap-2">
+          <div class="modal-ico">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <div>
+            <h5 class="modal-title mb-0 fw-bold">Soumettre définitivement ?</h5>
+            <div class="text-muted small">Cette action verrouille votre positionnement.</div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body pt-3">
+        <div class="modal-note">
+          <div class="fw-bold mb-1"><i class="bi bi-info-circle me-1"></i> Important</div>
+          <div class="small text-muted">
+            Après soumission, vous ne pourrez plus modifier vos réponses (sauf réouverture par un administrateur).
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary fw-semibold" data-bs-dismiss="modal">
+          Annuler
+        </button>
+
+        {# ✅ vrai submit final (c’est lui qui soumet le form) #}
+        <button type="submit" name="submit_final" value="1" class="btn btn-warning fw-semibold" id="btnConfirmSubmitFinal">
+          <i class="bi bi-check2-circle"></i> Oui, soumettre
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+    {# on rend uniquement ce qui n'a pas été affiché (token) #}
+    {% if form._token is defined %}
+      {{ form_row(form._token) }}
+    {% endif %}
+
+    {{ form_end(form, { render_rest: false }) }}
+
+
+
+</div>
+
+
+
+
+{% block javascripts %}
+  {{ parent() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const modalEl = document.getElementById('modalSubmitFinal');
+      if (!modalEl) return;
+
+      const modal = new bootstrap.Modal(modalEl);
+
+      document.querySelectorAll('.js-open-submit-modal').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          modal.show();
+        });
+      });
+    });
+  </script>
+{% endblock %}
+
+{% endblock %}

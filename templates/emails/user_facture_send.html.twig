@@ -1,0 +1,163 @@
+{# templates/emails/user_facture_send.html.twig #}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ subject|default('Votre facture') }}</title>
+  <style>
+    body{ margin:0; padding:0; background:#f5f7fb; font-family: Arial, Helvetica, sans-serif; color:#0f2336; }
+    .wrap{ width:100%; background:#f5f7fb; padding:24px 12px; }
+    .card{ max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #e8eef6; border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .header{ padding:18px 18px 12px 18px; background: linear-gradient(135deg, rgba(15,35,54,.98), rgba(15,35,54,.86)); color:#fff; }
+    .brand{ display:flex; align-items:center; gap:12px; }
+    .logo{ height:40px; width:auto; object-fit:contain; display:block; }
+    .brand-name{ font-weight:800; letter-spacing:.2px; font-size:16px; line-height:1.15; }
+    .brand-meta{ opacity:.88; font-size:12px; margin-top:4px; }
+
+    .body{ padding:18px; }
+    .title{ font-size:16px; font-weight:800; margin:0 0 8px 0; }
+    .meta{ font-size:12px; color:#5b6b7a; line-height:1.5; margin:0 0 12px 0; }
+
+    .message{
+      border:1px solid #e8eef6;
+      border-radius:14px;
+      background:#fbfcff;
+      padding:14px;
+      font-size:14px;
+      line-height:1.55;
+      color:#0f2336;
+    }
+    .message p{ margin:0 0 10px 0; }
+    .message p:last-child{ margin-bottom:0; }
+
+    .cta{ margin-top:14px; }
+    .btn{
+      display:inline-block;
+      background:#ffc107;
+      color:#111827 !important;
+      text-decoration:none;
+      padding:11px 14px;
+      border-radius:12px;
+      font-weight:800;
+      font-size:14px;
+    }
+    .muted{ margin-top:12px; font-size:12px; color:#6b7b8a; line-height:1.45; }
+    .divider{ height:1px; background:#edf2f7; margin:16px 0; }
+
+    .footer{
+      padding:14px 18px;
+      background:#fbfcff;
+      border-top:1px solid #edf2f7;
+      font-size:12px;
+      color:#6b7b8a;
+      line-height:1.4;
+    }
+    .footrow{ display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; }
+    .pill{
+      display:inline-block; padding:4px 9px;
+      border:1px solid #e8eef6; border-radius:999px;
+      background:#fff; color:#4b5b6a;
+      font-size:11px;
+    }
+  </style>
+</head>
+<body>
+  {# ========= Destinataire ========= #}
+  {% set user = utilisateur ?? (facture.destinataire ?? null) %}
+  {% set destinataireNom = '' %}
+  {% if user %}
+    {% set destinataireNom = ((user.prenom ?? '') ~ ' ' ~ (user.nom ?? ''))|trim %}
+  {% endif %}
+
+  {% set factureNum = facture.numero ?? ('#' ~ facture.id) %}
+
+  {# ========= Message : texte user (nl2br) OU fallback HTML ========= #}
+  {% set msgText = (message is defined and message) ? message : '' %}
+
+  {% set fallbackHtml = '' %}
+  {% if fallbackHtml == '' and contentHtml is defined and contentHtml %}
+    {% set fallbackHtml = contentHtml %}
+  {% endif %}
+  {% if fallbackHtml == '' %}
+    {% set fallbackHtml =
+      '<p>Nous vous transmettons votre facture <strong>' ~ factureNum ~ '</strong>.</p>' ~
+      '<p>Vous pouvez répondre à cet email si vous avez des questions, nous vous répondrons rapidement.</p>'
+    %}
+  {% endif %}
+
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="brand">
+          {% if entite.logo %}
+            <img class="logo" src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom }}">
+          {% endif %}
+          <div>
+            <div class="brand-name">{{ entite.nom ?? 'Wiki Formation' }}</div>
+            <div class="brand-meta">
+              {% if entite.email %}{{ entite.email }}{% endif %}
+              {% if entite.telephone %} — {{ entite.telephone }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="body">
+        <h1 class="title">
+          Bonjour {{ destinataireNom ?: (user.email ?? '') }},
+        </h1>
+
+        <p class="meta">
+          Nous vous transmettons votre facture <strong>{{ factureNum }}</strong>
+          {% if facture.dateEmission %}(émise le {{ facture.dateEmission|date('d/m/Y') }}){% endif %}
+          {% if facture.montantTtcCents is not null %}
+            — Montant TTC : <strong>{{ ((facture.montantTtcCents ?? 0) / 100)|number_format(2, ',', ' ') }} €</strong>
+          {% endif %}.
+        </p>
+
+        <div class="message">
+          {% if msgText %}
+            {{ msgText|e|nl2br }}
+          {% else %}
+            {{ fallbackHtml|raw }}
+          {% endif %}
+        </div>
+
+        {% if ctaUrl is defined and ctaUrl %}
+          <div class="cta">
+            <a class="btn" href="{{ ctaUrl }}">Voir la facture</a>
+          </div>
+        {% endif %}
+
+        <div class="muted">
+          Cet email contient votre facture. Si vous ne parvenez pas à l’ouvrir, répondez à ce message et nous vous le renverrons.
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="footrow">
+          <span class="pill">Facture : {{ factureNum }}</span>
+          {% if entite.siret %}<span class="pill">SIRET : {{ entite.siret }}</span>{% endif %}
+          {% if entite.numeroTva %}<span class="pill">TVA : {{ entite.numeroTva }}</span>{% endif %}
+        </div>
+      </div>
+
+      <div class="footer">
+        <div><strong>{{ entite.nom ?? 'Wiki Formation' }}</strong></div>
+        <div>
+          {% if entite.adresse %}{{ entite.adresse }}{% endif %}
+          {% if entite.codePostal or entite.ville %}
+            — {{ entite.codePostal ?? '' }} {{ entite.ville ?? '' }}
+          {% endif %}
+          {% if entite.pays %} — {{ entite.pays }}{% endif %}
+        </div>
+        <div>
+          {% if entite.email %}{{ entite.email }}{% endif %}
+          {% if entite.telephone %} — {{ entite.telephone }}{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

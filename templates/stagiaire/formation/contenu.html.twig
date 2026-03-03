@@ -1,0 +1,1276 @@
+{# templates/stagiaire/formation/contenu.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}{{ formation.titre }} — Cours{% endblock %}
+{% block meta_description %}Cours en ligne — {{ formation.titre }} : chapitres, médias et ressources.{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css" />
+
+  <style>
+    :root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+  /* Premium dark base (harmonisé avec ton theme) */
+  --bg: color-mix(in srgb, var(--theme-color-principal) 78%, #000 22%);
+  --panel: rgba(8, 16, 24, .72);
+  --panel-2: rgba(10, 20, 30, .82);
+  --stroke: rgba(255,255,255,.10);
+  --stroke-2: rgba(255,255,255,.14);
+  --ink: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.70);
+
+  --accent: var(--theme-color-secondaire);
+  --accent-2: color-mix(in srgb, var(--theme-color-secondaire) 55%, #fff 45%);
+  --danger: #e73d45;
+
+  --radius-xl: 26px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --shadow-lg: 0 18px 60px rgba(0,0,0,.42);
+  --shadow-md: 0 12px 34px rgba(0,0,0,.32);
+
+  --gap: 1.1rem;
+}
+
+/* page */
+main{ margin-top: 0 !important; }
+body{ overflow-x: hidden; }
+
+/* (optionnel) si base_admin est claire : donne une base dark au contenu sans impacter ton layout */
+.container{
+  color: var(--ink);
+}
+
+/* ================= HERO premium ================= */
+.course-hero{
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow-lg);
+  background: linear-gradient(135deg, rgba(12,24,34,.92), rgba(6,14,20,.92));
+}
+.course-hero::before{
+  content:"";
+  position:absolute; inset:-2px;
+  background:
+    radial-gradient(1000px 380px at 12% 10%, rgba(255,255,255,.12), transparent 60%),
+    radial-gradient(900px 360px at 84% 20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
+    radial-gradient(700px 320px at 55% 100%, rgba(58,160,255,.10), transparent 55%);
+  pointer-events:none;
+}
+.course-hero__bg{
+  position:absolute; inset:0;
+  background:
+    linear-gradient(90deg, rgba(8,16,24,.96) 0%, rgba(8,16,24,.82) 45%, rgba(8,16,24,.25) 75%, rgba(8,16,24,0) 100%),
+    var(--hero-cover) center/cover no-repeat;
+  filter: saturate(1.05) brightness(.82);
+  transform: scale(1.03);
+  opacity: .92;
+}
+.course-hero__inner{
+  position:relative; z-index:2;
+  padding: 1.25rem 1.25rem 1.05rem;
+}
+
+.crumbs{
+  display:flex; flex-wrap:wrap; gap:.5rem;
+  align-items:center;
+  font-size:.86rem;
+  color: rgba(255,255,255,.78);
+}
+.crumbs a{
+  color: rgba(255,255,255,.86);
+  text-decoration:none;
+  border-bottom:1px dashed rgba(255,255,255,.22);
+}
+.crumbs a:hover{ color:#fff; border-bottom-color: rgba(255,255,255,.45); }
+
+.pill{
+  display:inline-flex; align-items:center; gap:.45rem;
+  padding:.32rem .65rem;
+  border-radius:999px;
+  background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(6px);
+  font-size:.80rem;
+}
+
+.course-title{
+  font-weight: 950;
+  letter-spacing: -.02em;
+  margin: .65rem 0 .25rem;
+  line-height: 1.1;
+  font-size: clamp(1.4rem, 2.0vw, 2.1rem);
+  color: #fff !important;
+}
+.course-sub{
+  margin:0;
+  color: rgba(255,255,255,.74);
+  max-width: 90ch;
+}
+
+.chips{ margin-top:.9rem; display:flex; flex-wrap:wrap; gap:.5rem; }
+.chip{
+  display:inline-flex; align-items:center; gap:.45rem;
+  border-radius: 999px;
+  padding:.42rem .7rem;
+  background: rgba(10,18,26,.62);
+  border:1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.86);
+  font-size:.88rem;
+}
+.chip i{ color: color-mix(in srgb, var(--accent) 92%, #fff 8%); }
+
+.hero-actions{
+  margin-top: 1rem;
+  display:flex; flex-wrap:wrap; gap:.5rem;
+  align-items:center;
+}
+.btn-glass{
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  font-weight: 850;
+  padding: .55rem .9rem;
+}
+.btn-glass:hover{ background: rgba(255,255,255,.10); }
+.btn-accent{
+  border-radius: 14px;
+  border: 0;
+  background: var(--accent);
+  color: #0b1a24;
+  font-weight: 950;
+  padding: .55rem .9rem;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.btn-accent:hover{ filter: brightness(1.04); }
+
+/* ================= APP SHELL ================= */
+.shell{
+  display:grid;
+  grid-template-columns: 360px 1fr;
+  gap: var(--gap);
+  margin-top: var(--gap);
+  align-items:start;
+}
+@media (max-width: 1200px){
+  .shell{ grid-template-columns: 320px 1fr; }
+}
+@media (max-width: 992px){
+  .shell{ grid-template-columns: 1fr; }
+}
+
+/* ================= Sidebar TOC ================= */
+.toc{
+  position: sticky;
+  top: 20px;
+  align-self: start;
+
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+
+  max-height: calc(100vh - 110px);
+  display:flex;
+  flex-direction:column;
+  min-height: 220px;
+}
+
+.toc__top{
+  padding: .95rem .95rem .75rem;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+}
+.toc__title{
+  display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+  margin:0 0 .6rem;
+  font-weight: 950;
+  letter-spacing: -.01em;
+  font-size: 1.02rem;
+}
+.toc__tools{ display:flex; gap:.45rem; flex-wrap:wrap; }
+
+.toc-btn{
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.90);
+  border-radius: 12px;
+  padding: .35rem .55rem;
+  font-weight: 850;
+  font-size: .82rem;
+}
+.toc-btn:hover{ background: rgba(255,255,255,.10); }
+
+.toc-search{ position: relative; }
+.toc-search input{
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(5,10,14,.45);
+  color: #fff;
+  padding: .55rem .8rem .55rem 2.2rem;
+  outline: none;
+}
+.toc-search i{
+  position:absolute; left:.75rem; top:50%;
+  transform: translateY(-50%);
+  opacity:.8;
+}
+
+.toc__progress{
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  overflow:hidden;
+  margin-top: .65rem;
+}
+.toc__progress > div{
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 65%, #ff6a6a), var(--accent));
+  border-radius: 999px;
+}
+
+.toc__list{
+  padding: .75rem .55rem .8rem;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+/* scrollbar élégante */
+.toc__list::-webkit-scrollbar{ width: 10px; }
+.toc__list::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  border: 2px solid rgba(0,0,0,0);
+  background-clip: padding-box;
+}
+.toc__list::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
+
+.toc ul{ list-style:none; padding-left:0; margin:0; }
+.toc li{ margin: .25rem 0; }
+
+.toc a.toc-link{
+  display:flex;
+  align-items:center;
+  gap:.55rem;
+  padding: .45rem .55rem;
+  border-radius: 14px;
+  text-decoration:none;
+  color: rgba(255,255,255,.88);
+  border: 1px solid transparent;
+  opacity: .92;
+  transition: background .15s ease, border-color .15s ease, transform .12s ease;
+}
+.toc a.toc-link .toc-dot{
+  width: 8px; height: 8px; border-radius: 99px;
+  background: rgba(255,255,255,.25);
+  box-shadow: 0 0 0 4px rgba(255,255,255,.05);
+  flex: 0 0 auto;
+}
+.toc a.toc-link:hover{
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.10);
+  transform: translateX(1px);
+}
+.toc a.toc-link.active{
+  background: color-mix(in srgb, var(--accent) 14%, rgba(255,255,255,.05));
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  opacity: 1;
+}
+.toc a.toc-link.active .toc-dot{
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.lvl-2{ padding-left: 1.1rem; }
+.lvl-3{ padding-left: 2.2rem; }
+.toc .lvl-2 a{ font-size: .95rem; opacity:.92; }
+.toc .lvl-3 a{ font-size: .90rem; opacity:.88; }
+
+/* Sommaire : hiérarchie plus visible */
+#tocList .lvl-2, #tocList .lvl-3{
+  margin-left: .35rem;
+  padding-left: .85rem;
+  border-left: 1px solid rgba(255,255,255,.10);
+}
+#tocList .lvl-2 .toc-link{ opacity:.92; }
+#tocList .lvl-3 .toc-link{ opacity:.82; font-size:.90rem; }
+#tocList .toc-item.is-hidden{ display:none !important; }
+
+/* Mode "replié" : on masque les sous-listes */
+#tocList.is-collapsed .lvl-2,
+#tocList.is-collapsed .lvl-3{
+  display:none !important;
+}
+/* On garde visibles les branches pertinentes pendant une recherche */
+#tocList.is-searching .lvl-2,
+#tocList.is-searching .lvl-3{
+  display:block !important;
+}
+
+/* ================= RIGHT SIDE (LECTURE) ================= */
+.contenu{
+  display:flex;
+  flex-direction:column;
+  gap: var(--gap);
+  min-width: 0;
+
+  position: relative;
+  padding: .35rem;
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(900px 380px at 85% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+    radial-gradient(900px 380px at 5% 20%, rgba(255,255,255,.08), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: var(--shadow-md);
+  color: var(--ink);
+}
+.contenu::before{
+  content:"";
+  position:absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background:
+    radial-gradient(700px 240px at 12% 10%, rgba(255,255,255,.10), transparent 60%),
+    radial-gradient(700px 260px at 80% 20%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%);
+  pointer-events:none;
+  opacity:.55;
+}
+
+/* Topbar */
+.topbar{
+  position: sticky;
+  top: 20px;
+  z-index: 30;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,18,26,.68);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  padding: .9rem 1rem;
+  display:flex;
+  gap:.8rem;
+  align-items:center;
+  justify-content: space-between;
+}
+.topbar .left{ min-width: 0; }
+.topbar .kicker{
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 900;
+  font-size: .72rem;
+  color: rgba(255,255,255,.62);
+  margin-bottom: .15rem;
+}
+.topbar .now{
+  font-weight: 950;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 74ch;
+  color: rgba(255,255,255,.92);
+}
+.topbar .right{
+  display:flex;
+  gap:.45rem;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.icon-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  padding: .42rem .7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.86);
+  font-weight: 850;
+  font-size: .86rem;
+}
+
+/* Chapitres */
+.content-card{
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10, 18, 26, .62);
+  box-shadow: 0 18px 60px rgba(0,0,0,.28);
+  scroll-margin-top: 160px;
+  color: var(--ink);
+}
+
+/* header chapitre */
+.content-card .chapter-head{
+  margin: 0;
+  padding: 1.05rem 1.15rem .9rem;
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.10));
+  border-bottom: 1px solid rgba(255,255,255,.10);
+  position: relative;
+}
+.content-card .chapter-head::before{
+  content:"";
+  position:absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 45%, transparent));
+  opacity: .95;
+}
+
+.chapter-title{
+  display:flex; align-items:center; gap:.65rem;
+  margin:0;
+  font-weight: 950;
+  letter-spacing: -.01em;
+  color: rgba(255,255,255,.95);
+  font-size: 1.05rem;
+}
+.chapter-badge{
+  font-size: .78rem;
+  font-weight: 900;
+  border-radius: 999px;
+  padding: .25rem .55rem;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.88);
+}
+.chapter-meta{
+  color: var(--muted);
+  font-size: .92rem;
+}
+.draft{
+  background: rgba(255,193,7,.18);
+  border: 1px solid rgba(255,193,7,.22);
+  color: #ffe7a1;
+}
+
+/* corps chapitre */
+.content-card > .richtext,
+.content-card > .block,
+.content-card > .vstack{
+  padding: 0.5rem 0.5rem;
+}
+
+.richtext p{ margin: .45rem 0; line-height: 1.7; color: rgba(255,255,255,.90); }
+.richtext ul{ padding-left:1.25rem; }
+.richtext :where(h1,h2,h3){ margin-top: .7rem; }
+.richtext a{ color: var(--accent); text-decoration: none; }
+.richtext a:hover{ text-decoration: underline; }
+
+/* Blocks */
+.block{
+  margin-top: .85rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 10px 32px rgba(0,0,0,.22);
+  padding: .95rem 1rem;
+  margin: 1rem 1rem;
+  color: var(--ink);
+}
+.block-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:.75rem;
+  margin-bottom: .65rem;
+}
+.block-type{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.28rem .55rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  font-weight: 950;
+  letter-spacing: .06em;
+  font-size: .72rem;
+  color: rgba(255,255,255,.85);
+  text-transform: uppercase;
+}
+.btn-copy{
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
+  border-radius: 999px;
+  padding: .30rem .55rem;
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  font-weight: 900;
+  font-size: .80rem;
+}
+.btn-copy:hover{ background: rgba(255,255,255,.10); }
+
+/* Medias */
+.media img{
+  width:100%;
+  height:auto;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 18px 60px rgba(0,0,0,.30);
+}
+.video-embed{
+  position:relative; width:100%;
+  padding-top:56.25%;
+  border-radius: 18px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow: 0 18px 60px rgba(0,0,0,.30);
+}
+.video-embed iframe{ position:absolute; inset:0; width:100%; height:100%; }
+
+pre.code{
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.35);
+  padding: .85rem;
+  overflow:auto;
+  color: #d7f7ff;
+}
+
+/* File tile */
+.file-tile{
+  display:flex; align-items:center; gap:.75rem;
+  padding:.8rem .85rem;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+}
+.file-tile .title{ font-weight: 950; }
+.file-tile a{ color: var(--accent); font-weight: 950; text-decoration:none; }
+.file-tile a:hover{ text-decoration: underline; }
+
+/* ================= QUIZ ================= */
+.quiz-form{ gap: .85rem !important; }
+
+.quiz-q{
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  padding: 1rem 1rem .95rem !important;
+  color: var(--ink);
+}
+
+.quiz-q label{
+  width: 100%;
+  padding: .55rem .65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+  transition: transform .12s ease, background .15s ease, border-color .15s ease;
+}
+.quiz-q label:hover{
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.16);
+  transform: translateY(-1px);
+}
+.quiz-q .form-check-input{ transform: translateY(1px); }
+
+.quiz-form > .d-flex{
+  padding-top: .25rem;
+  gap: .5rem !important;
+}
+
+.quiz-form button[type="submit"]{
+  border-radius: 14px;
+  border: 0;
+  background: var(--accent);
+  color: #0b1a24;
+  font-weight: 950;
+  padding: .55rem .85rem;
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.quiz-form .quiz-reset{
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
+  font-weight: 900;
+  padding: .55rem .85rem;
+}
+.quiz-score{
+  display:inline-flex;
+  padding:.38rem .65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  font-weight: 900;
+}
+
+/* Feedback quiz */
+.quiz-feedback{
+  display:block;
+  margin-top: .55rem;
+  padding: .55rem .65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.20);
+}
+.quiz-explanation{
+  margin-top: .55rem;
+  padding: .7rem .75rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.85);
+}
+
+/* Bootstrap helpers en dark */
+.text-muted{ color: rgba(255,255,255,.65) !important; }
+
+/* responsive tweaks */
+@media (max-width: 992px){
+  .toc{ position: relative; top: 0; max-height: none; }
+  .topbar{ position: relative; top: 0; }
+  .contenu{ padding: .2rem; border-radius: 20px; }
+  .content-card{ border-radius: 18px; }
+  .content-card .chapter-head{ padding: .9rem .95rem .8rem; }
+  .content-card > .richtext,
+  .content-card > .block,
+  .content-card > .vstack{
+    padding: .85rem .95rem;
+  }
+}
+
+
+
+    
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+{% endblock %}
+
+{% block body %}
+  {% set banner = formation.photoCouverture ? asset('uploads/photos/formation/' ~ formation.photoCouverture) : asset('uploads/photos/formation/programme.jpg') %}
+
+  <div class="container py-4">
+
+    {# HERO #}
+    <div class="course-hero mb-3" style="--hero-cover:url('{{ banner|e('html_attr') }}');">
+      <div class="course-hero__bg"></div>
+
+      <div class="course-hero__inner">
+        <div class="crumbs mb-2">
+          <span class="pill"><i class="bi bi-journal-text"></i> Cours</span>
+          <span class="text-white-50">/</span>
+          <a href="{{ path('app_stagiaire_cours_index', {entite: entite.id}) }}"><i class="bi bi-collection me-1"></i>Mes formations</a>
+          <span class="text-white-50">/</span>
+          <span class="pill"><i class="bi bi-mortarboard"></i> {{ formation.titre }}</span>
+        </div>
+
+        <h1 class="course-title">{{ formation.titre }}</h1>
+        <p class="course-sub">
+          Accédez au contenu pédagogique, médias, ressources et quiz. Utilisez le sommaire à gauche pour naviguer rapidement.
+        </p>
+
+        <div class="chips">
+          {% if formation.niveau %}
+            <span class="chip"><i class="bi bi-award"></i> {{ formation.niveau.value ?? formation.niveau.name }}</span>
+          {% endif %}
+          {% if formation.duree %}
+            <span class="chip"><i class="bi bi-clock"></i> {{ formation.duree }} jour{% if formation.duree > 1 %}s{% endif %}</span>
+          {% endif %}
+          <span class="chip"><i class="bi bi-shield-check"></i> Accès stagiaire</span>
+        </div>
+
+        <div class="hero-actions">
+          <a class="btn btn-glass" href="{{ path('app_stagiaire_cours_index', {entite: entite.id}) }}">
+            <i class="bi bi-arrow-left me-2"></i>Retour
+          </a>
+          <button class="btn btn-accent" type="button" id="btnScrollTop">
+            <i class="bi bi-arrow-up-short me-1"></i>Haut
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# SHELL #}
+    <div class="shell">
+
+      {# TOC #}
+      <aside class="toc" id="toc">
+        <div class="toc__top">
+          <div class="toc__title">
+            <span><i class="bi bi-list-nested me-2"></i>Sommaire</span>
+            <span class="chapter-badge">{{ roots|length }} chapitre{% if roots|length > 1 %}s{% endif %}</span>
+          </div>
+
+          <div class="toc-search mb-2">
+            <i class="bi bi-search"></i>
+            <input type="text" id="tocSearch" placeholder="Rechercher un chapitre…">
+          </div>
+
+          <div class="toc__tools mb-2">
+            <button class="toc-btn" type="button" id="tocExpand"><i class="bi bi-arrows-expand me-1"></i>Tout</button>
+            <button class="toc-btn" type="button" id="tocCollapse"><i class="bi bi-arrows-collapse me-1"></i>Replier</button>
+          </div>
+
+          <div class="toc__progress" aria-hidden="true"><div id="tocProgress"></div></div>
+        </div>
+
+        <div class="toc__list">
+          <ul id="tocList">
+            {% for r in roots %}
+              <li class="toc-item">
+                <a href="#node-{{ r.id }}" data-toc-id="node-{{ r.id }}" class="toc-link">
+                  <span class="toc-dot"></span>
+                  <span class="toc-text">{{ r.titre }}</span>
+                </a>
+
+                {% if r.children|length %}
+                  <ul class="lvl-2">
+                    {% for c in r.children %}
+                      <li class="toc-item">
+                        <a href="#node-{{ c.id }}" data-toc-id="node-{{ c.id }}" class="toc-link">
+                          <span class="toc-dot"></span>
+                          <span class="toc-text">{{ c.titre }}</span>
+                        </a>
+
+                        {% if c.children|length %}
+                          <ul class="lvl-3">
+                            {% for g in c.children %}
+                              <li class="toc-item">
+                                <a href="#node-{{ g.id }}" data-toc-id="node-{{ g.id }}" class="toc-link">
+                                  <span class="toc-dot"></span>
+                                  <span class="toc-text">{{ g.titre }}</span>
+                                </a>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        {% endif %}
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </li>
+            {% else %}
+              <li class="text-white-50 px-2 py-2">Aucun chapitre pour le moment.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </aside>
+
+      {# CONTENT #}
+      <main class="contenu">
+        <div class="topbar" id="topbar">
+          <div class="left">
+            <div class="kicker">Lecture</div>
+            <div class="now" id="nowReading">—</div>
+          </div>
+          <div class="right">
+            
+            <span class="icon-pill"><i class="bi bi-lightning-charge"></i> Navigation rapide</span>
+            <span class="icon-pill"><i class="bi bi-mouse"></i> Scroll</span>
+          </div>
+        </div>
+
+        {% import _self as macros %}
+        {% for r in roots %}
+          {{ macros.renderNode(r, formation)|raw }}
+        {% endfor %}
+      </main>
+    </div>
+
+  </div>
+
+  {# MACRO #}
+  {% macro renderNode(node, formation) %}
+    <section id="node-{{ node.id }}" class="content-card chapter" data-title="{{ node.titre|e('html_attr') }}">
+      <div class="chapter-head">
+        <div>
+          <h2 class="h5 chapter-title mb-1">
+            <i class="bi bi-dot"></i>
+            {{ node.titre }}
+            <span class="chapter-badge ms-2">#{{ node.position }}</span>
+            {% if not node.isPublished %}
+              <span class="chapter-badge draft ms-2">Brouillon</span>
+            {% endif %}
+          </h2>
+
+          <div class="chapter-meta">
+            {% if node.dureeMinutes %}<i class="bi bi-clock me-1"></i>{{ node.dureeMinutes }} min · {% endif %}
+            <i class="bi bi-folder2-open me-1"></i>Chapitre
+          </div>
+        </div>
+      </div>
+
+      {% for b in node.blocks %}
+        <article class="block" id="block-{{ b.id }}">
+          <div class="block-head">
+            <div class="block-type"><i class="bi bi-grid-1x2 me-1"></i> {{ b.type.value }}</div>
+            <button class="btn-copy" type="button" title="Copier le lien" data-anchor="#block-{{ b.id }}">
+              <i class="bi bi-link-45deg"></i> Lien
+            </button>
+          </div>
+
+          {% set uploadDir = 'uploads/photos/formation/' %}
+
+          {% if b.type.value == 'texte' %}
+            <div class="richtext">{{ b.content|raw }}</div>
+
+          {% elseif b.type.value == 'image' %}
+            {% if b.mediaFilename %}
+              {% set p = asset(uploadDir ~ b.mediaFilename) %}
+              <a data-fancybox="node-{{ node.id }}" href="{{ p }}" class="media d-block">
+                <img src="{{ p }}" alt="">
+              </a>
+              {% if b.content %}<div class="text-white-50 small mt-2">{{ b.content|raw }}</div>{% endif %}
+            {% endif %}
+
+          {% elseif b.type.value == 'video' %}
+            {% if b.mediaUrl %}
+              {% set videoUrl = b.mediaUrl|default(b.content) %}
+              {% if videoUrl %}
+                {% set embedUrl = videoUrl %}
+                {% if 'youtube.com' in videoUrl or 'youtu.be' in videoUrl %}
+                  {% set videoId = '' %}
+                  {% if 'v=' in videoUrl %}
+                    {% set videoId = videoUrl|split('v=')[1]|split('&')[0] %}
+                  {% elseif 'youtu.be/' in videoUrl %}
+                    {% set videoId = videoUrl|split('youtu.be/')[1]|split('?')[0] %}
+                  {% endif %}
+                  {% set embedUrl = 'https://www.youtube-nocookie.com/embed/' ~ videoId %}
+                {% elseif 'vimeo.com' in videoUrl %}
+                  {% set videoId = videoUrl|split('/')|last %}
+                  {% set embedUrl = 'https://player.vimeo.com/video/' ~ videoId %}
+                {% endif %}
+
+                <div class="video-embed">
+                  <iframe
+                    src="{{ embedUrl }}"
+                    title="Video"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowfullscreen
+                    loading="lazy"></iframe>
+                </div>
+              {% endif %}
+            {% elseif b.content %}
+              <div class="video-embed">
+                <iframe src="{{ b.content }}" title="Video" frameborder="0" allowfullscreen loading="lazy"></iframe>
+              </div>
+            {% endif %}
+
+          {% elseif b.type.value == 'file' %}
+            {% if b.mediaFilename %}
+              <div class="file-tile">
+                <i class="bi bi-file-earmark-arrow-down fs-4"></i>
+                <div class="flex-fill">
+                  <div class="title">{{ b.content ? b.content|striptags|slice(0,120) : 'Fichier' }}</div>
+                  <div class="small text-white-50">Ressource à télécharger</div>
+                </div>
+                <a href="{{ asset(uploadDir ~ b.mediaFilename) }}" download>Télécharger</a>
+              </div>
+            {% endif %}
+
+          {% elseif b.type.value == 'code' %}
+            {% if b.content %}
+              <pre class="code"><code>{{ b.content }}</code></pre>
+            {% endif %}
+
+          {% elseif b.type.value == 'checklist' %}
+            {% set m = b.meta ?? {} %}
+            {% set items = attribute(m, 'items')|default([]) %}
+            {% if items is iterable and items|length %}
+              <ul class="mb-0">
+                {% for it in items %}
+                  <li class="mb-2">
+                    <input type="checkbox" disabled {% if it.done %}checked{% endif %} class="form-check-input me-2">
+                    <span>{{ it.label }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              {% if b.content %}<div class="richtext">{{ b.content|raw }}</div>{% endif %}
+            {% endif %}
+
+          {% elseif ((b.type.value ?? b.type.name ?? b.type)|lower) == 'quiz' or b.quiz is not null %}
+            {# Tu gardes ton bloc quiz tel quel si tu veux.
+               Ici je laisse juste un placeholder pour ne pas te recoller 200 lignes. #}
+            {% include 'stagiaire/formation/_quiz_block.html.twig' with { b: b, node: node } only %}
+
+          {% endif %}
+        </article>
+      {% endfor %}
+
+      {% if node.children|length %}
+        <div class="vstack gap-3 mt-3">
+          {% for c in node.children %}
+            {{ _self.renderNode(c, formation)|raw }}
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  {% endmacro %}
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
+
+  <script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* ============================================================
+     1. SMOOTH SCROLL (clic sommaire)
+  ============================================================ */
+  document.querySelectorAll('.toc a.toc-link').forEach(link => {
+    link.addEventListener('click', e => {
+      const id = link.getAttribute('href');
+      const target = document.querySelector(id);
+      if (!target) return;
+
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      history.replaceState(null, '', id);
+    });
+  });
+
+
+  /* ============================================================
+     2. BARRE DE PROGRESSION GLOBALE
+  ============================================================ */
+  const progressBar = document.getElementById('tocProgress');
+
+  const getScrollTop = () =>
+    window.scrollY ??
+    window.pageYOffset ??
+    document.documentElement.scrollTop ??
+    0;
+
+  const updateProgress = () => {
+    if (!progressBar) return;
+
+    const doc = document.documentElement;
+    const top = getScrollTop();
+    const max = doc.scrollHeight - window.innerHeight;
+    const ratio = max > 0 ? Math.min(top / max, 1) : 0;
+
+    progressBar.style.width = (ratio * 100).toFixed(1) + '%';
+  };
+
+  window.addEventListener('scroll', updateProgress, { passive: true });
+  updateProgress();
+
+
+  /* ============================================================
+     3. INTERSECTION OBSERVER (chapitre actif + now reading)
+  ============================================================ */
+  const tocLinks = [...document.querySelectorAll('.toc a.toc-link')];
+  const linkById = Object.fromEntries(tocLinks.map(a => [a.dataset.tocId, a]));
+  const nowReading = document.getElementById('nowReading');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+
+      const id = entry.target.id;
+      const link = linkById[id];
+      if (!link) return;
+
+      tocLinks.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+
+      const title = entry.target.dataset.title || link.textContent.trim();
+      if (nowReading) nowReading.textContent = title;
+    });
+  }, {
+    rootMargin: '-45% 0px -52% 0px',
+    threshold: 0.01
+  });
+
+  document
+    .querySelectorAll('.chapter[id^="node-"]')
+    .forEach(sec => observer.observe(sec));
+
+
+  /* ============================================================
+     4. SOMMAIRE : COLLAPSE / EXPAND / SEARCH
+  ============================================================ */
+  const tocList = document.getElementById('tocList');
+  const tocSearch = document.getElementById('tocSearch');
+  const allItems = [...document.querySelectorAll('#tocList .toc-item')];
+
+  const clearInlineDisplays = () => {
+    document
+      .querySelectorAll('#tocList .lvl-2, #tocList .lvl-3')
+      .forEach(ul => ul.style.removeProperty('display'));
+  };
+
+  const setCollapsed = collapsed => {
+    if (!tocList) return;
+    clearInlineDisplays();
+    tocList.classList.toggle('is-collapsed', collapsed);
+  };
+
+  const resetSearch = () => {
+    if (!tocList) return;
+    tocList.classList.remove('is-searching');
+    allItems.forEach(li => li.classList.remove('is-hidden'));
+  };
+
+  const applySearch = value => {
+    if (!tocList) return;
+
+    const q = (value || '').trim().toLowerCase();
+
+    if (!q) {
+      resetSearch();
+      return;
+    }
+
+    setCollapsed(false);
+    tocList.classList.add('is-searching');
+
+    allItems.forEach(li => li.classList.add('is-hidden'));
+
+    const matches = allItems.filter(li => {
+      const txt = li.querySelector(':scope > a .toc-text')?.textContent?.toLowerCase() || '';
+      return txt.includes(q);
+    });
+
+    const showBranch = li => {
+      li.classList.remove('is-hidden');
+
+      // parents
+      let p = li.parentElement;
+      while (p && p !== tocList) {
+        if (p.classList?.contains('toc-item')) {
+          p.classList.remove('is-hidden');
+        }
+        p = p.parentElement;
+      }
+
+      // enfants
+      li.querySelectorAll('.toc-item')
+        .forEach(child => child.classList.remove('is-hidden'));
+    };
+
+    matches.forEach(showBranch);
+  };
+
+  document.getElementById('tocCollapse')?.addEventListener('click', () => {
+    if (!tocList.classList.contains('is-searching')) {
+      setCollapsed(true);
+    }
+  });
+
+  document.getElementById('tocExpand')?.addEventListener('click', () => {
+    setCollapsed(false);
+  });
+
+  tocSearch?.addEventListener('input', () => {
+    applySearch(tocSearch.value);
+  });
+
+  tocSearch?.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      tocSearch.value = '';
+      resetSearch();
+    }
+  });
+
+  setCollapsed(false);
+  resetSearch();
+
+
+  /* ============================================================
+     5. COPIE DE LIEN (bloc)
+  ============================================================ */
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.btn-copy[data-anchor]');
+    if (!btn) return;
+
+    const hash = btn.dataset.anchor;
+    const url = location.origin + location.pathname + hash;
+
+    navigator.clipboard.writeText(url).then(() => {
+      btn.innerHTML = '<i class="bi bi-check2"></i> Copié';
+      setTimeout(() => {
+        btn.innerHTML = '<i class="bi bi-link-45deg"></i> Lien';
+      }, 900);
+    });
+  });
+
+
+  /* ============================================================
+     6. BOUTON HAUT
+  ============================================================ */
+  document.getElementById('btnScrollTop')?.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+
+  // ... TON CODE EXISTANT (sommaire, progress, etc.)
+
+  /* ============================================================
+     7. QUIZ — feedback + score (FRONT)
+     - fonctionne avec ton _quiz_block.html.twig actuel
+     - utilise data-correct="1" sur les inputs radio/checkbox
+     - boolean : compare au hidden .expected-boolean
+     - text : compare au hidden .expected-text (optionnel)
+  ============================================================ */
+
+  function setFeedback(qEl, ok, msg){
+    const fb = qEl.querySelector('.quiz-feedback');
+    if (!fb) return;
+    fb.classList.remove('d-none');
+    fb.classList.toggle('text-success', !!ok);
+    fb.classList.toggle('text-danger', !ok);
+    fb.textContent = msg || (ok ? '✅ Bonne réponse' : '❌ Mauvaise réponse');
+  }
+
+  function showExplanation(qEl){
+    const exp = qEl.querySelector('.quiz-explanation');
+    if (exp) exp.classList.remove('d-none');
+  }
+
+  function evaluateQuestion(qEl){
+    const type = (qEl.dataset.qtype || '').toLowerCase();
+
+    // SINGLE / MULTIPLE
+    if (type === 'single' || type === 'multiple'){
+      const inputs = [...qEl.querySelectorAll('input.form-check-input[type="radio"], input.form-check-input[type="checkbox"]')];
+      const checked = inputs.filter(i => i.checked);
+
+      // rien coché
+      if (!checked.length){
+        setFeedback(qEl, false, '⚠️ Sélectionne une réponse');
+        return { answered: false, correct: false };
+      }
+
+      const correctInputs = inputs.filter(i => i.dataset.correct === '1');
+      const checkedCorrect = checked.filter(i => i.dataset.correct === '1');
+
+      let ok = false;
+      if (type === 'single'){
+        ok = checked.length === 1 && checkedCorrect.length === 1;
+      } else {
+        // multiple : exactement le même ensemble
+        ok = checked.length === correctInputs.length && checkedCorrect.length === correctInputs.length;
+      }
+
+      setFeedback(qEl, ok, ok ? '✅ Bonne réponse' : '❌ Mauvaise réponse');
+      if (!ok) showExplanation(qEl);
+      return { answered: true, correct: ok };
+    }
+
+    // BOOLEAN
+    if (type === 'boolean'){
+      const expected = qEl.querySelector('.expected-boolean')?.value; // "true"/"false" ou vide
+      const chosen = qEl.querySelector('input[type="radio"]:checked')?.value; // "true"/"false"
+
+      if (!chosen){
+        setFeedback(qEl, false, '⚠️ Choisis Vrai ou Faux');
+        return { answered: false, correct: false };
+      }
+      if (!expected){
+        // si pas de réponse attendue configurée → on ne peut pas corriger
+        setFeedback(qEl, true, '✅ Réponse enregistrée');
+        return { answered: true, correct: true };
+      }
+
+      const ok = chosen === expected;
+      setFeedback(qEl, ok, ok ? '✅ Bonne réponse' : '❌ Mauvaise réponse');
+      if (!ok) showExplanation(qEl);
+      return { answered: true, correct: ok };
+    }
+
+    // TEXT
+    if (type === 'text'){
+      const input = qEl.querySelector('input.quiz-text');
+      const expected = qEl.querySelector('.expected-text')?.value;
+
+      const val = (input?.value || '').trim();
+      if (!val){
+        setFeedback(qEl, false, '⚠️ Écris une réponse');
+        return { answered: false, correct: false };
+      }
+
+      if (!expected){
+        setFeedback(qEl, true, '✅ Réponse enregistrée');
+        return { answered: true, correct: true };
+      }
+
+      const ok = val.toLowerCase() === expected.trim().toLowerCase();
+      setFeedback(qEl, ok, ok ? '✅ Bonne réponse' : '❌ Mauvaise réponse');
+      if (!ok) showExplanation(qEl);
+      return { answered: true, correct: ok };
+    }
+
+    // fallback
+    setFeedback(qEl, true, '✅ OK');
+    return { answered: true, correct: true };
+  }
+
+  document.querySelectorAll('form.quiz-form').forEach(form => {
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const questions = [...form.querySelectorAll('.quiz-q')];
+      let score = 0;
+      let answeredCount = 0;
+
+      questions.forEach(qEl => {
+        const res = evaluateQuestion(qEl);
+        if (res.answered) answeredCount++;
+        if (res.correct) score++;
+      });
+
+      // score
+      const scoreEl = form.querySelector('.quiz-score');
+      if (scoreEl) scoreEl.textContent = `Score : ${score}/${questions.length}`;
+
+      // petit message global si tout n'est pas répondu
+      if (answeredCount < questions.length){
+        // tu peux aussi afficher une alerte si tu veux
+      }
+    });
+
+    // reset
+    form.querySelector('.quiz-reset')?.addEventListener('click', () => {
+      form.reset();
+
+      form.querySelectorAll('.quiz-feedback').forEach(fb=>{
+        fb.classList.add('d-none');
+        fb.classList.remove('text-success','text-danger');
+        fb.textContent = '';
+      });
+
+      form.querySelectorAll('.quiz-explanation').forEach(exp=>{
+        exp.classList.add('d-none');
+      });
+
+      const questions = [...form.querySelectorAll('.quiz-q')];
+      const scoreEl = form.querySelector('.quiz-score');
+      if (scoreEl) scoreEl.textContent = `Score : 0/${questions.length}`;
+    });
+
+  });
+
+});
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,452 @@
+{# templates/formateur/contrat_sign.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Signature du contrat {{ contrat.numero }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+      --ink:#0f2336; --ink-2:#28435a; --muted:#6f8897;
+      --card:#ffffff; --card-2:#f8fbfe; --line:#e6eef5;
+      --radius:1.15rem; --ring:0 14px 48px rgba(15,35,54,.12);
+    }
+
+    body{ color:var(--ink); }
+    .section-card{
+      background:var(--card); border:1px solid var(--line);
+      border-radius:var(--radius); box-shadow:var(--ring);
+    }
+    .section-card .card-header{
+      background: linear-gradient(180deg, var(--card-2), var(--card));
+      border-bottom:1px solid var(--line);
+      border-top-left-radius:var(--radius);
+      border-top-right-radius:var(--radius);
+    }
+    .section-title{ font-weight:800; letter-spacing:.2px; }
+
+    .hero-sign{
+      position:relative; border-radius:var(--radius);
+      padding:1.5rem 1.75rem;
+      background:
+        radial-gradient(900px 500px at -10% -10%, color-mix(in oklab, var(--theme-color-secondaire) 40%, white 10%) 0%, transparent 60%),
+        radial-gradient(900px 500px at 110% -10%, color-mix(in oklab, var(--theme-color-principal) 70%, black 0%) 0%, transparent 60%),
+        linear-gradient(135deg, color-mix(in oklab, var(--theme-color-principal) 90%, black 6%), color-mix(in oklab, var(--theme-color-secondaire) 65%, white 6%));
+      color:#fff;
+      box-shadow:0 24px 60px rgba(0,0,0,.18);
+    }
+    .hero-sign h1{ font-weight:900; margin-bottom:.25rem; }
+    .hero-sign p{ margin-bottom:.2rem; opacity:.96; }
+
+    .soft-badge{
+      display:inline-flex; align-items:center; gap:.35rem;
+      border-radius:999px; padding:.25rem .6rem;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.35);
+      font-size:.8rem; font-weight:700;
+    }
+
+    .badge-status{
+      display:inline-flex; align-items:center; gap:.3rem;
+      padding:.18rem .55rem; border-radius:999px;
+      font-size:.8rem; font-weight:700;
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.4);
+    }
+
+    .contract-scroll{
+      max-height:420px; overflow:auto;
+      padding:1rem 1.2rem;
+      background:var(--card-2);
+      border-radius:.9rem;
+      border:1px solid var(--line);
+      font-size:.95rem;
+    }
+    .contract-scroll h2,
+    .contract-scroll h3,
+    .contract-scroll h4{
+      font-size:1rem; font-weight:700; margin-top:1rem;
+    }
+    .contract-scroll p{ margin-bottom:.5rem; }
+    .contract-scroll ul{ padding-left:1.2rem; }
+
+    #signatureCanvas{
+      display:block;
+      width:100% !important;
+      max-width:100%;
+      height:220px !important;
+      background:#fff;
+      border-radius:.75rem;
+      border:2px dashed var(--line);
+      cursor:crosshair;
+      touch-action:none;
+    }
+
+    .sig-helper{
+      font-size:.85rem; color:var(--muted);
+    }
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-3">
+
+  <div class="hero-sign mb-4">
+    <div class="row align-items-center g-3">
+      <div class="col-12 col-lg-8">
+        <h1 class="h4 mb-1">Signature du contrat formateur</h1>
+        <p class="mb-0">
+          Contrat <strong>{{ contrat.numero }}</strong> avec l’entité
+          <strong>{{ entite.nom ?? '-' }}</strong>.
+        </p>
+      </div>
+      <div class="col-12 col-lg-4 text-lg-end">
+        <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+          <span class="soft-badge">
+            <i class="bi bi-calendar3"></i>
+            Créé le {{ contrat.dateCreation ? contrat.dateCreation|date('d/m/Y') : '-' }}
+          </span>
+          <span class="soft-badge">
+            <i class="bi bi-person-badge"></i> Formateur
+          </span>
+          <span class="badge-status">
+            {% set statusName = contrat.status.name ?? contrat.status.value ?? contrat.status %}
+            Statut : {{ statusName|capitalize }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    {# ===== Partie texte contrat ===== #}
+    <div class="col-12 col-lg-7">
+      <div class="section-card h-100 mb-3">
+        <div class="card-header px-3 py-3">
+          <h5 class="section-title mb-0">Synthèse de la mission</h5>
+        </div>
+        <div class="card-body p-3 p-md-4">
+          {% set session = contrat.session %}
+          {% if session %}
+            {# Formation / client / lieu #}
+            <div class="mb-3">
+              <div class="small text-muted text-uppercase mb-1">Formation</div>
+              <div class="fw-semibold">
+                {{ session.formation.titre ?? session.formation.intitule ?? '-' }}
+              </div>
+              {% if session.clientEntreprise is defined and session.clientEntreprise %}
+                <div class="small text-muted">
+                  Client : <strong>{{ session.clientEntreprise.nom }}</strong>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <div class="small text-muted text-uppercase">Début de la session</div>
+                <div>
+                  {{ session.dateDebut ? session.dateDebut|date('d/m/Y H\\hi') : '-' }}
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="small text-muted text-uppercase">Fin de la session</div>
+                <div>
+                  {{ session.dateFin ? session.dateFin|date('d/m/Y H\\hi') : '-' }}
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="small text-muted text-uppercase">Lieu de la formation</div>
+              <div>
+                {{ session.lieu ?? session.site.nom ?? '-' }}
+              </div>
+            </div>
+
+            {# Calendrier détaillé jour par jour #}
+            <div class="mb-3">
+              <div class="small text-muted text-uppercase mb-1">Calendrier détaillé</div>
+              {% if session.jours is defined and session.jours|length > 0 %}
+                <ul class="list-unstyled small mb-0">
+                  {% for jour in session.jours %}
+                    <li class="d-flex justify-content-between">
+                      <span>
+                        • {{ jour.dateDebut|date('d/m/Y') }}
+                      </span>
+                      <span class="text-muted">
+                        {{ jour.dateDebut|date('H\\hi') }}
+                        → {{ jour.dateFin|date('H\\hi') }}
+                      </span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="small text-muted">Les jours de session seront précisés ultérieurement.</div>
+              {% endif %}
+            </div>
+
+            {# Stagiaires éventuellement #}
+            {% if session.inscriptions is defined and session.inscriptions|length > 0 %}
+              <div class="mb-3">
+                <div class="small text-muted text-uppercase mb-1">
+                  Stagiaires ({{ session.inscriptions|length }})
+                </div>
+                <ul class="small mb-0">
+                  {% for ins in session.inscriptions|slice(0, 5) %}
+                    <li>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}</li>
+                  {% endfor %}
+                  {% if session.inscriptions|length > 5 %}
+                    <li>… et {{ session.inscriptions|length - 5 }} autre(s)</li>
+                  {% endif %}
+                </ul>
+              </div>
+            {% endif %}
+
+            <hr class="my-3">
+
+            {# Bloc financier détaillé #}
+            {% set honoraires = (contrat.montantPrevuCents ?? 0) / 100 %}
+            {% set frais = (contrat.fraisMissionCents ?? 0) / 100 %}
+            {% set totalHt = honoraires + frais %}
+            {% set tva = (contrat.assujettiTva and contrat.tauxTva) ? (totalHt * contrat.tauxTva / 100) : 0 %}
+            {% set totalTtc = totalHt + tva %}
+
+            <div class="mb-2">
+              <div class="small text-muted text-uppercase mb-1">Conditions financières</div>
+              <div class="small">
+                <div>Honoraires pédagogiques : <strong>{{ honoraires|number_format(2, ',', ' ') }} € HT</strong></div>
+                <div>Frais de mission : <strong>{{ frais|number_format(2, ',', ' ') }} € HT</strong></div>
+                <div class="mt-1">
+                  Total HT : <strong>{{ totalHt|number_format(2, ',', ' ') }} €</strong>
+                </div>
+                {% if contrat.assujettiTva and contrat.tauxTva %}
+                  <div>
+                    TVA ({{ contrat.tauxTva|number_format(2, ',', ' ') }} %) :
+                    <strong>{{ tva|number_format(2, ',', ' ') }} €</strong>
+                  </div>
+                  <div>
+                    Total TTC : <strong>{{ totalTtc|number_format(2, ',', ' ') }} €</strong>
+                  </div>
+                {% else %}
+                  <div>TVA : <strong>Non applicable / exonéré</strong></div>
+                {% endif %}
+              </div>
+              {% if contrat.conditionsParticulieres %}
+                <div class="small text-muted mt-1">
+                  Conditions particulières : {{ contrat.conditionsParticulieres|raw }}
+                </div>
+              {% endif %}
+            </div>
+
+            {# Mini résumé des conditions du contrat #}
+            <div class="alert alert-light border small mb-0">
+              <div class="fw-semibold mb-1">Conditions principales du contrat</div>
+              <ul class="mb-0 ps-3">
+                <li>Mission d’animation de la formation décrite ci-dessus aux dates et horaires indiqués.</li>
+                <li>Respect des procédures Qualiopi de l’organisme (émargements, évaluations, bilan…).</li>
+                <li>Respect du règlement intérieur et des consignes de sécurité du lieu d’intervention.</li>
+                <li>Confidentialité sur les données des stagiaires, du client et de l’organisme.</li>
+                <li>Le formateur atteste être couvert par une assurance responsabilité civile professionnelle.</li>
+                <li>En cas de modification majeure (dates, lieu, contenu), un avenant pourra être établi.</li>
+              </ul>
+              <div class="mt-2 text-muted">
+                Le détail complet des conditions figure dans le contrat PDF joint.
+              </div>
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">
+              Aucune session liée au contrat.
+            </p>
+          {% endif %}
+        </div>
+
+      </div>
+
+    </div>
+
+    {# ===== Partie signature ===== #}
+    <div class="col-12 col-lg-5">
+      <div class="section-card h-100">
+        <div class="card-header px-3 py-3 d-flex justify-content-between align-items-center">
+          <h5 class="section-title mb-0">Signature électronique</h5>
+          <a href="{{ path('app_formateur_contrats', { entite: entite.id }) }}"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+        </div>
+
+        <div class="card-body p-3 p-md-4">
+          {% if contrat.signatureDataUrl and contrat.status.name|lower == 'signe' %}
+            <p class="text-success fw-semibold mb-2">
+              <i class="bi bi-check-circle"></i>
+              Ce contrat a déjà été signé le
+              {{ contrat.signatureAt ? contrat.signatureAt|date('d/m/Y H:i') : '-' }}.
+            </p>
+
+            <div class="mb-3">
+              <div class="sig-helper mb-1">
+                Aperçu de votre signature enregistrée :
+              </div>
+              <img src="{{ contrat.signatureDataUrl }}"
+                   alt="Signature enregistrée"
+                   class="img-fluid border rounded">
+            </div>
+          {% endif %}
+
+          <form
+              method="post"
+              action="{{ path('app_formateur_contrat_sign_post', { entite: entite.id, contrat: contrat.id }) }}"
+              id="form-signature"
+            >
+              <input type="hidden" name="signature_data" id="signature_data">
+              <input type="hidden" name="use_saved_signature" id="use_saved_signature" value="0">
+
+              {% if hasSavedSignature is defined and hasSavedSignature %}
+                <div class="alert alert-info py-2 small">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      Une signature est déjà enregistrée pour votre profil.
+                      Vous pouvez l’utiliser pour signer automatiquement ce contrat.
+                    </div>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            id="btnUseSavedSignature">
+                      <i class="bi bi-check2-circle"></i>
+                      Signer avec ma signature enregistrée
+                    </button>
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="mb-2 sig-helper">
+                Signez dans la zone ci-dessous avec votre souris ou votre doigt (sur mobile).
+              </div>
+              <div class="mb-3">
+                <canvas id="signatureCanvas"></canvas>
+              </div>
+
+              <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" role="switch"
+                      id="saveSignatureDefault" name="save_signature_default" value="1">
+                <label class="form-check-label small" for="saveSignatureDefault">
+                  Enregistrer cette signature comme signature par défaut pour mes prochains contrats
+                </label>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearSignature">
+                  <i class="bi bi-eraser"></i> Effacer
+                </button>
+                <div class="sig-helper">
+                  Votre adresse IP et votre navigateur seront enregistrés
+                  (IP : {{ app.request.clientIp ?? '-' }})
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-success w-100" id="btnSubmitSignature">
+                <i class="bi bi-check-circle"></i>
+                Valider ma signature
+              </button>
+            </form>
+
+        </div>
+
+        {% if contrat.pdfPath %}
+          <div class="card-footer d-flex justify-content-between align-items-center px-3 py-3">
+            <span class="text-muted small">
+              Un PDF est disponible pour ce contrat.
+            </span>
+            <a href="{{ asset(contrat.pdfPath) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-file-earmark-pdf"></i> Ouvrir le PDF
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.2.0/dist/signature_pad.umd.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const canvas = document.getElementById('signatureCanvas');
+      const inputHidden = document.getElementById('signature_data');
+      const form = document.getElementById('form-signature');
+      const btnClear = document.getElementById('btnClearSignature');
+      const btnSubmit = document.getElementById('btnSubmitSignature');
+      const btnUseSaved = document.getElementById('btnUseSavedSignature');
+      const inputUseSaved = document.getElementById('use_saved_signature');
+
+      if (!canvas || !window.SignaturePad) {
+        console.error('SignaturePad non disponible');
+        return;
+      }
+
+      function resizeCanvas(){
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width  = rect.width * ratio;
+        canvas.height = 220 * ratio;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(ratio, ratio);
+      }
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      const signaturePad = new SignaturePad(canvas, {
+        minWidth: 0.5,
+        maxWidth: 2.5,
+        backgroundColor: 'rgb(255,255,255)'
+      });
+
+      btnClear?.addEventListener('click', function(e){
+        e.preventDefault();
+        signaturePad.clear();
+        inputHidden.value = '';
+        if (inputUseSaved) {
+          inputUseSaved.value = '0';
+        }
+      });
+
+      // Utilisation de la signature enregistrée
+      btnUseSaved?.addEventListener('click', function(e){
+        e.preventDefault();
+        // On ne dessine rien dans le canvas, on dit juste au backend "utilise la signature par défaut"
+        if (inputUseSaved) {
+          inputUseSaved.value = '1';
+        }
+        // On peut soumettre directement le formulaire :
+        form.submit();
+      });
+
+      form?.addEventListener('submit', function(e){
+        // Si on n'a pas demandé l'utilisation de la signature enregistrée,
+        // on exige une signature dessinée
+        if (inputUseSaved && inputUseSaved.value === '1') {
+          return; // laisse partir
+        }
+
+        if (signaturePad.isEmpty()) {
+          e.preventDefault();
+          alert('Merci de signer le contrat avant de valider.');
+          return;
+        }
+        inputHidden.value = signaturePad.toDataURL('image/png');
+      });
+    });
+  </script>
+{% endblock %}
+

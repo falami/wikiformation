@@ -1,0 +1,1732 @@
+{# templates/administrateur/prospects/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% set is_edit = (prospect is defined and prospect and prospect.id) %}
+
+{% block title %}{{ is_edit ? 'Modification' : 'Ajout' }} d’un prospect{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      flex: 0 0 auto;
+    }
+
+    /* ✅ Chips HERO (comme session) */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium (mêmes classes) ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* ===== Form polish ===== */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+      min-height: 44px;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* TomSelect polish + FIX dropdown */
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+      min-height: 44px !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown{ z-index: 9999 !important; }
+    .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
+    .card, .card-body, .container, .container-fluid, .cardx, .cardx *{ overflow: visible; }
+
+    /* ===== Sticky actions (col droite) ===== */
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+
+    /* ===== Soft blocks (switch style) ===== */
+    .soft-box{
+      border-radius: 16px;
+      border: 1px dashed rgba(15,35,54,.18);
+      background: rgba(248,251,254,.75);
+      padding: 1rem;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+
+    /* ===== MODAL PREMIUM ===== */
+.modal-premium{
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(15,23,42,.18);
+}
+.premium-header{
+  background:
+    radial-gradient(900px 260px at 0% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 20%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 68%, #fff 32%)
+    );
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.14);
+}
+.premium-icon{
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 12px 30px rgba(0,0,0,.12);
+}
+.premium-icon i{ font-size: 1.25rem; color: var(--theme-color-secondaire); }
+
+.premium-pill{
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.18);
+  color: #fff;
+}
+.premium-pill2{
+  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(15,23,42,.10));
+  color: var(--ink);
+}
+
+.premium-block{
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+  padding: 1rem;
+}
+.input-group-premium .input-group-text{
+  border-radius: 14px 0 0 14px;
+  border-color: var(--stroke);
+  background: rgba(248,251,254,.75);
+}
+.input-group-premium .form-control{
+  border-left: 0;
+}
+.input-group-premium .btn{
+  border-radius: 0 14px 14px 0;
+}
+
+.premium-preview{
+  position: sticky;
+  top: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: rgba(248,251,254,.75);
+  padding: 1rem;
+}
+.preview-card{
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  padding: 1rem;
+  box-shadow: 0 12px 35px rgba(15,23,42,.08);
+}
+.logo-skeleton{
+  width: 54px; height: 54px;
+  border-radius: 16px;
+  display:flex; align-items:center; justify-content:center;
+  border: 1px solid var(--stroke);
+  background: linear-gradient(135deg, rgba(255,193,7,.18), rgba(35,51,66,.04));
+}
+.logo-skeleton i{ font-size: 1.35rem; color: color-mix(in srgb, var(--theme-color-principal) 70%, #000 30%); }
+.preview-title{ font-weight: 900; color: var(--ink); letter-spacing: -.01em; }
+.preview-sub{ color: var(--muted); margin-top: .15rem; }
+.preview-meta{ display:flex; flex-wrap: wrap; gap: .4rem; }
+.tag{
+  display:inline-flex; align-items:center; gap:.35rem;
+  padding: .22rem .55rem;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: rgba(15,23,42,.03);
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mini-map{
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  overflow: hidden;
+  background: #fff;
+  min-height: 220px;
+}
+.mini-map-placeholder{
+  height: 220px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.5rem;
+  color: var(--muted);
+  background: linear-gradient(180deg, rgba(0,0,0,.02), transparent);
+}
+.mini-map-placeholder i{ color: var(--theme-color-secondaire); }
+
+.premium-footer{
+  border-top: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  backdrop-filter: blur(10px);
+}
+.btn-premium{
+  border-radius: 14px;
+  font-weight: 900;
+  padding: .65rem 1rem;
+}
+
+
+/* Dropdown Google Places au-dessus Bootstrap modal */
+.pac-container{
+  z-index: 10650 !important; /* > 1055 (modal) */
+  border-radius: 14px;
+  box-shadow: 0 18px 55px rgba(15,23,42,.18);
+  border: 1px solid rgba(15,23,42,.10);
+}
+.pac-item{ padding: .5rem .75rem; }
+.pac-item:hover{ background: rgba(15,23,42,.04); }
+
+
+/* ===== SCORE SLIDER ULTRA PREMIUM ===== */
+.score-premium{
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: .95rem;
+  background:
+    radial-gradient(900px 200px at 10% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent),
+      transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.012), transparent);
+  box-shadow: 0 12px 35px rgba(15,23,42,.06);
+}
+
+.score-pill{
+  border: 1px solid var(--stroke);
+  background: rgba(255,193,7,.14);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.score-track{
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(15,23,42,.06);
+  border: 1px solid rgba(15,23,42,.10);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+  margin-bottom: .6rem;
+}
+
+.score-fill{
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--theme-color-principal) 70%, #000 30%),
+    var(--theme-color-secondaire)
+  );
+  box-shadow: 0 10px 25px color-mix(in srgb, var(--theme-color-secondaire) 22%, transparent);
+}
+
+.score-bubble{
+  position: absolute;
+  top: -38px;
+  left: 0%;
+  transform: translateX(-50%);
+  padding: .25rem .55rem;
+  border-radius: 999px;
+  font-size: .82rem;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(15,23,42,.92);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 12px 30px rgba(0,0,0,.18);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.score-bubble::after{
+  content:"";
+  position:absolute;
+  left: 50%;
+  bottom: -7px;
+  transform: translateX(-50%);
+  width: 12px; height: 12px;
+  background: rgba(15,23,42,.92);
+  border-left: 1px solid rgba(255,255,255,.12);
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.score-range{
+  width: 100%;
+  margin: 0;
+  height: 22px;
+  background: transparent;
+}
+
+/* Webkit thumb */
+.score-range::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--theme-color-secondaire);
+  box-shadow: 0 12px 28px rgba(15,23,42,.18);
+  cursor: pointer;
+}
+.score-range::-webkit-slider-runnable-track{
+  height: 14px;
+  background: transparent; /* on utilise score-track */
+}
+
+/* Firefox thumb */
+.score-range::-moz-range-thumb{
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--theme-color-secondaire);
+  box-shadow: 0 12px 28px rgba(15,23,42,.18);
+  cursor: pointer;
+}
+.score-range::-moz-range-track{
+  height: 14px;
+  background: transparent;
+}
+
+.score-ticks{
+  display:flex;
+  gap: .75rem;
+  opacity: .9;
+}
+.score-number{
+  border-radius: 12px;
+  font-weight: 800;
+}
+.score-scale{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+
+  /* important : on “rentre” un peu pour compenser la largeur du thumb */
+  padding: 0 11px; /* = 22px thumb / 2 */
+  user-select:none;
+}
+.score-scale span{ line-height:1; }
+
+
+
+
+/* ===== Switch rows (même style que session/form) ===== */
+.switch-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 1rem;
+  padding:.8rem .9rem;
+  border-radius:14px;
+  border:1px solid rgba(15,35,54,.08);
+  background:#fff;
+}
+.switch-row + .switch-row{ margin-top:.65rem; }
+.switch-row .title{ font-weight:700; line-height:1.15; }
+.switch-row .desc{
+  margin-top:.25rem;
+  font-size:.85rem;
+  color:#6b7280;
+}
+.switch-row .form-check.form-switch{ margin:0; }
+.switch-row .form-check-input{ width:2.6em; height:1.35em; }
+.switch-row .form-check-input:checked{
+  background-color: var(--theme-color-secondaire);
+  border-color: var(--theme-color-secondaire);
+}
+
+/* petit état "désactivé" propre */
+.switch-row.is-disabled{
+  opacity:.65;
+  filter:saturate(.9);
+}
+.switch-row.is-disabled .title{
+  text-decoration: line-through;
+}
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO ===== #}
+  {# ===== HERO (comme session) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-funnel me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ is_edit ? 'Modifier' : 'Créer' }} un prospect
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Contact, statut, relances et conversion vers devis.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-funnel"></i> Prospection</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="bi bi-pencil-square"></i> {{ is_edit ? 'Modification' : 'Création' }}</span>
+
+            {% if is_edit %}
+              <span class="chip"><i class="bi bi-hash"></i> #{{ prospect.id }}</span>
+            {% endif %}
+
+            <span class="chip chip--pill">
+              <i class="bi bi-clock-history"></i>
+              <span id="hero-last-refresh">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_prospect_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          {% if is_edit %}
+            <a class="btn btn-light btn-sm fw-semibold"
+              href="{{ path('app_administrateur_devis_new', { entite: entite.id, destinataire: prospect.id }) }}">
+              <i class="bi bi-file-earmark-text me-1"></i> Créer un devis
+            </a>
+
+            <form method="post"
+                  action="{{ path('app_administrateur_prospect_convert', { entite: entite.id, id: prospect.id }) }}"
+                  onsubmit="return confirm('Convertir ce prospect en client ? Les devis seront rattachés.');"
+                  class="d-inline">
+              <input type="hidden" name="_token" value="{{ csrf_token('convert_prospect_' ~ prospect.id) }}">
+              <button class="btn btn-success btn-sm fw-semibold" type="submit"
+                      {% if not prospect.email %}disabled{% endif %}>
+                <i class="bi bi-arrow-repeat me-1"></i>
+                Convertir en client
+              </button>
+            </form>
+          {% endif %}
+
+          <button form="prospectForm" type="submit" class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-check2 me-1"></i> Enregistrer
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, { attr: { novalidate: 'novalidate', id: 'prospectForm' } }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ====================== COL LEFT ====================== #}
+    <div class="col-lg-8">
+
+      {# ===== IDENTITÉ ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-person-vcard text-warning"></i> Identité</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            {# --- Civilité + Nom/Prénom --- #}
+            {% if form.civilite is defined %}<div class="col-12 col-md-3">{{ form_row(form.civilite) }}</div>{% endif %}
+            {% if form.prenom is defined %}<div class="col-12 col-md-4">{{ form_row(form.prenom) }}</div>{% endif %}
+            {% if form.nom is defined %}<div class="col-12 col-md-5">{{ form_row(form.nom) }}</div>{% endif %}
+
+            {% if form.email is defined %}<div class="col-12 col-md-6">{{ form_row(form.email) }}</div>{% endif %}
+            {% if form.telephone is defined %}<div class="col-12 col-md-6">{{ form_row(form.telephone) }}</div>{% endif %}
+
+            {% if form.poste is defined %}<div class="col-12 col-md-6">{{ form_row(form.poste) }}</div>{% endif %}
+
+            {# --- Adresse complète --- #}
+            {% if form.adresse is defined or form.complement is defined or form.codePostal is defined or form.departement is defined or form.region is defined %}
+              <div class="col-12">
+                <div class="soft-box">
+                  <div class="fw-semibold mb-2"><i class="bi bi-geo-alt me-2"></i>Adresse</div>
+                  <div class="row g-3">
+                    {% if form.adresse is defined %}<div class="col-12">{{ form_row(form.adresse) }}</div>{% endif %}
+                    {% if form.complement is defined %}<div class="col-12">{{ form_row(form.complement) }}</div>{% endif %}
+
+                    {% if form.codePostal is defined %}<div class="col-12 col-md-4">{{ form_row(form.codePostal) }}</div>{% endif %}
+                    {% if form.ville is defined %}<div class="col-12 col-md-8">{{ form_row(form.ville) }}</div>{% endif %}
+
+                    {% if form.departement is defined %}<div class="col-12 col-md-6">{{ form_row(form.departement) }}</div>{% endif %}
+                    {% if form.region is defined %}<div class="col-12 col-md-6">{{ form_row(form.region) }}</div>{% endif %}
+
+                    {% if form.pays is defined %}<div class="col-12 col-md-6">{{ form_row(form.pays) }}</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              {# fallback si tu n'as pas ces champs dans ce form #}
+              {% if form.ville is defined %}<div class="col-12 col-md-6">{{ form_row(form.ville) }}</div>{% endif %}
+              {% if form.pays is defined %}<div class="col-12 col-md-6">{{ form_row(form.pays) }}</div>{% endif %}
+            {% endif %}
+          </div>
+
+          <div class="form-text mt-2">Ces infos seront reprises automatiquement lors de la création d’un devis.</div>
+        </div>
+      </div>
+
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Entreprise</h5>
+          <span class="chip">Étape 2</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+
+            {# ✅ select entreprise + bouton modal #}
+            <div class="col-12">
+              <div class="d-flex align-items-end gap-2">
+                <div class="flex-grow-1">
+                  {{ form_row(form.linkedEntreprise) }}
+                </div>
+
+                <button type="button" class="btn btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#modal-new-entreprise"
+                        title="Créer une entreprise">
+                  <i class="bi bi-plus"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+
+      {# ===== PROSPECTION ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-funnel text-warning"></i> Prospection</h5>
+          <span class="chip">Étape 3</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            {% if form.status is defined %}
+              <div class="col-12 col-md-4">
+                {{ form_row(form.status, { attr: { class: (form.status.vars.attr.class|default('') ~ ' js-ts')|trim } }) }}
+              </div>
+            {% endif %}
+            {% if form.source is defined %}
+              <div class="col-12 col-md-4">
+                {{ form_row(form.source, { attr: { class: (form.source.vars.attr.class|default('') ~ ' js-ts')|trim } }) }}
+              </div>
+            {% endif %}
+            {% if form.nextActionAt is defined %}
+              <div class="col-12 col-md-4">
+                {{ form_row(form.nextActionAt, {
+                  attr: {
+                    class: (form.nextActionAt.vars.attr.class|default('') ~ ' js-flatpickr-dt')|trim,
+                    placeholder: 'JJ/MM/AAAA HH:MM',
+                    autocomplete: 'off'
+                  }
+                }) }}
+              </div>
+            {% endif %}
+
+            {% if form.score is defined %}
+            <div class="col-12">
+              <label class="form-label d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-speedometer2 text-warning me-1"></i> {{ form.score.vars.label|default('Score') }}</span>
+                <span class="badge rounded-pill px-3 py-2 score-pill" id="scorePill">—</span>
+              </label>
+
+              <div class="score-premium" data-min="0" data-max="100">
+                <div class="score-track">
+                  <div class="score-fill" id="scoreFill"></div>
+                  <div class="score-bubble" id="scoreBubble">0</div>
+                </div>
+
+                {% set scoreId = form.score.vars.id %}
+
+                {{ form_widget(form.score, {
+                  attr: {
+                    id: scoreId,
+                    class: (form.score.vars.attr.class|default('') ~ ' score-range')|trim
+                  }
+                }) }}
+
+                <div class="score-scale small text-muted mt-2">
+                  <span>0</span>
+                  <span>25</span>
+                  <span>50</span>
+                  <span>75</span>
+                  <span>100</span>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 mt-3">
+                  <div class="small text-muted">Valeur</div>
+                  <input type="number"
+                        class="form-control form-control-sm score-number"
+                        id="scoreNumber"
+                        min="0" max="100" step="1"
+                        style="max-width:110px;">
+                  <div class="ms-auto small text-muted">
+                    {{ form_help(form.score) }}
+                  </div>
+                </div>
+
+                {{ form_errors(form.score) }}
+              </div>
+            </div>
+          {% endif %}
+            {% if form.estimatedValueCents is defined %}
+              <div class="col-12 col-md-8">
+                {{ form_label(form.estimatedValueCents) }}
+                <div class="input-group input-euro">
+                  {{ form_widget(form.estimatedValueCents, { attr: { class: 'form-control text-end' } }) }}
+                  <span class="input-group-text euro-suffix" id="prospect-devise-suffix">€</span>
+                </div>
+                {{ form_errors(form.estimatedValueCents) }}
+                {{ form_help(form.estimatedValueCents) }}
+              </div>
+            {% endif %}
+
+            {% if form.devise is defined %}
+              <div class="col-12 col-md-4">
+                {{ form_row(form.devise) }}
+              </div>
+            {% endif %}
+
+            {% if form.isActive is defined %}
+              <div class="col-12">
+                <div class="soft-box">
+                  <div class="switch-row" id="wrap-prospect-active">
+                    <div class="flex-grow-1">
+                      <div class="title">Prospect actif</div>
+                      <div class="desc">
+                        Désactive-le si le prospect est “clos” (perdu / non pertinent) afin de nettoyer tes relances.
+                      </div>
+
+                      <div class="small text-muted mt-2 d-none" id="hint-prospect-closed">
+                        <i class="bi bi-lock-fill me-1"></i> Statut “clos” : le prospect est automatiquement marqué inactif.
+                      </div>
+                    </div>
+
+                    <div class="form-check form-switch">
+                      {{ form_widget(form.isActive, { attr: { class: 'form-check-input', id: form.isActive.vars.id } }) }}
+                    </div>
+                  </div>
+
+                  {{ form_errors(form.isActive) }}
+                </div>
+              </div>
+            {% endif %}
+
+
+
+            {% if form.notes is defined %}
+              <div class="col-12">{{ form_row(form.notes) }}</div>
+            {% endif %}
+          </div>
+
+          {% if is_edit %}
+            <hr class="my-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <a class="btn btn-outline-primary fw-semibold"
+                 href="{{ path('app_administrateur_devis_new', { entite: entite.id, destinataire: prospect.id }) }}">
+                <i class="bi bi-file-earmark-text"></i> Créer un devis
+              </a>
+              <a class="btn btn-outline-secondary fw-semibold"
+                 href="{{ path('app_administrateur_prospect_show', { entite: entite.id, prospect: prospect.id }) }}">
+                <i class="bi bi-activity"></i> Timeline / interactions
+              </a>
+              <div class="ms-auto small text-muted">
+                Astuce : mets une <strong>prochaine action</strong> pour alimenter ton dashboard.
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+
+      
+
+      {# ===== Actions bas ===== #}
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <a href="{{ path('app_administrateur_prospect_index', { entite: entite.id }) }}" class="btn btn-secondary">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+        <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
+          <i class="bi bi-check"></i> {{ is_edit ? 'Modifier & Terminer' : 'Créer & Terminer' }}
+        </button>
+      </div>
+
+    </div>
+
+    {# ====================== COL RIGHT ====================== #}
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+
+          <div class="border rounded-4 p-3 mb-3"
+               style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Prospect</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Nom</span>
+                <span class="fw-semibold text-end" id="resume-nom">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Email</span>
+                <span class="fw-semibold text-end" id="resume-email">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Téléphone</span>
+                <span class="fw-semibold text-end" id="resume-tel">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Adresse</span>
+                <span class="fw-semibold text-end" id="resume-adresse">—</span>
+              </div>
+
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Statut</span>
+                <span class="fw-semibold text-end" id="resume-status">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Source</span>
+                <span class="fw-semibold text-end" id="resume-source">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Prochaine action</span>
+                <span class="fw-semibold text-end" id="resume-next">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Actif</span>
+                <span class="fw-semibold text-end" id="resume-active">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a class="btn btn-light w-50" href="{{ path('app_administrateur_prospect_index', { entite: entite.id }) }}">Annuler</a>
+            <button type="submit" class="btn btn-gradient w-50" id="btnRightSubmit">
+              <i class="bi bi-check"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> nom + email + statut.
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-check2"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+
+
+
+ {# ===== MODAL ULTRA PREMIUM : NEW ENTREPRISE + GOOGLE PLACES ===== #}
+<div class="modal fade" id="modal-new-entreprise" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content modal-premium">
+      <form id="form-new-entreprise" novalidate>
+        <div class="modal-header premium-header">
+          <div class="d-flex align-items-center gap-3">
+            <div class="premium-icon">
+              <i class="bi bi-buildings"></i>
+            </div>
+            <div>
+              <h5 class="modal-title m-0">Nouvelle entreprise</h5>
+              <div class="text-muted small">Recherche Google + auto-remplissage • puis création & association au prospect</div>
+            </div>
+          </div>
+
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-4">
+            {# ===== Col gauche: recherche + form ===== #}
+            <div class="col-lg-7">
+              <div class="premium-block mb-3">
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                  <div class="fw-bold">
+                    <i class="bi bi-google me-2 text-warning"></i> Recherche Google
+                  </div>
+                  <span class="badge rounded-pill premium-pill">
+                    <i class="bi bi-magic me-1"></i> Auto-remplissage
+                  </span>
+                </div>
+
+                <div class="mt-3">
+                  <label class="form-label">Entreprise (Google Places)</label>
+                  <div class="input-group input-group-premium">
+                    <span class="input-group-text">
+                      <i class="bi bi-search"></i>
+                    </span>
+                    <input
+                      type="text"
+                      id="entreprise-google-search"
+                      class="form-control"
+                      placeholder="Ex : 'Orange Montpellier', 'WIKI Formation'..."
+                      autocomplete="off"
+                      spellcheck="false"
+                    >
+                    <button class="btn btn-outline-secondary" type="button" id="btn-clear-place" title="Réinitialiser">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                  <div class="form-text mt-2">
+                    Sélectionne un résultat pour remplir l’adresse automatiquement. Le SIRET reste manuel.
+                  </div>
+                </div>
+              </div>
+
+              <div class="premium-block">
+                <div class="fw-bold mb-3"><i class="bi bi-pencil-square me-2 text-warning"></i> Informations</div>
+
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Raison sociale *</label>
+                    <input type="text" name="raisonSociale" id="entreprise-raison" class="form-control" required>
+                    <div class="invalid-feedback">Raison sociale obligatoire.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">SIRET</label>
+                    <input type="text" name="siret" id="entreprise-siret" class="form-control" placeholder="14 chiffres">
+                    <div class="form-text">Google ne fournit pas le SIRET.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">N° TVA (optionnel)</label>
+                    <input type="text" name="numeroTVA" id="entreprise-tva" class="form-control" placeholder="FRxx…">
+                  </div>
+
+                  <div class="col-md-12">
+                    <label class="form-label">Email facturation</label>
+                    <input type="email" name="emailFacturation" id="entreprise-emailFacturation" class="form-control" placeholder="facturation@entreprise.fr">
+                  </div>
+
+                  <div class="col-12">
+                    <label class="form-label">Adresse</label>
+                    <input type="text" name="adresse" id="entreprise-adresse" class="form-control" placeholder="Rue, numéro…">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label">Code postal</label>
+                    <input type="text" name="codePostal" id="entreprise-cp" class="form-control" inputmode="numeric">
+                  </div>
+
+                  <div class="col-md-8">
+                    <label class="form-label">Ville</label>
+                    <input type="text" name="ville" id="entreprise-ville" class="form-control">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">Pays</label>
+                    <input type="text" name="pays" id="entreprise-pays" class="form-control" placeholder="France">
+                  </div>
+
+
+                  {# Hidden (utile si tu veux logger / retrouver le place_id) #}
+                  <input type="hidden" name="googlePlaceId" id="entreprise-place-id">
+                  <input type="hidden" name="googleFormattedAddress" id="entreprise-formatted-address">
+                </div>
+              </div>
+
+              <div class="alert alert-danger d-none mt-3" id="new-entreprise-error"></div>
+              <div class="alert alert-success d-none mt-3" id="new-entreprise-success">
+                <i class="bi bi-check-circle me-1"></i> Entreprise prête à être créée.
+              </div>
+            </div>
+
+            {# ===== Col droite: preview premium ===== #}
+            <div class="col-lg-5">
+              <div class="premium-preview">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div class="fw-bold"><i class="bi bi-eye me-2 text-warning"></i> Aperçu</div>
+                  <span class="badge rounded-pill premium-pill2">
+                    <i class="bi bi-shield-check me-1"></i> Vérifie avant création
+                  </span>
+                </div>
+
+                <div class="preview-card mt-3">
+                  <div class="d-flex align-items-start gap-3">
+                    <div class="logo-skeleton" id="entreprise-logo">
+                      <i class="bi bi-building"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                      <div class="preview-title" id="preview-raison">—</div>
+                      <div class="preview-sub" id="preview-address">—</div>
+                      <div class="preview-meta mt-2">
+                        <span class="tag" id="preview-cpville">—</span>
+                        <span class="tag" id="preview-pays">—</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr class="my-3">
+
+                  <div class="row g-2 small">
+                    <div class="col-6">
+                      <div class="text-muted">SIRET</div>
+                      <div class="fw-semibold" id="preview-siret">—</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="text-muted">Email facturation</div>
+                      <div class="fw-semibold text-truncate" id="preview-email">—</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mini-map mt-3" id="entreprise-mini-map">
+                  <div class="mini-map-placeholder">
+                    <i class="bi bi-geo-alt"></i>
+                    <span class="small">Sélectionne une entreprise pour afficher l’emplacement</span>
+                  </div>
+                </div>
+
+                <div class="form-text mt-3">
+                  Astuce : tu peux rechercher “Nom + Ville” pour des résultats plus propres.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer premium-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            Annuler
+          </button>
+          <button type="submit" class="btn btn-primary btn-premium">
+            <i class="bi bi-save me-1"></i> Créer & associer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+  {{ form_end(form) }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const deviseId = {{ (form.devise is defined ? form.devise.vars.id : '')|json_encode|raw }};
+  const deviseEl = deviseId ? document.getElementById(deviseId) : null;
+
+  const suffixEl = document.getElementById('prospect-devise-suffix');
+
+  function currencySymbol(code){
+    if (!code) return '€';
+    try{
+      const parts = new Intl.NumberFormat('fr-FR', { style:'currency', currency: code }).formatToParts(1);
+      const sym = parts.find(p => p.type === 'currency')?.value;
+      return sym || code;
+    }catch(e){
+      return code;
+    }
+  }
+
+  function refreshSuffix(){
+    if (!deviseEl || !suffixEl) return;
+    suffixEl.textContent = currencySymbol(deviseEl.value);
+  }
+
+  // ✅ si TomSelect est déjà initialisé chez toi, ça marche pareil :
+  deviseEl?.addEventListener('change', refreshSuffix);
+  refreshSuffix();
+});
+</script>
+
+{# ================== JS (TomSelect + Flatpickr + résumé live) ================== #}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  function getEl(id){ return id ? document.getElementById(id) : null; }
+
+  // IDs safe (évite les soucis de guillemets)
+  const idPrenom = {{ form.prenom is defined ? form.prenom.vars.id|json_encode|raw : 'null' }};
+  const idNom    = {{ form.nom is defined ? form.nom.vars.id|json_encode|raw : 'null' }};
+  const idEmail  = {{ form.email is defined ? form.email.vars.id|json_encode|raw : 'null' }};
+  const idTel    = {{ form.telephone is defined ? form.telephone.vars.id|json_encode|raw : 'null' }};
+  const idCivilite = {{ form.civilite is defined ? form.civilite.vars.id|json_encode|raw : 'null' }};
+  const idAdresse  = {{ form.adresse is defined ? form.adresse.vars.id|json_encode|raw : 'null' }};
+  const idCp       = {{ form.codePostal is defined ? form.codePostal.vars.id|json_encode|raw : 'null' }};
+  const idVille    = {{ form.ville is defined ? form.ville.vars.id|json_encode|raw : 'null' }};
+
+  const idStatus = {{ form.status is defined ? form.status.vars.id|json_encode|raw : 'null' }};
+  const idSource = {{ form.source is defined ? form.source.vars.id|json_encode|raw : 'null' }};
+  const idNext   = {{ form.nextActionAt is defined ? form.nextActionAt.vars.id|json_encode|raw : 'null' }};
+  const idActive = {{ form.isActive is defined ? form.isActive.vars.id|json_encode|raw : 'null' }};
+  const idDevise = {{ form.devise is defined ? form.devise.vars.id|json_encode|raw : 'null' }};
+  const idPoste  = {{ form.poste  is defined ? form.poste.vars.id|json_encode|raw  : 'null' }};
+
+  const prenomEl = getEl(idPrenom);
+  const nomEl    = getEl(idNom);
+  const emailEl  = getEl(idEmail);
+  const telEl    = getEl(idTel);
+  const civiliteEl = getEl(idCivilite);
+  const adresseEl  = getEl(idAdresse);
+  const cpEl       = getEl(idCp);
+  const ville2El   = getEl(idVille);
+
+  const statusEl = getEl(idStatus);
+  const sourceEl = getEl(idSource);
+  const nextEl   = getEl(idNext);
+  const activeEl = getEl(idActive); 
+  const posteEl  = getEl(idPoste);
+  const deviseEl = getEl(idDevise);
+
+  
+
+
+
+
+  // Résumé DOM
+  const $r = {
+    pill:   document.getElementById('resume-valid-pill'),
+    nom:    document.getElementById('resume-nom'),
+    email:  document.getElementById('resume-email'),
+    tel:    document.getElementById('resume-tel'),
+    status: document.getElementById('resume-status'),
+    source: document.getElementById('resume-source'),
+    next:   document.getElementById('resume-next'),
+    active: document.getElementById('resume-active'),
+    adresse: document.getElementById('resume-adresse'),
+  };
+
+  function selectedText(selectEl){
+    if (!selectEl) return '';
+    if (selectEl.tomselect) {
+      const v = selectEl.tomselect.getValue();
+      if (!v) return '';
+      return (selectEl.tomselect.options[v]?.text || '').trim();
+    }
+    const opt = selectEl.options?.[selectEl.selectedIndex];
+    return opt ? (opt.textContent || '').trim() : '';
+  }
+
+  // TomSelect (1 item)
+  function initTom(el){
+    if (!el || el.tomselect) return;
+    new TomSelect(el, {
+      dropdownParent: 'body',
+      create: false,
+      allowEmptyOption: true,
+      maxItems: 1,
+      plugins: ['clear_button']
+    });
+  }
+
+  initTom(deviseEl);
+  initTom(posteEl);
+  initTom(statusEl);
+  initTom(sourceEl);
+
+  // Flatpickr date+heure
+  if (window.flatpickr) {
+    flatpickr.localize(flatpickr.l10ns.fr);
+    if (nextEl && !nextEl._flatpickr) {
+      flatpickr(nextEl, {
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "d/m/Y H:i",
+        allowInput: true,
+        disableMobile: true
+      });
+    }
+  }
+
+  function refreshResume(){
+    const civ = selectedText(civiliteEl) || '';
+    const fullName = `${civ ? civ + ' ' : ''}${(prenomEl?.value||'').trim()} ${(nomEl?.value||'').trim()}`.trim();
+
+
+    if ($r.nom) $r.nom.textContent = fullName || '—';
+    if ($r.email) $r.email.textContent = (emailEl?.value||'').trim() || '—';
+    if ($r.tel) $r.tel.textContent = (telEl?.value||'').trim() || '—';
+
+    if ($r.status) $r.status.textContent = selectedText(statusEl) || '—';
+    if ($r.source) $r.source.textContent = selectedText(sourceEl) || '—';
+    if ($r.next)   $r.next.textContent   = (nextEl?.value||'').trim() || '—';
+    if ($r.active) $r.active.textContent = activeEl ? (activeEl.checked ? 'Oui' : 'Non') : '—';
+
+    if ($r.nom) $r.nom.textContent = fullName || '—';
+    if ($r.email) $r.email.textContent = (emailEl?.value||'').trim() || '—';
+    if ($r.tel) $r.tel.textContent = (telEl?.value||'').trim() || '—';
+
+
+    // complétude minimale
+    const ok = !!((nomEl?.value||'').trim()) && !!((emailEl?.value||'').trim()) && !!(selectedText(statusEl));
+    const adr = (adresseEl?.value||'').trim();
+    const cp  = (cpEl?.value||'').trim();
+    const vil = (ville2El?.value||'').trim();
+    const adrLine = [adr, [cp, vil].filter(Boolean).join(' ')].filter(Boolean).join(' — ');
+    if ($r.adresse) $r.adresse.textContent = adrLine || '—';
+
+    if ($r.pill) {
+      if (ok) {
+        $r.pill.textContent = '✅ Complet';
+        $r.pill.style.background = 'rgba(25,135,84,.15)';
+        $r.pill.style.borderColor = 'rgba(25,135,84,.35)';
+      } else {
+        $r.pill.textContent = '⚠️ Incomplet';
+        $r.pill.style.background = 'rgba(255,193,7,.15)';
+        $r.pill.style.borderColor = 'rgba(255,193,7,.35)';
+      }
+    }
+  }
+
+  // Bind
+  [civiliteEl, adresseEl, cpEl, ville2El, prenomEl, nomEl, emailEl, telEl, nextEl].forEach(el => {
+    el?.addEventListener('input', refreshResume);
+    el?.addEventListener('change', refreshResume);
+  });
+
+  statusEl?.tomselect?.on('change', refreshResume);
+  sourceEl?.tomselect?.on('change', refreshResume);
+  activeEl?.addEventListener('change', refreshResume);
+
+  refreshResume();
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // ====== Elements ======
+  const formNewEntreprise = document.getElementById('form-new-entreprise');
+  const errEl = document.getElementById('new-entreprise-error');
+  const okEl  = document.getElementById('new-entreprise-success');
+
+  const inputSearch = document.getElementById('entreprise-google-search');
+  const btnClear = document.getElementById('btn-clear-place');
+  const modalEl = document.getElementById('modal-new-entreprise');
+
+  function initPlacesIfReady(){
+    if (window.__entreprisePlacesInited) return;
+    if (!inputSearch) return;
+    if (!window.google?.maps?.places) return; // Google pas encore chargé
+
+    const options = {
+      types: ['establishment'],
+      componentRestrictions: { country: ['fr'] },
+      fields: ['place_id','name','formatted_address','address_components','geometry'],
+    };
+
+    const ac = new google.maps.places.Autocomplete(inputSearch, options);
+
+    ac.addListener('place_changed', function(){
+      clearErr();
+      const place = ac.getPlace();
+      if (!place || !place.place_id) {
+        showErr("Aucun résultat exploitable. Essayez 'Nom + Ville'.");
+        return;
+      }
+      applyPlace(place);
+      resolveSiretTva();
+    });
+
+    window.__entreprisePlacesInited = true;
+
+    // Fix dropdown au-dessus de la modale
+    setTimeout(() => inputSearch.focus(), 50);
+  }
+
+  if (modalEl) {
+    modalEl.addEventListener('shown.bs.modal', function(){
+      initPlacesIfReady();
+      resetMiniMap();
+      refreshPreview();
+    });
+  }
+
+  const f = {
+    raison: document.getElementById('entreprise-raison'),
+    siret: document.getElementById('entreprise-siret'),
+    emailFactu: document.getElementById('entreprise-emailFacturation'),
+    adresse: document.getElementById('entreprise-adresse'),
+    cp: document.getElementById('entreprise-cp'),
+    ville: document.getElementById('entreprise-ville'),
+    pays: document.getElementById('entreprise-pays'),
+    tva: document.getElementById('entreprise-tva'),
+    placeId: document.getElementById('entreprise-place-id'),
+    formattedAddress: document.getElementById('entreprise-formatted-address'),
+  };
+
+  const preview = {
+    raison: document.getElementById('preview-raison'),
+    address: document.getElementById('preview-address'),
+    cpville: document.getElementById('preview-cpville'),
+    pays: document.getElementById('preview-pays'),
+    siret: document.getElementById('preview-siret'),
+    email: document.getElementById('preview-email'),
+  };
+
+  // TomSelect select entreprise (déjà chez toi)
+  const idEntreprise = {{ form.linkedEntreprise.vars.id|json_encode|raw }};
+  const entrepriseSelect = document.getElementById(idEntreprise);
+
+  const newEntrepriseUrl = "{{ path('app_administrateur_prospect_entreprise_new', { entite: entite.id }) }}";
+
+  function showErr(msg){
+    if (!errEl) return;
+    errEl.textContent = msg || 'Erreur.';
+    errEl.classList.remove('d-none');
+    okEl?.classList.add('d-none');
+  }
+  function clearErr(){
+    errEl?.classList.add('d-none');
+    if (errEl) errEl.textContent = '';
+  }
+  function showOk(){
+    okEl?.classList.remove('d-none');
+  }
+
+  // ====== Preview live ======
+  function setText(el, v){ if (el) el.textContent = (v && String(v).trim()) ? String(v).trim() : '—'; }
+  function refreshPreview(){
+    setText(preview.raison, f.raison?.value);
+    setText(preview.address, f.adresse?.value);
+    setText(preview.cpville, [f.cp?.value, f.ville?.value].filter(Boolean).join(' ') || null);
+    setText(preview.pays, f.pays?.value);
+    setText(preview.siret, f.siret?.value);
+    setText(preview.email, f.emailFactu?.value);
+  }
+  ['input','change'].forEach(evt => {
+    Object.values(f).forEach(el => el?.addEventListener?.(evt, refreshPreview));
+  });
+
+  // ====== Clear place ======
+  function clearPlace(){
+    if (inputSearch) inputSearch.value = '';
+    if (f.placeId) f.placeId.value = '';
+    if (f.formattedAddress) f.formattedAddress.value = '';
+    // (on ne wipe pas les champs saisis manuellement, sauf si tu veux)
+    refreshPreview();
+    resetMiniMap();
+  }
+  btnClear?.addEventListener('click', clearPlace);
+
+  // ====== Mini map (simple) ======
+  let gMap = null;
+  let gMarker = null;
+
+  function resetMiniMap(){
+    const wrap = document.getElementById('entreprise-mini-map');
+    if (!wrap) return;
+    wrap.innerHTML = `
+      <div class="mini-map-placeholder">
+        <i class="bi bi-geo-alt"></i>
+        <span class="small">Sélectionne une entreprise pour afficher l’emplacement</span>
+      </div>
+    `;
+    gMap = null;
+    gMarker = null;
+  }
+
+  function renderMiniMap(latLng){
+    const wrap = document.getElementById('entreprise-mini-map');
+    if (!wrap || !window.google?.maps || !latLng) return;
+
+    wrap.innerHTML = ''; // clear placeholder
+
+    gMap = new google.maps.Map(wrap, {
+      center: latLng,
+      zoom: 16,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+    });
+
+    gMarker = new google.maps.Marker({
+      map: gMap,
+      position: latLng,
+    });
+  }
+
+  // ====== Google Places: parse address components ======
+  function getComp(components, type){
+    const c = components?.find(x => x.types?.includes(type));
+    return c ? (c.long_name || c.short_name || '') : '';
+  }
+
+  function applyPlace(place){
+    // place.name, place.formatted_address, place.address_components, place.geometry.location
+    const name = place?.name || '';
+    const formatted = place?.formatted_address || '';
+    const comps = place?.address_components || [];
+
+    const streetNumber = getComp(comps, 'street_number');
+    const route = getComp(comps, 'route');
+    const postal = getComp(comps, 'postal_code');
+    const locality =
+      getComp(comps, 'locality') ||
+      getComp(comps, 'postal_town') ||
+      getComp(comps, 'administrative_area_level_2') ||
+      getComp(comps, 'administrative_area_level_1');
+
+    const country = getComp(comps, 'country');
+
+    if (f.raison && name) f.raison.value = name;
+    if (f.formattedAddress) f.formattedAddress.value = formatted;
+    if (f.placeId && place?.place_id) f.placeId.value = place.place_id;
+
+    const street = [streetNumber, route].filter(Boolean).join(' ').trim();
+    if (f.adresse && street) f.adresse.value = street;
+    if (f.cp && postal) f.cp.value = postal;
+    if (f.ville && locality) f.ville.value = locality;
+    if (f.pays && country) f.pays.value = country;
+
+    refreshPreview();
+    showOk();
+
+    const loc = place?.geometry?.location;
+    if (loc && typeof loc.lat === 'function') {
+      renderMiniMap({ lat: loc.lat(), lng: loc.lng() });
+    }
+  }
+
+
+  async function resolveSiretTva() {
+    const fd = new FormData();
+    fd.append('raisonSociale', f.raison?.value || '');
+    fd.append('codePostal', f.cp?.value || '');
+    fd.append('ville', f.ville?.value || '');
+
+    const resp = await fetch("{{ path('app_administrateur_prospect_entreprise_resolve', { entite: entite.id }) }}", {
+      method: 'POST',
+      body: fd,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok || !data?.success) return;
+
+    if (data.siret && f.siret && !f.siret.value) f.siret.value = data.siret;
+    if (data.tva && f.tva && !f.tva.value) f.tva.value = data.tva;
+
+    refreshPreview();
+  }
+
+
+  // ====== Submit AJAX (comme chez toi) ======
+  if (formNewEntreprise && entrepriseSelect) {
+    formNewEntreprise.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErr();
+
+      // validation minimal
+      const raison = (f.raison?.value || '').trim();
+      if (!raison) {
+        showErr("Raison sociale obligatoire.");
+        f.raison?.focus();
+        return;
+      }
+
+      const fd = new FormData(formNewEntreprise);
+
+      try {
+        const resp = await fetch(newEntrepriseUrl, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        const data = await resp.json().catch(() => null);
+
+        if (!resp.ok || !data || data.success === false) {
+          showErr(data?.message || `Erreur serveur (${resp.status}).`);
+          return;
+        }
+
+        const value = String(data.id);
+        const label = data.label;
+
+        // add + select in TomSelect
+        if (entrepriseSelect.tomselect) {
+          entrepriseSelect.tomselect.addOption({ value, text: label });
+          entrepriseSelect.tomselect.addItem(value, true);
+        } else {
+          const opt = new Option(label, value, true, true);
+          entrepriseSelect.add(opt);
+          entrepriseSelect.value = value;
+          entrepriseSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // close modal
+        const modalEl = document.getElementById('modal-new-entreprise');
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+
+        // reset form
+        formNewEntreprise.reset();
+        clearPlace();
+        okEl?.classList.add('d-none');
+
+      } catch (err) {
+        showErr("Erreur réseau / JS : " + (err?.message || err));
+      }
+    });
+  }
+
+  // Init preview at start
+  refreshPreview();
+});
+</script>
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const rangeId = {{ (form.score is defined ? form.score.vars.id : '')|json_encode|raw }};
+  const range = rangeId ? document.getElementById(rangeId) : null;
+
+  const fill = document.getElementById('scoreFill');
+  const bubble = document.getElementById('scoreBubble');
+  const pill = document.getElementById('scorePill');
+  const number = document.getElementById('scoreNumber');
+
+  if (!range) return;
+
+  const min = Number(range.getAttribute('min') || 0);
+  const max = Number(range.getAttribute('max') || 100);
+
+  function clamp(v){
+    v = Number(v);
+    if (Number.isNaN(v)) v = 0;
+    return Math.min(max, Math.max(min, v));
+  }
+
+  function pillLabel(v){
+    if (v >= 80) return '🔥 Très chaud';
+    if (v >= 60) return '✅ Chaud';
+    if (v >= 40) return '🟡 Tiède';
+    if (v >= 20) return '🧊 Froid';
+    return '—';
+  }
+
+  function refresh(){
+    const v = clamp(range.value);
+    const pct = ((v - min) / (max - min)) * 100;
+
+    if (fill) fill.style.width = pct + '%';
+    if (bubble) {
+      bubble.textContent = String(v);
+      bubble.style.left = pct + '%';
+    }
+    if (pill) pill.textContent = `${v}/100 • ${pillLabel(v)}`;
+    if (number && document.activeElement !== number) number.value = v;
+  }
+
+  // ✅ Important: input + change
+  range.addEventListener('input', refresh, { passive: true });
+  range.addEventListener('change', refresh, { passive: true });
+
+  if (number) {
+    number.addEventListener('input', function(){
+      range.value = String(clamp(number.value));
+      refresh();
+    });
+  }
+
+  // init (si null -> on met 0)
+  // ✅ init robuste : vide / NaN => 50
+  const current = Number(range.value);
+  if (range.value === '' || Number.isNaN(current)) {
+    range.value = '50';
+  }
+  refresh();
+});
+</script>
+
+
+<script>
+  (function(){
+    function nowLabel(){
+      const d = new Date();
+      return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    }
+    const el = document.getElementById('hero-last-refresh');
+    if(el) el.textContent = 'Maj : ' + nowLabel();
+  })();
+</script>
+
+<script>
+  // Flag pour éviter double init
+  window.__entreprisePlacesInited = false;
+
+  window.__initEntreprisePlaces = function () {
+    // Google a chargé -> on ne fait rien tant que la modale n'est pas ouverte
+    // (on init à l'ouverture, plus fiable en modal)
+  };
+</script>
+
+{# ⚠️ passe la clé via une variable twig : google_maps_api_key #}
+<script
+  src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&callback=__initEntreprisePlaces"
+  async defer
+></script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const idStatus = {{ form.status is defined ? form.status.vars.id|json_encode|raw : 'null' }};
+  const idActive = {{ form.isActive is defined ? form.isActive.vars.id|json_encode|raw : 'null' }};
+
+  const statusEl = idStatus ? document.getElementById(idStatus) : null;
+  const activeEl = idActive ? document.getElementById(idActive) : null;
+
+  const wrap = document.getElementById('wrap-prospect-active');
+  const hint = document.getElementById('hint-prospect-closed');
+
+  if (!statusEl || !activeEl || !wrap) return;
+
+  // ✅ Mets ici les "values" de tes statuts clos si tu les connais (recommandé)
+  // Exemple: ['perdu','non_pertinent','clos']
+  const CLOSED_VALUES = new Set(['perdu', 'non_pertinent', 'clos']);
+
+  function selectedText(el){
+    if (!el) return '';
+    if (el.tomselect) {
+      const v = el.tomselect.getValue();
+      return (el.tomselect.options?.[v]?.text || '').trim();
+    }
+    const opt = el.options?.[el.selectedIndex];
+    return (opt?.textContent || '').trim();
+  }
+
+  function isClosedStatus(){
+    const val = (statusEl.value || '').trim();
+    const txt = selectedText(statusEl).toLowerCase();
+
+    // 1) check par value (le plus fiable)
+    if (val && CLOSED_VALUES.has(val)) return true;
+
+    // 2) fallback par libellé (si tu ne connais pas les values)
+    return (
+      txt.includes('perdu') ||
+      txt.includes('non pertinent') ||
+      txt.includes('clos') ||
+      txt.includes('clôt')
+    );
+  }
+
+  function syncActive(){
+    const closed = isClosedStatus();
+
+    if (closed) {
+      activeEl.checked = false;
+      activeEl.disabled = true;
+      wrap.classList.add('is-disabled');
+      hint?.classList.remove('d-none');
+
+      // important : notifie tes autres scripts (résumé live, etc.)
+      activeEl.dispatchEvent(new Event('change', { bubbles:true }));
+    } else {
+      activeEl.disabled = false;
+      wrap.classList.remove('is-disabled');
+      hint?.classList.add('d-none');
+    }
+  }
+
+  // écoute change (TomSelect + natif)
+  if (statusEl.tomselect) {
+    statusEl.tomselect.on('change', syncActive);
+  } else {
+    statusEl.addEventListener('change', syncActive);
+  }
+
+  // init
+  syncActive();
+});
+</script>
+
+{% endblock %}

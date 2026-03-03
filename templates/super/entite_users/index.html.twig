@@ -1,0 +1,198 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Super — Comptes — {{ entite.nom }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --ink:#0f2336;
+    }
+
+    .hero{
+      position:relative; border-radius:22px; overflow:hidden; color:#fff;
+      background:
+        radial-gradient(1200px 420px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(950px 380px at 88% 10%, rgba(255,193,7,.20), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+    }
+    .hero:after{ content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(255,255,255,.08), transparent 60%); pointer-events:none; }
+    .hero .accent{ width:12px; border-radius:999px; background: var(--theme-color-secondaire); box-shadow:0 0 0 6px rgba(255,193,7,.10); }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.825rem;
+      white-space: nowrap;
+    }
+
+    .toolbar{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .9rem;
+    }
+
+    .cardx{
+      border-radius:18px; background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .rowitem{
+      display:flex; gap:.9rem; align-items:center;
+      padding:.85rem 1rem;
+      border-top:1px solid rgba(0,0,0,.06);
+    }
+    .rowitem:first-child{ border-top:0; }
+    .avatar{
+      width:42px; height:42px; border-radius:16px;
+      display:grid; place-items:center;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      font-weight:900; color: var(--ink);
+      position:relative;
+      overflow:hidden;
+    }
+    .avatar:after{
+      content:"";
+      position:absolute; inset:-40px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,193,7,.22), transparent 50%);
+      pointer-events:none;
+    }
+
+    .pill{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.32rem .66rem; border-radius:999px;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      font-weight:800;
+      font-size:.85rem;
+      white-space: nowrap;
+    }
+    .pill .dot{ width:10px; height:10px; border-radius:99px; background: var(--theme-color-secondaire); box-shadow:0 0 0 4px rgba(255,193,7,.14); }
+    .muted{ color: rgba(0,0,0,.58); }
+
+    .actions .btn{ padding: .32rem .55rem; }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  <div class="hero p-4 mb-3 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <span class="meta-chip"><i class="bi bi-shield-lock"></i> SUPER</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+        <span class="meta-chip"><i class="bi bi-people"></i> Comptes rattachés</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Utilisateurs de l’entité</h2>
+          <div class="opacity-75">Voir, ajouter, modifier le rôle et retirer un utilisateur de cette entité.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-light btn-sm fw-semibold"
+             href="{{ path('app_super_entite_users_new', { entite: entite.id }) }}">
+            <i class="bi bi-person-plus"></i> Ajouter un compte
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="toolbar mb-3">
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+        <span class="pill"><span class="dot"></span> {{ items|length }} compte(s)</span>
+        <span class="muted small d-none d-lg-inline">Recherche : email, nom, prénom</span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <input type="text" name="q" value="{{ q }}" class="form-control" style="max-width:320px;border-radius:999px;" placeholder="Rechercher…">
+        <button class="btn btn-outline-secondary" type="submit">
+          <i class="bi bi-search"></i>
+        </button>
+        <a class="btn btn-outline-secondary" href="{{ path('app_super_entite_users_index', { entite: entite.id }) }}">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <div class="cardx">
+    {% if items is empty %}
+      <div class="p-3 text-muted">Aucun utilisateur rattaché pour le moment.</div>
+    {% else %}
+      {% for ue in items %}
+        {% set u = ue.utilisateur %}
+        {% set initials = (u.prenom|default('')|slice(0,1) ~ u.nom|default('')|slice(0,1))|upper %}
+        <div class="rowitem">
+          <div class="avatar" style="border-color: {{ ue.couleur ?: '#e5e7eb' }};">
+            {{ initials ?: 'U' }}
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-bold" style="color:var(--ink);">
+              {{ u.prenom }} {{ u.nom }}
+              <span class="ms-2 pill">
+                {% set roles = ue.roles ?? [] %}
+                {% set label =
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_ADMIN') in roles ? 'Admin' :
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_DIRIGEANT') in roles ? 'Dirigeant' :
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_COMMERCIAL') in roles ? 'Commercial' :
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_OF') in roles ? 'Organisme (OF)' :
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_ENTREPRISE') in roles ? 'Entreprise' :
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_OPCO') in roles ? 'OPCO' :
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_FORMATEUR') in roles ? 'Formateur' :
+                  constant('App\\\\Entity\\\\UtilisateurEntite::TENANT_STAGIAIRE') in roles ? 'Stagiaire' :
+                  '—'
+                %}
+                <i class="bi bi-person-badge"></i> {{ label }}
+              </span>
+            </div>
+
+            <div class="muted small">
+              <i class="bi bi-envelope"></i> {{ u.email }}
+              {% if ue.fonction %}
+                <span class="mx-2">•</span>
+                <i class="bi bi-briefcase"></i> {{ ue.fonction }}
+              {% endif %}
+              <span class="mx-2">•</span>
+              <i class="bi bi-clock-history"></i> {{ ue.dateCreation ? ue.dateCreation|date('d/m/Y') : '—' }}
+            </div>
+          </div>
+
+          <div class="actions d-flex gap-2">
+            <a class="btn btn-outline-primary btn-sm"
+               href="{{ path('app_super_entite_users_edit', { entite: entite.id, id: ue.id }) }}"
+               title="Éditer">
+              <i class="bi bi-pencil"></i>
+            </a>
+
+            <form method="post"
+                  action="{{ path('app_super_entite_users_delete', { entite: entite.id, id: ue.id }) }}"
+                  onsubmit="return confirm('Retirer cet utilisateur de l’entité ?');">
+              <input type="hidden" name="_token" value="{{ csrf_token('ue_del_' ~ ue.id) }}">
+              <button class="btn btn-outline-danger btn-sm" type="submit" title="Retirer">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+{% endblock %}

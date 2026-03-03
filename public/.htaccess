@@ -1,0 +1,59 @@
+# --- Symfony on Apache: clean redirects + security + front controller ---
+
+DirectoryIndex index.php
+
+# Evite le content-negociation sur extensions
+<IfModule mod_negotiation.c>
+    Options -MultiViews
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ---------------------------------------------------------
+    # 1) Redirection unique -> https + non-www (301)
+    #    Exemple: http://www.wikiformation.fr/xxx  -> https://wikiformation.fr/xxx
+    # ---------------------------------------------------------
+    RewriteCond %{HTTPS} !=on [OR]
+    RewriteCond %{HTTP_HOST} ^www\.wikiformation\.fr$ [NC]
+    RewriteRule ^ https://wikiformation.fr%{REQUEST_URI} [R=301,L]
+
+    # ---------------------------------------------------------
+    # 2) Bloquer totalement le profiler en prod
+    #    (renvoie 404 et empêche l’indexation)
+    # ---------------------------------------------------------
+    RewriteRule ^_profiler/ - [R=404,L]
+
+    # ---------------------------------------------------------
+    # 3) Aides Symfony usuelles
+    # ---------------------------------------------------------
+
+    # Conserve l'en-tête Authorization (API, etc.)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Canonicalisation interne: /index.php/... -> /...
+    RewriteCond %{ENV:REDIRECT_STATUS} ^$
+    RewriteRule ^index\.php(?:/(.*)|$) /$1 [R=301,L]
+
+    # Si le fichier/asset existe, le servir tel quel
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Front controller Symfony
+    RewriteRule ^ /index.php [L]
+</IfModule>
+
+# ---------------------------------------------------------
+# 4) En-têtes utiles
+# ---------------------------------------------------------
+<IfModule mod_headers.c>
+    # Interdit l’indexation du profiler (au cas où)
+    <FilesMatch "^_profiler/">
+        Header always set X-Robots-Tag "noindex, nofollow"
+    </FilesMatch>
+
+    # HSTS (après vérif que TOUT marche en HTTPS)
+    # -> commente la ligne ci-dessous la toute première fois si besoin
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+</IfModule>

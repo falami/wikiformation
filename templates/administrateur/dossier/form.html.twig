@@ -1,0 +1,629 @@
+{# templates/administrateur/dossier/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+
+    body{ background: var(--bg); }
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+      overflow:hidden;
+      position:relative;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .hero .accent{
+      width:12px;
+      background:var(--theme-color-secondaire);
+      border-radius:999px;
+      box-shadow:0 0 0 6px rgba(255,193,7,.10);
+      flex: 0 0 auto;
+    }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      white-space: nowrap;
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:900; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* Form polish */
+    label.form-label{ font-weight: 800; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select, textarea{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus, textarea:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* ===== Progress ===== */
+    .kpi{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.10);
+      padding: .75rem .9rem;
+      display:flex; align-items:center; justify-content:space-between; gap: .75rem;
+    }
+    .kpi .n{ font-weight: 900; font-size: 1.15rem; }
+    .kpi .t{ opacity:.85; font-size: .85rem; }
+    .progressx{
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    .progressx > div{
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--theme-color-secondaire), #ffd24d);
+    }
+
+    /* ===== Pieces list ===== */
+    .piece-item .card{
+      border-radius: 18px;
+      border: 1.5px dashed var(--stroke);
+      background: linear-gradient(180deg, rgba(0,0,0,.01), transparent);
+    }
+    .piece-head{
+      display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+      margin-bottom:.5rem;
+    }
+    .piece-title{
+      font-weight: 900;
+      color: var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+      margin:0;
+    }
+    .badge-soft{
+      border-radius:999px;
+      padding:.33rem .6rem;
+      border:1px solid var(--stroke);
+      background: color-mix(in srgb, var(--theme-color-principal) 9%, transparent);
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+    }
+    .badge-req{
+      background: rgba(255,193,7,.16);
+      border-color: rgba(255,193,7,.32);
+      color: var(--ink);
+    }
+    .badge-ok{
+      background: rgba(25,135,84,.14);
+      border-color: rgba(25,135,84,.30);
+      color: color-mix(in srgb, #198754 80%, var(--ink));
+    }
+    .badge-miss{
+      background: rgba(220,53,69,.12);
+      border-color: rgba(220,53,69,.25);
+      color: color-mix(in srgb, #dc3545 80%, var(--ink));
+    }
+
+    .btn-round{ border-radius: 14px; }
+    .sticky-col{
+      position: sticky;
+      top: 1rem;
+    }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# =========================
+     Calculs “documents manquants”
+     ========================= #}
+  {% set obligatoires = (inscription.session.piecesObligatoires ?? []) %}
+  {% set totalReq = obligatoires|length %}
+
+  {# types validés présents dans le dossier (PieceType.value) #}
+  {% set validesValues = [] %}
+  {% for pf in form.pieces %}
+    {# pf.vars.value est l'entité PieceDossier si le form est mappé #}
+    {% set pieceEntity = pf.vars.value %}
+    {% if pieceEntity and pieceEntity.valide and pieceEntity.type %}
+      {% set validesValues = validesValues|merge([pieceEntity.type.value]) %}
+    {% endif %}
+  {% endfor %}
+  {% set validesValues = validesValues|reduce((acc, item) => item in acc ? acc : acc|merge([item]), []) %}
+
+
+  {% set missingValues = [] %}
+  {% for v in obligatoires %}
+    {% if v not in validesValues %}
+      {% set missingValues = missingValues|merge([v]) %}
+    {% endif %}
+  {% endfor %}
+  {% set nMissing = missingValues|length %}
+  {% set nOk = totalReq ? (totalReq - nMissing) : 0 %}
+  {% set pct = totalReq ? ((nOk / totalReq) * 100) : 100 %}
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="meta-chip"><i class="bi bi-folder2-open"></i> Dossier</span>
+        <span class="meta-chip"><i class="bi bi-hash"></i> Inscription #{{ inscription.id }}</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom ?? ('Entité #' ~ entite.id) }}</span>
+        {% if inscription.session is defined %}
+          <span class="meta-chip"><i class="bi bi-calendar2-week"></i> Session {{ inscription.session.code ?? '—' }}</span>
+        {% endif %}
+        <span class="meta-chip"><i class="bi bi-files"></i> {{ form.pieces|length }} pièce(s)</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-3">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">{{ title }}</h2>
+          <div class="opacity-75">
+            Gestion du dossier stagiaire : informations + pièces justificatives.
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-theme btn-sm fw-semibold btn-round"
+             href="{{ path('app_administrateur_inscription_show', {entite: entite.id, id: inscription.id}) }}">
+            <i class="bi bi-arrow-left"></i> Retour
+          </a>
+          <button form="dossier_inscription_form" type="submit" class="btn btn-light btn-sm fw-semibold btn-round">
+            <i class="bi bi-check2"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 d-grid gap-2" style="max-width: 560px;">
+        <div class="kpi">
+          <div>
+            <div class="t">Documents obligatoires</div>
+            <div class="n">{{ totalReq }}</div>
+          </div>
+          <div>
+            <div class="t">Validés</div>
+            <div class="n">{{ nOk }}</div>
+          </div>
+          <div>
+            <div class="t">Manquants</div>
+            <div class="n">{{ nMissing }}</div>
+          </div>
+        </div>
+
+        <div class="progressx" aria-label="Progression documents">
+          <div style="width: {{ pct|round(0, 'floor') }}%"></div>
+        </div>
+        <div class="small opacity-75">
+          {% if totalReq == 0 %}
+            Aucune pièce obligatoire définie pour cette session.
+          {% else %}
+            {{ pct|round(0, 'floor') }}% complété ({{ nOk }}/{{ totalReq }})
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, {attr:{id:'dossier_inscription_form', novalidate:'novalidate', name:'dossier_inscription_form'}}) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+
+      {# ====== Carte: Informations administratives ====== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-briefcase text-warning"></i> Informations administratives</h5>
+          <span class="chip">Profil</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              {{ form_row(form.employeur) }}
+            </div>
+            <div class="col-md-6">
+              {{ form_row(form.opco) }}
+            </div>
+            <div class="col-md-5">
+              {{ form_row(form.numDossierOpco) }}
+            </div>
+
+            <div class="col-md-7">
+              <div class="p-3 rounded-4" style="border:1px solid var(--stroke); background: linear-gradient(180deg, rgba(0,0,0,.01), transparent);">
+                {{ form_row(form.amenagementHandicap) }}
+                <div id="details-amenagement-wrap" class="mt-2">
+                  {{ form_row(form.detailsAmenagement) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ====== Prototype custom des pièces ====== #}
+      {% set piecePrototype %}
+        <div class="card p-3 p-md-4">
+          <div class="piece-head">
+            <p class="piece-title mb-0">
+              <i class="bi bi-paperclip text-warning"></i>
+              Pièce du dossier
+              <span class="badge-soft badge-req">nouvelle</span>
+            </p>
+            <button type="button" class="btn btn-outline-danger btn-sm btn-round btn-remove-piece">
+              <i class="fa fa-trash me-1"></i> Supprimer
+            </button>
+          </div>
+
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-5">
+              {{ form_row(form.pieces.vars.prototype.type) }}
+            </div>
+            <div class="col-12 col-md-5">
+              {{ form_row(form.pieces.vars.prototype.filename) }}
+              <div class="form-text">PDF / Image — 10 Mo max.</div>
+            </div>
+            <div class="col-12 col-md-2">
+              <div class="p-3 rounded-4" style="border:1px solid var(--stroke); background: rgba(255,193,7,.08);">
+                {{ form_row(form.pieces.vars.prototype.valide) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endset %}
+
+      {# ====== Carte: Pièces du dossier ====== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-file text-warning"></i> Pièces du dossier</h5>
+          <span class="chip">{{ form.pieces|length }} élément(s)</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="text-muted small mb-3">
+            Ajoutez ici les documents nécessaires : CNI, règlement intérieur signé, OPCO, justificatif, certificat…
+          </div>
+
+          {# ✅ Liste des manquants (si pièces obligatoires) #}
+          {% if totalReq > 0 %}
+            <div class="p-3 rounded-4 mb-3"
+                 style="border:1px solid var(--stroke); background: linear-gradient(180deg, rgba(255,193,7,.12), transparent);">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="fw-bold" style="color: var(--ink);">
+                  Documents requis : <span class="text-muted">({{ nOk }}/{{ totalReq }} validés)</span>
+                </div>
+                <span class="badge-soft {{ nMissing ? 'badge-miss' : 'badge-ok' }}">
+                  {% if nMissing %}{{ nMissing }} manquant(s){% else %}Complet ✅{% endif %}
+                </span>
+              </div>
+
+              {% if nMissing %}
+                <div class="mt-2 d-flex flex-wrap gap-2">
+                  {% for v in missingValues %}
+                    <span class="badge-soft badge-miss"><i class="bi bi-exclamation-triangle me-1"></i>{{ v }}</span>
+                  {% endfor %}
+                </div>
+                <div class="form-text mt-2">Astuce : ajoute ces pièces puis coche “Validée” une fois contrôlées.</div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <div id="pieces-collection" data-prototype="{{ piecePrototype|e('html_attr') }}">
+            {% for pieceForm in form.pieces %}
+              {% set pieceEntity = pieceForm.vars.value %}
+              {% set isValid = pieceEntity and pieceEntity.valide %}
+              {% set typeValue = (pieceEntity and pieceEntity.type) ? pieceEntity.type.value : '' %}
+              {% set isRequired = totalReq > 0 and typeValue in obligatoires %}
+              {% set isMissing = isRequired and (typeValue not in validesValues) %}
+
+              <div class="piece-item mb-3">
+                <div class="card p-3 p-md-4">
+                  <div class="piece-head">
+                    <p class="piece-title mb-0">
+                      <i class="bi bi-paperclip text-warning"></i>
+                      Pièce du dossier
+                      {% if isRequired %}
+                        <span class="badge-soft badge-req">obligatoire</span>
+                      {% endif %}
+                      {% if isValid %}
+                        <span class="badge-soft badge-ok"><i class="bi bi-check2 me-1"></i>validée</span>
+                      {% elseif isMissing %}
+                        <span class="badge-soft badge-miss"><i class="bi bi-exclamation-triangle me-1"></i>manquante</span>
+                      {% else %}
+                        <span class="badge-soft">à contrôler</span>
+                      {% endif %}
+                    </p>
+
+                    <button type="button" class="btn btn-outline-danger btn-sm btn-round btn-remove-piece">
+                      <i class="fa fa-trash me-1"></i> Supprimer
+                    </button>
+                  </div>
+
+                  <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-5">
+                      {{ form_row(pieceForm.type) }}
+                    </div>
+                    <div class="col-12 col-md-5">
+                      {{ form_row(pieceForm.filename) }}
+                      <div class="form-text">PDF / Image — 10 Mo max.</div>
+                    </div>
+                    <div class="col-12 col-md-2">
+                      <div class="p-3 rounded-4" style="border:1px solid var(--stroke); background: rgba(255,193,7,.08);">
+                        {{ form_row(pieceForm.valide) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <button type="button" class="btn btn-outline-primary btn-round mt-2" id="btn-add-piece">
+            <i class="fa fa-plus me-1"></i> Ajouter une pièce
+          </button>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-round">
+          <i class="fa fa-check me-1"></i> Enregistrer
+        </button>
+        <a class="btn btn-light btn-round"
+           href="{{ path('app_administrateur_inscription_show', {entite: entite.id, id: inscription.id}) }}">
+          Retour
+        </a>
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT : résumé sticky ===== #}
+    <div class="col-lg-4">
+      <div class="sticky-col">
+        <div class="cardx mb-4">
+          <div class="cardx-h">
+            <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
+            <span class="chip">Dossier</span>
+          </div>
+
+          <div class="p-3 p-md-4">
+            <div class="small text-muted mb-2">
+              Inscription <strong class="text-dark">{{ inscription.id }}</strong>
+            </div>
+
+            <div class="border rounded-4 p-3"
+                 style="border-color: var(--stroke); background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+              <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <div class="fw-bold">Documents obligatoires</div>
+                <span class="badge-soft {{ nMissing ? 'badge-miss' : 'badge-ok' }}">
+                  {% if totalReq == 0 %}—{% else %}{{ nMissing }} manquant(s){% endif %}
+                </span>
+              </div>
+
+              <div class="mt-2 small">
+                <div class="d-flex justify-content-between py-1">
+                  <span class="text-muted">Requis</span>
+                  <span class="fw-semibold">{{ totalReq }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                  <span class="text-muted">Validés</span>
+                  <span class="fw-semibold">{{ nOk }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                  <span class="text-muted">Manquants</span>
+                  <span class="fw-semibold">{{ nMissing }}</span>
+                </div>
+                <div class="mt-2">
+                  <div class="progressx" style="height: 9px;">
+                    <div style="width: {{ pct|round(0, 'floor') }}%"></div>
+                  </div>
+                  <div class="small text-muted mt-1">
+                    {% if totalReq == 0 %}Aucun requis{% else %}{{ pct|round(0, 'floor') }}% complété{% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-3">
+              <a class="btn btn-light btn-round"
+                 href="{{ path('app_administrateur_inscription_show', {entite: entite.id, id: inscription.id}) }}">
+                <i class="fa fa-arrow-left me-1"></i> Retour inscription
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="cardx">
+          <div class="cardx-h">
+            <h5 class="cardx-title"><i class="fa fa-lightbulb text-warning"></i> Astuce</h5>
+            <span class="chip">UX</span>
+          </div>
+          <div class="p-3 p-md-4 small text-muted">
+            Pour que “manquant” disparaisse : la pièce doit être déposée <strong>et</strong> cochée “Validée”.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {{ form_end(form) }}
+
+{# ====== JS: toggle aménagement + collection pièces + Flatpickr + validation ====== #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // Flatpickr
+  if (window.flatpickr) {
+    flatpickr('.flatpickr-date', { dateFormat: 'd/m/Y', locale: 'fr' });
+    flatpickr('.flatpickr-datetime', { enableTime:true, dateFormat:'d/m/Y H:i', time_24hr:true, locale:'fr' });
+  }
+
+  // Toggle détails aménagement
+  const chk = document.getElementById('{{ form.amenagementHandicap.vars.id }}');
+  const wrap = document.getElementById('details-amenagement-wrap');
+  const detailsInput = document.getElementById('{{ form.detailsAmenagement.vars.id }}');
+
+  function toggleDetailsAmenagement(){
+    const on = chk?.checked;
+    if (!wrap) return;
+    wrap.style.display = on ? '' : 'none';
+    if (detailsInput){
+      detailsInput.toggleAttribute('required', !!on);
+      detailsInput.classList.toggle('is-invalid', !!on && !detailsInput.value.trim());
+    }
+  }
+  if (chk){
+    chk.addEventListener('change', toggleDetailsAmenagement);
+    toggleDetailsAmenagement();
+  }
+
+  // Collection pièces
+  const collection = document.getElementById('pieces-collection');
+  const proto = collection?.dataset.prototype;
+  let index = {{ form.pieces|length }};
+
+  function bindRemove(container){
+    if (!container) return;
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-remove-piece');
+      if (!btn) return;
+      e.preventDefault();
+      const item = btn.closest('.piece-item');
+      if (item) item.remove();
+    });
+  }
+
+  function addPiece(){
+    if (!proto || !collection) return;
+    const html = proto.replace(/__name__/g, index++);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'piece-item mb-3';
+    wrapper.innerHTML = html;
+    collection.appendChild(wrapper);
+
+    if (window.flatpickr) {
+      wrapper.querySelectorAll('.flatpickr-date').forEach(el => flatpickr(el, { dateFormat:'d/m/Y', locale:'fr' }));
+      wrapper.querySelectorAll('.flatpickr-datetime').forEach(el => flatpickr(el, { enableTime:true, dateFormat:'d/m/Y H:i', time_24hr:true, locale:'fr' }));
+    }
+  }
+
+  bindRemove(collection);
+
+  document.getElementById('btn-add-piece')?.addEventListener('click', addPiece);
+
+  // Validation légère (si tu as déjà ta fonction globale, tu peux garder)
+  initFormValidation({ formName: 'dossier_inscription_form' });
+});
+
+function initFormValidation({ formName }){
+  const form = document.querySelector(`form[name="${formName}"]`);
+  if (!form) return;
+
+  let errorAlert = document.getElementById('form-error-alert');
+  if (!errorAlert) {
+    errorAlert = document.createElement('div');
+    errorAlert.className = 'alert alert-danger d-none mt-3';
+    errorAlert.id = 'form-error-alert';
+    form.appendChild(errorAlert);
+  }
+
+  form.addEventListener('submit', e => {
+    const messages = new Set();
+    let first = null;
+
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+    form.querySelectorAll(':invalid').forEach(el => {
+      el.classList.add('is-invalid');
+      if(!first) first = el;
+      const l = form.querySelector(`label[for="${el.id}"]`);
+      if (l) messages.add(`- ${l.textContent.trim()}`);
+    });
+
+    if (messages.size) {
+      e.preventDefault();
+      errorAlert.innerHTML = `<strong>Champs requis manquants :</strong><br>${[...messages].join('<br>')}`;
+      errorAlert.classList.remove('d-none');
+      first?.scrollIntoView?.({behavior:'smooth', block:'center'});
+      setTimeout(()=>errorAlert.classList.add('d-none'), 6000);
+    }
+  });
+}
+</script>
+{% endblock %}

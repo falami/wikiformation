@@ -1,0 +1,883 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Documents — Session {{ session.code }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+
+    body{ background: var(--bg); }
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+      overflow:hidden;
+      position:relative;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .hero .accent{
+      width:12px;
+      background:var(--theme-color-secondaire);
+      border-radius:999px;
+      box-shadow:0 0 0 6px rgba(255,193,7,.10);
+    }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      white-space: nowrap;
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* Form polish */
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select, textarea{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus, textarea:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    /* ===== Upload zone (drag&drop) ===== */
+    .upload-zone{
+      position: relative;
+      background: #0f2230;
+      border: 1.5px dashed rgba(255,193,7,.75);
+      border-radius: 1rem;
+      padding: 1.1rem;
+      text-align: center;
+      color: #cfe8f6;
+      transition: .2s ease;
+      cursor: pointer;
+    }
+    .upload-zone:hover{ box-shadow: 0 0 0 .25rem rgba(255,193,7,.14); }
+    .upload-zone.dragover{
+      background: #102a3a;
+      border-color: #ffd24d;
+      box-shadow: 0 0 0 .25rem rgba(255,210,77,.18);
+    }
+    .upload-zone .hint{ font-size: .92rem; opacity: .86; }
+    .file-hidden{
+      position:absolute !important;
+      width:1px !important; height:1px !important;
+      padding:0 !important; margin:-1px !important;
+      overflow:hidden !important;
+      clip: rect(0,0,0,0) !important;
+      white-space:nowrap !important;
+      border:0 !important;
+      opacity:0 !important;
+      pointer-events:none !important;
+    }
+
+    /* preview */
+    .file-preview{
+      margin-top:.75rem;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:.65rem;
+      flex-wrap:wrap;
+    }
+    .preview-thumb{
+      width: 160px;
+      height: 120px;
+      border-radius: .85rem;
+      border: 1px solid rgba(255,255,255,.15);
+      overflow:hidden;
+      background: rgba(255,255,255,.06);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .preview-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .preview-meta{
+      text-align:left;
+      max-width: 420px;
+    }
+    .preview-meta .name{ font-weight:800; color:#fff; }
+    .preview-meta .sub{ font-size:.88rem; opacity:.85; }
+    .btn-remove-picked{
+      border:none;
+      border-radius:.7rem;
+      padding:.35rem .6rem;
+      color:#fff;
+      background: linear-gradient(180deg, #ff5a5f, #e73d45);
+    }
+
+    /* ===== grid docs ===== */
+    .docs-grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .doc-card{
+      grid-column: span 12;
+      border:1px solid var(--stroke);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      padding: .95rem;
+      display:flex;
+      gap:.9rem;
+      align-items:flex-start;
+    }
+    .doc-ico{
+      width: 44px; height: 44px;
+      border-radius: 14px;
+      display:flex; align-items:center; justify-content:center;
+      background: color-mix(in srgb, var(--theme-color-secondaire) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-secondaire) 28%, var(--stroke));
+      flex: 0 0 auto;
+    }
+    .doc-ico i{ color: color-mix(in srgb, var(--theme-color-secondaire) 95%, #000); }
+    .doc-main{ flex:1 1 auto; min-width:0; }
+    .doc-title{
+      font-weight:900;
+      margin:0;
+      color: var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+    }
+    .doc-meta{
+      margin-top:.25rem;
+      color: var(--muted);
+      font-size: .9rem;
+      display:flex;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
+    .badge-soft{
+      border-radius:999px;
+      padding:.35rem .6rem;
+      border:1px solid var(--stroke);
+      background: var(--theme-color-principal);
+    }
+    .doc-actions{
+      flex: 0 0 auto;
+      display:flex;
+      gap:.35rem;
+      align-items:center;
+    }
+    .doc-actions form{ display:inline; }
+    .doc-actions .btn{ border-radius: 12px; }
+
+    @media (max-width: 992px){
+      .doc-card{ grid-column: span 12; }
+    }
+
+    .switch-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 1rem;
+      padding:.8rem .9rem;
+      border-radius:14px;
+      border:1px solid rgba(15,35,54,.08);
+      background:#fff;
+    }
+    .switch-row + .switch-row{ margin-top:.65rem; }
+    .switch-row .title{ font-weight:700; line-height:1.15; }
+    .switch-row .desc{
+      margin-top:.25rem;
+      font-size:.85rem;
+      color:#6b7280;
+    }
+    .switch-row .form-check.form-switch{ margin:0; }
+    .switch-row .form-check-input{ width:2.6em; height:1.35em; }
+    .switch-row .form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+    }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="meta-chip"><i class="bi bi-folder2-open"></i> Documents</span>
+        <span class="meta-chip"><i class="bi bi-calendar2-week"></i> Session {{ session.code }}</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom ?? ('Entité #' ~ entite.id) }}</span>
+        <span class="meta-chip"><i class="bi bi-mortarboard"></i> {{ session.formation ? session.formation.titre : session.formationIntituleLibre }}</span>
+        
+        <span class="meta-chip"><i class="bi bi-files"></i> {{ pieces|length }} doc(s)</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Documents de la session {{ session.code }}</h2>
+          <div class="opacity-75">Ajoute, valide, refuse ou supprime des pièces.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+             href="{{ path('app_administrateur_session_show', {entite: entite.id, id: session.id}) }}">
+            <i class="bi bi-arrow-left"></i> Retour session
+          </a>
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-plus-lg"></i> Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+
+      {# ================== UPLOAD ================== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-upload text-warning"></i> Ajouter un document</h5>
+          <span class="chip">Étape 1</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate' } }) }}
+          {{ form_errors(form) }}
+
+          <div class="row g-3 align-items-end">
+            <div class="col-md-12">
+              {{ form_row(form.type) }}
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label fw-semibold">Fichier</label>
+
+              <div class="upload-zone" id="session-piece-zone" data-input-id="{{ form.file.vars.id }}">
+                <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block"></i>
+                <div class="hint">Glissez un fichier ici ou cliquez pour choisir (PDF / JPG / PNG / WEBP)</div>
+
+                {{ form_widget(form.file, { attr: { class: 'file-hidden' } }) }}
+
+                <div class="file-preview d-none" id="pickedPreview">
+                  <div class="preview-thumb" id="pickedThumb">
+                    <i class="fa fa-file-lines fa-2x"></i>
+                  </div>
+                  <div class="preview-meta">
+                    <div class="name" id="pickedName">—</div>
+                    <div class="sub" id="pickedSub">—</div>
+                  </div>
+                  <button type="button" class="btn-remove-picked" id="removePickedBtn" title="Retirer">
+                    <i class="fa fa-times"></i>
+                  </button>
+                </div>
+              </div>
+
+              {{ form_errors(form.file) }}
+              <div class="form-text mt-2">15 Mo max. Les images afficheront un aperçu.</div>
+            </div>
+
+            <div class="col-md-12">
+              {{ form_row(form.commentaireControle) }}
+            </div>
+            <div class="col-md-12">
+              <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <div class="title">Valide</div>
+                    <div class="desc">Cochez cette case pour valider le document.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    {{ form_widget(form.valide, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                  </div>
+                </div>
+                {{ form_errors(form.valide) }}
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-primary">
+                <i class="fa fa-plus me-1"></i> Ajouter le document
+              </button>
+              <a class="btn btn-light" href="{{ path('app_administrateur_session_show', {entite: entite.id, id: session.id}) }}">
+                Annuler
+              </a>
+            </div>
+          </div>
+
+          {{ form_end(form) }}
+        </div>
+      </div>
+
+      {# ================== LISTE ================== #}
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-folder-open text-warning"></i> Documents déposés</h5>
+          <span class="chip">{{ pieces|length }} élément(s)</span>
+        </div>
+
+        {% if pieces|length == 0 %}
+          <div class="p-3 text-muted">Aucun document.</div>
+        {% else %}
+          <div class="docs-grid">
+            {% for p in pieces %}
+              <div class="doc-card">
+                <div class="doc-ico">
+                  {% set isOk = p.valide %}
+                  {% if isOk %}
+                    <i class="fa fa-check"></i>
+                  {% else %}
+                    <i class="fa fa-hourglass-half"></i>
+                  {% endif %}
+                </div>
+
+                <div class="doc-main">
+                  <p class="doc-title">
+                    <span class="badge badge-soft">{{ p.type.label }}</span>
+
+                    {% if p.valide %}
+                      <span class="badge rounded-pill bg-success-subtle text-success">
+                        <i class="fa fa-check me-1"></i>Validé
+                      </span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-warning-subtle text-warning">
+                        <i class="fa fa-hourglass me-1"></i>À valider
+                      </span>
+                    {% endif %}
+                  </p>
+
+                  <div class="doc-meta">
+                    <span><i class="fa fa-clock me-1"></i>{{ p.uploadedAt|date('d/m/Y H:i') }}</span>
+                    <span><i class="fa fa-comment-dots me-1"></i>{{ p.commentaireControle ?: '—' }}</span>
+                  </div>
+                </div>
+
+                <div class="doc-actions">
+                  <a class="btn btn-outline-primary btn-sm"
+                     title="Télécharger"
+                     href="{{ path('app_administrateur_session_pieces_download', {entite: entite.id, session: session.id, piece: p.id}) }}">
+                    <i class="fa fa-download"></i>
+                  </a>
+                  <button type="button"
+                          class="btn btn-outline-secondary btn-sm js-piece-open"
+                          title="Voir / Contrôler"
+                          data-piece-id="{{ p.id }}"
+                          data-piece-type="{{ p.type.label }}"
+                          data-piece-date="{{ p.uploadedAt|date('d/m/Y H:i') }}"
+                          data-piece-valide="{{ p.valide ? '1' : '0' }}"
+                          data-piece-comment="{{ p.commentaireControle|default('')|e('html_attr') }}"
+                          data-view-url="{{ path('app_administrateur_session_pieces_view', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                          data-update-url="{{ path('app_administrateur_session_pieces_update', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                          data-csrf="{{ csrf_token('upd_session_piece_' ~ p.id) }}">
+                    <i class="fa fa-eye"></i>
+                  </button>
+
+
+                  {% if not p.valide %}
+                    <form method="post"
+                          action="{{ path('app_administrateur_session_pieces_validate', {entite: entite.id, session: session.id, piece: p.id}) }}">
+                      <input type="hidden" name="_token" value="{{ csrf_token('val_session_piece_' ~ p.id) }}">
+                      <button class="btn btn-outline-success btn-sm" type="submit" title="Valider">
+                        <i class="fa fa-check"></i>
+                      </button>
+                    </form>
+
+                    <form method="post"
+                          action="{{ path('app_administrateur_session_pieces_reject', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                          onsubmit="return confirm('Refuser ce document ?');">
+                      <input type="hidden" name="_token" value="{{ csrf_token('rej_session_piece_' ~ p.id) }}">
+                      <input type="hidden" name="comment" value="Refusé : merci de remplacer le fichier.">
+                      <button class="btn btn-outline-warning btn-sm" type="submit" title="Refuser">
+                        <i class="fa fa-ban"></i>
+                      </button>
+                    </form>
+                  {% endif %}
+
+                  <form method="post"
+                        action="{{ path('app_administrateur_session_pieces_delete', {entite: entite.id, session: session.id, piece: p.id}) }}"
+                        onsubmit="return confirm('Supprimer ce document ?');">
+                    <input type="hidden" name="_token" value="{{ csrf_token('del_session_piece_' ~ p.id) }}">
+                    <button class="btn btn-outline-danger btn-sm" type="submit" title="Supprimer">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT : résumé ===== #}
+    <div class="col-lg-4">
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-2">
+            Session <strong class="text-dark">{{ session.code }}</strong>
+          </div>
+
+          <div class="border rounded-4 p-3" style="border-color: var(--stroke); background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+              <div class="fw-bold">Pièces</div>
+              <span class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                {{ pieces|length }} document(s)
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              {% set nOk = pieces|filter(p => p.valide)|length %}
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-muted">Validés</span>
+                <span class="fw-semibold">{{ nOk }}</span>
+              </div>
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-muted">À valider</span>
+                <span class="fw-semibold">{{ pieces|length - nOk }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 mt-3">
+            <a class="btn btn-light"
+               href="{{ path('app_administrateur_session_show', {entite: entite.id, id: session.id}) }}">
+              <i class="fa fa-arrow-left me-1"></i> Retour session
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="fa fa-lightbulb text-warning"></i> Astuce</h5>
+          <span class="chip">UX</span>
+        </div>
+        <div class="p-3 p-md-4 small text-muted">
+          Les documents refusés restent “À valider” jusqu’à remplacement. Tu peux forcer un commentaire de contrôle depuis ton action “refuser”.
+        </div>
+      </div>
+    </div>
+
+  </div>
+  
+
+
+
+<div class="modal fade" id="pieceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1" id="pieceModalTitle">Document</h5>
+          <div class="small text-muted" id="pieceModalSub">—</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-lg-8">
+            <div class="border rounded-4 overflow-hidden" style="border-color: var(--stroke); min-height: 520px;">
+              <div id="pieceModalPreview" class="w-100" style="min-height:520px; background:#0b1621;"></div>
+            </div>
+
+            <div class="d-flex gap-2 mt-2">
+              <a id="pieceModalDownload" class="btn btn-outline-primary btn-sm" href="#" target="_blank">
+                <i class="fa fa-download me-1"></i> Télécharger
+              </a>
+              <a id="pieceModalOpenNew" class="btn btn-outline-secondary btn-sm" href="#" target="_blank">
+                <i class="fa fa-up-right-from-square me-1"></i> Ouvrir
+              </a>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="cardx">
+              <div class="cardx-h">
+                <h6 class="cardx-title"><i class="fa fa-pen-to-square text-warning"></i> Contrôle</h6>
+                <span class="chip" id="pieceModalPill">—</span>
+              </div>
+
+              <div class="p-3">
+                <div class="mb-3">
+                  <label class="form-label">Statut</label>
+                  <select id="pieceModalValide" class="form-select">
+                    <option value="0">À valider</option>
+                    <option value="1">Validé</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Commentaire</label>
+                  <textarea id="pieceModalComment" class="form-control" rows="6" placeholder="Commentaire de contrôle…"></textarea>
+                </div>
+
+                <div class="d-grid gap-2">
+                  <button type="button" class="btn btn-primary" id="pieceModalSave">
+                    <i class="fa fa-floppy-disk me-1"></i> Enregistrer
+                  </button>
+                  <div class="small text-muted" id="pieceModalMsg" role="status" aria-live="polite"></div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{# ================== SCRIPTS PAGE (drag & drop + preview + remove) ================== #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const zone = document.getElementById('session-piece-zone');
+  if (!zone) return;
+
+  const inputId = zone.dataset.inputId;
+  const input = document.getElementById(inputId) || zone.querySelector('input[type="file"]');
+
+  const preview = document.getElementById('pickedPreview');
+  const nameEl  = document.getElementById('pickedName');
+  const subEl   = document.getElementById('pickedSub');
+  const thumbEl = document.getElementById('pickedThumb');
+  const rmBtn   = document.getElementById('removePickedBtn');
+
+  const openPicker = () => {
+    if (!input) return;
+    if (typeof input.showPicker === 'function') input.showPicker();
+    else input.click();
+  };
+
+  function humanSize(bytes){
+    const u = ['o','Ko','Mo','Go'];
+    let i = 0; let n = bytes || 0;
+    while(n >= 1024 && i < u.length-1){ n/=1024; i++; }
+    return (i === 0 ? n : n.toFixed(1)) + ' ' + u[i];
+  }
+
+  function setPicked(file){
+    if (!file) return;
+
+    if (nameEl) nameEl.textContent = file.name;
+    if (subEl)  subEl.textContent  = `${file.type || 'fichier'} • ${humanSize(file.size)}`;
+
+    if (thumbEl){
+      thumbEl.innerHTML = '';
+      if (file.type && file.type.startsWith('image/')){
+        const img = document.createElement('img');
+        img.alt = 'Aperçu';
+        img.src = URL.createObjectURL(file);
+        thumbEl.appendChild(img);
+      } else {
+        thumbEl.innerHTML = `<i class="fa fa-file-pdf fa-2x"></i>`;
+      }
+    }
+
+    preview?.classList.remove('d-none');
+  }
+
+  function clearPicked(){
+    const dt = new DataTransfer();
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles:true }));
+    preview?.classList.add('d-none');
+    if (thumbEl) thumbEl.innerHTML = `<i class="fa fa-file-lines fa-2x"></i>`;
+    if (nameEl) nameEl.textContent = '—';
+    if (subEl) subEl.textContent = '—';
+  }
+
+  zone.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    openPicker();
+  });
+
+  input?.addEventListener('change', () => {
+    const f = input.files && input.files[0];
+    if (!f) {
+      preview?.classList.add('d-none');
+      return;
+    }
+    setPicked(f);
+  });
+
+  rmBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    clearPicked();
+  });
+
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    if (!input) return;
+    const dropped = e.dataTransfer?.files || [];
+    if (!dropped.length) return;
+
+    const dt = new DataTransfer();
+    dt.items.add(dropped[0]);
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles:true }));
+  });
+
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const modalEl = document.getElementById('pieceModal');
+  if (!modalEl) return;
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  const titleEl = document.getElementById('pieceModalTitle');
+  const subEl   = document.getElementById('pieceModalSub');
+  const pillEl  = document.getElementById('pieceModalPill');
+  const previewEl = document.getElementById('pieceModalPreview');
+
+  const selValide = document.getElementById('pieceModalValide');
+  const taComment = document.getElementById('pieceModalComment');
+  const btnSave   = document.getElementById('pieceModalSave');
+  const msgEl     = document.getElementById('pieceModalMsg');
+
+  const aDownload = document.getElementById('pieceModalDownload');
+  const aOpenNew  = document.getElementById('pieceModalOpenNew');
+
+  let current = null;
+
+  function setPill(valide){
+    if (!pillEl) return;
+    if (valide){
+      pillEl.textContent = '✅ Validé';
+    } else {
+      pillEl.textContent = '⏳ À valider';
+    }
+  }
+
+  function renderPreview(url){
+    if (!previewEl) return;
+    previewEl.innerHTML = '';
+
+    // iframe marche pour PDF et souvent pour images, mais images => plus joli en <img>
+    // On détecte via extension (simple, efficace)
+    const u = (url || '').toLowerCase();
+    const isImage = u.match(/\.(jpg|jpeg|png|webp)(\?|$)/);
+
+    if (isImage){
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Aperçu';
+      img.style.width = '100%';
+      img.style.height = '520px';
+      img.style.objectFit = 'contain';
+      img.style.background = '#0b1621';
+      previewEl.appendChild(img);
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.width = '100%';
+    iframe.style.height = '520px';
+    iframe.style.border = '0';
+    previewEl.appendChild(iframe);
+  }
+
+  // Ouvrir modal
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-piece-open');
+    if (!btn) return;
+
+    current = {
+      id: btn.dataset.pieceId,
+      viewUrl: btn.dataset.viewUrl,
+      updateUrl: btn.dataset.updateUrl,
+      csrf: btn.dataset.csrf,
+      cardEl: btn.closest('.doc-card'),
+    };
+
+    const type = btn.dataset.pieceType || 'Document';
+    const date = btn.dataset.pieceDate || '';
+    const valide = btn.dataset.pieceValide === '1';
+    const comment = btn.dataset.pieceComment || '';
+
+    titleEl.textContent = type;
+    subEl.textContent = `Déposé le ${date}`;
+    selValide.value = valide ? '1' : '0';
+    taComment.value = comment;
+    setPill(valide);
+
+    msgEl.textContent = '';
+    btnSave.disabled = false;
+
+    // Liens
+    aOpenNew.href = current.viewUrl;
+    aDownload.href = "{{ path('app_administrateur_session_pieces_download', {entite: entite.id, session: session.id, piece: 0}) }}".replace('/0/download', `/${current.id}/download`);
+
+    // Preview
+    renderPreview(current.viewUrl);
+
+    modal.show();
+  });
+
+  // Save AJAX
+  btnSave.addEventListener('click', async () => {
+    if (!current) return;
+
+    btnSave.disabled = true;
+    msgEl.textContent = 'Enregistrement…';
+
+    try{
+      const body = new URLSearchParams();
+      body.set('_token', current.csrf);
+      body.set('valide', selValide.value);
+      body.set('commentaire', taComment.value || '');
+
+      const res = await fetch(current.updateUrl, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With':'XMLHttpRequest',
+          'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'
+        },
+        body: body.toString()
+      });
+
+      const json = await res.json().catch(()=>null);
+      if (!res.ok || !json || !json.ok){
+        throw new Error(json?.message || ('HTTP ' + res.status));
+      }
+
+      msgEl.textContent = '✅ Enregistré';
+      setPill(!!json.valide);
+
+      // Mise à jour de la card dans la liste
+      if (current.cardEl){
+        const metaComment = current.cardEl.querySelector('.doc-meta span:nth-child(2)');
+        if (metaComment) metaComment.innerHTML = `<i class="fa fa-comment-dots me-1"></i>${json.commentaire}`;
+
+        // badge validé / à valider
+        const badges = current.cardEl.querySelectorAll('.doc-title .badge.rounded-pill');
+        badges.forEach(b => b.remove());
+
+        const status = document.createElement('span');
+        status.className = json.valide
+          ? 'badge rounded-pill bg-success-subtle text-success'
+          : 'badge rounded-pill bg-warning-subtle text-warning';
+
+        status.innerHTML = json.valide
+          ? '<i class="fa fa-check me-1"></i>Validé'
+          : '<i class="fa fa-hourglass me-1"></i>À valider';
+
+        current.cardEl.querySelector('.doc-title')?.appendChild(status);
+
+        // icône à gauche
+        const ico = current.cardEl.querySelector('.doc-ico i');
+        if (ico){
+          ico.className = json.valide ? 'fa fa-check' : 'fa fa-hourglass-half';
+        }
+
+        // update dataset du bouton (si réouverture)
+        const openBtn = current.cardEl.querySelector('.js-piece-open');
+        if (openBtn){
+          openBtn.dataset.pieceValide = json.valide ? '1' : '0';
+          openBtn.dataset.pieceComment = (taComment.value || '');
+        }
+      }
+
+      setTimeout(()=> { msgEl.textContent = ''; }, 1500);
+    } catch(err){
+      console.error(err);
+      msgEl.textContent = '❌ ' + (err?.message || 'Erreur');
+    } finally {
+      btnSave.disabled = false;
+    }
+  });
+
+});
+</script>
+
+{% endblock %}

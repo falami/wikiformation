@@ -1,0 +1,1668 @@
+{# templates/administrateur/depense/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Dépenses{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    /* ===== HERO (dark glass like Factures) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme site/index) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* chip highlight */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* boutons hero comme site/index */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== KPI CARDS ===== */
+    .kpi-card{
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 26px rgba(0,0,0,.06);
+      border-radius: 18px;
+      overflow:hidden;
+      background: #fff;
+      position:relative;
+    }
+    .kpi-card:before{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(700px 120px at 20% 0%, rgba(255,193,7,.12), transparent 55%);
+      pointer-events:none;
+    }
+    .kpi-ico{
+      width:44px; height:44px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+
+    .filter-icon{
+      width:38px; height:38px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
+      flex: 0 0 auto;
+    }
+    .kpi-label{ color: rgba(0,0,0,.55); font-size:.85rem }
+    .kpi-value{ font-weight: 800; font-size: 1.6rem; letter-spacing:-.02em }
+    .kpi-sub{ color: rgba(0,0,0,.50); font-size:.82rem }
+    .kpi-bar{
+      height: 6px; border-radius: 999px;
+      background: rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .kpi-bar > span{
+      display:block; height:100%;
+      width: 0%;
+      background: var(--theme-color-secondaire);
+      border-radius: 999px;
+      transition: width .35s ease;
+    }
+
+    /* ===== TOOLBAR ===== */
+    .toolbar{
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      padding: .85rem;
+    }
+    .toolbar .hint{ font-size:.85rem; color: rgba(0,0,0,.55); }
+    .chip{
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .7rem;
+      border-radius:999px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size:.85rem;
+      color: rgba(0,0,0,.65);
+    }
+
+    /* ===== DATATABLE CARD ===== */
+    .table-card{
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    table.dataTable{ margin:0 !important; }
+    table.dataTable thead th{
+      position: sticky; top: 0; z-index: 2;
+      background: #f7f8fa !important;
+      border-bottom: 1px solid rgba(0,0,0,.08) !important;
+      text-transform: uppercase;
+      font-size: .78rem;
+      letter-spacing:.06em;
+      color: rgba(0,0,0,.55);
+      white-space: nowrap;
+    }
+
+    #tableauDepenses tbody tr:nth-child(odd) > *{ background-color:#fff !important; }
+    #tableauDepenses tbody tr:nth-child(even) > *{ background-color: rgba(35,51,66,.035) !important; }
+    #tableauDepenses tbody tr:hover > *{ background-color: rgba(255,193,7,.08) !important; }
+    #tableauDepenses tbody td{ padding-top:.75rem !important; padding-bottom:.75rem !important; vertical-align: middle; }
+
+    .dataTables_wrapper .dataTables_filter input{
+      border-radius: 999px !important;
+      padding: .45rem .85rem !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .dataTables_wrapper .dataTables_length select{
+      border-radius: 999px !important;
+      border: 1px solid rgba(0,0,0,.12) !important;
+      padding: .35rem .7rem !important;
+    }
+    .dt-top{
+      padding: .75rem .85rem;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: #fff;
+    }
+    .dt-bottom-internal{
+      padding: 1rem .85rem !important;
+      background: #fff;
+      border-top: 1px solid rgba(0,0,0,.06);
+      margin-top: .75rem !important;
+    }
+    .dt-actions .btn{
+      border-radius: 999px;
+      font-weight: 700;
+      padding: .40rem .75rem;
+    }
+
+    #tableauDepenses td.action-column{ white-space: nowrap; }
+
+    body .dt-floating-dropdown{ z-index: 9999 !important; }
+
+    @media (max-width: 768px){
+      table.dataTable td.action-column{
+        position: sticky; right:0; background:#fff; z-index:5;
+        box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
+      }
+      .hero{ border-radius: 16px; }
+    }
+
+    /* TomSelect: zone des chips (valeurs sélectionnées) */
+    .ts-wrapper.multi .ts-control{
+      /* garde une hauteur raisonnable */
+      max-height: 96px;            /* ajuste: 72/96/120 */
+      overflow-y: auto;            /* ✅ scroll interne */
+      overflow-x: hidden;
+      flex-wrap: wrap;
+      align-items: flex-start;     /* ✅ évite l'effet "bloqué" */
+      padding-right: 2.2rem;       /* laisse la place au caret */
+    }
+
+    /* (optionnel) scroll visible sur Mac/Win */
+    .ts-wrapper.multi .ts-control::-webkit-scrollbar{
+      width: 10px;
+    }
+    .ts-wrapper.multi .ts-control::-webkit-scrollbar-thumb{
+      border-radius: 999px;
+    }
+
+    /* Empêche le champ de saisie de prendre trop de place */
+    .ts-wrapper.multi .ts-control > input{
+      min-width: 60px;
+      flex: 1 1 60px;
+    }
+
+    /* =========================
+   ✅ Dropdown "premium" (même design que Paiements)
+   ========================= */
+
+    /* Le bouton toggle (dans la chip) */
+    .chip .dropdown-toggle{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.75);
+      box-shadow: 0 8px 18px rgba(0,0,0,.06);
+      color: rgba(0,0,0,.72);
+      font-weight: 700;
+      padding: .38rem .70rem;
+      line-height: 1.1;
+      transition: transform .08s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .chip .dropdown-toggle:hover{
+      border-color: rgba(0,0,0,.16);
+      box-shadow: 0 12px 22px rgba(0,0,0,.08);
+    }
+    .chip .dropdown-toggle:active{
+      transform: translateY(1px);
+    }
+
+    /* Badge compteur dans le bouton */
+    .chip .dropdown-toggle .badge{
+      border-radius: 999px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    /* Le menu */
+    .toolbar .dropdown-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .65rem;
+      background:
+        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        #fff;
+      overflow: hidden;
+    }
+
+    /* Petit "header" du menu : zone recherche */
+    .toolbar .dropdown-menu .form-control{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.95);
+      padding: .42rem .85rem;
+      box-shadow: none !important;
+    }
+    .toolbar .dropdown-menu .form-control:focus{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18) !important;
+    }
+
+    /* Boutons Tout / Aucun */
+    .toolbar .dropdown-menu .btn{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      font-weight: 700;
+      padding: .35rem .7rem;
+    }
+    .toolbar .dropdown-menu .btn:hover{
+      background: rgba(255,193,7,.12);
+      border-color: rgba(255,193,7,.35);
+    }
+
+    /* Liste scrollable (comme Paiements) */
+    .toolbar .dropdown-menu [id^="list"], /* si tu gardes les ids list... */
+    .toolbar .dropdown-menu .dropdown-list{
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.92);
+      padding: .25rem;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    /* Item ligne */
+    .toolbar .dropdown-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .45rem .55rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+      background: transparent;
+    }
+    .toolbar .dropdown-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.20);
+    }
+
+    /* Checkbox */
+    .toolbar .dropdown-menu .form-check-input{
+      width: 1.05rem;
+      height: 1.05rem;
+      border-radius: .35rem;
+      border: 1px solid rgba(0,0,0,.18);
+      margin-top: 0;
+    }
+    .toolbar .dropdown-menu .form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: rgba(0,0,0,.10);
+    }
+
+    /* Texte secondaire */
+    .toolbar .dropdown-menu .text-muted{
+      color: rgba(0,0,0,.52) !important;
+    }
+
+    /* Scrollbar clean */
+    .toolbar .dropdown-menu *::-webkit-scrollbar{ width: 10px; }
+    .toolbar .dropdown-menu *::-webkit-scrollbar-track{ background: rgba(0,0,0,.04); border-radius: 999px; }
+    .toolbar .dropdown-menu *::-webkit-scrollbar-thumb{ background: rgba(0,0,0,.18); border-radius: 999px; }
+    .toolbar .dropdown-menu *::-webkit-scrollbar-thumb:hover{ background: rgba(0,0,0,.26); }
+
+
+
+
+    /* Actions (comme Factures) */
+    #tableauDepenses td.action-column .btn{
+      border-radius: 999px;
+      font-weight: 700;
+      padding: .40rem .75rem;
+    }
+
+    #tableauDepenses td.action-column .dropdown-menu{
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .45rem;
+    }
+
+    #tableauDepenses td.action-column .dropdown-item{
+      border-radius: 10px;
+      padding: .45rem .55rem;
+    }
+    #tableauDepenses td.action-column .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+    }
+
+
+    /* =========================
+      ✅ Actions (premium, aligné Factures)
+      ========================= */
+
+    /* ✅ Actions: largeur mini */
+    #tableauDepenses th:last-child,
+    #tableauDepenses td:last-child{
+      width: 1% !important;       /* laisse le navigateur minimiser */
+      min-width: 0 !important;    /* autorise la réduction */
+      white-space: nowrap;        /* pas de retour à la ligne */
+    }
+
+
+    /* optionnel: boutons un peu plus compacts */
+    .dep-actions .btn{
+      padding: .32rem .55rem;     /* réduit l’empreinte */
+    }
+
+
+    /* Bouton principal (Justif / Aucun) */
+    .dep-actions .dep-main{
+      background: rgba(255,255,255,.85);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    }
+    .dep-actions .dep-main:hover{
+      box-shadow: 0 14px 28px rgba(0,0,0,.10);
+      border-color: rgba(0,0,0,.18);
+    }
+
+    /* Disabled “Aucun” -> plus élégant */
+    .dep-actions .dep-main:disabled{
+      opacity: 1 !important;
+      color: rgba(0,0,0,.45) !important;
+      background: rgba(0,0,0,.03) !important;
+      border-color: rgba(0,0,0,.10) !important;
+      box-shadow: none !important;
+    }
+
+
+    /* ✅ Fusion visuelle du bouton principal + split dropdown (1 seule pill) */
+    .dep-actions.btn-group .dep-secondary{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+    }
+
+
+    /* Bouton principal (Justif / Aucun) */
+    .dep-actions .dep-secondary{
+      background: rgba(255,255,255,.85);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 10px 22px rgba(0,0,0,.06);
+      padding: .40rem .40rem !important;
+    }
+    .dep-actions .dep-secondary:hover{
+      box-shadow: 0 14px 28px rgba(0,0,0,.10);
+      border-color: rgba(0,0,0,.18);
+    }
+
+    /* Disabled “Aucun” -> plus élégant */
+    .dep-actions .dep-secondary:disabled{
+      opacity: 1 !important;
+      color: rgba(0,0,0,.45) !important;
+      background: rgba(0,0,0,.03) !important;
+      border-color: rgba(0,0,0,.10) !important;
+      box-shadow: none !important;
+    }
+
+    /* Split */
+    .dep-actions .dep-split{
+      padding-left: .55rem;
+      padding-right: .55rem;
+      border-color: rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+    }
+
+    /* Menu dropdown */
+    .dep-actions .dep-menu{
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: 0 18px 46px rgba(0,0,0,.18);
+      padding: .55rem;
+      background:
+        radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
+        #fff;
+      overflow: hidden;
+    }
+
+    .dep-actions .dep-menu .dropdown-item{
+      border-radius: 12px;
+      padding: .50rem .60rem;
+      margin: .10rem 0;
+      border: 1px solid transparent;
+    }
+    .dep-actions .dep-menu .dropdown-item:hover{
+      background: rgba(255,193,7,.10);
+      border-color: rgba(255,193,7,.22);
+    }
+
+    /* Mobile : on masque le texte, icône only */
+    @media (max-width: 992px){
+      .dep-actions .dep-main span{ display:none !important; }
+    }
+
+    /* ✅ Fusion visuelle du bouton principal + split dropdown (1 seule pill) */
+    .dep-actions.btn-group .dep-main{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+
+    .dep-actions.btn-group .dep-split{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+
+      /* supprime la double bordure au milieu */
+      margin-left: -1px; /* recouvre la bordure du bouton gauche */
+    }
+
+    /* Optionnel : joli séparateur fin au milieu (au lieu de double bordure) */
+    .dep-actions.btn-group .dep-split{
+      position: relative;
+    }
+    .dep-actions.btn-group .dep-split:before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:20%;
+      bottom:20%;
+      width:1px;
+      background: rgba(0,0,0,.10);
+    }
+
+    /* ✅ Ne jamais masquer les actions quand le dropdown est ouvert */
+    #tableauDepenses td.action-column .dep-actions{
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    /* ✅ quand le menu est ouvert, on force l’affichage même si tr:hover se perd */
+    #tableauDepenses td.action-column .dep-actions:focus-within{
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    /* ✅ GARDE UNIQUEMENT CELLE-CI */
+    #tableauDepenses td.action-column{
+      padding-left: 0 !important;  /* supprime complètement le padding gauche */
+      padding-right: .15rem !important;
+      text-align: right;
+    }
+
+    /* Le menu flottant doit toujours passer au-dessus du DataTable */
+    body .dep-floating-dropdown{
+      z-index: 20000 !important;
+    }
+
+
+
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  {# HERO (identique à site/index) #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-wallet2 me-2" style="color:var(--theme-color-secondaire)"></i>
+            Dépenses
+          </h2>
+          <div class="opacity-75 mt-1">Suivi TVA, justificatifs, exports & impression.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-wallet2"></i> Comptabilité</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_administrateur_depense_new', { entite: entite.id }) }}">
+            <i class="bi bi-plus-lg me-1"></i> Nouvelle dépense
+          </a>
+
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_depense_import', { entite: entite.id }) }}">
+            <i class="bi bi-upload me-1"></i> Importer
+          </a>
+
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_dashboard_index', { entite: entite.id })|default('#') }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== KPI ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-receipt fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Dépenses</div>
+              <div class="kpi-value" id="kpi-count">—</div>
+              <div class="kpi-sub" id="kpi-range">{{ entite.nom }}</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-count"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-cash-coin fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">Total TTC</div>
+              <div class="kpi-value" id="kpi-ttc">—</div>
+              <div class="kpi-sub">Somme TTC</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-ttc"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-percent fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">TVA totale</div>
+              <div class="kpi-value" id="kpi-tva">—</div>
+              <div class="kpi-sub">TVA sur les dépenses</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-tva"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico"><i class="bi bi-check2-circle fs-4"></i></div>
+            <div class="flex-grow-1">
+              <div class="kpi-label">TVA déductible (recalculée)</div>
+              <div class="d-flex align-items-end gap-2">
+                <div class="kpi-value" id="kpi-tvaDed">—</div>
+                <span class="chip" id="kpi-tvaDedPct" style="margin-bottom:.25rem;">—</span>
+              </div>
+              <div class="kpi-sub">Part récupérable sur la TVA totale</div>
+            </div>
+          </div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-tvaDed"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== TOOLBAR ===== #}
+  <div class="toolbar mb-3">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
+
+
+
+
+        <span class="chip">
+          <i class="bi bi-calendar3"></i>
+          <select id="periodType" class="form-select form-select-sm ms-2" style="width:auto">
+            <option value="all">Tout</option>
+            <option value="year" selected>Année</option>
+            <option value="quarter">Trimestre</option>
+            <option value="month">Mois</option>
+          </select>
+
+          <select id="periodYear" class="form-select form-select-sm ms-2" style="width:auto"></select>
+
+          <select id="periodQuarter" class="form-select form-select-sm ms-2" style="width:auto; display:none">
+            <option value="1">T1</option>
+            <option value="2">T2</option>
+            <option value="3">T3</option>
+            <option value="4">T4</option>
+          </select>
+
+          <select id="periodMonth" class="form-select form-select-sm ms-2" style="width:auto; display:none"></select>
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-funnel"></i>
+          TVA
+          <select id="tvaOnly" class="form-select form-select-sm ms-2" style="width:auto">
+            <option value="all">Toutes</option>
+            <option value="deductible">Déductible</option>
+            <option value="nodeductible">Non déductible</option>
+          </select>
+        </span>
+      
+
+
+        <span class="chip">
+          <i class="bi bi-tags"></i>
+          Cat.
+          <button class="btn btn-sm btn-light ms-2 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius:999px;">
+            <span id="catSelectedCount">Toutes</span>
+          </button>
+
+          <div class="dropdown-menu p-2" style="min-width:320px; max-height:340px; overflow:auto;">
+            <input type="text" class="form-control form-control-sm mb-2" placeholder="Rechercher..." data-filter="cat">
+            <div class="d-flex gap-2 mb-2">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-check-all="cat">Tout</button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-uncheck-all="cat">Aucun</button>
+            </div>
+
+            <div id="catList">
+              {% for c in categories %}
+                <label class="dropdown-item d-flex align-items-center gap-2" style="white-space:normal;">
+                  <input class="form-check-input m-0 dep-filter-cat" type="checkbox" value="{{ c.id }}">
+                  <span>{{ c.libelle }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        </span>
+
+        <span class="chip">
+          <i class="bi bi-truck"></i>
+          Four.
+          <button class="btn btn-sm btn-light ms-2 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius:999px;">
+            <span id="fourSelectedCount">Tous</span>
+          </button>
+
+          <div class="dropdown-menu p-2" style="min-width:320px; max-height:340px; overflow:auto;">
+            <input type="text" class="form-control form-control-sm mb-2" placeholder="Rechercher..." data-filter="four">
+            <div class="d-flex gap-2 mb-2">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-check-all="four">Tout</button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-uncheck-all="four">Aucun</button>
+            </div>
+
+            <div id="fourList">
+              {% for f in fournisseurs %}
+                <label class="dropdown-item d-flex align-items-center gap-2" style="white-space:normal;">
+                  <input class="form-check-input m-0 dep-filter-four" type="checkbox" value="{{ f.id }}">
+                  {% if f.couleurHex %}
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:{{ f.couleurHex }};"></span>
+                  {% endif %}
+                  <span>{{ f.nom }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        </span>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download"></i> Export
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== TABLE ===== #}
+  <div class="table-card mb-4 p-3">
+    <table id="tableauDepenses" class="table table-hover align-middle mb-0" style="width:100%">
+      <thead>
+        <tr>
+          <th style="width:80px">#</th>
+          <th style="width:130px">Date</th>
+          <th>Libellé</th>
+          <th style="width:180px">Catégorie</th>
+
+          {# ✅ NEW #}
+          <th style="width:220px">Fournisseur</th>
+
+          <th class="text-end" style="width:140px">TTC</th>
+          <th class="text-end" style="width:140px">TVA</th>
+          <th class="text-end" style="width:160px">TVA déd.</th>
+          <th class="text-end" style="width:110px">%</th>
+          <th style="width:140px">Déd.</th>
+          <th class="text-end actions-col" style="width:1px">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody><tr><td colspan="11"></td></tr></tbody>
+    </table>
+  </div>
+  
+{# ===== MODAL APERÇU JUSTIFICATIF (VERSION CORRIGÉE) ===== #}
+<div class="modal fade" id="modalFacturePreview" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:18px; overflow:hidden;">
+      <div class="modal-header d-flex align-items-center justify-content-between"
+     style="background:linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78)); color:#fff;">
+
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge" style="background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.18);">
+            <i class="bi bi-file-earmark-text"></i>
+          </span>
+          <div>
+            <div class="fw-bold" id="previewTitle">Aperçu</div>
+            <div class="small" style="opacity:.85" id="previewSubtitle">—</div>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <a class="btn btn-sm btn-outline-light" id="previewOpenNewTab" href="#" target="_blank" rel="noopener" style="border-radius:999px;">
+            <i class="bi bi-box-arrow-up-right"></i> Ouvrir
+          </a>
+          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal" style="border-radius:999px;">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body p-0" style="background:#0f172a; min-height:70vh; display:flex; justify-content:center; align-items:center;">
+        <div id="previewLoading" class="p-4 text-center text-white-50">
+          <div class="spinner-border" role="status" aria-hidden="true"></div>
+          <div class="mt-2 small">Chargement du PDF…</div>
+        </div>
+
+        <div id="previewCanvasContainer" style="display:none; width:100%; height:70vh; overflow:auto; padding:1rem;">
+          <canvas id="previewCanvas" style="display:block; margin:0 auto; box-shadow:0 18px 40px rgba(0,0,0,.35); border-radius:10px;"></canvas>
+        </div>
+
+        <div id="previewError" style="display:none; color:#fff; padding:2rem; text-align:center;">
+          <i class="bi bi-exclamation-triangle fs-1 mb-3"></i>
+          <div class="fw-bold mb-2">Impossible de charger le PDF</div>
+          <div class="small opacity-75 mb-3" id="previewErrorMsg">—</div>
+          <a class="btn btn-sm btn-outline-light" id="previewErrorOpenBtn" href="#" target="_blank" rel="noopener">
+            <i class="bi bi-box-arrow-up-right"></i> Ouvrir dans un nouvel onglet
+          </a>
+        </div>
+      </div>
+
+      <div class="modal-footer d-flex justify-content-between">
+        <div class="small text-muted">
+          Astuce : si le PDF ne s'affiche pas, clique sur <strong>Ouvrir</strong>.
+        </div>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="border-radius:999px;">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+
+
+<script>
+  window.__ALL_CAT_IDS__  = {{ categories|map(c => c.id)|json_encode|raw }};
+  window.__ALL_FOUR_IDS__ = {{ fournisseurs|map(f => f.id)|json_encode|raw }};
+</script>
+
+
+
+<script type="module">
+  import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+
+  // worker ESM (CDN -> bon MIME type)
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+
+  // on expose pour ton code jQuery
+  window.pdfjsLib = pdfjsLib;
+
+  console.log("pdfjsLib ready =", window.pdfjsLib);
+
+
+  $(function () {
+    function getPdfJs(){
+      return window.pdfjsLib || null;
+    }
+
+    function waitPdfJs(timeoutMs = 3000){
+      return new Promise((resolve, reject) => {
+        const start = Date.now();
+        (function tick(){
+          const lib = getPdfJs();
+          if (lib) return resolve(lib);
+          if (Date.now() - start > timeoutMs) return reject(new Error("PDF.js n'est pas chargé (pdfjsLib introuvable)."));
+          setTimeout(tick, 50);
+        })();
+      });
+    }
+
+
+    // ✅ INIT: tout coché au départ
+    $('.dep-filter-cat').prop('checked', true);
+    $('.dep-filter-four').prop('checked', true);
+
+    // si "tout coché" doit filtrer (IN sur tout), mets some :
+    window.__catMode = 'some';
+    window.__fourMode = 'some';
+
+    updateSelectedCounts();
+
+
+
+
+
+
+
+    const $tvaOnly = $('#tvaOnly');
+    const $periodType = $('#periodType');
+    const $periodYear = $('#periodYear');
+    const $periodQuarter = $('#periodQuarter');
+    const $periodMonth = $('#periodMonth');
+
+
+
+    function pad2(n){ return String(n).padStart(2,'0'); }
+
+    function initPeriodSelectors(){
+      const now = new Date();
+      const curY = now.getFullYear();
+      const curM = now.getMonth() + 1; // 1..12
+      const curQ = Math.floor((curM - 1) / 3) + 1;
+
+      // Années : de curY à curY-8 (ajuste si tu veux)
+      $periodYear.empty();
+      for(let y = curY; y >= curY - 8; y--){
+        $periodYear.append(`<option value="${y}">${y}</option>`);
+      }
+      $periodYear.val(String(curY));
+
+      // Mois
+      $periodMonth.empty();
+      for(let m = 1; m <= 12; m++){
+        $periodMonth.append(`<option value="${m}">${pad2(m)}</option>`);
+      }
+      $periodMonth.val(String(curM));
+
+      // Trimestre
+      $periodQuarter.val(String(curQ));
+
+      updatePeriodUi();
+      updatePeriodLabel();
+    }
+
+    function updatePeriodUi(){
+      const t = $periodType.val();
+      $periodQuarter.toggle(t === 'quarter');
+      $periodMonth.toggle(t === 'month');
+
+      // année visible sauf "Tout"
+      $periodYear.toggle(t !== 'all');
+    }
+
+    function updatePeriodLabel(){
+      const t = $periodType.val();
+      const y = $periodYear.val();
+      const q = $periodQuarter.val();
+      const m = $periodMonth.val();
+
+      let label = 'Tout';
+      if (t === 'year') label = `Année ${y}`;
+      if (t === 'quarter') label = `T${q} ${y}`;
+      if (t === 'month') label = `${pad2(m)}/${y}`;
+
+      $('#kpi-range').text(label);
+    }
+
+    initPeriodSelectors();
+
+
+
+
+    function euro(cents){
+      const v = (cents || 0) / 100;
+      return v.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+    }
+    function nowLabel(){
+      const d = new Date();
+      return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    }
+    function initTooltips(){
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        bootstrap.Tooltip.getOrCreateInstance(el);
+      });
+    }
+
+
+
+    function clampPct(x){
+      x = Number(x || 0);
+      if (!isFinite(x)) return 0;
+      return Math.max(0, Math.min(100, x));
+    }
+
+    function pct(part, total){
+      if (!total || total <= 0) return 0;
+      return clampPct((part / total) * 100);
+    }
+
+    function setBar(id, part, total){
+      const w = pct(part, total);
+      $(id).css('width', w.toFixed(0) + '%');
+    }
+
+    function setKpis(k, kAll){
+      const count = k?.count || 0;
+      const ttc   = k?.ttcCents || 0;
+      const tva   = k?.tvaCents || 0;
+      const tvaDed= k?.tvaDeductibleCents || 0;
+
+      const allCount = kAll?.count || 0;
+      const allTtc   = kAll?.ttcCents || 0;
+      const allTva   = kAll?.tvaCents || 0;
+      const allTvaDed= kAll?.tvaDeductibleCents || 0;
+
+      // Valeurs
+      $('#kpi-count').text(count);
+      $('#kpi-ttc').text(euro(ttc));
+      $('#kpi-tva').text(euro(tva));
+      $('#kpi-tvaDed').text(euro(tvaDed));
+
+      // Barres = filtré / total(all)
+      setBar('#kpi-bar-count', count, allCount);
+      setBar('#kpi-bar-ttc',   ttc,   allTtc);
+      setBar('#kpi-bar-tva',   tva,   allTva);
+      setBar('#kpi-bar-tvaDed',tvaDed,allTvaDed);
+
+      // Chip % TVA déductible sur TVA filtrée (comme avant)
+      const pctDed = (tva > 0) ? (tvaDed / tva) * 100 : 0;
+      $('#kpi-tvaDedPct').text(pctDed.toLocaleString('fr-FR',{maximumFractionDigits:1}) + ' %');
+
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    }
+
+
+    async function loadDepenseKpis(){
+      const url = "{{ path('app_administrateur_depense_kpis', { entite: entite.id }) }}";
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+      if(!res.ok) return;
+      const k = await res.json();
+
+      const count = k.count || 0;
+      const ttc = k.ttcCents || 0;
+      const tva = k.tvaCents || 0;
+      const tvaDed = k.tvaDeductibleCents || 0;
+      const tvaDedPctGlobal = (k.tvaDeductiblePctGlobal ?? 0);
+
+      $('#kpi-count').text(count);
+      $('#kpi-ttc').text(euro(ttc));
+      $('#kpi-tva').text(euro(tva));
+      $('#kpi-tvaDed').text(euro(tvaDed));
+
+      $('#kpi-bar-count').css('width', count ? '100%' : '0%');
+      $('#kpi-bar-ttc').css('width', '100%');
+      $('#kpi-bar-tva').css('width', ttc > 0 ? Math.min(100, Math.round((tva / ttc) * 100)) + '%' : '0%');
+      $('#kpi-bar-tvaDed').css('width', tva > 0 ? Math.min(100, Math.round((tvaDed / tva) * 100)) + '%' : '0%');
+      $('#kpi-tvaDedPct').text(tvaDedPctGlobal.toLocaleString('fr-FR', {maximumFractionDigits:1}) + ' %');
+
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    }
+
+
+    function getCheckedValues(selector){
+      return $(selector + ':checked').map(function(){ return parseInt(this.value, 10); }).get().filter(Number.isFinite);
+      }
+
+      function updateSelectedCounts(){
+        const cat = getCheckedValues('.dep-filter-cat');
+        const fou = getCheckedValues('.dep-filter-four');
+
+        $('#catSelectedCount').text(cat.length ? (cat.length + ' sel.') : 'Toutes');
+        $('#fourSelectedCount').text(fou.length ? (fou.length + ' sel.') : 'Tous');
+    }
+
+    function filterMode(selector){
+      const total = $(selector).length;
+      const checked = $(selector + ':checked').length;
+
+      // IMPORTANT : au chargement initial tu veux "all"
+      // donc on ne renvoie "none" que si l'utilisateur a explicitement vidé (voir bouton)
+      return (total > 0 && checked === 0) ? 'none' : 'some';
+    }
+
+
+
+    const table = $('#tableauDepenses').DataTable({
+      serverSide: true,
+      processing: true,
+      autoWidth: false,
+      scrollX: true,
+      scrollCollapse: true,
+      responsive: false,
+
+      ajax: {
+        url: "{{ path('app_administrateur_depense_ajax', { entite: entite.id }) }}",
+        type: "POST",
+        data: function (d) {
+          d.tvaOnly = $tvaOnly.val() || 'all';
+          d.periodType = $periodType.val() || 'year';
+          d.periodYear = parseInt($periodYear.val() || '0', 10) || null;
+          d.periodQuarter = parseInt($periodQuarter.val() || '0', 10) || null;
+          d.periodMonth = parseInt($periodMonth.val() || '0', 10) || null;
+
+
+          const catIds  = getCheckedValues('.dep-filter-cat');
+          const fourIds = getCheckedValues('.dep-filter-four');
+
+          d.catIds = catIds;
+          d.fourIds = fourIds;
+
+          d.catMode  = window.__catMode  || 'all';   // all | some | none
+          d.fourMode = window.__fourMode || 'all';   // all | some | none
+        }
+      },
+
+      dom:
+        '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+          + '<"dt-actions d-flex gap-2 align-items-center"B>'
+          + '<"dt-search"f>'
+        + '>'
+        + 'rt'
+        + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+      buttons: [
+        { extend: 'copy',  title: 'Depenses', text: 'Copier' },
+        { extend: 'csv',   title: 'Depenses', text: 'CSV' },
+        { extend: 'excel', title: 'Depenses', text: 'Excel' },
+        { extend: 'pdf',   title: 'Depenses', text: 'PDF' },
+        { extend: 'print', title: 'Depenses', text: 'Imprimer' },
+      ],
+
+      lengthMenu: [[10,25,50,100,500],[10,25,50,100,500]],
+
+      columns: [
+        { data:'id', type: 'num' },
+        { data:'date' },
+        { data:'libelle' },
+        { data:'categorie' },
+        { data:'fournisseur' },
+        { data:'ttc' },
+        { data:'tva' },
+        { data:'tvaDed' },
+        { data:'tvaPct' },
+        { data:'deductible' },
+        { data:'actions' }
+      ],
+
+      columnDefs: [
+        { targets: 0, type: 'num', className: 'text-muted fw-semibold' },
+        { targets:[5,6,7,8,10], className:'text-end' },
+        { targets:9, className:'text-center', searchable:false },
+        { targets:10, className:'action-column text-end', orderable:false, searchable:false },
+        { targets:[5,6,7,8,9,10], searchable:false },
+        { targets:[4,5,6,7,8,9,10], render: function(data){ return data; } }, // HTML OK
+        { targets:10, width:'1%', className:'action-column text-end', orderable:false, searchable:false },
+
+      ],
+
+      order: [[1,'desc']],
+      language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+      deferRender: true,
+
+      initComplete: function(){
+        const api = this.api();
+        const container = api.buttons().container();
+        const $btns = $(container).find('button');
+
+        $('#exportMenu').empty();
+        $btns.each(function(){
+          const $b = $(this);
+          const label = $b.text().trim();
+          const icon = label === 'Excel' ? 'bi-file-earmark-excel' :
+                      label === 'PDF' ? 'bi-file-earmark-pdf' :
+                      label === 'CSV' ? 'bi-filetype-csv' :
+                      label === 'Imprimer' ? 'bi-printer' :
+                      label === 'Copier' ? 'bi-clipboard' : 'bi-download';
+
+          const $item = $(`
+            <li>
+              <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+                <i class="bi ${icon}"></i> <span>${label}</span>
+              </a>
+            </li>
+          `);
+
+          $item.on('click', function(e){
+            e.preventDefault();
+            $b.trigger('click');
+          });
+
+          $('#exportMenu').append($item);
+        });
+
+        $(container).hide();
+      }
+    });
+
+
+
+    table.on('xhr.dt', function(e, settings, json){
+      // json = réponse du controller (celle où on a ajouté kpis/kpisAll)
+      if (!json) return;
+      setKpis(json.kpis, json.kpisAll);
+    });
+
+
+    // ===== PREVIEW MODAL avec PDF.js ===== 
+    const previewModalEl = document.getElementById('modalFacturePreview');
+    const previewModal = previewModalEl ? bootstrap.Modal.getOrCreateInstance(previewModalEl) : null;
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    function resetPreview(){
+      $('#previewLoading').show();
+      $('#previewCanvasContainer').hide();
+      $('#previewError').hide();
+      $('#previewOpenNewTab').attr('href', '#');
+      $('#previewErrorOpenBtn').attr('href', '#');
+      $('#previewTitle').text('Aperçu');
+      $('#previewSubtitle').text('—');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+    }
+
+    function showError(message, pdfUrl){
+      $('#previewLoading').hide();
+      $('#previewCanvasContainer').hide();
+      $('#previewError').show();
+      $('#previewErrorMsg').text(message);
+      $('#previewErrorOpenBtn').attr('href', pdfUrl);
+    }
+
+    async function loadPdfPreview(pdfUrl, title, subtitle){
+      if (!previewModal || !canvas || !ctx) return;
+
+      resetPreview();
+
+      $('#previewTitle').text(title || 'Aperçu justificatif');
+      $('#previewSubtitle').text(subtitle || '');
+      $('#previewOpenNewTab').attr('href', pdfUrl);
+
+      previewModal.show();
+
+      try {
+        const PDFJS = getPdfJs();
+        if (!PDFJS) {
+          throw new Error("PDF.js non chargé (pdfjsLib introuvable).");
+        }
+        
+
+        const loadingTask = PDFJS.getDocument({ url: pdfUrl });
+
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+
+        const viewport0 = page.getViewport({ scale: 1 });
+        const containerW = document.getElementById('previewCanvasContainer').clientWidth || (window.innerWidth - 80);
+        const maxW = Math.min(1100, containerW - 30);
+        const scale = maxW / viewport0.width;
+
+        const viewport = page.getViewport({ scale });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        $('#previewLoading').hide();
+        $('#previewCanvasContainer').show();
+      } catch (err) {
+        console.error('Erreur chargement PDF:', err);
+        showError((err && err.message) ? err.message : 'Erreur inconnue', pdfUrl);
+      }
+    }
+
+
+    // ✅ Gestionnaire d'événement pour le bouton Aperçu
+    $(document).on('click', '[data-action="preview-facture"]', async function(e){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+
+      const pdfUrl = $(this).attr('data-pdf-url');
+      if(!pdfUrl) return;
+
+      const title = $(this).attr('data-preview-title') || 'Aperçu justificatif';
+      const subtitle = $(this).attr('data-preview-subtitle') || '';
+
+      try{
+        await waitPdfJs(4000); // attend jusqu'à 4s que pdfjsLib soit dispo
+        loadPdfPreview(pdfUrl, title, subtitle);
+      }catch(err){
+        console.error(err);
+        // fallback seulement si vraiment pas chargé
+        window.open(pdfUrl, '_blank', 'noopener');
+      }
+    });
+
+
+
+    $periodType.on('change', function(){
+      updatePeriodUi();
+      updatePeriodLabel();
+      table.ajax.reload(null, true);
+    });
+
+    $periodYear.on('change', function(){
+      updatePeriodLabel();
+      table.ajax.reload(null, true);
+    });
+
+    $periodQuarter.on('change', function(){
+      updatePeriodLabel();
+      table.ajax.reload(null, true);
+    });
+
+    $periodMonth.on('change', function(){
+      updatePeriodLabel();
+      table.ajax.reload(null, true);
+    });
+
+
+
+
+    $(document).on('change', '.dep-filter-cat', function(){
+      window.__catMode = ($('.dep-filter-cat:checked').length === 0) ? 'none' : 'some';
+      updateSelectedCounts();
+      table.ajax.reload(null, true);
+    });
+
+    $(document).on('change', '.dep-filter-four', function(){
+      window.__fourMode = ($('.dep-filter-four:checked').length === 0) ? 'none' : 'some';
+      updateSelectedCounts();
+      table.ajax.reload(null, true);
+    });
+
+
+    $(document).on('click', '[data-check-all="cat"]', function(){
+      $('.dep-filter-cat').prop('checked', true);
+      window.__catMode = 'some'; // ✅ cohérent: tu envoies tous les ids
+      updateSelectedCounts();
+      table.ajax.reload(null, true);
+    });
+
+
+    $(document).on('click', '[data-uncheck-all="cat"]', function(){
+      window.__catMode = 'none'; // ✅ aucun => 0 résultat
+      $('.dep-filter-cat').prop('checked', false);
+      updateSelectedCounts();
+      table.ajax.reload(null, true);
+    });
+
+    $(document).on('click', '[data-check-all="four"]', function(){
+      $('.dep-filter-four').prop('checked', true);
+      window.__fourMode = 'some';
+      updateSelectedCounts();
+      table.ajax.reload(null, true);
+    });
+
+
+    $(document).on('click', '[data-uncheck-all="four"]', function(){
+      window.__fourMode = 'none'; // ✅ aucun => 0 résultat
+      $('.dep-filter-four').prop('checked', false);
+      updateSelectedCounts();
+      table.ajax.reload(null, true);
+    });
+
+
+    // filtre texte dans dropdown
+    $(document).on('input', 'input[data-filter="cat"]', function(){
+      const q = $(this).val().toLowerCase();
+      $('#catList label').each(function(){
+        $(this).toggle($(this).text().toLowerCase().includes(q));
+      });
+    });
+    $(document).on('input', 'input[data-filter="four"]', function(){
+      const q = $(this).val().toLowerCase();
+      $('#fourList label').each(function(){
+        $(this).toggle($(this).text().toLowerCase().includes(q));
+      });
+    });
+
+    // init (affichage)
+    window.__catMode = 'all';
+    window.__fourMode = 'all';
+    updateSelectedCounts();
+
+
+
+
+
+    previewModalEl?.addEventListener('hidden.bs.modal', resetPreview);
+
+    // ===============================
+// ✅ DROPDOWNS : comportement stable
+// - Export (dt-actions) => float dans body
+// - Actions (dep-actions) => autorise overflow visible du scrollBody
+// - Mobile dep-actions => menu en fixed, au-dessus du bouton
+// ===============================
+(function setupDropdownsOnce(){
+  if (window.__dep_dropdowns_ready__) return;
+  window.__dep_dropdowns_ready__ = true;
+
+  function setScrollBodyOverflow(toggle, value){
+    const scrollBody = toggle.closest('.dataTables_scrollBody');
+    if (!scrollBody) return;
+
+    if (value === 'visible') {
+      if (scrollBody.dataset.prevOverflow === undefined) {
+        scrollBody.dataset.prevOverflow = scrollBody.style.overflow || '';
+      }
+      scrollBody.style.overflow = 'visible';
+    } else {
+      scrollBody.style.overflow = scrollBody.dataset.prevOverflow || '';
+      delete scrollBody.dataset.prevOverflow;
+    }
+  }
+
+  function floatMenuToBody(toggle, menu, cls){
+    const dd = toggle.closest('.dropdown, .btn-group');
+    if (!dd || !menu) return;
+
+    if (!menu.__originalParent) menu.__originalParent = dd;
+    document.body.appendChild(menu);
+    menu.classList.add(cls);
+
+    // position absolute sous le bouton
+    const rect = toggle.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const isEnd = menu.classList.contains('dropdown-menu-end');
+
+    const top = rect.bottom + window.scrollY + 6;
+    let left = isEnd ? (rect.right + window.scrollX - menuRect.width) : (rect.left + window.scrollX);
+    left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
+
+    menu.style.position = 'absolute';
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+    menu.style.zIndex = 20000;
+  }
+
+  function floatMenuFixedMobile(toggle, menu){
+    // menu fixed au-dessus du bouton (mobile)
+    const rect = toggle.getBoundingClientRect();
+
+    if (!menu.__originalParent) {
+      menu.__originalParent = toggle.closest('.dropdown, .btn-group');
+    }
+    document.body.appendChild(menu);
+    menu.classList.add('dep-floating-dropdown');
+
+    // force display pour mesurer correctement
+    menu.style.position = 'fixed';
+    menu.style.left = '0px';
+    menu.style.top = '0px';
+    menu.style.zIndex = 20000;
+
+    const menuW = menu.offsetWidth || 260;
+    const menuH = menu.offsetHeight || 220;
+
+    const left = Math.max(8, Math.min(rect.right - menuW, window.innerWidth - menuW - 8));
+    const top  = Math.max(8, rect.top - menuH - 8);
+
+    menu.style.left = `${left}px`;
+    menu.style.top  = `${top}px`;
+  }
+
+  function restoreMenu(menu, cls){
+    if (!menu || !menu.__originalParent) return;
+    menu.__originalParent.appendChild(menu);
+    menu.classList.remove(cls);
+
+    menu.style.position = '';
+    menu.style.top = '';
+    menu.style.left = '';
+    menu.style.zIndex = '';
+  }
+
+  // ---------- SHOW ----------
+  document.addEventListener('show.bs.dropdown', function(e){
+    const toggle = e.target;
+    const dd = toggle.closest('.dropdown, .btn-group');
+    if (!dd) return;
+
+    const menu = dd.querySelector('.dropdown-menu');
+    if (!menu) return;
+
+    // 1) Actions table : on autorise dépassement scrollBody
+    if (toggle.closest('.dep-actions')) {
+      setScrollBodyOverflow(toggle, 'visible');
+
+      // mobile => fixed
+      if (window.innerWidth <= 768) {
+        floatMenuFixedMobile(toggle, menu);
+      }
+      return;
+    }
+
+    // 2) Export dt-actions uniquement => float
+    if (toggle.closest('.dt-actions')) {
+      floatMenuToBody(toggle, menu, 'dt-floating-dropdown');
+      return;
+    }
+
+    // sinon : toolbar dropdowns => default Bootstrap (ne rien faire)
+  }, true);
+
+  // ---------- HIDE ----------
+  document.addEventListener('hidden.bs.dropdown', function(e){
+    const toggle = e.target;
+    const dd = toggle.closest('.dropdown, .btn-group');
+    if (!dd) return;
+
+    const menu = dd.querySelector('.dropdown-menu')
+      || document.querySelector('.dt-floating-dropdown.__owned')
+      || null;
+
+    // restore overflow si dep-actions
+    if (toggle.closest('.dep-actions')) {
+      setScrollBodyOverflow(toggle, 'restore');
+      // si on l'avait détaché en mobile
+      restoreMenu(dd.querySelector('.dropdown-menu'), 'dep-floating-dropdown');
+      return;
+    }
+
+    // restore export dt-actions
+    if (toggle.closest('.dt-actions')) {
+      restoreMenu(document.querySelector('.dt-floating-dropdown'), 'dt-floating-dropdown');
+      return;
+    }
+  }, true);
+
+  // Ferme les dropdowns flottants sur scroll/resize (uniquement export)
+  window.addEventListener('scroll', () => {
+    document.querySelectorAll('.dt-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+      .forEach(btn => btn.click());
+  }, true);
+
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.dt-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+      .forEach(btn => btn.click());
+  });
+})();
+
+
+    initTooltips();
+    table.on('draw.dt', function(){
+      initTooltips();
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    });
+
+    //loadDepenseKpis();
+
+    $tvaOnly.on('change', function(){
+      table.ajax.reload(null, true);
+      loadDepenseKpis();
+    });
+
+    $('#btnReset').on('click', function(){
+      // reset période = année courante
+      const now = new Date();
+      $periodType.val('year');
+      $periodYear.val(String(now.getFullYear()));
+      $periodMonth.val(String(now.getMonth()+1));
+      $periodQuarter.val(String(Math.floor(now.getMonth()/3)+1));
+      updatePeriodUi();
+      updatePeriodLabel();
+
+      $tvaOnly.val('all');
+      $('.dep-filter-cat, .dep-filter-four').prop('checked', false);
+      $('input[data-filter="cat"], input[data-filter="four"]').val('').trigger('input');
+
+      updateSelectedCounts();
+      table.search('').draw();
+      table.ajax.reload(null, true);
+    });
+
+  });
+
+
+  document.addEventListener('show.bs.dropdown', function (e) {
+  const toggle = e.target;
+  if (!toggle.closest('#tableauDepenses')) return;
+
+  // mobile uniquement
+  if (window.innerWidth > 768) return;
+
+  const menu = toggle.closest('.dropdown, .btn-group')?.querySelector('.dropdown-menu');
+  if (!menu) return;
+
+  // on détache le menu du tableau
+  document.body.appendChild(menu);
+
+  const rect = toggle.getBoundingClientRect();
+  const menuHeight = menu.offsetHeight || 180;
+
+  menu.style.position = 'fixed';
+  menu.style.left = Math.min(rect.right - menu.offsetWidth, window.innerWidth - 8) + 'px';
+  menu.style.top  = Math.max(8, rect.top - menuHeight - 8) + 'px';
+  menu.style.zIndex = 1055;
+
+  menu.__fromToggle = toggle;
+}, true);
+
+document.addEventListener('hidden.bs.dropdown', function (e) {
+  const toggle = e.target;
+  const menu = document.querySelector('.dropdown-menu[style][data-bs-popper]');
+  if (!menu || !menu.__fromToggle) return;
+
+  // on remet le menu à sa place
+  const parent = menu.__fromToggle.closest('.dropdown, .btn-group');
+  if (parent) parent.appendChild(menu);
+
+  menu.style.position = '';
+  menu.style.top = '';
+  menu.style.left = '';
+  menu.style.zIndex = '';
+  delete menu.__fromToggle;
+}, true);
+
+  </script>
+{% endblock %}

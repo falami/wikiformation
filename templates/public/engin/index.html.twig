@@ -1,0 +1,488 @@
+{% extends 'base_public.html.twig' %}
+
+{% block title %}Nos engins{% endblock %}
+{% block meta_description %}Découvrez tos nos engins : catamarans, monocoques et voiliers, nacelles, chargeur, compacteur et Motobasculeur.{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/css/tom-select.bootstrap5.min.css">
+<style>
+  :root{
+    --bg:#0e2a3b;
+    --panel:#0e2433;
+    --panel-2:#112a3b;
+    --glow:#1c4a66;
+    --field:#0f2230;
+    --field-border:#1e3e54;
+    --ink:#eaf6ff;
+    --muted:#a8c9da;
+    --cta:#e73d45;
+    --cta-ink:#fff;
+    --chip:#153448;
+    --chip-ink:#cfe6f3;
+    --ring: 0 0 0 3px rgba(58,160,255,.25), 0 10px 30px rgba(0,0,0,.25);
+  }
+  body{ overflow-x:hidden; color:var(--ink); }
+
+  /* HERO conservé */
+  .hero-cover{ position:relative; color:#000; }
+  .hero-cover::after{ content:""; position:absolute; inset:0; }
+  .hero-inner{ position:relative; z-index:2; padding:4rem 0 2rem; }
+
+  /* ====== BARRE DE FILTRES ====== */
+  .filters-wrap{
+    margin-top:0;
+    background:linear-gradient(180deg, rgba(17,42,59,.80), rgba(17,42,59,.60));
+    border:1px solid rgba(120,170,200,.15);
+    border-radius:22px; backdrop-filter: blur(6px);
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    padding:1.25rem 1.25rem 1rem;
+  }
+  .filters-title{ font-size:.78rem; letter-spacing:.15em; }
+
+  .field{ position:relative; }
+  .field .field-icon{
+    position:absolute; left:14px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:1.05rem;
+  }
+  .field .form-control,
+  .field .form-select,
+  .ts-control{
+    background:var(--field); color:var(--ink);
+    border:1px solid var(--field-border);
+    border-radius:14px; height:56px;
+    padding-left:46px; font-size:1rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+  }
+  .field .form-control::placeholder{ color:#8fb3c8; }
+  .field .form-control, .field .form-select{ width:100%; }
+
+  /* TomSelect dark */
+  .ts-control{ padding-left:46px !important; }
+  .ts-control .ts-placeholder{ color:#8fb3c8; }
+  .ts-dropdown{
+    background:var(--field); border:1px solid var(--field-border);
+    box-shadow:0 16px 40px rgba(0,0,0,.35);
+  }
+  .ts-dropdown .option{ color:var(--ink); }
+  .ts-dropdown .active{ background:#143043; }
+  .ts-control .item{
+    background:var(--chip); color:var(--chip-ink);
+    border:1px solid rgba(255,255,255,.06); border-radius:999px;
+    padding:.35rem .65rem; margin:.15rem .25rem .15rem 0;
+  }
+
+  /* buttons */
+  .btn-apply{
+    height:56px; border-radius:14px; font-weight:800;
+    background:var(--cta); color:var(--cta-ink); border:none;
+    box-shadow:0 8px 22px rgba(231,61,69,.35);
+  }
+  .btn-apply:hover{ filter:brightness(1.06); }
+  .btn-reset{
+    height:40px; border-radius:14px; font-weight:700;
+    background:transparent; color:var(--ink);
+    border:1px solid var(--field-border);
+  }
+  .field .form-control:focus,
+  .field .form-select:focus,
+  .ts-control.is-focused{
+    border-color:var(--glow) !important;
+    box-shadow: var(--ring) !important;
+    outline:0;
+  }
+
+  /* cards */
+  .session-card{ background:#0f1b28; border:0; border-radius:18px; overflow:hidden; box-shadow:0 15px 35px rgba(0,0,0,.35); }
+  .session-media{
+    position: relative;
+    min-height:160px;
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.05), transparent 60%),
+      var(--cover, url('')) center/cover no-repeat;
+    border-top-left-radius:18px; border-bottom-left-radius:18px;
+    -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 72%, rgba(0,0,0,0) 100%);
+            mask-image: linear-gradient(to right, rgba(0,0,0,1) 72%, rgba(0,0,0,0) 100%);
+  }
+  @media (max-width:991.98px){
+    .session-media{
+      min-height:180px; border-radius:18px 18px 0 0;
+      -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%);
+              mask-image: linear-gradient(to right, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%);
+    }
+  }
+  .session-body{ padding:1.2rem 1.4rem; }
+  .session-title{ color:#fff; font-weight:800; font-size:1.25rem; }
+  .session-meta{ color:var(--muted); }
+  .dot{ width:.6rem; height:.6rem; border-radius:50%; display:inline-block; margin-right:.45rem; vertical-align:middle; }
+  .dot-red{ background:#ff445a; } .dot-blue{ background:#3aa0ff; }
+
+  .price-panel{
+    background:#0d1622; color:#cfe6f3; height:100%;
+    display:flex; flex-direction:column; justify-content:center;
+    border-left:1px solid #1f2a3a; padding:1.4rem;
+  }
+  .price-from{ color:var(--muted); font-size:.9rem; }
+  .price-value{ color:#fff; font-weight:300; font-size:2.2rem; line-height:1; }
+  .cta{ background:var(--cta); border:0; color:#fff; font-weight:700; border-radius:12px; padding:.9rem 1.1rem; }
+  .cta:hover{ filter:brightness(1.05); background: var(--cta-ink) !important; color: var(--cta) }
+
+  .results-count{ color:var(--muted); font-weight:600; }
+
+  /* skeleton */
+  .skeleton{ position:relative; overflow:hidden; background:#0f2130; border-radius:18px; }
+  .skeleton::after{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); animation:shimmer 1.2s infinite; }
+  @keyframes shimmer{ 0%{ transform:translateX(-100%);} 100%{ transform:translateX(100%);} }
+
+  /* placehoders TomSelect en blanc */
+  #ts-destination .ts-control input::placeholder,
+  #ts-types .ts-control input::placeholder { color:#fff !important; opacity:.95; }
+  #ts-destination .ts-control, #ts-types .ts-control { color:#fff; }
+
+  /* “timeline” visuelle réutilisée pour 2 lignes de specs (ne traverse pas les points) */
+  .session-meta {
+    --tl-pad: 1.5rem;
+    --dot: .6rem;
+    --line: 2px;
+    position: relative; padding-left: var(--tl-pad);
+  }
+  .session-meta::before{
+    content:""; position:absolute;
+    left: calc(var(--tl-pad) + (var(--dot)/2) - (var(--line)/2));
+    top: calc(var(--dot) + 0.15rem);
+    bottom: calc(var(--dot) + 0.15rem);
+    width: var(--line);
+    background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,.85) 20%, rgba(255,255,255,.85) 80%, rgba(255,255,255,0) 100%);
+    border-radius:2px;
+  }
+
+  .chip-soft {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  color: #fff;
+  border-radius: 999px;
+  padding: .25rem .6rem;
+  font-size: .8rem;
+  line-height: 1;
+}
+
+.spec-item {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  min-width: 110px;
+}
+
+.session-body {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+.session-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: .4rem !important;
+}
+</style>
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.2/dist/js/tom-select.complete.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // === TomSelect
+  const destinationSelect = document.querySelector('#destination');
+  if (destinationSelect && !destinationSelect.tomselect) {
+    new TomSelect(destinationSelect, {
+      placeholder:'Choisissez un site',
+      create:false, persist:false, maxItems:1,
+      plugins:{ clear_button:{ title:'Effacer' } },
+      onInitialize(){
+        this.wrapper.style.width='100%'; this.control.style.width='100%';
+        this.wrapper.id='ts-destination';
+        this.control.setAttribute('aria-label','Site');
+      }
+    });
+  }
+
+  const typesSelect = document.querySelector('#types');
+  if (typesSelect && !typesSelect.tomselect) {
+    new TomSelect(typesSelect, {
+      placeholder:'Type d\'engin',
+      create:false, persist:false,
+      plugins:{ remove_button:{ title:'Supprimer' } },
+      onInitialize(){
+        this.wrapper.style.width='100%'; this.control.style.width='100%';
+        this.wrapper.id='ts-types';
+        this.control.setAttribute('aria-label','Type d\'engin');
+      }
+    });
+  }
+
+  // === AJAX live filtering (identique à la page formations)
+  const form  = document.querySelector('#filters-form');
+  const count = document.querySelector('#results-count');
+  const list  = document.querySelector('#results');
+  if (!form || !list) return;
+
+  const toQs = (fd) => new URLSearchParams(
+    Array.from(fd.entries()).flatMap(([k,v]) => Array.isArray(v) ? v.map(x=>[k,x]) : [[k,v]])
+  ).toString();
+
+  let t=null; const debounce=(fn,d=350)=>(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),d);};
+
+  const showSkeleton = () => {
+    list.innerHTML = `
+      <div class="text-center text-muted py-5">
+        <div class="spinner-border text-light mb-3" role="status"></div>
+        <div>Chargement des engins...</div>
+      </div>`;
+  };
+
+  const refresh = async () => {
+    const fd = new FormData(form);
+    const qs = toQs(fd);
+    const url = form.getAttribute('action') + (qs ? ('?' + qs) : '');
+
+    showSkeleton();
+    try{
+      const resp = await fetch(url, { headers:{ 'X-Requested-With':'XMLHttpRequest' }});
+      const html = await resp.text();
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+
+      const newList  = tmp.querySelector('#results');
+      const newCount = tmp.querySelector('#results-count');
+
+      if (newList)  list.innerHTML      = newList.innerHTML;
+      if (newCount) count.textContent   = newCount.textContent;
+
+      history.replaceState({}, '', url);
+    }catch(e){
+      form.submit();
+    }
+  };
+
+  // Listeners
+  form.querySelectorAll('select, input').forEach(el=>{
+    el.addEventListener('change', debounce(refresh, 250));
+    el.addEventListener('input',  debounce(refresh, 250));
+  });
+  document.querySelector('#btn-apply')?.addEventListener('click', e=>{ e.preventDefault(); refresh(); });
+
+  // Reset (délégation pour survivre au re-render)
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('#btn-reset-filters');
+    if (!btn) return;
+    e.preventDefault();
+    // réinitialise proprement
+    if (destinationSelect?.tomselect) destinationSelect.tomselect.clear(true);
+    if (typesSelect?.tomselect) typesSelect.tomselect.clear(true);
+    const capMin = document.getElementById('capMin');
+    const couchMin = document.getElementById('couchMin');
+    if (capMin) capMin.value = '';
+    if (couchMin) couchMin.value = '';
+    refresh();
+  });
+});
+</script>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  <header class="hero bg-light text-center">
+      <div class="container">
+          <img class="mb-1" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png')}}" alt="Logo philisa apaca" class="img-fluid" width="200px">
+          <h1 class="fw-bold fs-sm-2 fs-md-3 fs-lg-5 mt-5">{{ 'home.hero.h1'|trans }}</h1>
+      </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero-cover d-flex align-items-end">
+    <div class="container hero-inner text-center text-lg-start">
+      <h1 class="display-6 display-lg-4 mb-2">Nos engins</h1>
+      <p class="mb-0">Liste de nos engins disponible pour les formations</p>
+    </div>
+  </section>
+
+  <!-- BARRE DE FILTRES -->
+  <div class="container">
+    {# NOTE: adapte le nom de route: ex. app_public_engin #}
+    <form id="filters-form" class="filters-wrap" method="get" action="{{ path('app_public_engin') }}">
+      <div class="row g-3 align-items-end">
+        <!-- Site -->
+        <div class="col-12 col-lg-3">
+          <div class="filters-title mb-2">SITE</div>
+          <div class="field">
+            <i class="bi bi-geo-alt field-icon"></i>
+            <select id="destination" name="destination" class="form-select">
+              <option value="">Tous les sites</option>
+              {% for s in sites %}
+                <option value="{{ s.id }}" {{ (activeFilters.destination|default(null)) == s.id ? 'selected' : '' }}>
+                  {{ s.nom }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Type d'engin (multi) -->
+        <div class="col-12 col-lg-3">
+          <div class="filters-title mb-2">TYPE</div>
+          <div class="field">
+            <i class="bi bi-life-preserver field-icon"></i>
+            <select id="types" name="types[]" multiple class="form-select">
+              {% for t in typeChoices %}
+                <option value="{{ t|e('html_attr') }}" {{ t in (activeFilters.types|default([])) ? 'selected' : '' }}>
+                  {{ t }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Capacité (min) -->
+        <div class="col-6 col-lg-3">
+          <div class="filters-title mb-2">CAPACITÉ MIN.</div>
+          <div class="field">
+            <i class="bi bi-people field-icon"></i>
+            <input id="capMin" name="capMin" type="number" min="0" step="1" class="form-control" placeholder="ex. 8"
+                   value="{{ activeFilters.capMin|default('') }}">
+          </div>
+        </div>
+
+        <!-- Couchages (min) -->
+        <div class="col-6 col-lg-3">
+          <div class="filters-title mb-2">COUCHAGES MIN.</div>
+          <div class="field">
+            <i class="bi bi-moon-stars field-icon"></i>
+            <input id="couchMin" name="couchMin" type="number" min="0" step="1" class="form-control" placeholder="ex. 6"
+                   value="{{ activeFilters.couchMin|default('') }}">
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mt-3">
+        {#<button class="btn btn-apply" id="btn-apply" type="button"><i class="bi bi-funnel me-2"></i>Appliquer</button>#}
+        <button class="btn btn-reset" id="btn-reset-filters" type="button"><i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser</button>
+      </div>
+    </form>
+
+    <!-- COMPTEUR -->
+    <div class="d-flex justify-content-center justify-content-lg-start mt-3 mb-2">
+      <div id="results-count" class="results-count">{{ engins|length }} résultats</div>
+    </div>
+
+    <!-- LISTE DES ENGINS -->
+    <div id="results" class="vstack gap-4 pb-5">
+      {% for b in engins %}
+        {% set cover =
+          (b.photoBanniere ? asset('uploads/photos/engin/' ~ b.photoBanniere) :
+           (b.photoCouverture ? asset('uploads/photos/engin/' ~ b.photoCouverture) :
+            asset('dist/img/vitrine/voile.webp')))
+        %}
+
+        <div class="session-card">
+          <div class="row g-0">
+            <!-- Visuel -->
+            <div class="col-12 col-lg-3">
+              <div class="session-media h-100 w-100" style="--cover:url('{{ cover|e('html_attr') }}');"></div>
+            </div>
+
+            <!-- Corps -->
+            <div class="col-12 col-lg-6">
+  <div class="session-body py-3">
+    {# --- Badges compacts --- #}
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+      {% if b.type is defined and b.type %}
+        <span class="chip-soft"><i class="bi bi-life-preserver me-1"></i>{{ b.type.value ?? b.type.name ?? b.type }}</span>
+      {% endif %}
+      {% if b.site %}
+        <span class="chip-soft"><i class="bi bi-geo-alt me-1"></i>{{ b.site.nom }}</span>
+      {% endif %}
+      {% set nbFormateurs = b.formateurQualifications|length %}
+      {% if nbFormateurs > 0 %}
+        <span class="chip-soft"><i class="bi bi-person-badge-fill me-1"></i>{{ nbFormateurs }} formateur{% if nbFormateurs>1 %}s{% endif %} qualifié{% if nbFormateurs>1 %}s{% endif %}</span>
+      {% endif %}
+    </div>
+
+    {# --- Titre --- #}
+    <h3 class="session-title mb-2 fw-bold">{{ b.nom }}</h3>
+
+    {# ===== AJOUT : Infos rapides sans surcharge ===== #}
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      {% if b.annee %}<span class="chip-soft">Année {{ b.annee }}</span>{% endif %}
+      {% if b.personnes %}<span class="chip-soft">{{ b.personnes }} pers.</span>{% endif %}
+      {% if b.cabinesDoubles %}<span class="chip-soft">{{ b.cabinesDoubles }} cab. doubles</span>{% endif %}
+      {% if b.couchagesRecommandes %}<span class="chip-soft">{{ b.couchagesRecommandes }} couch. recommandés</span>{% endif %}
+      {% if b.couchagesCarres is not null %}<span class="chip-soft">{{ b.couchagesCarres }} couch. carré</span>{% endif %}
+    </div>
+
+    {# --- Specs en grille compacte (conservées) --- #}
+    <div class="d-flex flex-wrap gap-3 small mt-2">
+      <div class="spec-item">
+        <i class="bi bi-people-fill me-1"></i>
+        <span class="text-white-50">Capacité :</span>
+        <strong>{{ b.capacite ?? '—' }}</strong>
+      </div>
+      <div class="spec-item">
+        <i class="fa-solid fa-bed me-1"></i>
+        <span class="text-white-50">Couchages :</span>
+        <strong>{{ b.capaciteCouchage ?? '—' }}</strong>
+      </div>
+      {% if b.cabine %}
+        <div class="spec-item">
+          <i class="bi bi-door-open-fill me-1"></i>
+          <span class="text-white-50">Cabines :</span>
+          <strong>{{ b.cabine }}</strong>
+        </div>
+      {% endif %}
+      {% if b.douche %}
+        <div class="spec-item">
+          <i class="fa-solid fa-shower me-1"></i>
+          <span class="text-white-50">Douches :</span>
+          <strong>{{ b.douche }}</strong>
+        </div>
+      {% endif %}
+    </div>
+
+
+
+    {# --- Description courte (conservée) --- #}
+    {% if b.caracteristique %}
+      <p class="text-white-50 mt-2 mb-0 small lh-sm">
+        {{ (b.caracteristique|striptags|slice(0,160) ~ (b.caracteristique|length > 160 ? '…' : '')) }}
+      </p>
+    {% endif %}
+  </div>
+</div>
+
+
+
+            <!-- Panneau droit (remplace le prix par une mise en avant de capacité) -->
+            <div class="col-12 col-lg-3">
+              <div class="price-panel text-center">
+                <div class="price-from text-uppercase">Capacité max</div>
+                <div class="price-value">{{ (b.capacite ?? 0)|number_format(0, ',', ' ') }}<span class="fs-6 align-top"> pers.</span></div>
+                <div class="text-white-50 mb-3">Couchages {{ b.capaciteCouchage ?? '—' }}</div>
+                {# adapte la route : show par id ou slug si tu en ajoutes un #}
+                <a class="btn cta w-100" href="{{ path('app_public_engin_show', {id: b.id}) }}">Voir le engin</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state text-center text-dark py-5">
+          <i class="bi bi-emoji-frown fs-1 d-block mb-3"></i>
+          <h3 class="h5 text-dark mb-2">Aucun engin trouvé</h3>
+          <p class="mb-4">Essayez d’élargir les filtres (site, type, capacités).</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" id="btn-reset-filters" class="btn btn-secondary">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser les filtres
+            </button>
+            <a href="{{ path('app_public_engin') }}" class="btn btn-warning text-dark">Voir toute la flotte</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

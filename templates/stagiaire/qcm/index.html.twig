@@ -1,0 +1,426 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Mes QCM{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+    /* ===== HERO (copie Sessions) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme Sessions admin) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* chip highlight (pill time) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    /* Buttons hero (comme Sessions admin) */
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards (ADN admin) ===== */
+    .qcard{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+      height:100%;
+    }
+    .qcard:hover{
+      transform: translateY(-2px);
+      box-shadow:0 18px 45px rgba(0,0,0,.08);
+      border-color: rgba(0,0,0,.10);
+    }
+
+    .qcard-h{
+      padding: .95rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:.75rem;
+    }
+    .qtitle{
+      font-weight:900;
+      color: rgba(0,0,0,.85);
+      margin:0;
+      line-height:1.15;
+    }
+    .qmeta{
+      margin-top:.35rem;
+      display:flex;
+      flex-wrap:wrap;
+      gap:.45rem;
+      align-items:center;
+      color: rgba(0,0,0,.55);
+      font-weight:800;
+      font-size:.85rem;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      border-radius:999px;
+      padding:.25rem .55rem;
+      border:1px solid rgba(0,0,0,.08);
+      background: rgba(0,0,0,.03);
+      white-space: nowrap;
+    }
+
+    /* Status badges (soft) */
+    .badge-soft{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      border-radius:999px;
+      padding:.28rem .60rem;
+      font-weight:900;
+      font-size:.78rem;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      white-space: nowrap;
+      color: rgba(0,0,0,.75);
+    }
+    .b-assigned{ background: rgba(108,117,125,.10); border-color: rgba(108,117,125,.25); color:#3f454a; }
+    .b-started{ background: rgba(255,193,7,.14); border-color: rgba(255,193,7,.28); color: rgba(0,0,0,.75); }
+    .b-review{ background: rgba(220,53,69,.10); border-color: rgba(220,53,69,.28); color:#b02a37; }
+    .b-validated{ background: rgba(25,135,84,.10); border-color: rgba(25,135,84,.25); color:#146c43; }
+    .b-submitted{ background: rgba(13,110,253,.10); border-color: rgba(13,110,253,.22); color:#1b4f9c; }
+
+    .qcard-b{ padding: 1rem; }
+
+    /* Score block (admin-like) */
+    .scorebox{
+      border:1px solid rgba(0,0,0,.08);
+      border-left:4px solid var(--theme-color-secondaire);
+      border-radius:14px;
+      padding:.75rem .85rem;
+      background: rgba(0,0,0,.02);
+    }
+    .scoreline{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:.75rem;
+    }
+    .scorelabel{
+      font-size:.78rem;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color: rgba(0,0,0,.55);
+    }
+    .scorevalue{
+      font-weight:900;
+      color: rgba(0,0,0,.80);
+      white-space: nowrap;
+    }
+    .progress{
+      height: 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,.08);
+      overflow:hidden;
+      margin-top:.6rem;
+    }
+    .progress-bar{
+      transition: width .45s ease;
+    }
+
+    /* CTA */
+    .actions{ display:flex; justify-content:flex-end; margin-top:.9rem; }
+
+    @media (max-width: 768px){
+      .hero{ border-radius:16px; }
+    }
+
+
+    .badge-trend{
+      display:inline-flex; align-items:center; gap:.4rem;
+      border-radius:999px; padding:.28rem .60rem;
+      font-weight:900; font-size:.78rem;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      white-space: nowrap;
+    }
+    .trend-up{ background: rgba(25,135,84,.10); border-color: rgba(25,135,84,.25); color:#146c43; }
+    .trend-down{ background: rgba(220,53,69,.10); border-color: rgba(220,53,69,.25); color:#b02a37; }
+    .trend-same{ background: rgba(108,117,125,.10); border-color: rgba(108,117,125,.25); color:#3f454a; }
+
+    .action-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      border-radius:999px; padding:.35rem .65rem;
+      background: rgba(220,53,69,.12);
+      border:1px solid rgba(220,53,69,.25);
+      color:#b02a37;
+      font-weight:950;
+      font-size:.82rem;
+      white-space: nowrap;
+    }
+
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (comme administrateur/session) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-ui-checks-grid me-2" style="color:var(--theme-color-secondaire)"></i>
+            Mes QCM
+          </h2>
+          <div class="opacity-75 mt-1">Retrouve tes questionnaires et ton avancement.</div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-ui-checks"></i> QCM</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
+            <span class="chip"><i class="bi bi-collection"></i> {{ assignments|length }} assignation{{ assignments|length>1?'s':'' }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_stagiaire_qcm_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </a>
+
+          {# Optionnel : si tu veux un raccourci vers les sessions #}
+          {# 
+          <a class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_stagiaire_sessions', { entite: entite.id }) }}">
+            <i class="bi bi-journal-bookmark-fill me-1"></i> Mes sessions
+          </a>
+          #}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {% for a in assignments %}
+      {% set st = a.status.value %}
+      {% set pct = (a.attempt and a.attempt.maxPoints) ? (a.attempt.scorePercent ?? 0) : null %}
+      {% set sid = a.session.id %}
+      {% set comp = comparisons[a.session.id]|default(null) %}
+
+
+
+      <div class="col-12 col-lg-6">
+        <div class="qcard h-100">
+
+          <div class="qcard-h">
+            <div class="me-2">
+              <div class="qtitle">{{ a.qcm.titre }}</div>
+
+              <div class="qmeta">
+                <span class="chip"><i class="bi bi-flag"></i> {{ a.phase.label }}</span>
+                <span class="chip"><i class="bi bi-calendar3"></i> {{ a.session.label }}</span>
+              </div>
+            </div>
+
+            <div>
+              {% if st == 'assigned' %}
+                <span class="badge-soft b-assigned"><i class="bi bi-hourglass-split"></i> À faire</span>
+              {% elseif st == 'started' %}
+                <span class="badge-soft b-started"><i class="bi bi-play-circle"></i> En cours</span>
+              {% elseif st == 'review_required' %}
+                <span class="badge-soft b-review"><i class="bi bi-exclamation-triangle"></i> Action admin</span>
+              {% elseif st == 'validated' %}
+                <span class="badge-soft b-validated"><i class="bi bi-check2-circle"></i> Validé</span>
+              {% else %}
+                <span class="badge-soft b-submitted"><i class="bi bi-send-check"></i> Soumis</span>
+              {% endif %}
+            </div>
+            {# ... ton badge de statut actuel ... #}
+
+            {% if comp and comp.ready and a.phase == constant('App\\\\Enum\\\\QcmPhase::POST') %}
+              {% if comp.trend == 'up' %}
+                <span class="badge-trend trend-up"><i class="bi bi-arrow-up-right-circle"></i> +{{ comp.delta }}%</span>
+              {% elseif comp.trend == 'down' %}
+                <span class="badge-trend trend-down"><i class="bi bi-arrow-down-right-circle"></i> {{ comp.delta }}%</span>
+              {% else %}
+                <span class="badge-trend trend-same"><i class="bi bi-dash-circle"></i> = 0%</span>
+              {% endif %}
+
+              {% if comp.actionRequired %}
+                <span class="action-chip ms-2">
+                  <i class="bi bi-exclamation-triangle-fill"></i> Plan d’action requis
+                </span>
+              {% endif %}
+            {% endif %}
+
+
+
+          </div>
+
+          <div class="qcard-b">
+            <div class="scorebox">
+              <div class="scoreline">
+                <div class="scorelabel">Score</div>
+
+                <div class="scorevalue">
+                  {% if a.attempt %}
+                    {{ a.attempt.scorePoints }}/{{ a.attempt.maxPoints }}
+                    <span class="text-muted" style="font-weight:900;">({{ a.attempt.scorePercent }}%)</span>
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
+
+              {% if pct is not null %}
+                <div class="progress" aria-label="Progression">
+                  <div class="progress-bar bg-warning" style="width: {{ pct }}%"></div>
+                </div>
+              {% else %}
+                <div class="text-muted small mt-1" style="font-weight:800;">
+                  Le score apparaîtra après soumission.
+                </div>
+              {% endif %}
+            </div>
+
+            {% if comp and comp.actionRequired and a.phase.value == 'post' %}
+              <div class="mt-2">
+                <span class="action-chip">
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                  Plan d’action requis : note finale inférieure au début
+                </span>
+              </div>
+            {% endif %}
+
+
+            <div class="actions">
+              <a class="btn btn-warning btn-sm fw-semibold px-3"
+                 href="{{ path('app_stagiaire_qcm_show', { id: a.id, entite: entite.id }) }}">
+                <i class="bi bi-box-arrow-in-right"></i>
+                {{ a.isSubmitted ? 'Voir' : 'Commencer' }}
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    {% else %}
+      <div class="col-12">
+        <div class="qcard">
+          <div class="qcard-b">
+            <div class="text-muted fw-semibold">
+              <i class="bi bi-inbox"></i> Aucun QCM assigné pour le moment.
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  const el = document.getElementById('hero-last-refresh');
+  if (el) el.textContent = 'Maj : ' + nowLabel();
+});
+</script>
+
+{% endblock %}

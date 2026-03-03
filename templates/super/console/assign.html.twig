@@ -1,0 +1,52 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Super — Assigner un rôle{% endblock %}
+
+
+
+{% block stylesheets %}
+
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .panel{ border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 12px 30px rgba(0,0,0,.06); }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-4" style="max-width:980px;">
+
+  <div class="mb-3">
+    <div class="text-muted small">SUPER</div>
+    <h1 class="h4 mb-0">Assigner un rôle (Utilisateur ↔ Entité)</h1>
+    <div class="text-muted mt-1">Crée ou met à jour le lien <code>UtilisateurEntite</code>.</div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="card panel border-0">
+    <div class="card-body">
+      {{ form_start(form) }}
+        <div class="row g-3">
+          <div class="col-12 col-md-6">{{ form_row(form.utilisateur) }}</div>
+          <div class="col-12 col-md-6">{{ form_row(form.entite) }}</div>
+          <div class="col-12 col-md-6">{{ form_row(form.role) }}</div>
+          <div class="col-12 col-md-6">{{ form_row(form.fonction) }}</div>
+          <div class="col-12">{{ form_row(form.couleur) }}</div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-warning fw-semibold"><i class="bi bi-check2-circle"></i> Enregistrer</button>
+          <a class="btn btn-outline-secondary" href="{{ path('app_super_admin_console', { tab:'users', entite: entite.id }) }}">Retour</a>
+        </div>
+      {{ form_end(form) }}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

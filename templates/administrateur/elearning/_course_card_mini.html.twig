@@ -1,0 +1,36 @@
+{# templates/administrateur/elearning/_course_card_mini.html.twig #}
+
+<div class="d-flex flex-column gap-2">
+  <div class="fw-bold" style="font-size:1.05rem; color: rgba(15,23,42,.92);">
+    {{ course.titre }}
+  </div>
+
+  <div class="d-flex flex-wrap gap-2">
+    {% if course.isPublic is defined %}
+      <span class="badge text-bg-light border" style="border-radius:999px;">
+        <i class="bi bi-megaphone"></i>
+        {{ course.isPublic ? 'Public' : 'Privé' }}
+      </span>
+    {% endif %}
+
+    {% if course.isPublished is defined %}
+      <span class="badge {{ course.isPublished ? 'text-bg-success' : 'text-bg-secondary' }}"
+            style="border-radius:999px;">
+        <i class="bi {{ course.isPublished ? 'bi-eye' : 'bi-eye-slash' }}"></i>
+        {{ course.isPublished ? 'Publié' : 'Brouillon' }}
+      </span>
+    {% endif %}
+
+    {% if course.dureeMinutes is defined and course.dureeMinutes %}
+      <span class="badge text-bg-light border" style="border-radius:999px;">
+        <i class="bi bi-clock"></i> {{ course.dureeMinutes }} min
+      </span>
+    {% endif %}
+  </div>
+
+  {% if course.description is defined and course.description %}
+    <div style="color: rgba(100,116,139,.95); font-weight:650;">
+      {{ course.description|u.truncate(140, '…') }}
+    </div>
+  {% endif %}
+</div>

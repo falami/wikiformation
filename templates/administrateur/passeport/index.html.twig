@@ -1,0 +1,348 @@
+{# templates/administrateur/passeport/index.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Passeport de prévention{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    .hero{
+      border-radius:22px;
+      background:
+        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
+        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
+        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      color:#fff; box-shadow:0 18px 50px rgba(0,0,0,.14);
+      overflow:hidden; position:relative;
+    }
+    .hero .accent{ width:12px; background:var(--theme-color-secondaire); border-radius:999px; box-shadow:0 0 0 6px rgba(255,193,7,.10); }
+    .meta-chip{ display:inline-flex; align-items:center; gap:.45rem; padding:.35rem .65rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.14); font-size:.82rem; }
+
+    .card-soft{
+      background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+    }
+    .filterbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.04);
+    }
+    .filterbox:focus-within{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .filterrow{ display:flex; gap:.6rem; align-items:center; }
+    .filter-icon{
+      width:34px; height:34px; border-radius:12px;
+      display:grid; place-items:center;
+      background: rgba(0,0,0,.04);
+      border:1px solid rgba(0,0,0,.06);
+      color: rgba(0,0,0,.55);
+      flex: 0 0 auto;
+    }
+    .filterbox .form-select, .filterbox .form-control{
+      border:0 !important; box-shadow:none !important;
+      padding-left:0 !important; padding-right:0 !important;
+      background:transparent !important;
+    }
+    .table thead th{
+      background:#f7f8fa!important;
+      border-bottom:1px solid rgba(0,0,0,.08)!important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color: rgba(0,0,0,.55);
+      vertical-align: middle;
+    }
+    .ts-dropdown{ z-index: 3000 !important; }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+    <div class="flex-grow-1">
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="meta-chip"><i class="bi bi-shield-check"></i> Passeport de prévention</span>
+        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-end gap-2">
+        <div class="me-auto">
+          <h2 class="fw-bold mb-1">Export déclarations (Excel)</h2>
+          <div class="opacity-75">Sélection manuelle ou par période (max 3 mois).</div>
+        </div>
+
+        <a class="btn btn-light btn-sm fw-semibold"
+           href="{{ path('app_administrateur_session_index', { entite: entite.id }) }}">
+          <i class="bi bi-arrow-left"></i> Retour Sessions
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <form method="post" action="{{ path('app_administrateur_passeport_prevention_export', { entite: entite.id }) }}" class="card-soft p-3 mb-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-3">
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Mode</label>
+        <div class="filterbox">
+          <div class="filterrow">
+            <div class="filter-icon"><i class="bi bi-toggles"></i></div>
+            <select id="mode" name="mode" class="form-select">
+              <option value="period" selected>Par période (max 3 mois)</option>
+              <option value="manual">Manuel (checkbox)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-4">
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Période</label>
+        <div class="filterbox">
+          <div class="filterrow">
+            <div class="filter-icon"><i class="bi bi-calendar-range"></i></div>
+            <input type="text" id="dateRange" class="form-control" placeholder="Choisir une période" />
+            <input type="hidden" id="dateFrom" name="dateFrom" />
+            <input type="hidden" id="dateTo"   name="dateTo" />
+          </div>
+        </div>
+        <div class="form-text">Astuce : utilise “Trimestre courant” puis ajuste si besoin.</div>
+      </div>
+
+      <div class="col-12 col-lg-5">
+        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Actions</label>
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnTrimCurrent">
+            <i class="bi bi-calendar3"></i> Trimestre courant
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLast90">
+            <i class="bi bi-clock-history"></i> 90 jours
+          </button>
+
+          <button type="submit" class="btn btn-warning btn-sm fw-semibold ms-auto">
+            <i class="bi bi-file-earmark-excel"></i> Générer Excel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <input type="hidden" name="sessionIds" id="sessionIds" value="[]">
+    <div class="alert alert-info mt-3 mb-0">
+      <div class="fw-bold"><i class="bi bi-info-circle"></i> Important</div>
+      <div class="small">
+        Le portail demande pour chaque stagiaire : <b>NIR (13 chiffres)</b> + <b>nom de naissance</b>.
+        Si ces champs ne sont pas renseignés dans ta base, l’import/ la déclaration sera bloquée. :contentReference[oaicite:2]{index=2}
+      </div>
+    </div>
+  </form>
+
+  <div class="card-soft p-0 overflow-hidden">
+    <div class="p-3 border-bottom d-flex align-items-center gap-2">
+      <div class="fw-bold"><i class="bi bi-list-check"></i> Sessions</div>
+      <div class="text-muted small">Coche ce que tu veux exporter en mode “Manuel”.</div>
+      <div class="ms-auto small">
+        Sélection : <b id="selectedCount">0</b>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table align-middle mb-0" id="ppTable">
+        <thead>
+          <tr>
+            <th style="width:42px" class="text-center">
+              <input type="checkbox" id="checkAll">
+            </th>
+            <th>Code</th>
+            <th>Formation</th>
+            <th>Début</th>
+            <th>Fin</th>
+            <th class="text-center">Inscriptions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+            {# calcule début/fin à partir des SessionJour #}
+            {% set start = null %}
+            {% set end = null %}
+            {% for j in s.jours %}
+              {% if start is null or j.dateDebut < start %}{% set start = j.dateDebut %}{% endif %}
+              {% if end is null or j.dateFin > end %}{% set end = j.dateFin %}{% endif %}
+            {% endfor %}
+
+            <tr>
+              <td class="text-center">
+                <input type="checkbox" data-id="{{ s.id }}">
+              </td>
+              <td class="fw-semibold">{{ s.code }}</td>
+              <td>
+                {{ s.formation ? s.formation.titre : (s.formationIntituleLibre ?: '—') }}
+              </td>
+              <td>{{ start ? start|date('d/m/Y') : '—' }}</td>
+              <td>{{ end ? end|date('d/m/Y') : '—' }}</td>
+              <td class="text-center">
+                <span class="badge text-bg-secondary">{{ s.inscriptions|length }}</span>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                Aucune session trouvée.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+
+      </table>
+    </div>
+  </div>
+
+
+<script>
+(() => {
+  // TomSelect mode
+  new TomSelect('#mode', { create:false, maxItems:1 });
+
+  // Flatpickr range
+  const fp = flatpickr("#dateRange", {
+    locale: "fr",
+    mode: "range",
+    dateFormat: "d/m/Y",
+    disableMobile: true,
+    onClose(selectedDates){
+      const from = selectedDates[0] ? selectedDates[0].toISOString().slice(0,10) : '';
+      const to   = selectedDates[1] ? selectedDates[1].toISOString().slice(0,10) : '';
+      document.getElementById('dateFrom').value = from;
+      document.getElementById('dateTo').value   = to;
+
+      // ✅ contrôle 3 mois côté front (on garde le contrôle serveur aussi)
+      if (selectedDates[0] && selectedDates[1]) {
+        const days = Math.round((selectedDates[1] - selectedDates[0]) / (1000*60*60*24));
+        if (days > 93) {
+          alert('La période ne doit pas dépasser 3 mois.');
+          fp.clear();
+          document.getElementById('dateFrom').value = '';
+          document.getElementById('dateTo').value   = '';
+        }
+      }
+    }
+  });
+
+  function setRange(from, to){
+    fp.setDate([from, to], true);
+    document.getElementById('dateFrom').value = from.toISOString().slice(0,10);
+    document.getElementById('dateTo').value   = to.toISOString().slice(0,10);
+  }
+
+  document.getElementById('btnLast90').addEventListener('click', () => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - 90);
+    setRange(from, to);
+  });
+
+  document.getElementById('btnTrimCurrent').addEventListener('click', () => {
+    const d = new Date();
+    const q = Math.floor(d.getMonth()/3); // 0..3
+    const from = new Date(d.getFullYear(), q*3, 1);
+    const to = new Date(d.getFullYear(), q*3 + 3, 0);
+    setRange(from, to);
+  });
+
+  // Sélection manuelle (checkbox)
+  const selected = new Set();
+  const sessionIdsEl = document.getElementById('sessionIds');
+  const selectedCountEl = document.getElementById('selectedCount');
+
+  function syncSelected(){
+    sessionIdsEl.value = JSON.stringify(Array.from(selected));
+    selectedCountEl.textContent = String(selected.size);
+  }
+
+
+
+  const modeSelect = document.getElementById('mode');
+
+  function setModeManual() {
+    // TomSelect : si tu utilises TomSelect, il remplace le select
+    if (modeSelect.tomselect) {
+      modeSelect.tomselect.setValue('manual', true);
+    } else {
+      modeSelect.value = 'manual';
+    }
+
+    // optionnel : vide la période
+    fp.clear();
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value   = '';
+  }
+
+  document.addEventListener('change', (e) => {
+    const cb = e.target;
+    if (!(cb instanceof HTMLInputElement)) return;
+
+    if (cb.matches('#ppTable tbody input[type="checkbox"][data-id]') || cb.matches('#checkAll')) {
+      // si au moins 1 session cochée -> mode manuel
+      if (selected.size > 0 || cb.checked) {
+        setModeManual();
+      }
+    }
+  });
+
+
+  document.getElementById('checkAll').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    document.querySelectorAll('#ppTable tbody input[type="checkbox"][data-id]').forEach(cb => {
+      cb.checked = checked;
+      const id = parseInt(cb.getAttribute('data-id'), 10);
+      if (checked) selected.add(id); else selected.delete(id);
+    });
+    syncSelected();
+  });
+
+  document.addEventListener('change', (e) => {
+    const cb = e.target;
+    if (!(cb instanceof HTMLInputElement)) return;
+    if (cb.matches('#ppTable tbody input[type="checkbox"][data-id]')) {
+      const id = parseInt(cb.getAttribute('data-id'), 10);
+      if (cb.checked) selected.add(id); else selected.delete(id);
+      syncSelected();
+      if (selected.size > 0) setModeManual();
+
+    }
+  });
+
+  // Confort : si mode=period, on ignore la sélection manuelle (mais on laisse visible)
+  document.querySelector('form').addEventListener('submit', (e) => {
+    const mode = document.getElementById('mode').value;
+    if (mode === 'manual' && selected.size === 0) {
+      e.preventDefault();
+      alert('En mode manuel, coche au moins une session.');
+      return;
+    }
+  });
+
+})();
+</script>
+{% endblock %}

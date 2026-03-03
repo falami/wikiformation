@@ -1,0 +1,44 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Super — Offrir essai — {{ entite.nom }}{% endblock %}
+
+{% block stylesheets %}
+
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-4" style="max-width:900px;">
+  <div class="mb-3">
+    <div class="text-muted small">SUPER / {{ entite.nom }}</div>
+    <h1 class="h4 mb-0">Offrir une période d’essai</h1>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="card shadow-sm border-0" style="border-radius:18px;">
+    <div class="card-body">
+      <div class="mb-3 text-muted">
+        Statut actuel : <strong>{{ sub.status }}</strong>
+        {% if sub.trialEndsAt %} — fin essai : <strong>{{ sub.trialEndsAt|date('d/m/Y') }}</strong>{% endif %}
+      </div>
+
+      {{ form_start(form) }}
+        {{ form_row(form.days) }}
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-warning fw-semibold"><i class="bi bi-gift"></i> Offrir</button>
+          <a class="btn btn-outline-secondary" href="{{ path('app_super_admin_console', { tab:'entites', entite: entite.id }) }}">Retour</a>
+        </div>
+      {{ form_end(form) }}
+    </div>
+  </div>
+</div>
+{% endblock %}

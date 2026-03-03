@@ -1,0 +1,697 @@
+{# templates/administrateur/reservation/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d'une réservation{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+
+      --theme-glow: color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+      --theme-soft: color-mix(in srgb, var(--theme-color-principal) 10%, #ffffff);
+      --secondary-soft: color-mix(in srgb, var(--theme-color-secondaire) 16%, #ffffff);
+    }
+
+    body{ background: var(--bg); }
+
+    /* ===== HERO (identique Sessions) ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    /* chip highlight (optionnel) */
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+
+    .crumb{ color: var(--muted); font-size:.9rem; }
+    .crumb a{ color: inherit; text-decoration:none; }
+    .crumb a:hover{ text-decoration:underline; }
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+
+    .sticky-actions{
+      position: sticky; bottom: 14px; z-index: 5;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .75rem;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-outline-theme{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 35%, var(--stroke));
+      color: var(--theme-color-principal);
+    }
+    .btn-outline-theme:hover{
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      color: var(--theme-color-principal);
+    }
+
+    /* optionnel si tu veux un € clean comme inscription */
+    .input-euro .form-control{
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+    }
+    .input-euro .euro-suffix{
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      font-weight: 800;
+      letter-spacing: .02em;
+      color: var(--theme-color-principal);
+      border-color: var(--stroke);
+      min-width: 46px;
+      justify-content: center;
+      border: 1px solid var(--stroke);
+    }
+
+
+    /* TomSelect dropdown : doit pouvoir dépasser la card */
+.cardx.allow-overflow{
+  overflow: visible !important;
+}
+
+/* petite sécurité : évite que le dropdown passe derrière */
+.cardx.allow-overflow{
+  position: relative;
+  z-index: 1;
+}
+.ts-dropdown{
+  z-index: 1080 !important; /* au-dessus des cards */
+}
+
+/* TomSelect : dropdown au-dessus de tout */
+.ts-dropdown{
+  z-index: 2000 !important;
+}
+
+/* Quand le dropdown est rendu dans le body, on garde un look "clean" */
+.ts-dropdown,
+.ts-dropdown .ts-dropdown-content{
+  border-radius: 14px !important;
+  border: 1px solid var(--stroke) !important;
+  box-shadow: 0 18px 55px rgba(15, 23, 42, .18) !important;
+}
+
+/* (optionnel) : améliore le rendu des items */
+.ts-dropdown .option{
+  padding: .55rem .75rem !important;
+}
+    
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ===== HERO (style identique à session/form) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-ticket-perforated me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ modeEdition ? 'Modification' : 'Ajout' }} d’une réservation
+          </h2>
+          <div class="opacity-75 mt-1">
+            Associe une session, un stagiaire et les infos de réservation / paiement.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="bi bi-ticket-perforated"></i> Réservation</span>
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+            <span class="chip"><i class="bi bi-pencil-square"></i> {{ modeEdition ? 'Modification' : 'Création' }}</span>
+            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_reservation_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+            <i class="bi bi-check2 me-1"></i> {{ modeEdition ? 'Enregistrer' : 'Créer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_start(form, {
+    'attr': {
+      'id': form.vars.id,
+      'novalidate': 'novalidate',
+      'name':'reservation_administrateur'
+    }
+  }) }}
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    {# ===== COL LEFT ===== #}
+    <div class="col-lg-7">
+
+      <div class="cardx mb-4 allow-overflow">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="fa fa-link text-warning"></i>
+            Session & Stagiaire
+          </h5>
+          <span class="chip">Étape 1</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.session) }}</div>
+            <div class="col-md-6">{{ form_row(form.utilisateur) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4 allow-overflow">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="fa fa-calendar text-warning"></i>
+            Détails de la réservation
+          </h5>
+          <span class="chip">Étape 2</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-4">{{ form_row(form.dateReservation) }}</div>
+            <div class="col-md-4">{{ form_row(form.status) }}</div>
+            <div class="col-md-4">{{ form_row(form.paymentIntentId) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="fa fa-euro-sign text-warning"></i>
+            Paiement
+          </h5>
+          <span class="chip">Étape 3</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              {# OPTION 1 : laisse ton form_row si tu veux #}
+              {# {{ form_row(form.montantCents) }} #}
+
+              {# OPTION 2 (recommandé) : suffixe € propre (si devise EUR) #}
+              {{ form_label(form.montantCents) }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.montantCents, {
+                  money_pattern: '{{ widget }}',
+                  attr: { class: 'form-control', placeholder: '0,00' }
+                }) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_errors(form.montantCents) }}
+            </div>
+
+            <div class="col-md-6">{{ form_row(form.devise) }}</div>
+          </div>
+
+          <div class="form-text mt-2">Montant saisi en euros (converti en cents côté serveur).</div>
+        </div>
+      </div>
+
+    </div>
+
+    {# ===== COL RIGHT (Résumé + validation live) ===== #}
+    <div class="col-lg-5">
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title">
+            <i class="fa fa-circle-info text-warning"></i>
+            Résumé
+          </h5>
+          <span class="chip">Contrôle</span>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="small text-muted mb-3">Vérifie rapidement avant d’enregistrer.</div>
+
+          <div class="p-3 rounded-4 border mb-3"
+               style="border-color: var(--stroke); background: linear-gradient(180deg, var(--theme-soft), transparent);">
+            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+              <div class="fw-bold">Choix actuels</div>
+              <span id="resume-valid-pill"
+                    class="badge rounded-pill px-3 py-2"
+                    style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
+                ⚠️ Incomplet
+              </span>
+            </div>
+
+            <div class="mt-2 small">
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Session</span>
+                <span class="fw-semibold text-end" id="resume-session">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Stagiaire</span>
+                <span class="fw-semibold text-end" id="resume-stagiaire">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Date</span>
+                <span class="fw-semibold text-end" id="resume-date">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Statut</span>
+                <span class="fw-semibold text-end" id="resume-statut">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Paiement (Intent)</span>
+                <span class="fw-semibold text-end" id="resume-intent">—</span>
+              </div>
+
+              <hr class="my-2" style="border-color: var(--stroke);">
+
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Montant</span>
+                <span class="fw-semibold text-end" id="resume-montant">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Devise</span>
+                <span class="fw-semibold text-end" id="resume-devise">—</span>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4" style="border-color: var(--stroke);">
+
+          <div class="d-flex gap-2">
+            <a href="javascript:history.back()" class="btn btn-outline-theme w-50">
+              <i class="fa fa-arrow-left me-1"></i> Retour
+            </a>
+            <button type="submit" class="btn btn-gradient w-50">
+              <i class="fa fa-check me-1"></i> {{ modeEdition ? 'Enregistrer' : 'Créer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="small text-muted">
+            <strong class="text-dark">Astuce :</strong> complète session + stagiaire + date pour valider.
+          </div>
+          <span class="badge rounded-pill" style="border:1px solid var(--stroke); background: var(--secondary-soft); color: var(--ink);">
+            Réservation
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // ---- IDs fiables Symfony ----
+  const idSession    = '#{{ form.session.vars.id }}';
+  const idUser       = '#{{ form.utilisateur.vars.id }}';
+  const idStatus     = '#{{ form.status.vars.id }}';
+  const idDate       = '#{{ form.dateReservation.vars.id }}';
+  const idIntent     = '#{{ form.paymentIntentId.vars.id }}';
+  const idMontant    = '#{{ form.montantCents.vars.id }}';
+  const idDevise     = '#{{ form.devise.vars.id }}';
+
+
+  const form = document.querySelector('form[name="reservation_administrateur"]');
+  const submitButtons = form ? [...form.querySelectorAll('button[type="submit"]')] : [];
+
+  // ===== HERO last refresh (comme Sessions) =====
+  const heroRefreshEl = document.getElementById('hero-last-refresh');
+
+  function nowLabel(){
+    const d = new Date();
+    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function setHeroLastRefresh(prefix = 'Maj : '){
+    if (!heroRefreshEl) return;
+    heroRefreshEl.textContent = prefix + nowLabel();
+  }
+
+  // Au chargement
+  setHeroLastRefresh();
+
+  
+
+  // ---------- TomSelect ----------
+  const tsOptions = {
+    create: false,
+    allowEmptyOption: true,
+    plugins: ['remove_button'],
+    sortField: { field: 'text', direction: 'asc' },
+    dropdownParent: 'body', // ✅ IMPORTANT : sort le menu de la card
+    render: { no_results: () => '<div class="text-muted px-2 py-1">Aucun résultat</div>' }
+  };
+
+  const ts = {};
+  [idSession, idUser, idStatus, idDevise].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el && !el.tomselect) ts[sel] = new TomSelect(el, tsOptions);
+    else if (el?.tomselect) ts[sel] = el.tomselect;
+  });
+
+  // ---------- Flatpickr ----------
+  const inputDate = document.querySelector(idDate);
+  if (inputDate) {
+    flatpickr(inputDate, {
+      dateFormat: 'd/m/Y',
+      locale: flatpickr.l10ns.fr,
+      allowInput: true
+    });
+  }
+
+  // ---------- Helpers ----------
+  const parseEuros = v => {
+    if (typeof v !== 'string') v = String(v ?? '');
+    v = v.replace(/\s/g,'').replace(',', '.').replace(/[^\d.]/g,'');
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  };
+  const formatEuros = n => new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR'}).format(n);
+
+  function getSelectedText(selectEl){
+    if (!selectEl || !selectEl.value) return '';
+    const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+    return (opt ? opt.textContent : '').trim();
+  }
+
+  // ---------- Résumé live ----------
+  const $resume = {
+    session: document.getElementById('resume-session'),
+    stagiaire: document.getElementById('resume-stagiaire'),
+    date: document.getElementById('resume-date'),
+    statut: document.getElementById('resume-statut'),
+    intent: document.getElementById('resume-intent'),
+    montant: document.getElementById('resume-montant'),
+    devise: document.getElementById('resume-devise'),
+    pill: document.getElementById('resume-valid-pill')
+  };
+
+
+  function isFormComplete(){
+    const s  = document.querySelector(idSession);
+    const u  = document.querySelector(idUser);
+    const d  = document.querySelector(idDate);
+
+    // requis “métier”
+    const okBusiness = !!(s?.value && u?.value && (d?.value || '').trim());
+
+    // + HTML5
+    const okHtml = form ? form.checkValidity() : true;
+
+    return okBusiness && okHtml;
+  }
+
+  function refreshResume(){
+    const selSession = document.querySelector(idSession);
+    const selUser    = document.querySelector(idUser);
+    const selStatus  = document.querySelector(idStatus);
+    const selDevise  = document.querySelector(idDevise);
+
+    const dateVal    = (document.querySelector(idDate)?.value || '').trim();
+    const intentVal  = (document.querySelector(idIntent)?.value || '').trim();
+    const montantVal = document.querySelector(idMontant)?.value || '';
+
+    if ($resume.session)   $resume.session.textContent   = getSelectedText(selSession) || '—';
+    if ($resume.stagiaire) $resume.stagiaire.textContent = getSelectedText(selUser) || '—';
+    if ($resume.date)      $resume.date.textContent      = dateVal || '—';
+    if ($resume.statut)    $resume.statut.textContent    = getSelectedText(selStatus) || '—';
+    if ($resume.intent)    $resume.intent.textContent    = intentVal || '—';
+
+    const deviseTxt = getSelectedText(selDevise) || (selDevise?.value || '');
+    if ($resume.devise) $resume.devise.textContent = deviseTxt || '—';
+
+    // Montant (si devise EUR -> format euros)
+    const n = parseEuros(montantVal);
+    if ($resume.montant) {
+      $resume.montant.textContent = n ? formatEuros(n) : (montantVal ? montantVal : '—');
+    }
+
+    // validation live
+    const ok = isFormComplete();
+    submitButtons.forEach(b => b.disabled = !ok);
+
+    if ($resume.pill) {
+      if (ok) {
+        $resume.pill.textContent = '✅ Complet';
+        $resume.pill.style.background = 'rgba(25,135,84,.15)';
+        $resume.pill.style.borderColor = 'rgba(25,135,84,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      } else {
+        $resume.pill.textContent = '⚠️ Incomplet';
+        $resume.pill.style.background = 'rgba(255,193,7,.15)';
+        $resume.pill.style.borderColor = 'rgba(255,193,7,.35)';
+        $resume.pill.style.color = 'var(--ink)';
+      }
+    }
+  }
+
+    // ✅ Update auto du résumé (même avec TomSelect / Flatpickr)
+  if (form) {
+    form.addEventListener('input', () => {
+      refreshResume();
+      setHeroLastRefresh();
+    });
+
+    form.addEventListener('change', () => {
+      refreshResume();
+      setHeroLastRefresh();
+    });
+
+    form.addEventListener('submit', () => setHeroLastRefresh('Envoi : '));
+  }
+
+  // écoute
+  [idSession, idUser, idStatus, idDevise].forEach(sel => {
+    const el = document.querySelector(sel);
+    el && el.addEventListener('change', refreshResume);
+  });
+  [idDate, idIntent, idMontant].forEach(sel => {
+    const el = document.querySelector(sel);
+    el && el.addEventListener('input', refreshResume);
+    el && el.addEventListener('change', refreshResume);
+  });
+
+  refreshResume();
+
+  // ---------- Validation légère (submit) ----------
+  initFormValidation({
+    formName: 'reservation_administrateur',
+    tomSelectFields: [
+      { id: '{{ form.session.vars.id }}',     label: '*Session' },
+      { id: '{{ form.utilisateur.vars.id }}', label: '*Stagiaire' }
+    ]
+  });
+
+});
+
+// même helper que toi
+function initFormValidation({ formName, tomSelectFields = [] }){
+  const form = document.querySelector(`form[name="${formName}"]`); if (!form) return;
+  const submit = form.querySelector('button[type="submit"]'); if(!submit) return;
+
+  let alertBox = document.getElementById('form-error-alert');
+  if(!alertBox){
+    alertBox = document.createElement('div');
+    alertBox.id = 'form-error-alert';
+    alertBox.className = 'alert alert-danger d-none';
+    submit.parentElement.prepend(alertBox);
+  }
+
+  form.addEventListener('submit', (e) => {
+    const invalid = form.querySelectorAll(':invalid');
+    const msgs = new Set(); let first = null;
+
+    tomSelectFields.forEach(({id,label})=>{
+      const f = document.getElementById(id);
+      if (f && f.hasAttribute('required') && (!f.value || !f.value.trim())) {
+        f.classList.add('is-invalid'); if (!first) first = f; msgs.add(`- ${label}`);
+      }
+    });
+
+    if (invalid.length || msgs.size){
+      e.preventDefault();
+      invalid.forEach(f=>{
+        f.classList.add('is-invalid');
+        if (!first) first = f;
+        const l = form.querySelector(`label[for="${f.id}"]`);
+        if (l) msgs.add(`- ${l.textContent.trim()}`);
+      });
+      alertBox.innerHTML = `<strong>Champs requis manquants :</strong><br>${[...msgs].join('<br>')}`;
+      alertBox.classList.remove('d-none');
+      if (first) first.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+  });
+}
+</script>
+{% endblock %}

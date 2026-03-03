@@ -1,0 +1,41 @@
+{# templates/administrateur/session/_actions.html.twig #}
+
+<div class="btn-group btn-group-sm session-actions" role="group">
+
+  <a class="btn btn-light session-main"
+     data-bs-toggle="tooltip" title="Voir"
+     href="{{ path('app_administrateur_session_show', { entite: entite.id, id: session.id }) }}">
+    <i class="bi bi-eye"></i>
+  </a>
+
+  <button type="button"
+          class="btn btn-light dropdown-toggle dropdown-toggle-split session-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Actions</span>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end session-menu">
+
+    <li>
+      <a class="dropdown-item d-flex align-items-center"
+         href="{{ path('app_administrateur_session_modifier', { entite: entite.id, id: session.id }) }}">
+        <i class="bi bi-pencil me-2"></i> Modifier
+      </a>
+    </li>
+
+    <li><hr class="dropdown-divider"></li>
+
+    <li>
+      <button type="button"
+              class="dropdown-item d-flex align-items-center text-danger js-delete-session"
+              data-bs-toggle="modal"
+              data-bs-target="#deleteModal"
+              data-url="{{ path('app_administrateur_session_supprimer', { entite: entite.id, id: session.id }) }}"
+              data-token="{{ csrf_token('delete_session_' ~ session.id) }}"
+              data-label="{{ session.code|default('#' ~ session.id) }}">
+        <i class="bi bi-trash me-2"></i> Supprimer
+      </button>
+    </li>
+
+  </ul>
+</div>

@@ -1,0 +1,31 @@
+{# templates/administrateur/facture/_status_badge.html.twig #}
+
+{% set s = f.status ?? null %}
+{% set key = s ? (s.value ?? s) : null %}
+
+{% set paid = paidCents|default(0) %}
+{% set remaining = remainingCents|default(0) %}
+
+{# 1) Annulée = prioritaire #}
+{% if key == 'canceled' %}
+  <span class="badge bg-danger">
+    <i class="fa fa-ban me-1"></i> Annulée
+  </span>
+
+{# 2) Si on a des montants calculés, on déduit le statut réel #}
+{% elseif remaining <= 0 and paid > 0 %}
+  <span class="badge bg-success">
+    <i class="fa fa-circle-check me-1"></i> Payée
+  </span>
+
+{% elseif paid > 0 and remaining > 0 %}
+  <span class="badge bg-info text-dark">
+    <i class="fa fa-circle-half-stroke me-1"></i> Payée partielle
+  </span>
+
+{% else %}
+  {# 3) Sinon fallback (ou dû) #}
+  <span class="badge bg-warning text-dark">
+    <i class="fa fa-clock me-1"></i> Montant dû
+  </span>
+{% endif %}

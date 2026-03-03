@@ -1,0 +1,663 @@
+{# templates/public/pricing.html.twig #}
+{% extends 'base_public.html.twig' %}
+{% block title %}Tarifs - WikiFormation{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    .pricing-hero{
+      border-radius:24px;
+      padding:28px;
+      background:
+        radial-gradient(1200px 400px at 10% 0%, rgba(99,102,241,.20), transparent 60%),
+        radial-gradient(900px 350px at 90% 10%, rgba(16,185,129,.18), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.75));
+      border:1px solid rgba(15,23,42,.08);
+      box-shadow: 0 18px 60px rgba(2,6,23,.08);
+    }
+    .plan-card{
+      border-radius:22px;
+      border:1px solid rgba(15,23,42,.10);
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 16px 46px rgba(2,6,23,.08);
+      overflow:hidden;
+      position:relative;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .plan-card:hover{ transform: translateY(-3px); box-shadow: 0 22px 70px rgba(2,6,23,.12); }
+    .plan-top{ padding:35px 22px 8px; }
+    .plan-accent{ height:4px; background: var(--accent); }
+    .plan-price{ font-size: 40px; font-weight:800; letter-spacing:-.02em; }
+    .badge-reco{ position:absolute; top:14px; right:14px; }
+    .muted{ color: rgba(2,6,23,.65); font-size: 14px; }
+    .feature li{ padding:6px 0; }
+    .switch-pill{
+      border-radius:999px; padding:6px; background:rgba(2,6,23,.06);
+      display:inline-flex; gap:6px;
+    }
+    .switch-pill .btn{ border-radius:999px; }
+
+    /* Ajustement taille prix sur grands écrans */
+    @media (min-width: 1200px){
+      .plan-card .plan-price{ font-size: 34px; }
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+  {% include 'header_public.html.twig' %}
+
+  <header class="hero bg-light text-center">
+    <div class="container">
+      <img class="mb-1" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png')}}" alt="Logo" class="img-fluid" width="200px">
+      <h1 class="fw-bold fs-sm-2 fs-md-3 fs-lg-5 mt-5">{{ 'price.hero.h1'|trans }}</h1>
+    </div>
+  </header>
+
+  <div class="container py-5">
+
+    <div class="pricing-hero mb-4">
+      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+        <div>
+          <h1 class="mb-2">Tarifs</h1>
+          <div class="muted">Plateforme Qualiopi : gestion, documents, émargement, LMS, CRM.</div>
+        </div>
+
+        <div class="text-md-end">
+          <div class="switch-pill">
+            <button class="btn btn-sm btn-light" type="button" data-interval="month" id="btn-month">Mensuel</button>
+            <button class="btn btn-sm btn-primary" type="button" data-interval="year" id="btn-year">
+              Annuel <span class="ms-1 badge bg-warning text-dark">-20%</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    {% for msg in app.flashes('billing_expired') %}
+      <div class="alert alert-danger d-flex align-items-center gap-2 mt-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>{{ msg }}</div>
+      </div>
+    {% endfor %}
+
+
+
+    {# ✅ On ne garde que 4 plans #}
+    {% set allowedCodes = ['ESSENTIEL','PROFESSIONNEL','EXPERT','EXCELLENCE'] %}
+    {% set filteredPlans = plans|filter(p => p.code in allowedCodes) %}
+
+    <form method="post" class="row g-4" id="pricingForm">
+      <input type="hidden" name="interval" id="interval" value="year"/>
+      <input type="hidden" name="plan" id="selectedPlan" value=""/>
+
+      {% for plan in filteredPlans %}
+        {# accents par plan #}
+        {% set accent = plan.code == 'ESSENTIEL'
+          ? '#f59e0b'
+          : (plan.code == 'PROFESSIONNEL'
+            ? '#10b981'
+            : (plan.code == 'EXPERT'
+              ? '#8b5cf6'
+              : '#fb7185'
+            )
+          )
+        %}
+
+        <div class="col-12 col-md-6 col-xl-6 col-xxl-3">
+          <div class="plan-card h-100" style="--accent: {{ accent }};">
+            <div class="plan-accent"></div>
+
+            <div class="plan-top">
+              {% if plan.code == 'PROFESSIONNEL' %}
+                <span class="badge bg-success-subtle text-success badge-reco">Recommandé</span>
+              {% endif %}
+
+              <div class="d-flex align-items-center justify-content-between">
+                <h3 class="mb-0">{{ plan.name }}</h3>
+              </div>
+
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="text-uppercase small fw-semibold" style="color: var(--accent);">
+                  {{ plan.maxApprenantsAn == 0 ? 'Apprenants illimités' : plan.maxApprenantsAn ~ ' apprenants/an' }}
+                </span>
+              </div>
+
+              <p class="muted mt-2 mb-3">{{ plan.tagline|default('Toutes les fonctionnalités essentielles pour avancer.') }}</p>
+
+              <div class="muted small">
+                <div>• {{ plan.maxUtilisateurs == 0 ? 'Utilisateurs illimités' : plan.maxUtilisateurs ~ ' utilisateurs' }}</div>
+                <div>• {{ plan.maxFormateurs == 0 ? 'Formateurs illimités' : plan.maxFormateurs ~ ' formateurs' }}</div>
+                <div>• {{ plan.maxEntreprises == 0 ? 'Entreprises illimitées' : plan.maxEntreprises ~ ' entreprises' }}</div>
+                <div>• {{ plan.maxProspects == 0 ? 'Prospects illimités' : plan.maxProspects ~ ' prospects' }}</div>
+              </div>
+            </div>
+
+            <div class="px-3 pb-3">
+              <div class="d-flex flex-column align-items-center mb-3 text-center">
+                <div class="plan-price" data-plan-code="{{ plan.code }}">-</div>
+                <div class="muted">HT / <span class="js-interval-main">mois</span></div>
+                <div class="muted small js-interval-sub">(avec engagement annuel)</div>
+              </div>
+
+
+
+
+              {% set isLogged = app.user is not null %}
+              {% set entite = entite|default(null) %}
+              {% set isAdmin = isLogged and entite and is_granted('ENTITE_ADMIN', entite) %}
+
+              {% if not isLogged %}
+                <a href="{{ path('app_login', {'_target_path': path('app_public_pricing')}) }}"
+                  class="btn w-100 btn-lg"
+                  style="background: var(--accent); border-color: var(--accent); color:#fff;">
+                  Essayer gratuitement <br>(3 mois)
+                </a>
+              {% else %}
+
+                {% if trialConsumed %}
+                  {% if isAdmin %}
+                    <button type="button"
+                            class="btn w-100 btn-lg js-open-billing-confirm"
+                            data-action="{{ path('app_billing_checkout') }}"
+                            data-plan="{{ plan.code }}"
+                            data-plan-name="{{ plan.name }}"
+                            data-cta="Souscrire maintenant"
+                            style="background: var(--accent); border-color: var(--accent); color:#fff;">
+                      Souscrire maintenant
+                    </button>
+                  {% else %}
+                    <div class="alert alert-warning mb-0">
+                      Seul un administrateur de l’organisme peut souscrire.
+                    </div>
+                  {% endif %}
+                {% else %}
+                  {% if isAdmin %}
+                    <button type="button"
+                            class="btn w-100 btn-lg js-open-billing-confirm"
+                            data-action="{{ path('app_pricing_start_trial') }}"
+                            data-plan="{{ plan.code }}"
+                            data-plan-name="{{ plan.name }}"
+                            data-cta="Démarrer l’essai gratuit"
+                            style="background: var(--accent); border-color: var(--accent); color:#fff;">
+                      Essayer gratuitement <br>(3 mois)
+                    </button>
+                  {% else %}
+                    <div class="alert alert-warning mb-0 text-center">
+                      Seul un administrateur de l’organisme peut démarrer l’essai.
+                    </div>
+                  {% endif %}
+                {% endif %}
+
+              {% endif %}
+
+
+
+              <div class="text-center mt-2">
+                <button type="button"
+                        class="btn btn-link small muted toggle-details d-inline-flex align-items-center gap-1"
+                        data-bs-target="#details-{{ plan.code }}"
+                        aria-controls="details-{{ plan.code }}"
+                        aria-expanded="false">
+                  <span class="label-text">Voir le détail</span>
+                  <span class="chevron">+</span>
+                </button>
+              </div>
+
+              <ul class="feature list-unstyled mb-2">
+                <li>✅ Gestion administrative</li>
+                <li>✅ Émargement intégré</li>
+                <li>✅ Appréciation apprenant</li>
+                <li>✅ Appréciation formateur</li>
+              </ul>
+
+              <div class="collapse mt-2" id="details-{{ plan.code }}">
+                <ul class="feature list-unstyled mb-3">
+                  <li>✅ Espace apprenant</li>
+                  <li>✅ Espace formateur</li>
+                  <li>✅ Espace entreprise</li>
+                  <li>✅ LMS essentiel</li>
+                  <li>✅ Conformité qualité</li>
+                  <li>✅ Suivi commercial / CRM</li>
+                  <li>✅ Catalogue en ligne</li>
+                  <li>✅ Questionnaire en ligne</li>
+                  <li>✅ Fiche assiduité</li>
+                  <li>✅ Tax</li>
+                  <li>✅ Suivi des dépenses</li>
+                </ul>
+
+                {% if addons|length %}
+                  <div class="border-top pt-3">
+                    <div class="fw-semibold mb-2">Options</div>
+                    {% for addon in addons %}
+                      <label class="d-flex align-items-start gap-2 mb-2">
+                        <input class="form-check-input mt-1" type="checkbox" name="addons[]" value="{{ addon.code }}">
+                        <span>
+                          <span class="fw-semibold">{{ addon.name }}</span>
+                          <span class="muted small d-block">{{ addon.description }}</span>
+                        </span>
+                      </label>
+                    {% endfor %}
+                    <div class="muted small">Les options seront ajoutées à l’abonnement (Stripe).</div>
+                  </div>
+                {% endif %}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </form>
+  </div>
+
+
+
+
+
+
+  {# Modal : Confirmation souscription / essai #}
+<div class="modal fade modal-premium" id="billingConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-shield-check me-2"></i> Confirmation
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-3 align-items-start">
+          <div class="flex-shrink-0"
+               style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                      background: rgba(13,110,253,.12); border:1px solid rgba(13,110,253,.18);">
+            <i class="bi bi-credit-card-2-front" style="font-size:20px;color:#0d6efd;"></i>
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-semibold mb-1">
+              Tu vas continuer avec l’offre :
+              <div class="text-dark mt-1" id="billingPlanLabel">—</div>
+            </div>
+
+            <div class="mt-2">
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <div class="px-3 py-2 rounded-4 border bg-light"
+                    style="border-color: rgba(0,0,0,.08) !important;">
+                  <div class="small text-muted">Prix</div>
+                  <div class="d-flex align-items-baseline gap-2">
+                    <div class="fw-bold" style="font-size:26px; letter-spacing:-.02em;">
+                      <span id="billingPriceMain">—</span>
+                    </div>
+                    <div class="text-muted">
+                      HT / <span id="billingPriceUnit">mois</span>
+                    </div>
+                  </div>
+                  <div class="small text-muted" id="billingPriceSub">—</div>
+                </div>
+
+                <div class="flex-grow-1">
+                  <div class="small text-muted">
+                    Période : <span class="fw-semibold" id="billingIntervalLabel">—</span>
+                  </div>
+                  <div class="small text-muted">
+                    Options sélectionnées : <span class="fw-semibold" id="billingAddonsLabel">—</span>
+                  </div>
+
+                  <div class="small text-muted mt-1 d-none" id="billingTotalYearWrap">
+                    Total estimé : <span class="fw-semibold" id="billingTotalYear">—</span> HT / an
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" value="1" id="confirmBillingCheck">
+          <label class="form-check-label small" for="confirmBillingCheck">
+            Je confirme et je souhaite continuer.
+          </label>
+        </div>
+
+        {# (optionnel) tu peux afficher un rappel légal #}
+        <div class="alert alert-light small mt-3 mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          Tu seras redirigé vers Stripe pour finaliser (ou démarrer l’essai).
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary fw-semibold" id="btnConfirmBilling" disabled>
+          <i class="bi bi-arrow-right-circle me-1"></i> Continuer
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+  <script>
+    // ✅ 4 abonnements uniquement (codes en minuscules)
+    const PRICES = {
+      essentiel:      { month: 199, year: 159 },
+      professionnel:  { month: 399, year: 319 },
+      expert:         { month: 549, year: 439 },
+      excellence:     { month: 799, year: 639 }
+    };
+
+    function renderPrices(interval){
+      document.getElementById('interval').value = interval;
+
+      document.querySelectorAll('.js-interval-main').forEach(el => {
+        el.textContent = 'mois';
+      });
+
+      document.querySelectorAll('.js-interval-sub').forEach(el => {
+        el.textContent = interval === 'year'
+          ? '(avec engagement annuel)'
+          : '(sans engagement)';
+      });
+
+      document.querySelectorAll('[data-plan-code]').forEach(el => {
+        const code = (el.getAttribute('data-plan-code') || '').toLowerCase();
+        const val = PRICES[code]?.[interval];
+
+        el.textContent = (val !== undefined && val !== null)
+          ? (Number(val).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + '€')
+          : '-';
+      });
+    }
+
+
+    function refreshBillingModalIfOpen(){
+      const modalEl = document.getElementById('billingConfirmModal');
+      if (!modalEl || !modalEl.classList.contains('show')) return;
+
+      const planUpper = document.getElementById('selectedPlan')?.value || '';
+      if (!planUpper) return;
+
+      // libellés
+      const intervalLabel = document.getElementById('billingIntervalLabel');
+      const addonsLabel   = document.getElementById('billingAddonsLabel');
+
+      const v = document.getElementById('interval')?.value || 'year';
+      if (intervalLabel) {
+        intervalLabel.textContent = (v === 'month')
+          ? 'Mensuel (sans engagement)'
+          : 'Annuel (engagement annuel)';
+      }
+
+      if (addonsLabel) {
+        const checked = Array.from(document.querySelectorAll('input[name="addons[]"]:checked'));
+        addonsLabel.textContent = !checked.length
+          ? 'Aucune'
+          : (checked.length === 1 ? '1 option' : (checked.length + ' options'));
+      }
+
+      // prix : on réutilise ta logique PRICES
+      const key = planUpper.toLowerCase();
+      const p = PRICES[key]?.[v];
+
+      const priceMain = document.getElementById('billingPriceMain');
+      const priceSub  = document.getElementById('billingPriceSub');
+      const totalYearWrap = document.getElementById('billingTotalYearWrap');
+      const totalYear = document.getElementById('billingTotalYear');
+
+      if (p === undefined || p === null) {
+        if (priceMain) priceMain.textContent = '—';
+        if (priceSub)  priceSub.textContent = 'Prix indisponible';
+        totalYearWrap?.classList.add('d-none');
+        return;
+      }
+
+      if (priceMain) priceMain.textContent = Number(p).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + '€';
+
+      if (v === 'year') {
+        if (priceSub) priceSub.textContent = '(avec engagement annuel)';
+        if (totalYear) totalYear.textContent = Number(p * 12).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + '€';
+        totalYearWrap?.classList.remove('d-none');
+      } else {
+        if (priceSub) priceSub.textContent = '(sans engagement)';
+        totalYearWrap?.classList.add('d-none');
+      }
+    }
+
+
+    const btnM = document.getElementById('btn-month');
+    const btnY = document.getElementById('btn-year');
+
+    btnM.addEventListener('click', ()=>{
+      btnM.classList.add('btn-primary'); btnM.classList.remove('btn-light');
+      btnY.classList.add('btn-light');   btnY.classList.remove('btn-primary');
+
+      renderPrices('month');             // ✅ met interval=month
+      refreshBillingModalIfOpen();       // ✅ met à jour la modal avec la nouvelle valeur
+    });
+
+    btnY.addEventListener('click', ()=>{
+      btnY.classList.add('btn-primary'); btnY.classList.remove('btn-light');
+      btnM.classList.add('btn-light');   btnM.classList.remove('btn-primary');
+
+      renderPrices('year');              // ✅ met interval=year
+      refreshBillingModalIfOpen();       // ✅ met à jour la modal
+    });
+
+
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.matches('input[name="addons[]"]')) {
+        refreshBillingModalIfOpen();
+      }
+    });
+
+
+
+    renderPrices('year');
+
+    // Collapse “Voir le détail”
+    document.querySelectorAll('.toggle-details').forEach(btn => {
+      const selector = btn.getAttribute('data-bs-target');
+      const target = document.querySelector(selector);
+      const label = btn.querySelector('.label-text');
+      const icon  = btn.querySelector('.chevron');
+      if (!target) return;
+
+      const collapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        collapse.toggle();
+      });
+
+      target.addEventListener('shown.bs.collapse', () => {
+        btn.setAttribute('aria-expanded', 'true');
+        label.textContent = 'Réduire';
+        icon.textContent = '−';
+      });
+
+      target.addEventListener('hidden.bs.collapse', () => {
+        btn.setAttribute('aria-expanded', 'false');
+        label.textContent = 'Voir le détail';
+        icon.textContent = '+';
+      });
+    });
+    
+  (function bindBillingConfirmModal(){
+    const modalEl = document.getElementById('billingConfirmModal');
+    if (!modalEl) return;
+
+    const form   = document.getElementById('pricingForm');
+    const planIn = document.getElementById('selectedPlan');
+
+    const labelPlan     = document.getElementById('billingPlanLabel');
+    const labelInterval = document.getElementById('billingIntervalLabel');
+    const labelAddons   = document.getElementById('billingAddonsLabel');
+
+    const priceMain = document.getElementById('billingPriceMain');
+    const priceUnit = document.getElementById('billingPriceUnit');
+    const priceSub  = document.getElementById('billingPriceSub');
+    const totalYearWrap = document.getElementById('billingTotalYearWrap');
+    const totalYear = document.getElementById('billingTotalYear');
+
+
+    const chk = document.getElementById('confirmBillingCheck');
+    const btn = document.getElementById('btnConfirmBilling');
+
+    let submitting = false;
+    let originalBtnHtml = btn ? btn.innerHTML : '';
+    const closeBtn = modalEl.querySelector('.btn-close');
+
+    function getInterval(){
+      const v = document.getElementById('interval')?.value || 'year';
+      return v === 'month' ? 'Mensuel (sans engagement)' : 'Annuel (engagement annuel)';
+    }
+
+    function formatEur(n){
+      return Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + '€';
+    }
+
+    function getPlanPrice(planCodeUpper, interval){
+      const key = String(planCodeUpper || '').toLowerCase();
+      const val = PRICES[key]?.[interval];
+      return (val !== undefined && val !== null) ? Number(val) : null;
+    }
+
+
+
+    function updatePriceUi(planUpper){
+      const interval = document.getElementById('interval')?.value || 'year';
+      const p = getPlanPrice(planUpper, interval);
+
+      if (priceUnit) priceUnit.textContent = 'mois';
+
+      if (p === null){
+        if (priceMain) priceMain.textContent = '—';
+        if (priceSub)  priceSub.textContent = 'Prix indisponible';
+        if (totalYearWrap) totalYearWrap.classList.add('d-none');
+        return;
+      }
+
+      if (priceMain) priceMain.textContent = formatEur(p);
+
+      if (interval === 'year'){
+        if (priceSub) priceSub.textContent = '(avec engagement annuel)';
+        // total annuel estimé (12 * prix mensuel affiché)
+        const total = p * 12;
+        if (totalYear) totalYear.textContent = formatEur(total);
+        if (totalYearWrap) totalYearWrap.classList.remove('d-none');
+      } else {
+        if (priceSub) priceSub.textContent = '(sans engagement)';
+        if (totalYearWrap) totalYearWrap.classList.add('d-none');
+      }
+    }
+
+
+
+    function getAddonsLabel(){
+      const checked = Array.from(document.querySelectorAll('input[name="addons[]"]:checked'));
+      if (!checked.length) return 'Aucune';
+      return checked.length === 1 ? '1 option' : (checked.length + ' options');
+    }
+
+    function lockUI(){
+      submitting = true;
+      if (btn){
+        btn.disabled = true;
+        btn.setAttribute('aria-busy','true');
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Redirection...';
+      }
+      if (closeBtn) closeBtn.disabled = true;
+    }
+
+    function unlockUI(){
+      submitting = false;
+      if (btn){
+        btn.removeAttribute('aria-busy');
+        btn.innerHTML = originalBtnHtml;
+        btn.disabled = !(chk && chk.checked);
+      }
+      if (closeBtn) closeBtn.disabled = false;
+    }
+
+    function resetState(){
+      submitting = false;
+      if (chk) chk.checked = false;
+      if (btn){
+        btn.disabled = true;
+        btn.removeAttribute('aria-busy');
+        btn.innerHTML = originalBtnHtml;
+      }
+      if (labelPlan) labelPlan.textContent = '—';
+      if (labelInterval) labelInterval.textContent = '—';
+      if (labelAddons) labelAddons.textContent = '—';
+      if (form) form.setAttribute('action', '#');
+      if (planIn) planIn.value = '';
+      if (closeBtn) closeBtn.disabled = false;
+    }
+
+    // Ouverture depuis les boutons des plans
+    document.addEventListener('click', function(e){
+      const trigger = e.target.closest('.js-open-billing-confirm');
+      if (!trigger) return;
+
+      const action = trigger.dataset.action || '#';
+      const plan   = trigger.dataset.plan || '';
+      const planName = trigger.dataset.planName || plan || '—';
+      const cta = trigger.dataset.cta || 'Continuer';
+
+      updatePriceUi(plan);
+      refreshBillingModalIfOpen();
+
+
+
+      if (form) form.setAttribute('action', action);
+      if (planIn) planIn.value = plan;
+
+      if (labelPlan) labelPlan.textContent = planName;
+      if (labelInterval) labelInterval.textContent = getInterval();
+      if (labelAddons) labelAddons.textContent = getAddonsLabel();
+
+      if (btn){
+        // adapte le texte selon essai / checkout
+        btn.innerHTML = '<i class="bi bi-arrow-right-circle me-1"></i> ' + cta;
+        originalBtnHtml = btn.innerHTML;
+      }
+
+      if (chk) chk.checked = false;
+      if (btn) btn.disabled = true;
+      unlockUI();
+
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    });
+
+    chk?.addEventListener('change', ()=>{
+      if (!btn) return;
+      if (submitting){ btn.disabled = true; return; }
+      btn.disabled = !chk.checked;
+    });
+
+    btn?.addEventListener('click', ()=>{
+      if (submitting) return;
+      if (!chk || !chk.checked) return;
+
+      lockUI();
+
+      if (form && !form.dataset.submitted){
+        form.dataset.submitted = '1';
+        form.submit();
+      }
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', ()=>{
+      if (form) delete form.dataset.submitted;
+      resetState();
+    });
+  })();
+</script>
+
+{% endblock %}

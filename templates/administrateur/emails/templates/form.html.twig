@@ -1,0 +1,52 @@
+
+{# templates/administrateur/emails/templates/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+    }
+  </style>
+{% endblock %}
+
+
+{% block title %}{{ modeEdition ? 'Modifier' : 'Créer' }} un modèle email{% endblock %}
+
+{% block body %}
+<div class="container-fluid" style="max-width:1100px;">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="fw-bold mb-0">{{ modeEdition ? 'Modifier' : 'Créer' }} un modèle</h2>
+      <div class="text-muted">Entité : {{ entite.nom }}</div>
+    </div>
+    <a class="btn btn-outline-secondary fw-semibold" href="{{ path('app_administrateur_email_template_index', { entite: entite.id }) }}">
+      <i class="bi bi-arrow-left"></i> Retour
+    </a>
+  </div>
+
+  {{ form_start(form) }}
+    <div class="card shadow-sm border-0 rounded-4 p-3">
+      <div class="row g-3">
+        <div class="col-md-6">{{ form_row(form.name) }}</div>
+        <div class="col-md-6">{{ form_row(form.code) }}</div>
+        <div class="col-12">{{ form_row(form.subject) }}</div>
+        <div class="col-12">{{ form_row(form.bodyHtml) }}</div>
+        <div class="col-12">{{ form_row(form.isActive) }}</div>
+
+        <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+          <button class="btn btn-warning fw-semibold">
+            <i class="bi bi-check2-circle"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  {{ form_end(form) }}
+</div>
+{% endblock %}

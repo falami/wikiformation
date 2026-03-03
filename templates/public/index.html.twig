@@ -1,0 +1,2199 @@
+{# templates/public/index.html.twig #}
+{% extends 'base_public.html.twig' %}
+
+{% block title %}Wikiformation - La plateforme tout-en-un pour piloter votre organisme, simplement{% endblock %}
+{% block meta_description %}Sessions, documents, Qualiopi, e-learning, évaluations, extranet, facturation, tableaux de bord. Wikiformation centralise et automatise votre quotidien pour gagner du temps et sécuriser votre conformité.{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Geist:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════
+   TOKENS (Ultra premium + dark ready)
+═══════════════════════════════════════════ */
+:root {
+  /* Backgrounds */
+  --bg-base:    #faf9f7;
+  --bg-warm:    #f4f1ec;
+  --bg-card:    #ffffff;
+  --bg-muted:   #f0ede8;
+
+  /* Ink */
+  --ink-1:      #1a1916;
+  --ink-2:      #3d3b37;
+  --ink-3:      #7a786f;
+  --ink-4:      #aaa89f;
+
+  /* Accent - bleu ardoise */
+  --accent:     #2563a8;
+  --accent-lt:  #dbeafe;
+  --accent-mid: #93bbf0;
+
+  /* Accent 2 - vert sauge */
+  --sage:       #4a7c59;
+  --sage-lt:    #d6ead9;
+  --sage-mid:   #8dbf9c;
+
+  /* Accent 3 - terre cuite (CTA) */
+  --terra:      #c25d3b;
+  --terra-lt:   #fceee8;
+  --terra-mid:  #e8967a;
+
+  /* Borders */
+  --border:     rgba(26,25,22,.09);
+  --border2:    rgba(26,25,22,.15);
+  --border3:    rgba(26,25,22,.05);
+
+  /* Shadows */
+  --shadow-sm:  0 1px 4px rgba(26,25,22,.07), 0 10px 24px rgba(26,25,22,.04);
+  --shadow-md:  0 2px 10px rgba(26,25,22,.07), 0 20px 56px rgba(26,25,22,.08);
+  --shadow-lg:  0 6px 18px rgba(26,25,22,.08), 0 30px 84px rgba(26,25,22,.12);
+
+  /* Radii */
+  --r-2xl: 30px;
+  --r-xl:  22px;
+  --r-lg:  16px;
+  --r-md:  12px;
+
+  /* Fonts */
+  --font-display: 'Lora', Georgia, serif;
+  --font-body:    'Geist', system-ui, sans-serif;
+
+  /* Motion */
+  --ease: cubic-bezier(.22,.68,0,1);
+  --t: 220ms var(--ease);
+
+  /* Hero colors */
+  --hero-ink: #ffffff;
+  --hero-muted: rgba(255,255,255,.72);
+  --hero-stroke: rgba(255,255,255,.12);
+  --hero-glass: rgba(255,255,255,.08);
+
+  /* Focus */
+  --focus: 0 0 0 4px rgba(37,99,168,.22);
+}
+
+/* Dark mode (auto) */
+@media (prefers-color-scheme: dark) {
+  :root{
+    --bg-base:  #0b0f14;
+    --bg-warm:  #0e141c;
+    --bg-card:  #0f1722;
+    --bg-muted: #101a26;
+
+    --ink-1: #e9eef6;
+    --ink-2: rgba(233,238,246,.86);
+    --ink-3: rgba(233,238,246,.64);
+    --ink-4: rgba(233,238,246,.45);
+
+    --border:  rgba(233,238,246,.10);
+    --border2: rgba(233,238,246,.16);
+    --border3: rgba(233,238,246,.06);
+
+    --shadow-sm:  0 1px 6px rgba(0,0,0,.30);
+    --shadow-md:  0 10px 40px rgba(0,0,0,.40);
+    --shadow-lg:  0 18px 70px rgba(0,0,0,.55);
+
+    --hero-ink: #ffffff;
+    --hero-muted: rgba(255,255,255,.72);
+    --hero-stroke: rgba(255,255,255,.12);
+    --hero-glass: rgba(255,255,255,.07);
+    --focus: 0 0 0 4px rgba(147,187,240,.25);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg-base);
+  color: var(--ink-1);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+a { text-decoration: none; color: inherit; }
+img { max-width: 100%; display: block; }
+
+:where(a, button) { outline: none; }
+:where(a, button):focus-visible { box-shadow: var(--focus); border-radius: 14px; }
+
+
+.w-max { max-width: 1240px; margin-inline: auto; padding-inline: 1.5rem; }
+
+/* Subtle dot-grid texture (softer) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1; /* ✅ IMPORTANT : derrière tout */
+  background-image: radial-gradient(circle, rgba(26,25,22,.055) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: .45;
+}
+
+@media (prefers-color-scheme: dark) {
+  body::before {
+    background-image: radial-gradient(circle, rgba(255,255,255,.06) 1px, transparent 1px);
+    opacity: .22;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ORNAMENT (crisper)
+═══════════════════════════════════════════ */
+.ornament { display: flex; align-items: center; gap: 1rem; max-width: 340px; margin: 0 auto; }
+.ornament-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border2), transparent);
+}
+.ornament-gem {
+  width: 8px; height: 8px;
+  background: linear-gradient(135deg, var(--terra), var(--accent));
+  rotate: 45deg;
+  box-shadow: 0 0 14px rgba(194,93,59,.22);
+}
+
+/* ═══════════════════════════════════════════
+   LABELS (glassier)
+═══════════════════════════════════════════ */
+.label {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .32rem .75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  color: var(--ink-2);
+  font-size: .75rem; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(8px);
+}
+.label i { opacity: .95; }
+
+.label.accent { background: color-mix(in srgb, var(--accent-lt) 75%, transparent); border-color: var(--accent-mid); color: var(--accent); }
+.label.sage   { background: color-mix(in srgb, var(--sage-lt) 75%, transparent);   border-color: var(--sage-mid);   color: var(--sage); }
+.label.terra  { background: color-mix(in srgb, var(--terra-lt) 75%, transparent);  border-color: var(--terra-mid);  color: var(--terra); }
+
+/* ═══════════════════════════════════════════
+   BUTTONS (premium, tactile)
+═══════════════════════════════════════════ */
+.btn-prime, .btn-outline, .btn-accent {
+  display: inline-flex; align-items: center; gap: .55rem;
+  padding: .88rem 1.55rem;
+  border-radius: var(--r-lg);
+  font-family: var(--font-body);
+  font-size: .95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--t), box-shadow var(--t), background var(--t), border-color var(--t), color var(--t), opacity var(--t);
+  will-change: transform;
+  user-select: none;
+}
+.btn-prime:active, .btn-outline:active, .btn-accent:active { transform: translateY(0); }
+
+.btn-prime {
+  border: 0; color: #fff;
+  background: linear-gradient(135deg, #c25d3b, #b04f30);
+  box-shadow: 0 10px 28px rgba(194,93,59,.28), 0 2px 6px rgba(0,0,0,.10);
+}
+.btn-prime:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 44px rgba(194,93,59,.32), 0 8px 18px rgba(0,0,0,.12);
+  color: #fff;
+}
+
+.btn-outline {
+  border: 1.5px solid var(--border2);
+  background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+}
+.btn-outline:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border2));
+  background: color-mix(in srgb, var(--accent-lt) 45%, var(--bg-card));
+  color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-accent {
+  border: 0; color: #fff;
+  background: linear-gradient(135deg, #2563a8, #1d4f89);
+  box-shadow: 0 10px 30px rgba(37,99,168,.25);
+}
+.btn-accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 52px rgba(37,99,168,.30);
+  color:#fff;
+}
+
+.btn-prime i, .btn-outline i, .btn-accent i { transform: translateY(.5px); }
+
+/* ═══════════════════════════════════════════
+   SECTION CHROME
+═══════════════════════════════════════════ */
+.section { padding: 5.2rem 0; position: relative; }
+.section-header { text-align: center; margin-bottom: 3.6rem; }
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.4vw, 2.95rem);
+  font-weight: 600;
+  line-height: 1.16; color: var(--ink-1);
+  letter-spacing: -.012em;
+  margin: .95rem 0 .85rem;
+}
+.section-title em { font-style: italic; color: var(--terra); font-weight: 400; }
+.section-lead {
+  font-size: 1.05rem; line-height: 1.78;
+  color: var(--ink-3); max-width: 70ch;
+  margin-inline: auto;
+}
+.divider { border: 0; height: 1px; background: var(--border); margin: 0; }
+
+/* ═══════════════════════════════════════════
+   HERO (cinematic mesh + vignette)
+═══════════════════════════════════════════ */
+.hero {
+  padding: 6.2rem 0 4rem;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Main cinematic background */
+.hero::before{
+  content:'';
+  position:absolute; inset:-2px;
+  z-index:-2;
+  background:
+    radial-gradient(1200px 700px at 15% 10%, rgba(37,99,168,.55), transparent 60%),
+    radial-gradient(900px 520px at 85% 20%, rgba(194,93,59,.45), transparent 60%),
+    radial-gradient(820px 520px at 55% 95%, rgba(74,124,89,.35), transparent 62%),
+    linear-gradient(180deg, #09111b 0%, #0b0f14 70%, color-mix(in srgb, var(--bg-base) 30%, #0b0f14) 100%);
+}
+/* Vignette + subtle noise-like sheen */
+.hero::after{
+  content:'';
+  position:absolute; inset:0;
+  z-index:-1;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.10), transparent 40%),
+    radial-gradient(circle at 70% 10%, rgba(255,255,255,.08), transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(255,255,255,.06), transparent 48%),
+    linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.55));
+  mix-blend-mode: soft-light;
+  pointer-events:none;
+}
+
+/* Subtle “light streak” */
+.hero-streak{
+  position:absolute; inset:auto -20% 10% -20%;
+  height: 220px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+  transform: rotate(-8deg);
+  filter: blur(8px);
+  opacity: .6;
+  z-index: -1;
+}
+
+.hero-inner {
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  gap: 4rem;
+  align-items: center;
+}
+@media (max-width: 960px) {
+  .hero-inner { grid-template-columns: 1fr; gap: 2.6rem; }
+  .hero { padding: 4.2rem 0 3rem; }
+}
+
+.hero-eyebrow { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.45rem; }
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.55rem, 5.2vw, 3.35rem);
+  font-weight: 600; line-height: 1.06;
+  letter-spacing: -.02em;
+  margin-bottom: 1.25rem;
+  color: var(--hero-ink);
+  text-shadow: 0 18px 55px rgba(0,0,0,.45);
+}
+.hero-title em { font-style: italic; color: #ffd2c2; font-weight: 400; }
+
+.hero-sub {
+  font-size: 1.08rem; line-height: 1.78;
+  color: var(--hero-muted);
+  max-width: 56ch;
+  margin-bottom: 2.1rem;
+}
+
+.hero-ctas { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 2rem; }
+
+/* Trust chips in hero (glass) */
+.hero-trust { display: flex; flex-wrap: wrap; gap: .55rem; }
+.hero-trust .label{
+  background: var(--hero-glass);
+  border-color: var(--hero-stroke);
+  color: rgba(255,255,255,.82);
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+.hero-trust .label i{ opacity:.9; }
+
+/* ═══════════════════════════════════════════
+   LIVE CARD (glass SaaS)
+═══════════════════════════════════════════ */
+.live-card {
+  border-radius: var(--r-2xl);
+  border: 1px solid rgba(255,255,255,.14);
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  box-shadow: 0 30px 90px rgba(0,0,0,.45);
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(14px);
+  transform: translateZ(0);
+}
+.live-card::before{
+  content:'';
+  position:absolute; inset:0;
+  background:
+    radial-gradient(700px 420px at 20% 10%, rgba(255,255,255,.16), transparent 60%),
+    radial-gradient(720px 420px at 85% 35%, rgba(255,255,255,.10), transparent 60%);
+  pointer-events:none;
+}
+.live-card::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--terra), var(--accent), var(--sage));
+}
+
+.lc-header {
+  padding: 1rem 1.2rem;
+  background: rgba(10,14,20,.30);
+  border-bottom: 1px solid rgba(255,255,255,.10);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.lc-dots { display: flex; gap: .35rem; }
+.lc-dot  { width: .55rem; height: .55rem; border-radius: 50%; filter: saturate(1.2); }
+.lc-dot.r { background: #ff5f5a; } .lc-dot.y { background: #febc2e; } .lc-dot.g { background: #28c840; }
+
+.lc-title-bar {
+  font-size: .82rem; font-weight: 700;
+  color: rgba(255,255,255,.72);
+  display: flex; align-items: center; gap: .45rem;
+}
+.lc-live {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-size: .72rem; font-weight: 800;
+  color: #bff2cf;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.lc-live::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: #77f0a7;
+  box-shadow: 0 0 10px rgba(119,240,167,.65);
+  animation: livepulse 1.4s infinite;
+}
+@keyframes livepulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+.lc-body { padding: 1.15rem; }
+
+.lc-stat-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: .7rem; margin-bottom: 1rem;
+}
+.lc-stat {
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,14,20,.22);
+  padding: .85rem .65rem; text-align: center;
+}
+.lc-stat-n {
+  font-family: var(--font-display);
+  font-size: 1.55rem; font-weight: 600;
+  color: #ffd2c2;
+  line-height: 1; margin-bottom: .2rem;
+}
+.lc-stat-l {
+  font-size: .68rem; font-weight: 700;
+  color: rgba(255,255,255,.58);
+  letter-spacing: .08em; text-transform: uppercase;
+}
+
+.lc-item {
+  display: flex; align-items: center; gap: .85rem;
+  padding: .85rem .95rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,14,20,.18);
+  margin-bottom: .6rem;
+  transition: transform var(--t), background var(--t), border-color var(--t);
+}
+.lc-item:last-child { margin-bottom: 0; }
+.lc-item:hover {
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.18);
+  transform: translateY(-2px);
+}
+
+.lc-icon {
+  width: 40px; height: 40px; border-radius: 14px;
+  display: grid; place-items: center;
+  flex-shrink: 0; font-size: .98rem;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.10);
+  color: #fff;
+}
+.ico-terra  { background: rgba(194,93,59,.18); }
+.ico-accent { background: rgba(37,99,168,.20); }
+.ico-sage   { background: rgba(74,124,89,.20); }
+.ico-warm   { background: rgba(254,188,46,.16); }
+
+.lc-item-text { flex: 1; min-width: 0; }
+.lc-item-name { font-size: .9rem; font-weight: 800; color: rgba(255,255,255,.92); }
+.lc-item-desc { font-size: .77rem; color: rgba(255,255,255,.62); margin-top: .08rem; }
+
+.lc-badge {
+  font-size: .7rem; font-weight: 900;
+  padding: .26rem .58rem; border-radius: 999px;
+  white-space: nowrap; letter-spacing: .04em;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.10);
+  color: rgba(255,255,255,.86);
+}
+
+.lc-footer {
+  padding: .9rem 1.15rem;
+  background: rgba(10,14,20,.28);
+  border-top: 1px solid rgba(255,255,255,.10);
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.lc-footer-text { font-size: .8rem; color: rgba(255,255,255,.70); font-weight: 700; }
+
+/* ═══════════════════════════════════════════
+   INDUSTRIES ROW
+═══════════════════════════════════════════ */
+.industries-row {
+  display: flex; flex-wrap: wrap; gap: .55rem; justify-content: center;
+  margin-top: 1.1rem;
+}
+.industries-row .label{
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.12);
+  color: rgba(255,255,255,.78);
+}
+
+/* ═══════════════════════════════════════════
+   VALUE STRIP (premium top gradient)
+═══════════════════════════════════════════ */
+.value-strip {
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--border2);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  position: relative;
+}
+.value-strip::before{
+  content:'';
+  position:absolute; left:0; right:0; top:0; height:2px;
+  background: linear-gradient(90deg, var(--terra), var(--accent), var(--sage));
+}
+.value-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 768px) { .value-grid { grid-template-columns: 1fr; } }
+.value-cell { padding: 2.05rem 1.8rem; border-right: 1px solid var(--border); position: relative; }
+.value-cell:last-child { border-right: 0; }
+@media (max-width: 768px) {
+  .value-cell { border-right: 0; border-bottom: 1px solid var(--border); }
+  .value-cell:last-child { border-bottom: 0; }
+}
+.value-cell.mid { background: linear-gradient(180deg, var(--bg-warm), var(--bg-card)); }
+.value-icon {
+  width: 46px; height: 46px; border-radius: 14px;
+  display: grid; place-items: center;
+  margin-bottom: 1rem; font-size: 1.1rem;
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+}
+.value-cell-title { font-weight: 800; font-size: .98rem; color: var(--ink-1); margin-bottom: .55rem; display: flex; align-items: center; gap: .45rem; }
+.value-cell-text { font-size: .9rem; line-height: 1.72; color: var(--ink-3); }
+
+/* ═══════════════════════════════════════════
+   MODULES GRID (hover glow)
+═══════════════════════════════════════════ */
+.modules-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; border: 1px solid var(--border2);
+  border-radius: var(--r-2xl); overflow: hidden;
+  background: var(--border);
+  box-shadow: var(--shadow-md);
+}
+@media (max-width: 960px) { .modules-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .modules-grid { grid-template-columns: 1fr; } }
+
+.mod-cell {
+  background: var(--bg-card);
+  padding: 1.75rem 1.6rem;
+  transition: transform var(--t), background var(--t);
+  position: relative; overflow: hidden;
+}
+.mod-cell::before{
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(420px 220px at 25% 10%, rgba(37,99,168,.10), transparent 60%);
+  opacity:0;
+  transition: opacity var(--t);
+}
+.mod-cell::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--terra), var(--accent), var(--sage));
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 320ms var(--ease);
+}
+.mod-cell:hover { background: color-mix(in srgb, var(--bg-warm) 65%, var(--bg-card)); transform: translateY(-2px); }
+.mod-cell:hover::after { transform: scaleX(1); }
+.mod-cell:hover::before{ opacity:1; }
+
+.mod-ico {
+  width: 48px; height: 48px; border-radius: 16px;
+  display: grid; place-items: center;
+  font-size: 1.15rem; margin-bottom: 1.05rem;
+  transition: transform var(--t);
+  box-shadow: 0 14px 30px rgba(0,0,0,.08);
+}
+.mod-cell:hover .mod-ico { transform: scale(1.06); }
+
+.mod-ico-terra  { background: var(--terra-lt);  border: 1px solid var(--terra-mid);  color: var(--terra); }
+.mod-ico-accent { background: var(--accent-lt); border: 1px solid var(--accent-mid); color: var(--accent); }
+.mod-ico-sage   { background: var(--sage-lt);   border: 1px solid var(--sage-mid);   color: var(--sage); }
+.mod-ico-warm   { background: #fef9e7; border: 1px solid #f0d080; color: #a07820; }
+.mod-ico-pink   { background: #fce7f3; border: 1px solid #f0a0c0; color: #a02060; }
+.mod-ico-slate  { background: #e8eef7; border: 1px solid #b0c0d8; color: #3a5070; }
+
+.mod-name { font-weight: 800; font-size: .99rem; color: var(--ink-1); margin-bottom: .48rem; }
+.mod-desc { font-size: .86rem; line-height: 1.65; color: var(--ink-3); margin-bottom: .9rem; }
+.mod-tags { display: flex; flex-wrap: wrap; gap: .35rem; }
+.mod-tag {
+  font-size: .68rem; font-weight: 700;
+  padding: .2rem .52rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-muted) 85%, transparent);
+  border: 1px solid var(--border2);
+  color: var(--ink-4);
+  letter-spacing: .04em;
+}
+
+/* ═══════════════════════════════════════════
+   STEPS
+═══════════════════════════════════════════ */
+.steps-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; position: relative; }
+.steps-connector {
+  position: absolute; top: 28px; left: 16%; right: 16%;
+  height: 1px; background: linear-gradient(90deg, var(--terra-mid), var(--accent-mid));
+  opacity: .45;
+}
+@media (max-width: 768px) { .steps-wrap { grid-template-columns: 1fr; } .steps-connector { display: none; } }
+
+.step-card {
+  border-radius: var(--r-xl); border: 1px solid var(--border);
+  background: var(--bg-card); padding: 1.65rem 1.45rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+}
+.step-card:hover { border-color: var(--border2); transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.step-num {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 900; font-size: .86rem;
+  background: linear-gradient(135deg, var(--terra), #b04f30);
+  color: #fff;
+  margin-bottom: 1.15rem;
+  box-shadow: 0 14px 30px rgba(194,93,59,.25);
+}
+.step-title { font-weight: 800; font-size: .98rem; color: var(--ink-1); margin-bottom: .55rem; }
+.step-text  { font-size: .88rem; line-height: 1.7; color: var(--ink-3); }
+
+/* ═══════════════════════════════════════════
+   COMPARE TABLE
+═══════════════════════════════════════════ */
+.compare-wrap {
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--border2);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+.compare-wrap::before{
+  content:'';
+  position:absolute; left:0; right:0; top:0; height:2px;
+  background: linear-gradient(90deg, var(--terra), var(--accent), var(--sage));
+}
+.compare-head { display: grid; grid-template-columns: 1.2fr 1fr 1fr; background: var(--bg-warm); border-bottom: 1px solid var(--border2); }
+@media (max-width: 768px) { .compare-head, .compare-row { grid-template-columns: 1fr; } }
+.compare-head-cell {
+  padding: 1.08rem 1.25rem; font-weight: 800; font-size: .87rem;
+  color: var(--ink-3); border-right: 1px solid var(--border);
+}
+.compare-head-cell:last-child { border-right: 0; }
+.compare-head-cell.highlight { background: var(--accent-lt); color: var(--accent); border-color: var(--accent-mid); }
+.compare-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; border-top: 1px solid var(--border); background: var(--bg-card); transition: background var(--t); }
+.compare-row:hover { background: color-mix(in srgb, var(--bg-warm) 65%, var(--bg-card)); }
+.compare-cell {
+  padding: 1rem 1.25rem; font-size: .88rem; line-height: 1.66;
+  color: var(--ink-3); border-right: 1px solid var(--border);
+}
+.compare-cell:last-child { border-right: 0; }
+.compare-cell.key { font-weight: 800; color: var(--ink-1); }
+.compare-cell.bad { color: var(--ink-4); font-style: italic; }
+.compare-cell.good { color: var(--sage); background: color-mix(in srgb, var(--sage-lt) 75%, transparent); font-weight: 700; }
+
+/* ═══════════════════════════════════════════
+   TESTIMONIALS
+═══════════════════════════════════════════ */
+.testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+@media (max-width: 768px) { .testi-grid { grid-template-columns: 1fr; } }
+.testi-card {
+  border-radius: var(--r-xl); border: 1px solid var(--border);
+  background: var(--bg-card); padding: 1.75rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  position: relative; overflow: hidden;
+}
+.testi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+  background: linear-gradient(180deg, var(--terra), var(--accent), var(--sage));
+}
+.testi-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--border2); }
+.testi-quote-mark { font-family: var(--font-display); font-size: 3rem; line-height: .7; color: var(--terra); opacity: .35; margin-bottom: .65rem; display: block; }
+.testi-text { font-size: .94rem; line-height: 1.75; color: var(--ink-2); font-style: italic; margin-bottom: 1.15rem; }
+.testi-author { font-weight: 800; color: var(--ink-1); font-size: .88rem; }
+.testi-role   { font-size: .78rem; color: var(--ink-4); margin-top: .12rem; }
+
+/* ═══════════════════════════════════════════
+   PRICING
+═══════════════════════════════════════════ */
+
+/* PRICING GRID: 4 colonnes */
+.pricing-grid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+/* Écran moyen -> 2 colonnes */
+@media (max-width: 1100px){
+  .pricing-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Mobile -> 1 colonne */
+@media (max-width: 768px){
+  .pricing-grid{ grid-template-columns: 1fr; }
+}
+
+.price-card {
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border2);
+  background: var(--bg-card);
+  padding: 1.85rem 1.55rem;
+  box-shadow: var(--shadow-sm);
+  position: relative; overflow: hidden;
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+}
+.price-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--border2); }
+.price-card.featured {
+  border-color: var(--accent-mid);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent-lt) 70%, transparent), var(--bg-card));
+  box-shadow: var(--shadow-lg), 0 0 0 2px color-mix(in srgb, var(--accent-lt) 55%, transparent);
+}
+.price-card.featured::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--sage), var(--terra));
+}
+.price-tier { font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-4); margin-bottom: .48rem; }
+.price-name { font-family: var(--font-display); font-size: 1.62rem; font-weight: 600; color: var(--ink-1); }
+.price-sub  { font-size: .82rem; color: var(--ink-4); margin-top: .18rem; }
+.price-amount {
+  font-size: 2.05rem; font-weight: 900; color: var(--ink-1);
+  margin: .9rem 0 .25rem; letter-spacing: -.02em;
+}
+.price-amount sup { font-size: .95rem; font-weight: 700; vertical-align: top; margin-top: .35rem; }
+.price-amount span { font-size: .86rem; font-weight: 500; color: var(--ink-4); }
+.price-divider { height: 1px; background: var(--border); margin: 1.15rem 0; }
+.price-features { list-style: none; display: flex; flex-direction: column; gap: .55rem; margin-bottom: 1.5rem; }
+.price-features li { font-size: .88rem; color: var(--ink-2); display: flex; align-items: flex-start; gap: .55rem; }
+.price-features li::before { content: '✦'; color: var(--terra); font-size: .62rem; margin-top: .22rem; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════
+   FAQ (accessible)
+═══════════════════════════════════════════ */
+.faq-list { display: flex; flex-direction: column; gap: .6rem; }
+.faq-item {
+  border-radius: var(--r-lg); border: 1px solid var(--border);
+  background: var(--bg-card); overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--t), box-shadow var(--t);
+}
+.faq-item:hover { border-color: var(--border2); box-shadow: var(--shadow-md); }
+.faq-item.open  { border-color: var(--accent-mid); }
+
+.faq-q {
+  width: 100%;
+  background: none; border: 0;
+  padding: 1.08rem 1.2rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  cursor: pointer; text-align: left;
+  font-family: var(--font-body);
+  font-size: .95rem; font-weight: 800; color: var(--ink-1);
+}
+.faq-arrow {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: var(--bg-warm);
+  display: grid; place-items: center;
+  color: var(--terra);
+  font-size: .72rem;
+  transition: transform var(--t), background var(--t), border-color var(--t);
+}
+.faq-item.open .faq-arrow {
+  background: var(--terra-lt);
+  border-color: var(--terra-mid);
+  transform: rotate(45deg);
+}
+.faq-a {
+  max-height: 0; overflow: hidden;
+  transition: max-height 360ms var(--ease), padding var(--t);
+  padding: 0 1.2rem;
+  font-size: .9rem; line-height: 1.75; color: var(--ink-3);
+}
+.faq-item.open .faq-a { max-height: 320px; padding: 0 1.2rem 1.1rem; }
+
+/* ═══════════════════════════════════════════
+   FINAL CTA
+═══════════════════════════════════════════ */
+.final-cta-wrap {
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--border2);
+  background: linear-gradient(135deg, #fdf6f1, #f0edf9, #eef5f0);
+  box-shadow: var(--shadow-lg);
+  padding: 4.7rem 2rem; text-align: center;
+  position: relative; overflow: hidden;
+}
+.final-cta-wrap::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--terra), var(--accent), var(--sage));
+}
+.final-cta-wrap::after {
+  content: '';
+  position: absolute; bottom: -180px; right: -180px;
+  width: 520px; height: 520px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(37,99,168,.08), transparent 70%);
+  pointer-events: none;
+}
+.final-cta-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.6vw, 3.05rem);
+  font-weight: 600; color: var(--ink-1);
+  margin: .8rem 0 1.05rem; line-height: 1.14;
+}
+.final-cta-title em { font-style: italic; color: var(--terra); font-weight: 400; }
+.final-cta-sub {
+  font-size: 1.05rem; color: var(--ink-3); max-width: 60ch;
+  margin: 0 auto 2.1rem; line-height: 1.75;
+}
+.final-cta-actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+
+/* ═══════════════════════════════════════════
+   ENTRY ANIMATIONS (respect reduced motion)
+═══════════════════════════════════════════ */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+.anim { opacity: 0; animation: fadeUp .7s var(--ease) forwards; }
+.anim-d1 { animation-delay: .08s; }
+.anim-d2 { animation-delay: .18s; }
+.anim-d3 { animation-delay: .30s; }
+.anim-d4 { animation-delay: .42s; }
+.anim-d5 { animation-delay: .54s; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .anim { animation: none; opacity: 1; transform: none; }
+  .live-card, .mod-cell, .step-card, .testi-card, .price-card { transition: none !important; }
+}
+
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+.text-center { text-align: center; }
+
+
+
+
+/* ═══════════════════════════════════════════
+   COMPARE — MOBILE ONLY IMPROVEMENTS
+   (Ne change rien sur desktop)
+═══════════════════════════════════════════ */
+@media (max-width: 768px){
+
+  /* Un peu plus de respiration dans la section */
+  #compare.section { padding: 4rem 0; }
+  #compare .section-header { margin-bottom: 2.2rem; }
+  #compare .w-max { padding-inline: 1.1rem; }
+
+  /* Le “header” du tableau devient une barre de titre compacte */
+  #compare .compare-head{
+    display: block; /* écrase le grid mobile existant */
+    padding: .9rem 1rem;
+    background: var(--bg-warm);
+    border-bottom: 1px solid var(--border2);
+  }
+  #compare .compare-head-cell{
+    border-right: 0;
+    padding: 0;
+    font-size: .86rem;
+    color: var(--ink-3);
+  }
+  /* On garde uniquement le libellé “Avant / Après” en une ligne */
+  #compare .compare-head-cell:nth-child(1){ display:none; }
+  #compare .compare-head-cell:nth-child(2),
+  #compare .compare-head-cell:nth-child(3){
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .35rem .65rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+    margin-right: .5rem;
+    font-weight: 800;
+  }
+  #compare .compare-head-cell:nth-child(2){
+    border-color: rgba(185,28,28,.22);
+    background: color-mix(in srgb, #fef2f2 75%, var(--bg-card));
+    color: #b91c1c;
+  }
+  #compare .compare-head-cell:nth-child(3){
+    border-color: var(--accent-mid);
+    background: color-mix(in srgb, var(--accent-lt) 65%, var(--bg-card));
+    color: var(--accent);
+  }
+
+  /* Chaque ligne devient une “carte” (plus lisible sur téléphone) */
+  #compare .compare-row{
+    display: block;            /* annule le grid sur mobile */
+    padding: 0;
+    border-top: 0;
+    background: transparent;
+    margin-top: .85rem;
+  }
+
+  /* Carte container: on utilise les cellules existantes */
+  #compare .compare-row .compare-cell{
+    border-right: 0;
+    background: var(--bg-card);
+    padding: .95rem 1rem;
+  }
+
+  /* Titre de la carte */
+  #compare .compare-row .compare-cell.key{
+    border: 1px solid var(--border2);
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    font-size: .98rem;
+    line-height: 1.25;
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+  }
+  #compare .compare-row .compare-cell.key::before{
+    content:'';
+    width: 10px; height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--terra), var(--accent));
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--bg-warm) 70%, transparent);
+    flex-shrink:0;
+  }
+
+  /* Cellule “Sans” devient un bloc avec label */
+  #compare .compare-row .compare-cell.bad{
+    border-left: 1px solid var(--border2);
+    border-right: 1px solid var(--border2);
+    border-top: 1px solid var(--border);
+    font-style: normal;
+    color: var(--ink-2);
+    position: relative;
+    padding-top: 2.2rem;
+  }
+  #compare .compare-row .compare-cell.bad::before{
+    content: "Sans Wikiformation";
+    position: absolute;
+    top: .75rem; left: 1rem;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #b91c1c;
+    background: color-mix(in srgb, #fef2f2 70%, var(--bg-card));
+    border: 1px solid rgba(185,28,28,.20);
+    padding: .25rem .55rem;
+    border-radius: 999px;
+  }
+
+  /* Cellule “Avec” devient un bloc avec label + fond doux */
+  #compare .compare-row .compare-cell.good{
+    border: 1px solid var(--border2);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 18px 18px;
+    position: relative;
+    padding-top: 2.2rem;
+    background: color-mix(in srgb, var(--sage-lt) 55%, var(--bg-card));
+    color: color-mix(in srgb, var(--sage) 80%, var(--ink-1));
+    font-weight: 800;
+  }
+  #compare .compare-row .compare-cell.good::before{
+    content: "✦ Avec Wikiformation";
+    position: absolute;
+    top: .75rem; left: 1rem;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent-lt) 65%, var(--bg-card));
+    border: 1px solid color-mix(in srgb, var(--accent-mid) 70%, var(--border2));
+    padding: .25rem .55rem;
+    border-radius: 999px;
+  }
+
+  /* Micro-optimisations lisibilité */
+  #compare .compare-row .compare-cell.bad,
+  #compare .compare-row .compare-cell.good{
+    line-height: 1.6;
+    font-size: .92rem;
+  }
+
+  /* Sur mobile, le hover ne sert pas -> on neutralise l'effet de survol */
+  #compare .compare-row:hover{ background: transparent; }
+}
+
+
+
+.btn-stack{
+  flex-direction: column;
+  gap: .15rem;
+  white-space: normal;
+  text-align: center;
+}
+.btn-stack i{ margin-bottom:.15rem; }
+.btn-stack .t2{ opacity:.9; font-weight:700; font-size:.85em; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% include 'header_public.html.twig' %}
+
+{% set cta_try       = path('app_onboarding') %}
+{% set cta_demo      = path('app_public_contact') %}
+{% set cta_catalogue = path('app_public_catalogue') %}
+{% set cta_tarifs    = path('app_public_pricing') %}
+
+
+{# ════════════════════════════════════
+   HERO
+════════════════════════════════════ #}
+<section class="hero" id="top">
+  <div class="hero-streak"></div>
+  <div class="w-max">
+    <div class="hero-inner">
+
+      {# - Left - #}
+      <div>
+        <div class="hero-eyebrow anim anim-d1">
+          <span class="label terra"><i class="bi bi-shield-check"></i> Qualiopi-ready</span>
+          <span class="label accent"><i class="bi bi-lightning-charge"></i> Automatisation</span>
+          <span class="label sage"><i class="bi bi-graph-up"></i> Pilotage temps réel</span>
+        </div>
+
+        <h1 class="hero-title anim anim-d2">
+          Pilotez votre activité de formation - <em>simplement, entièrement.</em>
+        </h1>
+
+        <p class="hero-sub anim anim-d3">
+          Sessions, stagiaires, documents, évaluations, e-learning, extranet, facturation, tableaux de bord.
+          Tout centralisé, cohérent, pensé pour aller vite et garder la tête libre.
+        </p>
+
+        <div class="hero-ctas anim anim-d4">
+          <a class="btn-prime" href="{{ cta_try }}">
+            <i class="bi bi-rocket-takeoff"></i> Essayer gratuitement
+          </a>
+          <a class="btn-outline" href="{{ cta_demo }}">
+            <i class="bi bi-play-circle"></i> Demander une démo
+          </a>
+          <a class="btn-outline" href="#modules">
+            <i class="bi bi-grid-3x3-gap"></i> Voir les modules
+          </a>
+        </div>
+
+        <div class="hero-trust anim anim-d5">
+          <span class="label"><i class="bi bi-lock"></i> RGPD</span>
+          <span class="label"><i class="bi bi-hdd-network"></i> Hébergement maîtrisé</span>
+          <span class="label"><i class="bi bi-diagram-3"></i> Multi-rôles</span>
+          <span class="label"><i class="bi bi-life-preserver"></i> Support inclus</span>
+        </div>
+      </div>
+
+      {# - Right: live card - #}
+      <div class="anim anim-d3">
+        <div class="live-card">
+          <div class="lc-header">
+            <div style="display:flex;align-items:center;gap:.65rem;">
+              <div class="lc-dots">
+                <span class="lc-dot r"></span>
+                <span class="lc-dot y"></span>
+                <span class="lc-dot g"></span>
+              </div>
+              <span class="lc-title-bar"><i class="bi bi-speedometer2"></i> Tableau de bord</span>
+            </div>
+            <span class="lc-live">Live</span>
+          </div>
+
+          <div class="lc-body">
+            <div class="lc-stat-row">
+              <div class="lc-stat">
+                <div class="lc-stat-n">24</div>
+                <div class="lc-stat-l">Sessions</div>
+              </div>
+              <div class="lc-stat">
+                <div class="lc-stat-n">187</div>
+                <div class="lc-stat-l">Stagiaires</div>
+              </div>
+              <div class="lc-stat">
+                <div class="lc-stat-n">98%</div>
+                <div class="lc-stat-l">Satisfaction</div>
+              </div>
+            </div>
+
+            <div class="lc-item">
+              <div class="lc-icon ico-terra"><i class="bi bi-calendar3"></i></div>
+              <div class="lc-item-text">
+                <div class="lc-item-name">Sessions & planification</div>
+                <div class="lc-item-desc">Convocations + feuilles + clôture</div>
+              </div>
+              <span class="lc-badge">Auto</span>
+            </div>
+
+            <div class="lc-item">
+              <div class="lc-icon ico-accent"><i class="bi bi-file-earmark-text"></i></div>
+              <div class="lc-item-text">
+                <div class="lc-item-name">Documents & conformité</div>
+                <div class="lc-item-desc">Convention, attestations, preuves</div>
+              </div>
+              <span class="lc-badge">1 clic</span>
+            </div>
+
+            <div class="lc-item">
+              <div class="lc-icon ico-sage"><i class="bi bi-patch-check"></i></div>
+              <div class="lc-item-text">
+                <div class="lc-item-name">Qualité Qualiopi</div>
+                <div class="lc-item-desc">Évaluations + satisfaction + preuves</div>
+              </div>
+              <span class="lc-badge">Conforme</span>
+            </div>
+
+            <div class="lc-item">
+              <div class="lc-icon ico-warm"><i class="bi bi-receipt"></i></div>
+              <div class="lc-item-text">
+                <div class="lc-item-name">Facturation</div>
+                <div class="lc-item-desc">Devis, factures, paiements, relances</div>
+              </div>
+              <span class="lc-badge">Piloté</span>
+            </div>
+          </div>
+
+          <div class="lc-footer">
+            <span class="lc-footer-text"><i class="bi bi-stars me-1" style="color:#ffd2c2;"></i> +30 % de temps gagné en moyenne</span>
+            <a class="btn-prime" style="padding:.46rem .9rem;font-size:.78rem;" href="{{ cta_tarifs }}">
+              Voir les tarifs <i class="bi bi-arrow-right"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="industries-row">
+          <span class="label"><i class="bi bi-building"></i> OF</span>
+          <span class="label"><i class="bi bi-briefcase"></i> Entreprise</span>
+          <span class="label"><i class="bi bi-display"></i> E-learning</span>
+          <span class="label"><i class="bi bi-journal-check"></i> Qualiopi</span>
+          <span class="label"><i class="bi bi-credit-card"></i> Facturation</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+{# ════════════════════════════════════
+   WHY
+════════════════════════════════════ #}
+<section class="section" id="why">
+  <div class="w-max">
+    <div class="section-header">
+      <div class="ornament" style="margin-bottom:1.1rem;"><span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span></div>
+      <h2 class="section-title">Pensé pour le vrai quotidien<br><em>d'un organisme de formation</em></h2>
+      <p class="section-lead">Moins de ressaisie, moins d'oublis, plus de visibilité. Une expérience claire pour apprenants, entreprises et équipe interne.</p>
+    </div>
+
+    <div class="value-strip">
+      <div class="value-grid">
+        <div class="value-cell">
+          <div class="value-icon" style="background:#fee2e2;border:1px solid #fca5a5;color:#b91c1c;">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+          <div class="value-cell-title" style="color:#b91c1c;">
+            <i class="bi bi-x-circle" style="font-size:.82rem;"></i> Avant
+          </div>
+          <p class="value-cell-text">Excel, Word, dossiers incomplets, fichiers éparpillés, relances manuelles, conformité fragile et suivi flou.</p>
+        </div>
+
+        <div class="value-cell mid">
+          <div class="value-icon" style="background:var(--terra-lt);border:1px solid var(--terra-mid);color:var(--terra);">
+            <i class="bi bi-magic"></i>
+          </div>
+          <div class="value-cell-title" style="color:var(--terra);">
+            <i class="bi bi-stars" style="font-size:.82rem;"></i> Avec Wikiformation
+          </div>
+          <p class="value-cell-text">Une session = la source de vérité : documents, évaluations, e-learning, extranet et facturation reliés en un seul endroit.</p>
+        </div>
+
+        <div class="value-cell">
+          <div class="value-icon" style="background:var(--sage-lt);border:1px solid var(--sage-mid);color:var(--sage);">
+            <i class="bi bi-graph-up-arrow"></i>
+          </div>
+          <div class="value-cell-title" style="color:var(--sage);">
+            <i class="bi bi-check-circle" style="font-size:.82rem;"></i> Résultat
+          </div>
+          <p class="value-cell-text">Un process fluide, une traçabilité propre, des indicateurs en temps réel et des équipes sereines à chaque session.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center" style="margin-top:2rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+      <a class="btn-prime" href="{{ cta_try }}"><i class="bi bi-rocket-takeoff"></i> Démarrer mon essai</a>
+      <a class="btn-outline" href="{{ cta_demo }}"><i class="bi bi-chat-dots"></i> Parler à quelqu'un</a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+{# ════════════════════════════════════
+   MODULES
+════════════════════════════════════ #}
+<section class="section" id="modules" style="background:var(--bg-warm);">
+  <div class="w-max">
+    <div class="section-header">
+      <div class="ornament" style="margin-bottom:1.1rem;"><span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span></div>
+      <h2 class="section-title">Tout votre workflow,<br><em>organisé en modules clairs</em></h2>
+      <p class="section-lead">De la création d'une formation à la clôture d'une session : chaque étape couverte, reliée, automatisée.</p>
+    </div>
+
+    <div class="modules-grid">
+      <div class="mod-cell">
+        <div class="mod-ico mod-ico-terra"><i class="bi bi-calendar2-week"></i></div>
+        <div class="mod-name">Sessions & planification</div>
+        <div class="mod-desc">Dates, lieux, intervenants, convocations, feuilles d'émargement, suivi et clôture.</div>
+        <div class="mod-tags"><span class="mod-tag">Planning</span><span class="mod-tag">Exports</span><span class="mod-tag">Statuts</span></div>
+      </div>
+
+      <div class="mod-cell">
+        <div class="mod-ico mod-ico-accent"><i class="bi bi-file-earmark-check"></i></div>
+        <div class="mod-name">Documents & conformité</div>
+        <div class="mod-desc">Conventions, programmes, attestations, pièces administratives et traçabilité des dossiers.</div>
+        <div class="mod-tags"><span class="mod-tag">PDF homogène</span><span class="mod-tag">Complétude</span><span class="mod-tag">Historique</span></div>
+      </div>
+
+      <div class="mod-cell">
+        <div class="mod-ico mod-ico-sage"><i class="bi bi-patch-check"></i></div>
+        <div class="mod-name">Qualité - Qualiopi</div>
+        <div class="mod-desc">Satisfaction, évaluations, indicateurs, plans d'actions et reporting global ou par session.</div>
+        <div class="mod-tags"><span class="mod-tag">Formulaires</span><span class="mod-tag">Reporting</span><span class="mod-tag">Relances auto</span></div>
+      </div>
+
+      <div class="mod-cell">
+        <div class="mod-ico mod-ico-pink"><i class="bi bi-ui-checks-grid"></i></div>
+        <div class="mod-name">QCM & évaluations</div>
+        <div class="mod-desc">Pré / post-formation, scoring automatique, résultats exportables, suivi progression stagiaire.</div>
+        <div class="mod-tags"><span class="mod-tag">Pré/Post</span><span class="mod-tag">Scoring</span><span class="mod-tag">Export PDF</span></div>
+      </div>
+
+      <div class="mod-cell">
+        <div class="mod-ico mod-ico-slate"><i class="bi bi-display"></i></div>
+        <div class="mod-name">E-learning</div>
+        <div class="mod-desc">Parcours structurés, blocs de contenu, suivi d'assiduité et progression intégrée en blended learning.</div>
+        <div class="mod-tags"><span class="mod-tag">Parcours</span><span class="mod-tag">Assiduité</span><span class="mod-tag">Blended</span></div>
+      </div>
+
+      <div class="mod-cell">
+        <div class="mod-ico mod-ico-warm"><i class="bi bi-receipt-cutoff"></i></div>
+        <div class="mod-name">Facturation & paiements</div>
+        <div class="mod-desc">Devis, factures, avoirs, paiements, relances automatisées et suivi financier complet.</div>
+        <div class="mod-tags"><span class="mod-tag">TVA & remises</span><span class="mod-tag">Exports</span><span class="mod-tag">Relances</span></div>
+      </div>
+    </div>
+
+    <div class="text-center" style="margin-top:2rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+      <a class="btn-prime" href="{{ cta_try }}"><i class="bi bi-rocket-takeoff"></i> Lancer mon essai</a>
+      <a class="btn-outline" href="{{ cta_catalogue }}"><i class="bi bi-journals"></i> Voir le catalogue</a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+{# ════════════════════════════════════
+   HOW IT WORKS
+════════════════════════════════════ #}
+<section class="section" id="how">
+  <div class="w-max">
+    <div class="section-header">
+      <div class="ornament" style="margin-bottom:1.1rem;"><span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span></div>
+      <h2 class="section-title">Simple à prendre en main,<br><em>puissant en pratique</em></h2>
+      <p class="section-lead">Posez la structure une fois. La plateforme déroule tout le process automatiquement.</p>
+    </div>
+
+    <div class="steps-wrap">
+      <div class="steps-connector"></div>
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-title">Créez votre formation & vos modèles</div>
+        <p class="step-text">Programme, documents, évaluations, règles : tout est prêt pour être réutilisé sans ressaisie à chaque nouvelle session.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <div class="step-title">Planifiez une session</div>
+        <p class="step-text">Dates, lieux, intervenants, stagiaires : la session devient votre source de vérité unique pour toute l'équipe.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <div class="step-title">Générez, suivez, clôturez</div>
+        <p class="step-text">Documents, relances, e-learning, satisfaction, factures : tout s'enchaîne, traçable et archivé automatiquement.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+{# ════════════════════════════════════
+   COMPARE
+════════════════════════════════════ #}
+<section class="section" id="compare" style="background:var(--bg-warm);">
+  <div class="w-max">
+    <div class="section-header">
+      <div class="ornament" style="margin-bottom:1.1rem;"><span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span></div>
+      <h2 class="section-title">Avant et <em>après Wikiformation</em></h2>
+      <p class="section-lead">Un comparatif direct sur les points qui comptent au quotidien.</p>
+    </div>
+
+    <div class="compare-wrap">
+      <div class="compare-head">
+        <div class="compare-head-cell">Point de comparaison</div>
+        <div class="compare-head-cell" style="color:#b91c1c;background:#fef2f2;">Sans Wikiformation</div>
+        <div class="compare-head-cell highlight">✦ Avec Wikiformation</div>
+      </div>
+
+      <div class="compare-row">
+        <div class="compare-cell key">Documents & conformité</div>
+        <div class="compare-cell bad">Modèles dispersés, versions différentes, oublis fréquents.</div>
+        <div class="compare-cell good">Génération homogène, complétude dossier, preuves centralisées.</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell key">Qualité / Qualiopi</div>
+        <div class="compare-cell bad">Satisfaction & preuves difficiles à consolider manuellement.</div>
+        <div class="compare-cell good">Campagnes + reporting + traçabilité par session et global.</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell key">Pilotage & KPI</div>
+        <div class="compare-cell bad">KPI manuels, fichiers Excel, ressaisie et erreurs récurrentes.</div>
+        <div class="compare-cell good">Tableaux de bord temps réel, suivi clair, exports instantanés.</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell key">E-learning & évaluations</div>
+        <div class="compare-cell bad">Suivi de progression "à la main", non fiable.</div>
+        <div class="compare-cell good">Parcours, blocs, progression et QCM pré/post entièrement intégrés.</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell key">Facturation</div>
+        <div class="compare-cell bad">Factures Word/Excel, relances oubliées, visibilité nulle.</div>
+        <div class="compare-cell good">Devis → factures → paiements → relances auto. Tout tracé.</div>
+      </div>
+    </div>
+
+    <div class="text-center" style="margin-top:2rem;">
+      <a class="btn-outline" href="{{ cta_demo }}"><i class="bi bi-play-circle"></i> Demander une démo</a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+{# ════════════════════════════════════
+   TESTIMONIALS
+════════════════════════════════════ #}
+<section class="section" id="temoignages">
+  <div class="w-max">
+    <div class="section-header">
+      <div class="ornament" style="margin-bottom:1.1rem;"><span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span></div>
+      <h2 class="section-title">Un process clair,<br><em>et ça tourne.</em></h2>
+      <p class="section-lead">Des retours typiques des équipes - administratif, formateurs, gestion.</p>
+    </div>
+
+    <div class="testi-grid">
+      <div class="testi-card">
+        <span class="testi-quote-mark">"</span>
+        <p class="testi-text">On a enfin un process clair : documents, satisfaction et suivi, tout s'enchaîne sans qu'on ait à courir après les infos.</p>
+        <div class="testi-author">Responsable OF</div>
+        <div class="testi-role">Pilotage Qualiopi & administratif</div>
+      </div>
+      <div class="testi-card">
+        <span class="testi-quote-mark">"</span>
+        <p class="testi-text">Les stagiaires adorent l'extranet : tout est au même endroit, c'est fluide, moderne. Zéro question de leur part.</p>
+        <div class="testi-author">Formateur</div>
+        <div class="testi-role">Parcours + évaluations</div>
+      </div>
+      <div class="testi-card">
+        <span class="testi-quote-mark">"</span>
+        <p class="testi-text">Le dashboard financier et les relances automatiques nous ont fait gagner un temps énorme sur la gestion mensuelle.</p>
+        <div class="testi-author">Gestionnaire</div>
+        <div class="testi-role">Devis / factures / paiements</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+{# ════════════════════════════════════
+   PRICING (FUNCTIONAL)
+════════════════════════════════════ #}
+<section class="section" id="pricing" style="background:var(--bg-warm);">
+  <div class="w-max">
+    <div class="section-header">
+      <div class="ornament" style="margin-bottom:1.1rem;">
+        <span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span>
+      </div>
+      <h2 class="section-title">Des tarifs simples,<br><em>une montée en puissance naturelle</em></h2>
+      <p class="section-lead">Commencez au bon niveau, puis activez les modules quand vous en avez besoin.</p>
+    </div>
+
+    {# ✅ Switch interval (mensuel/annuel) #}
+    <div class="flex-center" style="margin:-.5rem 0 2rem;">
+      <div class="switch-pill" style="
+          border-radius:999px; padding:6px; background:rgba(26,25,22,.06);
+          display:inline-flex; gap:6px; border:1px solid var(--border); box-shadow: var(--shadow-sm);
+        ">
+        <button class="btn btn-sm" type="button" data-interval="month" id="home-btn-month"
+                style="border-radius:999px; border:0; padding:.45rem .9rem; font-weight:700; background:transparent;">
+          Mensuel
+        </button>
+        <button class="btn btn-sm" type="button" data-interval="year" id="home-btn-year"
+                style="border-radius:999px; border:0; padding:.45rem .9rem; font-weight:800; background:var(--accent); color:#fff;">
+          Annuel <span style="margin-left:.45rem; font-size:.72rem; font-weight:900; background:rgba(255,193,7,.9); color:#1a1916; padding:.18rem .45rem; border-radius:999px;">-20%</span>
+        </button>
+      </div>
+    </div>
+
+    {% for msg in app.flashes('billing_expired') %}
+      <div class="w-max" style="max-width:900px;margin:0 auto 1rem;">
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"
+             style="border-radius:16px; box-shadow: var(--shadow-sm); border:1px solid rgba(185,28,28,.18);">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div>{{ msg }}</div>
+        </div>
+      </div>
+    {% endfor %}
+
+    {# ✅ On ne garde que 4 plans #}
+    {% set allowedCodes = ['ESSENTIEL','PROFESSIONNEL','EXPERT','EXCELLENCE'] %}
+    {% set filteredPlans = plans|filter(p => (p.code|upper) in allowedCodes) %}
+
+    <form method="post"
+      action="{{ path('app_pricing_start_trial') }}"
+      data-turbo="false"
+      class="pricing-grid"
+      id="homePricingForm">
+    <input type="hidden" name="_token" id="home-form-token" value="{{ csrf_token('start_trial') }}">
+    <input type="hidden" name="interval" id="home-interval" value="year"/>
+    <input type="hidden" name="plan" id="home-selectedPlan" value=""/>
+    <button type="submit"
+            id="homeHiddenSubmit"
+            class="d-none"
+            aria-hidden="true"
+            tabindex="-1">
+      submit
+    </button>
+
+
+      {% for plan in filteredPlans %}
+        {# accents par plan #}
+        {% set accent = plan.code == 'ESSENTIEL'
+          ? '#f59e0b'
+          : (plan.code == 'PROFESSIONNEL'
+            ? '#10b981'
+            : (plan.code == 'EXPERT'
+              ? '#8b5cf6'
+              : '#fb7185'
+            )
+          )
+        %}
+
+        {# featured => PROFESSIONNEL #}
+        {% set featured = (plan.code == 'PROFESSIONNEL') %}
+
+        <div class="price-card {{ featured ? 'featured' : '' }}" style="--plan-accent: {{ accent }}; position:relative;">
+          {# top accent line #}
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--plan-accent), var(--accent));"></div>
+
+          {% if featured %}
+            <span class="label accent" style="position:absolute; top:14px; right:14px; box-shadow: var(--shadow-sm);">
+              <i class="bi bi-stars"></i> Le plus choisi
+            </span>
+          {% endif %}
+
+          <div class="price-tier">Offre {{ loop.index|format('%02d') }}</div>
+          <div class="price-name">{{ plan.name }}</div>
+
+          <div class="price-sub" style="margin-top:.25rem;">
+            <span style="color: var(--plan-accent); font-weight:800;">
+              {{ plan.maxApprenantsAn == 0 ? 'Apprenants illimités' : plan.maxApprenantsAn ~ ' apprenants/an' }}
+            </span>
+            <div style="margin-top:.35rem; color: var(--ink-4); font-size:.82rem;">
+              • {{ plan.maxUtilisateurs == 0 ? 'Utilisateurs illimités' : plan.maxUtilisateurs ~ ' utilisateurs' }}<br>
+              • {{ plan.maxFormateurs == 0 ? 'Formateurs illimités' : plan.maxFormateurs ~ ' formateurs' }}<br>
+              • {{ plan.maxEntreprises == 0 ? 'Entreprises illimitées' : plan.maxEntreprises ~ ' entreprises' }}<br>
+              • {{ plan.maxProspects == 0 ? 'Prospects illimités' : plan.maxProspects ~ ' prospects' }}
+            </div>
+          </div>
+
+          <div class="price-amount" style="display:flex; align-items:baseline; gap:.55rem;">
+            
+            {% set p = planPrices[plan.code|upper]|default(null) %}
+            <div class="plan-price priceValue"
+              data-plan-code="{{ plan.code|upper }}"
+              data-month="{{ p ? (p.month ?? 0) : 0 }}"
+              data-year="{{ p ? (p.year  ?? 0) : 0 }}">—</div>
+            <span style="font-size:.85rem; font-weight:500; color: var(--ink-4);">HT / <span class="home-js-interval-main">mois</span></span>
+          </div>
+
+          <div class="price-sub home-js-interval-sub" style="margin-top:.15rem;">
+            (avec engagement annuel)
+          </div>
+
+          <div class="price-divider"></div>
+
+          {# Mini features “preview” (tu peux customiser selon plan.code) #}
+          <ul class="price-features">
+            <li>Gestion sessions & stagiaires</li>
+            <li>Documents & conformité</li>
+            <li>Suivi qualité / indicateurs</li>
+            {#{% if plan.code in ['EXPERT','EXCELLENCE'] %}
+              <li>E-learning & progression</li>
+            {% endif %}
+            {% if plan.code == 'EXCELLENCE' %}
+              <li>Automatisations avancées</li>
+            {% endif %}#}
+          </ul>
+
+          {# CTA logique (copie de la page tarifs) #}
+          {% set isLogged = app.user is not null %}
+          {% set isAdmin = isLogged and is_granted('ENTITE_ADMIN', entite) %}
+
+          {% if not isLogged %}
+            <a href="{{ path('app_login', {'_target_path': path('app_public') ~ '#pricing'}) }}"
+               class="btn-outline"
+               style="width:100%; justify-content:center; border-color: rgba(26,25,22,.16);">
+              <i class="bi bi-person-check"></i> Essayer gratuitement <br>(3 mois)
+            </a>
+          {% else %}
+            {% if trialConsumed %}
+              {% if isAdmin %}
+                <button type="button"
+                        class="btn-accent js-open-home-billing-confirm"
+                        data-action="{{ path('app_billing_checkout') }}"
+                        data-plan="{{ plan.code|upper }}"
+                        data-plan-name="{{ plan.name }}"
+                        data-cta="Souscrire maintenant"
+                        style="width:100%; justify-content:center; background: var(--plan-accent);">
+                  <i class="bi bi-credit-card"></i> Souscrire maintenant
+                </button>
+              {% else %}
+                <div class="label" style="width:100%; justify-content:center; background:#fff7ed; border-color:#fed7aa; color:#9a3412;">
+                  <i class="bi bi-shield-lock"></i> Seul un administrateur peut souscrire.
+                </div>
+              {% endif %}
+            {% else %}
+              {% if isAdmin %}
+                <button type="submit"
+                  class="btn-prime btn-stack js-home-trial-submit"
+                  data-plan="{{ plan.code|upper }}"
+                  style="width:100%; justify-content:center; background: var(--terra);">
+                  <span class="t1"><i class="bi bi-rocket-takeoff"></i> Essayer gratuitement</span>
+                  <span class="t2">(3 mois)</span>
+                </button>
+              {% else %}
+                <div class="label" style="width:100%; justify-content:center; background:#fff7ed; border-color:#fed7aa; color:#9a3412;">
+                  <i class="bi bi-shield-lock"></i> Seul un administrateur peut démarrer l’essai.
+                </div>
+              {% endif %}
+            {% endif %}
+          {% endif %}
+
+          {# Détail + Addons (collapse) #}
+          <div class="text-center" style="margin-top:.75rem;">
+            <button type="button"
+                    class="btn btn-link small toggle-details-home d-inline-flex align-items-center gap-1"
+                    style="color: var(--ink-3); text-decoration:none;"
+                    data-bs-target="#home-details-{{ plan.code }}"
+                    aria-controls="home-details-{{ plan.code }}"
+                    aria-expanded="false">
+              <span class="label-text">Voir le détail</span>
+              <span class="chevron" style="font-weight:900;">+</span>
+            </button>
+          </div>
+
+          <div class="collapse" id="home-details-{{ plan.code }}">
+            <div style="padding-top:.65rem;">
+              <ul class="price-features" style="margin-bottom:1rem;">
+                <li>Espace apprenant / formateur / entreprise</li>
+                <li>Exports & traçabilité</li>
+                <li>Relances & automatisations</li>
+                <li>PDF homogènes</li>
+              </ul>
+
+              {% if addons is defined and addons|length %}
+                <div style="border-top:1px solid var(--border); padding-top:1rem;">
+                  <div style="font-weight:800; margin-bottom:.65rem;">Options</div>
+
+                  {% for addon in addons %}
+                    <label style="display:flex; align-items:flex-start; gap:.55rem; margin-bottom:.55rem;">
+                      <input class="form-check-input mt-1" type="checkbox" name="addons[]" value="{{ addon.code }}">
+                      <span style="min-width:0;">
+                        <span style="font-weight:800;">{{ addon.name }}</span>
+                        <span style="display:block; color: var(--ink-4); font-size:.82rem; line-height:1.5;">
+                          {{ addon.description }}
+                        </span>
+                      </span>
+                    </label>
+                  {% endfor %}
+
+                  <div style="color: var(--ink-4); font-size:.82rem;">
+                    Les options seront ajoutées à l’abonnement (Stripe).
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+      {% endfor %}
+    </form>
+
+    <div class="text-center" style="margin-top:2rem;">
+      <a class="btn-outline" href="{{ path('app_public_pricing') }}">
+        <i class="bi bi-tags"></i> Comparer toutes les offres
+      </a>
+    </div>
+  </div>
+</section>
+
+{# Modal : Confirmation souscription / essai (HOME) #}
+<div class="modal fade modal-premium"
+     id="homeBillingConfirmModal"
+     tabindex="-1"
+     aria-hidden="true"
+     data-csrf-trial="{{ csrf_token('start_trial') }}"
+     data-csrf-checkout="{{ csrf_token('billing_checkout') }}">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:22px; overflow:hidden;">
+      <div class="modal-header" style="background:var(--bg-warm); border-bottom:1px solid var(--border);">
+        <h5 class="modal-title">
+          <i class="bi bi-shield-check me-2"></i> Confirmation
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-3 align-items-start">
+          <div class="flex-shrink-0"
+               style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+                      background: rgba(37,99,168,.10); border:1px solid rgba(37,99,168,.18);">
+            <i class="bi bi-credit-card-2-front" style="font-size:20px;color:var(--accent);"></i>
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-semibold mb-1">
+              Tu vas continuer avec l’offre :
+              <div class="text-dark mt-1" id="homeBillingPlanLabel">—</div>
+            </div>
+
+            <div class="mt-2">
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <div class="px-3 py-2 rounded-4 border"
+                    style="border-color: rgba(0,0,0,.08) !important; background: rgba(255,255,255,.85); box-shadow: var(--shadow-sm);">
+                  <div class="small text-muted">Prix</div>
+                  <div class="d-flex align-items-baseline gap-2">
+                    <div class="fw-bold" style="font-size:26px; letter-spacing:-.02em;">
+                      <span id="homeBillingPriceMain">—</span>
+                    </div>
+                    <div class="text-muted">
+                      HT / <span id="homeBillingPriceUnit">mois</span>
+                    </div>
+                  </div>
+                  <div class="small text-muted" id="homeBillingPriceSub">—</div>
+                </div>
+
+                <div class="flex-grow-1">
+                  <div class="small text-muted">
+                    Période : <span class="fw-semibold" id="homeBillingIntervalLabel">—</span>
+                  </div>
+                  <div class="small text-muted">
+                    Options sélectionnées : <span class="fw-semibold" id="homeBillingAddonsLabel">—</span>
+                  </div>
+
+                  <div class="small text-muted mt-1 d-none" id="homeBillingTotalYearWrap">
+                    Total estimé : <span class="fw-semibold" id="homeBillingTotalYear">—</span> HT / an
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" value="1" id="homeConfirmBillingCheck">
+          <label class="form-check-label small" for="homeConfirmBillingCheck">
+            Je confirme et je souhaite continuer.
+          </label>
+        </div>
+
+        <div class="alert alert-light small mt-3 mb-0" style="border-radius:16px;">
+          <i class="bi bi-info-circle me-1"></i>
+          Tu seras redirigé vers Stripe pour finaliser (ou démarrer l’essai).
+        </div>
+      </div>
+
+      <div class="modal-footer" style="border-top:1px solid var(--border); background:var(--bg-warm);">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary fw-semibold" id="homeBtnConfirmBilling" disabled>
+          <i class="bi bi-arrow-right-circle me-1"></i> Continuer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+{# ════════════════════════════════════
+   FAQ + FINAL CTA
+════════════════════════════════════ #}
+<section class="section" id="faq">
+  <div class="w-max">
+    <div class="section-header">
+      <div class="ornament" style="margin-bottom:1.1rem;"><span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span></div>
+      <h2 class="section-title">Questions <em>fréquentes</em></h2>
+      <p class="section-lead">Pour avancer en confiance avant de cliquer sur « Essayer ».</p>
+    </div>
+
+    <div style="max-width:740px;margin:0 auto;">
+      <div class="faq-list">
+        <div class="faq-item">
+          <button class="faq-q" type="button" aria-expanded="false" onclick="toggleFaq(this)">
+            Est-ce adapté à un petit OF comme à une structure plus grosse ?
+            <span class="faq-arrow"><i class="bi bi-plus"></i></span>
+          </button>
+          <div class="faq-a">Multi-rôles, gestion par entité, modules activables selon votre besoin. Démarrez simple, montez en puissance. La plateforme s'adapte à votre rythme.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button" aria-expanded="false" onclick="toggleFaq(this)">
+            Puis-je publier un catalogue public et recevoir des demandes ?
+            <span class="faq-arrow"><i class="bi bi-plus"></i></span>
+          </button>
+          <div class="faq-a">Oui : vitrine publique, pages formation et demandes d'ouverture de session - avec un parcours clair pour vos prospects et des dates planifiées.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button" aria-expanded="false" onclick="toggleFaq(this)">
+            Comment ça aide concrètement pour la qualité / Qualiopi ?
+            <span class="faq-arrow"><i class="bi bi-plus"></i></span>
+          </button>
+          <div class="faq-a">Centralisation preuves + documents + évaluations + satisfaction + indicateurs. Vous réduisez le risque "dossier incomplet" et sécurisez la traçabilité à chaque session.</div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" type="button" aria-expanded="false" onclick="toggleFaq(this)">
+            Je veux une démo et un accompagnement à la mise en place
+            <span class="faq-arrow"><i class="bi bi-plus"></i></span>
+          </button>
+          <div class="faq-a">Cliquez sur "Demander une démo" : on prépare un parcours adapté - imports, modèles, rôles, paramétrage - selon votre contexte précis.</div>
+        </div>
+      </div>
+    </div>
+
+    {# Final CTA #}
+    <div class="final-cta-wrap" style="margin-top:4rem;">
+      <div class="ornament" style="margin-bottom:1.1rem;">
+        <span class="ornament-line"></span><span class="ornament-gem"></span><span class="ornament-line"></span>
+      </div>
+      <span class="label terra" style="margin-bottom:.9rem;"><i class="bi bi-stars"></i> Prêt à simplifier votre quotidien ?</span>
+      <h2 class="final-cta-title">Gagnez du temps<br><em>dès cette semaine.</em></h2>
+      <p class="final-cta-sub">Lancez votre essai, explorez les modules, publiez votre catalogue et faites tourner une session de bout en bout - sans engagement.</p>
+      <div class="final-cta-actions">
+        <a class="btn-prime" href="{{ cta_try }}"><i class="bi bi-rocket-takeoff"></i> Essayer gratuitement</a>
+        <a class="btn-outline" href="{{ cta_catalogue }}"><i class="bi bi-journals"></i> Voir le catalogue</a>
+        <a class="btn-outline" href="{{ cta_demo }}"><i class="bi bi-play-circle"></i> Demander une démo</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+
+/* ===== HOME PRICING (Stripe-driven) ===== */
+
+function formatEurFromCents(cents){
+  const v = Number(cents || 0) / 100;
+  return v > 0
+    ? v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€'
+    : '—';
+}
+
+function homeRenderPrices(interval){
+  // ✅ bon input hidden
+  const intervalInput = document.getElementById('home-interval');
+  if (intervalInput) intervalInput.value = interval;
+
+  // ✅ bons sélecteurs
+  document.querySelectorAll('.home-js-interval-main').forEach(el => el.textContent = 'mois');
+  document.querySelectorAll('.home-js-interval-sub').forEach(el => {
+    el.textContent = (interval === 'year') ? '(avec engagement annuel)' : '(sans engagement)';
+  });
+
+  // ✅ affichage depuis data-*
+  document.querySelectorAll('.priceValue').forEach(el => {
+    let cents = Number(el.dataset[interval] || 0);
+
+    // ⚠️ data-year = prix annuel Stripe => on l’affiche au mois
+    if (interval === 'year' && cents > 0) {
+      cents = Math.round(cents / 12);
+    }
+
+    el.textContent = formatEurFromCents(cents);
+  });
+}
+
+function getPlanCents(planUpper, interval){
+  const el = document.querySelector(`.priceValue[data-plan-code="${planUpper}"]`);
+  if (!el) return null;
+
+  let cents = Number(el.dataset[interval] || 0);
+  if (cents <= 0) return null;
+
+  // ⚠️ data-year = annuel Stripe -> on renvoie un mensuel affichable
+  if (interval === 'year') {
+    cents = Math.round(cents / 12);
+  }
+  return cents;
+}
+
+function homeRefreshBillingModalIfOpen(){
+  const modalEl = document.getElementById('homeBillingConfirmModal');
+  if (!modalEl || !modalEl.classList.contains('show')) return;
+
+  const planUpper = document.getElementById('home-selectedPlan')?.value || '';
+  if (!planUpper) return;
+
+  const interval = document.getElementById('home-interval')?.value || 'year';
+
+  const intervalLabel = document.getElementById('homeBillingIntervalLabel');
+  if (intervalLabel) {
+    intervalLabel.textContent = (interval === 'month')
+      ? 'Mensuel (sans engagement)'
+      : 'Annuel (engagement annuel)';
+  }
+
+  const addonsLabel = document.getElementById('homeBillingAddonsLabel');
+  if (addonsLabel) {
+    const checked = Array.from(document.querySelectorAll('#pricing input[name="addons[]"]:checked'));
+    addonsLabel.textContent = !checked.length ? 'Aucune' : (checked.length === 1 ? '1 option' : (checked.length + ' options'));
+  }
+
+  const cents = getPlanCents(planUpper, interval);
+
+  const priceMain = document.getElementById('homeBillingPriceMain');
+  const priceSub  = document.getElementById('homeBillingPriceSub');
+  const totalYearWrap = document.getElementById('homeBillingTotalYearWrap');
+  const totalYear = document.getElementById('homeBillingTotalYear');
+  const priceUnit = document.getElementById('homeBillingPriceUnit');
+
+  if (!cents) {
+    if (priceMain) priceMain.textContent = '—';
+    if (priceSub)  priceSub.textContent = 'Prix indisponible';
+    if (priceUnit) priceUnit.textContent = 'mois';
+    totalYearWrap?.classList.add('d-none');
+    return;
+  }
+
+  if (priceMain) priceMain.textContent = formatEurFromCents(cents);
+  if (priceUnit) priceUnit.textContent = 'mois';
+
+  if (interval === 'year') {
+    if (priceSub) priceSub.textContent = '(avec engagement annuel)';
+    if (totalYear) totalYear.textContent = formatEurFromCents(cents * 12);
+    totalYearWrap?.classList.remove('d-none');
+  } else {
+    if (priceSub) priceSub.textContent = '(sans engagement)';
+    totalYearWrap?.classList.add('d-none');
+  }
+}
+
+
+
+function homeUpdateBillingModal(planUpper){
+  if (!planUpper) return;
+
+  const interval = document.getElementById('home-interval')?.value || 'year';
+
+  const intervalLabel = document.getElementById('homeBillingIntervalLabel');
+  if (intervalLabel) {
+    intervalLabel.textContent = (interval === 'month')
+      ? 'Mensuel (sans engagement)'
+      : 'Annuel (engagement annuel)';
+  }
+
+  const addonsLabel = document.getElementById('homeBillingAddonsLabel');
+  if (addonsLabel) {
+    const checked = Array.from(document.querySelectorAll('#pricing input[name="addons[]"]:checked'));
+    addonsLabel.textContent = !checked.length ? 'Aucune' : (checked.length === 1 ? '1 option' : (checked.length + ' options'));
+  }
+
+  const cents = getPlanCents(planUpper, interval);
+
+  const priceMain = document.getElementById('homeBillingPriceMain');
+  const priceSub  = document.getElementById('homeBillingPriceSub');
+  const totalYearWrap = document.getElementById('homeBillingTotalYearWrap');
+  const totalYear = document.getElementById('homeBillingTotalYear');
+  const priceUnit = document.getElementById('homeBillingPriceUnit');
+
+  if (!cents) {
+    if (priceMain) priceMain.textContent = '—';
+    if (priceSub)  priceSub.textContent = 'Prix indisponible';
+    if (priceUnit) priceUnit.textContent = 'mois';
+    totalYearWrap?.classList.add('d-none');
+    return;
+  }
+
+  if (priceMain) priceMain.textContent = formatEurFromCents(cents);
+  if (priceUnit) priceUnit.textContent = 'mois';
+
+  if (interval === 'year') {
+    if (priceSub) priceSub.textContent = '(avec engagement annuel)';
+    if (totalYear) totalYear.textContent = formatEurFromCents(cents * 12);
+    totalYearWrap?.classList.remove('d-none');
+  } else {
+    if (priceSub) priceSub.textContent = '(sans engagement)';
+    totalYearWrap?.classList.add('d-none');
+  }
+}
+
+// Switch buttons
+const homeBtnM = document.getElementById('home-btn-month');
+const homeBtnY = document.getElementById('home-btn-year');
+
+homeBtnM?.addEventListener('click', ()=>{
+  homeBtnM.style.background = 'var(--accent)';
+  homeBtnM.style.color = '#fff';
+  homeBtnY.style.background = 'transparent';
+  homeBtnY.style.color = 'inherit';
+  homeRenderPrices('month');
+  homeRefreshBillingModalIfOpen();
+});
+
+homeBtnY?.addEventListener('click', ()=>{
+  homeBtnY.style.background = 'var(--accent)';
+  homeBtnY.style.color = '#fff';
+  homeBtnM.style.background = 'transparent';
+  homeBtnM.style.color = 'inherit';
+  homeRenderPrices('year');
+  homeRefreshBillingModalIfOpen();
+});
+
+// Init
+homeRenderPrices('year');
+
+
+// ===== HOME: remplir le hidden "plan" au submit (trial) =====
+(function bindHomeTrialSubmit(){
+  const form = document.getElementById('homePricingForm');
+  const planHidden = document.getElementById('home-selectedPlan');
+  if (!form || !planHidden) return;
+
+  form.addEventListener('submit', (e) => {
+    const submitter = e.submitter;
+
+    // Trial : plan depuis bouton "Essayer"
+    if (submitter && submitter.classList.contains('js-home-trial-submit')) {
+      const p = (submitter.dataset.plan || '').toUpperCase();
+      if (p) planHidden.value = p;
+      return;
+    }
+
+    // Checkout : plan doit déjà être dans le hidden
+    const action = form.getAttribute('action') || '';
+    if (action.includes('billing') || action.includes('checkout')) {
+      planHidden.value = (planHidden.value || '').trim(); // ✅ pas de upper
+    }
+  });
+})();
+
+// Collapse “Voir le détail”
+document.querySelectorAll('.toggle-details-home').forEach(btn => {
+  const selector = btn.getAttribute('data-bs-target');
+  const target = document.querySelector(selector);
+  const label = btn.querySelector('.label-text');
+  const icon  = btn.querySelector('.chevron');
+  if (!target) return;
+
+  const collapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    collapse.toggle();
+  });
+
+  target.addEventListener('shown.bs.collapse', () => {
+    btn.setAttribute('aria-expanded', 'true');
+    if (label) label.textContent = 'Réduire';
+    if (icon)  icon.textContent = '−';
+  });
+
+  target.addEventListener('hidden.bs.collapse', () => {
+    btn.setAttribute('aria-expanded', 'false');
+    if (label) label.textContent = 'Voir le détail';
+    if (icon)  icon.textContent = '+';
+  });
+});
+
+// Update modal if addons change
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.matches('#pricing input[name="addons[]"]')) {
+    homeRefreshBillingModalIfOpen();
+  }
+});
+
+// Modal binding (HOME)
+(function bindHomeBillingConfirmModal(){
+  const modalEl = document.getElementById('homeBillingConfirmModal');
+  if (!modalEl) return;
+
+  const form   = document.getElementById('homePricingForm');
+  const planIn = document.getElementById('home-selectedPlan');
+
+  const labelPlan     = document.getElementById('homeBillingPlanLabel');
+  const labelInterval = document.getElementById('homeBillingIntervalLabel');
+  const labelAddons   = document.getElementById('homeBillingAddonsLabel');
+
+  const priceUnit = document.getElementById('homeBillingPriceUnit');
+
+  const chk = document.getElementById('homeConfirmBillingCheck');
+  const btn = document.getElementById('homeBtnConfirmBilling');
+
+
+  form?.addEventListener('submit', () => {
+    const fd = new FormData(form);
+    console.log('[HOME SUBMIT] action=', form.getAttribute('action'));
+    console.log('[HOME SUBMIT] payload=', Array.from(fd.entries()));
+  });
+
+  let submitting = false;
+  let originalBtnHtml = btn ? btn.innerHTML : '';
+  const closeBtn = modalEl.querySelector('.btn-close');
+
+  function getIntervalLabel(){
+    const v = document.getElementById('home-interval')?.value || 'year';
+    return v === 'month' ? 'Mensuel (sans engagement)' : 'Annuel (engagement annuel)';
+  }
+  function getAddonsLabel(){
+    const checked = Array.from(document.querySelectorAll('#pricing input[name="addons[]"]:checked'));
+    if (!checked.length) return 'Aucune';
+    return checked.length === 1 ? '1 option' : (checked.length + ' options');
+  }
+  function lockUI(){
+    submitting = true;
+    if (btn){
+      btn.disabled = true;
+      btn.setAttribute('aria-busy','true');
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Redirection...';
+    }
+    if (closeBtn) closeBtn.disabled = true;
+  }
+  function unlockUI(){
+    submitting = false;
+    if (btn){
+      btn.removeAttribute('aria-busy');
+      btn.innerHTML = originalBtnHtml;
+      btn.disabled = !(chk && chk.checked);
+    }
+    if (closeBtn) closeBtn.disabled = false;
+  }
+  function resetState(){
+    submitting = false;
+    if (chk) chk.checked = false;
+    if (btn){
+      btn.disabled = true;
+      btn.removeAttribute('aria-busy');
+      btn.innerHTML = originalBtnHtml;
+    }
+    if (labelPlan) labelPlan.textContent = '—';
+    if (labelInterval) labelInterval.textContent = '—';
+    if (labelAddons) labelAddons.textContent = '—';
+    if (form) form.setAttribute('action', "{{ path('app_pricing_start_trial') }}");
+    if (planIn) planIn.value = '';
+    if (closeBtn) closeBtn.disabled = false;
+    const tokenInput = document.getElementById('home-form-token');
+    if (tokenInput) {
+      tokenInput.value = modalEl.dataset.csrfTrial || '';
+    }
+  }
+
+  document.addEventListener('click', function(e){
+    const trigger = e.target.closest('.js-open-home-billing-confirm');
+    if (!trigger) return;
+
+    const action = trigger.dataset.action || '#';
+    const plan   = trigger.dataset.plan || '';
+    const planName = trigger.dataset.planName || plan || '—';
+    const cta = trigger.dataset.cta || 'Continuer';
+
+    modalEl.dataset.plan = plan;
+
+    if (priceUnit) priceUnit.textContent = 'mois';
+
+    // set form action + plan
+    if (form) form.setAttribute('action', action);
+
+    // ✅ swap CSRF selon l'action
+    const tokenInput = document.getElementById('home-form-token');
+    if (tokenInput) {
+      const isCheckout = action.includes('billing') || action.includes('checkout');
+      tokenInput.value = isCheckout ? (modalEl.dataset.csrfCheckout || '') : (modalEl.dataset.csrfTrial || '');
+    }
+
+
+    if (planIn) planIn.value = String(plan || '');
+
+    if (labelPlan) labelPlan.textContent = planName;
+    if (labelInterval) labelInterval.textContent = getIntervalLabel();
+    if (labelAddons) labelAddons.textContent = getAddonsLabel();
+
+
+    if (btn){
+      btn.innerHTML = '<i class="bi bi-arrow-right-circle me-1"></i> ' + cta;
+      originalBtnHtml = btn.innerHTML;
+    }
+
+    if (chk) chk.checked = false;
+    if (btn) btn.disabled = true;
+    // ✅ plan sûr (si jamais le hidden a été vidé)
+    if (planIn && (!planIn.value || !planIn.value.trim())) {
+      planIn.value = modalEl.dataset.plan || '';
+    }
+    unlockUI();
+
+    homeUpdateBillingModal((planIn?.value || '').toUpperCase());
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  });
+
+  chk?.addEventListener('change', ()=>{
+    if (!btn) return;
+    if (submitting){ btn.disabled = true; return; }
+    btn.disabled = !chk.checked;
+  });
+
+  // Remplacez la partie finale de bindHomeBillingConfirmModal par ceci :
+  btn?.addEventListener('click', () => {
+      if (submitting) return;
+      if (!chk || !chk.checked) return;
+
+      // SÉCURITÉ : On s'assure que le champ hidden est bien rempli avant de partir
+      const planIn = document.getElementById('home-selectedPlan');
+      if (modalEl.dataset.plan) {
+          planIn.value = modalEl.dataset.plan;
+      }
+
+      lockUI();
+
+      if (form && !form.dataset.submitted) {
+          form.dataset.submitted = '1';
+          // Désactiver Turbo pour cette soumission pour éviter les conflits de redirection
+          form.setAttribute('data-turbo', 'false'); 
+          form.submit(); // Soumission standard plus fiable pour Stripe
+      }
+  });
+
+  modalEl.addEventListener('hidden.bs.modal', ()=>{
+    if (form) delete form.dataset.submitted;
+    resetState();
+  });
+
+  modalEl.addEventListener('shown.bs.modal', () => {
+    const planUpper = document.getElementById('home-selectedPlan')?.value || '';
+    homeUpdateBillingModal(planUpper);
+  });
+})();
+</script>
+
+{# ===== ton JS existant (FAQ + animations) peut rester après ou avant, peu importe ===== #}
+<script>
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+/* Scroll-triggered fade-in */
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = 1;
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: .1 });
+
+document.querySelectorAll('.mod-cell, .step-card, .testi-card, .price-card, .value-cell, .faq-item, .compare-row').forEach((el, i) => {
+  el.style.opacity = 0;
+  el.style.transform = 'translateY(18px)';
+  el.style.transition = `opacity .55s ease ${(i % 4) * .08}s, transform .55s ease ${(i % 4) * .08}s`;
+  obs.observe(el);
+});
+</script>
+{% endblock %}

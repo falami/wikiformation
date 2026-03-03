@@ -1,0 +1,41 @@
+<div class="modal fade" id="entrepriseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa fa-building me-2 text-theme-secondaire"></i> Nouvelle entreprise
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        {{ form_start(formEntreprise, {
+          action: path('app_administrateur_devis_entreprise_modal_submit', { entite: entite.id }),
+          attr: { id: 'entrepriseModalForm', novalidate: 'novalidate' }
+        }) }}
+
+        {{ form_errors(formEntreprise) }}
+
+        <div class="row g-3">
+          <div class="col-md-12">
+            {{ form_row(formEntreprise.raisonSociale) }}
+          </div>
+
+          {# Ajoute ici tes autres champs si ton EntrepriseModalType les expose #}
+          {# <div class="col-md-6">{{ form_row(formEntreprise.siret) }}</div> #}
+          {# <div class="col-md-6">{{ form_row(formEntreprise.tvaIntracom) }}</div> #}
+          {# <div class="col-md-12">{{ form_row(formEntreprise.adresse) }}</div> #}
+        </div>
+
+        {{ form_end(formEntreprise, { render_rest: true }) }}
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" form="entrepriseModalForm" class="btn btn-primary">
+          <i class="fa fa-check me-1"></i> Créer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

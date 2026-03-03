@@ -1,0 +1,71 @@
+{# templates/administrateur/satisfaction/assignment/_actions.html.twig #}
+
+{# vars attendues :
+  - entite (Entite)
+  - a : {
+      id, hasAttempt, showUrl, forceUrl, toggleUrl, deleteUrl, csrf
+    }
+#}
+
+<div class="btn-group btn-group-sm sat-actions" role="group">
+
+  {# ✅ Bouton principal = Voir tentative (ou disabled) #}
+  {% if a.hasAttempt and a.showUrl %}
+    <a class="btn btn-light sat-main"
+       href="{{ a.showUrl }}"
+       data-bs-toggle="tooltip" title="Voir la tentative">
+      <i class="bi bi-eye"></i>
+    </a>
+  {% else %}
+    <button class="btn btn-light sat-main" type="button" disabled
+            data-bs-toggle="tooltip" title="Aucune tentative">
+      <i class="bi bi-eye"></i>
+    </button>
+  {% endif %}
+
+  {# ✅ Split dropdown #}
+  <button type="button"
+          class="btn btn-light dropdown-toggle dropdown-toggle-split sat-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">Actions</span>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end sat-menu">
+
+    {# ✅ Créer tentative #}
+    <li>
+      <button class="dropdown-item d-flex align-items-center js-force-attempt"
+              type="button"
+              data-url="{{ a.forceUrl }}">
+        <i class="bi bi-play-circle me-2"></i> Créer une tentative
+      </button>
+    </li>
+
+    <li><hr class="dropdown-divider"></li>
+
+    {# ✅ Basculer obligatoire #}
+    <li>
+      <button class="dropdown-item d-flex align-items-center js-toggle-required"
+              type="button"
+              data-url="{{ a.toggleUrl }}">
+        <i class="bi bi-exclamation-diamond me-2"></i> Basculer obligatoire
+      </button>
+    </li>
+
+    <li><hr class="dropdown-divider"></li>
+
+    {# ✅ Supprimer #}
+    <li>
+      <form class="m-0 p-0"
+            method="post"
+            action="{{ a.deleteUrl }}"
+            onsubmit="return confirm('Supprimer cette affectation ?');">
+        <input type="hidden" name="_token" value="{{ a.csrf }}">
+        <button class="dropdown-item d-flex align-items-center text-danger" type="submit">
+          <i class="bi bi-trash me-2"></i> Supprimer
+        </button>
+      </form>
+    </li>
+
+  </ul>
+</div>

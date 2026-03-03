@@ -1,0 +1,1864 @@
+{# templates/administrateur/utilisateur/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Utilisateur #{{ u.id }} — {{ u.prenom }} {{ u.nom|upper }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+
+
+  <style>
+  :root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+  --ink:#0f2336;
+  --muted:#6b7b8a;
+  --line:rgba(15,35,54,.10);
+  --radius:20px;
+  --shadow: 0 18px 50px rgba(0,0,0,.10);
+  --shadow-soft: 0 12px 28px rgba(0,0,0,.06);
+}
+
+/* Layout */
+.pageWrap{ width:100%; padding:0; }
+
+/* ===================== TOP NAV (FIX PROPRE) ===================== */
+/* ✅ Sticky UNIQUEMENT sur ta navbar admin (classe ajoutée dans le header) */
+.adminTopNav{
+  position: sticky;
+  top: 0;
+  z-index: 1030; /* Bootstrap navbar */
+}
+
+/* ✅ Pas de padding-top (sticky reste dans le flux) */
+.pageWrap{
+  padding-top: 0 !important;
+}
+
+/* ✅ Sidebar / offcanvas au-dessus si besoin */
+.sidebar,
+#sidebar,
+.offcanvas,
+.offcanvas-start{
+  z-index: 1050;
+}
+
+/* ===================== Sticky Hero ===================== */
+.stickyHero{
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  border-radius:24px;
+  overflow:hidden;
+  color:#fff;
+  background:
+    radial-gradient(900px 420px at 15% 15%, rgba(255,255,255,.16), transparent 55%),
+    radial-gradient(760px 320px at 85% 20%, rgba(255,193,7,.20), transparent 55%),
+    linear-gradient(135deg, rgba(35,51,66,.98), rgba(15,35,54,.86));
+  box-shadow: var(--shadow);
+  border:1px solid rgba(255,255,255,.08);
+  margin: 10px 0 16px;
+  backdrop-filter: blur(10px);
+}
+.stickyRow{
+  display:flex;
+  gap:14px;
+  padding:14px 16px;
+  align-items:center;
+  flex-wrap: wrap;
+}
+.avatar{
+  width:44px; height:44px; border-radius:14px;
+  background: rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.14);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900;
+  box-shadow: 0 10px 26px rgba(0,0,0,.18);
+  backdrop-filter: blur(8px);
+  flex: 0 0 auto;
+}
+.chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
+  font-size:12px; white-space:nowrap;
+  backdrop-filter: blur(8px);
+}
+.btn-ghost{
+  background: rgba(255,255,255,.10) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: #fff !important;
+  border-radius: 14px !important;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  transition: .15s ease;
+}
+.btn-ghost:hover{ transform: translateY(-1px); }
+
+/* ===================== Tabs wrap + sticky head ===================== */
+.tabsWrap{
+  background: var(--bs-body-bg);
+  border:1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  overflow: visible;
+}
+
+/*
+  ✅ On évite les calculs magiques (50px+86px) qui cassent selon header/viewport.
+  -> on colle les tabs juste sous la navbar sticky.
+*/
+.tabsHead{
+  position: sticky;
+  top: 56px; /* hauteur standard navbar bootstrap */
+  z-index: 15;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+
+/* Si ta navbar est plus haute sur mobile */
+@media (max-width: 992px){
+  .tabsHead{ top: 64px; }
+}
+
+.nav-pills .nav-link{
+  border-radius: 14px;
+  font-weight: 900;
+  color: var(--ink);
+}
+.nav-pills .nav-link.active{
+  background: var(--theme-color-principal);
+  box-shadow: 0 10px 24px rgba(0,0,0,.10);
+  color: #fff;
+}
+
+/* ===================== Cards ===================== */
+.cardX{
+  background: var(--bs-body-bg);
+  border:1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+.cardX-h{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--line);
+}
+.cardX-b{ padding:16px; }
+.titleX{ display:flex; align-items:center; gap:10px; font-weight:900; margin:0; }
+.titleX i{ color: var(--theme-color-secondaire); }
+.actionsRight{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+/* ===================== Timeline ===================== */
+.timeline{ position:relative; padding-left: 18px; }
+.timeline::before{
+  content:'';
+  position:absolute; left:7px; top:6px; bottom:6px; width:2px;
+  background: linear-gradient(to bottom, rgba(255,193,7,.55), rgba(15,35,54,.10));
+  border-radius:999px;
+}
+.tItem{
+  position:relative;
+  padding: 12px 12px 12px 14px;
+  border-radius: 16px;
+  border:1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,.70), rgba(255,255,255,.55));
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.tItem:hover{
+  transform: translateY(-1px);
+  border-color: rgba(15,35,54,.16);
+  box-shadow: 0 14px 30px rgba(0,0,0,.08);
+}
+.tDot{
+  position:absolute; left:-18px; top:18px;
+  width:12px; height:12px; border-radius:999px;
+  background: var(--theme-color-secondaire);
+  box-shadow: 0 0 0 6px rgba(255,193,7,.18);
+}
+.tMeta{ font-size:12px; color: var(--muted); white-space:nowrap; }
+.tBody{ margin-top:6px; color: var(--muted); }
+.tActions .btn{ border-radius: 12px !important; }
+
+/* ===================== TomSelect / Flatpickr au-dessus des modales ===================== */
+.ts-dropdown{ z-index: 2060 !important; }
+.flatpickr-calendar{
+  border-radius:16px;
+  box-shadow:0 18px 40px rgba(0,0,0,.12);
+  border:1px solid rgba(0,0,0,.08);
+  z-index:2070 !important;
+}
+
+/* ===================== Modals premium ===================== */
+.modal-premium .modal-content{
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(15,35,54,.10);
+  box-shadow: 0 28px 80px rgba(0,0,0,.22);
+}
+.modal-premium .modal-header{
+  background: linear-gradient(135deg, rgba(35,51,66,.98), rgba(15,35,54,.86));
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+.modal-premium .btn-close{ filter: invert(1); opacity:.9; }
+
+/* ===================== DataTables actions compact ===================== */
+.dt-actions-compact .btn{
+  border-width: 1px;
+  padding: .35rem .55rem;
+  font-size: .85rem;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.dt-actions-compact .btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(0,0,0,.08);
+}
+.dt-actions-compact .btn:first-child{
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+.dt-actions-compact .btn:last-child{
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+/* ===================== Infos profil ===================== */
+.infoRow{
+  display:flex; justify-content:space-between; gap:12px;
+  padding:8px 0;
+  border-bottom:1px dashed rgba(15,35,54,.12);
+}
+.infoRow:last-child{ border-bottom:0; padding-bottom:0; }
+.infoKey{ color: var(--muted); font-size: 12px; }
+.infoVal{ font-weight: 700; color: var(--ink); text-align:right; }
+
+.badge-soft{
+  background: rgba(15,35,54,.06);
+  border: 1px solid rgba(15,35,54,.10);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+/* ===================== Map ===================== */
+.mapBox{
+  height: 280px;
+  border-radius: 18px;
+  overflow: hidden;
+  border:1px solid var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Empêche Leaflet de passer au-dessus des barres/sticky */
+.mapBox, #userMap{
+  position: relative;
+  z-index: 1;
+}
+.leaflet-container{ z-index: 1; }
+.leaflet-pane,
+.leaflet-control,
+.leaflet-top,
+.leaflet-bottom{ z-index: 2; }
+
+/* ===================== KPI ===================== */
+.kpiGrid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 992px){
+  .kpiGrid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.kpiCard{
+  border-radius: 18px;
+  border:1px solid var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+  padding: 14px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  min-height: 72px;
+}
+.kpiLeft{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+.kpiLabel{ font-size: 12px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing:.04em; }
+.kpiValue{ font-size: 20px; font-weight: 900; color: var(--ink); line-height:1.1; }
+.kpiSub{ font-size: 12px; color: var(--muted); }
+.kpiIcon{
+  width:42px; height:42px; border-radius: 14px;
+  display:flex; align-items:center; justify-content:center;
+  background: rgba(15,35,54,.06);
+  border:1px solid rgba(15,35,54,.10);
+  flex: 0 0 auto;
+}
+
+.kpiCard.kpiLink{
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.kpiCard.kpiLink:hover{
+  transform: translateY(-2px);
+  border-color: rgba(15,35,54,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.10);
+}
+.kpiCard.kpiLink:active{ transform: translateY(0); }
+.kpiCard.kpiLink:focus-within{ outline: 0; }
+
+
+
+
+
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3 px-lg-4 pageWrap">
+
+  {% set initials = ((u.prenom|default('')|slice(0,1)) ~ (u.nom|default('')|slice(0,1)))|upper %}
+
+  <div class="stickyHero">
+    <div class="stickyRow">
+      <div class="avatar">{{ initials ?: 'U' }}</div>
+
+      <div class="flex-grow-1">
+        <div class="small opacity-75">Utilisateur #{{ u.id }}</div>
+        <div class="fw-bold" style="font-size:18px;">{{ u.prenom }} {{ u.nom|upper }}</div>
+
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          {% if u.email %}<span class="chip"><i class="bi bi-at"></i> {{ u.email }}</span>{% endif %}
+          {% if u.telephone %}<span class="chip"><i class="bi bi-telephone"></i> {{ u.telephone }}</span>{% endif %}
+          {% if linkedProspect %}
+            <span class="chip"><i class="bi bi-link-45deg"></i> Prospect #{{ linkedProspect.id }}</span>
+          {% else %}
+            <span class="chip"><i class="bi bi-person-badge"></i> Sans prospect lié</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-ghost btn-sm" href="{{ path('app_administrateur_utilisateur_index',{entite:entite.id}) }}">
+          <i class="bi bi-arrow-left"></i> Retour
+        </a>
+
+        <button class="btn btn-warning btn-sm fw-semibold" type="button" id="btnOpenInteractionModal">
+          <i class="bi bi-plus-circle"></i> Interaction
+        </button>
+
+        {% if linkedProspect %}
+          <a class="btn btn-ghost btn-sm"
+             href="{{ path('app_administrateur_prospect_show', { entite: entite.id, prospect: linkedProspect.id }) }}">
+            <i class="bi bi-person-lines-fill"></i> Prospect
+          </a>
+        {% endif %}
+
+        <button class="btn btn-success btn-sm fw-semibold" type="button" id="btnOpenEmail">
+          <i class="bi bi-envelope"></i> Envoyer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="tabsWrap mb-3">
+    <div class="tabsHead">
+      <ul class="nav nav-pills gap-2" id="userTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-histo" data-bs-toggle="pill" data-bs-target="#pane-histo" type="button" role="tab">
+            <i class="bi bi-clock-history me-1"></i> Interactions
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-devis" data-bs-toggle="pill" data-bs-target="#pane-devis" type="button" role="tab">
+            <i class="bi bi-file-earmark-text me-1"></i> Devis
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-factures" data-bs-toggle="pill" data-bs-target="#pane-factures" type="button" role="tab">
+            <i class="bi bi-receipt me-1"></i> Factures
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-sessions" data-bs-toggle="pill" data-bs-target="#pane-sessions" type="button" role="tab">
+            <i class="bi bi-mortarboard me-1"></i> Sessions
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-resume" data-bs-toggle="pill" data-bs-target="#pane-resume" type="button" role="tab">
+            <i class="bi bi-layout-text-window-reverse me-1"></i> Résumé
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="tab-content p-3">
+
+      {# ===================== Interactions ===================== #}
+      <div class="tab-pane fade show active" id="pane-histo" role="tabpanel" aria-labelledby="tab-histo">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-clock-history"></i> Interactions</h5>
+            <div class="actionsRight">
+              <span class="badge bg-light text-dark">{{ interactions|length }} entrée(s)</span>
+              <button class="btn btn-sm btn-warning fw-semibold" type="button" id="btnOpenInteractionModal2">
+                <i class="bi bi-plus-circle"></i> Nouvelle interaction
+              </button>
+            </div>
+          </div>
+
+          <div class="cardX-b">
+            {% if interactions|length == 0 %}
+              <div class="text-muted">Aucune interaction.</div>
+            {% else %}
+              <div class="timeline d-flex flex-column gap-2">
+                {% for i in interactions %}
+                  <div class="tItem">
+                    <span class="tDot"></span>
+
+                    <div class="d-flex justify-content-between gap-2 align-items-start">
+                      <div class="fw-semibold">
+                        <span class="badge {{ i.channel.badgeClass() }} me-1">
+                          <i class="bi {{ i.channel.icon() }} me-1"></i>
+                          {{ i.channel.label() }}
+                        </span>
+                        {{ i.title }}
+                      </div>
+
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="tMeta d-flex align-items-center gap-2">
+                          <span>{{ i.occurredAt|date('d/m/Y H:i') }}</span>
+
+                          {% if i.actor %}
+                            <span class="badge bg-light text-dark"
+                                  title="{{ i.actor.email|default('') }}">
+                              <i class="bi bi-person-fill me-1"></i>
+                              {{ i.actor.prenom|default('') }} {{ i.actor.nom|default('')|upper }}
+                            </span>
+                          {% else %}
+                            <span class="badge bg-light text-dark">
+                              <i class="bi bi-robot me-1"></i> Système
+                            </span>
+                          {% endif %}
+                        </div>
+
+                        <div class="tActions d-flex gap-2">
+                          <a class="btn btn-sm btn-outline-primary"
+                             href="{{ path('app_administrateur_utilisateur_interaction_edit', { entite: entite.id, id: u.id, interaction: i.id }) }}">
+                            <i class="bi bi-pencil"></i>
+                          </a>
+                          <button type="button"
+                                  class="btn btn-sm btn-outline-danger"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#deleteInteractionModal"
+                                  data-delete-action="{{ path('app_administrateur_utilisateur_interaction_delete', { entite: entite.id, id: u.id, interaction: i.id }) }}"
+                                  data-delete-token="{{ csrf_token('delete_interaction_' ~ i.id) }}"
+                                  data-delete-title="{{ i.title|e('html_attr') }}"
+                                  data-delete-date="{{ i.occurredAt|date('d/m/Y H:i') }}">
+                            <i class="bi bi-trash"></i>
+                          </button>
+
+                        </div>
+                      </div>
+                    </div>
+
+                    {% if i.content %}
+                      <div class="tBody">{{ i.content|nl2br }}</div>
+                    {% endif %}
+
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                      {% if i.emailLog %}
+                        {% if i.prospect %}
+                          <button class="btn btn-sm btn-outline-secondary"
+                                  type="button"
+                                  data-email-view-url="{{ path('app_administrateur_prospect_email_log_show', { entite: entite.id, prospect: i.prospect.id, id: i.emailLog.id }) }}"
+                                  onclick="openEmailLog(this)">
+                            <i class="bi bi-eye"></i> Voir l’email
+                          </button>
+                        {% else %}
+                          <button class="btn btn-sm btn-outline-secondary"
+                                  type="button"
+                                  data-email-view-url="{{ path('app_administrateur_utilisateur_email_log_show', { entite: entite.id, id: u.id, log: i.emailLog.id }) }}"
+                                  onclick="openEmailLog(this)">
+                            <i class="bi bi-eye"></i> Voir l’email
+                          </button>
+                        {% endif %}
+                      {% endif %}
+
+
+                      {% if i.devis %}
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{{ path('app_administrateur_devis_edit', { entite: entite.id, id: i.devis.id }) }}">
+                          <i class="bi bi-file-earmark-text"></i> Ouvrir le devis
+                        </a>
+                      {% endif %}
+
+                      {% if i.facture %}
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{{ path('app_administrateur_facture_edit', { entite: entite.id, id: i.facture.id }) }}">
+                          <i class="bi bi-receipt"></i> Ouvrir la facture
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# ===================== Devis (DT lazy) ===================== #}
+      <div class="tab-pane fade" id="pane-devis" role="tabpanel" aria-labelledby="tab-devis">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-file-earmark-text"></i> Devis</h5>
+            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> liés à l’utilisateur</span>
+          </div>
+          <div class="cardX-b">
+            <div class="table-responsive">
+              <table id="tableUserDevis" class="table table-hover align-middle mb-0" style="width:100%">
+                <thead>
+                  <tr>
+                    <th style="width:70px">#</th>
+                    <th>Numéro</th>
+                    <th style="width:160px">Émis le</th>
+                    <th class="text-end" style="width:150px">TTC</th>
+                    <th style="width:160px">Statut</th>
+                    <th class="text-end" style="width:220px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== Factures (DT lazy) ===================== #}
+      <div class="tab-pane fade" id="pane-factures" role="tabpanel" aria-labelledby="tab-factures">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-receipt"></i> Factures</h5>
+            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> destinataire utilisateur</span>
+          </div>
+          <div class="cardX-b">
+            <div class="table-responsive">
+              <table id="tableUserFactures" class="table table-hover align-middle mb-0" style="width:100%">
+                <thead>
+                  <tr>
+                    <th style="width:70px">#</th>
+                    <th>Numéro</th>
+                    <th style="width:160px">Émise le</th>
+                    <th class="text-end" style="width:150px">TTC</th>
+                    <th style="width:160px">Statut</th>
+                    <th class="text-end" style="width:220px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== Inscriptions / Sessions (DT lazy) ===================== #}
+      <div class="tab-pane fade" id="pane-sessions" role="tabpanel" aria-labelledby="tab-sessions">
+        <div class="cardX">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-mortarboard"></i> Sessions / Inscriptions</h5>
+            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> stagiaire</span>
+          </div>
+          <div class="cardX-b">
+            <div class="table-responsive">
+              <table id="tableUserInscriptions" class="table table-hover align-middle mb-0" style="width:100%">
+                <thead>
+                  <tr>
+                    <th style="width:70px">#</th>
+                    <th>Session</th>
+                    <th style="width:220px">Dates</th>
+                    <th style="width:170px">Inscription</th>
+                    <th style="width:170px">Session</th>
+                    <th class="text-end" style="width:220px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="small text-muted mt-2">
+              Colonne “Dates” = `dateDebut → dateFin` (préparé côté controller).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== Résumé ===================== #}
+      <div class="tab-pane fade" id="pane-resume" role="tabpanel" aria-labelledby="tab-resume">
+        <div class="row g-3">
+          {% set fullAddr = u.adresseComplete ?? null %}
+
+
+          <div class="col-12 col-lg-9">
+
+
+            {% macro eur(cents) %}{{ ((cents ?? 0) / 100)|number_format(2, ',', ' ') }} €{% endmacro %}
+
+            <div class="kpiGrid mb-3">
+
+              <div class="kpiCard kpiLink" role="button" tabindex="0" data-kpi-target="tab-histo">
+                <div class="kpiLeft">
+                  <div class="kpiLabel">Interactions</div>
+                  <div class="kpiValue">{{ kpis.interactions ?? 0 }}</div>
+                  <div class="kpiSub">Historique CRM</div>
+                </div>
+                <div class="kpiIcon"><i class="bi bi-chat-dots"></i></div>
+              </div>
+
+              <div class="kpiCard kpiLink" role="button" tabindex="0" data-kpi-target="tab-devis">
+                <div class="kpiLeft">
+                  <div class="kpiLabel">Devis</div>
+                  <div class="kpiValue">{{ kpis.devisCount ?? 0 }}</div>
+                  <div class="kpiSub">Total: {{ _self.eur(kpis.devisSum ?? 0) }}</div>
+                </div>
+                <div class="kpiIcon"><i class="bi bi-file-earmark-text"></i></div>
+              </div>
+
+              <div class="kpiCard kpiLink" role="button" tabindex="0" data-kpi-target="tab-factures">
+                <div class="kpiLeft">
+                  <div class="kpiLabel">Factures</div>
+                  <div class="kpiValue">{{ kpis.factCount ?? 0 }}</div>
+                  <div class="kpiSub">Total: {{ _self.eur(kpis.factSum ?? 0) }}</div>
+                </div>
+                <div class="kpiIcon"><i class="bi bi-receipt"></i></div>
+              </div>
+
+              <div class="kpiCard kpiLink" role="button" tabindex="0" data-kpi-target="tab-sessions">
+                <div class="kpiLeft">
+                  <div class="kpiLabel">Inscriptions</div>
+                  <div class="kpiValue">{{ kpis.inscriptions ?? 0 }}</div>
+                  <div class="kpiSub">Dans cette entité</div>
+                </div>
+                <div class="kpiIcon"><i class="bi bi-calendar-check"></i></div>
+              </div>
+
+            </div>
+            <div class="cardX">
+              <div class="cardX-h">
+                <h5 class="titleX"><i class="bi bi-map"></i> Localisation</h5>
+                <span class="badge bg-light text-dark">Basé sur l’adresse</span>
+              </div>
+              <div class="cardX-b">
+                {% if fullAddr %}
+                  <div id="userMap" class="mapBox"></div>
+                  <div class="small text-muted mt-2" id="userMapStatus"></div>
+                {% else %}
+                  <div class="alert alert-warning mb-0">
+                    Aucune adresse renseignée : impossible d’afficher la carte.
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+
+          {# ---- Carte (col droite sur desktop, sous la fiche sur mobile) ---- #}
+          <div class="col-12 col-lg-3">
+            <div class="cardX">
+              <div class="cardX-h">
+                <h5 class="titleX"><i class="bi bi-lightning-charge"></i> Actions rapides</h5>
+              </div>
+              <div class="cardX-b">
+                <div class="d-grid gap-2">
+                  <button class="btn btn-warning fw-semibold" type="button" id="btnOpenInteractionModal3">
+                    <i class="bi bi-plus-circle"></i> Nouvelle interaction
+                  </button>
+                  <button class="btn btn-success fw-semibold" type="button" id="btnOpenEmail2">
+                    <i class="bi bi-envelope"></i> Envoyer un email
+                  </button>
+                </div>
+                <div class="small text-muted mt-2">
+                  L’interaction sera rattachée à l’utilisateur (et au prospect si lié).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-9">
+            <div class="cardX">
+              <div class="cardX-h">
+                <h5 class="titleX"><i class="bi bi-person-lines-fill"></i> Profil utilisateur</h5>
+              </div>
+
+              <div class="cardX-b">
+
+                {# ---- Identité ---- #}
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <span class="badge-soft"><i class="bi bi-person-badge me-1"></i> #{{ u.id }}</span>
+
+                  {% if u.isVerified %}
+                    <span class="badge-soft bg-success text-light"><i class="bi bi-patch-check-fill me-1"></i> Email vérifié</span>
+                  {% else %}
+                    <span class="badge-soft bg-secondary text-light"><i class="bi bi-patch-exclamation me-1"></i> Email non vérifié</span>
+                  {% endif %}
+
+                  {% if u.bannir %}
+                    <span class="badge-soft bg-danger"><i class="bi bi-slash-circle me-1"></i> Banni</span>
+                  {% endif %}
+                  {% if u.desactiverTemporairement %}
+                    <span class="badge-soft bg-warning text-dark"><i class="bi bi-pause-circle me-1"></i> Désactivé temporairement</span>
+                  {% endif %}
+
+                  {% if linkedProspect %}
+                    <span class="badge-soft bg-light text-dark">
+                      <i class="bi bi-link-45deg me-1"></i> Prospect #{{ linkedProspect.id }}
+                    </span>
+                  {% endif %}
+                </div>
+
+                <div class="mb-3">
+                  <div class="fw-semibold">{{ u.civilite ?: '' }} {{ u.prenom }} {{ u.nom|upper }}</div>
+                  <div class="text-muted">{{ u.email ?: '—' }}</div>
+                  <div class="text-muted">
+                    {% if u.telephone %}
+                      <div class="text-muted d-flex align-items-center gap-2">
+                        <i class="bi bi-telephone"></i>
+                        <a href="tel:{{ u.telephone }}" class="text-decoration-none text-muted">
+                          {{ u.telephone|replace({'+33': '0'}) }}
+                        </a>
+                      </div>
+                    {% else %}
+                      <div class="text-muted">—</div>
+                    {% endif %}
+
+
+                </div>
+                </div>
+
+                {# ---- Détails “métier” / compte ---- #}
+                <div class="infoRow">
+                  <div class="infoKey"><i class="bi bi-award me-1"></i> Inscription(s)</div>
+                  <div class="infoVal">{{ u.inscriptions ? u.inscriptions|length : '—' }}</div>
+                </div>
+
+                <div class="infoRow">
+                  <div class="infoKey"><i class="bi bi-card-checklist me-1"></i> N° licence</div>
+                  <div class="infoVal">{{ u.numeroLicence ? : '—' }}</div>
+                </div>
+                
+
+                <div class="infoRow">
+                  <div class="infoKey"><i class="bi bi-building me-1"></i> Entreprise</div>
+                  <div class="infoVal">{{ u.entreprise ? u.entreprise.raisonSociale : '—' }}</div>
+                </div>
+
+                <div class="infoRow">
+                  <div class="infoKey"><i class="bi bi-credit-card-2-front me-1"></i> Abonnement</div>
+                  <div class="infoVal">{{ u.abonnement ?: '—' }}</div>
+                </div>
+
+                <div class="infoRow">
+                  <div class="infoKey"><i class="bi bi-envelope-paper me-1"></i> Newsletter</div>
+                  <div class="infoVal">
+                    {% if u.newsletter is same as(true) %}Oui{% elseif u.newsletter is same as(false) %}Non{% else %}—{% endif %}
+                  </div>
+                </div>
+
+                <div class="infoRow">
+                  <div class="infoKey"><i class="bi bi-shield-check me-1"></i> RGPD</div>
+                  <div class="infoVal">
+                    {% if u.consentementRgpd is same as(true) %}
+                      Oui{% if u.dateConsentementRgpd %} ({{ u.dateConsentementRgpd|date('d/m/Y') }}){% endif %}
+                    {% elseif u.consentementRgpd is same as(false) %}
+                      Non
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                </div>
+
+                {# roles TENANT_* sur le lien UtilisateurEntite de CETTE entité #}
+                {% set ueView = null %}
+                {% for link in u.utilisateurEntites|default([]) %}
+                  {% if ueView is null and link.entite and link.entite.id == entite.id %}
+                    {% set ueView = link %}
+                  {% endif %}
+                {% endfor %}
+
+                <div class="infoRow">
+                  <div class="infoKey"><i class="bi bi-person-gear me-1"></i> Rôles</div>
+                  <div class="infoVal text-end">
+                    {% if ueView %}
+                      {% for label in ueView.getRolesLabels() %}
+                        <span class="badge-soft ms-1">{{ label }}</span>
+                      {% endfor %}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </div>
+                </div>
+
+                {# ---- Adresse ---- #}
+                <hr class="my-3">
+
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                  <div class="flex-grow-1">
+                    <div class="fw-bold"><i class="bi bi-geo-alt me-1"></i> Adresse</div>
+                    <div class="text-muted small">
+                      {{ fullAddr ?: 'Aucune adresse renseignée.' }}
+                    </div>
+                    <div class="small text-muted mt-2">
+                      Région: {{ u.region ?: '—' }} • Département: {{ u.departement ?: '—' }} • Pays: {{ u.pays ?: '—' }}
+                    </div>
+                  </div>
+                  {% if fullAddr %}
+                    <a class="btn btn-sm btn-outline-secondary"
+                      target="_blank"
+                      href="https://www.openstreetmap.org/search?query={{ fullAddr|url_encode }}">
+                      <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          
+
+
+          
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="userDocEmailModalHost"></div>
+
+
+
+{# ===================== Modal EmailLog (iframe) ===================== #}
+<div class="modal fade" id="emailLogModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-envelope"></i> Email envoyé</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0" style="height:75vh;">
+        <iframe id="emailLogFrame" style="border:0; width:100%; height:100%;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ===================== Modal Nouvelle interaction ===================== #}
+<div class="modal fade modal-premium" id="interactionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-1"></i> Nouvelle interaction</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="interactionModalAlert" class="alert alert-danger d-none"></div>
+
+        <form id="interactionModalForm"
+              method="post"
+              action="{{ path('app_administrateur_utilisateur_interaction_create', { entite: entite.id, id: u.id }) }}">
+
+          {{ form_row(interactionForm._token) }}
+
+          <div class="row g-2">
+            <div class="col-12">
+              {{ form_row(interactionForm.channel, { attr: { class: (interactionForm.channel.vars.attr.class|default('')) ~ ' js-tomselect-modal' } }) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(interactionForm.title) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(interactionForm.occurredAt, { attr: { class: (interactionForm.occurredAt.vars.attr.class|default('')) ~ ' js-flatpickr-dt-modal' } }) }}
+            </div>
+            <div class="col-12">
+              {{ form_row(interactionForm.content) }}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-warning fw-semibold" id="btnSaveInteraction">
+              <i class="bi bi-check2-circle"></i> Enregistrer
+            </button>
+          </div>
+        </form>
+
+        <div class="small text-muted mt-2">
+          {% if linkedProspect %}
+            Prospect lié détecté : l’interaction sera aussi liée au prospect (côté serveur).
+          {% else %}
+            Interaction enregistrée directement sur l’utilisateur.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ===================== Modal Envoyer Email ===================== #}
+<div class="modal fade modal-premium" id="sendEmailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-envelope-paper me-1"></i> Envoyer un email</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="sendEmailAlert" class="alert alert-danger d-none"></div>
+
+        {% if not u.email %}
+          <div class="alert alert-warning">
+            Cet utilisateur n’a pas d’email. Impossible d’envoyer un message.
+          </div>
+        {% else %}
+          <form id="sendEmailForm" method="post"
+                action="{{ path('app_administrateur_utilisateur_email_send', { entite: entite.id, id: u.id }) }}">
+
+            <input type="hidden" name="_token" value="{{ csrf_token('send_email_user_' ~ u.id) }}">
+            <input type="hidden" name="to" value="{{ u.email }}">
+            <input type="hidden" name="idemKey" id="emailIdemKey" value="">
+
+            <div class="row g-3">
+              {# ===== Colonne gauche: Form ===== #}
+              <div class="col-12 col-lg-5">
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">À</label>
+                  <input class="form-control" value="{{ u.email }}" disabled>
+                </div>
+
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">Modèle</label>
+                  <select class="form-select" name="templateId" id="emailTemplateId" required>
+                    <option value="">— Choisir un modèle —</option>
+                    {% for t in emailTemplates|default([]) %}
+                      <option value="{{ t.id }}">{{ t.name ?: t.code }}</option>
+                    {% endfor %}
+                  </select>
+                  <div class="form-text">Aperçu en direct dès qu’un modèle est choisi.</div>
+                </div>
+
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">Sujet</label>
+                  <input class="form-control" name="subject" id="emailSubject" maxlength="160"
+                        placeholder="(optionnel) — sinon sujet du modèle">
+                </div>
+
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">Message</label>
+                  <textarea class="form-control" name="message" id="emailMessage" rows="10" required></textarea>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                  <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+                  <button type="submit" class="btn btn-success fw-semibold" id="btnSendEmail">
+                    <i class="bi bi-send"></i> Envoyer
+                  </button>
+                </div>
+              </div>
+
+              {# ===== Colonne droite: Preview ===== #}
+              <div class="col-12 col-lg-7">
+                <div class="border rounded-4 overflow-hidden" style="border-color: var(--line) !important;">
+                  <div class="d-flex align-items-center justify-content-between px-3 py-2"
+                      style="background: rgba(15,35,54,.04); border-bottom:1px solid var(--line);">
+                    <div class="fw-semibold">
+                      <i class="bi bi-eye me-1"></i> Aperçu
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                      <small id="emailPreviewState" class="text-muted"></small>
+                      <button type="button" class="btn btn-sm btn-outline-secondary"
+                              id="btnRefreshPreview">
+                        <i class="bi bi-arrow-clockwise"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="emailPreviewError" class="alert alert-danger m-3 d-none"></div>
+
+                  <div style="height: 52vh; background:#fff;">
+                    <iframe id="emailPreviewFrame"
+                      style="border:0; width:100%; height:100%;"
+                      sandbox="allow-scripts"></iframe>
+
+                  </div>
+                </div>
+                <div class="form-text mt-2">
+                  L’aperçu est rendu via ton endpoint Symfony (même rendu final que l’email).
+                </div>
+              </div>
+            </div>
+          </form>
+
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+{# ===================== Modal Suppression interaction ===================== #}
+<div class="modal fade modal-premium" id="deleteInteractionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-trash3 me-1"></i> Supprimer l’interaction
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="d-flex gap-3 align-items-start">
+          <div class="rounded-4 d-flex align-items-center justify-content-center"
+               style="width:44px;height:44px;background: rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.22);">
+            <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+          </div>
+
+          <div class="flex-grow-1">
+            <div class="fw-semibold" style="color:var(--ink);">
+              Cette action est irréversible.
+            </div>
+            <div class="text-muted mt-1">
+              Tu es sur le point de supprimer :
+            </div>
+
+            <div class="mt-2 p-3 rounded-4"
+                 style="background: rgba(15,35,54,.03); border:1px solid var(--line);">
+              <div class="fw-semibold" id="deleteInteractionTitle">—</div>
+              <div class="small text-muted mt-1">
+                <i class="bi bi-clock me-1"></i>
+                <span id="deleteInteractionDate">—</span>
+              </div>
+            </div>
+
+            <div class="small text-muted mt-3">
+              L’entrée sera supprimée de l’historique de l’utilisateur.
+            </div>
+          </div>
+        </div>
+
+        <form id="deleteInteractionForm" method="post" class="d-none">
+          <input type="hidden" name="_token" id="deleteInteractionToken" value="">
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+          Annuler
+        </button>
+        <button type="button" class="btn btn-danger fw-semibold" id="btnConfirmDeleteInteraction">
+          <i class="bi bi-trash3"></i> Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+/* ===================== EmailLog iframe ===================== */
+window.openEmailLog = function(btn){
+  const url = btn.getAttribute('data-email-view-url');
+  document.getElementById('emailLogFrame').src = url;
+
+  if (window.bootstrap?.Modal) {
+    new bootstrap.Modal(document.getElementById('emailLogModal')).show();
+  } else {
+    // fallback
+    window.open(url, '_blank');
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* ========= guards ========= */
+  const hasBootstrapModal = !!(window.bootstrap && window.bootstrap.Modal);
+
+  /* ===================== Modal Interaction ===================== */
+  const interactionModalEl = document.getElementById('interactionModal');
+  const interactionModal   = (interactionModalEl && hasBootstrapModal) ? new bootstrap.Modal(interactionModalEl) : null;
+
+  const openBtns = [
+    document.getElementById('btnOpenInteractionModal'),
+    document.getElementById('btnOpenInteractionModal2'),
+    document.getElementById('btnOpenInteractionModal3'),
+  ].filter(Boolean);
+
+  let modalPluginsInitialized = false;
+
+  function resetInteractionModal(){
+    const alert = document.getElementById('interactionModalAlert');
+    if (alert){ alert.classList.add('d-none'); alert.textContent = ''; }
+    document.getElementById('interactionModalForm')?.reset();
+
+    interactionModalEl?.querySelectorAll('.js-tomselect-modal').forEach(el => {
+      if (el?.tomselect) el.tomselect.clear(true);
+    });
+    interactionModalEl?.querySelectorAll('.js-flatpickr-dt-modal').forEach(el => {
+      if (el?._flatpickr) el._flatpickr.clear();
+    });
+  }
+
+  function initModalPluginsOnce(){
+    if (modalPluginsInitialized) return;
+
+    interactionModalEl?.querySelectorAll('.js-tomselect-modal').forEach(el => {
+      if (!el || el.tomselect) return;
+      new TomSelect(el, { create:false, allowEmptyOption:true, maxItems:1, plugins:['clear_button'] });
+    });
+
+    if (window.flatpickr) {
+      flatpickr.localize(flatpickr.l10ns.fr);
+      interactionModalEl?.querySelectorAll('.js-flatpickr-dt-modal').forEach(el => {
+        if (!el || el._flatpickr) return;
+        flatpickr(el, {
+          enableTime:true,
+          time_24hr:true,
+          dateFormat:"d/m/Y H:i",
+          allowInput:true,
+          disableMobile:true
+        });
+      });
+    }
+
+    modalPluginsInitialized = true;
+  }
+
+  function openInteractionModal(){
+    initModalPluginsOnce();
+    resetInteractionModal();
+    if (interactionModal) interactionModal.show();
+  }
+
+  openBtns.forEach(b => b.addEventListener('click', openInteractionModal));
+
+  document.getElementById('interactionModalForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btnSave = document.getElementById('btnSaveInteraction');
+    const alert  = document.getElementById('interactionModalAlert');
+
+    const old = btnSave?.innerHTML;
+    if (btnSave){
+      btnSave.disabled = true;
+      btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    }
+    if (alert){ alert.classList.add('d-none'); alert.textContent = ''; }
+
+    try{
+      const fd = new FormData(e.currentTarget);
+      const res = await fetch(e.currentTarget.action, {
+        method:'POST',
+        body:fd,
+        headers:{ 'X-Requested-With':'XMLHttpRequest' }
+      });
+
+      if(!res.ok){
+        if (alert){ alert.textContent = 'Erreur lors de l’enregistrement.'; alert.classList.remove('d-none'); }
+        return;
+      }
+
+      if (interactionModal) interactionModal.hide();
+      window.location.reload();
+    } catch(err){
+      if (alert){ alert.textContent = 'Erreur réseau. Réessaie.'; alert.classList.remove('d-none'); }
+    } finally {
+      if (btnSave){
+        btnSave.disabled = false;
+        btnSave.innerHTML = old || '<i class="bi bi-check2-circle"></i> Enregistrer';
+      }
+    }
+  });
+
+
+
+
+  /* ===================== Modal suppression interaction ===================== */
+  const deleteModalEl = document.getElementById('deleteInteractionModal');
+  const deleteFormEl  = document.getElementById('deleteInteractionForm');
+  const deleteTokenEl = document.getElementById('deleteInteractionToken');
+  const deleteTitleEl = document.getElementById('deleteInteractionTitle');
+  const deleteDateEl  = document.getElementById('deleteInteractionDate');
+  const deleteBtn     = document.getElementById('btnConfirmDeleteInteraction');
+
+  if (deleteModalEl) {
+    deleteModalEl.addEventListener('show.bs.modal', (event) => {
+      const trigger = event.relatedTarget;
+      if (!trigger) return;
+
+      const action = trigger.getAttribute('data-delete-action') || '';
+      const token  = trigger.getAttribute('data-delete-token') || '';
+      const title  = trigger.getAttribute('data-delete-title') || 'Interaction';
+      const date   = trigger.getAttribute('data-delete-date') || '—';
+
+      if (deleteFormEl) deleteFormEl.action = action;
+      if (deleteTokenEl) deleteTokenEl.value = token;
+      if (deleteTitleEl) deleteTitleEl.textContent = title;
+      if (deleteDateEl) deleteDateEl.textContent = date;
+
+      // reset bouton
+      if (deleteBtn) {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = '<i class="bi bi-trash3"></i> Supprimer';
+      }
+    });
+
+    deleteBtn?.addEventListener('click', () => {
+      if (!deleteFormEl) return;
+
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Suppression…';
+      deleteFormEl.submit();
+    });
+  }
+
+
+  /* ===================== Modal Email ===================== */
+  const sendEmailModalEl = document.getElementById('sendEmailModal');
+  const sendEmailModal   = (sendEmailModalEl && hasBootstrapModal) ? new bootstrap.Modal(sendEmailModalEl) : null;
+
+  const emailBtns = [
+    document.getElementById('btnOpenEmail'),
+    document.getElementById('btnOpenEmail2'),
+  ].filter(Boolean);
+
+  function randomHex(len){
+    try{
+      const arr = new Uint8Array(len/2);
+      (window.crypto || window.msCrypto).getRandomValues(arr);
+      return Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
+    } catch(e){
+      // fallback "moins bon" mais évite le crash
+      return (Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2)).slice(0, len);
+    }
+  }
+
+
+  function openEmailModal(){
+    const alert = document.getElementById('sendEmailAlert');
+    if (alert){ alert.classList.add('d-none'); alert.textContent=''; }
+
+    const form = document.getElementById('sendEmailForm');
+    form?.reset();
+
+    // ✅ idemKey obligatoire côté controller
+    const idem = document.getElementById('emailIdemKey');
+    if (idem) idem.value = randomHex(32); // 32 hex = 16 bytes (OK)
+
+    sendEmailModal?.show();
+    resetPreviewBox();
+
+  }
+
+
+
+    /* ===================== Preview temps réel ===================== */
+
+    const previewUrl = "{{ path('app_administrateur_utilisateur_email_preview', { entite: entite.id, id: u.id }) }}";
+
+    const elTpl   = document.getElementById('emailTemplateId');
+    const elSub   = document.getElementById('emailSubject');
+    const elMsg   = document.getElementById('emailMessage');
+    const elFrame = document.getElementById('emailPreviewFrame');
+    const elState = document.getElementById('emailPreviewState');
+    const elErr   = document.getElementById('emailPreviewError');
+    const btnRef  = document.getElementById('btnRefreshPreview');
+
+    let previewTimer = null;
+    let previewAbort = null;
+
+    function setPreviewState(txt){
+      if (elState) elState.textContent = txt || '';
+    }
+    function setPreviewError(txt){
+      if (!elErr) return;
+      if (!txt){
+        elErr.classList.add('d-none');
+        elErr.textContent = '';
+        return;
+      }
+      elErr.textContent = txt;
+      elErr.classList.remove('d-none');
+    }
+
+    async function fetchPreview(){
+      if (!previewUrl || !elFrame) return;
+
+      const form = document.getElementById('sendEmailForm');
+      if (!form) return;
+
+      const tplId = (elTpl?.value || '').trim();
+      const msg   = (elMsg?.value || '').trim();
+
+      // On ne preview pas si pas de template ou pas de message (évite spam + erreurs)
+      if (!tplId){
+        setPreviewState('Choisis un modèle…');
+        setPreviewError(null);
+        elFrame.srcdoc = `<div style="font-family:system-ui;padding:16px;color:#6b7b8a">
+          <b>Aperçu</b><br>Choisis un modèle pour afficher le rendu.
+        </div>`;
+        return;
+      }
+      if (!msg){
+        setPreviewState('Écris un message…');
+        setPreviewError(null);
+        elFrame.srcdoc = `<div style="font-family:system-ui;padding:16px;color:#6b7b8a">
+          <b>Aperçu</b><br>Écris ton message pour voir l’email.
+        </div>`;
+        return;
+      }
+
+      // Annule la requête précédente si encore en cours
+      if (previewAbort) previewAbort.abort();
+      previewAbort = new AbortController();
+
+      setPreviewError(null);
+      setPreviewState('Rendu…');
+
+      try{
+        const fd = new FormData(form);
+
+        // IMPORTANT: ton endpoint preview lit templateId, subject, message, to
+        // (FormData contient déjà tout)
+        const res = await fetch(previewUrl, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          signal: previewAbort.signal
+        });
+
+        const data = await res.json().catch(()=> ({}));
+
+        if (!res.ok || data.ok !== true){
+          setPreviewState('');
+          setPreviewError(data.error || "Impossible de générer l’aperçu.");
+          return;
+        }
+
+        // Ton controller renvoie un HTML “preview” (wrap) dans data.html
+        // => On l’injecte dans l’iframe
+        const html = data.html || '';
+        elFrame.srcdoc = html || `<div style="font-family:system-ui;padding:16px">Aucun aperçu.</div>`;
+        setPreviewState('OK');
+
+      } catch(e){
+        if (e?.name === 'AbortError') return;
+        setPreviewState('');
+        setPreviewError("Erreur réseau lors du rendu de l’aperçu.");
+      }
+    }
+
+    function schedulePreview(delay = 450){
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(fetchPreview, delay);
+    }
+
+    // Events : change/typing
+    elTpl?.addEventListener('change', () => schedulePreview(150));
+    elSub?.addEventListener('input',  () => schedulePreview(450));
+    elMsg?.addEventListener('input',  () => schedulePreview(450));
+    btnRef?.addEventListener('click', () => fetchPreview());
+
+    // Quand on ouvre la modale : prépare un preview “vide” + déclenche après saisie
+    function resetPreviewBox(){
+      setPreviewError(null);
+      setPreviewState('Choisis un modèle…');
+      if (elFrame) {
+        elFrame.srcdoc = `<div style="font-family:system-ui;padding:16px;color:#6b7b8a">
+          <b>Aperçu</b><br>Choisis un modèle puis écris ton message.
+        </div>`;
+      }
+    }
+
+
+
+  emailBtns.forEach(b => b.addEventListener('click', openEmailModal));
+
+  document.getElementById('sendEmailForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnSendEmail');
+    const alert = document.getElementById('sendEmailAlert');
+
+    const old = btn?.innerHTML;
+    if (btn){
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Envoi…';
+    }
+    if (alert){ alert.classList.add('d-none'); alert.textContent=''; }
+
+    try{
+      const fd = new FormData(e.currentTarget);
+      const res = await fetch(e.currentTarget.action, {
+        method:'POST',
+        body: fd,
+        headers: { 'X-Requested-With':'XMLHttpRequest' }
+      });
+
+      const data = await res.json().catch(()=> ({}));
+
+      if(!res.ok || data.ok !== true){
+        if (alert){
+          alert.textContent = (data.error || data.message || "Impossible d'envoyer l'email.");
+          alert.classList.remove('d-none');
+        }
+        return;
+      }
+
+      if (sendEmailModal) sendEmailModal.hide();
+
+      const url = data.viewUrl || data.emailLogUrl;
+      if (url){
+        document.getElementById('emailLogFrame').src = url;
+        if (hasBootstrapModal) {
+          new bootstrap.Modal(document.getElementById('emailLogModal')).show();
+        } else {
+          window.open(url, '_blank');
+        }
+      } else {
+        window.location.reload();
+      }
+
+
+    } catch(err){
+      if (alert){
+        alert.textContent = "Erreur réseau. Réessaie.";
+        alert.classList.remove('d-none');
+      }
+    } finally {
+      if (btn){
+        btn.disabled = false;
+        btn.innerHTML = old || '<i class="bi bi-send"></i> Envoyer';
+      }
+    }
+  });
+
+  /* ===================== DataTables lazy init ===================== */
+  let devisDT = null;
+  let facturesDT = null;
+  let inscriptionsDT = null;
+
+  function dtCommon(){
+    return {
+      processing:true,
+      serverSide:false,
+      autoWidth:false,
+      searching:true,
+      lengthChange:true,
+      pageLength:10,
+      order:[[0,'desc']],
+      language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+      ajax: { type: "POST", dataSrc: "data" },
+    };
+  }
+
+  function htmlAsIsOrStrip(data, type){
+    const v = (data ?? '').toString();
+    if (type === 'display') return v;
+    return v.replace(/<[^>]*>/g,'').trim();
+  }
+
+  function initUserDevisDT(){
+    if (devisDT) return;
+    const $t = $('#tableUserDevis');
+    if (!$t.length) return;
+
+    devisDT = $t.DataTable(Object.assign(dtCommon(), {
+      ajax:{ url:"{{ path('app_administrateur_utilisateur_devis_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
+      columns:[
+        {data:'id'},
+        {data:'numero'},
+        {data:'date'},
+        {data:'ttc'},
+        {data:'status'},
+        {data:'actions'}
+      ],
+      columnDefs:[
+        { targets:3, className:'text-end' },
+        { targets:5, className:'text-end dt-actions-compact' },
+        { targets:[4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+      ]
+    }));
+  }
+
+  function initUserFacturesDT(){
+    if (facturesDT) return;
+    const $t = $('#tableUserFactures');
+    if (!$t.length) return;
+
+    facturesDT = $t.DataTable(Object.assign(dtCommon(), {
+      ajax:{ url:"{{ path('app_administrateur_utilisateur_factures_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
+      columns:[
+        {data:'id'},
+        {data:'numero'},
+        {data:'date'},
+        {data:'ttc'},
+        {data:'status'},
+        {data:'actions'}
+      ],
+      columnDefs:[
+        { targets:3, className:'text-end' },
+        { targets:5, className:'text-end dt-actions-compact' },
+        { targets:[4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+      ]
+    }));
+  }
+
+  function initUserInscriptionsDT(){
+    if (inscriptionsDT) return;
+    const $t = $('#tableUserInscriptions');
+    if (!$t.length) return;
+
+    inscriptionsDT = $t.DataTable(Object.assign(dtCommon(), {
+      ajax:{ url:"{{ path('app_administrateur_utilisateur_inscriptions_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
+      columns:[
+        {data:'id'},
+        {data:'session'},
+        {data:'dates'},
+        {data:'statut'},
+        {data:'sessionSt'},
+        {data:'actions'}
+      ],
+      columnDefs:[
+        { targets:5, className:'text-end dt-actions-compact' },
+        { targets:[3,4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+      ]
+    }));
+  }
+
+  document.getElementById('tab-devis')?.addEventListener('shown.bs.tab', initUserDevisDT);
+  document.getElementById('tab-factures')?.addEventListener('shown.bs.tab', initUserFacturesDT);
+  document.getElementById('tab-sessions')?.addEventListener('shown.bs.tab', initUserInscriptionsDT);
+
+
+  /* ===================== KPI -> Tabs ===================== */
+  function activateTabByButtonId(btnId){
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    // Active l'onglet Bootstrap
+    if (window.bootstrap?.Tab) {
+      const t = new bootstrap.Tab(btn);
+      t.show();
+    } else {
+      // fallback
+      btn.click();
+    }
+
+    // Force init DT si besoin (lazy)
+    if (btnId === 'tab-devis') initUserDevisDT();
+    if (btnId === 'tab-factures') initUserFacturesDT();
+    if (btnId === 'tab-sessions') initUserInscriptionsDT();
+
+    // Option: scroll doux vers la zone d'onglets
+    const tabsWrap = document.querySelector('.tabsWrap');
+    if (tabsWrap) {
+      tabsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // Click + accessibilité clavier (Enter / Space)
+  document.querySelectorAll('.kpiCard.kpiLink[data-kpi-target]').forEach(card => {
+    const target = card.getAttribute('data-kpi-target');
+
+    const go = () => activateTabByButtonId(target);
+
+    card.addEventListener('click', (e) => {
+      e.preventDefault();
+      go();
+    });
+
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        go();
+      }
+    });
+  });
+
+
+
+    /* ===================== Map (Résumé) ===================== */
+  let userMap = null;
+  let userMarker = null;
+  let mapInitialized = false;
+
+  async function geocodeAddressNominatim(address){
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
+
+    // Petit cache pour éviter de géocoder 10 fois la même adresse
+    const cacheKey = 'geo:' + address;
+    try{
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached){
+        const obj = JSON.parse(cached);
+        if (obj && obj.lat && obj.lon) return obj;
+      }
+    } catch(e){}
+
+    const res = await fetch(url, {
+      headers: {
+        // Nominatim apprécie un User-Agent, mais côté navigateur on ne peut pas le forcer.
+        // On garde donc simple.
+        'Accept': 'application/json'
+      }
+    });
+
+    const data = await res.json().catch(()=>[]);
+    if (!Array.isArray(data) || !data.length) return null;
+
+    const item = data[0];
+    const out = { lat: parseFloat(item.lat), lon: parseFloat(item.lon), display_name: item.display_name };
+
+    try{ sessionStorage.setItem(cacheKey, JSON.stringify(out)); } catch(e){}
+
+    return out;
+  }
+
+  async function initUserMapOnce(){
+    if (mapInitialized) {
+      // Quand on revient sur l’onglet, Leaflet a parfois besoin d’un invalidateSize()
+      setTimeout(() => { if (userMap) userMap.invalidateSize(); }, 150);
+      return;
+    }
+
+    const mapEl = document.getElementById('userMap');
+    if (!mapEl || typeof L === 'undefined') return;
+
+    const address = "{{ (u.adresseComplete ?? '')|e('js') }}".trim();
+    const statusEl = document.getElementById('userMapStatus');
+
+    if (!address) return;
+
+    if (statusEl) statusEl.textContent = 'Recherche de la localisation…';
+
+    userMap = L.map('userMap', { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(userMap);
+
+    // fallback centre France
+    userMap.setView([46.6, 2.4], 6);
+
+    try{
+      const geo = await geocodeAddressNominatim(address);
+
+      if (!geo || !geo.lat || !geo.lon){
+        if (statusEl) statusEl.textContent = "Adresse introuvable. Vérifie l’adresse (CP/ville/pays).";
+        mapInitialized = true;
+        setTimeout(() => userMap.invalidateSize(), 150);
+        return;
+      }
+
+      const latlng = [geo.lat, geo.lon];
+      userMap.setView(latlng, 14);
+
+      userMarker = L.marker(latlng).addTo(userMap)
+        .bindPopup('<b>{{ (u.prenom ~ " " ~ u.nom|upper)|e('js') }}</b><br>' + (geo.display_name || address))
+        .openPopup();
+
+      if (statusEl) statusEl.textContent = geo.display_name || address;
+
+    } catch(e){
+      if (statusEl) statusEl.textContent = "Erreur lors du géocodage (réseau).";
+    }
+
+    mapInitialized = true;
+    setTimeout(() => userMap.invalidateSize(), 150);
+  }
+
+  document.getElementById('tab-resume')?.addEventListener('shown.bs.tab', initUserMapOnce);
+
+
+});
+
+
+/* ===================== DOC EMAIL (Devis / Facture) ===================== */
+window.openUserDevisEmailModal = async function(devisId){
+  const base = "{{ path('app_administrateur_utilisateur_devis_modal', { entite: entite.id, id: u.id, devis: 0 }) }}";
+  const url  = base.replace('/0/', '/' + devisId + '/');
+  await __openUserDocEmailModal(url);
+};
+
+window.openUserFactureEmailModal = async function(factureId){
+  const base = "{{ path('app_administrateur_utilisateur_facture_modal', { entite: entite.id, id: u.id, facture: 0 }) }}";
+  const url  = base.replace('/0/', '/' + factureId + '/');
+  await __openUserDocEmailModal(url);
+};
+
+async function __openUserDocEmailModal(url){
+  const host = document.getElementById('userDocEmailModalHost');
+  if (!host) return;
+
+  const res  = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+  const html = await res.text();
+  host.innerHTML = html;
+
+  const modalEl = document.getElementById('userDocEmailModal');
+  if (!modalEl) return;
+
+  const bsModal = new bootstrap.Modal(modalEl);
+  bsModal.show();
+
+  // ✅ On lit directement depuis le dataset de la modale injectée
+  const previewUrl = modalEl.dataset.previewUrl || '';
+  const sendUrl    = modalEl.dataset.sendUrl || '';
+
+  // ✅ refs DOM (sinon: statusEl is not defined)
+  const form        = modalEl.querySelector('#userDocSendForm');
+  const statusEl    = modalEl.querySelector('#userDocSendStatus');
+  const previewZone = modalEl.querySelector('#userDocPreviewZone');
+  const btnPrev     = modalEl.querySelector('#btnUserDocPreview');
+  const btnSend     = modalEl.querySelector('#btnUserDocSend');
+
+  if (!form || !statusEl || !previewZone || !btnPrev || !btnSend){
+    console.error('Doc email modal: éléments manquants', { form, statusEl, previewZone, btnPrev, btnSend });
+    return;
+  }
+
+  async function doPreview(){
+    if (!previewUrl) return;
+
+    statusEl.textContent = '';
+    previewZone.innerHTML =
+      '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Rendu…</div>';
+
+    const fd = new URLSearchParams();
+    fd.set('to',        form.querySelector('[name="to"]')?.value || '');
+    fd.set('subject',   form.querySelector('[name="subject"]')?.value || '');
+    fd.set('message',   form.querySelector('[name="message"]')?.value || '');
+    fd.set('idemKey',   form.querySelector('[name="idemKey"]')?.value || '');
+    fd.set('attachPdf', form.querySelector('[name="attachPdf"]')?.checked ? '1' : '0');
+
+    const r = await fetch(previewUrl, {
+      method: 'POST',
+      body: fd,
+      headers: { 'X-Requested-With':'XMLHttpRequest' }
+    });
+
+    const j = await r.json().catch(()=>null);
+
+    if (!j || !j.ok){
+      previewZone.innerHTML = '<div class="text-danger">Erreur preview : ' + ((j && j.error) ? j.error : '—') + '</div>';
+      return;
+    }
+
+    if (j.subject) {
+      const sub = form.querySelector('[name="subject"]');
+      if (sub) sub.value = j.subject;
+    }
+
+    previewZone.innerHTML = j.html || '<div class="text-muted">Aucun aperçu.</div>';
+  }
+
+  let sending = false;
+  async function doSend(){
+    if (sending || !sendUrl) return;
+    sending = true;
+
+    const old = btnSend.innerHTML;
+    btnSend.disabled = true;
+    btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Envoi…';
+    statusEl.textContent = '';
+
+    try{
+      const fd = new URLSearchParams();
+      fd.set('to',        form.querySelector('[name="to"]')?.value || '');
+      fd.set('subject',   form.querySelector('[name="subject"]')?.value || '');
+      fd.set('message',   form.querySelector('[name="message"]')?.value || '');
+      fd.set('idemKey',   form.querySelector('[name="idemKey"]')?.value || '');
+      fd.set('attachPdf', form.querySelector('[name="attachPdf"]')?.checked ? '1' : '0');
+
+      const r = await fetch(sendUrl, {
+        method:'POST',
+        body: fd,
+        headers:{ 'X-Requested-With':'XMLHttpRequest' }
+      });
+
+      const j = await r.json().catch(()=>null);
+
+      if (!j || !j.ok){
+        statusEl.textContent = (j && j.error) ? j.error : 'Erreur envoi';
+        return;
+      }
+
+      statusEl.textContent = '✅ Email envoyé.';
+      setTimeout(() => bsModal.hide(), 600);
+
+      const viewUrl = j.viewUrl;
+      if (viewUrl){
+        setTimeout(() => {
+          const frame = document.getElementById('emailLogFrame');
+          if (frame) frame.src = viewUrl;
+          new bootstrap.Modal(document.getElementById('emailLogModal')).show();
+        }, 700);
+      } else {
+        setTimeout(() => window.location.reload(), 900);
+      }
+
+    } finally {
+      sending = false;
+      btnSend.disabled = false;
+      btnSend.innerHTML = old;
+    }
+  }
+
+  // ✅ évite l’empilement d’event listeners si tu ouvres plusieurs fois
+  btnPrev.onclick = doPreview;
+  btnSend.onclick = doSend;
+
+  // auto-preview au chargement (option)
+  await doPreview();
+
+}
+
+</script>
+{% endblock %}

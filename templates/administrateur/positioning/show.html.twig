@@ -1,0 +1,556 @@
+{# templates/administrateur/positioning/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Positionnement — Admin{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+    /* ===== HERO (identique à formateur/form.html.twig) ===== */
+    .hero{
+      border-radius:22px;
+      padding: 1.2rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    @media (max-width: 768px){
+      .hero{ border-radius:16px; padding: .95rem; }
+    }
+    .meta-chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.35rem .65rem; border-radius:999px;
+      background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      white-space:nowrap;
+    }
+
+    .grid-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .info-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 26px rgba(0,0,0,.06);
+      padding: 1rem;
+    }
+
+    .grid-wrap{ overflow:auto; }
+    .grid-table{
+      width:100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 1050px;
+    }
+
+    .grid-table thead th{
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #f7f8fa;
+      border-bottom: 1px solid rgba(0,0,0,.10);
+      font-size:.78rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: rgba(0,0,0,.60);
+      padding: .65rem .75rem;
+      text-align:center;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .grid-table thead th:first-child{
+      text-align:left;
+      min-width: 520px;
+    }
+    .grid-table tbody td{
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      padding: .65rem .75rem;
+      vertical-align: middle;
+      background:#fff;
+    }
+
+    .grid-table tbody tr.row-item:nth-child(even) td{ background: rgba(35,51,66,.025); }
+    .grid-table tbody tr.row-item:hover td{ background: rgba(255,193,7,.08); }
+
+    .row-chapter td{
+      background: #eef0f3 !important;
+      border-bottom: 1px solid rgba(0,0,0,.10) !important;
+      padding: .55rem .75rem !important;
+    }
+    .chapter-title{
+      font-weight: 900;
+      letter-spacing: -.01em;
+      color: rgba(0,0,0,.78);
+      font-size: 1rem;
+      display:flex;
+      align-items:center;
+      gap:.55rem;
+    }
+    .chapter-badge{
+      font-size:.75rem;
+      padding:.25rem .55rem;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.65);
+      color: rgba(0,0,0,.65);
+      font-weight: 800;
+    }
+
+    .item-label{ font-weight: 700; color: rgba(0,0,0,.78); line-height: 1.15; white-space: normal; }
+    .item-sub{ font-size: .85rem; color: rgba(0,0,0,.55); margin-top: .15rem; }
+
+    .cell{ width: 44px; min-width: 44px; text-align:center; }
+
+    /* ✅ Case + icône (plus de pseudo-element) */
+    .box{
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      border: 1px solid rgba(0,0,0,.22);
+      background: rgba(0,0,0,.04);
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+      color: transparent;           /* icône cachée par défaut */
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+    .box.is-on{
+      background: rgba(255,193,7,.22);
+      border-color: rgba(255,193,7,.70);
+      color: rgba(0,0,0,.82);       /* ✅ icône visible */
+    }
+
+    .h-ico{
+      display:inline-flex; align-items:center; justify-content:center;
+      width: 28px; height: 28px; border-radius: 10px;
+      border:1px solid rgba(0,0,0,.10); background:#fff;
+      font-size: 1.05rem;
+    }
+    .h-lbl{ font-size:.75rem; color: rgba(0,0,0,.60); margin-top:.25rem; }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+
+  {# ===== HERO (même style que formateur/form.html.twig) ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-ui-checks me-2" style="color:var(--theme-color-secondaire)"></i>
+            Positionnement
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Détail du positionnement : connaissance & intérêt par compétences.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+
+            <span class="chip">
+              <i class="bi bi-person"></i>
+              {{ attempt.stagiaire.nomComplet|default(attempt.stagiaire.email|default('—')) }}
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-journal-check"></i>
+              {{ attempt.questionnaire.title|default('Questionnaire') }}
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-collection"></i>
+              {% if attempt.session %}
+                Session #{{ attempt.session.id }}
+              {% elseif attempt.inscription and attempt.inscription.session %}
+                Session #{{ attempt.inscription.session.id }}
+              {% else %}
+                Hors session
+              {% endif %}
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-send-check"></i>
+              Soumis :
+              {{ attempt.submittedAt ? attempt.submittedAt|date('d/m/Y H:i') : 'Non' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+            href="{{ path('app_administrateur_positioning_assignment_index', { entite: entite.id }) }}">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+
+          <button type="button"
+                  class="btn btn-light btn-sm fw-semibold"
+                  onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">
+            <i class="bi bi-arrow-down me-1"></i> Actions
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ✅ Mapping EXACT pour tes enums #}
+  {# ✅ Connaissance : accepte ANCIEN + NOUVEAU #}
+  {% set kMap = {
+    'NONE':0, 'AUCUN':0, 'FAIBLE':0, 'DEBUTANT':0, 'LOW':0, '1':0, '0':0,
+
+    'BASIC':1, 'BASE':1, 'MOYEN':1, 'INTERMEDIAIRE':1, 'MEDIUM':1, '2':1,
+
+    'GOOD':2, 'BON':2, 'BIEN':2, 'ELEVEE':2, 'HIGH':2, '3':2,
+
+    'ADVANCED':3, 'AVANCE':3, 'EXPERT':3, 'TRES_BON':3, '4':3
+  } %}
+
+  {# ✅ Intérêt : accepte variantes #}
+  {% set iMap = {
+    'YES':0, 'OUI':0, '1':0,
+    'NO':1, 'NON':1, '0':1,
+    'UNKNOWN':2, 'NE_SAIS_PAS':2, 'NSP':2, '2':2
+  } %}
+
+
+  {# ===========================
+    TABLE + GROUPING + STATS
+    =========================== #}
+
+  {# 1) Regroupe par chapitre + calcule stats #}
+  {% set groups = [] %}
+  {% set currentChapterId = null %}
+  {% set current = null %}
+
+  {% for ans in answers %}
+    {% set ch = ans.item.chapter %}
+    {% set chId = ch ? ch.id : 0 %}
+
+    {# Nouveau chapitre => push l'ancien groupe #}
+    {% if currentChapterId != chId %}
+      {% if current is not null %}
+        {% set groups = groups|merge([current]) %}
+      {% endif %}
+
+      {% set currentChapterId = chId %}
+      {% set current = {
+        chapter: ch,
+        answers: [],
+        kSum: 0,
+        kCount: 0,
+        iYes: 0,
+        iNo: 0,
+        iUnk: 0
+      } %}
+    {% endif %}
+
+    {# Ajoute la réponse au groupe #}
+    {% set current = current|merge({ answers: current.answers|merge([ans]) }) %}
+
+    {# ---- normalize knowledge : enum int-backed -> int (0..3) ---- #}
+    {% set kInt = ans.knowledge is not null
+      ? (ans.knowledge.value is defined ? ans.knowledge.value : ans.knowledge)
+      : null
+    %}
+
+    {% if kInt is not null %}
+      {% set current = current|merge({
+        kSum: current.kSum + kInt,
+        kCount: current.kCount + 1
+      }) %}
+    {% endif %}
+
+    {# ---- normalize interest : enum string-backed -> 'yes'/'no'/'unknown' ---- #}
+    {% set iStr = ans.interest is not null
+      ? (ans.interest.value is defined ? ans.interest.value : ans.interest)
+      : ''
+    %}
+    {% set iKey = (iStr ~ '')|upper %}
+
+    {% if iKey == 'YES' %}
+      {% set current = current|merge({ iYes: current.iYes + 1 }) %}
+    {% elseif iKey == 'NO' %}
+      {% set current = current|merge({ iNo: current.iNo + 1 }) %}
+    {% elseif iKey == 'UNKNOWN' %}
+      {% set current = current|merge({ iUnk: current.iUnk + 1 }) %}
+    {% endif %}
+  {% endfor %}
+
+  {# push dernier groupe #}
+  {% if current is not null %}
+    {% set groups = groups|merge([current]) %}
+  {% endif %}
+
+  {# 2) La table #}
+  <div class="grid-card mb-3">
+    <div class="p-3 border-bottom" style="background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="fw-bold"><i class="bi bi-ui-checks"></i> Réponses</div>
+        <div class="text-muted small">Chapitres + items (cases cochées)</div>
+      </div>
+    </div>
+
+    <div class="grid-wrap">
+      <table class="grid-table">
+        <thead>
+          <tr>
+            <th>Compétence / item</th>
+
+            <th colspan="4">
+              <div class="fw-bold" style="text-transform:none; letter-spacing:0; font-size:.9rem;">Connaissance</div>
+              <div class="d-flex justify-content-center gap-3 mt-2">
+                <div class="text-center"><div class="h-ico">😶</div><div class="h-lbl">Aucun</div></div>
+                <div class="text-center"><div class="h-ico">🙂</div><div class="h-lbl">Base</div></div>
+                <div class="text-center"><div class="h-ico">😃</div><div class="h-lbl">Bon</div></div>
+                <div class="text-center"><div class="h-ico">🤩</div><div class="h-lbl">Avancé</div></div>
+              </div>
+            </th>
+
+            <th colspan="3">
+              <div class="fw-bold" style="text-transform:none; letter-spacing:0; font-size:.9rem;">Intérêt à l’étudier</div>
+              <div class="d-flex justify-content-center gap-3 mt-2">
+                <div class="text-center"><div class="h-ico">✅</div><div class="h-lbl">Oui</div></div>
+                <div class="text-center"><div class="h-ico">🚫</div><div class="h-lbl">Non</div></div>
+                <div class="text-center"><div class="h-ico">❓</div><div class="h-lbl">NSP</div></div>
+              </div>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% if answers|length == 0 %}
+            <tr><td colspan="8" class="text-center text-muted py-4">Aucune réponse.</td></tr>
+          {% else %}
+
+            {% for g in groups %}
+              {% set ch = g.chapter %}
+              {% set chTitle = ch ? (ch.title|default(ch.label|default('Chapitre'))) : 'Sans chapitre' %}
+
+              {% set total = g.answers|length %}
+              {% set kAvg = (g.kCount > 0) ? (g.kSum / g.kCount) : null %}
+              {% set yesPct = (total > 0) ? (g.iYes * 100 / total) : 0 %}
+              {% set noPct  = (total > 0) ? (g.iNo  * 100 / total) : 0 %}
+              {% set unkPct = (total > 0) ? (g.iUnk * 100 / total) : 0 %}
+
+              <tr class="row-chapter">
+                <td colspan="8">
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div class="chapter-title">
+                      <i class="bi bi-folder2-open"></i>
+                      {{ chTitle }}
+                      <span class="chapter-badge">{{ total }} item(s)</span>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                      <span class="badge text-bg-light border">
+                        <i class="bi bi-bar-chart-line"></i>
+                        Connaissance moy :
+                        <strong>
+                          {% if kAvg is null %}
+                            —
+                          {% else %}
+                            {{ kAvg|number_format(2, ',', ' ') }} / 3
+                          {% endif %}
+                        </strong>
+                      </span>
+
+                      <span class="badge text-bg-light border">✅ Oui <strong>{{ yesPct|number_format(0) }}%</strong></span>
+                      <span class="badge text-bg-light border">🚫 Non <strong>{{ noPct|number_format(0) }}%</strong></span>
+                      <span class="badge text-bg-light border">❓ NSP <strong>{{ unkPct|number_format(0) }}%</strong></span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              {% for ans in g.answers %}
+                {# normalize pour l'affichage #}
+                {% set kIdx = ans.knowledge is not null
+                  ? (ans.knowledge.value is defined ? ans.knowledge.value : ans.knowledge)
+                  : null
+                %}
+
+                {% set iStr = ans.interest is not null
+                  ? (ans.interest.value is defined ? ans.interest.value : ans.interest)
+                  : ''
+                %}
+                {% set iKey = (iStr ~ '')|upper %}
+                {% set iIdx = iKey == 'YES' ? 0 : (iKey == 'NO' ? 1 : (iKey == 'UNKNOWN' ? 2 : null)) %}
+
+                <tr class="row-item">
+                  <td>
+                    <div class="item-label">{{ ans.item.label }}</div>
+                    <div class="item-sub">
+                      Niveau : <strong>{{ ans.item.level }}</strong>
+                      <span class="text-muted">— Position : {{ ans.item.position }}</span>
+                    </div>
+                  </td>
+
+                  {# Connaissance (4) #}
+                  {% for idx in 0..3 %}
+                    <td class="cell">
+                      <span class="box {{ kIdx is not null and kIdx == idx ? 'is-on' : '' }}">
+                        {% if kIdx is not null and kIdx == idx %}
+                          <i class="bi bi-check-lg"></i>
+                        {% endif %}
+                      </span>
+                    </td>
+                  {% endfor %}
+
+                  {# Intérêt (3) #}
+                  {% for idx in 0..2 %}
+                    <td class="cell">
+                      <span class="box {{ iIdx is not null and iIdx == idx ? 'is-on' : '' }}">
+                        {% if iIdx is not null and iIdx == idx %}
+                          <i class="bi bi-check-lg"></i>
+                        {% endif %}
+                      </span>
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="info-card h-100">
+        <div class="fw-bold mb-2"><i class="bi bi-chat-left-text"></i> Commentaire stagiaire</div>
+        <div class="text-muted" style="white-space: pre-wrap;">{{ attempt.stagiaireComment ?: '—' }}</div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="info-card h-100">
+        <div class="fw-bold mb-2"><i class="bi bi-mortarboard"></i> Conclusion formateur</div>
+        <div class="text-muted" style="white-space: pre-wrap;">{{ attempt.formateurConclusion ?: '—' }}</div>
+
+        {% set lvl = attempt.suggestedLevel %}
+
+          <div class="mt-3">
+            {% if lvl %}
+              {# même mapping couleurs que ton controller ajax #}
+              {% set lvlClass = 'bg-secondary' %}
+              {% if lvl.value == 'INITIAL' %}
+                {% set lvlClass = 'bg-info text-dark' %}
+              {% elseif lvl.value == 'INTERMEDIAIRE' %}
+                {% set lvlClass = 'bg-primary' %}
+              {% elseif lvl.value == 'AVANCE' %}
+                {% set lvlClass = 'bg-warning text-dark' %}
+              {% elseif lvl.value == 'EXPERT' %}
+                {% set lvlClass = 'bg-danger' %}
+              {% endif %}
+
+              <span class="badge {{ lvlClass }}">
+                <i class="bi bi-mortarboard me-1"></i>
+                Niveau suggéré :
+                <strong>
+                  {# si tu as label() dans l'enum, on l'utilise, sinon value #}
+                  {% if lvl.label is defined %}
+                    {{ lvl.label() }}
+                  {% else %}
+                    {{ lvl.value }}
+                  {% endif %}
+                </strong>
+              </span>
+            {% else %}
+              <span class="badge bg-secondary">
+                <i class="bi bi-mortarboard me-1"></i>
+                Niveau suggéré : —
+              </span>
+            {% endif %}
+          </div>
+
+      </div>
+    </div>
+  </div>
+
+{% endblock %}

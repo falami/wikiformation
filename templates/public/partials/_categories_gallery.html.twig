@@ -1,0 +1,33 @@
+{# templates/public/partials/_categories_gallery.html.twig #}
+
+<section class="container pb-3 pt-4">
+  <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+    <div class="me-auto">
+      <div class="text-uppercase small fw-bold" style="letter-spacing:.14em; color: black;">
+        Explorer par matière
+      </div>
+      <h2 class="h4 mb-0 text-dark">Choisis une catégorie</h2>
+    </div>
+    <a class="btn btn-outline-light btn-sm" href="{{ path('app_public_catalogue') }}">
+      <i class="bi bi-grid-3x3-gap"></i> Voir tout le catalogue
+    </a>
+  </div>
+
+  <div class="cat-strip" id="catStrip">
+    {% for c in categoriesRoot %}
+      {% set cover = c.photo ? asset('uploads/photos/categorie/' ~ c.photo) : asset('dist/img/placeholder-cat.png') %}
+      <a class="cat-tile" href="{{ path('app_public_categorie_show', {slug: c.slug}) }}" style="--bgimg:url('{{ cover|e('html_attr') }}');">
+        <div class="cat-tile__overlay"></div>
+        <div class="cat-tile__content">
+          <div class="cat-tile__chip">
+            <i class="bi bi-folder me-1"></i> Catégorie
+          </div>
+          <div class="cat-tile__title">{{ c.nom }}</div>
+          <div class="cat-tile__sub">Voir les sous-catégories</div>
+        </div>
+      </a>
+    {% else %}
+      <div class="text-dark-50">Aucune catégorie publique pour le moment.</div>
+    {% endfor %}
+  </div>
+</section>
