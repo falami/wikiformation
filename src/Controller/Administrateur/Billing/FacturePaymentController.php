@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Administrateur\Billing;
+namespace App\Controller\Billing;
 
 use App\Entity\Entite;
 use App\Entity\Facture;
