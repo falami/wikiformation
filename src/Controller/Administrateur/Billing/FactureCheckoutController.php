@@ -91,6 +91,15 @@ final class FactureCheckoutController extends AbstractController
         // Frais plateforme (repercutés au payeur) : application_fee_amount
         $serviceFeeCents = $connect->computeServiceFeeCents($remainingCents);
 
+        $existing = $this->checkoutRepo->findLatestCreatedForFactureSince(
+            $facture,
+            new \DateTimeImmutable('-2 hours')
+        );
+
+        if ($existing && $existing->getCheckoutUrl()) {
+            return new RedirectResponse($existing->getCheckoutUrl());
+        }
+
         // Créer FactureCheckout (snapshot)
         $fc = new FactureCheckout();
         $fc->setEntite($entite);
