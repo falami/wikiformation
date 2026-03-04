@@ -340,6 +340,20 @@
               <i class="fa fa-plus me-1"></i> Paiement
             </a>
           {% endif %}
+          {% set connect = entite.connect ?? null %}
+          {% set canPayOnline = connect and connect.onlinePaymentEnabled and connect.isReadyForCheckout %}
+          {% set canPayNow = canPayOnline and (remainingCents|default(0) > 0) and st != 'canceled' %}
+
+          {% if canPayNow %}
+            <form method="post"
+                  action="{{ path('app_billing_checkout_start', { entite: entite.id, facture: f.id }) }}"
+                  class="d-inline">
+              <input type="hidden" name="_token" value="{{ csrf_token('checkout_start_' ~ f.id) }}">
+              <button type="submit" class="btn btn-warning btn-sm fw-semibold">
+                <i class="bi bi-credit-card-2-front me-1"></i> Payer en ligne
+              </button>
+            </form>
+          {% endif %}
 
         </div>
 
@@ -616,6 +630,16 @@
             <i class="bi bi-file-earmark-pdf"></i> Télécharger le PDF
           </a>
 
+          {% if canPayNow %}
+            <form method="post"
+                  action="{{ path('app_billing_checkout_start', { entite: entite.id, facture: f.id }) }}">
+              <input type="hidden" name="_token" value="{{ csrf_token('checkout_start_' ~ f.id) }}">
+              <button class="btn btn-warning btn-pill w-100" type="submit">
+                <i class="bi bi-credit-card-2-front"></i> Payer en ligne (Stripe)
+              </button>
+            </form>
+          {% endif %}
+
           {% if remainingCents|default(0) > 0 and st != 'canceled' %}
             <a class="btn btn-success btn-pill"
                href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}">
@@ -660,6 +684,17 @@
        href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
       <i class="bi bi-file-earmark-pdf"></i> PDF
     </a>
+
+    {% if canPayNow %}
+      <form method="post"
+            action="{{ path('app_billing_checkout_start', { entite: entite.id, facture: f.id }) }}"
+            class="flex-grow-1">
+        <input type="hidden" name="_token" value="{{ csrf_token('checkout_start_' ~ f.id) }}">
+        <button class="btn btn-warning btn-pill btn-sm w-100" type="submit">
+          <i class="bi bi-credit-card-2-front"></i> Payer en ligne
+        </button>
+      </form>
+    {% endif %}
 
     {% if remainingCents|default(0) > 0 and st != 'canceled' %}
       <a class="btn btn-success btn-pill btn-sm flex-grow-1"
