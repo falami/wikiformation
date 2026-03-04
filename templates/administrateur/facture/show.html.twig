@@ -4,7 +4,9 @@
 
 {% block stylesheets %}
   {{ parent() }}
+
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
 
   <style>
     :root{
@@ -28,7 +30,7 @@
     .hero{
       position:relative; overflow:hidden;
       border-radius: calc(var(--r) + 6px);
-      padding: 22px 22px;
+      padding: 22px;
       color:#fff;
       box-shadow: 0 24px 70px rgba(0,0,0,.18);
       background:
@@ -43,7 +45,7 @@
         linear-gradient(90deg, rgba(255,255,255,.08), transparent 70%);
       pointer-events:none;
     }
-    .hero .topline{
+    .topline{
       display:flex; flex-wrap:wrap; gap:.5rem; align-items:center;
       position:relative; z-index:2;
     }
@@ -56,10 +58,11 @@
       backdrop-filter: blur(7px);
       font-size:.85rem;
       color: rgba(255,255,255,.92);
+      white-space: nowrap;
     }
     .hero h1{
       position:relative; z-index:2;
-      font-weight: 900;
+      font-weight: 950;
       letter-spacing: -.02em;
       font-size: 1.65rem;
       margin: .6rem 0 .25rem;
@@ -69,7 +72,6 @@
       color: rgba(255,255,255,.82);
       font-size:.95rem;
     }
-
     .hero-actions{
       position:relative; z-index:2;
       display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end;
@@ -88,7 +90,7 @@
     }
     .btn-ghost:hover{ background: rgba(255,255,255,.16) !important; }
 
-    /* ===== Cards / glass ===== */
+    /* ===== Panels glass ===== */
     .panel{
       background: var(--panel);
       border: 1px solid var(--stroke);
@@ -100,14 +102,13 @@
       padding: 14px 16px;
       display:flex; align-items:center; justify-content:space-between; gap:1rem;
       border-bottom: 1px solid var(--stroke);
-      background:
-        radial-gradient(700px 140px at 18% 0%, rgba(255,193,7,.12), transparent 60%),
-        linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,1));
+      background: var(--panel);
     }
     .panel-title{
       display:flex; align-items:center; gap:.65rem;
       font-weight:900; color: var(--ink);
       letter-spacing: -.01em;
+      margin:0;
     }
     .panel-title i{
       width: 40px; height:40px; display:grid; place-items:center;
@@ -123,9 +124,7 @@
       padding: 14px 14px;
       border-radius: 18px;
       border: 1px solid var(--stroke);
-      background:
-        radial-gradient(700px 140px at 18% 0%, rgba(255,193,7,.12), transparent 60%),
-        #fff;
+      background: var(--panel);
     }
     .kpi .ico{
       width: 46px; height:46px; border-radius: 16px;
@@ -137,6 +136,22 @@
     .kpi .label{ color: rgba(15,23,42,.60); font-size:.86rem; }
     .kpi .val{ font-weight: 950; font-size: 1.35rem; letter-spacing:-.02em; color: var(--ink); }
     .kpi .sub{ color: rgba(15,23,42,.55); font-size:.82rem; }
+
+    .mono{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+    .badge-soft{
+      border-radius: 999px;
+      border: 1px solid rgba(15,23,42,.12);
+      background: rgba(15,23,42,.04);
+      padding: .3rem .55rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .pill-success{ background: rgba(25,135,84,.10); border-color: rgba(25,135,84,.22); color:#146c43; }
+    .pill-danger{  background: rgba(220,53,69,.10); border-color: rgba(220,53,69,.22); color:#b02a37; }
+    .pill-warn{    background: rgba(255,193,7,.16); border-color: rgba(255,193,7,.30); color:#8a6a00; }
+    .pill-muted{   background: rgba(108,117,125,.10); border-color: rgba(108,117,125,.20); color:#495057; }
+    .pill-info{    background: rgba(13,110,253,.10); border-color: rgba(13,110,253,.22); color:#0b5ed7; }
 
     /* ===== Tables premium ===== */
     .table-premium thead th{
@@ -151,23 +166,11 @@
     .table-premium tbody td{
       border-bottom: 1px solid rgba(15,23,42,.08);
       vertical-align: middle;
+      font-size: .92rem;
     }
     .table-premium tbody tr:hover > *{
       background: rgba(255,193,7,.08) !important;
     }
-    .mono{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
-
-    .badge-soft{
-      border-radius: 999px;
-      border: 1px solid rgba(15,23,42,.12);
-      background: rgba(15,23,42,.04);
-      padding: .3rem .55rem;
-      font-weight: 800;
-    }
-    .pill-success{ background: rgba(25,135,84,.10); border-color: rgba(25,135,84,.22); color:#146c43; }
-    .pill-danger{  background: rgba(220,53,69,.10); border-color: rgba(220,53,69,.22); color:#b02a37; }
-    .pill-warn{    background: rgba(255,193,7,.16); border-color: rgba(255,193,7,.30); color:#8a6a00; }
-    .pill-muted{   background: rgba(108,117,125,.10); border-color: rgba(108,117,125,.20); color:#495057; }
 
     /* ===== Sidebar info ===== */
     .info-grid{
@@ -186,7 +189,16 @@
     .info .k{ color: rgba(15,23,42,.55); font-size:.82rem; }
     .info .v{ font-weight: 850; color: var(--ink); margin-top:.15rem; }
 
-    /* ===== Floating actions on mobile ===== */
+    pre.pretty-pre{
+      background:#f8f9fa;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:12px 14px;
+      white-space:pre-wrap;
+      margin:0;
+    }
+
+    /* Mobile sticky actions */
     @media (max-width: 768px){
       .sticky-actions{
         position: sticky;
@@ -200,6 +212,13 @@
         box-shadow: 0 18px 55px rgba(0,0,0,.10);
         backdrop-filter: blur(10px);
       }
+      td.action-column{
+        position: sticky;
+        right:0;
+        background:#fff;
+        z-index:5;
+        box-shadow:-8px 0 12px -8px rgba(0,0,0,.08);
+      }
     }
   </style>
 {% endblock %}
@@ -212,7 +231,6 @@
 {% set htEur = (f.montantHtCents / 100) %}
 {% set tvaEur = (f.montantTvaCents / 100) %}
 {% set ttcEur = (f.montantTtcCents / 100) %}
-
 
   {# ===== HERO ===== #}
   <div class="hero mb-3">
@@ -234,19 +252,20 @@
           <i class="bi bi-exclamation-circle"></i> À PAYER
         </span>
       {% endif %}
+
+      {% if f.stripeInvoiceId %}
+        <span class="chip" title="Stripe Invoice ID"><i class="bi bi-stripe"></i> {{ f.stripeInvoiceId }}</span>
+      {% endif %}
     </div>
 
     <div class="d-flex flex-wrap gap-3 align-items-start justify-content-between mt-2">
       <div>
         <h1 class="mb-0">{{ num }}</h1>
         <div class="sub">
-          Destinataire : <span class="fw-semibold text-white">{{ f.destinataireLabel }}</span>
-          {% if f.stripeInvoiceId %}
-            <span class="ms-2 chip" title="Stripe Invoice ID"><i class="bi bi-stripe"></i> {{ f.stripeInvoiceId }}</span>
-          {% endif %}
+          Destinataire :
+          <span class="fw-semibold text-white">{{ f.destinataireLabel }}</span>
         </div>
       </div>
-      
 
       <div class="hero-actions">
         <a class="btn btn-pill btn-ghost btn-sm"
@@ -259,33 +278,29 @@
           <i class="bi bi-pencil-square"></i> Éditer
         </a>
 
-        <a class="btn btn-pill btn-sm"
-           style="background: rgba(220,53,69,.18); color:#fff;"
+        <a class="btn btn-pill btn-ghost btn-sm"
            href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
           <i class="bi bi-file-earmark-pdf"></i> PDF
         </a>
 
-
-
+        {# Paiement en ligne (Connect) #}
         {% set connect = entite.connect ?? null %}
         {% set canPayOnline = connect and connect.onlinePaymentEnabled and connect.isReadyForCheckout %}
 
-        {% if canPayOnline %}
+        {% if canPayOnline and remainingCents|default(0) > 0 and st != 'canceled' %}
           <form method="post"
-                action="{{ path('app_admin_facture_paiement_checkout', {entite: entite.id, id: facture.id}) }}"
+                action="{{ path('app_admin_facture_paiement_checkout', {entite: entite.id, id: f.id}) }}"
                 class="d-inline">
-            <input type="hidden" name="_token" value="{{ csrf_token('facture_checkout_' ~ facture.id) }}">
-            <button class="btn btn-warning fw-semibold" type="submit" style="border-radius:14px;">
+            <input type="hidden" name="_token" value="{{ csrf_token('facture_checkout_' ~ f.id) }}">
+            <button class="btn btn-pill btn-sm"
+                    type="submit"
+                    style="background: rgba(255,193,7,.22); color:#fff;">
               <i class="bi bi-credit-card-2-front me-1"></i> Payer en ligne
             </button>
           </form>
-        {% else %}
-          <div class="alert alert-info">
-            Paiement en ligne indisponible (Stripe non connecté ou onboarding incomplet).
-          </div>
         {% endif %}
 
-        {% if remainingCents > 0 and st != 'canceled' %}
+        {% if remainingCents|default(0) > 0 and st != 'canceled' %}
           <a class="btn btn-pill btn-sm"
              style="background: rgba(25,135,84,.20); color:#fff;"
              href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}">
@@ -295,6 +310,8 @@
       </div>
     </div>
   </div>
+
+  {% include 'flagMessage.html.twig' %}
 
   {# ===== KPIs ===== #}
   <div class="row g-3 mb-3">
@@ -336,9 +353,7 @@
         <div class="ico"><i class="bi bi-exclamation-circle fs-4"></i></div>
         <div class="flex-grow-1">
           <div class="label">Reste</div>
-          <div class="val mono">
-            {{ remainingEur|number_format(2, ',', ' ') }} €
-          </div>
+          <div class="val mono">{{ remainingEur|number_format(2, ',', ' ') }} €</div>
           <div class="sub">TTC − payé</div>
         </div>
       </div>
@@ -356,6 +371,7 @@
             <i class="bi bi-list-check"></i>
             Lignes de facture
           </div>
+
           <span class="badge-soft pill-muted">
             {{ f.lignes|length }} ligne{{ f.lignes|length > 1 ? 's' : '' }}
           </span>
@@ -378,6 +394,9 @@
                 <tr {% if l.isDebours %}style="background: rgba(108,117,125,.06)"{% endif %}>
                   <td>
                     <div class="fw-semibold">{{ l.label }}</div>
+                    {% if l.isDebours %}
+                      <div class="small text-muted mt-1"><i class="bi bi-info-circle me-1"></i>Débours</div>
+                    {% endif %}
                   </td>
 
                   <td class="text-end mono">{{ l.qte }}</td>
@@ -402,7 +421,7 @@
             Paiements
           </div>
 
-          {% if remainingCents > 0 and st != 'canceled' %}
+          {% if remainingCents|default(0) > 0 and st != 'canceled' %}
             <a class="btn btn-sm btn-success btn-pill"
                href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}">
               <i class="bi bi-plus-circle"></i> Ajouter
@@ -428,9 +447,8 @@
                   <td>
                     {% set mode = p.mode %}
                     {% if mode is not null %}
-                      {# badges par mode #}
                       {% set cls = mode.value == 'cb' ? 'pill-success'
-                        : (mode.value == 'virement' ? 'pill-muted'
+                        : (mode.value == 'virement' ? 'pill-info'
                         : (mode.value == 'cheque' ? 'pill-warn'
                         : (mode.value == 'especes' ? 'pill-warn'
                         : 'pill-muted'))) %}
@@ -442,9 +460,7 @@
                     {% endif %}
                   </td>
 
-                  <td>
-                    <span class="text-muted">{{ p.payeurLabel }}</span>
-                  </td>
+                  <td><span class="text-muted">{{ p.payeurLabel }}</span></td>
 
                   <td class="text-end mono fw-semibold">
                     {{ (p.montantCents/100)|number_format(2, ',', ' ') }} €
@@ -521,17 +537,32 @@
               <div class="info" style="grid-column: 1 / -1;">
                 <div class="k">Meta</div>
                 <div class="v">
-                  <code class="d-block small" style="white-space: pre-wrap; color: rgba(15,23,42,.70);">
-                  {{ f.meta|json_encode(constant('JSON_PRETTY_PRINT')) }}
-                  </code>
+                  <pre class="pretty-pre small mb-0">{{ f.meta|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
                 </div>
               </div>
             {% endif %}
+
+            {# Paiement en ligne : on garde la logique mais on la met "à la Inscription" (info discrète) #}
+            {% set connect = entite.connect ?? null %}
+            {% set canPayOnline = connect and connect.onlinePaymentEnabled and connect.isReadyForCheckout %}
+            <div class="info" style="grid-column: 1 / -1;">
+              <div class="k">Paiement en ligne</div>
+              <div class="v">
+                {% if canPayOnline %}
+                  <span class="badge-soft pill-success"><i class="bi bi-check2-circle me-1"></i>Disponible</span>
+                {% else %}
+                  <span class="badge-soft pill-muted"><i class="bi bi-slash-circle me-1"></i>Indisponible</span>
+                  <div class="small text-muted mt-1">
+                    Stripe non connecté ou onboarding incomplet.
+                  </div>
+                {% endif %}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel mb-3">
         <div class="panel-hd">
           <div class="panel-title">
             <i class="bi bi-shield-check"></i>
@@ -549,7 +580,7 @@
             <i class="bi bi-file-earmark-pdf"></i> Télécharger le PDF
           </a>
 
-          {% if remainingCents > 0 and st != 'canceled' %}
+          {% if remainingCents|default(0) > 0 and st != 'canceled' %}
             <a class="btn btn-success btn-pill"
                href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}">
               <i class="bi bi-plus-circle"></i> Ajouter un paiement
@@ -557,6 +588,27 @@
           {% endif %}
         </div>
       </div>
+
+      {# Optionnel : petite "zone sensible" comme tes autres pages (si tu as une route delete) #}
+      {# 
+      <div class="panel border-danger">
+        <div class="panel-hd" style="background:rgba(220,53,69,.08)">
+          <div class="panel-title text-danger">
+            <i class="bi bi-trash"></i> Zone sensible
+          </div>
+        </div>
+        <div class="panel-bd">
+          <form method="post"
+                action="{{ path('app_administrateur_facture_delete', {entite: entite.id, id: f.id}) }}"
+                onsubmit="return confirm('Supprimer définitivement cette facture ?');">
+            <input type="hidden" name="_token" value="{{ csrf_token('del' ~ f.id) }}">
+            <button class="btn btn-outline-danger btn-pill w-100">
+              <i class="bi bi-trash me-1"></i> Supprimer la facture
+            </button>
+          </form>
+        </div>
+      </div>
+      #}
 
     </div>
   </div>
@@ -567,11 +619,13 @@
        href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">
       <i class="bi bi-arrow-left"></i> Retour
     </a>
+
     <a class="btn btn-outline-danger btn-pill btn-sm flex-grow-1"
        href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
       <i class="bi bi-file-earmark-pdf"></i> PDF
     </a>
-    {% if remainingCents > 0 and st != 'canceled' %}
+
+    {% if remainingCents|default(0) > 0 and st != 'canceled' %}
       <a class="btn btn-success btn-pill btn-sm flex-grow-1"
          href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}">
         <i class="bi bi-plus-circle"></i> Paiement
