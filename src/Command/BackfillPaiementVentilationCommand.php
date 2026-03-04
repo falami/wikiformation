@@ -3,7 +3,6 @@
 namespace App\Command;
 
 use App\Entity\Paiement;
-use App\Service\Tax\Dummy; // rien
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

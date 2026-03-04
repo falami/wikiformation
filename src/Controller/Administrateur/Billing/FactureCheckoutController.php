@@ -38,14 +38,14 @@ final class FactureCheckoutController extends AbstractController
             throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
         }
 
-        if (!$this->isCsrfTokenValid('facture_checkout_' . $facture->getId(), (string)$request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('facture_checkout_' . $facture->getId(), (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('CSRF invalide.');
         }
 
         $paidCents = 0;
-        foreach ($facture->getPaiements() as $p) $paidCents += (int)$p->getMontantCents();
+        foreach ($facture->getPaiements() as $p) $paidCents += (int) $p->getMontantCents();
 
-        $totalCents = (int)$facture->getTtcTotalCents();
+        $totalCents = (int) $facture->getTtcTotalCents();
         $remainingCents = max(0, $totalCents - $paidCents);
 
         if ($remainingCents <= 0) {
@@ -111,13 +111,13 @@ final class FactureCheckoutController extends AbstractController
 
         $stripe = new \Stripe\StripeClient($this->stripeSecretKey);
 
+        // ✅ base session params
         $sessionParams = [
             'mode' => 'payment',
             'payment_method_types' => ['card'],
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
 
-            // (optionnel) meilleure UX + conformité
             'billing_address_collection' => 'auto',
             'customer_creation' => 'if_required',
 
@@ -127,16 +127,16 @@ final class FactureCheckoutController extends AbstractController
                     'currency' => strtolower($facture->getDevise() ?? 'EUR'),
                     'unit_amount' => $remainingCents,
                     'product_data' => [
-                        'name' => sprintf('Paiement facture %s', $facture->getNumero() ?: ('#'.$facture->getId())),
+                        'name' => sprintf('Paiement facture %s', $facture->getNumero() ?: ('#' . $facture->getId())),
                     ],
                 ],
             ]],
 
             'metadata' => [
                 'type' => 'facture_checkout',
-                'entite_id' => (string)$entite->getId(),
-                'facture_id' => (string)$facture->getId(),
-                'facture_checkout_id' => (string)$fc->getId(),
+                'entite_id' => (string) $entite->getId(),
+                'facture_id' => (string) $facture->getId(),
+                'facture_checkout_id' => (string) $fc->getId(),
             ],
         ];
 
@@ -144,55 +144,73 @@ final class FactureCheckoutController extends AbstractController
             $sessionParams['payment_intent_data'] = [
                 'application_fee_amount' => $serviceFeeCents,
                 'metadata' => [
-                    'facture_checkout_id' => (string)$fc->getId(),
-                    'facture_id' => (string)$facture->getId(),
+                    'facture_checkout_id' => (string) $fc->getId(),
+                    'facture_id' => (string) $facture->getId(),
                 ],
             ];
         }
 
-        // ✅ VERSION PRO : réutiliser un Customer Stripe sur CE compte connecté
-        $email = ($actor instanceof Utilisateur) ? trim((string)$actor->getEmail()) : '';
-        $email = $email !== '' ? $email : null;
+        // ✅ PAYEUR (destinataire facture) -> email/name
+        $payeurEmail = null;
+        $payeurName  = null;
 
-        if ($actor instanceof Utilisateur) {
-            $map = $this->customerMapRepo->findFor($connectedAccountId, $actor);
+        if ($payeurUser instanceof Utilisateur) {
+            $payeurEmail = trim((string) $payeurUser->getEmail()) ?: null;
+            $payeurName  = trim(($payeurUser->getPrenom() ?? '') . ' ' . ($payeurUser->getNom() ?? '')) ?: null;
+        } elseif ($payeurEnt) {
+            $payeurEmail = method_exists($payeurEnt, 'getEmail') ? (trim((string) $payeurEnt->getEmail()) ?: null) : null;
+            $payeurName  = method_exists($payeurEnt, 'getRaisonSociale') ? (trim((string) $payeurEnt->getRaisonSociale()) ?: null) : null;
+        }
+
+        // fallback admin (si aucun email payeur)
+        if (!$payeurEmail && $actor instanceof Utilisateur) {
+            $payeurEmail = trim((string) $actor->getEmail()) ?: null;
+            $payeurName  = $payeurName ?: (trim(($actor->getPrenom() ?? '') . ' ' . ($actor->getNom() ?? '')) ?: null);
+        }
+
+        // ✅ mapping customer UNIQUEMENT si payeurUser
+        if ($payeurUser instanceof Utilisateur) {
+            $map = $this->customerMapRepo->findFor($connectedAccountId, $payeurUser);
 
             if ($map) {
-                // customer existant => Checkout préremplit (et c’est le mieux)
                 $sessionParams['customer'] = $map->getStripeCustomerId();
-            } elseif ($email) {
-                // sinon on le crée sur le compte connecté et on mémorise
+            } elseif ($payeurEmail) {
                 $customer = $stripe->customers->create([
-                    'email' => $email,
-                    'name' => trim(($actor->getPrenom() ?? '') . ' ' . ($actor->getNom() ?? '')) ?: null,
+                    'email' => $payeurEmail,
+                    'name'  => $payeurName,
                     'metadata' => [
-                        'utilisateur_id' => (string)$actor->getId(),
-                        'entite_id' => (string)$entite->getId(),
-                        'source' => 'wikiformation_facture',
+                        'utilisateur_id' => (string) $payeurUser->getId(),
+                        'entite_id'      => (string) $entite->getId(),
+                        'source'         => 'wikiformation_facture',
+                        'facture_id'     => (string) $facture->getId(),
                     ],
                 ], ['stripe_account' => $connectedAccountId]);
 
                 $map = (new StripeCustomerMap())
                     ->setConnectedAccountId($connectedAccountId)
-                    ->setUtilisateur($actor)
+                    ->setUtilisateur($payeurUser)
                     ->setStripeCustomerId($customer->id);
 
                 $this->em->persist($map);
                 $this->em->flush();
 
                 $sessionParams['customer'] = $customer->id;
-            } elseif ($email) {
-                // fallback (normalement jamais ici)
-                $sessionParams['customer_email'] = $email;
             }
-        } elseif ($email) {
-            // si pas de user Symfony mais email dispo
-            $sessionParams['customer_email'] = $email;
         }
 
-        // (fallback sécurité) si on n’a pas customer mais qu’on a email
-        if (!isset($sessionParams['customer']) && $email) {
-            $sessionParams['customer_email'] = $email;
+        // sinon on préremplit par email
+        if (!isset($sessionParams['customer']) && $payeurEmail) {
+            $sessionParams['customer_email'] = $payeurEmail;
+        }
+
+        // ✅ Stripe rule: customer XOR customer_creation
+        if (isset($sessionParams['customer'])) {
+            $sessionParams['customer_update'] = [
+                'name'    => 'auto',
+                'address' => 'auto',
+            ];
+            unset($sessionParams['customer_creation']);
+            unset($sessionParams['customer_email']);
         }
 
         $session = $stripe->checkout->sessions->create(
