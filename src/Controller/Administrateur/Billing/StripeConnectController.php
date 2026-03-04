@@ -11,15 +11,17 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 #[Route('/administrateur/{entite}/billing/connect', name: 'app_administrateur_billing_connect_')]
 #[IsGranted('ROLE_USER')]
 class StripeConnectController extends AbstractController
 {
+
     public function __construct(
         private readonly StripeClientFactory $stripeFactory,
         private readonly EntityManagerInterface $em,
-        private readonly string $appUrl,
+        #[Autowire('%app.url%')] private readonly string $appUrl,
     ) {}
 
     #[Route('', name: 'index', methods: ['GET'])]
