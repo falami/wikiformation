@@ -245,6 +245,13 @@
         box-shadow:-8px 0 12px -8px rgba(0,0,0,.08);
       }
     }
+
+    /* Empêche "250,00" et "€" de se séparer sur 2 lignes */
+    .mono{ 
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+      white-space: nowrap;           /* ✅ important */
+    }
   </style>
 {% endblock %}
 
@@ -349,7 +356,7 @@
         <div class="ico"><i class="bi bi-cash-stack fs-4"></i></div>
         <div class="flex-grow-1">
           <div class="label">Total TTC</div>
-          <div class="val mono">{{ ttcEur|number_format(2, ',', ' ') }} €</div>
+          <div class="val mono">{{ ttcEur|number_format(2, ',', ' ') }}&nbsp;€</div>
           <div class="sub">Somme de la facture</div>
         </div>
       </div>
@@ -360,8 +367,8 @@
         <div class="ico"><i class="bi bi-receipt fs-4"></i></div>
         <div class="flex-grow-1">
           <div class="label">HT / TVA</div>
-          <div class="val mono">{{ htEur|number_format(2, ',', ' ') }} €</div>
-          <div class="sub mono">TVA : {{ tvaEur|number_format(2, ',', ' ') }} €</div>
+          <div class="val mono">{{ htEur|number_format(2, ',', ' ') }}&nbsp;€</div>
+          <div class="sub mono">TVA : {{ tvaEur|number_format(2, ',', ' ') }}&nbsp;€</div>
         </div>
       </div>
     </div>
@@ -371,7 +378,7 @@
         <div class="ico"><i class="bi bi-check2-circle fs-4"></i></div>
         <div class="flex-grow-1">
           <div class="label">Payé</div>
-          <div class="val mono">{{ paidEur|number_format(2, ',', ' ') }} €</div>
+          <div class="val mono">{{ paidEur|number_format(2, ',', ' ') }}&nbsp;€</div>
           <div class="sub">Encaissements</div>
         </div>
       </div>
@@ -382,7 +389,7 @@
         <div class="ico"><i class="bi bi-exclamation-circle fs-4"></i></div>
         <div class="flex-grow-1">
           <div class="label">Reste</div>
-          <div class="val mono">{{ remainingEur|number_format(2, ',', ' ') }} €</div>
+          <div class="val mono">{{ remainingEur|number_format(2, ',', ' ') }}&nbsp;€</div>
           <div class="sub">TTC − payé</div>
         </div>
       </div>
@@ -429,10 +436,10 @@
                   </td>
 
                   <td class="text-end mono">{{ l.qte }}</td>
-                  <td class="text-end mono">{{ (l.puHtCents/100)|number_format(2, ',', ' ') }} €</td>
-                  <td class="text-end mono fw-semibold">{{ (l.totalHtNetCents/100)|number_format(2, ',', ' ') }} €</td>
-                  <td class="text-end mono">{{ (l.totalTvaCents/100)|number_format(2, ',', ' ') }} €</td>
-                  <td class="text-end mono fw-semibold">{{ (l.totalTtcCents/100)|number_format(2, ',', ' ') }} €</td>
+                  <td class="text-end mono">{{ (l.puHtCents/100)|number_format(2, ',', ' ') }}&nbsp;€</td>
+                  <td class="text-end mono fw-semibold">{{ (l.totalHtNetCents/100)|number_format(2, ',', ' ') }}&nbsp;€</td>
+                  <td class="text-end mono">{{ (l.totalTvaCents/100)|number_format(2, ',', ' ') }}&nbsp;€</td>
+                  <td class="text-end mono fw-semibold">{{ (l.totalTtcCents/100)|number_format(2, ',', ' ') }}&nbsp;€</td>
                 </tr>
               {% else %}
                 <tr><td colspan="6" class="text-muted">Aucune ligne.</td></tr>
@@ -492,7 +499,7 @@
                   <td><span class="text-muted">{{ p.payeurLabel }}</span></td>
 
                   <td class="text-end mono fw-semibold">
-                    {{ (p.montantCents/100)|number_format(2, ',', ' ') }} €
+                    {{ (p.montantCents/100)|number_format(2, ',', ' ') }}&nbsp;€
                   </td>
                 </tr>
               {% else %}
@@ -552,7 +559,7 @@
                 <div class="k">Remise globale</div>
                 <div class="v">
                   {% if f.remiseGlobaleMontantCents is not null and f.remiseGlobaleMontantCents > 0 %}
-                    -{{ (f.remiseGlobaleMontantCents/100)|number_format(2, ',', ' ') }} €
+                    -{{ (f.remiseGlobaleMontantCents/100)|number_format(2, ',', ' ') }}&nbsp;€
                   {% elseif f.remiseGlobalePourcent is not null and f.remiseGlobalePourcent > 0 %}
                     {{ f.remiseGlobalePourcent|number_format(2, ',', ' ') }} %
                   {% else %}
