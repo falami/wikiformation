@@ -26,55 +26,80 @@
 
     body{ background: var(--bg); }
 
-    /* ===== HERO premium ===== */
+    
     .hero{
-      position:relative; overflow:hidden;
-      border-radius: calc(var(--r) + 6px);
-      padding: 22px;
-      color:#fff;
-      box-shadow: 0 24px 70px rgba(0,0,0,.18);
+      border-radius:22px;
+      padding: 1.2rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
       background:
-        radial-gradient(1100px 420px at 12% 0%, rgba(255,255,255,.16), transparent 60%),
-        radial-gradient(900px 360px at 88% 12%, rgba(255,193,7,.22), transparent 56%),
-        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
     }
-    .hero:before{
-      content:""; position:absolute; inset:0;
-      background:
-        radial-gradient(900px 220px at 18% 0%, rgba(255,255,255,.10), transparent 60%),
-        linear-gradient(90deg, rgba(255,255,255,.08), transparent 70%);
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
       pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
     }
-    .topline{
-      display:flex; flex-wrap:wrap; gap:.5rem; align-items:center;
-      position:relative; z-index:2;
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
     }
+
     .chip{
-      display:inline-flex; align-items:center; gap:.5rem;
-      padding:.38rem .72rem;
-      border-radius:999px;
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem; border-radius:999px; font-size:.82rem;
       background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.16);
-      backdrop-filter: blur(7px);
-      font-size:.85rem;
+      border:1px solid rgba(255,255,255,.14);
       color: rgba(255,255,255,.92);
       white-space: nowrap;
     }
-    .hero h1{
-      position:relative; z-index:2;
-      font-weight: 950;
-      letter-spacing: -.02em;
-      font-size: 1.65rem;
-      margin: .6rem 0 .25rem;
+    .chip i{ color: var(--theme-color-secondaire); }
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
     }
-    .hero .sub{
-      position:relative; z-index:2;
-      color: rgba(255,255,255,.82);
-      font-size:.95rem;
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
     }
-    .hero-actions{
-      position:relative; z-index:2;
-      display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end;
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
     }
     .btn-pill{
       border-radius:999px !important;
@@ -233,80 +258,84 @@
 {% set ttcEur = (f.montantTtcCents / 100) %}
 
   {# ===== HERO ===== #}
-  <div class="hero mb-3">
-    <div class="topline">
-      <span class="chip"><i class="bi bi-receipt-cutoff"></i> Facture</span>
-      <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
-      <span class="chip"><i class="bi bi-calendar3"></i> {{ f.dateEmission ? f.dateEmission|date('d/m/Y') : '—' }}</span>
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
 
-      {% if st == 'paid' %}
-        <span class="chip" style="border-color: rgba(25,135,84,.35); background: rgba(25,135,84,.16);">
-          <i class="bi bi-check2-circle"></i> PAYÉE
-        </span>
-      {% elseif st == 'canceled' %}
-        <span class="chip" style="border-color: rgba(220,53,69,.35); background: rgba(220,53,69,.16);">
-          <i class="bi bi-x-circle"></i> ANNULÉE
-        </span>
-      {% else %}
-        <span class="chip" style="border-color: rgba(255,193,7,.40); background: rgba(255,193,7,.18);">
-          <i class="bi bi-exclamation-circle"></i> À PAYER
-        </span>
-      {% endif %}
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
 
-      {% if f.stripeInvoiceId %}
-        <span class="chip" title="Stripe Invoice ID"><i class="bi bi-stripe"></i> {{ f.stripeInvoiceId }}</span>
-      {% endif %}
-    </div>
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="fa fa-file-invoice-dollar me-2" style="color:var(--theme-color-secondaire)"></i>
+            Facture {{ num }}
+          </h2>
 
-    <div class="d-flex flex-wrap gap-3 align-items-start justify-content-between mt-2">
-      <div>
-        <h1 class="mb-0">{{ num }}</h1>
-        <div class="sub">
-          Destinataire :
-          <span class="fw-semibold text-white">{{ f.destinataireLabel }}</span>
+          <div class="opacity-75 mt-1">
+            Facturation pour
+            <strong>{{ f.destinataireLabel }}</strong>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+
+            <span class="chip">
+              <i class="fa fa-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip">
+              <i class="fa fa-calendar"></i>
+              {{ f.dateEmission ? f.dateEmission|date('d/m/Y') : '—' }}
+            </span>
+
+            {% if st == 'paid' %}
+              <span class="chip">
+                <i class="fa fa-check-circle"></i> Payée
+              </span>
+            {% elseif st == 'canceled' %}
+              <span class="chip">
+                <i class="fa fa-times-circle"></i> Annulée
+              </span>
+            {% else %}
+              <span class="chip">
+                <i class="fa fa-exclamation-circle"></i> À payer
+              </span>
+            {% endif %}
+
+            {% if f.stripeInvoiceId %}
+              <span class="chip">
+                <i class="fa fa-credit-card"></i> Stripe
+              </span>
+            {% endif %}
+
+          </div>
         </div>
-      </div>
 
-      <div class="hero-actions">
-        <a class="btn btn-pill btn-ghost btn-sm"
-           href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">
-          <i class="bi bi-arrow-left"></i> Retour
-        </a>
+        <div class="d-flex gap-2">
 
-        <a class="btn btn-pill btn-ghost btn-sm"
-           href="{{ path('app_administrateur_facture_edit', {entite: entite.id, id: f.id}) }}">
-          <i class="bi bi-pencil-square"></i> Éditer
-        </a>
-
-        <a class="btn btn-pill btn-ghost btn-sm"
-           href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
-          <i class="bi bi-file-earmark-pdf"></i> PDF
-        </a>
-
-        {# Paiement en ligne (Connect) #}
-        {% set connect = entite.connect ?? null %}
-        {% set canPayOnline = connect and connect.onlinePaymentEnabled and connect.isReadyForCheckout %}
-
-        {% if canPayOnline and remainingCents|default(0) > 0 and st != 'canceled' %}
-          <form method="post"
-                action="{{ path('app_admin_facture_paiement_checkout', {entite: entite.id, id: f.id}) }}"
-                class="d-inline">
-            <input type="hidden" name="_token" value="{{ csrf_token('facture_checkout_' ~ f.id) }}">
-            <button class="btn btn-pill btn-sm"
-                    type="submit"
-                    style="background: rgba(255,193,7,.22); color:#fff;">
-              <i class="bi bi-credit-card-2-front me-1"></i> Payer en ligne
-            </button>
-          </form>
-        {% endif %}
-
-        {% if remainingCents|default(0) > 0 and st != 'canceled' %}
-          <a class="btn btn-pill btn-sm"
-             style="background: rgba(25,135,84,.20); color:#fff;"
-             href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}">
-            <i class="bi bi-plus-circle"></i> Paiement
+          <a href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"
+            class="btn btn-outline-light btn-sm fw-semibold">
+            <i class="fa fa-arrow-left me-1"></i> Retour
           </a>
-        {% endif %}
+
+          <a href="{{ path('app_administrateur_facture_edit', {entite: entite.id, id: f.id}) }}"
+            class="btn btn-outline-light btn-sm fw-semibold">
+            <i class="fa fa-pen me-1"></i> Modifier
+          </a>
+
+          <a href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}"
+            class="btn btn-light btn-sm fw-semibold">
+            <i class="fa fa-file-pdf me-1"></i> PDF
+          </a>
+
+          {% if remainingCents > 0 and st != 'canceled' %}
+            <a href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}"
+              class="btn btn-light btn-sm fw-semibold">
+              <i class="fa fa-plus me-1"></i> Paiement
+            </a>
+          {% endif %}
+
+        </div>
+
       </div>
     </div>
   </div>
