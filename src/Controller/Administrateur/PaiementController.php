@@ -365,7 +365,7 @@ final class PaiementController extends AbstractController
             $paid = (int) $paiementRepo->sumPaidForFacture($facture->getId());
 
             // ✅ TTC hors débours (stocké sur facture)
-            $ttcHorsDebours = (int) ($facture->getMontantTtcCents() ?? 0);
+            $ttcHorsDebours = (int) ($facture->getMontantTtcHorsDeboursCents() ?? 0);
 
             // ✅ débours TTC : on récupère via méthode si dispo, sinon fallback par SQL
             $deboursTtc = 0;
@@ -738,9 +738,18 @@ final class PaiementController extends AbstractController
 
         $ttcTotal = $this->factureTtcTotalCents($facture);
         $paid     = (int) $paiementRepo->sumPaidForFacture($facture->getId());
+        $remaining = max(0, $ttcTotal - $paid);
+
+        // (Option B) si tu ajoutes des champs cache :
+        // $facture->setMontantPayeCents($paid);
+        // $facture->setMontantRestantCents($remaining);
+        // $facture->setLastPaymentAt($paid > 0 ? new \DateTimeImmutable() : null);
+        // $facture->setPaidAt($ttcTotal > 0 && $paid >= $ttcTotal ? new \DateTimeImmutable() : null);
 
         if ($ttcTotal > 0 && $paid >= $ttcTotal) {
             $facture->setStatus(FactureStatus::PAID);
+        } elseif ($paid > 0) {
+            $facture->setStatus(FactureStatus::PARTIALLY_PAID);
         } else {
             $facture->setStatus(FactureStatus::DUE);
         }
@@ -850,7 +859,7 @@ final class PaiementController extends AbstractController
     private function factureTtcTotalCents(Facture $f): int
     {
         // ✅ ton modèle actuel : TTC total = TTC hors débours + débours
-        return (int) ($f->getMontantTtcCents() ?? 0) + $this->factureDeboursTtcCents($f);
+        return (int) ($f->getMontantTtcHorsDeboursCents() ?? 0) + $this->factureDeboursTtcCents($f);
     }
 
     /**

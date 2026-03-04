@@ -221,12 +221,6 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $quizAttempts;
 
     /**
-     * @var Collection<int, QuestionnaireSatisfaction>
-     */
-    #[ORM\OneToMany(targetEntity: QuestionnaireSatisfaction::class, mappedBy: 'stagiaire')]
-    private Collection $questionnaireSatisfactions;
-
-    /**
      * @var Collection<int, AuditLog>
      */
     #[ORM\OneToMany(targetEntity: AuditLog::class, mappedBy: 'actor')]
@@ -612,12 +606,6 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $qcmQuestionCreateurs;
 
     /**
-     * @var Collection<int, QuestionnaireSatisfaction>
-     */
-    #[ORM\OneToMany(targetEntity: QuestionnaireSatisfaction::class, mappedBy: 'createur')]
-    private Collection $questionnaireSatisfactionCreateurs;
-
-    /**
      * @var Collection<int, Quiz>
      */
     #[ORM\OneToMany(targetEntity: Quiz::class, mappedBy: 'createur')]
@@ -837,7 +825,6 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         $this->inscriptions = new ArrayCollection();
         $this->factures = new ArrayCollection();
         $this->quizAttempts = new ArrayCollection();
-        $this->questionnaireSatisfactions = new ArrayCollection();
         $this->auditLogs = new ArrayCollection();
         $this->devis = new ArrayCollection();
         $this->positioningAttempts = new ArrayCollection();
@@ -902,7 +889,6 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         $this->qcmAttemptCreateurs = new ArrayCollection();
         $this->qcmOptionCreateurs = new ArrayCollection();
         $this->qcmQuestionCreateurs = new ArrayCollection();
-        $this->questionnaireSatisfactionCreateurs = new ArrayCollection();
         $this->quizCreateurs = new ArrayCollection();
         $this->quizAnswerCreateurs = new ArrayCollection();
         $this->quizAttemptCreateurs = new ArrayCollection();
@@ -1739,36 +1725,6 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($quizAttempt->getStagiaire() === $this) {
                 $quizAttempt->setStagiaire(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, QuestionnaireSatisfaction>
-     */
-    public function getQuestionnaireSatisfactions(): Collection
-    {
-        return $this->questionnaireSatisfactions;
-    }
-
-    public function addQuestionnaireSatisfaction(QuestionnaireSatisfaction $questionnaireSatisfaction): static
-    {
-        if (!$this->questionnaireSatisfactions->contains($questionnaireSatisfaction)) {
-            $this->questionnaireSatisfactions->add($questionnaireSatisfaction);
-            $questionnaireSatisfaction->setStagiaire($this);
-        }
-
-        return $this;
-    }
-
-    public function removeQuestionnaireSatisfaction(QuestionnaireSatisfaction $questionnaireSatisfaction): static
-    {
-        if ($this->questionnaireSatisfactions->removeElement($questionnaireSatisfaction)) {
-            // set the owning side to null (unless already changed)
-            if ($questionnaireSatisfaction->getStagiaire() === $this) {
-                $questionnaireSatisfaction->setStagiaire(null);
             }
         }
 
@@ -3696,36 +3652,6 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($qcmQuestionCreateur->getCreateur() === $this) {
                 $qcmQuestionCreateur->setCreateur(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, QuestionnaireSatisfaction>
-     */
-    public function getQuestionnaireSatisfactionCreateurs(): Collection
-    {
-        return $this->questionnaireSatisfactionCreateurs;
-    }
-
-    public function addQuestionnaireSatisfactionCreateur(QuestionnaireSatisfaction $questionnaireSatisfactionCreateur): static
-    {
-        if (!$this->questionnaireSatisfactionCreateurs->contains($questionnaireSatisfactionCreateur)) {
-            $this->questionnaireSatisfactionCreateurs->add($questionnaireSatisfactionCreateur);
-            $questionnaireSatisfactionCreateur->setCreateur($this);
-        }
-
-        return $this;
-    }
-
-    public function removeQuestionnaireSatisfactionCreateur(QuestionnaireSatisfaction $questionnaireSatisfactionCreateur): static
-    {
-        if ($this->questionnaireSatisfactionCreateurs->removeElement($questionnaireSatisfactionCreateur)) {
-            // set the owning side to null (unless already changed)
-            if ($questionnaireSatisfactionCreateur->getCreateur() === $this) {
-                $questionnaireSatisfactionCreateur->setCreateur(null);
             }
         }
 

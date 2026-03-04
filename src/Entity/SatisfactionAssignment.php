@@ -6,8 +6,18 @@ namespace App\Entity;
 use App\Entity\SatisfactionAttempt;
 use App\Repository\SatisfactionAssignmentRepository;
 use Doctrine\ORM\Mapping as ORM;
+use App\Entity\Inscription;
 
 #[ORM\Entity(repositoryClass: SatisfactionAssignmentRepository::class)]
+#[ORM\Table(name: 'satisfaction_assignment')]
+#[ORM\UniqueConstraint(
+  name: 'uniq_sat_inscription_template',
+  columns: ['inscription_id', 'template_id']
+)]
+#[ORM\UniqueConstraint(
+  name: 'uniq_sat_session_stagiaire_template',
+  columns: ['session_id', 'stagiaire_id', 'template_id']
+)]
 class SatisfactionAssignment
 {
     #[ORM\Id]
@@ -46,6 +56,11 @@ class SatisfactionAssignment
     #[ORM\ManyToOne(inversedBy: 'satisfactionAssignmentEntites')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Entite $entite = null;
+
+
+    #[ORM\ManyToOne(inversedBy: 'satisfactionAssignments')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Inscription $inscription = null;
 
 
 
@@ -166,5 +181,15 @@ class SatisfactionAssignment
         $this->entite = $entite;
 
         return $this;
+    }
+
+    public function getInscription(): ?Inscription 
+    { 
+        return $this->inscription; 
+    }
+    public function setInscription(?Inscription $inscription): static 
+    { 
+        $this->inscription = $inscription; 
+        return $this; 
     }
 }

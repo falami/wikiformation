@@ -246,6 +246,7 @@
           {% endif %}
         </div>
       </div>
+      
 
       <div class="hero-actions">
         <a class="btn btn-pill btn-ghost btn-sm"
@@ -263,6 +264,26 @@
            href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
           <i class="bi bi-file-earmark-pdf"></i> PDF
         </a>
+
+
+
+        {% set connect = entite.connect ?? null %}
+        {% set canPayOnline = connect and connect.onlinePaymentEnabled and connect.isReadyForCheckout %}
+
+        {% if canPayOnline %}
+          <form method="post"
+                action="{{ path('app_admin_facture_paiement_checkout', {entite: entite.id, id: facture.id}) }}"
+                class="d-inline">
+            <input type="hidden" name="_token" value="{{ csrf_token('facture_checkout_' ~ facture.id) }}">
+            <button class="btn btn-warning fw-semibold" type="submit" style="border-radius:14px;">
+              <i class="bi bi-credit-card-2-front me-1"></i> Payer en ligne
+            </button>
+          </form>
+        {% else %}
+          <div class="alert alert-info">
+            Paiement en ligne indisponible (Stripe non connecté ou onboarding incomplet).
+          </div>
+        {% endif %}
 
         {% if remainingCents > 0 and st != 'canceled' %}
           <a class="btn btn-pill btn-sm"

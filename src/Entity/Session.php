@@ -126,18 +126,6 @@ class Session
     private Collection $inscriptions;
 
     /**
-     * @var Collection<int, QuestionnaireSatisfaction>
-     */
-    #[ORM\OneToMany(
-        targetEntity: QuestionnaireSatisfaction::class,
-        mappedBy: 'session',
-        cascade: ['persist', 'remove'],
-        orphanRemoval: true
-    )]
-    private Collection $questionnaireSatisfactions;
-
-
-    /**
      * @var Collection<int, RapportFormateur>
      */
     #[ORM\OneToMany(targetEntity: RapportFormateur::class, mappedBy: 'session')]
@@ -258,7 +246,6 @@ class Session
         $this->supportAssignSessions = new ArrayCollection();
         $this->jours = new ArrayCollection();
         $this->inscriptions = new ArrayCollection();
-        $this->questionnaireSatisfactions = new ArrayCollection();
         $this->rapportFormateurs = new ArrayCollection();
         $this->contratFormateurs = new ArrayCollection();
         $this->conventionContrats = new ArrayCollection();
@@ -474,25 +461,6 @@ class Session
     public function removeInscription(Inscription $i): static
     {
         $this->inscriptions->removeElement($i);
-        return $this;
-    }
-
-    /** @return Collection<int, QuestionnaireSatisfaction> */
-    public function getQuestionnaireSatisfactions(): Collection
-    {
-        return $this->questionnaireSatisfactions;
-    }
-    public function addQuestionnaireSatisfaction(QuestionnaireSatisfaction $qs): static
-    {
-        if (!$this->questionnaireSatisfactions->contains($qs)) {
-            $this->questionnaireSatisfactions->add($qs);
-            $qs->setSession($this);
-        }
-        return $this;
-    }
-    public function removeQuestionnaireSatisfaction(QuestionnaireSatisfaction $qs): static
-    {
-        $this->questionnaireSatisfactions->removeElement($qs);
         return $this;
     }
 

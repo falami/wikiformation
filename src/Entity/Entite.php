@@ -15,6 +15,9 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use App\Entity\Billing\EntiteConnect;
+
+
 
 #[ORM\Entity(repositoryClass: EntiteRepository::class)]
 class Entite
@@ -199,6 +202,8 @@ class Entite
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $lastActivityAt = null;
 
+    #[ORM\OneToOne(mappedBy: 'entite', targetEntity: EntiteConnect::class, cascade: ['persist', 'remove'])]
+    private ?EntiteConnect $connect = null;
 
 
     /**
@@ -252,12 +257,6 @@ class Entite
      */
     #[ORM\OneToMany(targetEntity: SatisfactionTemplate::class, mappedBy: 'entite', orphanRemoval: true)]
     private Collection $satisfactionTemplates;
-
-    /**
-     * @var Collection<int, QuestionnaireSatisfaction>
-     */
-    #[ORM\OneToMany(targetEntity: QuestionnaireSatisfaction::class, mappedBy: 'entite')]
-    private Collection $questionnaireSatisfactions;
 
     /**
      * @var Collection<int, FormateurSatisfactionTemplate>
@@ -675,7 +674,6 @@ class Entite
         $this->formations = new ArrayCollection();
         $this->positioningQuestionnaires = new ArrayCollection();
         $this->satisfactionTemplates = new ArrayCollection();
-        $this->questionnaireSatisfactions = new ArrayCollection();
         $this->formateurSatisfactionTemplates = new ArrayCollection();
         $this->prospects = new ArrayCollection();
         $this->emailTemplates = new ArrayCollection();
@@ -1726,36 +1724,6 @@ class Entite
             // set the owning side to null (unless already changed)
             if ($satisfactionTemplates->getEntite() === $this) {
                 $satisfactionTemplates->setEntite(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, QuestionnaireSatisfaction>
-     */
-    public function getQuestionnaireSatisfactions(): Collection
-    {
-        return $this->questionnaireSatisfactions;
-    }
-
-    public function addQuestionnaireSatisfaction(QuestionnaireSatisfaction $questionnaireSatisfaction): static
-    {
-        if (!$this->questionnaireSatisfactions->contains($questionnaireSatisfaction)) {
-            $this->questionnaireSatisfactions->add($questionnaireSatisfaction);
-            $questionnaireSatisfaction->setEntite($this);
-        }
-
-        return $this;
-    }
-
-    public function removeQuestionnaireSatisfaction(QuestionnaireSatisfaction $questionnaireSatisfaction): static
-    {
-        if ($this->questionnaireSatisfactions->removeElement($questionnaireSatisfaction)) {
-            // set the owning side to null (unless already changed)
-            if ($questionnaireSatisfaction->getEntite() === $this) {
-                $questionnaireSatisfaction->setEntite(null);
             }
         }
 
@@ -3727,6 +3695,19 @@ class Entite
     public function setLastActivityAt(?\DateTimeImmutable $dt): static
     {
         $this->lastActivityAt = $dt;
+        return $this;
+    }
+    public function getConnect(): ?EntiteConnect 
+    { 
+        return $this->connect; 
+    }
+
+    public function setConnect(?EntiteConnect $connect): static
+    {
+        $this->connect = $connect;
+        if ($connect && $connect->getEntite() !== $this) {
+            $connect->setEntite($this);
+        }
         return $this;
     }
 }

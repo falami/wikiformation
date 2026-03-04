@@ -50,23 +50,6 @@ class Inscription
     #[ORM\OneToOne(mappedBy: 'inscription', cascade: ['persist', 'remove'])]
     private ?DossierInscription $dossier = null;
 
-    /**
-     * @var Collection<int, QuizAttempt>
-     */
-    #[ORM\OneToMany(targetEntity: QuizAttempt::class, mappedBy: 'inscription')]
-    private Collection $quizAttempts;
-
-    /**
-     * @var Collection<int, QuestionnaireSatisfaction>
-     */
-    #[ORM\OneToMany(
-        targetEntity: QuestionnaireSatisfaction::class,
-        mappedBy: 'inscription',
-        cascade: ['persist', 'remove'],
-        orphanRemoval: true
-    )]
-    private Collection $questionnaireSatisfactions;
-
 
     #[ORM\OneToOne(mappedBy: 'inscription', targetEntity: Attestation::class, cascade: ['persist', 'remove'])]
     private ?Attestation $attestation = null;
@@ -147,11 +130,14 @@ class Inscription
     #[ORM\OneToMany(targetEntity: EntrepriseDocument::class, mappedBy: 'inscription')]
     private Collection $entrepriseDocuments;
 
+
+
+   #[ORM\OneToMany(targetEntity: SatisfactionAssignment::class, mappedBy: 'inscription', cascade: ['persist'])]
+    private Collection $satisfactionAssignments;
+
     public function __construct()
     {
         $this->factures = new ArrayCollection();
-        $this->quizAttempts = new ArrayCollection();
-        $this->questionnaireSatisfactions = new ArrayCollection();
         $this->pieces = new ArrayCollection();
         $this->conventionContrats = new ArrayCollection();
         $this->positioningAttempts = new ArrayCollection();
@@ -160,6 +146,7 @@ class Inscription
         $this->qcmAssignments = new ArrayCollection();
         $this->dateCreation = new \DateTimeImmutable();
         $this->entrepriseDocuments = new ArrayCollection();
+        $this->satisfactionAssignments = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -309,44 +296,6 @@ class Inscription
     public function removeFacture(Facture $f): static
     {
         $this->factures->removeElement($f);
-        return $this;
-    }
-
-    /** @return Collection<int, QuizAttempt> */
-    public function getQuizAttempts(): Collection
-    {
-        return $this->quizAttempts;
-    }
-    public function addQuizAttempt(QuizAttempt $qa): static
-    {
-        if (!$this->quizAttempts->contains($qa)) {
-            $this->quizAttempts->add($qa);
-            $qa->setInscription($this);
-        }
-        return $this;
-    }
-    public function removeQuizAttempt(QuizAttempt $qa): static
-    {
-        $this->quizAttempts->removeElement($qa);
-        return $this;
-    }
-
-    /** @return Collection<int, QuestionnaireSatisfaction> */
-    public function getQuestionnaireSatisfactions(): Collection
-    {
-        return $this->questionnaireSatisfactions;
-    }
-    public function addQuestionnaireSatisfaction(QuestionnaireSatisfaction $qs): static
-    {
-        if (!$this->questionnaireSatisfactions->contains($qs)) {
-            $this->questionnaireSatisfactions->add($qs);
-            $qs->setInscription($this);
-        }
-        return $this;
-    }
-    public function removeQuestionnaireSatisfaction(QuestionnaireSatisfaction $qs): static
-    {
-        $this->questionnaireSatisfactions->removeElement($qs);
         return $this;
     }
 
@@ -594,6 +543,28 @@ class Inscription
             }
         }
 
+        return $this;
+    }
+
+
+    /** @return Collection<int, SatisfactionAssignment> */
+    public function getSatisfactionAssignments(): Collection
+    {
+        return $this->satisfactionAssignments;
+    }
+
+    public function addSatisfactionAssignment(SatisfactionAssignment $a): static
+    {
+        if (!$this->satisfactionAssignments->contains($a)) {
+            $this->satisfactionAssignments->add($a);
+            $a->setInscription($this);
+        }
+        return $this;
+    }
+
+    public function removeSatisfactionAssignment(SatisfactionAssignment $a): static
+    {
+        $this->satisfactionAssignments->removeElement($a);
         return $this;
     }
 }

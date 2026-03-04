@@ -21,8 +21,6 @@ class QuizAttempt
     #[ORM\ManyToOne(inversedBy: 'quizAttempts')]
     private ?Utilisateur $stagiaire = null;
 
-    #[ORM\ManyToOne(inversedBy: 'quizAttempts')]
-    private ?Inscription $inscription = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $startedAt;
@@ -89,17 +87,6 @@ class QuizAttempt
         return $this;
     }
 
-    public function getInscription(): ?Inscription
-    {
-        return $this->inscription;
-    }
-
-    public function setInscription(?Inscription $inscription): static
-    {
-        $this->inscription = $inscription;
-
-        return $this;
-    }
 
     public function getStartedAt(): \DateTimeImmutable
     {

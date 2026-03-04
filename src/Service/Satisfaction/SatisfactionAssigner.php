@@ -29,33 +29,39 @@ final class SatisfactionAssigner
 
   public function assignForInscriptionIfEligible(Inscription $inscription, Utilisateur $user, Entite $entite): void
   {
-    $session = $inscription->getSession();
-    if (!$session) return;
+      $session = $inscription->getSession();
+      if (!$session) return;
 
-    if ($session->getStatus() !== StatusSession::FULL) return;
+      if ($session->getStatus() !== StatusSession::FULL) return;
 
-    $tpl = $session->getFormation()?->getSatisfactionTemplate();
-    if (!$tpl) return;
+      $tpl = $session->getFormation()?->getSatisfactionTemplate();
+      if (!$tpl) return;
 
-    $stagiaire = $inscription->getStagiaire();
-    if (!$stagiaire) return;
+      $stagiaire = $inscription->getStagiaire();
+      if (!$stagiaire) return;
 
-    $existing = $this->em->getRepository(SatisfactionAssignment::class)->findOneBy([
-      'session' => $session,
-      'stagiaire' => $stagiaire,
-      'template' => $tpl,
-    ]);
-    if ($existing) return;
+      $repo = $this->em->getRepository(SatisfactionAssignment::class);
 
-    $a = (new SatisfactionAssignment())
-      ->setCreateur($user)
-      ->setEntite($entite)
-      ->setSession($session)
-      ->setStagiaire($stagiaire)
-      ->setTemplate($tpl)
-      ->setIsRequired(true);
+      // ✅ anti-doublon "par inscription"
+      $existing = $repo->findOneBy([
+          'inscription' => $inscription,
+          'template'    => $tpl,
+      ]);
+      if ($existing) return;
 
-    $this->em->persist($a);
+      $a = (new SatisfactionAssignment())
+          ->setCreateur($user)
+          ->setEntite($entite)
+          ->setSession($session)
+          ->setStagiaire($stagiaire)
+          ->setTemplate($tpl)
+          ->setIsRequired(true)
+          ->setInscription($inscription); // ✅ LE LIEN IMPORTANT
+
+      // optionnel mais clean: synchro inverse
+      // $inscription->addSatisfactionAssignment($a);
+
+      $this->em->persist($a);
   }
 
 
@@ -65,42 +71,16 @@ final class SatisfactionAssigner
    */
   public function assignForSession(Session $session, Utilisateur $user, Entite $entite): int
   {
-    $formation = $session->getFormation();
-    if (!$formation) return 0;
+      if ($session->getStatus() !== StatusSession::FULL) return 0;
 
-    $template = $formation->getSatisfactionTemplate();
-    if (!$template) return 0; // ✅ rien à créer si la formation n’a pas de template
+      $tpl = $session->getFormation()?->getSatisfactionTemplate();
+      if (!$tpl) return 0;
 
-    $repo = $this->em->getRepository(SatisfactionAssignment::class);
-
-    $created = 0;
-
-    /** @var Inscription $ins */
-    foreach ($session->getInscriptions() as $ins) {
-      $stagiaire = $ins->getStagiaire();
-      if (!$stagiaire) continue;
-
-      // ✅ anti-doublon
-      $exists = $repo->findOneBy([
-        'session'   => $session,
-        'stagiaire' => $stagiaire,
-        'template'  => $template,
-      ]);
-      if ($exists) continue;
-
-      $a = (new SatisfactionAssignment())
-        ->setCreateur($user)
-        ->setEntite($entite)
-        ->setSession($session)
-        ->setStagiaire($stagiaire)
-        ->setTemplate($template)
-        ->setIsRequired(true);
-
-      $this->em->persist($a);
-      $created++;
-    }
-
-    return $created;
+      $created = 0;
+      foreach ($session->getInscriptions() as $ins) {
+          $created += $this->assignForInscriptionIfEligible($ins, $user, $entite) ? 1 : 0;
+      }
+      return $created;
   }
 
   /**
