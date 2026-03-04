@@ -57,7 +57,6 @@ class EntiteConnect
         $this->updatedAt = $now;
     }
 
-    public function touch(): void { $this->updatedAt = new \DateTimeImmutable(); }
 
     public function getId(): ?int { return $this->id; }
 
@@ -85,11 +84,25 @@ class EntiteConnect
     public function getFeePercentBp(): int { return $this->feePercentBp; }
     public function setFeePercentBp(int $bp): static { $this->feePercentBp = max(0, $bp); return $this; }
 
+    public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
+    public function touch(): self 
+    { 
+        $this->updatedAt = new \DateTimeImmutable(); 
+        return $this; 
+    }
+
+
     /** Frais répercutés (service fee), calculés sur un montant TTC en cents */
     public function computeServiceFeeCents(int $amountCents): int
     {
-        $pct = (int) round($amountCents * ($this->feePercentBp / 10000));
-        return max(0, $pct + $this->feeFixedCents);
+        $amountCents = max(0, $amountCents);
+        $fixed = max(0, $this->feeFixedCents);
+        $pct = max(0, $this->feePercentBp);
+
+        // amount * (bp/10000)
+        $percentFee = (int) round($amountCents * ($pct / 10000));
+
+        return max(0, $fixed + $percentFee);
     }
 
     public function isReadyForCheckout(): bool

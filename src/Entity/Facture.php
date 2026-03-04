@@ -679,4 +679,58 @@ class Facture
         $this->note = $note ? trim($note) : null;
         return $this;
     }
+
+
+
+    public function isPaid(): bool
+    {
+        return $this->status === FactureStatus::PAID;
+    }
+
+    public function isCanceled(): bool
+    {
+        return $this->status === FactureStatus::CANCELED;
+    }
+
+    public function isPartiallyPaid(): bool
+    {
+        return $this->status === FactureStatus::PARTIALLY_PAID;
+    }
+
+    public function isDue(): bool
+    {
+        return $this->status === FactureStatus::DUE;
+    }
+
+    /**
+     * ✅ Autorise un paiement (manuel / Stripe)
+     */
+    public function canBePaid(): bool
+    {
+        if ($this->isCanceled()) return false;
+        if ($this->isPaid()) return false;
+
+        // Montant nul => pas de paiement
+        return $this->getTtcTotalCents() > 0;
+    }
+
+    /**
+     * ✅ TTC total "réel" à payer dans TON modèle :
+     * TTC total = TTC hors débours (montantTtcCents) + débours TTC (calculé depuis les lignes)
+     *
+     * Important : tu as déjà getMontantDeboursTtcCents() et getMontantTtcCents().
+     */
+    public function getTtcTotalCents(): int
+    {
+        return max(0, (int)($this->getMontantTtcCents() ?? 0) + (int)($this->getMontantDeboursTtcCents() ?? 0));
+    }
+
+    /**
+     * ✅ remaining "théorique" si tu as besoin côté Twig rapidement
+     * (Attention: si tu veux le montant exact "paid", fais-le dans repo ou controller)
+     */
+    public function isPayableAmountPositive(): bool
+    {
+        return $this->getTtcTotalCents() > 0;
+    }
 }

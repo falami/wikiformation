@@ -78,7 +78,7 @@ final class InscriptionBillingSync
    */
   private function factureTtcTotalCents(Facture $f): int
   {
-    $ttcHd = (int) ($f->getMontantTtcCents() ?? 0);
+    $ttcHd = (int) ($f->getTtcTotalCents() ?? 0);
 
     // si tu as un champ dédié plus tard, il sera automatiquement pris
     $debours = 0;

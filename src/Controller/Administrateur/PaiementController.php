@@ -736,7 +736,7 @@ final class PaiementController extends AbstractController
     {
         if ($facture->getStatus() === FactureStatus::CANCELED) return;
 
-        $ttcTotal = $this->factureTtcTotalCents($facture);
+        $ttcTotal = $facture->getTtcTotalCents();
         $paid     = (int) $paiementRepo->sumPaidForFacture($facture->getId());
         $remaining = max(0, $ttcTotal - $paid);
 

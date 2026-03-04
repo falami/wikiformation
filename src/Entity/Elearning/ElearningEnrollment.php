@@ -235,7 +235,7 @@ class ElearningEnrollment
     }
 
     // App\Entity\Elearning\ElearningEnrollment.php
-
+    
     public function getComputedState(?\DateTimeImmutable $now = null): string
     {
         $now ??= new \DateTimeImmutable();

@@ -1,4 +1,5 @@
 <?php
+// src/Controller/Administrateur/Billing/StripeConnectController.php
 
 namespace App\Controller\Administrateur\Billing;
 
@@ -11,17 +12,15 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 #[Route('/administrateur/{entite}/billing/connect', name: 'app_administrateur_billing_connect_')]
 #[IsGranted('ROLE_USER')]
-class StripeConnectController extends AbstractController
+final class StripeConnectController extends AbstractController
 {
-
     public function __construct(
         private readonly StripeClientFactory $stripeFactory,
         private readonly EntityManagerInterface $em,
-        #[Autowire('%app.url%')] private readonly string $appUrl,
+        private readonly string $appUrl,
     ) {}
 
     #[Route('', name: 'index', methods: ['GET'])]
@@ -44,16 +43,17 @@ class StripeConnectController extends AbstractController
     #[Route('/start', name: 'start', methods: ['POST'])]
     public function start(Entite $entite, Request $request): Response
     {
-        $this->validateCsrf($request, 'connect_start');
+        if (!$this->isCsrfTokenValid('connect_start', (string)$request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
 
         $connect = $entite->getConnect() ?? (new EntiteConnect())->setEntite($entite);
 
         $stripe = $this->stripeFactory->client();
 
-        // 1) Créer le compte si nécessaire (Express est souvent un bon compromis)
         if (!$connect->getStripeAccountId()) {
             $account = $stripe->accounts->create([
-                'controller' => [ 'type' => 'express' ], // Stripe recommande d’utiliser controller properties :contentReference[oaicite:4]{index=4}
+                'type' => 'express',
                 'country' => 'FR',
                 'email' => $entite->getEmail(),
                 'business_type' => 'company',
@@ -66,18 +66,18 @@ class StripeConnectController extends AbstractController
                     'transfers' => ['requested' => true],
                 ],
                 'metadata' => [
-                    'entite_id' => (string)$entite->getId(),
+                    'entite_id' => (string) $entite->getId(),
                 ],
             ]);
 
-            $connect->setStripeAccountId($account->id);
-            $connect->touch();
+            $connect->setStripeAccountId($account->id)->touch();
+            $entite->setConnect($connect);
+
             $this->em->persist($connect);
             $this->em->flush();
         }
 
-        // 2) Créer un lien d’onboarding
-        $returnUrl = rtrim($this->appUrl, '/') . $this->generateUrl('app_admin_billing_connect_refresh', ['entite' => $entite->getId()]);
+        $returnUrl = rtrim($this->appUrl, '/') . $this->generateUrl('app_administrateur_billing_connect_refresh', ['entite' => $entite->getId()]);
         $refreshUrl = $returnUrl;
 
         $link = $stripe->accountLinks->create([
@@ -96,7 +96,7 @@ class StripeConnectController extends AbstractController
         $connect = $entite->getConnect();
         if (!$connect || !$connect->getStripeAccountId()) {
             $this->addFlash('warning', 'Aucun compte Stripe lié.');
-            return $this->redirectToRoute('app_admin_billing_connect_index', ['entite' => $entite->getId()]);
+            return $this->redirectToRoute('app_administrateur_billing_connect_index', ['entite' => $entite->getId()]);
         }
 
         $stripe = $this->stripeFactory->client();
@@ -110,13 +110,28 @@ class StripeConnectController extends AbstractController
         $this->em->flush();
 
         $this->addFlash('success', 'Statut Stripe mis à jour.');
-        return $this->redirectToRoute('app_admin_billing_connect_index', ['entite' => $entite->getId()]);
+        return $this->redirectToRoute('app_administrateur_billing_connect_index', ['entite' => $entite->getId()]);
     }
-
-    private function validateCsrf(Request $request, string $tokenId): void
+    
+    #[Route('/save', name: 'save', methods: ['POST'])]
+    public function save(Entite $entite, Request $request): Response
     {
-        if (!$this->isCsrfTokenValid($tokenId, (string)$request->request->get('_token'))) {
+        $connect = $entite->getConnect();
+        if (!$connect) throw $this->createNotFoundException();
+
+        if (!$this->isCsrfTokenValid('connect_save', (string)$request->request->get('_token'))) {
             throw $this->createAccessDeniedException('CSRF invalide.');
         }
+
+        // ultra simple sans form symfony : on lit les inputs
+        $connect->setOnlinePaymentEnabled((bool)$request->request->get('onlinePaymentEnabled'));
+        $connect->setFeeFixedCents((int)$request->request->get('feeFixedCents', 0));
+        $connect->setFeePercentBp((int)$request->request->get('feePercentBp', 0));
+        $connect->touch();
+
+        $this->em->flush();
+        $this->addFlash('success', 'Paramètres mis à jour.');
+
+        return $this->redirectToRoute('app_administrateur_billing_connect_index', ['entite' => $entite->getId()]);
     }
 }

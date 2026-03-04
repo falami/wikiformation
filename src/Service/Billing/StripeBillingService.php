@@ -6,12 +6,12 @@ namespace App\Service\Billing;
 use App\Entity\Billing\Plan;
 use App\Entity\Entite;
 use Stripe\StripeClient;
-
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 final class StripeBillingService
 {
   public function __construct(
     private readonly string $stripeSecretKey,
-    private readonly string $appUrl,
+    #[Autowire('%app.url%')] private readonly string $appUrl,
   ) {}
 
   private function client(): StripeClient

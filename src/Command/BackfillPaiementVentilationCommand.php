@@ -61,7 +61,7 @@ final class BackfillPaiementVentilationCommand extends Command
       return;
     }
 
-    $ttcTotal = (int) ($f->getMontantTtcCents() ?? 0);
+    $ttcTotal = (int) ($f->getTtcTotalCents() ?? 0);
     $ttcHd    = (int) $f->getMontantTtcHorsDeboursCents();
     $htHd     = (int) $f->getMontantHtHorsDeboursCents();
 

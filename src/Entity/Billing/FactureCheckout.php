@@ -59,6 +59,15 @@ class FactureCheckout
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+
+    #[ORM\Column(length: 2048, nullable: true)]
+    private ?string $checkoutUrl = null;
+
+    #[ORM\Column]
+    private int $factureAmountCents = 0;
+
+
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -102,4 +111,11 @@ class FactureCheckout
     public function setPayeurEntreprise(?Entreprise $e): static { $this->payeurEntreprise = $e; return $this; }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+
+
+    public function getCheckoutUrl(): ?string { return $this->checkoutUrl; }
+    public function setCheckoutUrl(?string $u): static { $this->checkoutUrl = $u; return $this; }
+
+    public function getFactureAmountCents(): int { return $this->factureAmountCents; }
+    public function setFactureAmountCents(int $c): static { $this->factureAmountCents = $c; return $this; }
 }

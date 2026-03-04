@@ -1,4 +1,5 @@
 <?php
+// src/Controller/Administrateur/Billing/FacturePaymentController.php
 
 namespace App\Controller\Administrateur\Billing;
 
@@ -10,11 +11,9 @@ use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-
-
 #[Route('/administrateur/{entite}/facture/{id}/paiement', name: 'app_administrateur_facture_paiement_')]
 #[IsGranted('ROLE_USER')]
-class FacturePaymentController extends AbstractController
+final class FacturePaymentController extends AbstractController
 {
     #[Route('/checkout', name: 'checkout', methods: ['POST'])]
     public function checkout(Entite $entite, Facture $facture, Request $request, FactureCheckoutManager $manager): Response
@@ -27,12 +26,25 @@ class FacturePaymentController extends AbstractController
             throw $this->createAccessDeniedException('CSRF invalide');
         }
 
-        // TODO: ajoute tes règles métier (status DUE, pas déjà PAYÉE, etc.)
+        // ✅ garde-fou : facture déjà payée (adapte selon ton modèle)
+        if (!$facture->canBePaid()) {
+            $this->addFlash('info', $facture->isCanceled()
+                ? 'Cette facture est annulée.'
+                : 'Cette facture est déjà payée.'
+            );
+
+            return $this->redirectToRoute('app_administrateur_facture_show', [
+                'entite' => $entite->getId(),
+                'id' => $facture->getId(),
+            ]);
+        }
+
         $fc = $manager->createCheckoutForFacture($facture);
 
-        // Redirection Stripe Checkout
-        return $this->redirect('https://checkout.stripe.com/c/pay/' . $fc->getStripeCheckoutSessionId());
-        // ⚠️ Option: au lieu de fabriquer l’URL, retourne directement $session->url dans manager
-        // (Stripe renvoie session->url). C’est le plus propre.
+        if (!$fc->getCheckoutUrl()) {
+            throw new \RuntimeException('Stripe n’a pas renvoyé d’URL Checkout.');
+        }
+
+        return $this->redirect($fc->getCheckoutUrl());
     }
 }

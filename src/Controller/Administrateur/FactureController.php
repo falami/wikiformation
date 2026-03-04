@@ -1087,7 +1087,7 @@ class FactureController extends AbstractController
     foreach ($facture->getPaiements() as $p) {
       $paidCents += (int)$p->getMontantCents();
     }
-    $ttcTotal = (int)$facture->getMontantTtcCents(); // ✅ TTC déjà complet
+    $ttcTotal = $facture->getTtcTotalCents();
 
 
     $remainingCents = max(0, $ttcTotal - $paidCents);

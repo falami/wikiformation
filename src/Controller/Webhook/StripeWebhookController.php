@@ -1,11 +1,13 @@
 <?php
+// src/Controller/Webhook/StripeWebhookController.php
 
 namespace App\Controller\Webhook;
 
 use App\Entity\Paiement;
+use App\Entity\Billing\FactureCheckout;
 use App\Enum\ModePaiement;
 use App\Repository\Billing\FactureCheckoutRepository;
-use App\Repository\FactureRepository;
+use App\Repository\PaiementRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Webhook;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -13,13 +15,15 @@ use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/webhooks/stripe', name: 'app_webhook_stripe', methods: ['POST'])]
-class StripeWebhookController extends AbstractController
+final class StripeWebhookController extends AbstractController
 {
     public function __construct(
         private readonly string $stripeWebhookSecret,
         private readonly FactureCheckoutRepository $checkoutRepo,
-        private readonly FactureRepository $factureRepo,
+        private readonly PaiementRepository $paiementRepo,
         private readonly EntityManagerInterface $em,
+        // ✅ optionnel : injecte ton service de sync facture si tu l’as
+        // private readonly FacturePaymentStatusSync $sync,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -27,56 +31,79 @@ class StripeWebhookController extends AbstractController
         $payload = $request->getContent();
         $sig = $request->headers->get('Stripe-Signature');
 
+        if (!$sig) {
+            return new Response('Missing signature', 400);
+        }
+
         try {
             $event = Webhook::constructEvent($payload, $sig, $this->stripeWebhookSecret);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             return new Response('Invalid signature', 400);
         }
 
-        // On gère le minimum vital :
-        // - checkout.session.completed : paiement validé
-        // - checkout.session.expired : session expirée
         switch ($event->type) {
             case 'checkout.session.completed':
                 $session = $event->data->object;
+                $sessionId = (string)($session->id ?? '');
+                if ($sessionId === '') return new Response('OK', 200);
 
-                $fc = $this->checkoutRepo->findOneBySessionId($session->id);
+                $fc = $this->checkoutRepo->findOneBySessionId($sessionId);
                 if (!$fc) return new Response('OK', 200);
 
-                $fc->setStatus(\App\Entity\Billing\FactureCheckout::STATUS_COMPLETED);
-                $fc->setStripePaymentIntentId($session->payment_intent ?? null);
+                // ✅ Idempotence 1 : si déjà terminé => noop
+                if ($fc->getStatus() === FactureCheckout::STATUS_COMPLETED) {
+                    return new Response('OK', 200);
+                }
 
-                $factureId = (int)($session->metadata->facture_id ?? 0);
-                $facture = $factureId ? $this->factureRepo->find($factureId) : null;
+                $pi = $session->payment_intent ?? null;
+                $pi = $pi ? (string)$pi : null;
 
+                // ✅ Idempotence 2 : si un paiement existe déjà pour ce PI => on marque checkout terminé et on sort
+                if ($pi) {
+                    $already = $this->paiementRepo->findOneBy(['stripePaymentIntentId' => $pi]);
+                    if ($already) {
+                        $fc->setStripePaymentIntentId($pi);
+                        $fc->setStatus(FactureCheckout::STATUS_COMPLETED);
+                        $this->em->flush();
+                        return new Response('OK', 200);
+                    }
+                }
+
+                $fc->setStripePaymentIntentId($pi);
+                $fc->setStatus(FactureCheckout::STATUS_COMPLETED);
+
+                $facture = $fc->getFacture();
                 if ($facture) {
-                    // ✅ Crée un Paiement automatique (CB)
                     $p = new Paiement();
                     $p->setFacture($facture);
-                    $p->setMontantCents((int)$session->amount_total); // TTC + éventuels frais service si inclus
-                    $p->setDevise(strtoupper((string)($session->currency ?? 'eur')));
-                    $p->setMode(ModePaiement::CB);
-                    $p->setStripePaymentIntentId($session->payment_intent ?? null);
-
-                    // Ventilation snapshot (à partir de ta facture)
-                    $p->setVentilationHtHorsDeboursCents($facture->getMontantHtHorsDeboursCents());
-                    $p->setVentilationTvaHorsDeboursCents($facture->getMontantTvaHorsDeboursCents());
-                    $p->setVentilationDeboursCents($facture->getMontantDeboursTtcCents());
-                    $p->setVentilationSource('stripe_auto');
-
-                    // Payeur (si tu as déjà logique destinataire/entreprise)
-                    $p->setPayeurUtilisateur($facture->getDestinataire());
-                    $p->setPayeurEntreprise($facture->getEntrepriseDestinataire());
-
-                    // IMPORTANT: createur/entite requis dans ton modèle
-                    $p->setCreateur($facture->getCreateur());
                     $p->setEntite($facture->getEntite());
+                    $p->setCreateur($facture->getCreateur());
+                    $p->setMode(ModePaiement::CB);
+                    $p->setDevise(strtoupper((string)($session->currency ?? 'EUR')));
+
+                    // ✅ important : on règle la facture sur SA part (pas les frais)
+                    $p->setMontantCents($fc->getFactureAmountCents());
+
+                    if (method_exists($p, 'setStripePaymentIntentId')) {
+                        $p->setStripePaymentIntentId($pi);
+                    }
+
+                    // payeur (si dispo)
+                    if (method_exists($facture, 'getDestinataire')) {
+                        $p->setPayeurUtilisateur($facture->getDestinataire());
+                    }
+                    if (method_exists($facture, 'getEntrepriseDestinataire')) {
+                        $p->setPayeurEntreprise($facture->getEntrepriseDestinataire());
+                    }
+
+                    if (method_exists($p, 'setVentilationSource')) {
+                        $p->setVentilationSource('stripe_auto');
+                    }
 
                     $this->em->persist($p);
 
-                    // TODO : update status facture (PAID / PARTIAL)
-                    // Exemple si tu as FactureStatus::PAID :
-                    // $facture->setStatus(\App\Enum\FactureStatus::PAID);
+                    // ✅ ici : recalc statut facture (PAID/PARTIAL) via TON service existant
+                    // $this->sync->syncFacture($facture);
                 }
 
                 $this->em->flush();
@@ -84,9 +111,12 @@ class StripeWebhookController extends AbstractController
 
             case 'checkout.session.expired':
                 $session = $event->data->object;
-                $fc = $this->checkoutRepo->findOneBySessionId($session->id);
-                if ($fc) {
-                    $fc->setStatus(\App\Entity\Billing\FactureCheckout::STATUS_EXPIRED);
+                $sessionId = (string)($session->id ?? '');
+                if ($sessionId === '') return new Response('OK', 200);
+
+                $fc = $this->checkoutRepo->findOneBySessionId($sessionId);
+                if ($fc && $fc->getStatus() !== FactureCheckout::STATUS_COMPLETED) {
+                    $fc->setStatus(FactureCheckout::STATUS_EXPIRED);
                     $this->em->flush();
                 }
                 return new Response('OK', 200);
