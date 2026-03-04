@@ -37,8 +37,8 @@ class FactureController extends AbstractController
   public function __construct(
     private UtilisateurEntiteManager $utilisateurEntiteManager,
     #[Autowire('%upload_proofs_dir%')] private string $proofDir,
-    private ?PdfManager $pdf = null,
     private readonly InscriptionBillingSync $inscSync, // ✅
+    private ?PdfManager $pdf = null,
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]

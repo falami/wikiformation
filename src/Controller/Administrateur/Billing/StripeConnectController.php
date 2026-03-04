@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[Route('/administrateur/{entite}/billing/connect', name: 'app_admin_billing_connect_')]
+#[Route('/administrateur/{entite}/billing/connect', name: 'app_administrateur_billing_connect_')]
 #[IsGranted('ROLE_USER')]
 class StripeConnectController extends AbstractController
 {

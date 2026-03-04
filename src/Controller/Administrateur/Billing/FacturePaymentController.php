@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Billing;
+namespace App\Controller\Administrateur\Billing;
 
 use App\Entity\Entite;
 use App\Entity\Facture;
@@ -12,9 +12,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 
 
-#[Route('/administrateur/{entite}/facture/{id}/paiement', name: 'app_admin_facture_paiement_')]
+#[Route('/administrateur/{entite}/facture/{id}/paiement', name: 'app_administrateur_facture_paiement_')]
 #[IsGranted('ROLE_USER')]
-final class FacturePaymentController extends AbstractController
+class FacturePaymentController extends AbstractController
 {
     #[Route('/checkout', name: 'checkout', methods: ['POST'])]
     public function checkout(Entite $entite, Facture $facture, Request $request, FactureCheckoutManager $manager): Response
