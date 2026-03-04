@@ -75,11 +75,14 @@ class ElearningEnrollment
         $this->elearningNodeProgress = new ArrayCollection();
     }
 
-    public function isActiveNow(\DateTimeImmutable $now = new \DateTimeImmutable()): bool
+    public function isActiveNow(?\DateTimeImmutable $now = null): bool
     {
+        $now ??= new \DateTimeImmutable();
+
         if ($this->status !== EnrollmentStatus::ACTIVE) return false;
         if ($this->startsAt && $now < $this->startsAt) return false;
         if ($this->endsAt && $now > $this->endsAt) return false;
+
         return true;
     }
 
@@ -233,29 +236,27 @@ class ElearningEnrollment
 
     // App\Entity\Elearning\ElearningEnrollment.php
 
-    public function getComputedState(\DateTimeImmutable $now = null): string
+    public function getComputedState(?\DateTimeImmutable $now = null): string
     {
         $now ??= new \DateTimeImmutable();
 
-        // Statuts "forts" (prioritaires)
         if ($this->status !== EnrollmentStatus::ACTIVE) {
             return match ($this->status) {
-                EnrollmentStatus::ACTIVE    => 'actif',
-                EnrollmentStatus::UPCOMING  => 'À venir',
-                EnrollmentStatus::EXPIRED   => 'Expiré',
-                EnrollmentStatus::SUSPENDED   => 'Suspendu',
-                EnrollmentStatus::COMPLETED => 'completed',
-                default => 'inactive',
+                EnrollmentStatus::UPCOMING   => 'upcoming',
+                EnrollmentStatus::EXPIRED    => 'expired',
+                EnrollmentStatus::SUSPENDED  => 'suspended',
+                EnrollmentStatus::COMPLETED  => 'completed',
+                default                      => 'inactive',
             };
         }
 
-        // Statut calculé via fenêtres de dates
         if ($this->startsAt && $now < $this->startsAt) return 'upcoming';
         if ($this->endsAt && $now > $this->endsAt) return 'expired';
+
         return 'active';
     }
 
-    public function getComputedStateLabel(\DateTimeImmutable $now = null): string
+    public function getComputedStateLabel(?\DateTimeImmutable $now = null): string
     {
         return match ($this->getComputedState($now)) {
             'active'    => 'Actif',
