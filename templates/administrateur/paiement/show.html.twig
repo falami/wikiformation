@@ -1,0 +1,520 @@
+{# templates/administrateur/paiement/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}{{ title|default('Paiement') }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#0b1220')) }};
+
+      --wk-card-radius: 22px;
+      --wk-soft-shadow: 0 18px 50px rgba(0,0,0,.10);
+      --wk-glass: rgba(255,255,255,.08);
+      --wk-border: rgba(255,255,255,.14);
+      --wk-text: rgba(255,255,255,.92);
+      --wk-muted: rgba(255,255,255,.70);
+    }
+
+    .hero{
+      border-radius: var(--wk-card-radius);
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: var(--wk-soft-shadow);
+      background:
+        radial-gradient(1200px 600px at 10% 10%, color-mix(in oklab, var(--theme-color-secondaire) 35%, transparent), transparent 55%),
+        radial-gradient(900px 500px at 85% 20%, color-mix(in oklab, var(--theme-color-tertiaire) 18%, transparent), transparent 60%),
+        linear-gradient(120deg, color-mix(in oklab, var(--theme-color-principal) 88%, #000 12%), #0b1220);
+    }
+    .hero::before{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0));
+      opacity:.55;
+      pointer-events:none;
+    }
+    .hero-inner{ position:relative; padding:22px 22px; }
+    @media (min-width: 992px){ .hero-inner{ padding:26px 28px; } }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.38rem .70rem;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      color: var(--wk-text);
+      font-weight:600;
+      font-size:.88rem;
+      backdrop-filter: blur(10px);
+    }
+    .chip .dot{
+      width:8px; height:8px; border-radius:999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 4px rgba(255,193,7,.15);
+    }
+
+    .card-premium{
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: var(--wk-card-radius);
+      overflow:hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,.06);
+      background: #fff;
+    }
+    [data-bs-theme="dark"] .card-premium{
+      background: rgba(255,255,255,.03);
+      border-color: rgba(255,255,255,.08);
+      box-shadow: 0 18px 50px rgba(0,0,0,.30);
+    }
+
+    .dl{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 992px){
+      .dl{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+
+    .dl-item{
+      border-radius: 18px;
+      padding: 14px 14px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(0,0,0,.015);
+    }
+    [data-bs-theme="dark"] .dl-item{
+      border-color: rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+    }
+
+    .k-label{
+      font-size:.78rem;
+      letter-spacing:.02em;
+      text-transform: uppercase;
+      opacity:.75;
+      margin-bottom: 6px;
+    }
+    .k-value{
+      font-weight: 700;
+      font-size: 1.02rem;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-size: .92rem;
+    }
+
+    .proof-box{
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px dashed rgba(0,0,0,.15);
+      background: rgba(0,0,0,.01);
+    }
+    [data-bs-theme="dark"] .proof-box{
+      border-color: rgba(255,255,255,.18);
+      background: rgba(255,255,255,.03);
+    }
+
+    .btn-soft{
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.10);
+      color: #fff;
+      backdrop-filter: blur(10px);
+    }
+    .btn-soft:hover{ background: rgba(255,255,255,.16); color:#fff; }
+    .btn-hero{
+      border-radius: 14px;
+      background: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+      color:#111;
+      font-weight: 800;
+    }
+    .btn-hero:hover{ filter: brightness(.96); }
+
+    .table-mini td, .table-mini th{ padding: .55rem .65rem; }
+  </style>
+{% endblock %}
+
+{% block body %}
+
+  {% set montant = (p.montantCents ?? 0) / 100 %}
+  {% set devise  = p.devise ?? 'EUR' %}
+  {% set ht      = (p.ventilationHtHorsDeboursCents ?? 0) / 100 %}
+  {% set tva     = (p.ventilationTvaHorsDeboursCents ?? 0) / 100 %}
+  {% set deb     = (p.ventilationDeboursCents ?? 0) / 100 %}
+  {% set srcVent = p.ventilationSource ?? '' %}
+
+  <div class="container-fluid py-3 py-lg-4">
+
+    {# HERO #}
+    <div class="hero mb-3 mb-lg-4">
+      <div class="hero-inner">
+        <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center justify-content-between">
+          <div class="min-w-0">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="chip"><span class="dot"></span>Paiement</span>
+              <span class="chip"><i class="bi bi-hash"></i> #{{ p.id }}</span>
+              <span class="chip"><i class="bi bi-calendar-event"></i> {{ p.datePaiement ? p.datePaiement|date('d/m/Y') : '—' }}</span>
+              <span class="chip"><i class="bi bi-credit-card-2-front"></i> {{ p.mode ? p.mode.label() : '—' }}</span>
+            </div>
+
+            <div class="mt-2">
+              <div class="h3 mb-1 fw-bold text-truncate">
+                {{ (montant)|number_format(2, ',', ' ') }}&nbsp;€
+              </div>
+              <div class="text-white-50">
+                Payeur : <span class="fw-semibold text-white">{{ p.payeurLabel ?? '—' }}</span>
+                {% if p.facture %}
+                  • Facture : <span class="fw-semibold text-white">{{ p.facture.numero ?: ('#' ~ p.facture.id) }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap justify-content-lg-end">
+            <a href="{{ path('app_administrateur_paiement_index', {entite: entite.id}) }}"
+               class="btn btn-soft px-3">
+              <i class="bi bi-arrow-left me-1"></i> Retour
+            </a>
+
+            <a href="{{ path('app_administrateur_paiement_edit', {entite: entite.id, id: p.id}) }}"
+               class="btn btn-hero px-3">
+              <i class="bi bi-pencil-square me-1"></i> Éditer
+            </a>
+
+            <form method="post"
+                  action="{{ path('app_administrateur_paiement_delete', {entite: entite.id, id: p.id}) }}"
+                  class="d-inline"
+                  onsubmit="return confirm('Supprimer ce paiement ?');">
+              <input type="hidden" name="_token" value="{{ csrf_token('paiement_delete_' ~ p.id) }}">
+              <button class="btn btn-soft px-3">
+                <i class="bi bi-trash me-1"></i> Supprimer
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 g-lg-4">
+
+      {# COL GAUCHE : Détails #}
+      <div class="col-12 col-lg-8">
+
+        <div class="card-premium mb-3 mb-lg-4">
+          <div class="p-3 p-lg-4 border-bottom">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-bold fs-5">Détails du paiement</div>
+                <div class="text-muted small">Informations principales + rattachements</div>
+              </div>
+              <span class="badge rounded-pill text-bg-light border">
+                {{ devise }}
+              </span>
+            </div>
+          </div>
+
+          <div class="p-3 p-lg-4">
+            <div class="dl">
+
+              <div class="dl-item">
+                <div class="k-label">Montant TTC payé</div>
+                <div class="k-value">
+                  <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                    {{ montant|number_format(2, ',', ' ') }}&nbsp;€
+                  </span>
+                </div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Mode</div>
+                <div class="k-value">
+                  {% if p.mode %}
+                    <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                      {{ p.mode.label() }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Payeur</div>
+                <div class="k-value">
+                  {{ p.payeurLabel ?? '—' }}
+                  <div class="small text-muted mt-1">
+                    {% if p.payeurEntreprise %}
+                      <i class="bi bi-buildings me-1"></i>Entreprise
+                    {% elseif p.payeurUtilisateur %}
+                      <i class="bi bi-person me-1"></i>Utilisateur
+                    {% else %}
+                      <i class="bi bi-question-circle me-1"></i>Non renseigné
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Facture liée</div>
+                <div class="k-value">
+                  {% if p.facture %}
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <span class="badge rounded-pill bg-dark-subtle text-dark border border-dark-subtle px-3 py-2">
+                        {{ p.facture.numero ?: ('#' ~ p.facture.id) }}
+                      </span>
+                      {# adapte si tu as une route show facture #}
+                      {% if app.request.attributes.get('_route') is not null %}
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill"
+                           href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: p.facture.id}) }}">
+                          Ouvrir la facture <i class="bi bi-box-arrow-up-right ms-1"></i>
+                        </a>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Créé par</div>
+                <div class="k-value">
+                  {% if p.createur %}
+                    {{ (p.createur.prenom ?? '') ~ ' ' ~ (p.createur.nom ?? '')|trim ?: (p.createur.email ?? '—') }}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Dates</div>
+                <div class="k-value">
+                  <div class="d-flex flex-column gap-1">
+                    <div><i class="bi bi-calendar-check me-1"></i>Paiement : <span class="fw-semibold">{{ p.datePaiement ? p.datePaiement|date('d/m/Y') : '—' }}</span></div>
+                    <div class="text-muted">
+                      <i class="bi bi-clock-history me-1"></i>Création :
+                      {{ p.dateCreation ? p.dateCreation|date('d/m/Y à H:i') : '—' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Stripe PaymentIntent</div>
+                <div class="k-value mono">
+                  {% if p.stripePaymentIntentId %}
+                    {{ p.stripePaymentIntentId }}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Justificatif</div>
+                <div class="k-value">
+                  {% if p.justificatif %}
+                    <div class="proof-box">
+                      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                        <div class="min-w-0">
+                          <div class="fw-semibold text-truncate">
+                            <i class="bi bi-paperclip me-1"></i>{{ p.justificatif }}
+                          </div>
+                          <div class="small text-muted">Fichier uploadé</div>
+                        </div>
+                        {# adapte si tu exposes un download. Sinon affiche juste le nom. #}
+                        <a class="btn btn-sm btn-outline-secondary rounded-pill"
+                           href="{{ asset('uploads/proofs/' ~ p.justificatif) }}" target="_blank" rel="noopener">
+                          Ouvrir <i class="bi bi-box-arrow-up-right ms-1"></i>
+                        </a>
+                      </div>
+                    </div>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {# Ventilation #}
+        <div class="card-premium">
+          <div class="p-3 p-lg-4 border-bottom d-flex align-items-start justify-content-between gap-3">
+            <div>
+              <div class="fw-bold fs-5">Ventilation</div>
+              <div class="text-muted small">
+                HT hors débours / TVA hors débours / Débours TTC
+              </div>
+            </div>
+            <span class="badge rounded-pill
+              {% if srcVent == 'manuel' %} text-bg-warning
+              {% elseif srcVent == 'facture_auto' %} text-bg-success
+              {% else %} text-bg-secondary
+              {% endif %}
+            ">
+              {{ srcVent ?: '—' }}
+            </span>
+          </div>
+
+          <div class="p-3 p-lg-4">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle table-mini mb-0">
+                <thead>
+                  <tr class="text-muted">
+                    <th>Poste</th>
+                    <th class="text-end">Montant</th>
+                    <th class="text-muted">Info</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="fw-semibold">HT (hors débours)</td>
+                    <td class="text-end">
+                      <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                        {{ ht|number_format(2, ',', ' ') }}&nbsp;€
+                      </span>
+                    </td>
+                    <td class="text-muted small">Part HT calculée / saisie</td>
+                  </tr>
+
+                  <tr>
+                    <td class="fw-semibold">TVA (hors débours)</td>
+                    <td class="text-end">
+                      <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle px-3 py-2">
+                        {{ tva|number_format(2, ',', ' ') }}&nbsp;€
+                      </span>
+                    </td>
+                    <td class="text-muted small">Part TVA calculée / saisie</td>
+                  </tr>
+
+                  <tr>
+                    <td class="fw-semibold">Débours (TTC)</td>
+                    <td class="text-end">
+                      <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-2"
+                            data-bs-toggle="tooltip"
+                            title="Part du paiement allouée aux lignes marquées en débours (TTC)">
+                        {{ deb|number_format(2, ',', ' ') }}&nbsp;€
+                      </span>
+                    </td>
+                    <td class="text-muted small">Part débours TTC</td>
+                  </tr>
+
+                  <tr class="table-light">
+                    <td class="fw-bold">Total TTC payé</td>
+                    <td class="text-end">
+                      <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                        {{ montant|number_format(2, ',', ' ') }}&nbsp;€
+                      </span>
+                    </td>
+                    <td class="text-muted small">
+                      {% set sum = ((p.ventilationHtHorsDeboursCents ?? 0) + (p.ventilationTvaHorsDeboursCents ?? 0) + (p.ventilationDeboursCents ?? 0)) / 100 %}
+                      {% if (p.ventilationHtHorsDeboursCents is not null or p.ventilationTvaHorsDeboursCents is not null or p.ventilationDeboursCents is not null) %}
+                        Somme ventilation :
+                        <span class="fw-semibold">{{ sum|number_format(2, ',', ' ') }}&nbsp;€</span>
+                      {% else %}
+                        Ventilation non renseignée
+                      {% endif %}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {% if srcVent == 'manuel' %}
+              <div class="alert alert-warning mt-3 mb-0 rounded-4">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Ventilation en mode <strong>manuel</strong> : elle doit correspondre au montant payé (tolérance 1 centime).
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      {# COL DROITE : Meta / Infos techniques #}
+      <div class="col-12 col-lg-4">
+
+        <div class="card-premium mb-3 mb-lg-4">
+          <div class="p-3 p-lg-4 border-bottom">
+            <div class="fw-bold fs-5">Informations techniques</div>
+            <div class="text-muted small">Identifiants & données brutes</div>
+          </div>
+
+          <div class="p-3 p-lg-4">
+            <div class="dl" style="grid-template-columns: 1fr;">
+              <div class="dl-item">
+                <div class="k-label">ID paiement</div>
+                <div class="k-value mono">#{{ p.id }}</div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Devise</div>
+                <div class="k-value">{{ devise }}</div>
+              </div>
+
+              <div class="dl-item">
+                <div class="k-label">Meta</div>
+                <div class="k-value">
+                  {% if p.meta %}
+                    <pre class="mb-0 mono" style="white-space: pre-wrap;">{{ p.meta|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <div class="small text-muted">
+                <i class="bi bi-shield-check me-1"></i>
+                Ce paiement est rattaché à l’entité : <span class="fw-semibold">{{ entite.nom ?? ('#' ~ entite.id) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-premium">
+          <div class="p-3 p-lg-4 border-bottom">
+            <div class="fw-bold fs-5">Raccourcis</div>
+            <div class="text-muted small">Actions rapides</div>
+          </div>
+
+          <div class="p-3 p-lg-4 d-grid gap-2">
+            <a class="btn btn-outline-secondary rounded-4"
+               href="{{ path('app_administrateur_paiement_edit', {entite: entite.id, id: p.id}) }}">
+              <i class="bi bi-pencil-square me-1"></i> Modifier
+            </a>
+
+            <a class="btn btn-outline-secondary rounded-4"
+               href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: p.facture ? p.facture.id : 0 }) }}">
+              <i class="bi bi-plus-circle me-1"></i> Nouveau paiement
+            </a>
+
+            {% if p.facture %}
+              <a class="btn btn-outline-secondary rounded-4"
+                 href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: p.facture.id}) }}">
+                <i class="bi bi-receipt me-1"></i> Voir la facture
+              </a>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+{% endblock %}

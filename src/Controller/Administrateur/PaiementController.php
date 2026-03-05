@@ -893,4 +893,22 @@ final class PaiementController extends AbstractController
             default => '<span class="fw-semibold">' . $val . '</span>',
         };
     }
+
+
+    // -------------------------
+    // SHOW
+    // -------------------------
+    #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function show(Entite $entite, Paiement $paiement): Response
+    {
+        if ($paiement->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createAccessDeniedException('Paiement non autorisé pour cette entité.');
+        }
+
+        return $this->render('administrateur/paiement/show.html.twig', [
+            'entite' => $entite,
+            'p'      => $paiement,
+            'title'  => 'Paiement #' . $paiement->getId(),
+        ]);
+    }
 }
