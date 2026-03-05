@@ -29,7 +29,6 @@ use App\Service\Billing\InscriptionBillingSync;
 
 
 
-
 #[Route('/administrateur/{entite}/facture', name: 'app_administrateur_facture_', requirements: ['entite' => '\d+'])]
 #[IsGranted(TenantPermission::FACTURE_MANAGE, subject: 'entite')]
 class FactureController extends AbstractController
@@ -1100,5 +1099,71 @@ class FactureController extends AbstractController
       'paidCents' => $paidCents,
       'remainingCents' => $remainingCents,
     ]);
+  }
+
+
+
+  #[Route('/{id}/delete', name: 'delete', methods: ['POST'], requirements: ['id' => '\d+'])]
+  public function factureDelete(
+    Entite $entite,
+    Facture $facture,
+    Request $request,
+    EM $em,
+  ): RedirectResponse {
+    // ✅ sécurité entité
+    if ($facture->getEntite()?->getId() !== $entite->getId()) {
+      throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
+    }
+
+    // ✅ CSRF
+    if (!$this->isCsrfTokenValid('facture_delete_' . $facture->getId(), (string) $request->request->get('_token'))) {
+      throw $this->createAccessDeniedException('CSRF invalide.');
+    }
+
+    // ✅ on garde la liste des inscriptions impactées avant modif/suppression
+    $affected = [];
+    if (method_exists($facture, 'getInscriptions') && $facture->getInscriptions()) {
+      $affected = $facture->getInscriptions()->toArray();
+    }
+
+    // ✅ si paiements => on n’efface pas, on annule (meilleure pratique)
+    $hasPayments = method_exists($facture, 'getPaiements') && $facture->getPaiements() && $facture->getPaiements()->count() > 0;
+
+    if ($hasPayments) {
+      // Annulation “soft delete”
+      if (method_exists($facture, 'setStatus')) {
+        $facture->setStatus(FactureStatus::CANCELED);
+      }
+
+      $em->flush();
+
+      // ✅ sync montants inscriptions liées
+      if (!empty($affected)) {
+        $this->inscSync->syncMany($affected);
+      }
+
+      $this->addFlash('warning', "Facture non supprimée car elle contient des paiements : elle a été annulée.");
+      return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);
+    }
+
+    // ✅ sinon suppression réelle
+    // optionnel : détacher les inscriptions si tu as une relation ManyToMany/OneToMany
+    // (utile si tes FK ne sont pas en cascade ou si tu veux garder les inscriptions)
+    if (method_exists($facture, 'getInscriptions') && method_exists($facture, 'removeInscription')) {
+      foreach ($facture->getInscriptions() as $insc) {
+        $facture->removeInscription($insc);
+      }
+    }
+
+    $em->remove($facture);
+    $em->flush();
+
+    // ✅ sync inscriptions impactées (elles ne sont plus rattachées à la facture)
+    if (!empty($affected)) {
+      $this->inscSync->syncMany($affected);
+    }
+
+    $this->addFlash('success', 'Facture supprimée.');
+    return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);
   }
 }

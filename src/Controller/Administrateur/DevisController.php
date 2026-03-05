@@ -941,4 +941,50 @@ class DevisController extends AbstractController
       $d->setEntrepriseDestinataire(null);
     }
   }
+
+
+  #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '\d+'])]
+  public function devisShow(Entite $entite, Devis $devis, EM $em): Response
+  {
+      // ✅ sécurité entité
+      if ($devis->getEntite()?->getId() !== $entite->getId()) {
+          throw $this->createAccessDeniedException('Devis non autorisé pour cette entité.');
+      }
+
+      /** @var Utilisateur $user */
+      $user = $this->getUser();
+
+      // Montants utiles
+      $htEur  = (($devis->getMontantHtCents() ?? 0) / 100);
+      $tvaEur = (($devis->getMontantTvaCents() ?? 0) / 100);
+      $ttcEur = (($devis->getMontantTtcCents() ?? 0) / 100);
+
+      // Label destinataire (même logique que ton AJAX)
+      $label = '—';
+      if ($devis->getProspect()) {
+          $p = $devis->getProspect();
+          $label = trim(($p->getPrenom() ?? '') . ' ' . ($p->getNom() ?? '')) ?: ($p->getEmail() ?? 'Prospect');
+      } else {
+          $parts = [];
+          if ($devis->getEntrepriseDestinataire()) {
+              $parts[] = $devis->getEntrepriseDestinataire()->getRaisonSociale();
+          }
+          if ($devis->getDestinataire()) {
+              $u = $devis->getDestinataire();
+              $parts[] = trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')) ?: ($u->getEmail() ?? 'Client');
+          }
+          $label = $parts ? implode(' — ', $parts) : '—';
+      }
+
+      return $this->render('administrateur/devis/show.html.twig', [
+          'entite' => $entite,
+          'd' => $devis,
+          'destLabel' => $label,
+
+          // optionnel mais pratique si tu veux l'afficher en KPIs
+          'htEur' => $htEur,
+          'tvaEur' => $tvaEur,
+          'ttcEur' => $ttcEur,
+      ]);
+  }
 }

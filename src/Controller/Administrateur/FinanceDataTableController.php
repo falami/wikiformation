@@ -84,7 +84,7 @@ final class FinanceDataTableController extends AbstractController
       9 => ['expr' => 'd.id',              'get' => fn($r) => $r['actions']],
     ];
 
-    return $this->handleDataTable($qb, $req, $columns, function (Depense $d) {
+    return $this->handleDataTable($qb, $req, $columns, function (Depense $d, Entite $entite) {
       $cat = $d->getCategorie()?->getLibelle() ?? '—';
       $four = $d->getFournisseur()?->getNom() ?? '—';
       $payeur = $d->getPayeur() ? trim(($d->getPayeur()->getPrenom() ?? '') . ' ' . ($d->getPayeur()->getNom() ?? '')) : '—';
@@ -102,9 +102,34 @@ final class FinanceDataTableController extends AbstractController
         'tvaDedCents' => $d->getTvaDeductibleCents(),
         'payeur' => $payeur,
         'devise' => $d->getDevise(),
-        'actions' => '', // tu mets ton HTML actions ici si tu veux
+        'actions' => (function() use ($d, $entite) {
+          // ⚠️ adapte les noms de routes si besoin
+          $urlShow = $this->generateUrl('app_administrateur_depense_show', ['entite' => $entite->getId(), 'id' => $d->getId()]);
+          $urlEdit = $this->generateUrl('app_administrateur_depense_edit', ['entite' => $entite->getId(), 'id' => $d->getId()]);
+          $urlDel  = $this->generateUrl('app_administrateur_depense_delete', ['entite' => $entite->getId(), 'id' => $d->getId()]);
+
+          // ⚠️ token : adapte l’intention à ton delete (ex: "delete_depense")
+          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_depense'.$d->getId())->getValue();
+
+          $label = trim(($d->getLibelle() ?? ''));
+
+          return sprintf(
+            '<div class="btn-group btn-group-sm" role="group" aria-label="Actions">
+              %s %s
+              <button type="button" class="btn btn-danger-soft js-dt-delete"
+                data-url="%s" data-token="%s" data-label="%s" title="Supprimer">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>',
+            $this->btn($urlShow, 'bi bi-eye', 'Voir'),
+            $this->btn($urlEdit, 'bi bi-pencil-square', 'Modifier'),
+            $this->esc($urlDel),
+            $this->esc($token),
+            $this->esc($label !== '' ? $label : ('Dépense #'.$d->getId()))
+          );
+        })(),
       ];
-    });
+    }, $entite);
   }
 
   #[Route('/paiements', name: 'paiements', methods: ['GET', 'POST'])]
@@ -148,7 +173,7 @@ final class FinanceDataTableController extends AbstractController
       7 => ['expr' => 'p.id',                   'get' => fn($r) => $r['actions']],
     ];
 
-    return $this->handleDataTable($qb, $req, $columns, function (Paiement $p) {
+    return $this->handleDataTable($qb, $req, $columns, function (Paiement $p, Entite $entite) {
       return [
         'id' => $p->getId(),
         'date' => $p->getDatePaiement()->format('Y-m-d'),
@@ -158,9 +183,37 @@ final class FinanceDataTableController extends AbstractController
         'devise' => $p->getDevise(),
         'stripePaymentIntentId' => $p->getStripePaymentIntentId(),
         'justificatif' => $p->getJustificatif(),
-        'actions' => '',
+        'actions' => (function() use ($p, $entite) {
+          $urlShow = $this->generateUrl('app_administrateur_paiement_show', ['entite' => $entite->getId(), 'id' => $p->getId()]);
+          $btnFacture = '';
+
+          if ($p->getFacture()) {
+            $urlFact = $this->generateUrl('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $p->getFacture()->getId()]);
+            $btnFacture = $this->btn($urlFact, 'bi bi-receipt', 'Voir la facture');
+          }
+
+          $urlDel  = $this->generateUrl('app_administrateur_paiement_delete', ['entite' => $entite->getId(), 'id' => $p->getId()]);
+          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_paiement'.$p->getId())->getValue();
+
+          $label = $p->getStripePaymentIntentId() ?: ('Paiement #'.$p->getId());
+
+          return sprintf(
+            '<div class="btn-group btn-group-sm" role="group">
+              %s %s
+              <button type="button" class="btn btn-danger-soft js-dt-delete"
+                data-url="%s" data-token="%s" data-label="%s" title="Supprimer">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>',
+            $this->btn($urlShow, 'bi bi-eye', 'Voir'),
+            $btnFacture,
+            $this->esc($urlDel),
+            $this->esc($token),
+            $this->esc($label)
+          );
+        })(),
       ];
-    });
+    }, $entite);
   }
 
 
@@ -207,7 +260,7 @@ final class FinanceDataTableController extends AbstractController
       8 => ['expr' => 'fa.id',              'get' => fn($r) => $r['actions']],
     ];
 
-    return $this->handleDataTable($qb, $req, $columns, function (Facture $fa) {
+    return $this->handleDataTable($qb, $req, $columns, function (Facture $fa, Entite $entite) {
       return [
         'id' => $fa->getId(),
         'date' => $fa->getDateEmission()->format('Y-m-d'),
@@ -219,9 +272,34 @@ final class FinanceDataTableController extends AbstractController
         'tva' => $fa->getMontantTvaCents(),
         'ttc' => $fa->getMontantTtcCents(),
         'devise' => $fa->getDevise(),
-        'actions' => '',
+        'actions' => (function() use ($fa, $entite) {
+          $urlShow = $this->generateUrl('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $fa->getId()]);
+          // ⚠️ si tu as une route PDF dédiée, utilise-la, sinon show
+          $urlPdf  = $this->generateUrl('app_administrateur_facture_pdf', ['entite' => $entite->getId(), 'id' => $fa->getId()]);
+
+          $urlDel  = $this->generateUrl('app_administrateur_facture_delete', ['entite' => $entite->getId(), 'id' => $fa->getId()]);
+          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_facture'.$fa->getId())->getValue();
+
+          $label = $fa->getNumero() ?: ('Facture #'.$fa->getId());
+
+          return sprintf(
+            '<div class="btn-group btn-group-sm" role="group">
+              %s
+              %s
+              <button type="button" class="btn btn-danger-soft js-dt-delete"
+                data-url="%s" data-token="%s" data-label="%s" title="Supprimer">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>',
+            $this->btn($urlShow, 'bi bi-eye', 'Voir'),
+            $this->btn($urlPdf,  'bi bi-file-earmark-pdf', 'PDF', 'btn btn-light', ['target' => '_blank']),
+            $this->esc($urlDel),
+            $this->esc($token),
+            $this->esc($label)
+          );
+        })(),
       ];
-    });
+    }, $entite);
   }
 
   #[Route('/devis', name: 'devis', methods: ['GET', 'POST'])]
@@ -271,7 +349,7 @@ final class FinanceDataTableController extends AbstractController
       9 => ['expr' => 'dv.id',              'get' => fn($r) => $r['actions']],
     ];
 
-    return $this->handleDataTable($qb, $req, $columns, function (Devis $dv) {
+    return $this->handleDataTable($qb, $req, $columns, function (Devis $dv,Entite $entite) {
       $dest = '—';
       if ($dv->getEntrepriseDestinataire()) $dest = $dv->getEntrepriseDestinataire()->getRaisonSociale() ?: 'Entreprise';
       elseif ($dv->getDestinataire()) {
@@ -295,9 +373,44 @@ final class FinanceDataTableController extends AbstractController
         'ttc' => $dv->getMontantTtcCents(),
         'devise' => $dv->getDevise(),
         'pdf' => $dv->getPdfPath(),
-        'actions' => '',
+        'actions' => (function() use ($dv, $entite) {
+          $urlShow = $this->generateUrl('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $dv->getId()]);
+
+          $btnPdf = '';
+          if ($dv->getPdfPath()) {
+            // ⚠️ adapte selon ton stockage (route, controller download, ou public/uploads)
+            $urlPdf = '/uploads/devis/' . rawurlencode($dv->getPdfPath());
+            $btnPdf = $this->btn($urlPdf, 'bi bi-file-earmark-pdf', 'PDF', 'btn btn-light', ['target' => '_blank']);
+          }
+
+          // ⚠️ route conversion à adapter
+          $urlConv = $this->generateUrl('app_administrateur_devis_to_facture', ['entite' => $entite->getId(), 'id' => $dv->getId()]);
+
+          $urlDel  = $this->generateUrl('app_administrateur_devis_delete', ['entite' => $entite->getId(), 'id' => $dv->getId()]);
+          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_devis'.$dv->getId())->getValue();
+
+          $label = $dv->getNumero() ?: ('Devis #'.$dv->getId());
+
+          return sprintf(
+            '<div class="btn-group btn-group-sm" role="group">
+              %s
+              %s
+              %s
+              <button type="button" class="btn btn-danger-soft js-dt-delete"
+                data-url="%s" data-token="%s" data-label="%s" title="Supprimer">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>',
+            $this->btn($urlShow, 'bi bi-eye', 'Voir'),
+            $btnPdf,
+            $this->btn($urlConv, 'bi bi-arrow-right-circle', 'Convertir en facture'),
+            $this->esc($urlDel),
+            $this->esc($token),
+            $this->esc($label)
+          );
+        })(),
       ];
-    });
+    }, $entite);
   }
 
   #[Route('/avoirs', name: 'avoirs', methods: ['GET', 'POST'])]
@@ -334,79 +447,94 @@ final class FinanceDataTableController extends AbstractController
       4 => ['expr' => 'av.id',               'get' => fn($r) => $r['actions']],
     ];
 
-    return $this->handleDataTable($qb, $req, $columns, function (Avoir $av) {
+    return $this->handleDataTable($qb, $req, $columns, function (Avoir $av,Entite $entite) {
       return [
         'id' => $av->getId(),
         'date' => $av->getDateEmission()->format('Y-m-d'),
         'numero' => $av->getNumeroOrNull() ?? '—',
         'factureOrigine' => $av->getFactureOrigine()?->getNumero() ?? '—',
         'ttc' => $av->getMontantTtcCents(),
-        'actions' => '',
+        'actions' => (function() use ($av, $entite) {
+          $urlShow = $this->generateUrl('app_administrateur_avoir_show', ['entite' => $entite->getId(), 'id' => $av->getId()]);
+          $urlDel  = $this->generateUrl('app_administrateur_avoir_delete', ['entite' => $entite->getId(), 'id' => $av->getId()]);
+          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_avoir'.$av->getId())->getValue();
+
+          $label = $av->getNumeroOrNull() ?: ('Avoir #'.$av->getId());
+
+          return sprintf(
+            '<div class="btn-group btn-group-sm" role="group">
+              %s
+              <button type="button" class="btn btn-danger-soft js-dt-delete"
+                data-url="%s" data-token="%s" data-label="%s" title="Supprimer">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>',
+            $this->btn($urlShow, 'bi bi-eye', 'Voir'),
+            $this->esc($urlDel),
+            $this->esc($token),
+            $this->esc($label)
+          );
+        })(),
       ];
-    });
+    }, $entite);
   }
 
   // -------------------------
   // DataTables core (server-side)
   // -------------------------
 
-  private function handleDataTable(QueryBuilder $qb, Request $req, array $columns, callable $rowMapper): JsonResponse
-  {
+  private function handleDataTable(
+    QueryBuilder $qb,
+    Request $req,
+    array $columns,
+    callable $rowMapper,
+    mixed $ctx = null
+): JsonResponse
+{
     $draw = (int) $req->get('draw', 1);
     $start = max(0, (int) $req->get('start', 0));
     $length = (int) $req->get('length', 10);
     if ($length <= 0) $length = 10;
 
-    // global search
-    $search = trim((string) ($req->get('search')['value'] ?? ''));
-
-
-    // ordering
     $order = $req->get('order')[0] ?? null;
     if ($order) {
-      $colIdx = (int) ($order['column'] ?? 0);
-      $dir = strtoupper($order['dir'] ?? 'ASC');
-      $dir = in_array($dir, ['ASC', 'DESC'], true) ? $dir : 'ASC';
-      if (isset($columns[$colIdx]['expr'])) {
-        $qb->addOrderBy($columns[$colIdx]['expr'], $dir);
-      }
+        $colIdx = (int) ($order['column'] ?? 0);
+        $dir = strtoupper($order['dir'] ?? 'ASC');
+        $dir = in_array($dir, ['ASC', 'DESC'], true) ? $dir : 'ASC';
+        if (isset($columns[$colIdx]['expr'])) {
+            $qb->addOrderBy($columns[$colIdx]['expr'], $dir);
+        }
     } else {
-      // fallback stable
-      $qb->addOrderBy(array_values($columns)[0]['expr'] ?? '1', 'DESC');
+        $qb->addOrderBy(array_values($columns)[0]['expr'] ?? '1', 'DESC');
     }
 
-    // count total (sans pagination)
     $countQb = clone $qb;
     $countQb->resetDQLPart('select')->resetDQLPart('orderBy');
     $countQb->select('COUNT(DISTINCT ' . $this->guessRootAlias($qb) . '.id)');
-
     $recordsFiltered = (int) $countQb->getQuery()->getSingleScalarResult();
-    $recordsTotal = $recordsFiltered; // si tu veux un total sans filtres, clone avant filtres
+    $recordsTotal = $recordsFiltered;
 
-    // pagination
     $qb->setFirstResult($start)->setMaxResults($length);
 
-    $rows = $qb->getQuery()->getResult(); // entités hydratées
+    $rows = $qb->getQuery()->getResult();
     $data = [];
     foreach ($rows as $entity) {
-      $data[] = $rowMapper($entity);
+        $data[] = $rowMapper($entity, $ctx); // ✅ ici on passe le contexte
     }
 
-    // format data for DataTables
-    // ici on renvoie un tableau "data" avec des colonnes cohérentes avec ton init JS
     return $this->json([
-      'draw' => $draw,
-      'recordsTotal' => $recordsTotal,
-      'recordsFiltered' => $recordsFiltered,
-      'data' => array_map(function ($row) use ($columns) {
-        $out = [];
-        foreach ($columns as $col) {
-          $out[] = $col['get']($row);
-        }
-        return $out;
-      }, $data),
+        'draw' => $draw,
+        'recordsTotal' => $recordsTotal,
+        'recordsFiltered' => $recordsFiltered,
+        'data' => array_map(function ($row) use ($columns) {
+            $out = [];
+            foreach ($columns as $col) {
+                $out[] = $col['get']($row);
+            }
+            return $out;
+        }, $data),
     ]);
-  }
+}
 
   private function applyCommonFilters(QueryBuilder $qb, Request $req, string $alias, string $dateField, ?string $deviseField): void
   {
@@ -438,5 +566,30 @@ final class FinanceDataTableController extends AbstractController
     $ids = (array) $req->query->all($key);     // catIds[] / fourIds[]
     $ids = array_values(array_filter(array_map('intval', $ids), fn($v) => $v > 0));
     return $ids;
+  }
+
+
+
+
+  private function esc(?string $v): string
+  {
+    return htmlspecialchars((string)($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+  }
+
+  private function btn(string $url, string $icon, string $title, string $class = 'btn btn-light', array $attrs = []): string
+  {
+    $attrHtml = '';
+    foreach ($attrs as $k => $v) {
+      $attrHtml .= ' ' . $this->esc($k) . '="' . $this->esc((string)$v) . '"';
+    }
+
+    return sprintf(
+      '<a href="%s" class="%s" title="%s" data-bs-toggle="tooltip"%s><i class="%s"></i></a>',
+      $this->esc($url),
+      $this->esc($class),
+      $this->esc($title),
+      $attrHtml,
+      $this->esc($icon)
+    );
   }
 }

@@ -286,6 +286,37 @@
     }
 
 
+
+
+
+
+    /* Actions datatables */
+  .dt-actions{
+    white-space: nowrap;
+  }
+  .dt-actions .btn{
+    border-radius: 12px;
+    padding: .28rem .46rem;
+    line-height: 1;
+  }
+  .dt-actions .btn i{ font-size: 1rem; }
+  .dt-actions .btn.btn-light{
+    border: 1px solid var(--stroke);
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+  }
+  .dt-actions .btn.btn-light:hover{
+    background: color-mix(in srgb, var(--theme-color-principal) 10%, var(--panel));
+  }
+  .dt-actions .btn-danger-soft{
+    border: 1px solid color-mix(in srgb, #dc3545 35%, var(--stroke));
+    background: color-mix(in srgb, #dc3545 10%, var(--panel));
+    color: #b4232c;
+  }
+  .dt-actions .btn-danger-soft:hover{
+    background: color-mix(in srgb, #dc3545 16%, var(--panel));
+  }
+
+
   </style>
 {% endblock %}
 
@@ -533,66 +564,66 @@
       <div class="kpi-grid">
         <div class="kpi">
           <div class="label">Dépenses (TTC)</div>
-          <div class="value" id="kpiDepTtc">—</div>
-          <div class="sub" id="kpiDepCount">—</div>
+          <div class="value" id="kpiDepTtc">-</div>
+          <div class="sub" id="kpiDepCount">-</div>
         </div>
         <div class="kpi">
           <div class="label">TVA déductible</div>
-          <div class="value" id="kpiTvaDed">—</div>
+          <div class="value" id="kpiTvaDed">-</div>
           <div class="sub">Selon % déductible</div>
         </div>
         <div class="kpi">
           <div class="label">Factures (TTC)</div>
-          <div class="value" id="kpiFacTtc">—</div>
-          <div class="sub" id="kpiFacCount">—</div>
+          <div class="value" id="kpiFacTtc">-</div>
+          <div class="sub" id="kpiFacCount">-</div>
         </div>
         <div class="kpi">
           <div class="label">Paiements encaissés</div>
-          <div class="value" id="kpiPayTotal">—</div>
-          <div class="sub" id="kpiPayCount">—</div>
+          <div class="value" id="kpiPayTotal">-</div>
+          <div class="sub" id="kpiPayCount">-</div>
         </div>
         <div class="kpi">
           <div class="label">Résultat (Factures - Dépenses)</div>
-          <div class="value" id="kpiNet">—</div>
+          <div class="value" id="kpiNet">-</div>
           <div class="sub">Sur la période</div>
         </div>
         <div class="kpi">
           <div class="label">Cash gap (Paiements - Dépenses)</div>
-          <div class="value" id="kpiCashGap">—</div>
+          <div class="value" id="kpiCashGap">-</div>
           <div class="sub">Trésorerie nette</div>
         </div>
         <div class="kpi">
           <div class="label">Devis (pipeline TTC)</div>
-          <div class="value" id="kpiDevisTtc">—</div>
-          <div class="sub" id="kpiDevisCount">—</div>
+          <div class="value" id="kpiDevisTtc">-</div>
+          <div class="sub" id="kpiDevisCount">-</div>
         </div>
         <div class="kpi">
           <div class="label">Avoirs (TTC)</div>
-          <div class="value" id="kpiAvoTotal">—</div>
-          <div class="sub" id="kpiAvoCount">—</div>
+          <div class="value" id="kpiAvoTotal">-</div>
+          <div class="sub" id="kpiAvoCount">-</div>
         </div>
         {# sous tes KPI existants #}
         <div class="kpi">
           <div class="label">Dépenses moy./mois</div>
-          <div class="value" id="kpiDepAvgMonth">—</div>
-          <div class="sub" id="kpiAvgHint">—</div>
+          <div class="value" id="kpiDepAvgMonth">-</div>
+          <div class="sub" id="kpiAvgHint">-</div>
         </div>
 
         <div class="kpi">
           <div class="label">Factures moy./mois</div>
-          <div class="value" id="kpiFacAvgMonth">—</div>
+          <div class="value" id="kpiFacAvgMonth">-</div>
           <div class="sub">Lissé sur la période</div>
         </div>
 
         <div class="kpi">
           <div class="label">Paiements moy./mois</div>
-          <div class="value" id="kpiPayAvgMonth">—</div>
+          <div class="value" id="kpiPayAvgMonth">-</div>
           <div class="sub">Encaissements</div>
         </div>
 
         <div class="kpi">
           <div class="label">Devis moy./mois</div>
-          <div class="value" id="kpiDevisAvgMonth">—</div>
+          <div class="value" id="kpiDevisAvgMonth">-</div>
           <div class="sub">Pipeline</div>
         </div>
 
@@ -821,6 +852,40 @@
   </div>
 
 
+
+{# ✅ Modal confirm suppression (réutilisable) #}
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:18px;">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+          Confirmer la suppression
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="text-muted" id="confirmDeleteText">
+          Cette action est irréversible.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+
+        <form id="confirmDeleteForm" method="post" action="">
+          <input type="hidden" name="_token" id="confirmDeleteToken" value="">
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash3 me-1"></i> Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <script>
   window.__ALL_FIN_CAT_IDS__  = {{ categories|map(c => c.id)|json_encode|raw }};
   window.__ALL_FIN_FOUR_IDS__ = {{ fournisseurs|map(f => f.id)|json_encode|raw }};
@@ -829,9 +894,42 @@
 
 <script>
 (function(){
+
+
+
+
   // ===========================
-  // Helpers
-  // ===========================
+// ✅ Confirm delete modal (delegation)
+// ===========================
+let deleteModal = null;
+
+function getDeleteModal(){
+  const el = document.getElementById('confirmDeleteModal');
+  if (!el) return null;
+  if (!deleteModal) deleteModal = new bootstrap.Modal(el);
+  return deleteModal;
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.js-dt-delete');
+  if (!btn) return;
+
+  e.preventDefault();
+
+  const url   = btn.getAttribute('data-url') || '#';
+  const token = btn.getAttribute('data-token') || '';
+  const label = btn.getAttribute('data-label') || 'cet élément';
+
+  const form = document.getElementById('confirmDeleteForm');
+  const tok  = document.getElementById('confirmDeleteToken');
+  const txt  = document.getElementById('confirmDeleteText');
+
+  if (form) form.action = url;
+  if (tok)  tok.value = token;
+  if (txt)  txt.innerHTML = `Tu es sur le point de supprimer <strong>${label}</strong>.<br>Cette action est irréversible.`;
+
+  getDeleteModal()?.show();
+});
 
 
 
@@ -891,12 +989,12 @@
 
   function labelFactureStatus(v){
     const k = String(v || '').toLowerCase();
-    return FAC_STATUS_FR[k] || v || '—';
+    return FAC_STATUS_FR[k] || v || '-';
   }
 
   function labelDevisStatus(v){
     const k = String(v || '').toLowerCase();
-    return DV_STATUS_FR[k] || v || '—';
+    return DV_STATUS_FR[k] || v || '-';
   }
 
 
@@ -913,7 +1011,7 @@
   };
 
 
-  const safe = (v) => (v === null || v === undefined || v === '') ? '—' : v;
+  const safe = (v) => (v === null || v === undefined || v === '') ? '-' : v;
 
   const badgeBool = (v) => v
     ? `<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">Oui</span>`
@@ -1268,11 +1366,11 @@
 
   function applyKpis(k, filters){
     document.getElementById('kpiDepTtc').textContent = money(k.dep.ttc);
-    document.getElementById('kpiDepCount').textContent = `${k.dep.cnt} dépense(s) — HT ${money(k.dep.ht)} — TVA ${money(k.dep.tva)}`;
+    document.getElementById('kpiDepCount').textContent = `${k.dep.cnt} dépense(s) - HT ${money(k.dep.ht)} - TVA ${money(k.dep.tva)}`;
     document.getElementById('kpiTvaDed').textContent = money(k.dep.tvaDed);
 
     document.getElementById('kpiFacTtc').textContent = money(k.fac.ttc);
-    document.getElementById('kpiFacCount').textContent = `${k.fac.cnt} facture(s) — HT ${money(k.fac.ht)} — TVA ${money(k.fac.tva)}`;
+    document.getElementById('kpiFacCount').textContent = `${k.fac.cnt} facture(s) - HT ${money(k.fac.ht)} - TVA ${money(k.fac.tva)}`;
 
     document.getElementById('kpiPayTotal').textContent = money(k.pay.total);
     document.getElementById('kpiPayCount').textContent = `${k.pay.cnt} paiement(s)`;
@@ -1597,7 +1695,7 @@
         { targets:[4,5,6,9], className:'text-end' },
         { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
         { targets:[7], render:(d)=> badgeBool(!!d) },
-        { targets:[9], orderable:false, searchable:false },
+        { targets:[9], className:'text-end dt-actions', orderable:false, searchable:false },
       ]
     }));
   }
@@ -1614,9 +1712,9 @@
       columnDefs:[
         { targets:[3,7], className:'text-end' },
         { targets:[3], render:(d)=> `<span class="money">${money(d)}</span>` },
-        { targets:[5], render:(d)=> d ? `<code>${d}</code>` : '—' },
-        { targets:[6], render:(d)=> d ? `<a class="badge-soft" target="_blank" href="/uploads/paiements/${encodeURIComponent(d)}">Justif</a>` : '—' },
-        { targets:[7], orderable:false, searchable:false },
+        { targets:[5], render:(d)=> d ? `<code>${d}</code>` : '-' },
+        { targets:[6], render:(d)=> d ? `<a class="badge-soft" target="_blank" href="/uploads/paiements/${encodeURIComponent(d)}">Justif</a>` : '-' },
+        { targets:[7], className:'text-end dt-actions', orderable:false, searchable:false },
       ]
     }));
   }
@@ -1633,8 +1731,8 @@
       columnDefs:[
         { targets:[4,5,6,8], className:'text-end' },
         { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
-        { targets:[3], render:(d)=> d ? badgePill(labelFactureStatus(d)) : '—' },
-        { targets:[8], orderable:false, searchable:false },
+        { targets:[3], render:(d)=> d ? badgePill(labelFactureStatus(d)) : '-' },
+        { targets:[8], className:'text-end dt-actions', orderable:false, searchable:false },
       ]
     }));
   }
@@ -1651,9 +1749,9 @@
       columnDefs:[
         { targets:[4,5,6,9], className:'text-end' },
         { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
-        { targets:[3], render:(d)=> d ? badgePill(labelDevisStatus(d)) : '—' },
-        { targets:[8], render:(d)=> d ? badgePill('PDF') : '—' },
-        { targets:[9], orderable:false, searchable:false },
+        { targets:[3], render:(d)=> d ? badgePill(labelDevisStatus(d)) : '-' },
+        { targets:[8], render:(d)=> d ? badgePill('PDF') : '-' },
+        { targets:[9], className:'text-end dt-actions', orderable:false, searchable:false },
       ]
     }));
   }
@@ -1670,7 +1768,7 @@
       columnDefs:[
         { targets:[3,4], className:'text-end' },
         { targets:[3], render:(d)=> `<span class="money">${money(d)}</span>` },
-        { targets:[4], orderable:false, searchable:false },
+        { targets:[4], className:'text-end dt-actions', orderable:false, searchable:false },
       ]
     }));
   }

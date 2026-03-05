@@ -1,0 +1,597 @@
+{# templates/administrateur/devis/show.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Devis {{ d.numero ?: ('#' ~ d.id) }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f6f8fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:rgba(15,23,42,.62);
+      --stroke:rgba(15,23,42,.10);
+      --shadow: 0 18px 55px rgba(0,0,0,.08);
+      --r: 22px;
+    }
+
+    body{ background: var(--bg); }
+
+    .hero{
+      border-radius:22px;
+      padding: 1.2rem 1.2rem;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:.45rem;
+      padding:.28rem .65rem; border-radius:999px; font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .btn{ border-radius: 14px; font-weight: 800; }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    .btn-pill{
+      border-radius:999px !important;
+      font-weight:800;
+      padding: .52rem .85rem;
+      box-shadow: 0 10px 24px rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.18);
+      backdrop-filter: blur(6px);
+    }
+
+    .panel{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel-hd{
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      border-bottom: 1px solid var(--stroke);
+      background: var(--panel);
+    }
+    .panel-title{
+      display:flex; align-items:center; gap:.65rem;
+      font-weight:900; color: var(--ink);
+      letter-spacing: -.01em;
+      margin:0;
+    }
+    .panel-title i{
+      width: 40px; height:40px; display:grid; place-items:center;
+      border-radius: 14px;
+      background: rgba(15,23,42,.04);
+      border: 1px solid rgba(15,23,42,.08);
+    }
+    .panel-bd{ padding: 16px; }
+
+    .kpi{
+      display:flex; align-items:center; gap:12px;
+      padding: 14px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: var(--panel);
+    }
+    .kpi .ico{
+      width: 46px; height:46px; border-radius: 16px;
+      display:grid; place-items:center;
+      background: rgba(15,23,42,.04);
+      border: 1px solid rgba(15,23,42,.08);
+      color: var(--ink);
+    }
+    .kpi .label{ color: rgba(15,23,42,.60); font-size:.86rem; }
+    .kpi .val{ font-weight: 950; font-size: 1.35rem; letter-spacing:-.02em; color: var(--ink); }
+    .kpi .sub{ color: rgba(15,23,42,.55); font-size:.82rem; }
+
+    .mono{
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+      white-space: nowrap;
+    }
+
+    .badge-soft{
+      border-radius: 999px;
+      border: 1px solid rgba(15,23,42,.12);
+      background: rgba(15,23,42,.04);
+      padding: .3rem .55rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .pill-success{ background: rgba(25,135,84,.10); border-color: rgba(25,135,84,.22); color:#146c43; }
+    .pill-danger{  background: rgba(220,53,69,.10); border-color: rgba(220,53,69,.22); color:#b02a37; }
+    .pill-warn{    background: rgba(255,193,7,.16); border-color: rgba(255,193,7,.30); color:#8a6a00; }
+    .pill-muted{   background: rgba(108,117,125,.10); border-color: rgba(108,117,125,.20); color:#495057; }
+    .pill-info{    background: rgba(13,110,253,.10); border-color: rgba(13,110,253,.22); color:#0b5ed7; }
+
+    .table-premium thead th{
+      background: #f7f8fb !important;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-size: .76rem;
+      color: rgba(15,23,42,.58);
+      border-bottom: 1px solid rgba(15,23,42,.10) !important;
+      white-space: nowrap;
+    }
+    .table-premium tbody td{
+      border-bottom: 1px solid rgba(15,23,42,.08);
+      vertical-align: middle;
+      font-size: .92rem;
+    }
+    .table-premium tbody tr:hover > *{
+      background: rgba(255,193,7,.08) !important;
+    }
+
+    .info-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 992px){ .info-grid{ grid-template-columns: 1fr; } }
+
+    .info{
+      border:1px solid var(--stroke);
+      border-radius: 18px;
+      padding: 12px 12px;
+      background: #fff;
+    }
+    .info .k{ color: rgba(15,23,42,.55); font-size:.82rem; }
+    .info .v{ font-weight: 850; color: var(--ink); margin-top:.15rem; }
+
+    pre.pretty-pre{
+      background:#f8f9fa;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:12px 14px;
+      white-space:pre-wrap;
+      margin:0;
+    }
+
+    .label-multiline{
+      white-space: pre-line;
+      word-break: break-word;
+      text-align: left;
+    }
+
+    @media (max-width: 768px){
+      .sticky-actions{
+        position: sticky;
+        bottom: 10px;
+        z-index: 20;
+        display:flex; gap:.5rem; flex-wrap:wrap;
+        padding: 10px;
+        border-radius: 18px;
+        background: rgba(255,255,255,.86);
+        border: 1px solid rgba(15,23,42,.10);
+        box-shadow: 0 18px 55px rgba(0,0,0,.10);
+        backdrop-filter: blur(10px);
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+  {% set num = d.numero ?: ('#' ~ d.id) %}
+  {% set st = d.status.value ?? '' %}
+
+  {% set htEur = (d.montantHtCents|default(0) / 100) %}
+  {% set tvaEur = (d.montantTvaCents|default(0) / 100) %}
+  {% set ttcEur = (d.montantTtcCents|default(0) / 100) %}
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="fa fa-file-signature me-2" style="color:var(--theme-color-secondaire)"></i>
+            Devis {{ num }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Pour <strong>{{ destLabel|default('—') }}</strong>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip">
+              <i class="fa fa-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip">
+              <i class="fa fa-calendar"></i>
+              {{ d.dateEmission ? d.dateEmission|date('d/m/Y') : '—' }}
+            </span>
+
+            {% if d.dateValidite %}
+              <span class="chip">
+                <i class="fa fa-hourglass-half"></i>
+                Valide jusqu’au {{ d.dateValidite|date('d/m/Y') }}
+              </span>
+            {% endif %}
+
+            {# Statut #}
+            {% if st == 'draft' %}
+              <span class="chip"><i class="fa fa-pen"></i> Brouillon</span>
+            {% elseif st == 'sent' %}
+              <span class="chip"><i class="fa fa-paper-plane"></i> Envoyé</span>
+            {% elseif st == 'accepted' %}
+              <span class="chip"><i class="fa fa-check-circle"></i> Accepté</span>
+            {% elseif st == 'invoiced' %}
+              <span class="chip"><i class="fa fa-file-invoice-dollar"></i> Facturé</span>
+            {% elseif st == 'canceled' %}
+              <span class="chip"><i class="fa fa-times-circle"></i> Annulé</span>
+            {% else %}
+              <span class="chip"><i class="fa fa-tag"></i> {{ st|upper }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ path('app_administrateur_devis_index', {entite: entite.id}) }}"
+             class="btn btn-outline-light btn-sm fw-semibold">
+            <i class="fa fa-arrow-left me-1"></i> Retour
+          </a>
+
+          <a href="{{ path('app_administrateur_devis_edit', {entite: entite.id, id: d.id}) }}"
+             class="btn btn-outline-light btn-sm fw-semibold">
+            <i class="fa fa-pen me-1"></i> Modifier
+          </a>
+
+          <a href="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: d.id}) }}"
+             class="btn btn-light btn-sm fw-semibold">
+            <i class="fa fa-file-pdf me-1"></i> PDF
+          </a>
+
+          {# Transformer en facture (si autorisé) #}
+          {% if d.factureCreee is null and st in ['accepted','sent'] %}
+            <form method="post"
+                  action="{{ path('app_administrateur_devis_to_facture', { entite: entite.id, id: d.id }) }}"
+                  class="d-inline">
+              <input type="hidden" name="_token" value="{{ csrf_token('devis_to_facture_' ~ d.id) }}">
+              <button type="submit" class="btn btn-warning btn-sm fw-semibold">
+                <i class="bi bi-arrow-repeat me-1"></i> Transformer en facture
+              </button>
+            </form>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {# ===== KPIs ===== #}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-cash-stack fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">Total TTC</div>
+          <div class="val mono">{{ ttcEur|number_format(2, ',', ' ') }}&nbsp;€</div>
+          <div class="sub">Somme du devis</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-receipt fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">HT / TVA</div>
+          <div class="val mono">{{ htEur|number_format(2, ',', ' ') }}&nbsp;€</div>
+          <div class="sub mono">TVA : {{ tvaEur|number_format(2, ',', ' ') }}&nbsp;€</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-percent fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">Remise globale</div>
+          <div class="val mono">
+            {% if d.remiseGlobaleMontantCents is not null and d.remiseGlobaleMontantCents > 0 %}
+              -{{ (d.remiseGlobaleMontantCents/100)|number_format(2, ',', ' ') }}&nbsp;€
+            {% elseif d.remiseGlobalePourcent is not null and d.remiseGlobalePourcent > 0 %}
+              {{ d.remiseGlobalePourcent|number_format(2, ',', ' ') }} %
+            {% else %}
+              —
+            {% endif %}
+          </div>
+          <div class="sub">Selon configuration</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="kpi">
+        <div class="ico"><i class="bi bi-link-45deg fs-4"></i></div>
+        <div class="flex-grow-1">
+          <div class="label">Facture liée</div>
+          <div class="val">
+            {% if d.factureCreee %}
+              <span class="badge-soft pill-success">OUI</span>
+            {% else %}
+              <span class="badge-soft pill-muted">NON</span>
+            {% endif %}
+          </div>
+          <div class="sub">Transformation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== Main grid ===== #}
+  <div class="row g-3">
+    <div class="col-lg-8">
+
+      {# ===== LIGNES ===== #}
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-list-check"></i>
+            Lignes du devis
+          </div>
+
+          <span class="badge-soft pill-muted">
+            {{ d.lignes|length }} ligne{{ d.lignes|length > 1 ? 's' : '' }}
+          </span>
+        </div>
+
+        <div class="table-responsive p-3">
+          <table class="table table-premium align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Libellé</th>
+                <th class="text-end">Qté</th>
+                <th class="text-end">PU HT</th>
+                <th class="text-end">HT net</th>
+                <th class="text-end">TVA</th>
+                <th class="text-end">TTC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for l in d.lignes %}
+                {% set htNet = (l.totalHtNetCents|default(0) / 100) %}
+                {% set tvaLine = ((l.totalTvaCents is defined ? l.totalTvaCents : 0) / 100) %}
+                {% set ttcLine = ((l.totalTtcCents is defined ? l.totalTtcCents : ((l.totalHtNetCents|default(0) + (l.totalTvaCents|default(0))) )) / 100) %}
+
+                <tr {% if l.isDebours %}style="background: rgba(108,117,125,.06)"{% endif %}>
+                  <td>
+                    <div class="fw-semibold label-multiline">{{ l.label }}</div>
+                    {% if l.isDebours %}
+                      <div class="small text-muted mt-1"><i class="bi bi-info-circle me-1"></i>Débours</div>
+                    {% endif %}
+
+                    {% if (l.remisePourcent|default(0)) > 0 or (l.remiseMontantCents|default(0)) > 0 %}
+                      <div class="small text-muted mt-1">
+                        <i class="bi bi-percent me-1"></i>
+                        Remise :
+                        {% if l.remiseMontantCents is not null and l.remiseMontantCents > 0 %}
+                          -{{ (l.remiseMontantCents/100)|number_format(2, ',', ' ') }}&nbsp;€
+                        {% elseif l.remisePourcent is not null and l.remisePourcent > 0 %}
+                          {{ l.remisePourcent|number_format(2, ',', ' ') }} %
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </td>
+
+                  <td class="text-end mono">{{ l.qte }}</td>
+                  <td class="text-end mono">{{ (l.puHtCents/100)|number_format(2, ',', ' ') }}&nbsp;€</td>
+                  <td class="text-end mono fw-semibold">{{ htNet|number_format(2, ',', ' ') }}&nbsp;€</td>
+                  <td class="text-end mono">{{ tvaLine|number_format(2, ',', ' ') }}&nbsp;€</td>
+                  <td class="text-end mono fw-semibold">{{ ttcLine|number_format(2, ',', ' ') }}&nbsp;€</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="6" class="text-muted">Aucune ligne.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {# ===== FACTURE LIÉE (si existe) ===== #}
+      {% if d.factureCreee %}
+        <div class="panel">
+          <div class="panel-hd">
+            <div class="panel-title">
+              <i class="bi bi-file-invoice-dollar"></i>
+              Facture créée
+            </div>
+
+            <a class="btn btn-sm btn-success btn-pill"
+               href="{{ path('app_administrateur_facture_show', { entite: entite.id, id: d.factureCreee.id }) }}">
+              <i class="bi bi-box-arrow-up-right"></i> Ouvrir
+            </a>
+          </div>
+
+          <div class="panel-bd">
+            <div class="info-grid">
+              <div class="info">
+                <div class="k">Numéro</div>
+                <div class="v">{{ d.factureCreee.numero ?: ('#' ~ d.factureCreee.id) }}</div>
+              </div>
+              <div class="info">
+                <div class="k">Date émission</div>
+                <div class="v mono">{{ d.factureCreee.dateEmission ? d.factureCreee.dateEmission|date('d/m/Y') : '—' }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
+
+    {# ===== Sidebar infos ===== #}
+    <div class="col-lg-4">
+
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-info-circle"></i>
+            Détails
+          </div>
+          <span class="badge-soft pill-muted">ID #{{ d.id }}</span>
+        </div>
+
+        <div class="panel-bd">
+          <div class="info-grid">
+            <div class="info">
+              <div class="k">Destinataire</div>
+              <div class="v">{{ destLabel|default('—') }}</div>
+            </div>
+
+            <div class="info">
+              <div class="k">Statut</div>
+              <div class="v">
+                {% if st == 'draft' %}
+                  <span class="badge-soft pill-muted">BROUILLON</span>
+                {% elseif st == 'sent' %}
+                  <span class="badge-soft pill-info">ENVOYÉ</span>
+                {% elseif st == 'accepted' %}
+                  <span class="badge-soft pill-success">ACCEPTÉ</span>
+                {% elseif st == 'invoiced' %}
+                  <span class="badge-soft pill-success">FACTURÉ</span>
+                {% elseif st == 'canceled' %}
+                  <span class="badge-soft pill-danger">ANNULÉ</span>
+                {% else %}
+                  <span class="badge-soft pill-muted">{{ st|upper }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info">
+              <div class="k">Devise</div>
+              <div class="v mono">{{ d.devise|default('EUR') }}</div>
+            </div>
+
+            <div class="info">
+              <div class="k">Créé le</div>
+              <div class="v mono">{{ d.dateCreation ? d.dateCreation|date('d/m/Y') : '—' }}</div>
+            </div>
+
+            <div class="info" style="grid-column: 1 / -1;">
+              <div class="k">Meta</div>
+              <div class="v">
+                {% if d.meta is not null %}
+                  <pre class="pretty-pre small mb-0">{{ d.meta|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title">
+            <i class="bi bi-shield-check"></i>
+            Raccourcis
+          </div>
+        </div>
+        <div class="panel-bd d-grid gap-2">
+          <a class="btn btn-outline-secondary btn-pill"
+             href="{{ path('app_administrateur_devis_edit', {entite: entite.id, id: d.id}) }}">
+            <i class="bi bi-pencil-square"></i> Modifier le devis
+          </a>
+
+          <a class="btn btn-outline-danger btn-pill"
+             href="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: d.id}) }}">
+            <i class="bi bi-file-earmark-pdf"></i> Télécharger le PDF
+          </a>
+
+          {% if d.factureCreee %}
+            <a class="btn btn-success btn-pill"
+               href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: d.factureCreee.id}) }}">
+              <i class="bi bi-box-arrow-up-right"></i> Voir la facture
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# Mobile sticky actions #}
+  <div class="sticky-actions mt-3 d-md-none">
+    <a class="btn btn-outline-secondary btn-pill btn-sm flex-grow-1"
+       href="{{ path('app_administrateur_devis_index', {entite: entite.id}) }}">
+      <i class="bi bi-arrow-left"></i> Retour
+    </a>
+
+    <a class="btn btn-outline-danger btn-pill btn-sm flex-grow-1"
+       href="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: d.id}) }}">
+      <i class="bi bi-file-earmark-pdf"></i> PDF
+    </a>
+
+    <a class="btn btn-outline-secondary btn-pill btn-sm flex-grow-1"
+       href="{{ path('app_administrateur_devis_edit', {entite: entite.id, id: d.id}) }}">
+      <i class="bi bi-pencil-square"></i> Modifier
+    </a>
+  </div>
+{% endblock %}
