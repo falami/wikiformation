@@ -26,7 +26,6 @@ final class PublicHostController extends AbstractController
     public function __construct(
         private readonly string $projectDir,
         private readonly string $publicHostLogoDir,
-        private readonly string $publicHostLogoPublicPrefix,
     ) {
     }
 
@@ -276,7 +275,7 @@ final class PublicHostController extends AbstractController
             throw new \RuntimeException('Le téléchargement du logo a échoué.', 0, $e);
         }
 
-        $host->setLogoPath($this->publicHostLogoPublicPrefix . '/' . $filename);
+        $host->setLogoPath('/' . $filename);
     }
 
     private function deleteLogoFileIfExists(PublicHost $host): void
