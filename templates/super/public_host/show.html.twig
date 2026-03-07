@@ -1,0 +1,730 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Host {{ host.name }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ host.primaryColor|default('#233342') }};
+      --theme-color-secondaire: {{ host.secondaryColor|default('#ffc107') }};
+      --theme-color-tertiaire: {{ host.tertiaryColor|default('#F0F0F0') }};
+      --theme-color-quaternaire: {{ host.quaternaryColor|default('#000000') }};
+
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15,23,42,.10);
+      --shadow: 0 18px 55px rgba(15,23,42,.10);
+      --radius: 18px;
+    }
+
+    body{
+      background: var(--bg);
+    }
+
+    /* HERO */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* CARD */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow: hidden;
+      height: 100%;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0;
+      font-weight:800;
+      letter-spacing:-.01em;
+      color: var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.6rem;
+    }
+    .chip-soft{
+      font-size:.78rem;
+      padding:.25rem .55rem;
+      border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    /* PREVIEW BRAND */
+    .brand-preview{
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(15,23,42,.08);
+      box-shadow: 0 16px 36px rgba(15,23,42,.10);
+      background:#fff;
+    }
+
+    .brand-preview__head{
+      padding: 1.1rem 1.15rem;
+      color:#fff;
+      background:
+        radial-gradient(900px 260px at 15% -10%, rgba(255,255,255,.18), transparent 55%),
+        linear-gradient(135deg, var(--theme-color-principal), color-mix(in srgb, var(--theme-color-principal) 72%, #fff 28%));
+    }
+
+    .brand-preview__brand{
+      display:flex;
+      align-items:center;
+      gap:.95rem;
+    }
+
+    .brand-logo{
+      width: 66px;
+      height: 66px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.14);
+      display:grid;
+      place-items:center;
+      font-weight:900;
+      font-size:1.15rem;
+      backdrop-filter: blur(8px);
+      overflow:hidden;
+      flex: 0 0 auto;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+    }
+
+    .brand-logo img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      background:#fff;
+      display:block;
+      padding:.35rem;
+    }
+
+    .brand-preview__body{
+      padding: 1rem 1.15rem 1.15rem;
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.98));
+    }
+
+    .host-link{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.5rem .8rem;
+      border-radius: 12px;
+      background: rgba(15,23,42,.05);
+      border:1px solid rgba(15,23,42,.08);
+      color:#0f172a;
+      text-decoration:none;
+      word-break: break-all;
+      font-weight:600;
+    }
+
+    /* INFO LIST */
+    .info-list{
+      display:flex;
+      flex-direction:column;
+      gap:.8rem;
+    }
+
+    .info-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:1rem;
+      padding:.8rem .9rem;
+      border-radius:14px;
+      border:1px solid rgba(15,23,42,.07);
+      background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(248,250,252,.94));
+    }
+
+    .info-row__label{
+      font-size:.84rem;
+      font-weight:700;
+      color: rgba(0,0,0,.58);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      min-width: 130px;
+    }
+
+    .info-row__value{
+      text-align:right;
+      color: var(--ink);
+      font-weight:700;
+      flex:1;
+    }
+
+    /* COLOR PALETTE */
+    .palette-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap:.8rem;
+    }
+
+    .palette-card{
+      border:1px solid rgba(15,23,42,.08);
+      border-radius:16px;
+      padding:.8rem;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(15,23,42,.05);
+    }
+
+    .palette-swatch{
+      height:58px;
+      border-radius:14px;
+      border:1px solid rgba(15,23,42,.10);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
+      margin-bottom:.65rem;
+    }
+
+    .palette-label{
+      font-size:.82rem;
+      font-weight:800;
+      color:var(--ink);
+      margin-bottom:.15rem;
+    }
+
+    .palette-code{
+      font-size:.8rem;
+      color:var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* MODULE BADGES */
+    .module-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.6rem;
+    }
+
+    .module-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.48rem .78rem;
+      border-radius:999px;
+      font-size:.84rem;
+      font-weight:700;
+      border:1px solid rgba(0,0,0,.08);
+      background:#fff;
+      color:#334155;
+    }
+
+    .module-badge.on{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 16%, #fff 84%);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(15,23,42,.10));
+      color:#273142;
+    }
+
+    .module-badge.off{
+      background: rgba(108,117,125,.10);
+      color:#5b6470;
+      border-color: rgba(108,117,125,.16);
+    }
+
+    .module-badge.warning{
+      background: rgba(255,193,7,.16);
+      color:#7a5a00;
+      border-color: rgba(255,193,7,.28);
+    }
+
+    /* KPI STRIP */
+    .mini-kpis{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:.8rem;
+    }
+
+    .mini-kpi{
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:16px;
+      background:#fff;
+      padding:.95rem;
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+    }
+
+    .mini-kpi__label{
+      color: rgba(0,0,0,.55);
+      font-size:.82rem;
+      margin-bottom:.2rem;
+    }
+
+    .mini-kpi__value{
+      font-size:1.35rem;
+      font-weight:900;
+      color:var(--ink);
+      letter-spacing:-.02em;
+    }
+
+    /* TABLE */
+    .table-wrap{
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:18px;
+      overflow:hidden;
+      background:#fff;
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+    }
+
+    .table-host{
+      margin:0 !important;
+    }
+
+    .table-host thead th{
+      background:#f7f8fa !important;
+      border-bottom:1px solid rgba(0,0,0,.08) !important;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color: rgba(0,0,0,.55);
+      vertical-align:middle;
+    }
+
+    .table-host tbody tr:nth-child(even) > *{
+      background: rgba(35,51,66,.03);
+    }
+    .table-host tbody tr:hover > *{
+      background: rgba(255,193,7,.08);
+    }
+
+    .formation-title{
+      font-weight:700;
+      color:var(--ink);
+    }
+
+    .entity-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      padding:.3rem .6rem;
+      border-radius:999px;
+      background: rgba(15,23,42,.05);
+      border:1px solid rgba(15,23,42,.08);
+      color:#334155;
+      font-size:.8rem;
+      white-space:nowrap;
+    }
+
+    .tiny-badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width: 34px;
+      padding:.3rem .55rem;
+      border-radius:999px;
+      font-size:.78rem;
+      font-weight:700;
+      border:1px solid rgba(0,0,0,.08);
+      white-space: nowrap;
+    }
+    .tiny-badge.yes{
+      background: rgba(25,135,84,.12);
+      color: #146c43;
+      border-color: rgba(25,135,84,.20);
+    }
+    .tiny-badge.no{
+      background: rgba(108,117,125,.10);
+      color: #495057;
+      border-color: rgba(108,117,125,.18);
+    }
+
+    .empty-state{
+      padding:2.2rem 1rem;
+      text-align:center;
+      color:var(--muted);
+    }
+
+    @media (max-width: 991.98px){
+      .mini-kpis{
+        grid-template-columns: 1fr;
+      }
+      .palette-grid{
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 576px){
+      .hero{
+        border-radius:16px;
+      }
+      .brand-preview__brand{
+        align-items:flex-start;
+      }
+      .brand-logo{
+        width:56px;
+        height:56px;
+      }
+      .info-row{
+        flex-direction:column;
+      }
+      .info-row__value{
+        text-align:left;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-globe2 me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ host.name }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Détail du host public, branding et configuration des modules exposés.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="chip"><i class="bi bi-link-45deg"></i> {{ host.host }}</span>
+            <span class="chip"><i class="bi bi-diagram-3"></i> White-label</span>
+            <span class="chip"><i class="bi bi-grid-1x2"></i> {{ host.formations|length }} formation{{ host.formations|length > 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ path('app_super_public_host_modifier', {id: host.id}) }}"
+             class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-pencil me-1"></i> Modifier
+          </a>
+
+          <a href="{{ path('app_super_public_host_index') }}"
+             class="btn btn-outline-theme btn-sm fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Retour
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  <div class="row g-4 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="mini-kpi">
+        <div class="mini-kpi__label">ID host</div>
+        <div class="mini-kpi__value">#{{ host.id }}</div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="mini-kpi">
+        <div class="mini-kpi__label">Formations liées</div>
+        <div class="mini-kpi__value">{{ host.formations|length }}</div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="mini-kpi">
+        <div class="mini-kpi__label">Statut</div>
+        <div class="mini-kpi__value">{{ host.isActive ? 'Actif' : 'Inactif' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-xl-5">
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-eye"></i>
+            Aperçu branding
+          </h3>
+          <span class="chip-soft">Live</span>
+        </div>
+
+        <div class="p-3">
+          <div class="brand-preview">
+            <div class="brand-preview__head">
+              <div class="brand-preview__brand">
+                <div class="brand-logo">
+                  {% if host.logoPath %}
+                    <img src="{{ asset(host.logoPath) }}" alt="{{ host.name }}">
+                  {% else %}
+                    {{ host.name|slice(0, 2)|upper }}
+                  {% endif %}
+                </div>
+
+                <div class="min-w-0">
+                  <div class="fw-bold fs-4 text-truncate">{{ host.name }}</div>
+                  <div class="opacity-75 small">Host public / vitrine white-label</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="brand-preview__body">
+              <div class="mb-3">
+                <span class="host-link">
+                  <i class="bi bi-link-45deg"></i>
+                  {{ host.host }}
+                </span>
+              </div>
+
+              <div class="small text-muted mb-2">Logo utilisé</div>
+              {% if host.logoPath %}
+                <div class="info-row">
+                  <div class="info-row__label">Fichier</div>
+                  <div class="info-row__value">
+                    <code>{{ host.logoPath }}</code>
+                  </div>
+                </div>
+              {% else %}
+                <div class="info-row">
+                  <div class="info-row__label">Logo</div>
+                  <div class="info-row__value text-muted">Aucun logo configuré</div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-palette2"></i>
+            Palette graphique
+          </h3>
+          <span class="chip-soft">Branding</span>
+        </div>
+
+        <div class="p-3">
+          <div class="palette-grid">
+            <div class="palette-card">
+              <div class="palette-swatch" style="background: {{ host.primaryColor }};"></div>
+              <div class="palette-label">Principale</div>
+              <div class="palette-code">{{ host.primaryColor }}</div>
+            </div>
+
+            <div class="palette-card">
+              <div class="palette-swatch" style="background: {{ host.secondaryColor }};"></div>
+              <div class="palette-label">Secondaire</div>
+              <div class="palette-code">{{ host.secondaryColor }}</div>
+            </div>
+
+            <div class="palette-card">
+              <div class="palette-swatch" style="background: {{ host.tertiaryColor ?: '#F0F0F0' }};"></div>
+              <div class="palette-label">Tertiaire</div>
+              <div class="palette-code">{{ host.tertiaryColor ?: '—' }}</div>
+            </div>
+
+            <div class="palette-card">
+              <div class="palette-swatch" style="background: {{ host.quaternaryColor ?: '#000000' }};"></div>
+              <div class="palette-label">Quaternaire</div>
+              <div class="palette-code">{{ host.quaternaryColor ?: '—' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-7">
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-sliders"></i>
+            Configuration
+          </h3>
+          <span class="chip-soft">Modules</span>
+        </div>
+
+        <div class="p-3">
+          <div class="info-list mb-4">
+            <div class="info-row">
+              <div class="info-row__label">Nom</div>
+              <div class="info-row__value">{{ host.name }}</div>
+            </div>
+
+            <div class="info-row">
+              <div class="info-row__label">Host</div>
+              <div class="info-row__value"><code>{{ host.host }}</code></div>
+            </div>
+
+            <div class="info-row">
+              <div class="info-row__label">Statut</div>
+              <div class="info-row__value">
+                <span class="tiny-badge {{ host.isActive ? 'yes' : 'no' }}">
+                  {{ host.isActive ? 'Oui' : 'Non' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="small fw-semibold text-uppercase text-muted mb-2">Modules exposés</div>
+          <div class="module-grid">
+            <span class="module-badge {{ host.isActive ? 'on' : 'off' }}">
+              <i class="bi bi-power"></i> Host actif
+            </span>
+
+            <span class="module-badge {{ host.catalogueEnabled ? 'on' : 'off' }}">
+              <i class="bi bi-journal-text"></i> Catalogue
+            </span>
+
+            <span class="module-badge {{ host.calendarEnabled ? 'on' : 'off' }}">
+              <i class="bi bi-calendar3"></i> Calendrier
+            </span>
+
+            <span class="module-badge {{ host.elearningEnabled ? 'on' : 'off' }}">
+              <i class="bi bi-mortarboard"></i> E-learning
+            </span>
+
+            <span class="module-badge {{ host.shopEnabled ? 'on' : 'off' }}">
+              <i class="bi bi-cart3"></i> Shop
+            </span>
+
+            <span class="module-badge {{ host.restrictToAssignedFormations ? 'warning' : 'off' }}">
+              <i class="bi bi-funnel"></i>
+              Restriction formations : {{ host.restrictToAssignedFormations ? 'Oui' : 'Non' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-journal-check"></i>
+            Formations liées
+          </h3>
+          <span class="chip-soft">{{ host.formations|length }}</span>
+        </div>
+
+        <div class="p-3">
+          <div class="table-wrap">
+            <div class="table-responsive">
+              <table class="table table-host align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Titre</th>
+                    <th>Entité</th>
+                    <th>Publique</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for formation in host.formations %}
+                  <tr>
+                    <td class="fw-bold">#{{ formation.id }}</td>
+                    <td>
+                      <div class="formation-title">{{ formation.titre }}</div>
+                    </td>
+                    <td>
+                      {% if formation.entite %}
+                        <span class="entity-pill">
+                          <i class="bi bi-building"></i> {{ formation.entite.nom }}
+                        </span>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="tiny-badge {{ formation.isPublic ? 'yes' : 'no' }}">
+                        {{ formation.isPublic ? 'Oui' : 'Non' }}
+                      </span>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="4" class="empty-state">
+                      <i class="bi bi-journal-x d-block fs-2 mb-2"></i>
+                      Aucune formation liée.
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -234,6 +234,12 @@ final class FormationController extends AbstractController
                 'prixBase'   => $prixBase,
                 'duree'      => ($f->getDuree() !== null ? $f->getDuree() . 'j' : '—'),
                 'nbSessions' => $nbSessions,
+                'publicHosts' => $f->getPublicHosts()->count() > 0
+                    ? implode(', ', array_map(
+                        static fn($h) => $h->getName(),
+                        $f->getPublicHosts()->toArray()
+                    ))
+                    : '—',
                 'actions'    => $this->renderView('administrateur/formation/_actions.html.twig', [
                     'formation' => $f,
                     'entite'    => $entite,
@@ -246,6 +252,7 @@ final class FormationController extends AbstractController
             'recordsTotal'    => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
             'data'            => $data,
+            
         ]);
     }
 

@@ -10,6 +10,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
+use App\Entity\PublicHost;
 
 #[ORM\Entity(repositoryClass: FormationRepository::class)]
 #[ORM\UniqueConstraint(name: 'uniq_formation_entite_slug', columns: ['entite_id', 'slug'])]
@@ -196,6 +197,13 @@ class Formation
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $note = null;
 
+    #[ORM\ManyToMany(targetEntity: PublicHost::class, inversedBy: 'formations')]
+    #[ORM\JoinTable(name: 'formation_public_host')]
+    private Collection $publicHosts;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $excludeFromGlobalCatalogue = false;
+
 
     public function __construct()
     {
@@ -208,6 +216,7 @@ class Formation
         $this->devis = new ArrayCollection();
         $this->factures = new ArrayCollection();
         $this->dateCreation = new \DateTimeImmutable();
+        $this->publicHosts = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -907,6 +916,46 @@ class Formation
     public function setNote(?string $note): static
     {
         $this->note = $note;
+
+        return $this;
+    }
+
+
+    /**
+     * @return Collection<int, PublicHost>
+     */
+    public function getPublicHosts(): Collection
+    {
+        return $this->publicHosts;
+    }
+
+    public function addPublicHost(PublicHost $publicHost): static
+    {
+        if (!$this->publicHosts->contains($publicHost)) {
+            $this->publicHosts->add($publicHost);
+            $publicHost->addFormation($this);
+        }
+
+        return $this;
+    }
+
+    public function removePublicHost(PublicHost $publicHost): static
+    {
+        if ($this->publicHosts->removeElement($publicHost)) {
+            $publicHost->removeFormation($this);
+        }
+
+        return $this;
+    }
+
+    public function isExcludeFromGlobalCatalogue(): bool
+    {
+        return $this->excludeFromGlobalCatalogue;
+    }
+
+    public function setExcludeFromGlobalCatalogue(bool $excludeFromGlobalCatalogue): static
+    {
+        $this->excludeFromGlobalCatalogue = $excludeFromGlobalCatalogue;
 
         return $this;
     }

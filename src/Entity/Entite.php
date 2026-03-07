@@ -649,6 +649,12 @@ class Entite
     #[ORM\Column(nullable: true)]
     private ?bool $isActive = null;
 
+    /**
+     * @var Collection<int, PublicHost>
+     */
+    #[ORM\OneToMany(targetEntity: PublicHost::class, mappedBy: 'entite')]
+    private Collection $publicHosts;
+
 
 
 
@@ -739,6 +745,7 @@ class Entite
         $this->entrepriseDocuments = new ArrayCollection();
         $this->entiteSubscriptions = new ArrayCollection();
         $this->entiteUsageYears = new ArrayCollection();
+        $this->publicHosts = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -3708,6 +3715,36 @@ class Entite
         if ($connect && $connect->getEntite() !== $this) {
             $connect->setEntite($this);
         }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, PublicHost>
+     */
+    public function getPublicHosts(): Collection
+    {
+        return $this->publicHosts;
+    }
+
+    public function addPublicHost(PublicHost $publicHost): static
+    {
+        if (!$this->publicHosts->contains($publicHost)) {
+            $this->publicHosts->add($publicHost);
+            $publicHost->setEntite($this);
+        }
+
+        return $this;
+    }
+
+    public function removePublicHost(PublicHost $publicHost): static
+    {
+        if ($this->publicHosts->removeElement($publicHost)) {
+            // set the owning side to null (unless already changed)
+            if ($publicHost->getEntite() === $this) {
+                $publicHost->setEntite(null);
+            }
+        }
+
         return $this;
     }
 }

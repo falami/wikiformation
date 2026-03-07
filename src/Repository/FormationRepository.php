@@ -127,6 +127,18 @@ class FormationRepository extends ServiceEntityRepository
     }
 
 
+    public function findOnePublicBySlug(string $slug): ?\App\Entity\Formation
+    {
+        return $this->createQueryBuilder('f')
+            ->andWhere('f.slug = :slug')
+            ->andWhere('f.isPublic = 1')
+            ->setParameter('slug', $slug)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+
 
     //    /**
     //     * @return Formation[] Returns an array of Formation objects

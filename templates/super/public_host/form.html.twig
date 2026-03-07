@@ -1,0 +1,1346 @@
+{# templates/super/public_host/form.html.twig #}
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}
+    {{ modeEdition ? 'Modifier un host public' : 'Ajouter un host public' }}
+{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite is defined and entite ? entite.couleurPrincipal : '#233342') }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite is defined and entite ? entite.couleurSecondaire : '#ffc107') }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite is defined and entite ? entite.couleurTertiaire : '#F0F0F0') }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite is defined and entite ? entite.couleurQuaternaire : '#000000') }};
+
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius: 18px;
+    }
+
+    body{ background: var(--bg); }
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+
+    .meta-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .meta-chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    .hero .subline{
+      opacity:.80;
+    }
+
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow: visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0;
+      font-weight:800;
+      letter-spacing:-.01em;
+      color: var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem;
+      padding:.25rem .55rem;
+      border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    label.form-label{
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: .45rem;
+    }
+    .form-text, .text-muted, .small{
+      color: var(--muted) !important;
+    }
+
+    .form-control,
+    .form-select,
+    textarea{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .72rem .92rem;
+      min-height: calc(2.2rem + 14px);
+    }
+    .form-control:focus,
+    .form-select:focus,
+    textarea:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+    .field-shell{
+      border: 1px solid rgba(15,23,42,.06);
+      border-radius: 16px;
+      padding: .95rem;
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.96));
+      box-shadow: 0 6px 18px rgba(15,23,42,.04);
+      height: 100%;
+    }
+    .field-shell .form-text{
+      margin-top: .45rem;
+    }
+
+    .ts-wrapper{
+      width:100%;
+    }
+    .ts-wrapper .ts-control{
+      border-radius: 14px !important;
+      padding: .55rem .75rem !important;
+      border-color: var(--stroke) !important;
+      min-height: 48px !important;
+      box-shadow: none !important;
+    }
+    .ts-wrapper.focus .ts-control{
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent) !important;
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke)) !important;
+    }
+    .ts-dropdown{
+      border-radius: 16px !important;
+      border: 1px solid rgba(15,23,42,.10) !important;
+      box-shadow: 0 16px 34px rgba(15,23,42,.12) !important;
+      overflow: hidden !important;
+      z-index: 2100 !important;
+    }
+    .ts-dropdown .active{
+      background: rgba(255,193,7,.16) !important;
+    }
+
+    .soft-box{
+      border-radius: 16px;
+      border: 1px dashed rgba(15,35,54,.18);
+      background: rgba(248,251,254,.78);
+      padding: 1rem;
+    }
+    .switch-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 1rem;
+      padding:.85rem .95rem;
+      border-radius:14px;
+      border:1px solid rgba(15,35,54,.08);
+      background:#fff;
+      transition: all .15s ease;
+    }
+    .switch-row + .switch-row{
+      margin-top:.7rem;
+    }
+    .switch-row:hover{
+      border-color: rgba(255,193,7,.22);
+      box-shadow: 0 10px 22px rgba(15,23,42,.05);
+    }
+    .switch-row .title{
+      font-weight:700;
+      line-height:1.15;
+      color: var(--ink);
+    }
+    .switch-row .desc{
+      margin-top:.3rem;
+      font-size:.85rem;
+      color:#6b7280;
+    }
+    .switch-row .form-check.form-switch{
+      margin:0;
+      min-height:auto;
+    }
+    .switch-row .form-check-input{
+      width:2.8em;
+      height:1.45em;
+      margin-top: .05rem;
+      cursor: pointer;
+    }
+    .switch-row .form-check-input:checked{
+      background-color: var(--theme-color-secondaire);
+      border-color: var(--theme-color-secondaire);
+    }
+
+    .preview-card{
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(15,23,42,.08);
+      box-shadow: 0 16px 36px rgba(15,23,42,.10);
+      background: #fff;
+    }
+    .preview-head{
+      padding: 1rem 1.1rem;
+      color:#fff;
+      background:
+        radial-gradient(900px 260px at 15% -10%, rgba(255,255,255,.18), transparent 55%),
+        linear-gradient(135deg, var(--preview-primary, #233342), color-mix(in srgb, var(--preview-primary, #233342) 72%, #fff 28%));
+    }
+    .preview-brand{
+      display:flex;
+      align-items:center;
+      gap:.85rem;
+    }
+    .preview-logo{
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.14);
+      display:grid;
+      place-items:center;
+      font-weight:800;
+      font-size:1rem;
+      backdrop-filter: blur(8px);
+      overflow:hidden;
+      flex: 0 0 auto;
+    }
+    .preview-logo img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .preview-body{
+      padding: 1rem 1.1rem 1.1rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.98));
+    }
+    .preview-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      padding:.35rem .65rem;
+      border-radius:999px;
+      font-size:.8rem;
+      font-weight:600;
+      margin:.18rem .2rem 0 0;
+      background: color-mix(in srgb, var(--preview-secondary, #ffc107) 18%, #fff 82%);
+      color:#273142;
+      border: 1px solid color-mix(in srgb, var(--preview-secondary, #ffc107) 28%, rgba(15,23,42,.10));
+    }
+    .preview-meta{
+      color:#64748b;
+      font-size:.9rem;
+    }
+    .preview-link{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.45rem .75rem;
+      border-radius: 12px;
+      background: rgba(15,23,42,.05);
+      border:1px solid rgba(15,23,42,.08);
+      color:#0f172a;
+      text-decoration:none;
+      word-break: break-all;
+    }
+
+    .color-stack{
+      display:flex;
+      gap:.55rem;
+      flex-wrap:wrap;
+      margin-top:.35rem;
+    }
+    .color-pill{
+      display:flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.35rem .55rem;
+      border-radius:999px;
+      font-size:.78rem;
+      border:1px solid rgba(15,23,42,.08);
+      background:#fff;
+      color:#334155;
+    }
+    .color-dot{
+      width:16px;
+      height:16px;
+      border-radius:999px;
+      border:1px solid rgba(15,23,42,.18);
+      background: var(--dot, #ccc);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+
+    .sticky-actions{
+      position: sticky;
+      bottom: 14px;
+      z-index: 10;
+      background: color-mix(in srgb, var(--panel) 86%, transparent);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding: .85rem;
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 991.98px){
+      .sticky-actions{
+        position: static;
+      }
+    }
+
+    @media (max-width: 576px){
+      .hero{ border-radius:16px; }
+    }
+
+    .upload-card{
+      border: 1px solid rgba(15,35,54,.10);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.80));
+      box-shadow: 0 10px 30px rgba(15,35,54,.06);
+      padding: 14px;
+    }
+    .upload-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding: 6px 2px 12px;
+    }
+    .upload-badge{
+      width:38px;
+      height:38px;
+      border-radius:12px;
+      display:grid;
+      place-items:center;
+      background: rgba(255,255,255,.75);
+      border:1px solid rgba(15,35,54,.10);
+      box-shadow: 0 8px 20px rgba(15,35,54,.06);
+      color: var(--theme-color-principal);
+    }
+    .upload-title{
+      font-weight:900;
+      color: var(--theme-color-principal);
+      line-height:1.1;
+    }
+    .upload-sub{
+      font-size:.86rem;
+      color: rgba(0,0,0,.55);
+      margin-top:2px;
+    }
+    .upload-hint{
+      font-size:.75rem;
+      padding:6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(15,35,54,.10);
+      background: rgba(255,255,255,.70);
+      color: rgba(0,0,0,.55);
+    }
+
+    .dropzone-uploader{
+      position: relative;
+      border-radius: 18px;
+      border: 1.5px dashed rgba(15,35,54,.22);
+      background:
+        radial-gradient(1200px 200px at 20% 0%, rgba(236,182,47,.18), transparent 55%),
+        radial-gradient(900px 220px at 90% 0%, rgba(22,56,96,.18), transparent 60%),
+        rgba(255,255,255,.70);
+      min-height: 190px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .dropzone-uploader:hover{
+      transform: translateY(-2px);
+      border-color: rgba(15,35,54,.35);
+      box-shadow: 0 14px 35px rgba(15,35,54,.10);
+    }
+    .dropzone-uploader.is-dragover{
+      border-color: var(--theme-color-secondaire);
+      box-shadow: 0 16px 40px rgba(15,35,54,.14);
+    }
+    .dz-inner{
+      padding: 18px;
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+      height: 190px;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+    }
+    .dz-icon{
+      width:52px;
+      height:52px;
+      border-radius:18px;
+      display:grid;
+      place-items:center;
+      background: rgba(255,255,255,.78);
+      border:1px solid rgba(15,35,54,.10);
+      color: var(--theme-color-principal);
+      box-shadow: 0 10px 24px rgba(15,35,54,.08);
+      font-size: 20px;
+    }
+    .dz-title{
+      font-weight:950;
+      color: var(--theme-color-principal);
+    }
+    .dz-sub{
+      color: rgba(0,0,0,.60);
+      font-size:.92rem;
+    }
+    .dz-link{
+      color: var(--theme-color-secondaire);
+      font-weight: 950;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .dz-meta{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:center;
+      margin-top:2px;
+    }
+    .dz-chip{
+      font-size:.75rem;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(15,35,54,.10);
+      background: rgba(255,255,255,.72);
+      color: rgba(0,0,0,.58);
+    }
+    .dz-preview{
+      position:absolute;
+      inset:0;
+      display:none;
+      background: rgba(255,255,255,.80);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .dz-preview.is-visible{
+      display:block;
+    }
+    .dz-img{
+      width:100%;
+      height:100%;
+      object-fit: contain;
+      padding: 16px;
+    }
+    .dz-actions{
+      position:absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+    }
+    .dz-btn{
+      border-radius: 12px !important;
+      box-shadow: 0 10px 24px rgba(15,35,54,.10);
+    }
+
+    .color-card{
+      display:flex;
+      align-items:center;
+      gap:1rem;
+      padding:1rem;
+      border:1px solid rgba(15,23,42,.08);
+      border-radius:18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+      box-shadow: 0 10px 24px rgba(15,23,42,.05);
+      height:100%;
+    }
+
+    .color-card__picker{
+      width:72px;
+      height:72px;
+      flex:0 0 72px;
+      display:grid;
+      place-items:center;
+      border-radius:18px;
+      background: rgba(15,23,42,.04);
+      border:1px solid rgba(15,23,42,.08);
+    }
+
+    .color-card .form-control-color{
+      width:56px !important;
+      height:56px !important;
+      min-width:56px;
+      border-radius:16px;
+      cursor:pointer;
+      overflow:hidden;
+      box-shadow:
+        0 10px 24px rgba(15,23,42,.10),
+        inset 0 0 0 1px rgba(255,255,255,.35);
+    }
+
+    .color-card .form-control-color::-webkit-color-swatch-wrapper{
+      padding:0;
+    }
+    .color-card .form-control-color::-webkit-color-swatch{
+      border:none;
+      border-radius:16px;
+    }
+    .color-card .form-control-color::-moz-color-swatch{
+      border:none;
+      border-radius:16px;
+    }
+
+    .color-code{
+      margin-top:.45rem;
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      padding:.28rem .55rem;
+      border-radius:999px;
+      font-size:.78rem;
+      font-weight:700;
+      color:#334155;
+      background: rgba(15,23,42,.05);
+      border:1px solid rgba(15,23,42,.08);
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+  {{ form_start(form, {'attr': {'enctype': 'multipart/form-data'}}) }}
+
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-globe2 me-2" style="color:var(--theme-color-secondaire)"></i>
+            {{ modeEdition ? 'Modifier le host white-label' : 'Créer le host white-label' }}
+          </h2>
+
+          <div class="subline mt-1">
+            Configure le domaine public, le branding visuel et les modules exposés sur ce host.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="meta-chip"><i class="bi bi-diagram-3"></i> White-label</span>
+            <span class="meta-chip"><i class="bi bi-link-45deg"></i> Domaine public</span>
+            <span class="meta-chip"><i class="bi bi-palette"></i> Branding</span>
+            <span class="meta-chip"><i class="bi bi-grid-1x2"></i> Modules</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ path('app_super_public_host_index') }}" class="btn btn-outline-theme btn-sm fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Retour liste
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include 'flagMessage.html.twig' %}
+
+  {{ form_errors(form) }}
+
+  <div class="row g-4">
+    <div class="col-xl-8">
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-info-circle"></i>
+            Informations générales
+          </h3>
+          <span class="chip">{{ modeEdition ? 'Édition' : 'Création' }}</span>
+        </div>
+
+        <div class="p-3 p-lg-4">
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="field-shell">
+                {{ form_row(form.host) }}
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="field-shell">
+                {{ form_row(form.name) }}
+              </div>
+            </div>
+
+            <div class="col-lg-12" id="entiteFieldWrapper">
+              <div class="field-shell">
+                {{ form_row(form.entite) }}
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="field-shell">
+                {{ form_widget(form.removeLogo) }}
+
+                <div class="upload-card">
+                  <div class="upload-head">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="upload-badge"><i class="bi bi-image"></i></span>
+                      <div>
+                        <div class="upload-title">Logo du host</div>
+                        <div class="upload-sub">Upload premium + aperçu immédiat</div>
+                      </div>
+                    </div>
+                    <span class="upload-hint">JPG / PNG / WebP / SVG</span>
+                  </div>
+
+                  <div class="dropzone-uploader"
+                       data-input-id="{{ form.logoFile.vars.id }}"
+                       data-preview-id="preview_logo_host"
+                       data-remove-id="{{ form.removeLogo.vars.id }}">
+                    <div class="dz-inner">
+                      <div class="dz-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                      <div>
+                        <div class="dz-title">Glisse-dépose ton logo ici</div>
+                        <div class="dz-sub">ou <span class="dz-link">clique pour choisir</span></div>
+                      </div>
+
+                      <div class="dz-meta">
+                        <span class="dz-chip">Max 4 Mo</span>
+                        <span class="dz-chip">Fond transparent conseillé</span>
+                      </div>
+                    </div>
+
+                    <div class="dz-preview" id="preview_logo_host">
+                      <img class="dz-img" alt="Aperçu logo host" />
+                      <div class="dz-actions">
+                        <button type="button" class="btn btn-sm btn-light dz-btn dz-btn-change">
+                          <i class="bi bi-pencil-square me-1"></i>Changer
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger dz-btn dz-btn-remove">
+                          <i class="bi bi-trash me-1"></i>Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-none">
+                    {{ form_row(form.logoFile, { attr: { accept: 'image/*' } }) }}
+                  </div>
+
+                  <div class="mt-2">
+                    {{ form_errors(form.logoFile) }}
+                  </div>
+
+                  <p class="mt-2 mb-0 text-muted">
+                    <small>Le fichier uploadé sera enregistré automatiquement et utilisé pour l’aperçu du host.</small>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-palette2"></i>
+            Identité visuelle
+          </h3>
+          <span class="chip">Couleurs</span>
+        </div>
+
+        <div class="p-3 p-lg-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="color-card">
+                <div class="color-card__picker">
+                  {{ form_widget(form.primaryColor, {
+                    attr: {
+                      class: 'form-control-color border-0 bg-transparent p-0 color-input',
+                      style: 'width:56px;height:56px;'
+                    }
+                  }) }}
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                  {{ form_label(form.primaryColor, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.primaryColor) }}
+                  <small class="text-muted d-block">Couleur dominante du host</small>
+                  <div class="color-code" id="codePrimary">{{ form.primaryColor.vars.value ?: '#233342' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="color-card">
+                <div class="color-card__picker">
+                  {{ form_widget(form.secondaryColor, {
+                    attr: {
+                      class: 'form-control-color border-0 bg-transparent p-0 color-input',
+                      style: 'width:56px;height:56px;'
+                    }
+                  }) }}
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                  {{ form_label(form.secondaryColor, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.secondaryColor) }}
+                  <small class="text-muted d-block">Accent principal, boutons, highlights</small>
+                  <div class="color-code" id="codeSecondary">{{ form.secondaryColor.vars.value ?: '#ffc107' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="color-card">
+                <div class="color-card__picker">
+                  {{ form_widget(form.tertiaryColor, {
+                    attr: {
+                      class: 'form-control-color border-0 bg-transparent p-0 color-input',
+                      style: 'width:56px;height:56px;'
+                    }
+                  }) }}
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                  {{ form_label(form.tertiaryColor, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.tertiaryColor) }}
+                  <small class="text-muted d-block">Fond clair, contrastes doux</small>
+                  <div class="color-code" id="codeTertiary">{{ form.tertiaryColor.vars.value ?: '#F0F0F0' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="color-card">
+                <div class="color-card__picker">
+                  {{ form_widget(form.quaternaryColor, {
+                    attr: {
+                      class: 'form-control-color border-0 bg-transparent p-0 color-input',
+                      style: 'width:56px;height:56px;'
+                    }
+                  }) }}
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                  {{ form_label(form.quaternaryColor, null, { label_attr: { class: 'form-label d-block mb-0' } }) }}
+                  {{ form_errors(form.quaternaryColor) }}
+                  <small class="text-muted d-block">Texte sombre ou contraste fort</small>
+                  <div class="color-code" id="codeQuaternary">{{ form.quaternaryColor.vars.value ?: '#000000' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <div class="small fw-semibold text-uppercase text-muted mb-2">Palette actuelle</div>
+            <div class="color-stack">
+              <span class="color-pill">
+                <span class="color-dot" id="dotPrimary"></span>
+                Principale
+              </span>
+              <span class="color-pill">
+                <span class="color-dot" id="dotSecondary"></span>
+                Secondaire
+              </span>
+              <span class="color-pill">
+                <span class="color-dot" id="dotTertiary"></span>
+                Tertiaire
+              </span>
+              <span class="color-pill">
+                <span class="color-dot" id="dotQuaternary"></span>
+                Quaternaire
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-grid-1x2"></i>
+            Modules et visibilité
+          </h3>
+          <span class="chip">Activation</span>
+        </div>
+
+        <div class="p-3 p-lg-4">
+          <div class="soft-box">
+            <div class="switch-row">
+              <div>
+                <div class="title">{{ form.isActive.vars.label }}</div>
+                <div class="desc">Active ou désactive totalement ce host public.</div>
+              </div>
+              <div>{{ form_widget(form.isActive, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <div class="title">{{ form.catalogueEnabled.vars.label }}</div>
+                <div class="desc">Affiche les formations publiques via le catalogue sur ce domaine.</div>
+              </div>
+              <div>{{ form_widget(form.catalogueEnabled, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <div class="title">{{ form.calendarEnabled.vars.label }}</div>
+                <div class="desc">Expose le calendrier public et les sessions disponibles.</div>
+              </div>
+              <div>{{ form_widget(form.calendarEnabled, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <div class="title">{{ form.elearningEnabled.vars.label }}</div>
+                <div class="desc">Permet d’exposer les contenus e-learning sur ce host.</div>
+              </div>
+              <div>{{ form_widget(form.elearningEnabled, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <div class="title">{{ form.shopEnabled.vars.label }}</div>
+                <div class="desc">Active la vente ou les parcours d’achat sur ce domaine.</div>
+              </div>
+              <div>{{ form_widget(form.shopEnabled, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <div class="title">{{ form.showAllPublicFormations.vars.label }}</div>
+                <div class="desc">
+                  {{ form.showAllPublicFormations.vars.help ?: 'Affiche toutes les formations publiques de toutes les entités sur ce host.' }}
+                </div>
+              </div>
+              <div>{{ form_widget(form.showAllPublicFormations, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+
+            <div class="switch-row" id="restrictFieldWrapper">
+              <div>
+                <div class="title">{{ form.restrictToAssignedFormations.vars.label }}</div>
+                <div class="desc">
+                  {{ form.restrictToAssignedFormations.vars.help ?: 'Limite l’affichage aux formations explicitement sélectionnées.' }}
+                </div>
+              </div>
+              <div>{{ form_widget(form.restrictToAssignedFormations, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+          </div>
+
+          <div class="d-none">
+            {{ form_errors(form.isActive) }}
+            {{ form_errors(form.catalogueEnabled) }}
+            {{ form_errors(form.calendarEnabled) }}
+            {{ form_errors(form.elearningEnabled) }}
+            {{ form_errors(form.shopEnabled) }}
+            {{ form_errors(form.showAllPublicFormations) }}
+            {{ form_errors(form.restrictToAssignedFormations) }}
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4" id="formationsCard">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-journal-text"></i>
+            Formations autorisées
+          </h3>
+          <span class="chip">Sélection</span>
+        </div>
+
+        <div class="p-3 p-lg-4">
+          <div class="field-shell">
+            {{ form_row(form.formations) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h3 class="cardx-title">
+            <i class="bi bi-eye"></i>
+            Aperçu rapide
+          </h3>
+          <span class="chip">Live</span>
+        </div>
+
+        <div class="p-3">
+          <div class="preview-card" id="brandPreview"
+               style="
+                 --preview-primary: {{ form.primaryColor.vars.value ?: '#233342' }};
+                 --preview-secondary: {{ form.secondaryColor.vars.value ?: '#ffc107' }};
+               ">
+            <div class="preview-head">
+              <div class="preview-brand">
+                <div class="preview-logo" id="previewLogoBox">
+                  <span id="previewLogoText">WL</span>
+                  <img id="previewLogoImg"
+                       src="{% if host.logoPath %}{{ asset(host.logoPath) }}{% endif %}"
+                       alt="Logo"
+                       style="{% if host.logoPath %}display:block;{% else %}display:none;{% endif %}">
+                </div>
+
+                <div class="min-w-0">
+                  <div class="fw-bold fs-5 text-truncate" id="previewName">
+                    {{ form.name.vars.value ?: 'Nom de l\'entreprise' }}
+                  </div>
+                  <div class="opacity-75 small">Host public / vitrine white-label</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="preview-body">
+              <div class="mb-3">
+                <a href="#" class="preview-link" onclick="return false;">
+                  <i class="bi bi-link-45deg"></i>
+                  <span id="previewHost">{{ form.host.vars.value ?: 'formations.exemple.fr' }}</span>
+                </a>
+              </div>
+
+              <div class="preview-meta mb-2">Modules visibles</div>
+              <div>
+                <span class="preview-chip" id="chipActive">Host actif</span>
+                <span class="preview-chip" id="chipCatalogue">Catalogue</span>
+                <span class="preview-chip" id="chipCalendar">Calendrier</span>
+                <span class="preview-chip" id="chipElearning">E-learning</span>
+                <span class="preview-chip" id="chipShop">Shop</span>
+                <span class="preview-chip" id="chipGlobal">Catalogue global</span>
+                <span class="preview-chip" id="chipRestricted">Restriction formations</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 small text-muted">
+            Cet aperçu donne une représentation rapide du branding et des modules activés pour ce host.
+          </div>
+        </div>
+      </div>
+
+      <div class="sticky-actions">
+        <div class="d-grid gap-2">
+          <button class="btn btn-primary">
+            <i class="bi bi-check2-circle me-2"></i>
+            {{ modeEdition ? 'Enregistrer les modifications' : 'Créer le host' }}
+          </button>
+
+          <a href="{{ path('app_super_public_host_index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Retour à la liste
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{ form_end(form) }}
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script>
+    function initHostLogoDropzone() {
+      const zones = document.querySelectorAll('.dropzone-uploader');
+
+      zones.forEach(zone => {
+        const inputId = zone.dataset.inputId;
+        const previewId = zone.dataset.previewId;
+        const removeId = zone.dataset.removeId;
+
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+        const img = preview ? preview.querySelector('.dz-img') : null;
+        const btnRemove = preview ? preview.querySelector('.dz-btn-remove') : null;
+        const btnChange = preview ? preview.querySelector('.dz-btn-change') : null;
+        const removeField = removeId ? document.getElementById(removeId) : null;
+
+        if (!input || !preview || !img) return;
+
+        const showPreviewFromFile = (file) => {
+          if (!file) return;
+
+          if (removeField) {
+            removeField.value = '';
+          }
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            img.src = e.target.result;
+            preview.classList.add('is-visible');
+            window.updatePublicHostPreview?.();
+          };
+          reader.readAsDataURL(file);
+        };
+
+        const clearAll = () => {
+          input.value = '';
+          img.removeAttribute('src');
+          preview.classList.remove('is-visible');
+
+          if (removeField) {
+            removeField.value = '1';
+          }
+
+          window.updatePublicHostPreview?.();
+        };
+
+        zone.addEventListener('click', (e) => {
+          if (e.target.closest('.dz-btn')) return;
+          input.click();
+        });
+
+        input.addEventListener('change', () => {
+          if (input.files && input.files[0]) {
+            showPreviewFromFile(input.files[0]);
+          }
+        });
+
+        zone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          zone.classList.add('is-dragover');
+        });
+
+        zone.addEventListener('dragleave', () => {
+          zone.classList.remove('is-dragover');
+        });
+
+        zone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          zone.classList.remove('is-dragover');
+
+          const files = e.dataTransfer.files;
+          if (!files || !files.length) return;
+
+          const file = files[0];
+          if (!file.type.startsWith('image/')) return;
+
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          input.files = dt.files;
+
+          showPreviewFromFile(file);
+        });
+
+        btnRemove?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearAll();
+        });
+
+        btnChange?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          input.click();
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.js-ts').forEach((select) => {
+        if (select.tomselect) {
+          return;
+        }
+
+        new TomSelect(select, {
+          plugins: select.multiple ? ['remove_button'] : [],
+          create: false,
+          maxOptions: 500,
+          hidePlaceholder: true,
+          placeholder: select.dataset.tsPlaceholder || 'Sélectionner',
+          render: {
+            no_results: function() {
+              return '<div class="px-2 py-1 text-muted">Aucun résultat</div>';
+            }
+          }
+        });
+      });
+
+      const hostInput = document.getElementById('{{ form.host.vars.id }}');
+      const nameInput = document.getElementById('{{ form.name.vars.id }}');
+      const logoFileInput = document.getElementById('{{ form.logoFile.vars.id }}');
+      const primaryInput = document.getElementById('{{ form.primaryColor.vars.id }}');
+      const secondaryInput = document.getElementById('{{ form.secondaryColor.vars.id }}');
+      const tertiaryInput = document.getElementById('{{ form.tertiaryColor.vars.id }}');
+      const quaternaryInput = document.getElementById('{{ form.quaternaryColor.vars.id }}');
+
+      const isActiveInput = document.getElementById('{{ form.isActive.vars.id }}');
+      const catalogueInput = document.getElementById('{{ form.catalogueEnabled.vars.id }}');
+      const calendarInput = document.getElementById('{{ form.calendarEnabled.vars.id }}');
+      const elearningInput = document.getElementById('{{ form.elearningEnabled.vars.id }}');
+      const shopInput = document.getElementById('{{ form.shopEnabled.vars.id }}');
+      const showAllPublicFormationsInput = document.getElementById('{{ form.showAllPublicFormations.vars.id }}');
+      const restrictedInput = document.getElementById('{{ form.restrictToAssignedFormations.vars.id }}');
+
+      const entiteFieldWrapper = document.getElementById('entiteFieldWrapper');
+      const restrictFieldWrapper = document.getElementById('restrictFieldWrapper');
+
+      const formationsCard = document.getElementById('formationsCard');
+      const formationsSelect = document.getElementById('{{ form.formations.vars.id }}');
+
+      const preview = document.getElementById('brandPreview');
+      const previewName = document.getElementById('previewName');
+      const previewHost = document.getElementById('previewHost');
+      const previewLogoText = document.getElementById('previewLogoText');
+      const previewLogoImg = document.getElementById('previewLogoImg');
+
+      const chipActive = document.getElementById('chipActive');
+      const chipCatalogue = document.getElementById('chipCatalogue');
+      const chipCalendar = document.getElementById('chipCalendar');
+      const chipElearning = document.getElementById('chipElearning');
+      const chipShop = document.getElementById('chipShop');
+      const chipGlobal = document.getElementById('chipGlobal');
+      const chipRestricted = document.getElementById('chipRestricted');
+
+      const dotPrimary = document.getElementById('dotPrimary');
+      const dotSecondary = document.getElementById('dotSecondary');
+      const dotTertiary = document.getElementById('dotTertiary');
+      const dotQuaternary = document.getElementById('dotQuaternary');
+
+      const codePrimary = document.getElementById('codePrimary');
+      const codeSecondary = document.getElementById('codeSecondary');
+      const codeTertiary = document.getElementById('codeTertiary');
+      const codeQuaternary = document.getElementById('codeQuaternary');
+
+      function safeColor(value, fallback) {
+        const v = (value || '').trim();
+        return v !== '' ? v : fallback;
+      }
+
+      function boolChip(el, enabled) {
+        if (!el) return;
+        el.style.opacity = enabled ? '1' : '.35';
+        el.style.filter = enabled ? 'none' : 'grayscale(1)';
+      }
+
+      function updateFormationsVisibility() {
+        if (!formationsCard || !restrictedInput) return;
+
+        const isGlobal = !!showAllPublicFormationsInput?.checked;
+        const enabled = !isGlobal && !!restrictedInput.checked;
+
+        formationsCard.style.display = enabled ? '' : 'none';
+
+        if (formationsSelect && formationsSelect.tomselect) {
+          if (enabled) {
+            formationsSelect.tomselect.enable();
+          } else {
+            formationsSelect.tomselect.disable();
+          }
+        } else if (formationsSelect) {
+          formationsSelect.disabled = !enabled;
+        }
+      }
+
+      function updateHostModeVisibility() {
+        const isGlobal = !!showAllPublicFormationsInput?.checked;
+
+        if (entiteFieldWrapper) {
+          entiteFieldWrapper.style.display = isGlobal ? 'none' : '';
+        }
+
+        if (restrictFieldWrapper) {
+          restrictFieldWrapper.style.display = isGlobal ? 'none' : '';
+        }
+
+        if (restrictedInput) {
+          if (isGlobal) {
+            restrictedInput.checked = false;
+          }
+          restrictedInput.disabled = isGlobal;
+        }
+
+        updateFormationsVisibility();
+      }
+
+      function updateLogo() {
+        const name = (nameInput?.value || '').trim();
+        const removeLogoInput = document.getElementById('{{ form.removeLogo.vars.id }}');
+
+        if (removeLogoInput?.value === '1') {
+          previewLogoImg.style.display = 'none';
+          previewLogoImg.removeAttribute('src');
+          previewLogoText.style.display = 'inline';
+          previewLogoText.textContent = name
+            ? name.split(' ').map(x => x[0]).join('').substring(0, 2).toUpperCase()
+            : 'WL';
+          return;
+        }
+
+        if (logoFileInput?.files && logoFileInput.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            previewLogoImg.src = e.target.result;
+            previewLogoImg.style.display = 'block';
+            previewLogoText.style.display = 'none';
+          };
+          reader.readAsDataURL(logoFileInput.files[0]);
+          return;
+        }
+
+        {% if host.logoPath %}
+          previewLogoImg.src = '{{ asset(host.logoPath) }}';
+          previewLogoImg.style.display = 'block';
+          previewLogoText.style.display = 'none';
+          return;
+        {% endif %}
+
+        previewLogoImg.style.display = 'none';
+        previewLogoImg.removeAttribute('src');
+        previewLogoText.style.display = 'inline';
+        previewLogoText.textContent = name
+          ? name.split(' ').map(x => x[0]).join('').substring(0, 2).toUpperCase()
+          : 'WL';
+      }
+
+      window.updatePublicHostPreview = function updatePreview() {
+        const primary = safeColor(primaryInput?.value, '#233342');
+        const secondary = safeColor(secondaryInput?.value, '#ffc107');
+        const tertiary = safeColor(tertiaryInput?.value, '#F0F0F0');
+        const quaternary = safeColor(quaternaryInput?.value, '#000000');
+
+        if (preview) {
+          preview.style.setProperty('--preview-primary', primary);
+          preview.style.setProperty('--preview-secondary', secondary);
+        }
+
+        dotPrimary?.style.setProperty('--dot', primary);
+        dotSecondary?.style.setProperty('--dot', secondary);
+        dotTertiary?.style.setProperty('--dot', tertiary);
+        dotQuaternary?.style.setProperty('--dot', quaternary);
+
+        if (codePrimary) codePrimary.textContent = primary;
+        if (codeSecondary) codeSecondary.textContent = secondary;
+        if (codeTertiary) codeTertiary.textContent = tertiary;
+        if (codeQuaternary) codeQuaternary.textContent = quaternary;
+
+        if (previewName) {
+          previewName.textContent = (nameInput?.value || '').trim() || 'Nom de l\'entreprise';
+        }
+
+        if (previewHost) {
+          previewHost.textContent = (hostInput?.value || '').trim() || 'formations.exemple.fr';
+        }
+
+        boolChip(chipActive, !!isActiveInput?.checked);
+        boolChip(chipCatalogue, !!catalogueInput?.checked);
+        boolChip(chipCalendar, !!calendarInput?.checked);
+        boolChip(chipElearning, !!elearningInput?.checked);
+        boolChip(chipShop, !!shopInput?.checked);
+        boolChip(chipGlobal, !!showAllPublicFormationsInput?.checked);
+        boolChip(chipRestricted, !showAllPublicFormationsInput?.checked && !!restrictedInput?.checked);
+
+        updateLogo();
+      };
+
+      [
+        hostInput, nameInput, logoFileInput,
+        primaryInput, secondaryInput, tertiaryInput, quaternaryInput,
+        isActiveInput, catalogueInput, calendarInput, elearningInput, shopInput,
+        showAllPublicFormationsInput, restrictedInput
+      ].forEach(el => {
+        if (!el) return;
+        el.addEventListener('input', window.updatePublicHostPreview);
+        el.addEventListener('change', window.updatePublicHostPreview);
+      });
+
+      showAllPublicFormationsInput?.addEventListener('change', updateHostModeVisibility);
+      restrictedInput?.addEventListener('change', updateFormationsVisibility);
+
+      initHostLogoDropzone();
+
+      {% if host.logoPath %}
+        (function() {
+          const preview = document.getElementById('preview_logo_host');
+          if (!preview) return;
+
+          const img = preview.querySelector('.dz-img');
+          if (!img) return;
+
+          img.src = '{{ asset(host.logoPath) }}';
+          preview.classList.add('is-visible');
+
+          const removeField = document.getElementById('{{ form.removeLogo.vars.id }}');
+          if (removeField) {
+            removeField.value = '';
+          }
+        })();
+      {% endif %}
+
+      updateHostModeVisibility();
+      window.updatePublicHostPreview();
+    });
+  </script>
+{% endblock %}

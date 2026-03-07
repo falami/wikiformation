@@ -18,6 +18,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Form\Extension\Core\Type\{FileType, TextType, TextareaType, IntegerType, EnumType, CheckboxType};
 use Symfony\Component\Validator\Constraints\{Image, All, Length};
 use App\Entity\Entite;
+use App\Entity\PublicHost;
 
 class FormationType extends AbstractType
 {
@@ -252,6 +253,19 @@ class FormationType extends AbstractType
                 'attr' => [
                     'class' => 'form-check-input',
                 ],
+            ])
+            ->add('publicHosts', EntityType::class, [
+                'class' => PublicHost::class,
+                'label' => 'Hosts publics autorisés',
+                'required' => false,
+                'multiple' => true,
+                'expanded' => false,
+                'choice_label' => fn(PublicHost $h) => $h->getName() . ' — ' . $h->getHost(),
+                'attr' => [
+                    'class' => 'form-select js-ts',
+                    'data-ts-placeholder' => 'Sélectionner les hosts publics',
+                ],
+                'help' => 'La formation sera visible sur ces hosts si le host est configuré en restriction.',
             ])
 
             ->add('public', TextType::class, [

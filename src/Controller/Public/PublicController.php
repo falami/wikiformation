@@ -26,6 +26,7 @@ use App\Repository\Billing\EntiteSubscriptionRepository;
 use App\Service\Billing\StripeBillingService;
 use App\Form\ContactType;
 use Symfony\Component\Mailer\MailerInterface;
+use App\Service\Public\PublicContext;
 
 #[Route('/')]
 final class PublicController extends AbstractController
@@ -34,8 +35,9 @@ final class PublicController extends AbstractController
         private readonly SessionRepository $sessionRepo,
         private readonly SiteRepository $siteRepo,
         private readonly UtilisateurManager $utilisateurManager,
-        private readonly CategorieRepository $categorieRepo, // ✅ AJOUT
-        private readonly FormationRepository $formationRepo, // ✅ AJOUT (utile pour pages catégorie)
+        private readonly CategorieRepository $categorieRepo,
+        private readonly FormationRepository $formationRepo,
+        private readonly PublicContext $publicContext,
     ) {}
 
     #[Route('', name: 'app_public', methods: ['GET'])]
@@ -67,35 +69,36 @@ final class PublicController extends AbstractController
     #[Route('/categorie/{slug}', name: 'app_public_categorie_show', methods: ['GET'])]
     public function categorieShow(string $slug, Request $request): Response
     {
-        /** @var Categorie|null $categorie */
+        $this->assertCatalogueEnabled();
+
         $categorie = $this->categorieRepo->findOneBy(['slug' => $slug]);
 
         if (!$categorie instanceof Categorie) {
             throw $this->createNotFoundException('Catégorie introuvable.');
         }
 
-        // Sous-catégories de cette catégorie
         $children = $this->categorieRepo->createQueryBuilder('c')
             ->andWhere('c.parent = :p')->setParameter('p', $categorie)
             ->orderBy('c.nom', 'ASC')
             ->getQuery()
             ->getResult();
 
-        // Si c’est une sous-catégorie OU une catégorie sans enfants, on affiche les formations filtrées
         $showFormations = ($categorie->getParent() !== null) || (count($children) === 0);
 
         $rows = [];
         if ($showFormations) {
-            // ⚠️ ADAPTE ICI si ton champ n'est pas "categorie" sur Formation
             $formations = $this->formationRepo->createQueryBuilder('f')
-                ->andWhere('f.isPublic = 1') // ADAPTE si tu as ce champ, sinon enlève
-                ->andWhere('f.categorie = :cat')->setParameter('cat', $categorie) // ✅ ADAPTE ICI
+                ->andWhere('f.isPublic = 1')
+                ->andWhere('f.categorie = :cat')->setParameter('cat', $categorie)
                 ->orderBy('f.titre', 'ASC')
                 ->getQuery()
                 ->getResult();
 
-            // On récupère la prochaine session publiée (si tu as déjà une méthode optimisée, remplace)
-            // Ici: on se contente d'utiliser la méthode existante du catalogue si tu l'as.
+            $formations = array_values(array_filter(
+                $formations,
+                fn(Formation $f): bool => $this->publicContext->allowsFormation($f)
+            ));
+
             $nextSessions = $this->sessionRepo->findNextPublishedSessionsForFormations($formations);
             $nextByFormationId = [];
             foreach ($nextSessions as $s) {
@@ -124,9 +127,13 @@ final class PublicController extends AbstractController
     #[Route('/formation/{slug}', name: 'app_public_show', methods: ['GET'])]
     public function show(string $slug, FormationRepository $repo, Request $request): Response
     {
-        $formation = $repo->findOneForPublicShowBySlug($slug);
+        $formation = $repo->findOnePublicBySlug($slug);
 
         if (!$formation instanceof Formation) {
+            throw $this->createNotFoundException('Formation introuvable.');
+        }
+
+        if (!$this->publicContext->allowsFormation($formation)) {
             throw $this->createNotFoundException('Formation introuvable.');
         }
 
@@ -191,12 +198,7 @@ final class PublicController extends AbstractController
             $reservationDemande->setEntite($user->getEntite());
         }
 
-
-
-
-
         $formReservationDemande = $this->createForm(ReservationType::class, $reservationDemande);
-
 
         return $this->render('public/show.html.twig', [
             'formation'              => $formation,
@@ -213,6 +215,8 @@ final class PublicController extends AbstractController
     #[Route('/catalogue', name: 'app_public_catalogue', methods: ['GET'])]
     public function catalogue(FormationRepository $formationRepo, Request $request): Response
     {
+        $this->assertCatalogueEnabled();
+
         $formations = $formationRepo->findPublicCatalogue();
         $nextSessions = $this->sessionRepo->findNextPublishedSessionsForFormations($formations);
 
@@ -230,6 +234,8 @@ final class PublicController extends AbstractController
                 'nextSession' => $nextByFormationId[$f->getId()] ?? null,
             ];
         }, $formations);
+
+        $rows = $this->filterAllowedFormations($rows);
 
         return $this->render('public/catalogue.html.twig', [
             'formations' => $rows,
@@ -372,30 +378,27 @@ final class PublicController extends AbstractController
     #[Route('/formation', name: 'app_public_formation', methods: ['GET'])]
     public function formation(Request $request): Response
     {
+        $this->assertCalendarEnabled();
 
-
-        // 1) Filtres
         $filter = FormationsFilter::fromQuery($request->query->all());
-
-        // 2) Destinations pour le select
         $destinations = $this->siteRepo->findDistinctDestinationsHavingSessions();
-
-        // 3) Sessions filtrées (repo)
         $sessions = $this->sessionRepo->searchCalendar($filter, limit: 1000);
 
-        // 🔒 Grand public : uniquement sessions PUBLISHED
         $sessions = array_values(array_filter(
             $sessions,
             static fn(Session $s): bool => $s->getStatus() === StatusSession::PUBLISHED
         ));
 
-        // 4) Regrouper par formation + garder la prochaine session
         $formations = [];
         $now = new \DateTimeImmutable('now');
 
         foreach ($sessions as $session) {
             $formation = $session->getFormation();
             if (!$formation instanceof Formation) {
+                continue;
+            }
+
+            if (!$this->publicContext->allowsFormation($formation)) {
                 continue;
             }
 
@@ -411,7 +414,6 @@ final class PublicController extends AbstractController
             }
         }
 
-        // 5) Tri
         $formations = array_values($formations);
         usort(
             $formations,
@@ -423,11 +425,8 @@ final class PublicController extends AbstractController
             EnginType::cases()
         );
 
-        // ✅ 6) Catégories racines (parents = null) pour la galerie en haut de page
-        // ADAPTE SI: tu as un champ isPublic / actif etc.
         $categoriesRoot = $this->categorieRepo->findHomeRoots();
 
-        // 7) Choix du template (full page / fragment AJAX)
         $tpl = $request->isXmlHttpRequest()
             ? 'public/_list.html.twig'
             : 'public/formation.html.twig';
@@ -437,7 +436,33 @@ final class PublicController extends AbstractController
             'destinations'     => $destinations,
             'activeFilters'    => $filter->toActiveFilters(),
             'enginTypeChoices' => $enginTypeChoices,
-            'categoriesRoot'   => $categoriesRoot, // ✅ AJOUT
+            'categoriesRoot'   => $categoriesRoot,
         ]);
+    }
+
+
+    private function assertCatalogueEnabled(): void
+    {
+        if (!$this->publicContext->isCatalogueEnabled()) {
+            throw $this->createNotFoundException();
+        }
+    }
+
+    private function assertCalendarEnabled(): void
+    {
+        if (!$this->publicContext->isCalendarEnabled()) {
+            throw $this->createNotFoundException();
+        }
+    }
+
+    private function filterAllowedFormations(array $formationsRows): array
+    {
+        return array_values(array_filter(
+            $formationsRows,
+            fn(array $row): bool =>
+                isset($row['formation'])
+                && $row['formation'] instanceof Formation
+                && $this->publicContext->allowsFormation($row['formation'])
+        ));
     }
 }
