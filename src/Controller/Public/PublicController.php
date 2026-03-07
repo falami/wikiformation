@@ -47,6 +47,16 @@ final class PublicController extends AbstractController
         EntiteSubscriptionRepository $subRepo,
         StripeBillingService $billing,
     ): Response {
+        $host = $this->publicContext->getPublicHost();
+
+        if ($host instanceof \App\Entity\PublicHost) {
+            if ($host->getHomeUrl()) {
+                return $this->redirect($host->getHomeUrl());
+            }
+
+            return $this->redirectToRoute('app_public_formation');
+        }
+
         $trialConsumed = false;
 
         $user = $this->getUser();
@@ -58,10 +68,10 @@ final class PublicController extends AbstractController
         $activePlans = $plans->findActiveOrdered();
 
         return $this->render('public/index.html.twig', [
-            'plans'        => $activePlans,
-            'addons'       => $addons->findBy(['isActive' => true], ['id' => 'ASC']),
+            'plans' => $activePlans,
+            'addons' => $addons->findBy(['isActive' => true], ['id' => 'ASC']),
             'trialConsumed' => $trialConsumed,
-            'planPrices'   => $billing->getPlansPublicPrices($activePlans),
+            'planPrices' => $billing->getPlansPublicPrices($activePlans),
         ]);
     }
 
@@ -246,6 +256,9 @@ final class PublicController extends AbstractController
     #[Route('/contact', name: 'app_public_contact', methods: ['GET', 'POST'])]
     public function contact(Request $request, MailerInterface $mailer): Response
     {
+        if ($this->publicContext->hasCustomHost()) {
+            return $this->redirectToRoute('app_public_formation');
+        }
         $form = $this->createForm(ContactType::class);
         $form->handleRequest($request);
 
@@ -307,6 +320,7 @@ final class PublicController extends AbstractController
     #[Route('/_partials/footer-contact-form', name: 'app_public_footer_contact_form', methods: ['GET'])]
     public function footerContactForm(): Response
     {
+        
         $form = $this->createForm(ContactType::class);
 
         return $this->render('public/_footer_contact_form.html.twig', [
@@ -318,24 +332,36 @@ final class PublicController extends AbstractController
     #[Route('/politique-de-confidentialite', name: 'app_public_politique_confidentialite')]
     public function politiqueConfidentialite(): Response
     {
+        if ($this->publicContext->hasCustomHost()) {
+            return $this->redirectToRoute('app_public_formation');
+        }
         return $this->render('public/politique_confidentialite.html.twig');
     }
 
     #[Route('/mentions-legales', name: 'app_public_mentions_legales')]
     public function mentionsLegales(): Response
     {
+        if ($this->publicContext->hasCustomHost()) {
+            return $this->redirectToRoute('app_public_formation');
+        }
         return $this->render('public/mentions_legales.html.twig');
     }
 
     #[Route('/cgu', name: 'app_public_cgu')]
     public function cgu(): Response
     {
+        if ($this->publicContext->hasCustomHost()) {
+            return $this->redirectToRoute('app_public_formation');
+        }
         return $this->render('public/cgu.html.twig');
     }
 
     #[Route('/cgv', name: 'app_public_cgv')]
     public function cgv(): Response
     {
+        if ($this->publicContext->hasCustomHost()) {
+            return $this->redirectToRoute('app_public_formation');
+        }
         return $this->render('public/cgv.html.twig');
     }
 
@@ -346,6 +372,9 @@ final class PublicController extends AbstractController
         AddonRepository $addons,
         EntiteSubscriptionRepository $subRepo,
     ): Response {
+        if ($this->publicContext->hasCustomHost()) {
+            return $this->redirectToRoute('app_public_formation');
+        }
         $trialConsumed = false;
 
         $user = $this->getUser();

@@ -127,6 +127,30 @@ final class PublicContext
             'quaternaryColor' => $host?->getQuaternaryColor() ?? '#000000',
             'hasCustomHost' => $this->hasCustomHost(),
             'showAllPublicFormations' => $host?->isShowAllPublicFormations() ?? true,
+            'homeUrl' => $host?->getHomeUrl(),
+            'showPricing' => !$this->hasCustomHost(),
+            'showContact' => !$this->hasCustomHost(),
         ];
+    }
+
+
+    public function getHomeUrl(): ?string
+    {
+        return $this->publicHost?->getHomeUrl();
+    }
+
+    public function shouldShowPricing(): bool
+    {
+        return !$this->hasCustomHost();
+    }
+
+    public function shouldShowContact(): bool
+    {
+        return !$this->hasCustomHost();
+    }
+
+    public function shouldShowHomeAsExternalLink(): bool
+    {
+        return $this->hasCustomHost() && !empty($this->getHomeUrl());
     }
 }

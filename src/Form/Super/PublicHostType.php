@@ -187,6 +187,16 @@ final class PublicHostType extends AbstractType
                 'label' => 'Afficher toutes les formations publiques',
                 'required' => false,
                 'help' => 'À activer pour le host global Wikiformation. Si coché, ce host affichera toutes les formations publiques de toutes les entités, sauf celles exclues manuellement du catalogue global.',
+            ])
+            ->add('homeUrl', TextType::class, [
+                'label' => 'URL accueil externe',
+                'required' => false,
+                'trim' => true,
+                'attr' => [
+                    'class' => 'form-control',
+                    'placeholder' => 'https://itforyou.fr',
+                ],
+                'help' => 'Si renseigné, le lien "Accueil" renverra vers ce site externe.',
             ]);
     }
 

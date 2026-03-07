@@ -2,12 +2,13 @@
 
 <nav class="navbar fixed-top navbar-expand-lg navbar-dark" style="background-color:#0f1b28; z-index:1100;">
   <div class="container">
-    <a class="navbar-brand p-0 m-0" href="{{ path('app_public') }}">
+    <a class="navbar-brand p-0 m-0"
+       href="{% if brand.homeUrl %}{{ brand.homeUrl }}{% else %}{{ path('app_public') }}{% endif %}">
       <img
         class="mb-1"
         src="{{ asset(brand.logo) }}"
         alt="Logo {{ brand.name }}"
-        style="max-height: 44px; width: auto;"
+        style="max-height:44px; width:auto;"
       >
     </a>
 
@@ -22,21 +23,31 @@
 
     <div class="collapse navbar-collapse" id="navbarNavPublic">
       <ul class="navbar-nav ms-auto">
+
         <li class="nav-item">
-          <a class="nav-link" href="{{ path('app_public') }}">{{ 'menu.home'|trans }}</a>
+          {% if brand.homeUrl %}
+            <a class="nav-link" href="{{ brand.homeUrl }}">Accueil</a>
+          {% else %}
+            <a class="nav-link" href="{{ path('app_public') }}">{{ 'menu.home'|trans }}</a>
+          {% endif %}
         </li>
+
         <li class="nav-item">
           <a class="nav-link" href="{{ path('app_public_formation') }}">{{ 'menu.training'|trans }}</a>
         </li>
+
         <li class="nav-item">
           <a class="nav-link" href="{{ path('app_public_catalogue') }}">{{ 'menu.catalog'|trans }}</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="{{ path('app_public_pricing') }}">{{ 'menu.price'|trans }}</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="{{ path('app_public_contact') }}">{{ 'menu.contact'|trans }}</a>
-        </li>
+
+        {% if not brand.hasCustomHost %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ path('app_public_pricing') }}">{{ 'menu.price'|trans }}</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ path('app_public_contact') }}">{{ 'menu.contact'|trans }}</a>
+          </li>
+        {% endif %}
 
         <li class="nav-item dropdown">
           {% include '_locale_switcher.html.twig' %}
