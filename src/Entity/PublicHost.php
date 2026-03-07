@@ -70,6 +70,9 @@ class PublicHost
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Entite $entite = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $homeUrl = null;
+
     public function __construct()
     {
         $this->formations = new ArrayCollection();
@@ -288,6 +291,18 @@ class PublicHost
     public function setEntite(?Entite $entite): static
     {
         $this->entite = $entite;
+
+        return $this;
+    }
+
+    public function getHomeUrl(): ?string
+    {
+        return $this->homeUrl;
+    }
+
+    public function setHomeUrl(?string $homeUrl): static
+    {
+        $this->homeUrl = $homeUrl;
 
         return $this;
     }
