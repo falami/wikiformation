@@ -9,6 +9,7 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 use App\Entity\Utilisateur;
 use App\Security\RedirectAfterLogin;
 use Symfony\Component\HttpFoundation\Request;
+use App\Service\Public\PublicContext;
 
 class SecurityController extends AbstractController
 {
@@ -16,9 +17,9 @@ class SecurityController extends AbstractController
     public function login(
         Request $request,
         AuthenticationUtils $authenticationUtils,
-        RedirectAfterLogin $redirectAfterLogin
+        RedirectAfterLogin $redirectAfterLogin,
+        PublicContext $publicContext,
     ): Response {
-        // ✅ Déjà connecté ? => redirection directe (plus de page login)
         $user = $this->getUser();
         if ($user instanceof Utilisateur) {
             return $redirectAfterLogin->redirect($request, $user);
@@ -30,6 +31,7 @@ class SecurityController extends AbstractController
         return $this->render('security/login.html.twig', [
             'last_username' => $lastUsername,
             'error' => $error,
+            'brand' => $publicContext->getBranding(),
         ]);
     }
 

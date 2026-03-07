@@ -1,5 +1,6 @@
-{# templates/security/login.html.twig #}
 {% extends 'base.html.twig' %}
+
+{% set brand = public_branding() %}
 
 {% block title %}{{ 'login.meta.title'|trans }}{% endblock %}
 
@@ -28,18 +29,28 @@
             justify-content: center;
             align-items: center;
         }
+        .login-logo {
+            max-width: 160px;
+            max-height: 80px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
     </style>
 {% endblock %}
 
 {% block body %}
 <div class="container d-flex justify-content-center align-items-center vh-100">
     <div class="login-container shadow-lg row">
-        <!-- Partie gauche : Connexion -->
         <div class="col-md-6 col-12 left-panel">
             <div class="text-center">
-                <img class="mb-3 rounded" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}" alt="Logo" style="width: 100px;">
+                <img
+                    class="mb-3 rounded login-logo"
+                    src="{{ asset(brand.logo) }}"
+                    alt="Logo {{ brand.name }}"
+                >
             </div>
-            
+
             {% if error %}
                 <div class="alert alert-danger text-center">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
             {% endif %}
@@ -51,19 +62,20 @@
                     </div>
                 {% endfor %}
             {% endfor %}
-            
+
             {% if app.user %}
                 <div class="alert alert-info text-center">
                     {{ 'login.already_connected'|trans({'%user%': app.user.userIdentifier})|raw }}
                     <a href="{{ path('app_logout') }}" class="text-danger">{{ 'login.logout'|trans }}</a>
                     <a href="{{ path('app_workspace') }}" class="text-primary"><br>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" class="bi bi-speedometer2" viewBox="0 0 16 16">
-                    <path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4M3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707M2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10m9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5m.754-4.246a.39.39 0 0 0-.527-.02L7.547 9.31a.91.91 0 1 0 1.302 1.258l3.434-4.297a.39.39 0 0 0-.029-.518z"/>
-                    <path fill-rule="evenodd" d="M0 10a8 8 0 1 1 15.547 2.661c-.442 1.253-1.845 1.602-2.932 1.25C11.309 13.488 9.475 13 8 13c-1.474 0-3.31.488-4.615.911-1.087.352-2.49.003-2.932-1.25A8 8 0 0 1 0 10m8-7a7 7 0 0 0-6.603 9.329c.203.575.923.876 1.68.63C4.397 12.533 6.358 12 8 12s3.604.532 4.923.96c.757.245 1.477-.056 1.68-.631A7 7 0 0 0 8 3"/>
-                    </svg></a>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" class="bi bi-speedometer2" viewBox="0 0 16 16">
+                            <path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4M3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707M2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10m9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5m.754-4.246a.39.39 0 0 0-.527-.02L7.547 9.31a.91.91 0 1 0 1.302 1.258l3.434-4.297a.39.39 0 0 0-.029-.518z"/>
+                            <path fill-rule="evenodd" d="M0 10a8 8 0 1 1 15.547 2.661c-.442 1.253-1.845 1.602-2.932 1.25C11.309 13.488 9.475 13 8 13c-1.474 0-3.31.488-4.615.911-1.087.352-2.49.003-2.932-1.25A8 8 0 0 1 0 10m8-7a7 7 0 0 0-6.603 9.329c.203.575.923.876 1.68.63C4.397 12.533 6.358 12 8 12s3.604.532 4.923.96c.757.245 1.477-.056 1.68-.631A7 7 0 0 0 8 3"/>
+                        </svg>
+                    </a>
                 </div>
             {% endif %}
-            
+
             <form method="post">
                 <h5 class="text-center mb-3">{{ 'login.form.title'|trans }}</h5>
 
@@ -101,14 +113,18 @@
             </form>
         </div>
 
-        <!-- Partie droite : Inscription -->
         <div class="col-md-6 col-12 right-panel text-center">
             <h4>{{ 'login.signup.title'|trans }}</h4>
             <p>{{ 'login.signup.text'|trans }}</p>
             <div class="row">
-                <div class="col-12 d-flex gap-2">
+                <div class="col-12 d-flex gap-2 justify-content-center">
                     <a href="{{ path('app_register') }}" class="btn btn-success">{{ 'login.signup.create'|trans }}</a>
-                    <a href="{{ path('app_public') }}" class="btn btn-primary">{{ 'login.signup.home'|trans }}</a>
+
+                    {% if brand.homeUrl %}
+                        <a href="{{ brand.homeUrl }}" class="btn btn-primary">Accueil</a>
+                    {% else %}
+                        <a href="{{ path('app_public') }}" class="btn btn-primary">{{ 'login.signup.home'|trans }}</a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -132,5 +148,4 @@
         });
     });
 </script>
-
 {% endblock %}
