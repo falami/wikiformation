@@ -113,11 +113,14 @@ final class PublicContext
     public function getBranding(): array
     {
         $host = $this->getPublicHost();
+        $logoPath = $host?->getLogoPath();
 
         return [
             'host' => $this->getCurrentHost(),
             'name' => $host?->getName() ?? 'Wikiformation',
-            'logo' => $host?->getLogoPath() ?: 'uploads/photos/entite/logo/logo-wikiformation.png',
+            'logo' => $logoPath
+                ? 'uploads/public-host/logo/' . $logoPath
+                : 'uploads/photos/entite/logo/logo-wikiformation.png',
             'primaryColor' => $host?->getPrimaryColor() ?? '#233342',
             'secondaryColor' => $host?->getSecondaryColor() ?? '#ffc107',
             'tertiaryColor' => $host?->getTertiaryColor() ?? '#F0F0F0',
