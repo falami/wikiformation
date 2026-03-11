@@ -160,4 +160,96 @@ class UtilisateurEntiteRepository extends ServiceEntityRepository
         // seul le DIRIGEANT de l'entité peut définir ADMIN/DIRIGEANT
         return $this->hasRoleInEntite($actor, $entite, UtilisateurEntite::TENANT_DIRIGEANT);
     }
+
+
+
+    public function countActiveForEntite(Entite $entite, ?int $excludeUtilisateurEntiteId = null): int
+    {
+        $qb = $this->createQueryBuilder('ue')
+            ->select('COUNT(ue.id)')
+            ->andWhere('ue.entite = :entite')
+            ->andWhere('ue.status = :status')
+            ->setParameter('entite', $entite)
+            ->setParameter('status', UtilisateurEntite::STATUS_ACTIVE);
+
+        if ($excludeUtilisateurEntiteId) {
+            $qb->andWhere('ue.id != :excludeId')
+                ->setParameter('excludeId', $excludeUtilisateurEntiteId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    public function countActiveByRoleForEntite(
+        Entite $entite,
+        string $role,
+        ?int $excludeUtilisateurEntiteId = null
+    ): int {
+        $qb = $this->createQueryBuilder('ue')
+            ->select('COUNT(ue.id)')
+            ->andWhere('ue.entite = :entite')
+            ->andWhere('ue.status = :status')
+            ->andWhere('JSON_CONTAINS(ue.roles, :roleJson) = 1')
+            ->setParameter('entite', $entite)
+            ->setParameter('status', UtilisateurEntite::STATUS_ACTIVE)
+            ->setParameter('roleJson', json_encode($role));
+
+        if ($excludeUtilisateurEntiteId) {
+            $qb->andWhere('ue.id != :excludeId')
+                ->setParameter('excludeId', $excludeUtilisateurEntiteId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    public function getActiveCountsByRoleForEntite(Entite $entite, ?int $excludeUtilisateurEntiteId = null): array
+    {
+        $roles = [
+            UtilisateurEntite::TENANT_STAGIAIRE,
+            UtilisateurEntite::TENANT_FORMATEUR,
+            UtilisateurEntite::TENANT_ENTREPRISE,
+            UtilisateurEntite::TENANT_OPCO,
+            UtilisateurEntite::TENANT_OF,
+            UtilisateurEntite::TENANT_ADMIN,
+            UtilisateurEntite::TENANT_COMMERCIAL,
+            UtilisateurEntite::TENANT_DIRIGEANT,
+        ];
+
+        $result = [];
+        foreach ($roles as $role) {
+            $result[$role] = $this->countActiveByRoleForEntite($entite, $role, $excludeUtilisateurEntiteId);
+        }
+
+        return $result;
+    }
+
+
+    public function countActiveForAnyRoleForEntite(
+        Entite $entite,
+        array $roles,
+        ?int $excludeUtilisateurEntiteId = null
+    ): int {
+        $qb = $this->createQueryBuilder('ue')
+            ->select('COUNT(DISTINCT ue.id)')
+            ->andWhere('ue.entite = :entite')
+            ->andWhere('ue.status = :status')
+            ->setParameter('entite', $entite)
+            ->setParameter('status', UtilisateurEntite::STATUS_ACTIVE);
+
+        $orX = $qb->expr()->orX();
+        foreach ($roles as $idx => $role) {
+            $param = 'roleJson_' . $idx;
+            $orX->add("JSON_CONTAINS(ue.roles, :$param) = 1");
+            $qb->setParameter($param, json_encode($role));
+        }
+
+        $qb->andWhere($orX);
+
+        if ($excludeUtilisateurEntiteId) {
+            $qb->andWhere('ue.id != :excludeId')
+                ->setParameter('excludeId', $excludeUtilisateurEntiteId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
 }

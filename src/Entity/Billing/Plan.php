@@ -2,6 +2,7 @@
 
 namespace App\Entity\Billing;
 
+use App\Entity\UtilisateurEntite;
 use App\Repository\Billing\PlanRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -46,7 +47,7 @@ class Plan
     #[ORM\Column(options: ['unsigned' => true])]
     private int $maxProspects = 0;
 
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => false])]
     private bool $supportPrioritaire = false;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -58,7 +59,7 @@ class Plan
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $stripePriceYearlyId = null;
 
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => true])]
     private bool $isActive = true;
 
     #[ORM\Column(nullable: true, options: ['unsigned' => true])]
@@ -320,16 +321,44 @@ class Plan
     {
         return $this->seatLimits ?? [];
     }
+
     public function setSeatLimits(array $limits): self
     {
         $this->seatLimits = $limits;
         return $this;
     }
 
-    public function getLimitFor(string $tenantRole): int
+    /**
+     * Retourne les quotas normalisés par rôle tenant exact.
+     * 0 = illimité
+     */
+    public function getNormalizedSeatLimits(): array
     {
-        // 0 = illimité
-        return (int)($this->seatLimits[$tenantRole] ?? 0);
+        $limits = $this->getSeatLimits();
+
+        return [
+            UtilisateurEntite::TENANT_STAGIAIRE  => (int)($limits[UtilisateurEntite::TENANT_STAGIAIRE]  ?? $limits['stagiaires']  ?? 0),
+            UtilisateurEntite::TENANT_FORMATEUR  => (int)($limits[UtilisateurEntite::TENANT_FORMATEUR]  ?? $limits['formateurs']  ?? 0),
+            UtilisateurEntite::TENANT_ENTREPRISE => (int)($limits[UtilisateurEntite::TENANT_ENTREPRISE] ?? $limits['entreprises'] ?? 0),
+            UtilisateurEntite::TENANT_OPCO       => (int)($limits[UtilisateurEntite::TENANT_OPCO]       ?? $limits['opcos']       ?? 0),
+            UtilisateurEntite::TENANT_OF         => (int)($limits[UtilisateurEntite::TENANT_OF]         ?? $limits['ofs']         ?? 0),
+
+            // fallback sur "admins" si tu ne veux pas détailler plus finement
+            UtilisateurEntite::TENANT_ADMIN      => (int)($limits[UtilisateurEntite::TENANT_ADMIN]      ?? $limits['admins']      ?? 0),
+            UtilisateurEntite::TENANT_COMMERCIAL => (int)($limits[UtilisateurEntite::TENANT_COMMERCIAL] ?? $limits['admins']      ?? 0),
+            UtilisateurEntite::TENANT_DIRIGEANT  => (int)($limits[UtilisateurEntite::TENANT_DIRIGEANT]  ?? $limits['admins']      ?? 0),
+        ];
+    }
+
+    public function getSeatLimitFor(string $tenantRole): int
+    {
+        $limits = $this->getNormalizedSeatLimits();
+        return (int)($limits[$tenantRole] ?? 0);
+    }
+
+    public function getPriceFor(string $interval): ?int
+    {
+        return $interval === 'month' ? $this->priceMonthlyCents : $this->priceYearlyCents;
     }
 
 
@@ -373,8 +402,4 @@ class Plan
         return $this;
     }
 
-    public function getPriceFor(string $interval): ?int
-    {
-        return $interval === 'month' ? $this->priceMonthlyCents : $this->priceYearlyCents;
-    }
 }

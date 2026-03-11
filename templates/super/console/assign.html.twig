@@ -1,52 +1,742 @@
+{# templates/super/utilisateur_entite/assign.html.twig #}
 {% extends 'base_admin.html.twig' %}
+
 {% block title %}Super — Assigner un rôle{% endblock %}
 
-
-
 {% block stylesheets %}
-
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
   <style>
     :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+      --theme-color-principal: {{ themeColorPrimaire|default(entite is defined and entite ? entite.couleurPrincipal|default('#233342') : '#233342') }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite is defined and entite ? entite.couleurSecondaire|default('#ffc107') : '#ffc107') }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite is defined and entite ? entite.couleurTertiaire|default('#F0F0F0') : '#F0F0F0') }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite is defined and entite ? entite.couleurQuaternaire|default('#000000') : '#000000') }};
+
+      --bg:#f5f7fb;
+      --panel: rgba(255,255,255,.92);
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke:rgba(15,23,42,.10);
+      --soft:rgba(15,23,42,.06);
+      --shadow:0 18px 55px rgba(15,23,42,.10);
+      --radius:18px;
+
+      --glass: rgba(255,255,255,.74);
+      --glassStroke: rgba(255,255,255,.40);
+
+      --accent: color-mix(in srgb, var(--theme-color-secondaire) 92%, #fff);
+      --ring: color-mix(in srgb, var(--theme-color-secondaire) 22%, transparent);
+      --success-soft: rgba(34,197,94,.10);
+      --warning-soft: rgba(245,158,11,.10);
     }
-    .panel{ border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 12px 30px rgba(0,0,0,.06); }
+
+    body{
+      background: var(--bg);
+    }
+
+    /* ===== Toast erreurs ===== */
+    #form-error-alert{
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1050;
+      max-width: 92%;
+      width: auto;
+      padding: .8rem 1.1rem;
+      background: rgba(254, 226, 226, .95);
+      color: #7f1d1d;
+      border: 1px solid rgba(239, 68, 68, .25);
+      border-radius: 999px;
+      box-shadow: 0 18px 55px rgba(15,23,42,.18);
+      font-weight: 800;
+      font-size: .9rem;
+      line-height: 1.35;
+      text-align: left;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: fadeIn .35s ease;
+    }
+    #form-error-alert strong{ font-size: .95rem; }
+    @keyframes fadeIn{
+      from{ opacity:0; transform: translateX(-50%) translateY(18px); }
+      to{ opacity:1; transform: translateX(-50%) translateY(0); }
+    }
+    .fade-out{ opacity:0; transition: opacity 1s ease; }
+
+    /* ===== HERO ===== */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+    .hero .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .hero .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ===== Cards premium ===== */
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow: hidden;
+      min-width: 0;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0;
+      font-weight:950;
+      letter-spacing:-.01em;
+      color: var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.65rem;
+    }
+    .cardx-sub{
+      margin:.25rem 0 0;
+      color: var(--muted);
+      font-size:.9rem;
+    }
+
+    /* ===== Form ===== */
+    .form-control,
+    .form-select,
+    textarea.form-control{
+      border-radius: 14px;
+      border-color: var(--stroke);
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 1px 0 rgba(255,255,255,.7) inset;
+      min-height: 48px;
+    }
+    .form-control:focus,
+    .form-select:focus,
+    textarea.form-control:focus{
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 55%, var(--stroke));
+      box-shadow: 0 0 0 .25rem var(--ring);
+    }
+    textarea.form-control{
+      min-height: 110px;
+    }
+    label.form-label{
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: .45rem;
+    }
+    .form-text{
+      color: var(--muted);
+    }
+
+    /* Symfony errors */
+    .invalid-feedback,
+    .form-error-message{
+      display:block;
+      font-size:.85rem;
+      font-weight:700;
+      color:#b91c1c;
+      margin-top:.35rem;
+    }
+
+    /* TomSelect */
+    .ts-wrapper.single .ts-control,
+    .ts-wrapper.multi .ts-control{
+      min-height: 48px;
+      border-radius: 14px;
+      border-color: var(--stroke);
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 1px 0 rgba(255,255,255,.7) inset;
+      padding: .65rem .9rem;
+    }
+    .ts-wrapper.focus .ts-control{
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 55%, var(--stroke));
+      box-shadow: 0 0 0 .25rem var(--ring);
+    }
+    .ts-dropdown{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      box-shadow: 0 18px 50px rgba(15,23,42,.14);
+      overflow: hidden;
+    }
+
+    /* ===== Stat / helper cards ===== */
+    .mini-stat{
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.82));
+      padding: .95rem 1rem;
+      display:flex;
+      align-items:flex-start;
+      gap:.85rem;
+      height: 100%;
+    }
+    .mini-stat__icon{
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      background: color-mix(in srgb, var(--theme-color-secondaire) 14%, #fff);
+      color: var(--theme-color-principal);
+      box-shadow: 0 10px 24px rgba(15,23,42,.08);
+      flex: 0 0 auto;
+    }
+    .mini-stat__title{
+      font-weight: 900;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+    .mini-stat__text{
+      color: var(--muted);
+      font-size: .88rem;
+      margin-top: .15rem;
+    }
+
+    /* ===== Role helper ===== */
+    .role-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:.75rem;
+    }
+    .role-chip{
+      display:flex;
+      align-items:center;
+      gap:.6rem;
+      padding:.8rem .9rem;
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,255,255,.84));
+      font-weight:700;
+      color: var(--ink);
+    }
+    .role-chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    /* ===== Color preview ===== */
+    .color-preview{
+      display:flex;
+      align-items:center;
+      gap:1rem;
+      padding:1rem;
+      border-radius: 18px;
+      border:1px solid var(--stroke);
+      background:
+        radial-gradient(1200px 220px at 0% 0%, color-mix(in srgb, var(--theme-color-secondaire) 10%, transparent), transparent 50%),
+        linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.82));
+    }
+    .color-preview__swatch{
+      width:58px;
+      height:58px;
+      border-radius:18px;
+      border: 1px solid rgba(15,23,42,.10);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.55),
+        0 12px 24px rgba(15,23,42,.08);
+      background: #0d6efd;
+      flex: 0 0 auto;
+    }
+    .color-preview__title{
+      font-weight: 900;
+      color: var(--ink);
+      margin-bottom: .2rem;
+    }
+    .color-preview__code{
+      color: var(--muted);
+      font-size: .92rem;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* ===== Buttons ===== */
+    .btn-gradient{
+      border: 0 !important;
+      border-radius: 14px !important;
+      font-weight: 950;
+      color: #0b1220 !important;
+      background:
+        radial-gradient(1200px 300px at 20% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 55%, #fff),
+          transparent 55%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-secondaire) 92%, #fff 8%),
+          color-mix(in srgb, var(--theme-color-secondaire) 70%, var(--theme-color-principal) 30%)
+        );
+      box-shadow:
+        0 18px 50px rgba(15,23,42,.16),
+        0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    .btn-gradient:hover{ transform: translateY(-1px); }
+    .btn-gradient:active{ transform: translateY(0); }
+
+    .btn-soft{
+      border-radius: 14px;
+      font-weight: 800;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.82);
+      color: var(--ink);
+    }
+    .btn-soft:hover{
+      background: rgba(255,255,255,.96);
+      color: var(--ink);
+    }
+
+    /* ===== Dark mode ===== */
+    body.dark-mode{
+      --bg:#0b1220;
+      --panel: rgba(17,24,39,.92);
+      --ink:#e5e7eb;
+      --muted:#9ca3af;
+      --stroke: rgba(148,163,184,.18);
+      --glass: rgba(17,24,39,.58);
+      --glassStroke: rgba(148,163,184,.18);
+    }
+    body.dark-mode .form-control,
+    body.dark-mode .form-select,
+    body.dark-mode textarea.form-control,
+    body.dark-mode .ts-wrapper.single .ts-control,
+    body.dark-mode .ts-wrapper.multi .ts-control{
+      background: rgba(17,24,39,.72);
+      color: var(--ink);
+      border-color: var(--stroke);
+    }
+    body.dark-mode .ts-dropdown,
+    body.dark-mode .mini-stat,
+    body.dark-mode .role-chip,
+    body.dark-mode .color-preview{
+      background: linear-gradient(180deg, rgba(17,24,39,.82), rgba(17,24,39,.68));
+      border-color: var(--stroke);
+      color: var(--ink);
+    }
+
+    @media (max-width: 991.98px){
+      .role-grid{
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 {% endblock %}
 
-{% block body %}
-<div class="container py-4" style="max-width:980px;">
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
 
-  <div class="mb-3">
-    <div class="text-muted small">SUPER</div>
-    <h1 class="h4 mb-0">Assigner un rôle (Utilisateur ↔ Entité)</h1>
-    <div class="text-muted mt-1">Crée ou met à jour le lien <code>UtilisateurEntite</code>.</div>
+{% block body %}
+
+  {{ form_start(form, {'attr': {'novalidate': 'novalidate', 'id': 'assign-role-form'}}) }}
+  {{ form_errors(form) }}
+
+  <div class="hero p-3 p-md-4 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1 w-100">
+      <div class="d-flex align-items-start justify-content-between gap-3 w-100 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="fa-solid fa-link text-theme-secondaire me-2"></i>
+            Assigner un rôle à un utilisateur
+          </h2>
+          <div class="opacity-75 mt-1">
+            Créez ou mettez à jour le lien <code>UtilisateurEntite</code> avec une gestion propre des rôles, de la fonction et de l’identité visuelle.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="chip"><i class="fa-solid fa-user"></i> Utilisateur</span>
+            <span class="chip"><i class="fa-solid fa-building"></i> Entité</span>
+            <span class="chip"><i class="fa-solid fa-shield-halved"></i> Permissions</span>
+            <span class="chip"><i class="fa-solid fa-palette"></i> Couleur</span>
+          </div>
+        </div>
+
+        <div class="ms-auto d-flex gap-2 flex-wrap justify-content-end align-items-start">
+          <a class="btn btn-outline-theme btn-sm fw-semibold"
+             href="{{ path('app_super_admin_console', { tab: 'users', entite: entite.id }) }}">
+            <i class="fa-solid fa-arrow-left me-1"></i> Retour
+          </a>
+
+          <button type="submit" class="btn btn-light btn-sm fw-semibold">
+            <i class="fa-solid fa-save me-1"></i> Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   {% include 'flagMessage.html.twig' %}
 
-  <div class="card panel border-0">
-    <div class="card-body">
-      {{ form_start(form) }}
-        <div class="row g-3">
-          <div class="col-12 col-md-6">{{ form_row(form.utilisateur) }}</div>
-          <div class="col-12 col-md-6">{{ form_row(form.entite) }}</div>
-          <div class="col-12 col-md-6">{{ form_row(form.role) }}</div>
-          <div class="col-12 col-md-6">{{ form_row(form.fonction) }}</div>
-          <div class="col-12">{{ form_row(form.couleur) }}</div>
+  <div class="row g-4 align-items-start">
+
+    <div class="col-lg-8">
+
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title">
+              <i class="fa-solid fa-user-group text-theme-secondaire"></i>
+              Association utilisateur / entité
+            </h5>
+            <div class="cardx-sub">Sélectionnez la personne, l’entité cible et les droits à appliquer.</div>
+          </div>
         </div>
 
-        <div class="d-flex gap-2 mt-3">
-          <button class="btn btn-warning fw-semibold"><i class="bi bi-check2-circle"></i> Enregistrer</button>
-          <a class="btn btn-outline-secondary" href="{{ path('app_super_admin_console', { tab:'users', entite: entite.id }) }}">Retour</a>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              {{ form_row(form.utilisateur) }}
+            </div>
+
+            <div class="col-md-6">
+              {{ form_row(form.entite) }}
+            </div>
+
+            <div class="col-12">
+              {{ form_row(form.roles, {
+                'help': 'Vous pouvez sélectionner un ou plusieurs rôles selon le niveau d’accès souhaité.'
+              }) }}
+            </div>
+
+            <div class="col-md-6">
+              {{ form_row(form.fonction, {
+                'help': 'Exemple : Responsable pédagogique, référent commercial, directeur.'
+              }) }}
+            </div>
+
+            <div class="col-md-6">
+              {{ form_row(form.couleur, {
+                'help': 'Format attendu : #0d6efd'
+              }) }}
+            </div>
+          </div>
         </div>
-      {{ form_end(form) }}
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title">
+              <i class="fa-solid fa-wand-magic-sparkles text-theme-secondaire"></i>
+              Aide à la configuration
+            </h5>
+            <div class="cardx-sub">Repères rapides pour choisir les rôles les plus adaptés.</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="role-grid">
+            <div class="role-chip"><i class="fa-solid fa-graduation-cap"></i> Stagiaire</div>
+            <div class="role-chip"><i class="fa-solid fa-chalkboard-user"></i> Formateur</div>
+            <div class="role-chip"><i class="fa-solid fa-briefcase"></i> Entreprise</div>
+            <div class="role-chip"><i class="fa-solid fa-file-signature"></i> OPCO</div>
+            <div class="role-chip"><i class="fa-solid fa-building-circle-check"></i> Organisme (OF)</div>
+            <div class="role-chip"><i class="fa-solid fa-chart-line"></i> Commercial</div>
+            <div class="role-chip"><i class="fa-solid fa-shield-halved"></i> Administrateur</div>
+            <div class="role-chip"><i class="fa-solid fa-crown"></i> Dirigeant</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col-lg-4">
+
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title">
+              <i class="fa-solid fa-bolt text-theme-secondaire"></i>
+              Vue rapide
+            </h5>
+            <div class="cardx-sub">Résumé visuel de l’affectation en cours.</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="mini-stat">
+                <div class="mini-stat__icon">
+                  <i class="fa-solid fa-user"></i>
+                </div>
+                <div>
+                  <div class="mini-stat__title">Utilisateur</div>
+                  <div class="mini-stat__text">Sélectionnez le compte à rattacher à l’entité.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="mini-stat">
+                <div class="mini-stat__icon">
+                  <i class="fa-solid fa-building"></i>
+                </div>
+                <div>
+                  <div class="mini-stat__title">Entité</div>
+                  <div class="mini-stat__text">Choisissez l’organisation sur laquelle appliquer les droits.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="mini-stat">
+                <div class="mini-stat__icon">
+                  <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                  <div class="mini-stat__title">Rôles</div>
+                  <div class="mini-stat__text">Le champ accepte plusieurs rôles pour une configuration avancée.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-3">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title">
+              <i class="fa-solid fa-palette text-theme-secondaire"></i>
+              Aperçu couleur
+            </h5>
+            <div class="cardx-sub">Visualisez la couleur de repère associée à ce lien.</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="color-preview">
+            <div class="color-preview__swatch" id="colorPreviewSwatch"></div>
+            <div>
+              <div class="color-preview__title">Couleur de l’affectation</div>
+              <div class="color-preview__code" id="colorPreviewCode">#0d6efd</div>
+            </div>
+          </div>
+
+          <div class="mt-3 text-muted small">
+            Vous pouvez laisser ce champ vide si aucune couleur spécifique n’est nécessaire.
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx">
+        <div class="cardx-h">
+          <div>
+            <h5 class="cardx-title">
+              <i class="fa-solid fa-circle-info text-theme-secondaire"></i>
+              Recommandations
+            </h5>
+            <div class="cardx-sub">Bonnes pratiques pour garder une structure claire.</div>
+          </div>
+        </div>
+
+        <div class="p-3 p-md-4">
+          <div class="d-flex flex-column gap-3">
+            <div class="mini-stat">
+              <div class="mini-stat__icon">
+                <i class="fa-solid fa-layer-group"></i>
+              </div>
+              <div>
+                <div class="mini-stat__title">Éviter les doublons</div>
+                <div class="mini-stat__text">Utilisez ce formulaire pour créer ou mettre à jour une seule liaison claire par utilisateur et par entité.</div>
+              </div>
+            </div>
+
+            <div class="mini-stat">
+              <div class="mini-stat__icon">
+                <i class="fa-solid fa-pen-nib"></i>
+              </div>
+              <div>
+                <div class="mini-stat__title">Fonction lisible</div>
+                <div class="mini-stat__text">Renseignez une fonction métier explicite pour améliorer la lecture dans les interfaces admin.</div>
+              </div>
+            </div>
+
+            <div class="mini-stat">
+              <div class="mini-stat__icon">
+                <i class="fa-solid fa-swatchbook"></i>
+              </div>
+              <div>
+                <div class="mini-stat__title">Code couleur cohérent</div>
+                <div class="mini-stat__text">Utilisez une couleur stable par profil ou usage pour garder une UI homogène.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
-</div>
+  <div class="mt-4 d-flex justify-content-end gap-2 flex-wrap">
+    <a class="btn btn-soft"
+       href="{{ path('app_super_admin_console', { tab: 'users', entite: entite.id }) }}">
+      <i class="fa-solid fa-arrow-left me-1"></i> Retour
+    </a>
+
+    <button type="submit" class="btn btn-gradient">
+      <i class="fa-solid fa-save me-1"></i> Enregistrer l’affectation
+    </button>
+  </div>
+
+  {{ form_end(form) }}
+
+  <div id="form-error-alert" class="d-none"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const selectIds = [
+        '{{ form.utilisateur.vars.id }}',
+        '{{ form.entite.vars.id }}',
+        '{{ form.roles.vars.id }}'
+      ];
+
+      selectIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        new TomSelect(el, {
+          create: false,
+          allowEmptyOption: true,
+          plugins: el.multiple ? ['remove_button'] : [],
+          placeholder: el.getAttribute('placeholder') || ''
+        });
+      });
+
+      const colorInput = document.getElementById('{{ form.couleur.vars.id }}');
+      const previewSwatch = document.getElementById('colorPreviewSwatch');
+      const previewCode = document.getElementById('colorPreviewCode');
+
+      function normalizeHex(value) {
+        if (!value) return '#0d6efd';
+        const v = value.trim();
+        return /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/.test(v) ? v : '#0d6efd';
+      }
+
+      function updateColorPreview() {
+        const hex = normalizeHex(colorInput ? colorInput.value : '');
+        if (previewSwatch) previewSwatch.style.background = hex;
+        if (previewCode) previewCode.textContent = colorInput && colorInput.value.trim() ? colorInput.value.trim() : 'Aucune couleur définie';
+      }
+
+      if (colorInput) {
+        updateColorPreview();
+        colorInput.addEventListener('input', updateColorPreview);
+        colorInput.addEventListener('change', updateColorPreview);
+      }
+
+      const form = document.getElementById('assign-role-form');
+      const errorAlert = document.getElementById('form-error-alert');
+
+      if (form && errorAlert) {
+        form.addEventListener('submit', function (e) {
+          const invalidFields = form.querySelectorAll(':invalid');
+          if (!invalidFields.length) return;
+
+          e.preventDefault();
+
+          const messages = new Set();
+          let firstInvalidField = null;
+
+          form.querySelectorAll('.is-invalid').forEach(f => f.classList.remove('is-invalid'));
+
+          invalidFields.forEach(field => {
+            field.classList.add('is-invalid');
+            if (!firstInvalidField) firstInvalidField = field;
+
+            const label = form.querySelector(`label[for="${field.id}"]`);
+            if (label) messages.add(`- ${label.textContent.trim()}`);
+          });
+
+          errorAlert.innerHTML = `
+            <strong>Certains champs obligatoires ne sont pas remplis ou invalides :</strong>
+            <div style="margin-top:.35rem">${[...messages].join('<br>')}</div>
+          `;
+          errorAlert.classList.remove('d-none');
+
+          if (firstInvalidField && typeof firstInvalidField.scrollIntoView === 'function') {
+            const scrollTarget = firstInvalidField.closest('.cardx, .col-md-6, .col-12') || firstInvalidField;
+            scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+
+          setTimeout(() => {
+            errorAlert.classList.add('fade-out');
+            setTimeout(() => {
+              errorAlert.classList.add('d-none');
+              errorAlert.classList.remove('fade-out');
+            }, 1000);
+          }, 6000);
+        });
+      }
+    });
+  </script>
 {% endblock %}

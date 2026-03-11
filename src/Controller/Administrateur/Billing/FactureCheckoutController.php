@@ -159,7 +159,7 @@ final class FactureCheckoutController extends AbstractController
             $payeurName  = trim(($payeurUser->getPrenom() ?? '') . ' ' . ($payeurUser->getNom() ?? '')) ?: null;
         } elseif ($payeurEnt) {
             $payeurEmail = method_exists($payeurEnt, 'getEmail') ? (trim((string) $payeurEnt->getEmail()) ?: null) : null;
-            $payeurName  = method_exists($payeurEnt, 'getRaisonSociale') ? (trim((string) $payeurEnt->getRaisonSociale()) ?: null) : null;
+            $payeurName  = method_exists($payeurEnt, 'getRaisonSociale@') ? (trim((string) $payeurEnt->getRaisonSociale()) ?: null) : null;
         }
 
         // fallback admin (si aucun email payeur)

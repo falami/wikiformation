@@ -2,12 +2,13 @@
 
 namespace App\Repository;
 
-use App\Entity\Utilisateur;
+use App\Entity\{Utilisateur, Entite};
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
+use App\Entity\UtilisateurEntite;
 
 /**
  * @extends ServiceEntityRepository<Utilisateur>
@@ -48,4 +49,5 @@ class UtilisateurRepository extends ServiceEntityRepository implements PasswordU
 
         return $qb->getQuery()->getResult();
     }
+
 }

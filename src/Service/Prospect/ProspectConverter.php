@@ -6,13 +6,15 @@ use App\Entity\{Entite, Prospect, Utilisateur, Entreprise, Devis, UtilisateurEnt
 use App\Entity\ProspectInteraction;
 use App\Enum\ProspectStatus;
 use Doctrine\ORM\EntityManagerInterface as EM;
+use App\Service\Billing\BillingGuard;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class ProspectConverter
 {
   public function __construct(
-    private EM $em,
-    private UserPasswordHasherInterface $passwordHasher,
+      private EM $em,
+      private UserPasswordHasherInterface $passwordHasher,
+      private BillingGuard $billingGuard,
   ) {}
 
   public function convert(Entite $entite, Prospect $p, Utilisateur $currentUser): ProspectConversionResult
@@ -52,7 +54,7 @@ final class ProspectConverter
             $user->setEntreprise($entreprise);
           }
 
-          $this->findOrCreateLinkEntite($entite, $user);
+          $this->findOrCreateLinkEntite($entite, $user, $currentUser);
 
           $this->backfillEmailLogsToUser($entite, $p, $user);
           $this->backfillInteractionsToUser($entite, $p, $user);
@@ -97,7 +99,7 @@ final class ProspectConverter
       $this->backfillInteractionsToUser($entite, $p, $user);
 
       // ✅ lien utilisateur <-> entite
-      $this->findOrCreateLinkEntite($entite, $user);
+      $this->findOrCreateLinkEntite($entite, $user, $currentUser);
 
       // Rattache devis au user
       foreach ($p->getDevis() as $devis) {
@@ -162,32 +164,45 @@ final class ProspectConverter
     $u->setIsVerified(false);
 
     $this->em->persist($u);
-    // pas obligatoire de flush ici, mais ok si tu en dépends ailleurs
-    $this->em->flush();
 
     return $u;
   }
 
-  private function findOrCreateLinkEntite(Entite $entite, Utilisateur $user): UtilisateurEntite
+  private function findOrCreateLinkEntite(Entite $entite, Utilisateur $user, Utilisateur $currentUser): UtilisateurEntite
   {
-    /** @var UtilisateurEntite|null $ue */
-    $ue = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([
-      'utilisateur' => $user,
-      'entite' => $entite,
-    ]);
+      /** @var UtilisateurEntite|null $ue */
+      $ue = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([
+          'utilisateur' => $user,
+          'entite' => $entite,
+      ]);
 
-    if ($ue) return $ue;
+      if ($ue) {
+          return $ue;
+      }
 
-    $ue = new UtilisateurEntite();
-    // ✅ Corrige la casse des setters si nécessaire (selon ton entité)
-    $ue->setEntite($entite);
-    $ue->setUtilisateur($user);
-    $ue->setCouleur(sprintf('#%06X', mt_rand(0, 0xFFFFFF)));
-    $ue->setRole(1);
+      $futureRoles = [UtilisateurEntite::TENANT_STAGIAIRE];
+      $futureStatus = UtilisateurEntite::STATUS_ACTIVE;
 
-    $this->em->persist($ue);
+      $this->billingGuard->assertCanTransitionUtilisateurEntite(
+          entite: $entite,
+          currentRoles: [],
+          currentStatus: UtilisateurEntite::STATUS_INVITED,
+          futureRoles: $futureRoles,
+          futureStatus: $futureStatus,
+          excludeUtilisateurEntiteId: null,
+      );
 
-    return $ue;
+      $ue = new UtilisateurEntite();
+      $ue->setEntite($entite);
+      $ue->setUtilisateur($user);
+      $ue->setCreateur($currentUser);
+      $ue->setCouleur(sprintf('#%06X', mt_rand(0, 0xFFFFFF)));
+      $ue->setRoles($futureRoles);
+      $ue->setStatus($futureStatus);
+
+      $this->em->persist($ue);
+
+      return $ue;
   }
 
   private function backfillEmailLogsToUser(Entite $entite, Prospect $p, Utilisateur $user): void

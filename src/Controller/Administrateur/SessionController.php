@@ -32,6 +32,8 @@ use App\Entity\SupportAssignSession;
 use App\Entity\SupportAssignUser;
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Service\Billing\BillingGuard;
+use App\Exception\BillingQuotaExceededException;
 
 
 #[Route('/administrateur/{entite}/session')]
@@ -44,6 +46,7 @@ final class SessionController extends AbstractController
         private SatisfactionAssigner $satisfactionAssigner,
         private ContratFormateurNumberGenerator $contratNumberGenerator,
         private FormateurSatAssigner $formateurSatisfactionAssigner,
+        private BillingGuard $billingGuard,
     ) {}
 
 
@@ -2210,69 +2213,162 @@ final class SessionController extends AbstractController
 
 
     #[Route('/ajax/stagiaire/new', name: 'app_administrateur_session_stagiaire_new', methods: ['POST'])]
-    public function newStagiaireAjax(
-        Entite $entite,
-        Request $request,
-        EntityManagerInterface $em,
-        UserPasswordHasherInterface $passwordHasher
-    ): JsonResponse {
+public function newStagiaireAjax(
+    Entite $entite,
+    Request $request,
+    EntityManagerInterface $em,
+    UserPasswordHasherInterface $passwordHasher
+): JsonResponse {
 
+    /** @var Utilisateur $creator */
+    $creator = $this->getUser();
 
-        /** @var Utilisateur $creator */
-        $creator = $this->getUser();
+    $prenom    = trim((string) $request->request->get('prenom', ''));
+    $nom       = trim((string) $request->request->get('nom', ''));
+    $email     = mb_strtolower(trim((string) $request->request->get('email', '')));
+    $telephone = trim((string) $request->request->get('telephone', ''));
+    $civilite  = trim((string) $request->request->get('civilite', ''));
 
-        $prenom    = trim((string) $request->request->get('prenom', ''));
-        $nom       = trim((string) $request->request->get('nom', ''));
-        $email     = mb_strtolower(trim((string) $request->request->get('email', '')));
-        $telephone = trim((string) $request->request->get('telephone', ''));
-        $civilite  = trim((string) $request->request->get('civilite', ''));
+    if ($prenom === '' || $nom === '' || $email === '' || $civilite === '') {
+        return new JsonResponse([
+            'success' => false,
+            'message' => 'Civilité, prénom, nom et email sont obligatoires.'
+        ], 400);
+    }
 
-        if ($prenom === '' || $nom === '' || $email === '' || $civilite === '') {
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return new JsonResponse([
+            'success' => false,
+            'message' => 'Email invalide.'
+        ], 400);
+    }
+
+    $userRepo = $em->getRepository(Utilisateur::class);
+    $ueRepo   = $em->getRepository(UtilisateurEntite::class);
+
+    try {
+
+        $em->beginTransaction();
+
+        /** @var Utilisateur|null $user */
+        $user = $userRepo->findOneBy(['email' => $email]);
+
+        // ===============================
+        // CAS 1 : UTILISATEUR EXISTANT
+        // ===============================
+        if ($user) {
+
+            if ($telephone !== '' && !$user->getTelephone()) {
+                $user->setTelephone($telephone);
+            }
+
+            if ($civilite !== '' && !$user->getCivilite()) {
+                $user->setCivilite($civilite);
+            }
+
+            $ue = $ueRepo->findOneBy([
+                'entite' => $entite,
+                'utilisateur' => $user
+            ]);
+
+            $isNewForEntite = !$ue;
+
+            $this->ensureUserEntiteRole(
+                $em,
+                $entite,
+                $user,
+                $creator,
+                UtilisateurEntite::TENANT_STAGIAIRE
+            );
+
+            if ($isNewForEntite) {
+                $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
+            }
+
+            $em->flush();
+            $em->commit();
+
             return new JsonResponse([
-                'success' => false,
-                'message' => 'Civilité, prénom, nom et email sont obligatoires.'
-            ], 400);
+                'success' => true,
+                'id'      => $user->getId(),
+                'label'   => trim(sprintf('%s %s (%s)', $user->getPrenom(), $user->getNom(), $user->getEmail())),
+                'already' => true,
+            ]);
         }
 
-        // petite validation email (optionnel mais recommandé)
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Email invalide.'
-            ], 400);
+        // ===============================
+        // CAS 2 : NOUVEL UTILISATEUR
+        // ===============================
+        $user = new Utilisateur();
+        $user->setPrenom($prenom);
+        $user->setNom($nom);
+        $user->setEmail($email);
+        $user->setCivilite($civilite);
+        $user->setTelephone($telephone !== '' ? $telephone : null);
+        $user->setCreateur($creator);
+        $user->setEntite($entite);
+
+        $plainPassword = bin2hex(random_bytes(8));
+        $user->setPassword($passwordHasher->hashPassword($user, $plainPassword));
+
+        // quota apprenant annuel
+        $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
+
+        $em->persist($user);
+
+        $this->ensureUserEntiteRole(
+            $em,
+            $entite,
+            $user,
+            $creator,
+            UtilisateurEntite::TENANT_STAGIAIRE
+        );
+
+        $em->flush();
+        $em->commit();
+
+        return new JsonResponse([
+            'success' => true,
+            'id'      => $user->getId(),
+            'label'   => trim(sprintf('%s %s (%s)', $user->getPrenom(), $user->getNom(), $user->getEmail())),
+            'already' => false,
+        ]);
+    }
+
+    // ===============================
+    // CAS CONCURRENCE EMAIL
+    // ===============================
+    catch (UniqueConstraintViolationException $e) {
+
+        if ($em->getConnection()->isTransactionActive()) {
+            $em->rollback();
         }
 
-        $userRepo = $em->getRepository(Utilisateur::class);
-        $ueRepo   = $em->getRepository(UtilisateurEntite::class);
+        $existing = $userRepo->findOneBy(['email' => $email]);
 
-        try {
+        if ($existing) {
+
             $em->beginTransaction();
 
-            /** @var Utilisateur|null $user */
-            $user = $userRepo->findOneBy(['email' => $email]);
+            try {
 
-            // ========== CAS : UTILISATEUR EXISTANT ==========
-            if ($user) {
-                // Optionnel : complète le téléphone si vide
-                if ($telephone !== '' && !$user->getTelephone()) {
-                    $user->setTelephone($telephone);
-                }
-                if ($civilite !== '' && !$user->getCivilite()) {
-                    $user->setCivilite($civilite);
-                }
+                $ue = $ueRepo->findOneBy([
+                    'entite' => $entite,
+                    'utilisateur' => $existing
+                ]);
 
-                // ✅ Assure le lien UtilisateurEntite (entite courante)
-                $ue = $ueRepo->findOneBy(['entite' => $entite, 'utilisateur' => $user]);
-                if (!$ue) {
-                    $ue = new UtilisateurEntite();
-                    $ue->setCreateur($creator);
-                    $ue->setUtilisateur($user);
-                    $ue->setEntite($entite);
-                    $em->persist($ue);
+                $isNewForEntite = !$ue;
 
-                    if (method_exists($ue, 'ensureCouleur')) {
-                        $ue->ensureCouleur();
-                    }
+                $this->ensureUserEntiteRole(
+                    $em,
+                    $entite,
+                    $existing,
+                    $creator,
+                    UtilisateurEntite::TENANT_STAGIAIRE
+                );
+
+                if ($isNewForEntite) {
+                    $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
                 }
 
                 $em->flush();
@@ -2280,104 +2376,62 @@ final class SessionController extends AbstractController
 
                 return new JsonResponse([
                     'success' => true,
-                    'id'      => $user->getId(),
-                    'label'   => trim(sprintf('%s %s (%s)', $user->getPrenom(), $user->getNom(), $user->getEmail())),
-                    'already' => true,
-                ]);
-            }
-
-            // ========== CAS : NOUVEL UTILISATEUR ==========
-            $user = new Utilisateur();
-            $user->setPrenom($prenom);
-            $user->setNom($nom);
-            $user->setEmail($email);
-            $user->setCivilite($civilite);
-            $user->setTelephone($telephone !== '' ? $telephone : null);
-
-            // ✅ Créateur = utilisateur connecté (pas lui-même)
-            $user->setCreateur($creator);
-
-            // si tu as une logique multi-tenant, garde ceci si c’est cohérent chez toi
-            $user->setEntite($entite);
-
-            // mot de passe provisoire
-            $plainPassword = bin2hex(random_bytes(8));
-            $user->setPassword($passwordHasher->hashPassword($user, $plainPassword));
-
-            $em->persist($user);
-
-            // ✅ Lien Utilisateur <-> Entite
-            $ue = new UtilisateurEntite();
-            $ue->setCreateur($creator);
-            $ue->setUtilisateur($user);
-            $ue->setEntite($entite);
-            $ue->addRole(UtilisateurEntite::TENANT_STAGIAIRE);
-            $em->persist($ue);
-
-            if (method_exists($ue, 'ensureCouleur')) {
-                $ue->ensureCouleur();
-            }
-
-            $em->flush();
-            $em->commit();
-
-            // email (si tu veux)
-            // $this->mailerManager->sendNewAccountEmail($user, $plainPassword, $entite, false);
-
-            return new JsonResponse([
-                'success' => true,
-                'id'      => $user->getId(),
-                'label'   => trim(sprintf('%s %s (%s)', $user->getPrenom(), $user->getNom(), $user->getEmail())),
-                'already' => false,
-            ]);
-        } catch (UniqueConstraintViolationException $e) {
-            // ✅ Cas concurrence : 2 requêtes créent le même email => on récupère l'existant
-            $em->rollback();
-
-            /** @var Utilisateur|null $existing */
-            $existing = $userRepo->findOneBy(['email' => $email]);
-            if ($existing) {
-                // assure le lien UE aussi
-                $ue = $ueRepo->findOneBy(['entite' => $entite, 'utilisateur' => $existing]);
-                if (!$ue) {
-                    $em->beginTransaction();
-                    try {
-                        $ue = new UtilisateurEntite();
-                        $ue->setCreateur($creator);
-                        $ue->setUtilisateur($existing);
-                        $ue->setEntite($entite);
-                        $em->persist($ue);
-                        if (method_exists($ue, 'ensureCouleur')) $ue->ensureCouleur();
-                        $em->flush();
-                        $em->commit();
-                    } catch (\Throwable $e2) {
-                        $em->rollback();
-                    }
-                }
-
-                return new JsonResponse([
-                    'success' => true,
                     'id'      => $existing->getId(),
                     'label'   => trim(sprintf('%s %s (%s)', $existing->getPrenom(), $existing->getNom(), $existing->getEmail())),
                     'already' => true,
                 ]);
-            }
 
-            return new JsonResponse([
-                'success' => false,
-                'message' => "Impossible de créer le stagiaire (conflit email)."
-            ], 409);
-        } catch (\Throwable $e) {
-            if ($em->getConnection()->isTransactionActive()) {
-                $em->rollback();
-            }
+            } catch (\Throwable $e2) {
 
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Erreur serveur : ' . $e->getMessage(),
-            ], 500);
+                if ($em->getConnection()->isTransactionActive()) {
+                    $em->rollback();
+                }
+
+                throw $e2;
+            }
         }
+
+        return new JsonResponse([
+            'success' => false,
+            'message' => "Impossible de créer le stagiaire."
+        ], 409);
     }
+
+    // ===============================
+    // QUOTA BILLING
+    // ===============================
+    catch (BillingQuotaExceededException $e) {
+
+        if ($em->getConnection()->isTransactionActive()) {
+            $em->rollback();
+        }
+
+        return new JsonResponse([
+            'success' => false,
+            'limitReached' => true,
+            'message' => $e->getMessage(),
+            'redirect' => $this->generateUrl(
+                'app_administrateur_billing',
+                ['entite' => $entite->getId()]
+            ),
+        ], 409);
+    }
+
+    // ===============================
+    // ERREUR GENERALE
+    // ===============================
+    catch (\Throwable $e) {
+
+        if ($em->getConnection()->isTransactionActive()) {
+            $em->rollback();
+        }
+
+        return new JsonResponse([
+            'success' => false,
+            'message' => 'Erreur serveur.'
+        ], 500);
+    }
+}
 
 
 
@@ -2519,16 +2573,25 @@ final class SessionController extends AbstractController
         Utilisateur $creator,
         string $tenantRole
     ): UtilisateurEntite {
+
         $ueRepo = $em->getRepository(UtilisateurEntite::class);
 
         /** @var UtilisateurEntite|null $ue */
-        $ue = $ueRepo->findOneBy(['entite' => $entite, 'utilisateur' => $user]);
+        $ue = $ueRepo->findOneBy([
+            'entite' => $entite,
+            'utilisateur' => $user,
+        ]);
+
+        $isNew = !$ue;
 
         if (!$ue) {
+
             $ue = new UtilisateurEntite();
             $ue->setCreateur($creator);
             $ue->setUtilisateur($user);
             $ue->setEntite($entite);
+            $ue->setStatus(UtilisateurEntite::STATUS_ACTIVE);
+
             $em->persist($ue);
 
             if (method_exists($ue, 'ensureCouleur')) {
@@ -2536,8 +2599,34 @@ final class SessionController extends AbstractController
             }
         }
 
-        // ✅ rôle tenant (JSON)
-        $ue->addRole($tenantRole);
+        $currentRoles  = $isNew ? [] : $ue->getRoles();
+        $currentStatus = $isNew
+            ? UtilisateurEntite::STATUS_INVITED
+            : ($ue->getStatus() ?: UtilisateurEntite::STATUS_ACTIVE);
+
+        $futureRoles = $currentRoles;
+
+        if (!in_array($tenantRole, $futureRoles, true)) {
+            $futureRoles[] = $tenantRole;
+        }
+
+        if (empty($futureRoles)) {
+            $futureRoles = [UtilisateurEntite::TENANT_STAGIAIRE];
+        }
+
+        $futureStatus = UtilisateurEntite::STATUS_ACTIVE;
+
+        $this->billingGuard->assertCanTransitionUtilisateurEntite(
+            entite: $entite,
+            currentRoles: $currentRoles,
+            currentStatus: $currentStatus,
+            futureRoles: $futureRoles,
+            futureStatus: $futureStatus,
+            excludeUtilisateurEntiteId: $ue->getId(),
+        );
+
+        $ue->setRoles($futureRoles);
+        $ue->setStatus($futureStatus);
 
         return $ue;
     }

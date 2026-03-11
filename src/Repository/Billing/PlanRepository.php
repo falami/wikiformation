@@ -25,4 +25,19 @@ final class PlanRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+    
+    public function findNextUpgradePlan(?Plan $currentPlan): ?Plan
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->andWhere('p.isActive = true')
+            ->orderBy('p.ordre', 'ASC')
+            ->setMaxResults(1);
+
+        if ($currentPlan instanceof Plan) {
+            $qb->andWhere('p.ordre > :ordre')
+               ->setParameter('ordre', $currentPlan->getOrdre() ?? 0);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
 }

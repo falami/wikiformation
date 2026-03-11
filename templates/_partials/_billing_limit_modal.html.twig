@@ -1,0 +1,91 @@
+{% set billingLimitFlashes = app.flashes('billing_limit_modal') %}
+
+{% for flash in billingLimitFlashes %}
+  <div class="modal fade" id="billingLimitModal" tabindex="-1" aria-labelledby="billingLimitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+          <div class="text-white py-2">
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill mb-3" style="background: rgba(255,255,255,.10);">
+              <i class="bi bi-stars"></i>
+              <span class="fw-semibold">Upgrade recommandé</span>
+            </div>
+            <h3 class="modal-title fw-bold mb-2" id="billingLimitModalLabel">{{ flash.title }}</h3>
+            <p class="mb-0 text-white-50">{{ flash.message }}</p>
+          </div>
+          <button type="button" class="btn-close btn-close-white me-1 mt-1" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4 p-lg-5">
+          <div class="row g-4">
+            <div class="col-lg-7">
+              <div class="p-4 rounded-4 h-100" style="background: #f8fafc;">
+                <h5 class="fw-bold mb-3">Détail de la limite</h5>
+
+                <div class="d-flex align-items-center justify-content-between rounded-4 border bg-white px-3 py-3 mb-3">
+                  <span class="text-muted">Utilisation actuelle</span>
+                  <span class="fw-bold">{{ flash.current }}/{{ flash.limit }}</span>
+                </div>
+
+                {% if flash.currentPlanName %}
+                  <div class="d-flex align-items-center justify-content-between rounded-4 border bg-white px-3 py-3 mb-3">
+                    <span class="text-muted">Offre actuelle</span>
+                    <span class="fw-semibold">{{ flash.currentPlanName }}</span>
+                  </div>
+                {% endif %}
+
+                <div class="rounded-4 border bg-white p-3">
+                  <div class="small text-muted mb-2">Pourquoi ce blocage ?</div>
+                  <div class="fw-semibold">Votre plan actuel a atteint sa capacité sur cette ressource.</div>
+                  <div class="text-muted mt-2">Passez à une offre supérieure pour continuer sans interruption.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-5">
+              <div class="p-4 rounded-4 text-white h-100"
+                   style="background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);">
+                <div class="small text-white-50 mb-2">Offre supérieure</div>
+
+                {% if flash.nextPlanName %}
+                  <h4 class="fw-bold mb-2">{{ flash.nextPlanName }}</h4>
+                {% else %}
+                  <h4 class="fw-bold mb-2">Voir les offres</h4>
+                {% endif %}
+
+                {% if flash.nextPlanPriceMonthly %}
+                  <div class="display-6 fw-bold mb-3">{{ flash.nextPlanPriceMonthly }}€<span class="fs-6 fw-normal"> / mois</span></div>
+                {% endif %}
+
+                <p class="text-white-50 mb-4">
+                  Débloquez davantage de comptes, plus de capacité et une marge de croissance immédiate.
+                </p>
+
+                <div class="d-grid gap-2">
+                  <a href="{{ flash.billingUrl }}" class="btn btn-light btn-lg rounded-3 fw-semibold">
+                    <i class="bi bi-arrow-up-right-circle me-2"></i>
+                    Changer d’abonnement
+                  </a>
+
+                  <button type="button" class="btn btn-outline-light rounded-3" data-bs-dismiss="modal">
+                    Plus tard
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const el = document.getElementById('billingLimitModal');
+      if (!el || typeof bootstrap === 'undefined') return;
+      const modal = new bootstrap.Modal(el);
+      modal.show();
+    });
+  </script>
+{% endfor %}

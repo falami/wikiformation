@@ -24,6 +24,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\HttpFoundation\{JsonResponse, RedirectResponse, Request, Response};
 use App\Security\Permission\TenantPermission;
+use App\Exception\BillingQuotaExceededException;
+use App\Service\Billing\EntitlementService;
+use App\Entity\Billing\Plan;
 
 
 #[Route('/administrateur/{entite}/utilisateur', name: 'app_administrateur_utilisateur_')]
@@ -31,14 +34,14 @@ use App\Security\Permission\TenantPermission;
 final class UtilisateurController extends AbstractController
 {
   public function __construct(
-    private readonly UtilisateurEntiteManager $utilisateurEntiteManager,
-    private readonly MailerManager $mailerManager,
-    private readonly EntityManagerInterface $em,
-    private readonly ProspectInteractionRepository $interactionRepo,
-    private readonly EmailTemplateRepository $emailTemplateRepository,
-    private readonly UserPasswordHasherInterface $passwordHasher,
-    private readonly BillingGuard $billingGuard,
-
+      private readonly UtilisateurEntiteManager $utilisateurEntiteManager,
+      private readonly MailerManager $mailerManager,
+      private readonly EntityManagerInterface $em,
+      private readonly ProspectInteractionRepository $interactionRepo,
+      private readonly EmailTemplateRepository $emailTemplateRepository,
+      private readonly UserPasswordHasherInterface $passwordHasher,
+      private readonly BillingGuard $billingGuard,
+      private readonly EntitlementService $entitlementService,
   ) {}
 
   /* ===================== LIST ===================== */
@@ -272,163 +275,180 @@ final class UtilisateurController extends AbstractController
     $form->handleRequest($request);
 
     if ($form->isSubmitted() && $form->isValid()) {
+      try {
+          if ($locked) {
+              $utilisateur->setEmail((string) $origEmail);
+              $utilisateur->setNom((string) $origNom);
+              $utilisateur->setPrenom((string) $origPrenom);
+              $utilisateur->setSociete($origSociete);
+              $utilisateur->setIsVerified($origVerified);
+          }
 
+          $ue = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([
+              'entite' => $entite,
+              'utilisateur' => $utilisateur,
+          ]);
 
+          $isNewUtilisateurEntite = !$ue;
+          if (!$ue) {
+              $ue = new UtilisateurEntite();
+              $ue->setCreateur($user);
+              $ue->setUtilisateur($utilisateur);
+              $ue->setEntite($entite);
+              $this->em->persist($ue);
+          }
 
-      // 1) Sécurité serveur si locked
-      if ($locked) {
-        $utilisateur->setEmail((string) $origEmail);
-        $utilisateur->setNom((string) $origNom);
-        $utilisateur->setPrenom((string) $origPrenom);
-        $utilisateur->setSociete($origSociete);
-        $utilisateur->setIsVerified($origVerified);
-      }
+          $currentRoles = $ue->getRoles();
+          $currentStatus = $ue->getStatus();
 
-      // 2) Lien Utilisateur <-> Entite via UtilisateurEntite
-      // ✅ 2) Lien Utilisateur <-> Entite via UtilisateurEntite
-      $ue = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([
-        'entite' => $entite,
-        'utilisateur' => $utilisateur,
-      ]);
+          $rolesFromForm = (array) ($form->has('ueRoles') ? $form->get('ueRoles')->getData() : []);
+          if (!$canSetHighRoles) {
+              $rolesFromForm = array_values(array_filter(
+                  $rolesFromForm,
+                  fn($r) => !$this->isStaffRole((string) $r)
+              ));
+          }
 
-      if (!$ue) {
-        $ue = new UtilisateurEntite();
-        $ue->setCreateur($user);
-        $ue->setUtilisateur($utilisateur);
-        $ue->setEntite($entite);
-        $this->em->persist($ue);
-      }
+          if ($locked) {
+              $staffOrig    = array_values(array_filter($origTenantRoles, fn($r) => $this->isStaffRole((string) $r)));
+              $safeNonStaff = array_values(array_filter($rolesFromForm, fn($r) => !$this->isStaffRole((string) $r)));
 
-      $rolesFromForm = (array) ($form->has('ueRoles') ? $form->get('ueRoles')->getData() : []);
-      if (!$canSetHighRoles) {
-        $rolesFromForm = array_values(array_filter(
-          $rolesFromForm,
-          fn($r) => !$this->isStaffRole((string) $r)
-        ));
-      }
+              $rolesFinal = array_values(array_unique(array_merge($safeNonStaff, $staffOrig)));
+          } else {
+              $rolesFinal = $rolesFromForm;
+          }
 
-      if ($locked) {
-        $staffOrig    = array_values(array_filter($origTenantRoles, fn($r) => $this->isStaffRole((string) $r)));
-        $safeNonStaff = array_values(array_filter($rolesFromForm, fn($r) => !$this->isStaffRole((string) $r)));
+          $rolesFinal = $rolesFinal ?: [UtilisateurEntite::TENANT_STAGIAIRE];
 
-        $rolesFinal = array_values(array_unique(array_merge($safeNonStaff, $staffOrig)));
-        $ue->setRoles($rolesFinal ?: [UtilisateurEntite::TENANT_STAGIAIRE]);
-      } else {
-        $ue->setRoles($rolesFromForm ?: [UtilisateurEntite::TENANT_STAGIAIRE]);
-      }
-      $ue->ensureCouleur();
+          // si tu as un champ status plus tard dans le form, remplace ici
+          $futureStatus = UtilisateurEntite::STATUS_ACTIVE;
 
-      // 3) Photo (mapped=false)
-      if ($form->has('photo')) {
-        /** @var UploadedFile|null $photoFile */
-        $photoFile = $form->get('photo')->getData();
-
-        if ($photoFile instanceof UploadedFile) {
-          $newName = bin2hex(random_bytes(8)) . '.' . ($photoFile->guessExtension() ?: 'jpg');
-
-          $photoFile->move(
-            $this->getParameter('kernel.project_dir') . '/public/uploads/photos/utilisateur',
-            $newName
+          $this->billingGuard->assertCanTransitionUtilisateurEntite(
+              entite: $entite,
+              currentRoles: $isNewUtilisateurEntite ? [] : $currentRoles,
+              currentStatus: $isNewUtilisateurEntite ? UtilisateurEntite::STATUS_INVITED : $currentStatus,
+              futureRoles: $rolesFinal,
+              futureStatus: $futureStatus,
+              excludeUtilisateurEntiteId: $ue->getId(),
           );
 
-          $utilisateur->setPhoto($newName);
-        }
-      }
+          $ue->setRoles($rolesFinal);
+          $ue->ensureCouleur();
 
-      // 4) Entreprise auto si ROLE_ENTREPRISE
-      $hasTenantEntreprise = $ue->hasRole(UtilisateurEntite::TENANT_ENTREPRISE);
+          if ($form->has('photo')) {
+            /** @var UploadedFile|null $photoFile */
+            $photoFile = $form->get('photo')->getData();
+            $removePhoto = $form->has('removePhoto') && $form->get('removePhoto')->getData() === '1';
 
-      if ($hasTenantEntreprise && $form->has('entrepriseData')) {
+            $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/photos/utilisateur';
+            $oldPhoto = $utilisateur->getPhoto();
 
-        /** @var Entreprise|null $edata */
-        $edata = $form->get('entrepriseData')->getData();
-
-        // bloc visible mais rien saisi => on ne fait rien
-        $raison = $edata?->getRaisonSociale();
-        $hasAnyValue = $edata && (
-          $raison
-          || $edata->getSiret()
-          || $edata->getEmailFacturation()
-          || $edata->getEmail()
-          || $edata->getAdresse()
-          || $edata->getCodePostal()
-        );
-
-        if ($hasAnyValue) {
-
-          // 1) entreprise déjà liée au user ? => update
-          $entreprise = $utilisateur->getEntreprise();
-
-          // 2) sinon, si raison sociale saisie => on cherche une entreprise existante
-          if (!$entreprise && $raison) {
-            $entreprise = $this->em->getRepository(Entreprise::class)->findOneBy([
-              'entite' => $entite,
-              'raisonSociale' => $raison,
-            ]);
-          }
-
-          // 3) sinon => create
-          if (!$entreprise) {
-            $entreprise = new Entreprise();
-            $entreprise->setCreateur($user);
-            $entreprise->setEntite($entite);
-            $this->em->persist($entreprise);
-          }
-
-          // 4) copy fields depuis le form
-          $entreprise->setRaisonSociale($edata->getRaisonSociale());
-          $entreprise->setSiret($edata->getSiret());
-          $entreprise->setEmailFacturation($edata->getEmailFacturation());
-          $entreprise->setEmail($edata->getEmail());
-          $entreprise->setNumeroTVA($edata->getNumeroTVA());
-
-          $entreprise->setAdresse($edata->getAdresse());
-          $entreprise->setComplement($edata->getComplement());
-          $entreprise->setCodePostal($edata->getCodePostal());
-          $entreprise->setVille($edata->getVille());
-          $entreprise->setDepartement($edata->getDepartement());
-          $entreprise->setRegion($edata->getRegion());
-          $entreprise->setPays($edata->getPays());
-
-          // 5) link user -> entreprise
-          $utilisateur->setEntreprise($entreprise);
-
-          // 6) IMPORTANT : si le select "entreprise" est rempli (lien entreprise),
-          // on évite un conflit et on respecte la sélection
-          if ($form->has('entreprise') && $form->get('entreprise')->getData() instanceof Entreprise) {
-            /** @var Entreprise $selected */
-            $selected = $form->get('entreprise')->getData();
-
-            // sécurité : même entité
-            if ($selected->getEntite()?->getId() === $entite->getId()) {
-              $utilisateur->setEntreprise($selected);
+            if ($removePhoto && $oldPhoto) {
+                $oldPath = $uploadDir . '/' . $oldPhoto;
+                if (is_file($oldPath)) {
+                    @unlink($oldPath);
+                }
+                $utilisateur->setPhoto(null);
             }
-          }
+
+            if ($photoFile instanceof UploadedFile) {
+                $newName = bin2hex(random_bytes(16)) . '.' . ($photoFile->guessExtension() ?: 'jpg');
+
+                $photoFile->move($uploadDir, $newName);
+
+                if ($oldPhoto) {
+                    $oldPath = $uploadDir . '/' . $oldPhoto;
+                    if (is_file($oldPath)) {
+                        @unlink($oldPath);
+                    }
+                }
+
+                $utilisateur->setPhoto($newName);
+            }
         }
+
+          $hasTenantEntreprise = $ue->hasRole(UtilisateurEntite::TENANT_ENTREPRISE);
+
+          if ($hasTenantEntreprise && $form->has('entrepriseData')) {
+              /** @var Entreprise|null $edata */
+              $edata = $form->get('entrepriseData')->getData();
+
+              $raison = $edata?->getRaisonSociale();
+              $hasAnyValue = $edata && (
+                  $raison
+                  || $edata->getSiret()
+                  || $edata->getEmailFacturation()
+                  || $edata->getEmail()
+                  || $edata->getAdresse()
+                  || $edata->getCodePostal()
+              );
+
+              if ($hasAnyValue) {
+                  $entreprise = $utilisateur->getEntreprise();
+
+                  if (!$entreprise && $raison) {
+                      $entreprise = $this->em->getRepository(Entreprise::class)->findOneBy([
+                          'entite' => $entite,
+                          'raisonSociale' => $raison,
+                      ]);
+                  }
+
+                  if (!$entreprise) {
+                      $entreprise = new Entreprise();
+                      $entreprise->setCreateur($user);
+                      $entreprise->setEntite($entite);
+                      $this->em->persist($entreprise);
+                  }
+
+                  $entreprise->setRaisonSociale($edata->getRaisonSociale());
+                  $entreprise->setSiret($edata->getSiret());
+                  $entreprise->setEmailFacturation($edata->getEmailFacturation());
+                  $entreprise->setEmail($edata->getEmail());
+                  $entreprise->setNumeroTVA($edata->getNumeroTVA());
+
+                  $entreprise->setAdresse($edata->getAdresse());
+                  $entreprise->setComplement($edata->getComplement());
+                  $entreprise->setCodePostal($edata->getCodePostal());
+                  $entreprise->setVille($edata->getVille());
+                  $entreprise->setDepartement($edata->getDepartement());
+                  $entreprise->setRegion($edata->getRegion());
+                  $entreprise->setPays($edata->getPays());
+
+                  $utilisateur->setEntreprise($entreprise);
+
+                  if ($form->has('entreprise') && $form->get('entreprise')->getData() instanceof Entreprise) {
+                      /** @var Entreprise $selected */
+                      $selected = $form->get('entreprise')->getData();
+
+                      if ($selected->getEntite()?->getId() === $entite->getId()) {
+                          $utilisateur->setEntreprise($selected);
+                      }
+                  }
+              }
+          }
+
+          if (!$isEdit) {
+              $plainPassword = ByteString::fromRandom(20)->toString();
+              $hashedPassword = $this->passwordHasher->hashPassword($utilisateur, $plainPassword);
+              $utilisateur->setPassword($hashedPassword);
+              $this->initResetToken($utilisateur);
+          }
+
+          $this->em->persist($utilisateur);
+          $this->em->flush();
+
+          $this->addFlash('success', $isEdit ? 'Utilisateur modifié.' : 'Utilisateur créé (reset mot de passe à envoyer).');
+
+          return $this->redirectToRoute('app_administrateur_utilisateur_index', [
+              'entite' => $entite->getId(),
+          ]);
+      } catch (BillingQuotaExceededException $e) {
+          $this->addBillingLimitFlash($entite, $e);
+
+          return $this->redirectToRoute('app_administrateur_utilisateur_index', [
+              'entite' => $entite->getId(),
+          ]);
       }
-
-
-
-      // 5) Nouveau user : password + reset token (UNE SEULE FOIS)
-      if (!$isEdit) {
-        $plainPassword = ByteString::fromRandom(20)->toString();
-
-        $hashedPassword = $this->passwordHasher->hashPassword($utilisateur, $plainPassword);
-        $utilisateur->setPassword($hashedPassword);
-
-        $this->initResetToken($utilisateur);
-      }
-
-
-
-      $this->em->persist($utilisateur);
-      $this->em->flush();
-
-      $this->addFlash('success', $isEdit ? 'Utilisateur modifié.' : 'Utilisateur créé (reset mot de passe à envoyer).');
-
-      return $this->redirectToRoute('app_administrateur_utilisateur_index', [
-        'entite' => $entite->getId(),
-      ]);
     }
 
     // Form modal "création entreprise" (si tu l’utilises encore)
@@ -576,38 +596,52 @@ final class UtilisateurController extends AbstractController
   #[Route('/entreprise/create-ajax', name: 'create_entreprise_ajax', methods: ['POST'])]
   public function createEntrepriseAjax(Entite $entite, Request $request): JsonResponse
   {
-    /** @var Utilisateur $user */
-    $user = $this->getUser();
-    $entreprise = new Entreprise();
-    $entreprise->setCreateur($user);
-    $entreprise->setEntite($entite);
+      /** @var Utilisateur $user */
+      $user = $this->getUser();
+      $entreprise = new Entreprise();
+      $entreprise->setCreateur($user);
+      $entreprise->setEntite($entite);
 
-    $form = $this->createForm(EntrepriseType::class, $entreprise, [
-      'csrf_protection' => true,
-      'entite' => $entite,
-    ]);
-    $form->handleRequest($request);
+      $form = $this->createForm(EntrepriseType::class, $entreprise, [
+          'csrf_protection' => true,
+          'entite' => $entite,
+      ]);
+      $form->handleRequest($request);
 
-    if (!$form->isSubmitted()) {
-      return $this->json(['ok' => false, 'message' => 'Form non soumis'], 400);
-    }
-
-    if (!$form->isValid()) {
-      $errors = [];
-      foreach ($form->getErrors(true) as $e) {
-        $errors[] = $e->getMessage();
+      if (!$form->isSubmitted()) {
+          return $this->json(['ok' => false, 'message' => 'Form non soumis'], 400);
       }
-      return $this->json(['ok' => false, 'errors' => $errors], 422);
-    }
 
-    $this->em->persist($entreprise);
-    $this->em->flush();
+      if (!$form->isValid()) {
+          $errors = [];
+          foreach ($form->getErrors(true) as $e) {
+              $errors[] = $e->getMessage();
+          }
 
-    return $this->json([
-      'ok'    => true,
-      'id'    => $entreprise->getId(),
-      'label' => (string) ($entreprise->getRaisonSociale() ?? 'Entreprise'),
-    ]);
+          return $this->json(['ok' => false, 'errors' => $errors], 422);
+      }
+
+      try {
+          $this->billingGuard->assertCanCreateEntreprise($entite);
+
+          $this->em->persist($entreprise);
+          $this->em->flush();
+
+          return $this->json([
+              'ok'    => true,
+              'id'    => $entreprise->getId(),
+              'label' => (string) ($entreprise->getRaisonSociale() ?? 'Entreprise'),
+          ]);
+      } catch (BillingQuotaExceededException $e) {
+          return $this->json([
+              'ok' => false,
+              'limitReached' => true,
+              'message' => $e->getMessage(),
+              'redirect' => $this->generateUrl('app_administrateur_billing', [
+                  'entite' => $entite->getId(),
+              ]),
+          ], 409);
+      }
   }
 
   /* ===================== SHOW / INTERACTIONS ===================== */
@@ -1056,5 +1090,31 @@ final class UtilisateurController extends AbstractController
       UtilisateurEntite::TENANT_DIRIGEANT,
       UtilisateurEntite::TENANT_COMMERCIAL,
     ], true);
+  }
+
+
+
+
+  private function addBillingLimitFlash(Entite $entite, BillingQuotaExceededException $e): void
+  {
+      $sub = $this->entitlementService->getLatestSubscription($entite);
+      $currentPlan = $sub?->getPlan();
+      $nextPlan = $this->entitlementService->getNextUpgradePlan($entite);
+
+      $this->addFlash('billing_limit_modal', [
+          'title' => 'Limite de votre offre atteinte',
+          'message' => $e->getMessage(),
+          'quotaKey' => $e->getQuotaKey(),
+          'current' => $e->getCurrent(),
+          'limit' => $e->getLimit(),
+          'currentPlanName' => $currentPlan?->getName(),
+          'nextPlanName' => $nextPlan?->getName(),
+          'nextPlanPriceMonthly' => $nextPlan instanceof Plan && $nextPlan->getPriceMonthlyCents() !== null
+              ? number_format($nextPlan->getPriceMonthlyCents() / 100, 2, ',', ' ')
+              : null,
+          'billingUrl' => $this->generateUrl('app_administrateur_billing', [
+              'entite' => $entite->getId(),
+          ]),
+      ]);
   }
 }

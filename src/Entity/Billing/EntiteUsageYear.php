@@ -29,6 +29,8 @@ class EntiteUsageYear
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
+  
+
 
     public function __construct(Entite $entite, int $year)
     {
@@ -96,4 +98,5 @@ class EntiteUsageYear
 
         return $this;
     }
+
 }

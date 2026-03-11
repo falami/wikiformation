@@ -304,7 +304,13 @@
 
   {% include 'flagMessage.html.twig' %}
 
-  {{ form_start(form, {attr:{novalidate:'novalidate', id:'userForm'}}) }}
+  {{ form_start(form, {
+    attr: {
+      novalidate: 'novalidate',
+      id: 'userForm'
+    },
+    enctype: 'multipart/form-data'
+  }) }}
   {{ form_errors(form) }}
 
   <div class="row g-4">
@@ -317,40 +323,53 @@
           <h5 class="cardx-title"><i class="bi bi-camera text-warning"></i> Photo de profil</h5>
           <span class="chip">Optionnel</span>
         </div>
+
         <div class="p-3 p-md-4">
           <div class="profile-dropzone" id="profileDropzone">
-            <input type="file"
-                   id="profileInput"
-                   name="{{ form.photo.vars.full_name }}"
-                   accept="image/*"
-                   hidden>
+            {{ form_widget(form.photo, {
+              attr: {
+                class: 'd-none',
+                accept: 'image/*'
+              }
+            }) }}
+
+            {{ form_widget(form.removePhoto) }}
 
             <div class="profile-preview" id="profilePreview">
-              {% if is_edit and utilisateur.photo is defined and utilisateur.photo %}
-                <img src="{{ asset('uploads/photos/utilisateur/' ~ utilisateur.photo) }}"
-                     alt="Photo de profil"
-                     class="profile-img">
+              {% if is_edit and utilisateur.photo %}
+                <img
+                  src="{{ asset('uploads/photos/utilisateur/' ~ utilisateur.photo) }}"
+                  alt="Photo de profil"
+                  class="profile-img"
+                  id="profilePreviewImg"
+                >
               {% else %}
-                <div class="profile-placeholder"><i class="bi bi-person-circle"></i></div>
+                <div class="profile-placeholder" id="profilePlaceholder">
+                  <i class="bi bi-person-circle"></i>
+                </div>
               {% endif %}
             </div>
 
             <div class="flex-grow-1">
               <div class="fw-semibold">Déposer une photo</div>
-              <div class="small text-muted">PNG, JPG, WebP — 8 Mo max</div>
+              <div class="small text-muted">PNG, JPG, JPEG, WebP — 8 Mo max</div>
             </div>
           </div>
 
-          <div class="d-flex gap-2 mt-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="profileBrowseBtn">
+          <div class="d-flex gap-2 mt-2 flex-wrap">
+            <label for="{{ form.photo.vars.id }}" class="btn btn-sm btn-outline-secondary mb-0" id="profileBrowseBtn">
               <i class="bi bi-upload"></i> Parcourir
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-danger d-none" id="profileRemoveBtn">
+            </label>
+
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger {% if not (is_edit and utilisateur.photo) %}d-none{% endif %}"
+              id="profileRemoveBtn"
+            >
               <i class="bi bi-trash"></i> Supprimer
             </button>
           </div>
 
-          {{ form_widget(form.photo, { attr: { class: 'd-none' } }) }}
           {{ form_errors(form.photo) }}
         </div>
       </div>
@@ -692,8 +711,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const telEl    = document.getElementById('{{ form.telephone.vars.id }}');
   const villeEl  = document.getElementById('{{ form.ville.vars.id }}');
 
-  const ueRolesEl = document.getElementById('{{ form.ueRoles.vars.id }}');         // MULTI
-  const entrepriseEl = document.getElementById('{{ form.entreprise.vars.id }}');   // SINGLE
+  const ueRolesEl = document.getElementById('{{ form.ueRoles.vars.id }}');
+  const entrepriseEl = document.getElementById('{{ form.entreprise.vars.id }}');
   const verifiedEl = document.getElementById('{{ form.isVerified.vars.id }}');
 
   const formateurCard  = document.getElementById('formateur-card');
@@ -709,6 +728,93 @@ document.addEventListener('DOMContentLoaded', function () {
     verified: document.getElementById('resume-verified'),
     pill: document.getElementById('resume-valid-pill')
   };
+
+  // ----- PHOTO -----
+ const dropzone = document.getElementById('profileDropzone');
+  const fileInput = document.getElementById('{{ form.photo.vars.id }}');
+  const removeBtn = document.getElementById('profileRemoveBtn');
+  const preview = document.getElementById('profilePreview');
+  const removePhotoInput = document.getElementById('{{ form.removePhoto.vars.id }}');
+
+  function renderPlaceholder() {
+    preview.innerHTML = `
+      <div class="profile-placeholder" id="profilePlaceholder">
+        <i class="bi bi-person-circle"></i>
+      </div>
+    `;
+  }
+
+  function renderImage(src) {
+    preview.innerHTML = `<img src="${src}" alt="Aperçu photo" class="profile-img" id="profilePreviewImg">`;
+  }
+
+  function updateRemoveButtonVisibility() {
+    const hasCurrentPreview = preview.querySelector('img') !== null;
+    removeBtn?.classList.toggle('d-none', !hasCurrentPreview);
+  }
+
+  function handleImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      return;
+    }
+
+    removePhotoInput.value = '0';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      renderImage(e.target.result);
+      updateRemoveButtonVisibility();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  dropzone?.addEventListener('click', (e) => {
+    if (
+      e.target.closest('#profileRemoveBtn') ||
+      e.target.closest('label[for="profileInput"]')
+    ) {
+      return;
+    }
+    fileInput?.click();
+  });
+
+  fileInput?.addEventListener('change', function() {
+    const file = this.files?.[0];
+    if (file) {
+      handleImageFile(file);
+    }
+  });
+
+  removeBtn?.addEventListener('click', function() {
+    fileInput.value = '';
+    removePhotoInput.value = '1';
+    renderPlaceholder();
+    updateRemoveButtonVisibility();
+  });
+
+  dropzone?.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+
+  dropzone?.addEventListener('dragleave', function() {
+    dropzone.classList.remove('dragover');
+  });
+
+  dropzone?.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      handleImageFile(file);
+    }
+  });
+
+  updateRemoveButtonVisibility();
 
   // Init TomSelect
   const rolesTS = initTomSelectOn(ueRolesEl, {
@@ -739,7 +845,6 @@ document.addEventListener('DOMContentLoaded', function () {
   function refreshBlocks(){
     const roles = getSelectedTenantRoles();
 
-    // ⚠️ ICI tu dois tester les VRAIES values de ton select
     const hasFormateur  = roles.includes('TENANT_FORMATEUR');
     const hasEntreprise = roles.includes('TENANT_ENTREPRISE');
 

@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 
-#[IsGranted('ROLE_SUPER')]
+#[IsGranted('ROLE_SUPER_ADMIN')]
 #[Route('/super/entites/{entite}', name: 'app_super_entite_users_', requirements: ['entite' => '\d+'])]
 final class EntiteUsersController extends AbstractController
 {

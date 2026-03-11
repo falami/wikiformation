@@ -14,6 +14,7 @@
 	</div>
 
 	{% set canAdmin      = is_granted('ENTITE_ADMIN', entite) %}
+	{% set canSuperAdmin      = is_granted('ROLE_SUPER_ADMIN', entite) %}
 	{% set canFormateur  = is_granted('ENTITE_FORMATEUR', entite) %}
 	{% set canStagiaire  = is_granted('ENTITE_STAGIAIRE', entite) %}
 	{% set canEntreprise = is_granted('ENTITE_ENTREPRISE', entite) %}
@@ -1137,6 +1138,60 @@
 				</span>
 			</a>
 		</li>
+
+
+		{% endif %}
+
+
+		{% if canSuperAdmin %}
+		<hr class="mt-3 mb-1">
+		<center>SUPER</center>
+		<hr class="mt-1 mb-1">
+
+
+
+		<li class="nav-item">
+			<a href="{{ path('app_super_public_host_index', {'entite' : entite.id}) }}">
+				<span class="{% if app.request.attributes.get('_route') == 'app_super_public_host_index' %}text-theme-secondaire{% else %}text-white{% endif %}">
+					<i class="bi bi-globe2"></i>
+					{{ 'navbar.super.publicHost'|trans }}
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="{{ path('app_super_admin_console', {'entite' : entite.id}) }}">
+				<span class="{% if app.request.attributes.get('_route') == 'app_super_admin_console' %}text-theme-secondaire{% else %}text-white{% endif %}">
+					<i class="bi bi-file-earmark-pdf"></i>
+					{{ 'navbar.super.console'|trans }}
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="{{ path('app_super_entite_users_index', {'entite' : entite.id}) }}">
+				<span class="{% if app.request.attributes.get('_route') == 'app_super_entite_users_index' %}text-theme-secondaire{% else %}text-white{% endif %}">
+					<i class="bi bi-file-earmark-pdf"></i>
+					{{ 'navbar.super.users'|trans }}
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="{{ path('app_super_billing_subscription_show', {'entite' : entite.id}) }}">
+				<span class="{% if app.request.attributes.get('_route') == 'app_super_billing_subscription_show' %}text-theme-secondaire{% else %}text-white{% endif %}">
+					<i class="bi bi-file-earmark-pdf"></i>
+					{{ 'navbar.super.users'|trans }}
+				</span>
+			</a>
+		</li>
+
+
+
+		
 
 
 		{% endif %}

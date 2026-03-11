@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 
-#[IsGranted('ROLE_SUPER')]
+#[IsGranted('ROLE_SUPER_ADMIN')]
 #[Route('/super/{entite}/entites', name: 'app_super_billing_')]
 final class SuperBillingController extends AbstractController
 {

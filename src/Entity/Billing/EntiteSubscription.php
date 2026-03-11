@@ -61,6 +61,21 @@ class EntiteSubscription
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stripePriceId = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $startedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $endedAt = null;
+
+    #[ORM\Column(nullable: true, options: ['default' => false])]
+    private bool $cancelAtPeriodEnd = false;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $limitsSnapshot = null;
+
 
     public function __construct()
     {
@@ -291,5 +306,65 @@ class EntiteSubscription
     private function formatDateFr(\DateTimeImmutable $dt): string
     {
         return $dt->format('d/m/Y');
+    }
+
+    public function getStripePriceId(): ?string
+    {
+        return $this->stripePriceId;
+    }
+
+    public function setStripePriceId(?string $stripePriceId): static
+    {
+        $this->stripePriceId = $stripePriceId;
+
+        return $this;
+    }
+
+    public function getStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->startedAt;
+    }
+
+    public function setStartedAt(?\DateTimeImmutable $startedAt): static
+    {
+        $this->startedAt = $startedAt;
+
+        return $this;
+    }
+
+    public function getEndedAt(): ?\DateTimeImmutable
+    {
+        return $this->endedAt;
+    }
+
+    public function setEndedAt(?\DateTimeImmutable $endedAt): static
+    {
+        $this->endedAt = $endedAt;
+
+        return $this;
+    }
+
+    public function isCancelAtPeriodEnd(): bool
+    {
+        return $this->cancelAtPeriodEnd;
+    }
+
+    public function setCancelAtPeriodEnd(bool $cancelAtPeriodEnd): static
+    {
+        $this->cancelAtPeriodEnd = $cancelAtPeriodEnd;
+
+        return $this;
+    }
+
+    public function getLimitsSnapshot(): ?array
+    {
+        return $this->limitsSnapshot;
+    }
+
+    public function setLimitsSnapshot(?array $limitsSnapshot): static
+    {
+        $this->limitsSnapshot = $limitsSnapshot;
+
+        return $this;
     }
 }

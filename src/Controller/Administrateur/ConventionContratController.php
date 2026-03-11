@@ -122,10 +122,6 @@ final class ConventionContratController extends AbstractController
                 'entreprise' => $c->getEntreprise()?->getRaisonSociale() ?? '—',
                 'formation' => $form?->getTitre() ?? '—',
                 'session'   => $sess?->getCode() ?? '—',
-                'pdf'       => $this->renderView('administrateur/convention/_pdf_btn.html.twig', [
-                    'c' => $c,
-                    'entite' => $entite,
-                ]),
                 'actions'   => $this->renderView('administrateur/convention/_actions.html.twig', [
                     'c' => $c,
                     'entite' => $entite,
