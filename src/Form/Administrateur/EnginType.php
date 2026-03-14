@@ -3,8 +3,10 @@
 namespace App\Form\Administrateur;
 
 use App\Entity\Engin;
+use App\Entity\Entite;
 use App\Entity\Site;
 use App\Enum\EnginType as EnginTypeEnum;
+use App\Repository\SiteRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\{
@@ -31,6 +33,9 @@ class EnginType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $b, array $o): void
     {
+        /** @var Entite|null $entite */
+        $entite = $o['entite'];
+
         $b
             // ---------- Base / Identité ----------
             ->add('site', EntityType::class, [
@@ -40,6 +45,21 @@ class EnginType extends AbstractType
                 'placeholder' => 'Sélectionnez un site',
                 'attr' => ['class' => 'form-select'],
                 'constraints' => [new NotBlank(message: 'Le site est requis.')],
+                'query_builder' => function (SiteRepository $sr) use ($entite) {
+                    $qb = $sr->createQueryBuilder('s')
+                        ->orderBy('s.nom', 'ASC');
+
+                    if ($entite instanceof Entite) {
+                        $qb
+                            ->andWhere('s.entite = :entite')
+                            ->setParameter('entite', $entite);
+                    } else {
+                        // sécurité : si aucune entité n’est fournie, on ne remonte rien
+                        $qb->andWhere('1 = 0');
+                    }
+
+                    return $qb;
+                },
             ])
             ->add('nom', TextType::class, [
                 'label' => '*Nom du engin',
@@ -60,16 +80,16 @@ class EnginType extends AbstractType
                 'required' => true,
                 'choice_label' => static function (EnginTypeEnum $e): string {
                     return match ($e) {
-                        EnginTypeEnum::CHARGEUR    => 'CHargeur',
-                        EnginTypeEnum::BOUTEUR     => 'Bouteur',
-                        EnginTypeEnum::COMPACTEUR  => 'Compacteur',
-                        EnginTypeEnum::NACELLE     => 'Nacelle',
-                        EnginTypeEnum::MOTOBASCULEUR   => 'Motobasculeur',
-                        EnginTypeEnum::PELLE_HYDRAULIQUE     => 'Pelle-Hydraulique',
-                        EnginTypeEnum::CATAMARAN   => 'Catamaran',
-                        EnginTypeEnum::MONOCOQUE   => 'Monocoque',
-                        EnginTypeEnum::VOILIER     => 'Voilier',
-                        default                     => $e->name,
+                        EnginTypeEnum::CHARGEUR => 'Chargeur',
+                        EnginTypeEnum::BOUTEUR => 'Bouteur',
+                        EnginTypeEnum::COMPACTEUR => 'Compacteur',
+                        EnginTypeEnum::NACELLE => 'Nacelle',
+                        EnginTypeEnum::MOTOBASCULEUR => 'Motobasculeur',
+                        EnginTypeEnum::PELLE_HYDRAULIQUE => 'Pelle-Hydraulique',
+                        EnginTypeEnum::CATAMARAN => 'Catamaran',
+                        EnginTypeEnum::MONOCOQUE => 'Monocoque',
+                        EnginTypeEnum::VOILIER => 'Voilier',
+                        default => $e->name,
                     };
                 },
                 'choice_translation_domain' => false,
@@ -254,6 +274,9 @@ class EnginType extends AbstractType
     {
         $r->setDefaults([
             'data_class' => Engin::class,
+            'entite' => null,
         ]);
+
+        $r->setAllowedTypes('entite', ['null', Entite::class]);
     }
 }

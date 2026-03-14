@@ -143,67 +143,76 @@ final class EnginController extends AbstractController
     #[Route('/modifier/{id}', name: 'app_administrateur_engin_modifier', methods: ['GET', 'POST'])]
     public function addEdit(Entite $entite, Request $request, EntityManagerInterface $em, ?Engin $engin = null): Response
     {
-
-
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
         $isEdit = (bool) $engin;
+
+        if ($isEdit && $engin->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
         if (!$engin) {
             $engin = new Engin();
             $engin->setCreateur($user);
             $engin->setEntite($entite);
         }
 
-        $form = $this->createForm(EnginType::class, $engin);
+        $form = $this->createForm(EnginType::class, $engin, [
+            'entite' => $entite,
+        ]);
+
         $form->handleRequest($request);
+
         if ($form->isSubmitted() && $form->isValid()) {
+            // sécurité supplémentaire : on force l’entité de l’engin
+            $engin->setEntite($entite);
 
+            // sécurité supplémentaire : le site choisi doit appartenir à l’entité courante
+            if ($engin->getSite() && $engin->getSite()?->getEntite()?->getId() !== $entite->getId()) {
+                $this->addFlash('danger', 'Le site sélectionné est invalide pour cette entité.');
 
+                return $this->render('administrateur/engin/form.html.twig', [
+                    'form'        => $form->createView(),
+                    'modeEdition' => $isEdit,
+                    'engin'       => $engin,
+                    'entite'      => $entite,
+                ]);
+            }
 
-
-
-            // Dossier d’upload (configuré en paramètre)
             $uploadPath = $this->getParameter('engin_upload_dir');
 
-
-
-
-            // 1) Photo de couverture (vignette pour la liste) — redimensionnée 360x240
             $this->photoManager->handleImageUpload(
                 form: $form,
                 fieldName: 'photoCouverture',
-                setter: fn(string $name) => $engin->setPhotoCouverture($name), // ✅ setter
+                setter: fn(string $name) => $engin->setPhotoCouverture($name),
                 fileUploader: $this->fileUploader,
                 uploadPath: $uploadPath,
                 sizeW: 1600,
                 sizeH: 600,
-                oldFilename: $engin->getPhotoCouverture() // ⚠️ à lire AVANT set
+                oldFilename: $engin->getPhotoCouverture()
             );
-
 
             $this->photoManager->handleImageUpload(
                 form: $form,
                 fieldName: 'photoBanniere',
-                setter: fn(string $name) => $engin->setPhotoBanniere($name), // ✅ setter
+                setter: fn(string $name) => $engin->setPhotoBanniere($name),
                 fileUploader: $this->fileUploader,
                 uploadPath: $uploadPath,
                 sizeW: 360,
                 sizeH: 240,
-                oldFilename: $engin->getPhotoBanniere() // ⚠️ à lire AVANT set
+                oldFilename: $engin->getPhotoBanniere()
             );
 
-
-            // 2) Galerie — on ajoute les nouvelles images, redimensionnées 1600x900
             /** @var \Symfony\Component\HttpFoundation\File\UploadedFile[]|null $galleryFiles */
             $galleryFiles = $form->get('galleryFiles')->getData();
             if ($galleryFiles) {
                 $pos = $engin->getPhotos()->count();
                 $imagine = new Imagine();
+
                 foreach ($galleryFiles as $file) {
                     $filename = $this->fileUploader->upload($file, $uploadPath);
 
-                    // Redimensionnement paysage agréable pour le plein écran
                     $imagine->open($uploadPath . '/' . $filename)
                         ->thumbnail(new Box(1600, 900), ImageInterface::THUMBNAIL_OUTBOUND)
                         ->save($uploadPath . '/' . $filename);
@@ -213,17 +222,16 @@ final class EnginController extends AbstractController
                         ->setEntite($entite)
                         ->setCreateur($user)
                         ->setPosition($pos++);
+
                     $engin->addPhoto($photo);
                 }
             }
-
-
-
 
             $em->persist($engin);
             $em->flush();
 
             $this->addFlash('success', $isEdit ? 'Engin modifié.' : 'Engin ajouté.');
+
             return $this->redirectToRoute('app_administrateur_engin_index', [
                 'entite' => $entite->getId(),
             ]);
@@ -232,8 +240,8 @@ final class EnginController extends AbstractController
         return $this->render('administrateur/engin/form.html.twig', [
             'form'        => $form->createView(),
             'modeEdition' => $isEdit,
-            'engin'      => $engin,
-            'entite' => $entite,
+            'engin'       => $engin,
+            'entite'      => $entite,
         ]);
     }
 
