@@ -23,35 +23,26 @@
       position: relative;
       overflow: hidden;
       color: #fff;
-
-      /* Ombre douce premium */
       box-shadow: 0 18px 50px rgba(0,0,0,.14);
-
-      /* Fond piloté par les couleurs de l'entité */
       background:
-        /* halo clair (tertiaire) */
         radial-gradient(1200px 420px at 12% -10%,
           color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
           transparent 58%
         ),
-        /* halo accent (secondaire) */
         radial-gradient(900px 380px at 92% 0%,
           color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
           transparent 60%
         ),
-        /* voile subtil (quaternaire) pour la profondeur */
         radial-gradient(700px 260px at 55% 115%,
           color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
           transparent 62%
         ),
-        /* dégradé principal (principal -> plus clair) */
         linear-gradient(135deg,
           color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
           color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
         );
     }
 
-    /* léger glass highlight */
     .hero::after{
       content:"";
       position:absolute;
@@ -61,7 +52,6 @@
       opacity:.85;
     }
 
-    /* barre accent = secondaire (et glow basé sur secondaire) */
     .hero .accent{
       width: 12px;
       border-radius: 999px;
@@ -153,7 +143,9 @@
       box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
     }
     .filterrow{ display:flex; gap:.6rem; align-items:center; }
-    .kpi-ico{
+
+    .kpi-ico,
+    .filter-icon{
       width:44px; height:44px;
       border-radius:14px;
       display:grid; place-items:center;
@@ -165,13 +157,8 @@
 
     .filter-icon{
       width:38px; height:38px;
-      border-radius:14px;
-      display:grid; place-items:center;
-      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
-      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
-      color: color-mix(in srgb, var(--theme-color-principal) 75%, #000 25%);
-      flex: 0 0 auto;
     }
+
     .filterbox .form-select,
     .filterbox .form-control{
       border:0 !important;
@@ -293,33 +280,48 @@
     }
 
     #tableauEntreprise td.action-column .hover-actions{ z-index:50; }
-    
-
-    /* TomSelect dropdown au-dessus */
     .filterbar .ts-dropdown{ z-index: 2000 !important; }
 
-
-
-
-    /* =========================
-      ✅ Actions entreprises (pill + split) + colonne mini
-      ========================= */
-
-    /* colonne actions : la plus petite possible */
-    #tableauEntreprise th:last-child,
-    #tableauEntreprise td.action-column{
-      width: 1% !important;
-      min-width: 0 !important;
+    /* ===== Colonne logo ===== */
+    #tableauEntreprise th.logo-column,
+    #tableauEntreprise td.logo-column{
+      width: 72px !important;
+      min-width: 72px !important;
+      max-width: 72px !important;
+      text-align: center !important;
       white-space: nowrap;
     }
 
+    .entreprise-logo-thumb{
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: #fff;
+      padding: 4px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.05);
+    }
 
-    /* boutons compacts */
+    /* ===== Actions entreprises ===== */
+    #tableauEntreprise th.action-column,
+    #tableauEntreprise td.action-column{
+      width: 1% !important;
+      min-width: 0 !important;
+      white-space: nowrap !important;
+      text-align: right !important;
+    }
+
+    #tableauEntreprise td.action-column{
+      overflow: visible !important;
+      padding-left: .15rem !important;
+      padding-right: .15rem !important;
+    }
+
     .entreprise-actions .btn{
       padding: .32rem .55rem;
     }
 
-    /* bouton principal */
     .entreprise-actions .entreprise-main{
       background: rgba(255,255,255,.85);
       border-color: rgba(0,0,0,.12);
@@ -330,7 +332,6 @@
       border-color: rgba(0,0,0,.18);
     }
 
-    /* split */
     .entreprise-actions .entreprise-split{
       padding-left: .55rem;
       padding-right: .55rem;
@@ -338,7 +339,6 @@
       background: rgba(255,255,255,.85);
     }
 
-    /* fusion pill (main + split) */
     .entreprise-actions.btn-group .entreprise-main{
       border-top-right-radius: 0 !important;
       border-bottom-right-radius: 0 !important;
@@ -359,7 +359,6 @@
       background: rgba(0,0,0,.10);
     }
 
-    /* menu dropdown */
     .entreprise-actions .entreprise-menu{
       border-radius: 16px;
       border: 1px solid rgba(0,0,0,.10);
@@ -381,31 +380,8 @@
       border-color: rgba(255,193,7,.22);
     }
 
-    /* ✅ Menu actions "floaté" au-dessus de tout */
     body .entreprise-floating-dropdown{ z-index: 20000 !important; }
 
-
-    /* =========================
-      ✅ Actions entreprises — colonne mini + sticky mobile + anti-clipping
-      ========================= */
-
-    /* colonne actions : la plus petite possible */
-    #tableauEntreprise th.action-column,
-    #tableauEntreprise td.action-column{
-      width: 1% !important;
-      min-width: 0 !important;
-      white-space: nowrap !important;
-      text-align: right !important;
-    }
-
-    /* td actions : pas de relative (sticky + dropdown plus fiables) */
-    #tableauEntreprise td.action-column{
-      overflow: visible !important;
-      padding-left: .15rem !important;
-      padding-right: .15rem !important;
-    }
-
-    /* ✅ Sticky mobile (TH + TD) + zebra/hover cohérents */
     @media (max-width: 768px){
       #tableauEntreprise th.action-column,
       #tableauEntreprise td.action-column{
@@ -416,7 +392,6 @@
         box-shadow: -12px 0 18px -14px rgba(0,0,0,.22);
       }
 
-      /* zebra/hover sur la cellule sticky (sinon elle reste blanche) */
       #tableauEntreprise tbody tr:nth-child(even) > td.action-column{
         background: rgba(35,51,66,.035) !important;
       }
@@ -426,6 +401,19 @@
     }
 
 
+    .entreprise-logo-fallback{
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: linear-gradient(180deg, rgba(248,249,250,1), rgba(255,255,255,1));
+      box-shadow: 0 8px 18px rgba(0,0,0,.05);
+      color: color-mix(in srgb, var(--theme-color-principal) 78%, #000 22%);
+      font-size: 1.1rem;
+    }
   </style>
 {% endblock %}
 
@@ -464,7 +452,7 @@
 
         <div class="d-flex gap-2">
           <a class="btn btn-light btn-sm fw-semibold"
-            href="{{ path('app_administrateur_entreprise_ajouter', { entite: entite.id }) }}">
+             href="{{ path('app_administrateur_entreprise_ajouter', { entite: entite.id }) }}">
             <i class="bi bi-plus-circle me-1"></i> Nouvelle entreprise
           </a>
 
@@ -527,8 +515,10 @@
             <div class="filterbox">
               <div class="filterrow">
                 <div class="filter-icon"><i class="bi bi-search"></i></div>
-                <input type="text" id="searchName" class="form-control form-control-sm"
-                      placeholder="Raison sociale / SIRET / email facturation" />
+                <input type="text"
+                       id="searchName"
+                       class="form-control form-control-sm"
+                       placeholder="Raison sociale / SIRET / email facturation" />
               </div>
             </div>
           </div>
@@ -552,14 +542,12 @@
     </div>
   </div>
 
-
-
-
   <div class="table-card mb-4 p-3">
     <table id="tableauEntreprise" class="table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
           <th>#</th>
+          <th class="logo-column">Logo</th>
           <th>Raison sociale</th>
           <th>SIRET</th>
           <th>Email facturation</th>
@@ -573,257 +561,298 @@
     </table>
   </div>
 
+  {% include 'partials/_modales_index_generiques.html.twig' %}
 
-{% include 'partials/_modales_index_generiques.html.twig' %}
-<script>
-$(function(){
-  const $locked = $('#lockedFilter');
-  const $search = $('#searchName');
+  <script>
+    $(function(){
+      const $locked = $('#lockedFilter');
+      const $search = $('#searchName');
 
-  function nowLabel(){
-    const d = new Date();
-    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-  }
-  function escapeHtml(str){
-    return String(str).replace(/[&<>"']/g, s => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-    }[s]));
-  }
-
-  let tsLocked = null;
-  function initTomSelect(){
-    const common = {
-      create:false, allowEmptyOption:true, maxItems:1,
-      plugins:['clear_button'],
-      render:{ no_results: () => '<div class="px-2 py-1 text-muted">Aucun résultat</div>' }
-    };
-    tsLocked?.destroy();
-    tsLocked = new TomSelect('#lockedFilter', {...common, placeholder:'Tous'});
-    tsLocked.on('change', ()=> refreshAll(true));
-  }
-
-  const table = $('#tableauEntreprise').DataTable({
-    serverSide:true,
-    processing:true,
-    autoWidth: false,
-    scrollX: true,
-    scrollCollapse: true,
-    responsive: false,
-
-    ajax:{
-      url:"{{ path('app_administrateur_entreprise_ajax', { entite: entite.id }) }}",
-      type:"POST",
-      data: d => {
-        d.lockedFilter = $locked.val() || 'all';
-        d.searchName   = ($search.val() || '').trim();
+      function nowLabel(){
+        const d = new Date();
+        return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
       }
-    },
 
-    dom:
-      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
-        + '<"dt-actions d-flex gap-2 align-items-center"B>'
-        + '<"dt-search"f>'
-      + '>'
-      + 'rt'
-      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+      function escapeHtml(str){
+        return String(str).replace(/[&<>"']/g, s => ({
+          '&':'&amp;',
+          '<':'&lt;',
+          '>':'&gt;',
+          '"':'&quot;',
+          "'":'&#039;'
+        }[s]));
+      }
 
-    buttons:['copy','csv','excel','pdf','print'],
-    lengthMenu:[[10,25,50,500],[10,25,50,500]],
+      let tsLocked = null;
+      function initTomSelect(){
+        const common = {
+          create: false,
+          allowEmptyOption: true,
+          maxItems: 1,
+          plugins: ['clear_button'],
+          render: {
+            no_results: () => '<div class="px-2 py-1 text-muted">Aucun résultat</div>'
+          }
+        };
 
-    columns:[
-      {data:'id', name:'id'},
-      {data:'raisonSociale', name:'raisonSociale'},
-      {data:'siret', name:'siret'},
-      {data:'emailFacturation', name:'emailFacturation'},
-      {data:'inscriptions', name:'inscriptions', orderable:false, searchable:false},
-      {data:'factures', name:'factures', orderable:false, searchable:false},
-      {data:'locked', name:'locked', orderable:false, searchable:false},
-      {data:'actions', name:'actions', orderable:false, searchable:false},
-    ],
+        tsLocked?.destroy();
+        tsLocked = new TomSelect('#lockedFilter', {
+          ...common,
+          placeholder: 'Tous'
+        });
 
-    columnDefs:[
-      {targets:7, className:'action-column text-end'}
-    ],
+        tsLocked.on('change', () => refreshAll(true));
+      }
 
-    order:[[0,'desc']],
-    language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
+      const exportOptions = {
+        columns: [0, 2, 3, 4, 5, 6, 7] // on exclut logo(0) et actions(8)
+      };
 
-    initComplete:function(){
-      const api = this.api();
-      const $btns = $(api.buttons().container()).find('button');
+      const table = $('#tableauEntreprise').DataTable({
+        serverSide: true,
+        processing: true,
+        autoWidth: false,
+        scrollX: true,
+        scrollCollapse: true,
+        responsive: false,
 
-      $('#exportMenu').empty();
-      $btns.each(function(){
-        const $b=$(this);
-        $('<li><a class="dropdown-item" href="#">'+$b.text()+'</a></li>')
-          .on('click',e=>{e.preventDefault();$b.click();})
-          .appendTo('#exportMenu');
-      });
-      $(api.buttons().container()).hide();
-      api.columns.adjust();
-    }
-  });
+        ajax: {
+          url: "{{ path('app_administrateur_entreprise_ajax', { entite: entite.id }) }}",
+          type: "POST",
+          data: d => {
+            d.lockedFilter = $locked.val() || 'all';
+            d.searchName   = ($search.val() || '').trim();
+          }
+        },
 
+        dom:
+          '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+            + '<"dt-actions d-flex gap-2 align-items-center"B>'
+            + '<"dt-search"f>'
+          + '>'
+          + 'rt'
+          + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
 
+        buttons: [
+          { extend: 'copy',  exportOptions: exportOptions },
+          { extend: 'csv',   exportOptions: exportOptions },
+          { extend: 'excel', exportOptions: exportOptions },
+          { extend: 'pdf',   exportOptions: exportOptions },
+          { extend: 'print', exportOptions: exportOptions }
+        ],
 
-  // ✅ Dropdown actions entreprises : menu hors du scroll DataTables (sinon il est clippé)
-  (function enableEntrepriseActionsFloatingDropdown(){
-    document.addEventListener('show.bs.dropdown', function(e){
-      const toggle = e.target;
-      if (!toggle.closest('.entreprise-actions')) return;
+        lengthMenu: [[10,25,50,500],[10,25,50,500]],
 
-      const dd = toggle.closest('.dropdown, .btn-group');
-      if (!dd) return;
+        columns: [
+          { data: 'id', name: 'id' },
+          { data: 'logo', name: 'logo', orderable: false, searchable: false },
+          { data: 'raisonSociale', name: 'raisonSociale' },
+          { data: 'siret', name: 'siret' },
+          { data: 'emailFacturation', name: 'emailFacturation' },
+          { data: 'inscriptions', name: 'inscriptions', orderable: false, searchable: false },
+          { data: 'factures', name: 'factures', orderable: false, searchable: false },
+          { data: 'locked', name: 'locked', orderable: false, searchable: false },
+          { data: 'actions', name: 'actions', orderable: false, searchable: false }
+        ],
 
-      const menu = dd.querySelector('.dropdown-menu');
-      if (!menu) return;
+        columnDefs: [
+          { targets: 1, className: 'logo-column', searchable: false, orderable: false },
+          { targets: 8, className: 'action-column text-end', searchable: false, orderable: false }
+        ],
 
-      if (!menu.__originalParent) menu.__originalParent = dd;
+        order: [[0, 'desc']],
+        language: { url: 'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
 
-      document.body.appendChild(menu);
-      menu.classList.add('entreprise-floating-dropdown');
+        initComplete: function(){
+          const api = this.api();
+          const $btns = $(api.buttons().container()).find('button');
 
-      const rect = toggle.getBoundingClientRect();
+          $('#exportMenu').empty();
+          $btns.each(function(){
+            const $b = $(this);
+            $('<li><a class="dropdown-item" href="#">' + $b.text() + '</a></li>')
+              .on('click', e => {
+                e.preventDefault();
+                $b.click();
+              })
+              .appendTo('#exportMenu');
+          });
 
-      menu.style.position = 'absolute';
-      menu.style.top = '0px';
-      menu.style.left = '0px';
-      menu.style.display = 'block';
+          $(api.buttons().container()).hide();
+          api.columns.adjust();
+        },
 
-      const menuRect = menu.getBoundingClientRect();
-      const top = rect.bottom + window.scrollY + 6;
-
-      let left = (rect.right + window.scrollX - menuRect.width);
-      left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
-
-      menu.style.top = `${top}px`;
-      menu.style.left = `${left}px`;
-    }, true);
-
-    document.addEventListener('hidden.bs.dropdown', function(e){
-      const toggle = e.target;
-      if (!toggle.closest('.entreprise-actions')) return;
-
-      const dd = toggle.closest('.dropdown, .btn-group');
-      if (!dd) return;
-
-      document.querySelectorAll('body .entreprise-floating-dropdown').forEach(menu => {
-        if (menu.__originalParent === dd) {
-          dd.appendChild(menu);
-          menu.classList.remove('entreprise-floating-dropdown');
-          menu.style.position = '';
-          menu.style.top = '';
-          menu.style.left = '';
-          menu.style.display = '';
+        createdRow: function(row, data){
+          $('td', row).eq(1).html(data.logo || '');
+          $('td', row).eq(8).html(data.actions || '');
         }
       });
-    }, true);
 
-    window.addEventListener('scroll', () => {
-      document.querySelectorAll('.entreprise-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
-        .forEach(btn => btn.click());
-    }, true);
+      (function enableEntrepriseActionsFloatingDropdown(){
+        document.addEventListener('show.bs.dropdown', function(e){
+          const toggle = e.target;
+          if (!toggle.closest('.entreprise-actions')) return;
 
-    window.addEventListener('resize', () => {
-      document.querySelectorAll('.entreprise-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
-        .forEach(btn => btn.click());
-    }, true);
-  })();
+          const dd = toggle.closest('.dropdown, .btn-group');
+          if (!dd) return;
 
+          const menu = dd.querySelector('.dropdown-menu');
+          if (!menu) return;
 
-  function updateResetUi(count){
-    const btn = document.getElementById('btnReset');
-    const badge = document.getElementById('resetCount');
-    if(!btn || !badge) return;
+          if (!menu.__originalParent) menu.__originalParent = dd;
 
-    if(count > 0){
-      btn.disabled = false;
-      btn.classList.add('is-active');
-      badge.style.display = 'inline-flex';
-      badge.textContent = String(count);
-    } else {
-      btn.disabled = true;
-      btn.classList.remove('is-active');
-      badge.style.display = 'none';
-      badge.textContent = '0';
-    }
-  }
+          document.body.appendChild(menu);
+          menu.classList.add('entreprise-floating-dropdown');
 
-  function buildActiveFilters(){
-    const items = [];
+          const rect = toggle.getBoundingClientRect();
 
-    const lf = $locked.val();
-    if(lf && lf !== 'all'){
-      items.push({ key:'locked', label:'Verrouillé', value: (lf === '1' ? 'Oui' : 'Non') });
-    }
+          menu.style.position = 'absolute';
+          menu.style.top = '0px';
+          menu.style.left = '0px';
+          menu.style.display = 'block';
 
-    const q = ($search.val() || '').trim();
-    if(q){
-      items.push({ key:'search', label:'Recherche', value: q });
-    }
+          const menuRect = menu.getBoundingClientRect();
+          const top = rect.bottom + window.scrollY + 6;
 
-    const $wrap = $('#activeFilters');
-    $wrap.find('.af-badge').remove();
+          let left = rect.right + window.scrollX - menuRect.width;
+          left = Math.max(8, Math.min(left, window.scrollX + window.innerWidth - menuRect.width - 8));
 
-    if(items.length === 0){
-      $('#activeFiltersEmpty').show();
-      updateResetUi(0);
-      return;
-    }
+          menu.style.top = `${top}px`;
+          menu.style.left = `${left}px`;
+        }, true);
 
-    $('#activeFiltersEmpty').hide();
-    updateResetUi(items.length);
+        document.addEventListener('hidden.bs.dropdown', function(e){
+          const toggle = e.target;
+          if (!toggle.closest('.entreprise-actions')) return;
 
-    items.forEach(it=>{
-      const $b = $(`<span class="af-badge" data-key="${it.key}">
-        <strong>${it.label} :</strong> ${escapeHtml(it.value)} <i class="bi bi-x-lg ms-1"></i>
-      </span>`);
+          const dd = toggle.closest('.dropdown, .btn-group');
+          if (!dd) return;
 
-      $b.on('click', ()=>{
-        if(it.key === 'locked') tsLocked.setValue('all', true);
-        if(it.key === 'search') $search.val('');
+          document.querySelectorAll('body .entreprise-floating-dropdown').forEach(menu => {
+            if (menu.__originalParent === dd) {
+              dd.appendChild(menu);
+              menu.classList.remove('entreprise-floating-dropdown');
+              menu.style.position = '';
+              menu.style.top = '';
+              menu.style.left = '';
+              menu.style.display = '';
+            }
+          });
+        }, true);
+
+        window.addEventListener('scroll', () => {
+          document.querySelectorAll('.entreprise-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+            .forEach(btn => btn.click());
+        }, true);
+
+        window.addEventListener('resize', () => {
+          document.querySelectorAll('.entreprise-actions [aria-expanded="true"][data-bs-toggle="dropdown"]')
+            .forEach(btn => btn.click());
+        }, true);
+      })();
+
+      function updateResetUi(count){
+        const btn = document.getElementById('btnReset');
+        const badge = document.getElementById('resetCount');
+        if(!btn || !badge) return;
+
+        if(count > 0){
+          btn.disabled = false;
+          btn.classList.add('is-active');
+          badge.style.display = 'inline-flex';
+          badge.textContent = String(count);
+        } else {
+          btn.disabled = true;
+          btn.classList.remove('is-active');
+          badge.style.display = 'none';
+          badge.textContent = '0';
+        }
+      }
+
+      function buildActiveFilters(){
+        const items = [];
+
+        const lf = $locked.val();
+        if(lf && lf !== 'all'){
+          items.push({
+            key: 'locked',
+            label: 'Verrouillé',
+            value: (lf === '1' ? 'Oui' : 'Non')
+          });
+        }
+
+        const q = ($search.val() || '').trim();
+        if(q){
+          items.push({
+            key: 'search',
+            label: 'Recherche',
+            value: q
+          });
+        }
+
+        const $wrap = $('#activeFilters');
+        $wrap.find('.af-badge').remove();
+
+        if(items.length === 0){
+          $('#activeFiltersEmpty').show();
+          updateResetUi(0);
+          return;
+        }
+
+        $('#activeFiltersEmpty').hide();
+        updateResetUi(items.length);
+
+        items.forEach(it => {
+          const $b = $(`
+            <span class="af-badge" data-key="${it.key}">
+              <strong>${it.label} :</strong> ${escapeHtml(it.value)} <i class="bi bi-x-lg ms-1"></i>
+            </span>
+          `);
+
+          $b.on('click', () => {
+            if(it.key === 'locked') tsLocked.setValue('all', true);
+            if(it.key === 'search') $search.val('');
+            refreshAll(true);
+          });
+
+          $wrap.append($b);
+        });
+      }
+
+      function refreshAll(resetPaging = false){
+        table.ajax.reload(null, !resetPaging ? false : true);
+        buildActiveFilters();
+        $('#hero-last-refresh').text('Maj : ' + nowLabel());
+      }
+
+      function dtAdjust(){
+        table.columns.adjust();
+      }
+
+      table.on('init.dt', () => setTimeout(dtAdjust, 60));
+      table.on('draw.dt', () => dtAdjust());
+      window.addEventListener('resize', () => setTimeout(dtAdjust, 150));
+
+      let tSearch = null;
+      $search.on('input', () => {
+        clearTimeout(tSearch);
+        tSearch = setTimeout(() => refreshAll(true), 250);
+      });
+
+      $('#btnReset').on('click', function(){
+        tsLocked.setValue('all', true);
+        $search.val('');
+        table.search('');
         refreshAll(true);
       });
 
-      $wrap.append($b);
+      $(document).on('click', '.delete-btn', e => {
+        $('#confirmDelete').attr('href', $(e.currentTarget).data('url'));
+      });
+
+      initTomSelect();
+      buildActiveFilters();
+      $('#hero-last-refresh').text('Maj : ' + nowLabel());
     });
-  }
-
-  function refreshAll(resetPaging=false){
-    table.ajax.reload(null, !resetPaging ? false : true);
-    buildActiveFilters();
-    $('#hero-last-refresh').text('Maj : ' + nowLabel());
-  }
-
-  // Ajustements colonnes
-  function dtAdjust(){ table.columns.adjust(); }
-  table.on('init.dt', () => setTimeout(dtAdjust, 60));
-  table.on('draw.dt', () => dtAdjust());
-  window.addEventListener('resize', () => setTimeout(dtAdjust, 150));
-
-  // Search debounce
-  let tSearch = null;
-  $search.on('input', ()=>{
-    clearTimeout(tSearch);
-    tSearch = setTimeout(()=>refreshAll(true), 250);
-  });
-
-  // Reset
-  $('#btnReset').on('click', function(){
-    tsLocked.setValue('all', true);
-    $search.val('');
-    table.search('');
-    refreshAll(true);
-  });
-
-  // Delete modal
-  $(document).on('click','.delete-btn',e=>$('#confirmDelete').attr('href', $(e.currentTarget).data('url')));
-
-  // Init
-  initTomSelect();
-  buildActiveFilters();
-  $('#hero-last-refresh').text('Maj : ' + nowLabel());
-});
-</script>
-
+  </script>
 {% endblock %}

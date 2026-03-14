@@ -1,4 +1,4 @@
-{# templates/administrateur/entreprises/form.html.twig #}
+{# templates/administrateur/entreprise/form.html.twig #}
 {% extends 'base_admin.html.twig' %}
 {% set is_edit = modeEdition ?? false %}
 
@@ -27,7 +27,6 @@
       --radius: 18px;
     }
 
-    /* ===== HERO premium ===== */
     .hero{
       border-radius: 22px;
       position: relative;
@@ -96,7 +95,6 @@
       color:#fff;
     }
 
-    /* ===== Cards premium ===== */
     .cardx{
       background: var(--panel);
       border: 1px solid var(--stroke);
@@ -125,7 +123,6 @@
       white-space:nowrap;
     }
 
-    /* ===== Form polish ===== */
     label.form-label{ font-weight: 800; color: var(--ink); }
     .form-text, .text-muted, .small{ color: var(--muted) !important; }
     .form-control, .form-select{
@@ -139,7 +136,6 @@
       box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
     }
 
-    /* TomSelect polish */
     .ts-wrapper .ts-control{
       border-radius: 14px !important;
       padding: .55rem .75rem !important;
@@ -152,7 +148,6 @@
     }
     .ts-dropdown{ z-index: 9999 !important; }
 
-    /* Google Places dropdown over everything */
     .pac-container{
       z-index: 10650 !important;
       border-radius: 14px;
@@ -162,7 +157,6 @@
     .pac-item{ padding: .5rem .75rem; }
     .pac-item:hover{ background: rgba(15,23,42,.04); }
 
-    /* Address helper box */
     .soft-box{
       border-radius: 16px;
       border: 1px dashed rgba(15,35,54,.18);
@@ -170,7 +164,6 @@
       padding: 1rem;
     }
 
-    /* Sticky actions (right column) */
     .sticky-actions{
       position: sticky;
       top: 14px;
@@ -182,7 +175,6 @@
       padding: .9rem;
       box-shadow: var(--shadow);
     }
-
 
     .btn-ghost{
       border-radius: 14px;
@@ -209,6 +201,86 @@
     }
     .mini-map-placeholder i{ color: var(--theme-color-secondaire); }
 
+    .logo-dropzone{
+      border: 2px dashed rgba(15,23,42,.15);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(248,251,254,.95), rgba(255,255,255,1));
+      padding: 1.2rem;
+      transition: .2s ease;
+      cursor: pointer;
+    }
+    .logo-dropzone:hover,
+    .logo-dropzone.is-dragover{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 45%, var(--stroke));
+      background: color-mix(in srgb, var(--theme-color-principal) 4%, white);
+      box-shadow: 0 10px 24px rgba(15,23,42,.06);
+    }
+    .logo-dropzone-main{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap:.55rem;
+      text-align:center;
+      min-height: 190px;
+    }
+    .logo-dropzone-icon{
+      width:64px;
+      height:64px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, white);
+      color: var(--theme-color-principal);
+      font-size: 1.5rem;
+    }
+    .logo-preview-wrap{
+      display:none;
+      align-items:center;
+      gap:1rem;
+      flex-wrap:wrap;
+    }
+    .logo-preview-wrap.is-visible{
+      display:flex;
+    }
+    .logo-preview-box{
+      width: 150px;
+      height: 150px;
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      overflow: hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: 0 8px 24px rgba(15,23,42,.06);
+    }
+    .logo-preview-box img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      padding: 10px;
+      background:#fff;
+    }
+    .logo-meta{
+      flex:1 1 240px;
+    }
+    .logo-meta .filename{
+      font-weight: 800;
+      color: var(--ink);
+      word-break: break-word;
+    }
+    .logo-actions{
+      display:flex;
+      gap:.5rem;
+      flex-wrap:wrap;
+      margin-top:.8rem;
+    }
+    .d-none-important{
+      display:none !important;
+    }
+
     @media (max-width: 992px){
       .sticky-actions{ position: static; }
     }
@@ -216,7 +288,6 @@
 {% endblock %}
 
 {% block body %}
-  {# ===== HERO ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
     <div class="accent"></div>
 
@@ -230,8 +301,8 @@
 
           <div class="opacity-75 mt-1">
             {{ is_edit
-              ? 'Mettre à jour l’identité, la facturation et les coordonnées.'
-              : 'Créer une entreprise et définir ses informations de facturation et de contact.'
+              ? 'Mettre à jour l’identité, la facturation, les coordonnées et le logo.'
+              : 'Créer une entreprise et définir ses informations de facturation, de contact et son logo.'
             }}
           </div>
 
@@ -239,7 +310,7 @@
             <span class="chip"><i class="bi bi-buildings"></i> Entreprise</span>
             <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
             <span class="chip"><i class="bi bi-pencil-square"></i> {{ is_edit ? 'Mode édition' : 'Mode création' }}</span>
-            <span class="chip chip--pill">
+            <span class="chip">
               <i class="bi bi-clock-history"></i>
               <span id="hero-last-refresh">—</span>
             </span>
@@ -262,20 +333,96 @@
 
   {% include 'flagMessage.html.twig' %}
 
-  {{ form_start(form, { attr: { novalidate: 'novalidate', id: 'entrepriseForm' } }) }}
+  {{ form_start(form, {
+    attr: {
+      novalidate: 'novalidate',
+      id: 'entrepriseForm'
+    }
+  }) }}
   {{ form_errors(form) }}
 
   <div class="row g-4">
-    {# ===== LEFT ===== #}
     <div class="col-lg-8">
 
+      {# ===== Logo ===== #}
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-image text-warning"></i> Logo</h5>
+          <span class="chip-soft">Étape 1</span>
+        </div>
 
+        <div class="p-3 p-md-4">
+          <div
+            class="logo-dropzone"
+            id="logo-dropzone"
+            role="button"
+            tabindex="0"
+          >
+            <div id="logo-empty-state" class="logo-dropzone-main {{ hasCurrentLogo ? 'd-none-important' : '' }}">
+              <div class="logo-dropzone-icon">
+                <i class="bi bi-cloud-arrow-up"></i>
+              </div>
+              <div class="fw-bold">Glisse-dépose ton logo ici</div>
+              <div class="text-muted small">
+                ou clique pour sélectionner une image<br>
+                JPG, PNG, WEBP, SVG — max 4 Mo
+              </div>
+              <div class="mt-2">
+                <span class="btn btn-ghost btn-sm">
+                  <i class="bi bi-folder2-open me-1"></i> Choisir un fichier
+                </span>
+              </div>
+            </div>
 
-    {# ===== Adresse (avec Google Places) ===== #}
+            <div id="logo-preview-wrap" class="logo-preview-wrap {{ hasCurrentLogo ? 'is-visible' : '' }}">
+              <div class="logo-preview-box">
+                <img
+                  id="logo-preview-img"
+                  src="{{ currentLogoUrl }}"
+                  alt="Aperçu du logo"
+                >
+              </div>
+
+              <div class="logo-meta">
+                <div class="small text-muted">Logo sélectionné</div>
+                <div class="filename" id="logo-filename">
+                  {{ entreprise.logo ?: 'Logo actuel' }}
+                </div>
+
+                <div class="logo-actions">
+                  <button type="button" class="btn btn-ghost btn-sm" id="logo-change-btn">
+                    <i class="bi bi-arrow-repeat me-1"></i> Remplacer
+                  </button>
+
+                  <button type="button" class="btn btn-outline-danger btn-sm" id="logo-remove-btn">
+                    <i class="bi bi-trash me-1"></i> Supprimer
+                  </button>
+                </div>
+
+                <div class="form-text mt-2">
+                  Tu peux remplacer le logo actuel ou le supprimer.
+                </div>
+              </div>
+            </div>
+
+            {{ form_widget(form.logoFile) }}
+          </div>
+
+          <div class="mt-2">
+            {{ form_errors(form.logoFile) }}
+          </div>
+
+          <div class="d-none">
+            {{ form_row(form.deleteLogo) }}
+          </div>
+        </div>
+      </div>
+
+      {# ===== Adresse ===== #}
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-geo-alt text-warning"></i> Adresse</h5>
-          <span class="chip-soft">Étape 1</span>
+          <span class="chip-soft">Étape 2</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -306,7 +453,7 @@
                 >
               </div>
               <div class="form-text mt-2">
-                Le champ “Adresse” ci-dessous sera rempli automatiquement (rue + numéro, CP, ville, pays).
+                Le champ “Adresse” ci-dessous sera rempli automatiquement.
               </div>
             </div>
           </div>
@@ -336,7 +483,6 @@
             {{ form_row(form.pays) }}
           </div>
 
-          {# mini map (optionnelle) #}
           <div class="mini-map mt-3" id="entreprise-mini-map">
             <div class="mini-map-placeholder">
               <i class="bi bi-geo-alt"></i>
@@ -350,7 +496,7 @@
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Identité</h5>
-          <span class="chip-soft">Étape 2</span>
+          <span class="chip-soft">Étape 3</span>
         </div>
         <div class="p-3 p-md-4">
           {{ form_row(form.raisonSociale) }}
@@ -394,16 +540,13 @@
           {% if locked %}
             <div class="alert alert-info mt-3 mb-0">
               <i class="bi bi-info-circle"></i>
-              Entreprise utilisée (inscriptions / conventions / factures) :
-              <strong>raison sociale</strong>, <strong>SIRET</strong> (et éventuellement <strong>TVA</strong>) ne sont plus modifiables.
+              Entreprise utilisée :
+              <strong>raison sociale</strong>, <strong>SIRET</strong> et <strong>TVA</strong> ne sont plus modifiables.
             </div>
           {% endif %}
         </div>
       </div>
 
-      
-
-      {# ===== Actions ===== #}
       <div class="d-flex justify-content-end gap-2 mt-3 mb-3">
         <a href="{{ path('app_administrateur_entreprise_index', { entite: entite.id }) }}" class="btn btn-secondary">
           Annuler
@@ -414,7 +557,6 @@
       </div>
     </div>
 
-    {# ===== RIGHT (sticky summary) ===== #}
     <div class="col-lg-4">
       <div class="sticky-actions">
         <div class="d-flex align-items-center justify-content-between gap-2">
@@ -478,12 +620,9 @@
 
   {{ form_end(form) }}
 
-
-  {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 
   <script>
-    // ===== TOMSELECT REPRESENTANT =====
     document.addEventListener('DOMContentLoaded', () => {
       const el = document.querySelector('#{{ form.representant.vars.id }}');
       if (el && !el.tomselect) {
@@ -515,7 +654,6 @@
   </script>
 
   <script>
-    // ===== Résumé live (col droite) =====
     document.addEventListener('DOMContentLoaded', () => {
       const idRaison = {{ form.raisonSociale.vars.id|json_encode|raw }};
       const idSiret  = {{ form.siret.vars.id|json_encode|raw }};
@@ -587,12 +725,128 @@
   </script>
 
   <script>
-    // ===== Google Places Autocomplete (Adresse OU Entreprise) + Mini Map + Pays/Dpt/Région =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const fileInput = document.getElementById('{{ form.logoFile.vars.id }}');
+      const deleteCheckbox = document.getElementById('{{ form.deleteLogo.vars.id }}');
+      const dropzone = document.getElementById('logo-dropzone');
+      const emptyState = document.getElementById('logo-empty-state');
+      const previewWrap = document.getElementById('logo-preview-wrap');
+      const previewImg = document.getElementById('logo-preview-img');
+      const filenameEl = document.getElementById('logo-filename');
+      const changeBtn = document.getElementById('logo-change-btn');
+      const removeBtn = document.getElementById('logo-remove-btn');
+
+      if (!fileInput || !dropzone) return;
+
+      function showEmpty() {
+        emptyState?.classList.remove('d-none-important');
+        previewWrap?.classList.remove('is-visible');
+        if (filenameEl) filenameEl.textContent = 'Aucun fichier';
+      }
+
+      function showPreview(src, filename) {
+        if (previewImg && src) {
+          previewImg.src = src;
+        }
+        if (filenameEl) {
+          filenameEl.textContent = filename || 'Logo';
+        }
+        emptyState?.classList.add('d-none-important');
+        previewWrap?.classList.add('is-visible');
+      }
+
+      function resetDeleteFlag() {
+        if (deleteCheckbox) deleteCheckbox.checked = false;
+      }
+
+      function setDeleteFlag() {
+        if (deleteCheckbox) deleteCheckbox.checked = true;
+      }
+
+      function openPicker() {
+        fileInput.click();
+      }
+
+      function handleFile(file) {
+        if (!file) return;
+        resetDeleteFlag();
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          showPreview(e.target?.result, file.name);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      dropzone.addEventListener('click', (e) => {
+        const target = e.target;
+        if (target.closest('#logo-remove-btn') || target.closest('#logo-change-btn')) {
+          return;
+        }
+        openPicker();
+      });
+
+      dropzone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openPicker();
+        }
+      });
+
+      ['dragenter', 'dragover'].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('is-dragover');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('is-dragover');
+        });
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer?.files;
+        if (!files || !files.length) return;
+
+        const dt = new DataTransfer();
+        dt.items.add(files[0]);
+        fileInput.files = dt.files;
+
+        handleFile(files[0]);
+      });
+
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files?.[0] || null;
+        if (file) {
+          handleFile(file);
+        }
+      });
+
+      changeBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetDeleteFlag();
+        openPicker();
+      });
+
+      removeBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        fileInput.value = '';
+        setDeleteFlag();
+        showEmpty();
+      });
+    });
+  </script>
+
+  <script>
     window.__initEntrepriseAdressePlaces = function() {
       const input = document.getElementById('adresse-autocomplete');
       if (!input || !window.google?.maps?.places) return;
 
-      // Champs Symfony
       const idAdr   = {{ form.adresse.vars.id|json_encode|raw }};
       const idCp    = {{ form.codePostal.vars.id|json_encode|raw }};
       const idVille = {{ form.ville.vars.id|json_encode|raw }};
@@ -614,7 +868,6 @@
         return c ? (c.long_name || c.short_name || '') : '';
       }
 
-      // ✅ Set value for <input> OR <select>
       function setFieldValue(el, value){
         if (!el || !value) return;
         const v = String(value).trim();
@@ -622,16 +875,13 @@
 
         const tag = (el.tagName || '').toLowerCase();
         if (tag === 'select') {
-          // try match by option text first, then by value
           const opts = Array.from(el.options || []);
           let found = opts.find(o => (o.textContent || '').trim().toLowerCase() === v.toLowerCase());
           if (!found) found = opts.find(o => (o.value || '').trim().toLowerCase() === v.toLowerCase());
           if (found) {
             el.value = found.value;
             el.dispatchEvent(new Event('change', { bubbles: true }));
-            return;
           }
-          // if select doesn't contain it, we leave it untouched (better than wrong value)
           return;
         }
 
@@ -640,8 +890,9 @@
         el.dispatchEvent(new Event('change', { bubbles: true }));
       }
 
-      // Mini map
-      let map = null, marker = null;
+      let map = null;
+      let marker = null;
+
       function resetMiniMap(){
         const wrap = document.getElementById('entreprise-mini-map');
         if (!wrap) return;
@@ -651,8 +902,10 @@
             <span class="small">Sélectionne une adresse pour afficher l’emplacement</span>
           </div>
         `;
-        map = null; marker = null;
+        map = null;
+        marker = null;
       }
+
       function renderMiniMap(latLng){
         const wrap = document.getElementById('entreprise-mini-map');
         if (!wrap || !window.google?.maps || !latLng) return;
@@ -667,12 +920,8 @@
         marker = new google.maps.Marker({ map, position: latLng });
       }
 
-      // ✅ Autoriser la saisie "Nom de société" : on passe en establishment
-      // - l'utilisateur peut taper "Orange Montpellier" et choisir un résultat
-      // - si Google renvoie une adresse, on remplit les champs adresse/CP/ville/pays/dpt/région
-      // - et on peut aussi auto-remplir la raison sociale avec place.name (optionnel)
       const ac = new google.maps.places.Autocomplete(input, {
-        types: ['establishment'], // 👈 société / lieu
+        types: ['establishment'],
         componentRestrictions: { country: ['fr'] },
         fields: ['name','formatted_address','address_components','geometry'],
       });
@@ -681,14 +930,10 @@
         const place = ac.getPlace();
         if (!place) return;
 
-        // ✅ Remplir la raison sociale avec le nom de l’établissement sélectionné
-        // - si champ disabled (locked), on ne touche pas
-        // - sinon on remplit TOUJOURS (car tu tapes le nom de société ici)
         if ($raison && place.name && !$raison.disabled) {
           const current = ($raison.value || '').trim();
           const typedInSearch = (input.value || '').trim();
 
-          // si l’utilisateur n’a rien mis, ou si la valeur actuelle ressemble à ce qu’il vient de chercher, on remplit
           if (!current || current === typedInSearch) {
             $raison.value = place.name;
             $raison.dispatchEvent(new Event('input', { bubbles: true }));
@@ -716,9 +961,18 @@
 
         const street = [streetNumber, route].filter(Boolean).join(' ').trim();
 
-        if ($adr && street)  { $adr.value = street;  $adr.dispatchEvent(new Event('input', { bubbles:true })); }
-        if ($cp && postal)   { $cp.value = postal;   $cp.dispatchEvent(new Event('input', { bubbles:true })); }
-        if ($ville && locality){ $ville.value = locality; $ville.dispatchEvent(new Event('input', { bubbles:true })); }
+        if ($adr && street) {
+          $adr.value = street;
+          $adr.dispatchEvent(new Event('input', { bubbles:true }));
+        }
+        if ($cp && postal) {
+          $cp.value = postal;
+          $cp.dispatchEvent(new Event('input', { bubbles:true }));
+        }
+        if ($ville && locality) {
+          $ville.value = locality;
+          $ville.dispatchEvent(new Event('input', { bubbles:true }));
+        }
 
         setFieldValue($pays, country);
         setFieldValue($dept, departement);
@@ -730,7 +984,6 @@
         }
       });
 
-      // Clear button
       const btnClear = document.getElementById('btn-clear-address');
       btnClear?.addEventListener('click', () => {
         input.value = '';
@@ -741,7 +994,6 @@
     };
   </script>
 
-  {# ✅ Google Places: utilise ta clé twig existante googleMapsBrowserKey #}
   <script
     src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&callback=__initEntrepriseAdressePlaces"
     async defer

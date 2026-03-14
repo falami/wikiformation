@@ -115,6 +115,9 @@ class Entreprise
     #[ORM\ManyToOne(inversedBy: 'entreprises')]
     private ?Utilisateur $representant = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $logo = null;
+
     public function __construct()
     {
         $this->inscriptions = new ArrayCollection();
@@ -561,6 +564,18 @@ class Entreprise
     public function setRepresentant(?Utilisateur $representant): static
     {
         $this->representant = $representant;
+
+        return $this;
+    }
+
+    public function getLogo(): ?string
+    {
+        return $this->logo;
+    }
+
+    public function setLogo(?string $logo): static
+    {
+        $this->logo = $logo;
 
         return $this;
     }
