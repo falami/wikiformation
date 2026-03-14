@@ -1,74 +1,305 @@
+{# templates/reset_password/email.html.twig #}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Réinitialisation du mot de passe</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            background: #007bff;
-            color: white;
-            text-align: center;
-            padding: 15px;
-            border-radius: 8px 8px 0 0;
-        }
-        .content {
-            padding: 20px;
-            text-align: center;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 20px;
-            margin: 20px 0;
-            background: #28a745;
-            color: white;
-            text-decoration: none;
-            font-size: 16px;
-            border-radius: 5px;
-        }
-        .footer {
-            margin-top: 20px;
-            font-size: 14px;
-            color: #777;
-            text-align: center;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Réinitialisation de votre mot de passe</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #f2f6fa;
+      margin: 0;
+      padding: 0;
+      color: #333;
+      line-height: 1.6;
+      -webkit-text-size-adjust: 100%;
+    }
 
-        body {
-            background-color: #233342;
-            color: white;
-        }
-    </style>
+    .container {
+      width: 100%;
+      max-width: 600px;
+      margin: 30px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+
+    .header {
+      background: #0f1b28;
+      color: #ffffff;
+      padding: 25px 20px;
+      text-align: center;
+    }
+
+    .header img {
+      display: block;
+      margin: 0 auto 15px;
+      border-radius: 10px;
+    }
+
+    .header h2 {
+      font-size: 20px;
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .content {
+      padding: 25px 30px;
+      text-align: center;
+    }
+
+    h3 {
+      color: #0f1b28;
+      font-size: 22px;
+      margin: 0 0 12px 0;
+      font-weight: 600;
+    }
+
+    p {
+      font-size: 15px;
+      color: #555;
+      margin: 0 0 14px 0;
+    }
+
+    .details {
+      display: inline-block;
+      text-align: left;
+      background: #f8fbff;
+      border: 1px solid #e8eef5;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 10px auto 6px auto;
+      max-width: 460px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .details p {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #444;
+    }
+
+    .label {
+      color: #6b7b8e;
+    }
+
+    .value {
+      font-weight: 600;
+      color: #0f1b28;
+      word-break: break-word;
+    }
+
+    .note {
+      margin: 14px auto 0 auto;
+      max-width: 460px;
+      text-align: left;
+      background: #fff7e6;
+      border: 1px solid #ffe1a6;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-sizing: border-box;
+      color: #6a4a00;
+      font-size: 13.5px;
+    }
+
+    .note ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+
+    .note li {
+      margin: 4px 0;
+    }
+
+    .button-wrapper {
+      text-align: center;
+      margin: 22px 0 8px 0;
+    }
+
+    .button {
+      display: inline-block;
+      background-color: #0f1b28;
+      color: #fff !important;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 30px;
+      font-weight: 600;
+      box-sizing: border-box;
+    }
+
+    .small {
+      font-size: 12.5px;
+      color: #777;
+      word-break: break-word;
+      margin-top: 12px;
+      text-align: left;
+      max-width: 460px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .small a {
+      color: #0f1b28;
+      text-decoration: underline;
+    }
+
+    .footer {
+      background: #f8f9fa;
+      text-align: center;
+      padding: 15px;
+      font-size: 12px;
+      color: #888;
+      border-top: 1px solid #e4e4e4;
+    }
+
+    .footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        margin: 10px;
+        border-radius: 8px;
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .header h2 {
+        font-size: 18px;
+      }
+
+      .button {
+        width: 100%;
+        padding: 14px 0;
+        font-size: 17px;
+      }
+
+      .details {
+        padding: 14px;
+      }
+    }
+
+    .preheader {
+      display: none !important;
+      visibility: hidden;
+      opacity: 0;
+      color: transparent;
+      height: 0;
+      width: 0;
+      overflow: hidden;
+      mso-hide: all;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>Réinitialisation du mot de passe</h2>
-        </div>
-        <div class="content">
-            <p>Bonjour,</p>
-            <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe :</p>
-            <a href="{{ resetTokenUrl }}" class="button">Réinitialiser mon mot de passe</a>
-            <p>Ce lien expirera dans <strong>{{ expiryMessageKey|trans(expiryMessageData, 'ResetPasswordBundle') }}</strong>.</p>
-            <p>Si vous n'avez pas fait cette demande, vous pouvez ignorer cet email.</p>
-        </div>
-        <div class="footer">
-            <p>&copy; {{ "now"|date("Y") }} Wiki Formation - Tous droits réservés.</p>
-        </div>
+
+  <div class="preheader">
+    Demande de réinitialisation de votre mot de passe{% if entite is defined and entite and entite.nom is defined and entite.nom %} sur {{ entite.nom }}{% else %} sur Wiki Formation{% endif %}.
+  </div>
+
+  <div class="container">
+    <div class="header">
+      {% if entite is defined and entite and entite.logo is defined and entite.logo %}
+        <img
+          src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}"
+          alt="Logo {{ entite.nom }}"
+          width="150"
+          style="display:block;margin:0 auto 15px auto;max-width:120px;height:auto;border-radius:10px;"
+        >
+      {% else %}
+        <img
+          src="https://wikiformation.fr/dist/img/vitrine/logo-blanc-wikiformation.png"
+          alt="Logo Wiki Formation"
+          width="150"
+          style="display:block;margin:0 auto 15px auto;max-width:120px;height:auto;"
+        >
+      {% endif %}
+
+      <h2>Réinitialisation du mot de passe</h2>
     </div>
+
+    <div class="content">
+      <h3>Vous avez demandé un nouveau mot de passe 🔐</h3>
+
+      <p>
+        Bonjour{% if user is defined and user.prenom is defined and user.prenom %} <strong>{{ user.prenom }}</strong>{% endif %},
+      </p>
+
+      <p>
+        Nous avons reçu une demande de réinitialisation de votre mot de passe
+        {% if entite is defined and entite and entite.nom is defined and entite.nom %}
+          pour votre compte sur <strong>{{ entite.nom }}</strong>.
+        {% else %}
+          pour votre compte.
+        {% endif %}
+      </p>
+
+      <div class="details">
+        {% if entite is defined and entite and entite.nom is defined and entite.nom %}
+          <p><span class="label">Espace&nbsp;:</span> <span class="value">{{ entite.nom }}</span></p>
+        {% endif %}
+        {% if user is defined and user.email is defined and user.email %}
+          <p><span class="label">Adresse e-mail&nbsp;:</span> <span class="value">{{ user.email }}</span></p>
+        {% endif %}
+        {% if expiresAt is defined and expiresAt %}
+          <p><span class="label">Expiration du lien&nbsp;:</span> <span class="value">{{ expiresAt|date('d/m/Y à H:i') }}</span></p>
+        {% endif %}
+      </div>
+
+      <div class="button-wrapper">
+        <a href="{{ resetUrl }}" class="button" target="_blank" rel="noopener noreferrer">
+          Réinitialiser mon mot de passe
+        </a>
+      </div>
+
+      <div class="note">
+        <strong>Important :</strong>
+        <ul>
+          <li>Ce lien est personnel et ne doit pas être partagé.</li>
+          {% if expiresAt is defined and expiresAt %}
+            <li>Il expire le <strong>{{ expiresAt|date('d/m/Y à H:i') }}</strong>.</li>
+          {% endif %}
+          <li>Si vous n’êtes pas à l’origine de cette demande, vous pouvez ignorer cet email.</li>
+        </ul>
+      </div>
+
+      <div class="small">
+        Si le bouton ne fonctionne pas, copiez/collez ce lien dans votre navigateur :<br>
+        <a href="{{ resetUrl }}" target="_blank" rel="noopener noreferrer">{{ resetUrl }}</a>
+      </div>
+
+      <p style="margin-top:16px;">
+        Merci,<br>
+        L’équipe
+        <strong>
+          {% if entite is defined and entite and entite.nom is defined and entite.nom %}
+            {{ entite.nom }}
+          {% else %}
+            Wiki Formation
+          {% endif %}
+        </strong>
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>
+        &copy; {{ "now"|date("Y") }}
+        {% if entite is defined and entite and entite.nom is defined and entite.nom %}
+          {{ entite.nom }}
+        {% else %}
+          Wiki Formation
+        {% endif %}
+        <br>
+        <a href="https://wikiformation.fr">wikiformation.fr</a> — contact@wikiformation.fr
+      </p>
+    </div>
+  </div>
+
 </body>
 </html>
-

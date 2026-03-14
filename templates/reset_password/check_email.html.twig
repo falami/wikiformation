@@ -1,41 +1,192 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Email de réinitialisation envoyé{% endblock %}{% block stylesheets %}
-     <!-- ===============================================-->
-    <!--    Stylesheets-->
-    <!-- ===============================================-->
+{% block title %}Email de réinitialisation envoyé{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <style>
+        body{
+            min-height:100vh;
+            background:
+                radial-gradient(circle at top left, rgba(255,193,7,.12), transparent 30%),
+                radial-gradient(circle at bottom right, rgba(15,27,40,.18), transparent 35%),
+                linear-gradient(135deg, #0f1b28 0%, #233342 100%);
+            color:#fff;
+        }
 
-            body {
-                background-color: #233342;
-                color: white;
+        .reset-shell{
+            min-height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:32px 16px;
+        }
+
+        .reset-card{
+            width:100%;
+            max-width:640px;
+            border:none;
+            border-radius:22px;
+            overflow:hidden;
+            background:rgba(255,255,255,.98);
+            box-shadow:0 25px 60px rgba(0,0,0,.18);
+        }
+
+        .reset-card-header{
+            background:linear-gradient(135deg, #198754 0%, #157347 100%);
+            color:#fff;
+            text-align:center;
+            padding:24px 20px;
+        }
+
+        .reset-card-header .icon-wrap{
+            width:72px;
+            height:72px;
+            margin:0 auto 14px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:rgba(255,255,255,.16);
+            font-size:30px;
+        }
+
+        .reset-card-body{
+            padding:32px 30px;
+            color:#233342;
+        }
+
+        .reset-title{
+            font-size:1.75rem;
+            font-weight:700;
+            margin-bottom:8px;
+            text-align:center;
+            color:#0f1b28;
+        }
+
+        .reset-subtitle{
+            text-align:center;
+            color:#6c757d;
+            margin-bottom:24px;
+        }
+
+        .info-box{
+            background:#f8fbff;
+            border:1px solid #e4edf6;
+            border-radius:16px;
+            padding:18px 18px;
+            margin-bottom:20px;
+        }
+
+        .info-box p:last-child{
+            margin-bottom:0;
+        }
+
+        .note-box{
+            background:#fff7e6;
+            border:1px solid #ffe1a6;
+            color:#6a4a00;
+            border-radius:16px;
+            padding:16px 18px;
+            margin-bottom:24px;
+        }
+
+        .reset-actions{
+            display:flex;
+            flex-wrap:wrap;
+            gap:12px;
+            justify-content:center;
+        }
+
+        .btn-reset-primary{
+            background:#0f1b28;
+            border-color:#0f1b28;
+            color:#fff;
+            border-radius:999px;
+            padding:12px 20px;
+            font-weight:600;
+        }
+
+        .btn-reset-primary:hover{
+            background:#1a2f45;
+            border-color:#1a2f45;
+            color:#fff;
+        }
+
+        .btn-reset-secondary{
+            border-radius:999px;
+            padding:12px 20px;
+            font-weight:600;
+        }
+
+        @media (max-width: 576px){
+            .reset-card-body{
+                padding:24px 18px;
             }
-        </style>
+
+            .reset-actions{
+                flex-direction:column;
+            }
+
+            .reset-actions .btn{
+                width:100%;
+            }
+        }
+    </style>
 {% endblock %}
 
 {% block body %}
-<div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="col-md-6">
-        <div class="card shadow-lg">
-            <div class="card-header bg-success text-white text-center">
-                <h4><i class="bi bi-envelope-check"></i> Email envoyé</h4>
+<div class="reset-shell">
+    <div class="reset-card">
+        <div class="reset-card-header">
+            <div class="icon-wrap">
+                <i class="bi bi-envelope-check-fill"></i>
             </div>
-            <div class="card-body text-center">
-                <p class="lead">
-                    📩 Si un compte correspond à votre email, un message contenant un lien de réinitialisation vous a été envoyé.
+            <h1 class="h4 mb-0">Email envoyé</h1>
+        </div>
+
+        <div class="reset-card-body">
+            <div class="reset-title">Vérifiez votre boîte mail</div>
+            <p class="reset-subtitle">
+                Pour des raisons de sécurité, nous n’indiquons jamais si une adresse e-mail existe ou non dans notre système.
+            </p>
+
+            {% include 'flagMessage.html.twig' ignore missing %}
+
+            <div class="info-box">
+                <p class="mb-3">
+                    📩 Si un compte correspond à l’adresse e-mail saisie, un message contenant un lien de réinitialisation vient d’être envoyé.
                 </p>
-                <p>
-                    Ce lien expirera dans <strong>{{ resetToken.expirationMessageKey|trans(resetToken.expirationMessageData, 'ResetPasswordBundle') }}</strong>.
+
+                <p class="mb-0">
+                    {% if tokenLifetimeHours is defined and tokenLifetimeHours %}
+                        Ce lien expirera dans
+                        <strong>
+                            {{ tokenLifetimeHours }}
+                            heure{% if tokenLifetimeHours > 1 %}s{% endif %}
+                        </strong>.
+                    {% else %}
+                        Ce lien est valable pour une durée limitée.
+                    {% endif %}
                 </p>
-                <p>
-                    Si vous ne recevez pas d'email, vérifiez votre dossier spam ou <a href="{{ path('app_forgot_password_request') }}" class="text-primary fw-bold">essayez à nouveau</a>.
-                </p>
-                <div class="d-flex justify-content-center gap-3 mt-4">
-                    <a href="{{ path('app_forgot_password_request') }}" class="btn btn-warning"><i class="bi bi-arrow-clockwise"></i> Réessayer</a>
-                    <a href="{{ path('app_login') }}" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Retour à la connexion</a>
-                </div>
+            </div>
+
+            <div class="note-box">
+                <strong>Conseil :</strong>
+                si vous ne recevez pas d’email dans quelques minutes, pensez à vérifier vos courriers indésirables ou à refaire une demande.
+            </div>
+
+            <div class="reset-actions">
+                <a href="{{ path('app_forgot_password_request') }}" class="btn btn-warning btn-reset-secondary">
+                    <i class="bi bi-arrow-clockwise me-1"></i>
+                    Réessayer
+                </a>
+
+                <a href="{{ path('app_login') }}" class="btn btn-reset-primary">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>
+                    Retour à la connexion
+                </a>
             </div>
         </div>
     </div>

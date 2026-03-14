@@ -1,56 +1,351 @@
-
 {% extends 'base.html.twig' %}
 
-{% block title %}Réinitialisation du mot de passe{% endblock %}
+{% block title %}
+    Réinitialisation du mot de passe
+{% endblock %}
+
 {% block stylesheets %}
-     <!-- ===============================================-->
-    <!--    Stylesheets-->
-    <!-- ===============================================-->
+    {{ parent() }}
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <style>
 
+    <style>
         body {
-            background-color: #0f1b28;
-            color: white;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(255,193,7,.10), transparent 30%),
+                radial-gradient(circle at bottom right, rgba(255,255,255,.05), transparent 25%),
+                linear-gradient(135deg, #0f1b28 0%, #233342 100%);
+            color: #fff;
+        }
+
+        .reset-shell {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+
+        .reset-card {
+            width: 100%;
+            max-width: 480px;
+            border: none;
+            border-radius: 22px;
+            background: rgba(255,255,255,.98);
+            box-shadow: 0 25px 60px rgba(0,0,0,.18);
+            overflow: hidden;
+        }
+
+        .reset-card-body {
+            padding: 32px 28px;
+        }
+
+        .brand-wrap {
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .brand-logo {
+            width: 96px;
+            border-radius: 14px;
+            box-shadow: 0 8px 20px rgba(0,0,0,.10);
+            background: #fff;
+            padding: 8px;
+        }
+
+        .brand-name {
+            margin-top: 12px;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #0f1b28;
+        }
+
+        .reset-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f1b28;
+        }
+
+        .reset-subtitle {
+            text-align: center;
+            color: #6c757d;
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #233342;
+        }
+
+        .input-group-text {
+            border-radius: 14px 0 0 14px;
+            background: #f8fbff;
+            border-color: #dbe7f3;
+            color: #0f1b28;
+        }
+
+        .form-control {
+            border-radius: 0 14px 14px 0;
+            min-height: 48px;
+            border-color: #dbe7f3;
+        }
+
+        .form-control:focus {
+            border-color: #0f1b28;
+            box-shadow: 0 0 0 .2rem rgba(15,27,40,.12);
+        }
+
+        .btn-reset {
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 13px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0f1b28 0%, #1f3449 100%);
+            color: #fff;
+            box-shadow: 0 12px 24px rgba(15,27,40,.18);
+        }
+
+        .btn-reset:hover {
+            background: linear-gradient(135deg, #132537 0%, #294259 100%);
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .back-link a {
+            color: #6c757d;
+            text-decoration: none;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        .help-box {
+            background: #f8fbff;
+            border: 1px solid #e4edf6;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 20px;
+            color: #52606d;
+        }
+
+        .password-rules {
+            background: #fff;
+            border: 1px solid #e4edf6;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 18px;
+            font-size: .9rem;
+        }
+
+        .password-rules ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .password-rules li {
+            margin: 4px 0;
+            color: #6c757d;
+        }
+
+        .password-rules li.valid {
+            color: #198754;
+        }
+
+        .password-strength {
+            height: 6px;
+            background: #eee;
+            border-radius: 10px;
+            margin-top: 8px;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 10px;
+            transition: all .3s ease;
         }
     </style>
 {% endblock %}
 
 {% block body %}
-<div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%;">
-        <div class="text-center">
-            <img class="mb-3 rounded" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}" alt="Logo" style="width: 100px;">
-            <h4 class="text-warning">Wikiformation</h4>
-        </div>
+<div class="reset-shell">
+    <div class="reset-card">
+        <div class="reset-card-body">
 
-        <h5 class="text-center mb-3">Définir un nouveau mot de passe</h5>
-        <p class="text-center text-muted">Entrez votre nouveau mot de passe ci-dessous pour réinitialiser votre compte.</p>
+            <div class="brand-wrap">
+                <img
+                    class="brand-logo"
+                    src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}"
+                    alt="Logo Wikiformation"
+                >
+                <h1 class="brand-name">Wikiformation</h1>
+            </div>
 
-        {% for message in app.flashes('reset_password_success') %}
-            <div class="alert alert-success">{{ message }}</div>
-        {% endfor %}
+            <div class="reset-title">Définir un nouveau mot de passe</div>
 
-        {{ form_start(resetForm) }}
-            <div class="mb-3">
-                <label for="password" class="form-label">Nouveau mot de passe</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                    {{ form_widget(resetForm.password, { 'attr': {'class': 'form-control', 'placeholder': 'Nouveau mot de passe'} }) }}
+            <p class="reset-subtitle">
+                Choisissez un mot de passe sécurisé pour votre compte.
+            </p>
+
+            {% include 'flagMessage.html.twig' ignore missing %}
+
+            {% for message in app.flashes('reset_password_success') %}
+                <div class="alert alert-success rounded-4">
+                    {{ message }}
                 </div>
+            {% endfor %}
+
+            {{ form_start(resetForm, { attr: { novalidate: 'novalidate' } }) }}
+
+                <div class="help-box">
+                    Votre mot de passe doit respecter les critères ci-dessous.
+                </div>
+
+                <div class="password-rules">
+                    <strong>Critères :</strong>
+
+                    <ul>
+                        <li id="rule-length"><i class="bi bi-circle"></i> Minimum 8 caractères</li>
+                        <li id="rule-upper"><i class="bi bi-circle"></i> Une majuscule</li>
+                        <li id="rule-lower"><i class="bi bi-circle"></i> Une minuscule</li>
+                        <li id="rule-number"><i class="bi bi-circle"></i> Un chiffre</li>
+                        <li id="rule-special"><i class="bi bi-circle"></i> Un caractère spécial</li>
+                    </ul>
+
+                    <div class="password-strength">
+                        <div class="password-strength-bar" id="password-strength-bar"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    {{ form_label(resetForm.password.first, null, { label_attr: { class: 'form-label' } }) }}
+
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-lock"></i>
+                        </span>
+
+                        {{ form_widget(resetForm.password.first, {
+                            attr: {
+                                class: 'form-control',
+                                placeholder: 'Nouveau mot de passe',
+                                autocomplete: 'new-password'
+                            }
+                        }) }}
+                    </div>
+
+                    {{ form_errors(resetForm.password.first) }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form_label(resetForm.password.second, null, { label_attr: { class: 'form-label' } }) }}
+
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-shield-check"></i>
+                        </span>
+
+                        {{ form_widget(resetForm.password.second, {
+                            attr: {
+                                class: 'form-control',
+                                placeholder: 'Confirmer le mot de passe',
+                                autocomplete: 'new-password'
+                            }
+                        }) }}
+                    </div>
+
+                    {{ form_errors(resetForm.password.second) }}
+                </div>
+
+                <button class="btn btn-reset">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    Réinitialiser mon mot de passe
+                </button>
+
+            {{ form_end(resetForm) }}
+
+            <div class="back-link">
+                <small>
+                    <a href="{{ path('app_login') }}">
+                        <i class="bi bi-arrow-left"></i>
+                        Retour à la connexion
+                    </a>
+                </small>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100">Réinitialiser</button>
-
-            <div class="text-center mt-3">
-                <small><a href="{{ path('app_login') }}" class="text-muted">Retour à la connexion</a></small>
-            </div>
-        {{ form_end(resetForm) }}
+        </div>
     </div>
 </div>
 {% endblock %}
 
+{% block javascripts %}
+{{ parent() }}
 
+<script>
+document.addEventListener("DOMContentLoaded", function(){
 
+    const passwordInput = document.querySelector("#{{ resetForm.password.first.vars.id }}");
+    const strengthBar = document.getElementById("password-strength-bar");
 
+    const rules = {
+        length: document.getElementById("rule-length"),
+        upper: document.getElementById("rule-upper"),
+        lower: document.getElementById("rule-lower"),
+        number: document.getElementById("rule-number"),
+        special: document.getElementById("rule-special")
+    };
+
+    passwordInput.addEventListener("input", function(){
+
+        const value = passwordInput.value;
+        let score = 0;
+
+        score += toggleRule(rules.length, value.length >= 8);
+        score += toggleRule(rules.upper, /[A-Z]/.test(value));
+        score += toggleRule(rules.lower, /[a-z]/.test(value));
+        score += toggleRule(rules.number, /[0-9]/.test(value));
+        score += toggleRule(rules.special, /[^A-Za-z0-9]/.test(value));
+
+        updateStrength(score);
+    });
+
+    function toggleRule(element, valid){
+        const icon = element.querySelector("i");
+
+        if(valid){
+            element.classList.add("valid");
+            icon.className = "bi bi-check-circle-fill";
+            return 1;
+        } else {
+            element.classList.remove("valid");
+            icon.className = "bi bi-circle";
+            return 0;
+        }
+    }
+
+    function updateStrength(score){
+        const percent = (score / 5) * 100;
+
+        strengthBar.style.width = percent + "%";
+
+        if(score <= 2){
+            strengthBar.style.background = "#dc3545";
+        }
+        else if(score <= 4){
+            strengthBar.style.background = "#ffc107";
+        }
+        else{
+            strengthBar.style.background = "#198754";
+        }
+    }
+
+});
+</script>
+{% endblock %}
