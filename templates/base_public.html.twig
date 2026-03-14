@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    {# ——— Title & Description (surchargables) ——— #}
+    {# --- Title & Description (surchargables) --- #}
     <title>{% block title %}{{ brand.name }} - Plateforme de réservation de formation pour devenir Formateur{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -14,7 +14,7 @@
     <meta name="description" content="{% block meta_description %}Wiki Formation est la plateforme complète pour les organisme de formation : gérez votre formation, vos stagiaires, vos sessions et vos financements.{% endblock %}">
     <meta name="author" content="{{ brand.name }}">
 
-    {# ——— Robots: noindex si recherche interne ?q= ——— #}
+    {# --- Robots: noindex si recherche interne ?q= --- #}
     {% set has_query_search = app.request.query.has('q') and app.request.query.get('q') is not empty %}
     {% if has_query_search %}
       <meta name="robots" content="noindex, nofollow">
@@ -22,11 +22,11 @@
       <meta name="robots" content="index, follow">
     {% endif %}
 
-    {# ——— Canonical absolu sans query ——— #}
+    {# --- Canonical absolu sans query --- #}
     {% set canonical_url = absolute_url(app.request.pathInfo) %}
     <link rel="canonical" href="{{ canonical_url }}">
 
-    {# ——— Hreflang absolus FR/EN (+ x-default) ——— #}
+    {# --- Hreflang absolus FR/EN (+ x-default) --- #}
     {% set route   = app.request.attributes.get('_route') %}
     {% set params  = app.request.attributes.get('_route_params')|default({}) %}
     {% set supported_locales = ['fr','en'] %}
@@ -37,7 +37,7 @@
       <link rel="alternate" hreflang="x-default" href="{{ absolute_url(path(route, params|merge({'_locale':'fr'}))) }}">
     {% endif %}
 
-    {# ——— Social / Open Graph ——— #}
+    {# --- Social / Open Graph --- #}
     {% set og_title = block('og_title') is defined ? block('og_title') : block('title') %}
     {% set og_desc  = block('og_desc')  is defined ? block('og_desc')  : block('meta_description') %}
     {% set og_img   = block('og_image') is defined ? block('og_image') : absolute_url(asset('dist/img/vitrine/logo-wikiformation.png')) %}
@@ -55,15 +55,15 @@
     <meta name="twitter:description" content="{{ og_desc|striptags }}">
     <meta name="twitter:image" content="{{ og_img }}">
 
-    {# ——— Favicons ——— #}
+    {# --- Favicons --- #}
       <link rel="icon" type="image/x-icon" href="{{ asset('uploads/photos/entite/favicon/favicon-wikiformation.png')}}">
     <link rel="apple-touch-icon" href="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}">
 
-    {# ——— Preconnect / Perf ——— #}
+    {# --- Preconnect / Perf --- #}
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    {# ——— CSS vendors ——— #}
+    {# --- CSS vendors --- #}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
     <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -71,7 +71,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
 
-    {# ——— Styles globaux ——— #}
+    {# --- Styles globaux --- #}
     <style>
       :root{ --theme-color-principal:#0f1b28; --theme-color-secondaire:#0dcaf0; }
       html { scroll-behavior: smooth; }
@@ -116,10 +116,10 @@
       }
     </style>
 
-    {# ——— Cookie consent (ton script) ——— #}
+    {# --- Cookie consent (ton script) --- #}
     <script src="{{ asset('dist/js/cookie-consent.js') }}"></script>
 
-    {# ——— Données structurées JSON-LD ——— #}
+    {# --- Données structurées JSON-LD --- #}
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -157,10 +157,10 @@
     }
     </script>
 
-    {# ——— Bloc CSS page ——— #}
+    {# --- Bloc CSS page --- #}
     {% block stylesheets %}{% endblock %}
 
-    {# ——— Google Analytics (avec consentement) ——— #}
+    {# --- Google Analytics (avec consentement) --- #}
     {% if app.request.cookies.get('cookieConsent') == 'accepted' %}
       <script async src="https://www.googletagmanager.com/gtag/js?id=G-1WB960CZ37"></script>
       <script>
@@ -180,16 +180,16 @@
     <main>
       <div class="content">
         {% block body %}
-          <h1 class="visually-hidden">{{ brand.name }} — Plateforme gestion administrative</h1>
+          <h1 class="visually-hidden">{{ brand.name }} - Plateforme gestion administrative</h1>
           <p class="visually-hidden">Gestion des formations d'un organisme de formation.</p>
         {% endblock %}
       </div>
     </main>
 
-    {# ——————— JS vendors ——————— #}
+    {# ------- JS vendors ------- #}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
-    {# ——————— Footer ——————— #}
+    {# ------- Footer ------- #}
     <footer class="footer-modern text-light pt-5 pb-3 mt-5">
       <div class="container">
         <div class="row gy-4">
@@ -238,12 +238,12 @@
         <hr class="border-secondary mt-5 mb-3">
 
         <div class="text-center small text-light-50">
-          ©️ {{ "now"|date("Y") }} <span class="fw-semibold text-theme-secondaire">{{ brand.name }}</span> — {{ 'footer.copyright.rights'|trans }}
+          ©️ {{ "now"|date("Y") }} <span class="fw-semibold text-theme-secondaire">{{ brand.name }}</span> - {{ 'footer.copyright.rights'|trans }}
         </div>
       </div>
     </footer>
 
-    {# ——————— JS page ——————— #}
+    {# ------- JS page ------- #}
     {% block javascripts %}{% endblock %}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
