@@ -252,4 +252,24 @@ class UtilisateurEntiteRepository extends ServiceEntityRepository
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
+
+
+    public function countBillableActiveForEntite(
+        Entite $entite,
+        ?int $excludeUtilisateurEntiteId = null
+    ): int {
+        $billableRoles = [
+            UtilisateurEntite::TENANT_ADMIN,
+            UtilisateurEntite::TENANT_DIRIGEANT,
+            UtilisateurEntite::TENANT_FORMATEUR,
+            UtilisateurEntite::TENANT_COMMERCIAL,
+            UtilisateurEntite::TENANT_OF,
+        ];
+
+        return $this->countActiveForAnyRoleForEntite(
+            $entite,
+            $billableRoles,
+            $excludeUtilisateurEntiteId
+        );
+    }
 }

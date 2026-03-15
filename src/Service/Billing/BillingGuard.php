@@ -28,7 +28,7 @@ final class BillingGuard
             return;
         }
 
-        $current = $this->ueRepo->countActiveForEntite($entite);
+        $current = $this->ueRepo->countBillableActiveForEntite($entite);
         if ($current >= $max) {
             throw new BillingQuotaExceededException(
                 'max_utilisateurs',
@@ -82,10 +82,16 @@ final class BillingGuard
 
         $wasActive = $currentStatus === UtilisateurEntite::STATUS_ACTIVE;
 
-        // 1) quota global comptes actifs
+        $wasBillableUser = $wasActive && $this->containsBillableUserRole($currentRoles);
+        $willBeBillableUser = $this->containsBillableUserRole($futureRoles);
+
+        // 1) quota global comptes actifs "utilisateurs"
+        // On ne contrôle max_utilisateurs QUE si la transition crée réellement
+        // un compte utilisateur facturable.
         $maxUsers = $this->entitlement->limit('max_utilisateurs', $entite);
-        if ($maxUsers !== null && !$wasActive) {
-            $currentActive = $this->ueRepo->countActiveForEntite($entite, $excludeUtilisateurEntiteId);
+        if ($maxUsers !== null && $willBeBillableUser && !$wasBillableUser) {
+            $currentActive = $this->ueRepo->countBillableActiveForEntite($entite, $excludeUtilisateurEntiteId);
+
             if (($currentActive + 1) > $maxUsers) {
                 throw new BillingQuotaExceededException(
                     'max_utilisateurs',
@@ -100,6 +106,12 @@ final class BillingGuard
         foreach ($futureRoles as $role) {
             $alreadyCounted = $wasActive && in_array($role, $currentRoles, true);
             if ($alreadyCounted) {
+                continue;
+            }
+
+            // On ignore volontairement TENANT_STAGIAIRE ici :
+            // il est géré par max_apprenants_an, pas par les seats utilisateurs.
+            if ($role === UtilisateurEntite::TENANT_STAGIAIRE) {
                 continue;
             }
 
@@ -129,7 +141,7 @@ final class BillingGuard
             return;
         }
 
-        $year = (int)date('Y');
+        $year = (int) date('Y');
         $usage = $this->usageRepo->findOneBy([
             'entite' => $entite,
             'year' => $year,
@@ -153,6 +165,15 @@ final class BillingGuard
         $usage->increment($by);
     }
 
+    public function assertCanAddApprenantIfNew(Entite $entite, bool $isNew): void
+    {
+        if (!$isNew) {
+            return;
+        }
+
+        $this->assertCanAddApprenantAndConsume($entite, 1);
+    }
+
     private function filterManagedRoles(array $roles): array
     {
         $allowed = [
@@ -166,19 +187,34 @@ final class BillingGuard
             UtilisateurEntite::TENANT_DIRIGEANT,
         ];
 
-        $roles = array_map(static fn($r) => trim((string)$r), $roles);
-        $roles = array_values(array_unique(array_filter($roles, static fn($r) => in_array($r, $allowed, true))));
+        $roles = array_map(static fn($r) => trim((string) $r), $roles);
+        $roles = array_values(array_unique(array_filter(
+            $roles,
+            static fn($r) => in_array($r, $allowed, true)
+        )));
 
         return $roles;
     }
 
-
-    public function assertCanAddApprenantIfNew(Entite $entite, bool $isNew): void
+    private function containsBillableUserRole(array $roles): bool
     {
-        if (!$isNew) {
-            return;
+        foreach ($roles as $role) {
+            if ($this->isBillableUserRole($role)) {
+                return true;
+            }
         }
 
-        $this->assertCanAddApprenantAndConsume($entite, 1);
+        return false;
+    }
+
+    private function isBillableUserRole(string $role): bool
+    {
+        return in_array($role, [
+            UtilisateurEntite::TENANT_ADMIN,
+            UtilisateurEntite::TENANT_DIRIGEANT,
+            UtilisateurEntite::TENANT_FORMATEUR,
+            UtilisateurEntite::TENANT_COMMERCIAL,
+            UtilisateurEntite::TENANT_OF,
+        ], true);
     }
 }
