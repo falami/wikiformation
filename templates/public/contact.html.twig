@@ -5,251 +5,1182 @@
 {% block meta_description %}{{ 'contact.meta.description'|trans }}{% endblock %}
 
 {% block stylesheets %}
-<style>
-  :root{
-    --glass-bg: rgba(255,255,255,.92);
-    --glass-border: rgba(0,0,0,.06);
-    --glass-shadow: 0 12px 40px rgba(0,0,0,.08);
-    --radius-lg: 22px;
-  }
+    {{ parent() }}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 
-  .hero {
-    position: relative;
-    background: url("{{ asset('dist/img/accueil.jpg') }}") center/cover no-repeat;
-    min-height: 44vh;
-    display: grid; place-items: center;
-    text-align: center;
-  }
-  .hero::after{ content:""; position:absolute; inset:0;
-    background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.35));
-  }
-  .hero-inner{ position:relative; z-index:1; color:#fff; }
+    <style>
+        :root{
+            --bg: #07111d;
+            --bg-2: #0d1726;
+            --bg-3: #101f33;
+            --surface: rgba(255,255,255,.72);
+            --surface-strong: rgba(255,255,255,.88);
+            --surface-dark: rgba(8,17,30,.78);
 
-  .card-glass{
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(6px);
-  }
+            --text: #0f1724;
+            --text-soft: rgba(15,23,36,.70);
+            --text-muted: rgba(15,23,36,.52);
 
-  .contact-stack{ margin-top:-84px; }
+            --white: #ffffff;
+            --line: rgba(15,23,36,.08);
+            --line-strong: rgba(255,255,255,.10);
 
-  /* ===== Floating + icônes ===== */
-  .ff { position: relative; }
-  .ff .fi{ position:absolute; left: .9rem; top: 50%; transform: translateY(-50%); opacity: .65; pointer-events: none; }
-  .form-floating > .form-control,
-  .form-floating > .form-select,
-  .form-floating > textarea.form-control{
-    padding-left: 2.6rem;
-  }
-  .form-floating > label{
-    left: 2.6rem;
-  }
-  @supports (-webkit-touch-callout: none) {
-    .form-floating > label { -webkit-transform-origin: 0 0; }
-  }
+            --gold: #d6b25e;
+            --gold-2: #f0ddb0;
+            --gold-soft: rgba(214,178,94,.14);
 
-  .form-floating textarea.form-control {
-    min-height: 160px;
-    height: 160px;
-    resize: vertical;
-  }
+            --violet: #7c3aed;
+            --cyan: #54c6eb;
+            --success: #16a34a;
+            --danger: #dc2626;
 
-  .btn-primary-dive{
-    border-radius: 999px;
-    padding: .8rem 1.5rem;
-    font-weight: 600;
-  }
+            --shadow-xs: 0 4px 14px rgba(7,17,29,.06);
+            --shadow-sm: 0 12px 30px rgba(7,17,29,.08);
+            --shadow-md: 0 22px 60px rgba(7,17,29,.12);
+            --shadow-xl: 0 40px 100px rgba(7,17,29,.18);
 
-  .meta-chip{
-    display:inline-flex; align-items:center; gap:.45rem;
-    padding:.4rem .75rem; border-radius:999px; font-size:.9rem;
-    background: rgba(13,110,253,.1);
-  }
+            --radius-sm: 16px;
+            --radius-md: 22px;
+            --radius-lg: 30px;
+            --radius-xl: 38px;
 
-  .hp-row{ position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
-</style>
+            --serif: 'Cormorant Garamond', serif;
+            --sans: 'Inter', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+
+        .contact-page{
+            position:relative;
+            min-height:100vh;
+        }
+
+        /* ================= HERO ================= */
+        .contact-hero{
+            position:relative;
+            overflow:hidden;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(124,58,237,.18), transparent 22%),
+                radial-gradient(circle at 85% 25%, rgba(214,178,94,.16), transparent 20%),
+                radial-gradient(circle at 50% 120%, rgba(84,198,235,.10), transparent 30%),
+                linear-gradient(135deg, #07111d 0%, #0c1827 45%, #112238 100%);
+            padding: 5rem 0 11rem;
+        }
+
+        .contact-hero::before{
+            content:"";
+            position:absolute;
+            inset:0;
+            background:
+                linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.25));
+            pointer-events:none;
+        }
+
+        .hero-glow-a,
+        .hero-glow-b,
+        .hero-glow-c{
+            position:absolute;
+            border-radius:50%;
+            filter: blur(18px);
+            pointer-events:none;
+        }
+
+        .hero-glow-a{
+            width:420px;
+            height:420px;
+            left:-120px;
+            top:-90px;
+            background:radial-gradient(circle, rgba(124,58,237,.22) 0%, transparent 68%);
+        }
+
+        .hero-glow-b{
+            width:520px;
+            height:520px;
+            right:-140px;
+            top:-40px;
+            background:radial-gradient(circle, rgba(214,178,94,.20) 0%, transparent 68%);
+        }
+
+        .hero-glow-c{
+            width:380px;
+            height:380px;
+            left:50%;
+            bottom:-180px;
+            transform:translateX(-50%);
+            background:radial-gradient(circle, rgba(84,198,235,.16) 0%, transparent 70%);
+        }
+
+        .hero-inner{
+            position:relative;
+            z-index:2;
+            max-width: 980px;
+            margin: 0 auto;
+            text-align:center;
+            padding: 0 1.25rem;
+        }
+
+        .hero-badge{
+            display:inline-flex;
+            align-items:center;
+            gap:.65rem;
+            padding:.7rem 1.1rem;
+            border-radius:999px;
+            color: var(--gold-2);
+            background: rgba(255,255,255,.05);
+            border:1px solid rgba(255,255,255,.12);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+            font-size:.78rem;
+            font-weight:600;
+            letter-spacing:.12em;
+            text-transform:uppercase;
+            backdrop-filter: blur(10px);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-badge i{
+            color: var(--gold);
+            font-size:.95rem;
+        }
+
+        .hero-title{
+            font-family: var(--serif);
+            font-size: clamp(3.2rem, 7vw, 6rem);
+            line-height: .98;
+            font-weight: 500;
+            letter-spacing: -.03em;
+            color: #fff;
+            margin: 0 0 1.25rem;
+        }
+
+        .hero-title .accent{
+            color: var(--gold-2);
+            font-style: italic;
+        }
+
+        .hero-subtitle{
+            max-width: 760px;
+            margin: 0 auto 2rem;
+            color: rgba(255,255,255,.72);
+            font-size: 1.08rem;
+            line-height: 1.9;
+            font-weight: 400;
+        }
+
+        .hero-kpis{
+            display:flex;
+            justify-content:center;
+            flex-wrap:wrap;
+            gap:.9rem;
+            margin-top: 2.1rem;
+        }
+
+        .hero-kpi{
+            display:inline-flex;
+            align-items:center;
+            gap:.65rem;
+            padding:.8rem 1rem;
+            border-radius:999px;
+            background: rgba(255,255,255,.06);
+            border:1px solid rgba(255,255,255,.10);
+            color: rgba(255,255,255,.86);
+            font-size:.9rem;
+            backdrop-filter: blur(12px);
+        }
+
+        .hero-kpi i{
+            color: var(--gold);
+        }
+
+        .hero-divider{
+            position:absolute;
+            left:0;
+            right:0;
+            bottom:0;
+            z-index:1;
+            line-height:0;
+        }
+
+        /* ================= CONTENT ================= */
+        .contact-shell{
+            position:relative;
+            z-index:3;
+            max-width: 1320px;
+            margin: -110px auto 0;
+        }
+
+        .contact-grid{
+            display:grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+            gap: 1.5rem;
+            align-items:start;
+        }
+
+        /* ================= MAIN CARD ================= */
+        .main-card{
+            position:relative;
+            overflow:hidden;
+            border-radius: var(--radius-xl);
+            background: rgba(255,255,255,.76);
+            border: 1px solid rgba(255,255,255,.55);
+            box-shadow: var(--shadow-xl);
+            backdrop-filter: blur(20px);
+        }
+
+        .main-card::before{
+            content:"";
+            position:absolute;
+            inset:0;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.45), transparent 36%),
+                radial-gradient(circle at top right, rgba(214,178,94,.10), transparent 22%);
+            pointer-events:none;
+        }
+
+        .main-card-head{
+            position:relative;
+            z-index:2;
+            padding: 2.15rem 2.15rem 1.35rem;
+            border-bottom:1px solid var(--line);
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:1rem;
+            flex-wrap:wrap;
+        }
+
+        .main-head-left{
+            display:flex;
+            gap:1rem;
+            align-items:flex-start;
+        }
+
+        .main-icon{
+            width:58px;
+            height:58px;
+            border-radius:18px;
+            background:
+                linear-gradient(135deg, #0d1726 0%, #17283f 100%);
+            color: var(--gold);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:1.2rem;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.08),
+                0 12px 24px rgba(7,17,29,.18);
+            flex-shrink:0;
+        }
+
+        .main-title{
+            margin:0 0 .35rem;
+            font-family: var(--serif);
+            font-size: 2rem;
+            font-weight: 600;
+            line-height: 1.02;
+            letter-spacing: -.02em;
+            color: var(--text);
+        }
+
+        .main-subtitle{
+            margin:0;
+            color: var(--text-soft);
+            line-height: 1.75;
+            font-size: .96rem;
+            max-width: 680px;
+        }
+
+        .response-chip{
+            display:inline-flex;
+            align-items:center;
+            gap:.55rem;
+            padding:.8rem 1rem;
+            border-radius:999px;
+            background: rgba(214,178,94,.10);
+            border: 1px solid rgba(214,178,94,.20);
+            color:#72561d;
+            font-size:.84rem;
+            font-weight:600;
+            white-space:nowrap;
+        }
+
+        .main-card-body{
+            position:relative;
+            z-index:2;
+            padding: 2rem 2.15rem 2.2rem;
+        }
+
+        .flash-wrap{
+            margin-bottom: 1.35rem;
+        }
+
+        /* ================= FORM ================= */
+        .form-section-label{
+            display:flex;
+            align-items:center;
+            gap:.55rem;
+            margin-bottom: 1rem;
+            font-size: .8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: var(--text-muted);
+        }
+
+        .form-grid{
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .field{
+            position:relative;
+        }
+
+        .field-icon{
+            position:absolute;
+            left:1rem;
+            top:1.1rem;
+            color: rgba(15,23,36,.42);
+            font-size: .95rem;
+            z-index:5;
+            pointer-events:none;
+        }
+
+        .field-icon.center{
+            top:50%;
+            transform:translateY(-50%);
+        }
+
+        .field-card{
+            position:relative;
+            border-radius: 20px;
+        }
+
+        .form-floating > .form-control,
+        .form-floating > .form-select{
+            min-height: 62px;
+            border-radius: 20px;
+            border: 1px solid rgba(15,23,36,.10);
+            background: rgba(255,255,255,.70);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+            color: var(--text);
+            font-size: .95rem;
+            padding-left: 2.9rem;
+            transition: .22s ease;
+        }
+
+        .form-floating > textarea.form-control{
+            min-height: 190px;
+            height: 190px;
+            resize: vertical;
+            padding-top: 1.45rem;
+            padding-left: 2.9rem;
+        }
+
+        .form-floating > label{
+            left: 2.9rem;
+            color: #fff;
+            font-size: .88rem;
+        }
+
+        .form-floating > .form-control:focus,
+        .form-floating > .form-select:focus{
+            border-color: rgba(214,178,94,.7);
+            background: rgba(255,255,255,.96);
+            box-shadow:
+                0 0 0 4px rgba(214,178,94,.12),
+                0 18px 36px rgba(214,178,94,.08);
+        }
+
+        .form-errors,
+        .invalid-feedback,
+        .form-error{
+            margin-top: .45rem;
+            padding-left: .15rem;
+            color: var(--danger);
+            font-size: .82rem;
+        }
+
+        .textarea-wrap .field-icon{
+            top: 1.15rem;
+            transform:none;
+        }
+
+        .meta-row{
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1.2rem 0 0;
+        }
+
+        .mini-panel{
+            border-radius: 20px;
+            background: linear-gradient(180deg, rgba(255,255,255,.74), rgba(248,250,252,.86));
+            border:1px solid rgba(15,23,36,.08);
+            padding: 1rem 1rem;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .mini-panel-title{
+            display:flex;
+            align-items:center;
+            gap:.55rem;
+            font-size:.82rem;
+            font-weight:700;
+            color: var(--text);
+            margin-bottom:.35rem;
+        }
+
+        .mini-panel-text{
+            font-size:.86rem;
+            color: var(--text-soft);
+            line-height:1.65;
+            margin:0;
+        }
+
+        .hp-row{
+            position:absolute;
+            left:-10000px;
+            width:1px;
+            height:1px;
+            overflow:hidden;
+        }
+
+        .submit-area{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:1rem;
+            flex-wrap:wrap;
+            margin-top: 1.6rem;
+            padding-top: 1.5rem;
+            border-top:1px solid var(--line);
+        }
+
+        .submit-left{
+            display:flex;
+            align-items:center;
+            gap:.9rem;
+            flex-wrap:wrap;
+        }
+
+        .btn-ultra{
+            position:relative;
+            overflow:hidden;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:.7rem;
+            min-height:56px;
+            padding: 0 1.45rem;
+            border:none;
+            border-radius:999px;
+            color:#fff;
+            font-weight:700;
+            font-size:.94rem;
+            letter-spacing:.01em;
+            background:
+                linear-gradient(135deg, #091220 0%, #12233b 48%, #1a3150 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.10),
+                0 20px 35px rgba(9,18,32,.22);
+            transition: transform .18s ease, box-shadow .22s ease, opacity .2s ease;
+        }
+
+        .btn-ultra::before{
+            content:"";
+            position:absolute;
+            inset:0;
+            background: linear-gradient(135deg, rgba(214,178,94,.32), transparent 55%);
+            opacity:.95;
+        }
+
+        .btn-ultra > *{
+            position:relative;
+            z-index:2;
+        }
+
+        .btn-ultra:hover{
+            transform: translateY(-2px);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,.12),
+                0 26px 42px rgba(9,18,32,.28);
+        }
+
+        .btn-ultra:disabled{
+            opacity:.7;
+            cursor:not-allowed;
+            transform:none;
+        }
+
+        .privacy-note{
+            display:inline-flex;
+            align-items:center;
+            gap:.5rem;
+            color: var(--text-soft);
+            font-size: .85rem;
+        }
+
+        .privacy-note i{
+            color: var(--success);
+        }
+
+        /* ================= SIDEBAR ================= */
+        .side-stack{
+            display:grid;
+            gap:1.2rem;
+            position:sticky;
+            top:1.5rem;
+        }
+
+        .side-card{
+            position:relative;
+            overflow:hidden;
+            border-radius: var(--radius-lg);
+            background:
+                linear-gradient(180deg, rgba(8,17,30,.94), rgba(12,24,40,.96));
+            color:#fff;
+            box-shadow: var(--shadow-md);
+            border:1px solid rgba(255,255,255,.06);
+        }
+
+        .side-card::before{
+            content:"";
+            position:absolute;
+            inset:0;
+            background:
+                radial-gradient(circle at top right, rgba(214,178,94,.14), transparent 24%),
+                linear-gradient(180deg, rgba(255,255,255,.03), transparent);
+            pointer-events:none;
+        }
+
+        .side-card-body{
+            position:relative;
+            z-index:2;
+            padding: 1.7rem;
+        }
+
+        .side-title{
+            display:flex;
+            align-items:center;
+            gap:.65rem;
+            margin:0 0 1.2rem;
+            font-family: var(--serif);
+            font-size: 1.65rem;
+            font-weight: 600;
+            color:#fff;
+            letter-spacing:-.02em;
+        }
+
+        .side-title i{
+            color: var(--gold);
+        }
+
+        .contact-points{
+            display:grid;
+            gap:.9rem;
+        }
+
+        .contact-point{
+            display:flex;
+            gap:.8rem;
+            align-items:flex-start;
+            padding:.95rem;
+            border-radius:18px;
+            background: rgba(255,255,255,.04);
+            border:1px solid rgba(255,255,255,.06);
+        }
+
+        .contact-point-icon{
+            width:42px;
+            height:42px;
+            border-radius:14px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            color: var(--gold);
+            background: rgba(255,255,255,.06);
+            border:1px solid rgba(255,255,255,.08);
+        }
+
+        .contact-point-label{
+            margin:0 0 .15rem;
+            font-size:.72rem;
+            font-weight:700;
+            letter-spacing:.12em;
+            text-transform:uppercase;
+            color: rgba(255,255,255,.42);
+        }
+
+        .contact-point-value{
+            margin:0;
+            color: rgba(255,255,255,.82);
+            line-height:1.65;
+            font-size:.92rem;
+        }
+
+        .contact-point-value a{
+            color: rgba(255,255,255,.88);
+            text-decoration:none;
+        }
+
+        .contact-point-value a:hover{
+            color: var(--gold-2);
+        }
+
+        .feature-list{
+            list-style:none;
+            margin:0;
+            padding:0;
+            display:grid;
+            gap:.75rem;
+        }
+
+        .feature-list li{
+            display:flex;
+            gap:.7rem;
+            align-items:flex-start;
+            color: rgba(255,255,255,.74);
+            line-height:1.65;
+            font-size:.9rem;
+        }
+
+        .feature-list li i{
+            color: var(--gold);
+            margin-top:.15rem;
+        }
+
+        .side-chips{
+            display:flex;
+            flex-wrap:wrap;
+            gap:.6rem;
+            margin-top: 1rem;
+        }
+
+        .side-chip{
+            display:inline-flex;
+            align-items:center;
+            gap:.45rem;
+            padding:.5rem .85rem;
+            border-radius:999px;
+            background: rgba(255,255,255,.06);
+            border:1px solid rgba(255,255,255,.09);
+            color: rgba(255,255,255,.78);
+            font-size:.8rem;
+        }
+
+        .side-chip i{
+            color: var(--gold);
+        }
+
+        /* ================= TRUST SECTION ================= */
+        .trust-band{
+            margin-top: 1.6rem;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(180deg, rgba(255,255,255,.76), rgba(255,255,255,.64));
+            border:1px solid rgba(255,255,255,.62);
+            backdrop-filter: blur(18px);
+            box-shadow: var(--shadow-sm);
+            padding: 1.15rem 1.25rem;
+        }
+
+        .trust-grid{
+            display:grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap:1rem;
+        }
+
+        .trust-item{
+            display:flex;
+            align-items:flex-start;
+            gap:.75rem;
+            padding:.7rem;
+        }
+
+        .trust-icon{
+            width:42px;
+            height:42px;
+            border-radius:14px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            background: var(--gold-soft);
+            color: #8a6826;
+        }
+
+        .trust-title{
+            margin:0 0 .2rem;
+            font-size:.92rem;
+            font-weight:700;
+            color: var(--text);
+        }
+
+        .trust-text{
+            margin:0;
+            font-size:.84rem;
+            line-height:1.6;
+            color: var(--text-soft);
+        }
+
+        .bottom-note{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            gap:.55rem;
+            text-align:center;
+            margin-top: 1.8rem;
+            color: var(--text-soft);
+            font-size: .88rem;
+        }
+
+        .bottom-note i{
+            color: #8a6826;
+        }
+
+        @media (max-width: 1199px){
+            .contact-grid{
+                grid-template-columns: 1fr 360px;
+            }
+        }
+
+        @media (max-width: 991px){
+            .contact-shell{
+                margin-top:-75px;
+            }
+
+            .contact-grid{
+                grid-template-columns: 1fr;
+            }
+
+            .side-stack{
+                position:static;
+            }
+
+            .trust-grid{
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767px){
+            .contact-hero{
+                padding: 5rem 0 8.5rem;
+            }
+
+            .hero-title{
+                font-size: 2.8rem;
+            }
+
+            .hero-subtitle{
+                font-size: .98rem;
+                line-height: 1.75;
+            }
+
+            .contact-shell{
+                padding: 0 1rem 4rem;
+                margin-top:-55px;
+            }
+
+            .main-card-head,
+            .main-card-body,
+            .side-card-body{
+                padding-left:1.25rem;
+                padding-right:1.25rem;
+            }
+
+            .main-card-head{
+                padding-top:1.4rem;
+                padding-bottom:1.2rem;
+            }
+
+            .main-card-body{
+                padding-top:1.4rem;
+                padding-bottom:1.5rem;
+            }
+
+            .main-title{
+                font-size:1.6rem;
+            }
+
+            .form-grid,
+            .meta-row{
+                grid-template-columns: 1fr;
+            }
+
+            .submit-area{
+                align-items:flex-start;
+            }
+
+            .hero-kpis{
+                gap:.65rem;
+            }
+
+            .hero-kpi{
+                font-size:.82rem;
+            }
+        }
+
+    </style>
 {% endblock %}
 
 {% block body %}
-  {% include 'header_public.html.twig' %}
+    {% include 'header_public.html.twig' %}
 
-  <!-- Hero -->
-  <header class="hero mb-5">
-    <div class="hero-inner container px-3">
-      <span class="meta-chip mb-3"><i class="bi bi-life-preserver"></i> {{ 'contact.hero.chip'|trans }}</span>
-      <h1 class="fw-bold display-6 mb-2">{{ 'contact.hero.title'|trans }}</h1>
-      <p class="lead mb-0">{{ 'contact.hero.subtitle'|trans }}</p>
-    </div>
-  </header>
+    <main class="contact-page">
 
-  <div class="container contact-stack">
-    <div class="row g-4 align-items-stretch">
-      <!-- Formulaire -->
-      <div class="col-lg-7">
-        <div class="card-glass p-4 p-md-5 h-100">
-          <h2 class="fw-bold mb-1">{{ 'contact.form.title'|trans }}</h2>
-          <p class="text-muted mb-4">{{ 'contact.form.subtitle'|trans }}</p>
+        <section class="contact-hero">
+            <div class="hero-glow-a"></div>
+            <div class="hero-glow-b"></div>
+            <div class="hero-glow-c"></div>
 
-          {% include 'flagMessage.html.twig' %}
+            <div class="hero-inner">
+                <span class="hero-badge">
+                    <i class="bi bi-stars"></i>
+                    {{ 'contact.hero.chip'|trans }}
+                </span>
 
-          {{ form_start(form, {
-            attr: { novalidate: 'novalidate', name: 'contact', class: 'needs-validation' }
-          }) }}
+                <h1 class="hero-title">
+                    {{ 'contact.hero.title'|trans|raw|replace({'WikiFormation': '<span class="accent">WikiFormation</span>'}) }}
+                </h1>
 
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="form-floating ff">
-                <i class="bi bi-person fi"></i>
-                {{ form_widget(form.nom, {'attr': {'class':'form-control', 'placeholder':' '}}) }}
-                {{ form_label(form.nom, 'contact.form.fields.name'|trans) }}
-                {{ form_errors(form.nom) }}
-              </div>
+                <p class="hero-subtitle">
+                    {{ 'contact.hero.subtitle'|trans }}
+                </p>
+
+                <div class="hero-kpis">
+                    <span class="hero-kpi">
+                        <i class="bi bi-lightning-charge"></i>
+                        {{ 'contact.chips.fast'|trans }}
+                    </span>
+                    <span class="hero-kpi">
+                        <i class="bi bi-shield-check"></i>
+                        {{ 'contact.form.privacy'|trans }}
+                    </span>
+                    <span class="hero-kpi">
+                        <i class="bi bi-headset"></i>
+                        {{ 'contact.chips.support'|trans }}
+                    </span>
+                </div>
             </div>
 
-            <div class="col-md-6">
-              <div class="form-floating ff">
-                <i class="bi bi-envelope fi"></i>
-                {{ form_widget(form.email, {'attr': {'class':'form-control', 'placeholder':' '}}) }}
-                {{ form_label(form.email, 'contact.form.fields.email'|trans) }}
-                {{ form_errors(form.email) }}
-              </div>
+            <div class="hero-divider">
+                <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+                    <path d="M0 42L60 49C120 56 240 70 360 74C480 77 600 70 720 60C840 49 960 35 1080 33C1200 30 1320 39 1380 44L1440 49V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0V42Z" fill="#f7f9fc"/>
+                </svg>
+            </div>
+        </section>
+
+        <div class="contact-shell">
+            <div class="contact-grid">
+
+                <section class="main-card">
+                    <div class="main-card-head">
+                        <div class="main-head-left">
+                            <div class="main-icon">
+                                <i class="bi bi-send"></i>
+                            </div>
+
+                            <div>
+                                <h2 class="main-title">{{ 'contact.form.title'|trans }}</h2>
+                                <p class="main-subtitle">{{ 'contact.form.subtitle'|trans }}</p>
+                            </div>
+                        </div>
+
+                        <span class="response-chip">
+                            <i class="bi bi-clock-history"></i>
+                            {{ 'contact.info.hours'|trans }}
+                        </span>
+                    </div>
+
+                    <div class="main-card-body">
+                        <div class="flash-wrap">
+                            {% include 'flagMessage.html.twig' %}
+                        </div>
+
+                        {{ form_start(form, {
+                            attr: {
+                                novalidate: 'novalidate',
+                                name: 'contact',
+                                class: 'needs-validation'
+                            }
+                        }) }}
+
+                        <div class="form-section-label">
+                            <i class="bi bi-pencil-square"></i>
+                            {{ 'contact.form.title'|trans }}
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="field">
+                                <i class="bi bi-person field-icon center"></i>
+                                <div class="field-card">
+                                    <div class="form-floating">
+                                        {{ form_widget(form.nom, {'attr': {'class': 'form-control', 'placeholder': ' '}}) }}
+                                        {{ form_label(form.nom, 'contact.form.fields.name'|trans) }}
+                                    </div>
+                                </div>
+                                {{ form_errors(form.nom) }}
+                            </div>
+
+                            <div class="field">
+                                <i class="bi bi-envelope field-icon center"></i>
+                                <div class="field-card">
+                                    <div class="form-floating">
+                                        {{ form_widget(form.email, {'attr': {'class': 'form-control', 'placeholder': ' '}}) }}
+                                        {{ form_label(form.email, 'contact.form.fields.email'|trans) }}
+                                    </div>
+                                </div>
+                                {{ form_errors(form.email) }}
+                            </div>
+                        </div>
+
+                        <div class="field textarea-wrap">
+                            <i class="bi bi-chat-left-text field-icon"></i>
+                            <div class="field-card">
+                                <div class="form-floating">
+                                    {{ form_widget(form.message, {'attr': {'class': 'form-control', 'placeholder': ' '}}) }}
+                                    {{ form_label(form.message, 'contact.form.fields.message'|trans) }}
+                                </div>
+                            </div>
+                            {{ form_errors(form.message) }}
+                        </div>
+
+                        <div class="meta-row">
+                            <div class="mini-panel">
+                                <p class="mini-panel-title">
+                                    <i class="bi bi-lock"></i>
+                                    {{ 'contact.info.rgpd'|trans }}
+                                </p>
+                                <p class="mini-panel-text">
+                                    {{ 'contact.bottom.note'|trans }}
+                                </p>
+                            </div>
+
+                            <div class="mini-panel">
+                                <p class="mini-panel-title">
+                                    <i class="bi bi-magic"></i>
+                                    WikiFormation
+                                </p>
+                                <p class="mini-panel-text">
+                                    Une plateforme pensée pour simplifier l’administratif, fluidifier les échanges et professionnaliser votre gestion de formation.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="d-none">
+                            {{ form_row(form.captcha) }}
+                        </div>
+
+                        <div class="hp-row" aria-hidden="true">
+                            {{ form_row(form.website) }}
+                            {{ form_row(form.startedAt) }}
+                        </div>
+
+                        <div class="submit-area">
+                            <div class="submit-left">
+                                <button type="submit" class="btn-ultra" id="contact-submit">
+                                    <i class="bi bi-send"></i>
+                                    <span class="btn-text">{{ 'contact.form.submit'|trans }}</span>
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                </button>
+
+                                <span class="privacy-note">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    {{ 'contact.form.privacy'|trans }}
+                                </span>
+                            </div>
+                        </div>
+
+                        {{ form_end(form) }}
+                    </div>
+                </section>
+
+                <aside class="side-stack">
+
+                    <div class="side-card">
+                        <div class="side-card-body">
+                            <h3 class="side-title">
+                                <i class="bi bi-compass"></i>
+                                {{ 'contact.info.title'|trans }}
+                            </h3>
+
+                            <div class="contact-points">
+                                <div class="contact-point">
+                                    <div class="contact-point-icon">
+                                        <i class="bi bi-envelope"></i>
+                                    </div>
+                                    <div>
+                                        <p class="contact-point-label">E-mail</p>
+                                        <p class="contact-point-value">
+                                            <a href="mailto:support@wikiformation.fr">support@wikiformation.fr</a>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="contact-point">
+                                    <div class="contact-point-icon">
+                                        <i class="bi bi-clock-history"></i>
+                                    </div>
+                                    <div>
+                                        <p class="contact-point-label">Disponibilité</p>
+                                        <p class="contact-point-value">{{ 'contact.info.hours'|trans }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="contact-point">
+                                    <div class="contact-point-icon">
+                                        <i class="bi bi-shield-lock"></i>
+                                    </div>
+                                    <div>
+                                        <p class="contact-point-label">Confidentialité</p>
+                                        <p class="contact-point-value">{{ 'contact.info.rgpd'|trans }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="side-chips">
+                                <span class="side-chip"><i class="bi bi-lightning-charge"></i> {{ 'contact.chips.fast'|trans }}</span>
+                                <span class="side-chip"><i class="bi bi-star"></i> {{ 'contact.chips.support'|trans }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="side-card">
+                        <div class="side-card-body">
+                            <h3 class="side-title">
+                                <i class="bi bi-check2-circle"></i>
+                                {{ 'contact.info.why.title'|trans }}
+                            </h3>
+
+                            <ul class="feature-list">
+                                <li>
+                                    <i class="bi bi-chevron-right"></i>
+                                    <span>{{ 'contact.info.why.demo'|trans }}</span>
+                                </li>
+                                <li>
+                                    <i class="bi bi-chevron-right"></i>
+                                    <span>{{ 'contact.info.why.migration'|trans }}</span>
+                                </li>
+                                <li>
+                                    <i class="bi bi-chevron-right"></i>
+                                    <span>{{ 'contact.info.why.tech'|trans }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </aside>
+
             </div>
 
-            <div class="col-12">
-              <div class="form-floating ff">
-                <i class="bi bi-chat-dots fi"></i>
-                {{ form_widget(form.message, {'attr': {'class':'form-control', 'placeholder':' '}}) }}
-                {{ form_label(form.message, 'contact.form.fields.message'|trans) }}
-                {{ form_errors(form.message) }}
-              </div>
-            </div>
+            <section class="trust-band">
+                <div class="trust-grid">
+                    <div class="trust-item">
+                        <div class="trust-icon">
+                            <i class="bi bi-diagram-3"></i>
+                        </div>
+                        <div>
+                            <p class="trust-title">Centralisation intelligente</p>
+                            <p class="trust-text">Tous vos échanges, demandes et besoins regroupés dans une expérience plus claire et plus fluide.</p>
+                        </div>
+                    </div>
 
-            <div class="d-none">{{ form_row(form.captcha) }}</div>
+                    <div class="trust-item">
+                        <div class="trust-icon">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <div>
+                            <p class="trust-title">Traitement sécurisé</p>
+                            <p class="trust-text">Vos données sont traitées avec un haut niveau d’attention, de confidentialité et de conformité.</p>
+                        </div>
+                    </div>
 
-            <div class="hp-row" aria-hidden="true">
-              {{ form_row(form.website) }}
-              {{ form_row(form.startedAt) }}
-            </div>
+                    <div class="trust-item">
+                        <div class="trust-icon">
+                            <i class="bi bi-stars"></i>
+                        </div>
+                        <div>
+                            <p class="trust-title">Accompagnement premium</p>
+                            <p class="trust-text">Réponses utiles, approche concrète, et orientation vers les meilleures options pour votre structure.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-            <div class="col-12 d-flex align-items-center gap-3 mt-2">
-              <button type="submit" class="btn btn-primary-dive" id="contact-submit">
-                <span class="btn-text">{{ 'contact.form.submit'|trans }}</span>
-                <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
-              </button>
-              <small class="text-muted">
-                <i class="bi bi-shield-check me-1"></i>{{ 'contact.form.privacy'|trans }}
-              </small>
-            </div>
-          </div>
-
-          {{ form_end(form) }}
+            <p class="bottom-note">
+                <i class="bi bi-info-circle"></i>
+                {{ 'contact.bottom.note'|trans }}
+            </p>
         </div>
-      </div>
+    </main>
+{% endblock %}
 
-      <!-- Informations -->
-      <div class="col-lg-5">
-        <div class="card-glass p-4 p-md-5 h-100 d-flex flex-column">
-          <h3 class="fw-semibold mb-3"><i class="bi bi-compass me-2"></i>{{ 'contact.info.title'|trans }}</h3>
+{% block javascripts %}
+    {{ parent() }}
 
-          <ul class="list-unstyled mb-4">
-            <li class="mb-2 d-flex align-items-start">
-              <i class="bi bi-envelope text-primary me-2"></i><span>support@wikiformation.fr</span>
-            </li>
-            <li class="mb-2 d-flex align-items-start">
-              <i class="bi bi-clock text-primary me-2"></i><span>{{ 'contact.info.hours'|trans }}</span>
-            </li>
-            <li class="mb-2 d-flex align-items-start">
-              <i class="bi bi-shield-lock text-primary me-2"></i><span>{{ 'contact.info.rgpd'|trans }}</span>
-            </li>
-          </ul>
-
-          <h6 class="text-muted mb-2">{{ 'contact.info.why.title'|trans }}</h6>
-          <ul class="mb-4">
-            <li>{{ 'contact.info.why.demo'|trans }}</li>
-            <li>{{ 'contact.info.why.migration'|trans }}</li>
-            <li>{{ 'contact.info.why.tech'|trans }}</li>
-          </ul>
-
-          <div class="mt-auto d-flex gap-2 flex-wrap">
-            <span class="meta-chip"><i class="bi bi-speedometer2"></i> {{ 'contact.chips.fast'|trans }}</span>
-            <span class="meta-chip"><i class="bi bi-star"></i> {{ 'contact.chips.support'|trans }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="my-5 text-center">
-      <i class="bi bi-info-circle"></i>
-      <span class="ms-1">{{ 'contact.bottom.note'|trans }}</span>
-    </div>
-  </div>
-
-
-  <script>
-(function () {
-  // Si le consentement n'est pas accepté (ou si le script est bloqué), on "shim" grecaptcha
-  var hasConsent = document.cookie.indexOf('cookieConsent=accepted') !== -1;
-  var greNotLoaded = (typeof window.grecaptcha === 'undefined');
-
-  if (!hasConsent || greNotLoaded) {
-    // Shim minimal : évite les erreurs et renvoie une Promise résolue
-    window.grecaptcha = {
-      ready: function (cb) { try { cb && cb(); } catch (e) {} },
-      execute: function () { return Promise.resolve(''); }
-    };
-  }
-
-  // Catch global pour éviter l'erreur console "Uncaught (in promise) null"
-  window.addEventListener('unhandledrejection', function (e) {
-    // Beaucoup d'implémentations reCAPTCHA rejettent avec null : on neutralise proprement
-    if (e && (e.reason === null || typeof e.reason === 'undefined')) {
-      e.preventDefault();
-    }
-  });
-})();
-</script>
-
-
-  <script>
-(function () {
-  // Fallback léger si initFormValidation est absent
-  function simpleValidate(form) {
-    if (!form) return;
-    form.setAttribute('novalidate', 'novalidate');
-    form.addEventListener('submit', function (e) {
-      if (!form.checkValidity()) {
-        e.preventDefault();
-        form.classList.add('was-validated');
-      }
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    const form = document.querySelector('form[name="contact"]');
-    const btn  = document.getElementById('contact-submit');
-
-    // Si ta fonction globale existe, on l’utilise. Sinon, fallback.
-    if (typeof initFormValidation === 'function') {
-      initFormValidation({ formName: 'contact', tomSelectFields: [] });
-    } else {
-      simpleValidate(form);
-    }
-
-    // Gestion du spinner / disable identique à avant
-    if (form && btn) {
-      form.addEventListener('submit', function () {
-        if (form.checkValidity()) {
-          btn.disabled = true;
-          btn.querySelector('.btn-text').textContent = '{{ "contact.form.sending"|trans }}';
-          btn.querySelector('.spinner-border').classList.remove('d-none');
+    <script>
+    (function () {
+        var hasConsent = document.cookie.indexOf('cookieConsent=accepted') !== -1;
+        var greNotLoaded = (typeof window.grecaptcha === 'undefined');
+        if (!hasConsent || greNotLoaded) {
+            window.grecaptcha = {
+                ready: function (cb) { try { cb && cb(); } catch (e) {} },
+                execute: function () { return Promise.resolve(''); }
+            };
         }
-      });
-    }
-  });
-})();
-</script>
+        window.addEventListener('unhandledrejection', function (e) {
+            if (e && (e.reason === null || typeof e.reason === 'undefined')) {
+                e.preventDefault();
+            }
+        });
+    })();
+    </script>
 
+    <script>
+    (function () {
+        function simpleValidate(form) {
+            if (!form) return;
+            form.setAttribute('novalidate', 'novalidate');
+            form.addEventListener('submit', function (e) {
+                if (!form.checkValidity()) {
+                    e.preventDefault();
+                    form.classList.add('was-validated');
+                }
+            });
+        }
 
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form[name="contact"]');
+            const btn  = document.getElementById('contact-submit');
+
+            if (typeof initFormValidation === 'function') {
+                initFormValidation({ formName: 'contact', tomSelectFields: [] });
+            } else {
+                simpleValidate(form);
+            }
+
+            if (form && btn) {
+                form.addEventListener('submit', function () {
+                    if (form.checkValidity()) {
+                        btn.disabled = true;
+                        const txt = btn.querySelector('.btn-text');
+                        const spin = btn.querySelector('.spinner-border');
+                        if (txt) txt.textContent = '{{ "contact.form.sending"|trans }}';
+                        if (spin) spin.classList.remove('d-none');
+                    }
+                });
+            }
+        });
+    })();
+    </script>
 {% endblock %}

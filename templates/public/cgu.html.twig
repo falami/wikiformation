@@ -1,652 +1,1011 @@
 {# templates/public/cgu.html.twig #}
 {% extends 'base_public.html.twig' %}
 
-{% block title %}WikiFormation - Conditions Générales d'Utilisation{% endblock %}
+{% block title %}WikiFormation — Conditions Générales d'Utilisation{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 
     <style>
-        /* ── TOKENS ─────────────────────────────────────────────── */
-        :root {
-            --ink:       #0a0a0f;
-            --ink-80:    rgba(10,10,15,.80);
-            --ink-40:    rgba(10,10,15,.40);
-            --ink-10:    rgba(10,10,15,.07);
-            --gold:      #c9a84c;
-            --gold-light:#e8d49a;
-            --gold-faint:rgba(201,168,76,.10);
-            --cream:     #faf8f3;
-            --paper:     #f2efe8;
-            --white:     #ffffff;
-            --rule:      rgba(10,10,15,.08);
+        :root{
+            --wf-bg: #f6f2ea;
+            --wf-bg-soft: #fbf8f2;
+            --wf-panel: rgba(255,255,255,.72);
+            --wf-panel-strong: rgba(255,255,255,.92);
+            --wf-white: #ffffff;
 
-            --r-xl: 28px;
-            --r-lg: 20px;
-            --r-md: 14px;
+            --wf-ink: #0d1320;
+            --wf-ink-2: #1a2233;
+            --wf-muted: #667085;
+            --wf-muted-2: rgba(13,19,32,.58);
+            --wf-line: rgba(15,23,42,.08);
+            --wf-line-strong: rgba(15,23,42,.14);
 
-            --shadow-deep: 0 40px 100px rgba(10,10,15,.14), 0 8px 24px rgba(10,10,15,.07);
-            --shadow-card: 0 12px 36px rgba(10,10,15,.07), 0 2px 6px rgba(10,10,15,.04);
+            --wf-gold: #c7a552;
+            --wf-gold-2: #e8d29a;
+            --wf-gold-soft: rgba(199,165,82,.12);
 
-            --serif: 'Cormorant Garamond', Georgia, serif;
-            --sans:  'DM Sans', sans-serif;
+            --wf-navy: #0d1727;
+            --wf-navy-2: #122034;
+            --wf-indigo: #5b67f1;
+            --wf-emerald: #10b981;
+            --wf-amber: #f59e0b;
+            --wf-violet: #7c3aed;
+            --wf-red: #ef4444;
+            --wf-blue: #3b82f6;
+
+            --wf-shadow-xs: 0 1px 2px rgba(2,6,23,.04);
+            --wf-shadow-sm: 0 10px 30px rgba(15,23,42,.06);
+            --wf-shadow-md: 0 20px 60px rgba(15,23,42,.10);
+            --wf-shadow-lg: 0 30px 90px rgba(15,23,42,.14);
+
+            --wf-r-xs: 12px;
+            --wf-r-sm: 16px;
+            --wf-r-md: 22px;
+            --wf-r-lg: 28px;
+            --wf-r-xl: 34px;
+            --wf-r-pill: 999px;
+
+            --wf-serif: 'Cormorant Garamond', Georgia, serif;
+            --wf-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        html { scroll-behavior: smooth; }
-
-        body {
-            font-family: var(--sans);
-            background-color: var(--cream);
-            color: var(--ink);
-            overflow-x: hidden;
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
         }
 
-        /* ── NOISE GRAIN OVERLAY ────────────────────────────────── */
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 9999;
-            opacity: .6;
+        html {
+            scroll-behavior: smooth;
         }
 
-        /* ── PAGE WRAPPER ───────────────────────────────────────── */
-        .pg-wrap {
-            min-height: 100vh;
-        }
 
-        /* ══════════════════════════════════════════════════════════
-           HERO
-        ══════════════════════════════════════════════════════════ */
-        .hero {
+        .cgu-page {
             position: relative;
-            background: #0f1b28;
+            isolation: isolate;
+        }
+
+        .cgu-page::before{
+            content:'';
+            position:absolute;
+            left:50%;
+            top:520px;
+            transform:translateX(-50%);
+            width:min(1200px, 86vw);
+            height:500px;
+            border-radius:50%;
+            background: radial-gradient(circle, rgba(199,165,82,.10), transparent 65%);
+            filter: blur(30px);
+            z-index:-1;
+            pointer-events:none;
+        }
+
+        /* HERO */
+        .cgu-hero {
+            position: relative;
             overflow: hidden;
-            padding: 5rem 0 5rem;
+            background: #0f1b28;
+            padding: 5.75rem 0 6.5rem;
         }
 
-        /* decorative lines */
-        .hero::before {
+        .cgu-hero::before {
             content: '';
             position: absolute;
-            inset: 0;
+            inset: -2px;
+            z-index: -2;
             background:
-                repeating-linear-gradient(
-                    90deg,
-                    rgba(255,255,255,.025) 0px,
-                    rgba(255,255,255,.025) 1px,
-                    transparent 1px,
-                    transparent 72px
-                );
-            pointer-events: none;
+                radial-gradient(1200px 700px at 15% 10%, rgba(37, 99, 168, .55), transparent 60%),
+                radial-gradient(900px 520px at 85% 20%, rgba(194, 93, 59, .45), transparent 60%),
+                radial-gradient(820px 520px at 55% 95%, rgba(74, 124, 89, .35), transparent 62%),
+                linear-gradient(180deg, #09111b 0%, #0b0f14 70%, #0b0f14 100%);
         }
 
-        /* gold orb */
-        .hero::after {
-            content: '';
-            position: absolute;
-            right: -160px;
-            bottom: -160px;
-            width: 480px;
-            height: 480px;
-            border-radius: 50%;
-            pointer-events: none;
+        .cgu-hero::after{
+            content:'';
+            position:absolute;
+            inset:auto auto -140px -120px;
+            width:420px;
+            height:420px;
+            border-radius:50%;
+            filter: blur(6px);
+            pointer-events:none;
         }
 
-        .hero-inner {
-            position: relative;
-            z-index: 2;
-            padding: 0 2rem;
+        .hero-orb-line{
+            position:absolute;
+            inset:0;
+            background:
+                radial-gradient(circle at 15% 22%, rgba(255,255,255,.08) 0 2px, transparent 2px),
+                radial-gradient(circle at 82% 38%, rgba(255,255,255,.06) 0 2px, transparent 2px),
+                radial-gradient(circle at 66% 72%, rgba(255,255,255,.05) 0 2px, transparent 2px);
+            pointer-events:none;
         }
 
-        .hero-eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: .6rem;
-            font-family: var(--sans);
-            font-size: .72rem;
-            font-weight: 500;
+        .hero-shell{
+            position:relative;
+            z-index:2;
+        }
+
+        .hero-grid{
+            display:grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+            gap: 2rem;
+            align-items:end;
+        }
+
+        .hero-badge{
+            display:inline-flex;
+            align-items:center;
+            gap:.7rem;
+            padding:.6rem 1rem;
+            border-radius: var(--wf-r-pill);
+            border: 1px solid rgba(231,213,160,.22);
+            background: rgba(255,255,255,.05);
+            backdrop-filter: blur(8px);
+            color: var(--wf-gold-2);
+            font-size: .76rem;
             letter-spacing: .16em;
             text-transform: uppercase;
-            color: var(--gold-light);
-            margin-bottom: 2rem;
-            padding: .45rem .9rem;
-            border: 1px solid rgba(201,168,76,.25);
-            border-radius: 999px;
+            font-weight: 600;
+            margin-bottom: 1.6rem;
         }
 
-        .hero-eyebrow i { font-size: .9rem; }
+        .hero-badge i{
+            font-size: .9rem;
+            color: var(--wf-gold);
+        }
 
-        .hero h1 {
-            font-family: var(--serif);
-            font-size: clamp(3.2rem, 6vw, 5.8rem);
-            font-weight: 300;
-            letter-spacing: -.02em;
-            line-height: 1.08;
+        .hero-title{
+            margin:0 0 1.4rem;
+            font-family: var(--wf-serif);
+            font-size: clamp(3rem, 6vw, 5.65rem);
+            line-height: .95;
+            font-weight: 500;
+            letter-spacing: -.04em;
             color: #fff;
-            margin-bottom: 2rem;
         }
 
-        .hero h1 em {
+        .hero-title .accent{
+            color: var(--wf-gold-2);
             font-style: italic;
-            color: var(--gold-light);
+            font-weight: 400;
         }
 
-        .hero-intro {
-            font-size: 1.1rem;
-            line-height: 1.85;
-            color: rgba(255,255,255,.62);
-            font-weight: 300;
-            padding-left: 1.4rem;
+        .hero-lead{
+            max-width: 720px;
+            margin: 0;
+            color: rgba(255,255,255,.72);
+            font-size: 1.05rem;
+            line-height: 1.95;
+            padding-left: 1.2rem;
+            border-left: 2px solid rgba(231,213,160,.26);
         }
 
-        /* summary pills row */
-        .hero-pills {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .75rem;
-            margin-top: 3rem;
-            text-align: center;
+        .hero-pills{
+            display:flex;
+            flex-wrap:wrap;
+            gap:.8rem;
+            margin-top: 2rem;
         }
 
-        .hero-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: .55rem;
-            padding: .55rem 1.1rem;
-            border-radius: 999px;
+        .hero-pill{
+            display:inline-flex;
+            align-items:center;
+            gap:.55rem;
+            padding:.75rem 1rem;
+            border-radius: var(--wf-r-pill);
             background: rgba(255,255,255,.06);
             border: 1px solid rgba(255,255,255,.10);
-            color: rgba(255,255,255,.72);
-            font-size: .85rem;
-            font-weight: 400;
-            transition: background .2s, border-color .2s, color .2s;
+            color: rgba(255,255,255,.78);
+            font-size: .88rem;
+            backdrop-filter: blur(8px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
         }
 
-        .hero-pill i { color: var(--gold); font-size: .9rem; }
-
-        /* wave divider */
-        .hero-wave {
-            display: block;
-            width: 100%;
-            line-height: 0;
-            color: var(--cream);
-            margin-top: -1px;
+        .hero-pill i{
+            color: var(--wf-gold);
         }
 
-        /* ══════════════════════════════════════════════════════════
-           LAYOUT: SIDEBAR + MAIN
-        ══════════════════════════════════════════════════════════ */
-        .doc-layout {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            gap: 0;
-            max-width: 1200px;
+        .hero-aside{
+            position:relative;
+        }
+
+        .hero-card{
+            position:relative;
+            overflow:hidden;
+            padding: 1.4rem;
+            border-radius: 26px;
+            background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+            border: 1px solid rgba(255,255,255,.10);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 20px 70px rgba(0,0,0,.22);
+        }
+
+        .hero-card::before{
+            content:'';
+            position:absolute;
+            inset:0;
+            background: radial-gradient(circle at top right, rgba(199,165,82,.14), transparent 35%);
+            pointer-events:none;
+        }
+
+        .hero-card-top{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:1rem;
+            margin-bottom: 1.1rem;
+        }
+
+        .hero-card-label{
+            color: rgba(255,255,255,.58);
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+        }
+
+        .hero-card-status{
+            display:inline-flex;
+            align-items:center;
+            gap:.45rem;
+            color:#d1fae5;
+            font-size:.8rem;
+            padding:.42rem .7rem;
+            border-radius:999px;
+            background: rgba(16,185,129,.12);
+            border:1px solid rgba(16,185,129,.22);
+        }
+
+        .hero-card-status::before{
+            content:'';
+            width:8px;
+            height:8px;
+            border-radius:50%;
+            background:#10b981;
+            box-shadow:0 0 0 6px rgba(16,185,129,.13);
+        }
+
+        .hero-contract-grid{
+            display:grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap:.9rem;
+        }
+
+        .hero-contract-item{
+            padding: 1rem;
+            border-radius: 18px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.08);
+        }
+
+        .hero-contract-item span{
+            display:block;
+            font-size:.76rem;
+            color: rgba(255,255,255,.54);
+            margin-bottom:.35rem;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+        }
+
+        .hero-contract-item strong{
+            display:block;
+            font-size:.98rem;
+            font-weight:600;
+            color:#fff;
+            line-height:1.45;
+        }
+
+        .hero-wave{
+            display:block;
+            width:100%;
+            line-height:0;
+            margin-top:-1px;
+        }
+
+        /* TRUST BAR */
+        .trust-strip-wrap{
+            margin-top: -2.8rem;
+            position: relative;
+            z-index: 4;
+        }
+
+        .trust-strip{
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 3.5rem 1.5rem 6rem;
-            align-items: start;
+            padding: 0 1rem;
         }
 
-        /* ── SIDEBAR TOC ────────────────────────────────────────── */
-        .sidebar {
+        .trust-strip-inner{
+            display:grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,.55);
+            background: rgba(255,255,255,.72);
+            backdrop-filter: blur(18px);
+            box-shadow: var(--wf-shadow-md);
+        }
+
+        .trust-item{
+            display:flex;
+            align-items:flex-start;
+            gap:.9rem;
+            padding: 1rem 1.05rem;
+            border-radius: 18px;
+            background: rgba(255,255,255,.72);
+            border: 1px solid rgba(15,23,42,.05);
+        }
+
+        .trust-icon{
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background: linear-gradient(180deg, #111827, #1f2937);
+            color: var(--wf-gold);
+            font-size: 1rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+            flex-shrink:0;
+        }
+
+        .trust-item strong{
+            display:block;
+            font-size:.98rem;
+            color: var(--wf-ink);
+            margin-bottom:.2rem;
+        }
+
+        .trust-item span{
+            display:block;
+            color: var(--wf-muted);
+            font-size:.84rem;
+            line-height:1.65;
+        }
+
+        /* LAYOUT */
+        .doc-shell{
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 3rem 1.25rem 6rem;
+        }
+
+        .doc-layout{
+            display:grid;
+            grid-template-columns: 290px minmax(0, 1fr);
+            gap: 2rem;
+            align-items:start;
+        }
+
+        /* SIDEBAR */
+        .doc-sidebar{
             position: sticky;
-            top: 2.5rem;
-            padding-right: 2.5rem;
+            top: 2rem;
         }
 
-        .sidebar-label {
-            font-size: .68rem;
-            font-weight: 500;
+        .sidebar-card{
+            position: relative;
+            overflow:hidden;
+            background: rgba(255,255,255,.72);
+            border: 1px solid rgba(255,255,255,.7);
+            border-radius: 26px;
+            box-shadow: var(--wf-shadow-sm);
+            backdrop-filter: blur(16px);
+            padding: 1.25rem;
+        }
+
+        .sidebar-card::before{
+            content:'';
+            position:absolute;
+            inset:0 auto auto 0;
+            width:100%;
+            height:4px;
+            background: linear-gradient(90deg, var(--wf-gold), rgba(199,165,82,.2), transparent);
+        }
+
+        .sidebar-kicker{
+            display:flex;
+            align-items:center;
+            gap:.6rem;
+            margin-bottom: .85rem;
+            font-size: .72rem;
             letter-spacing: .14em;
             text-transform: uppercase;
-            color: var(--ink-40);
+            font-weight: 700;
+            color: var(--wf-muted);
+        }
+
+        .sidebar-title{
+            font-family: var(--wf-serif);
+            font-size: 1.5rem;
+            line-height: 1.05;
+            color: var(--wf-ink);
+            margin-bottom: .35rem;
+        }
+
+        .sidebar-text{
+            font-size: .9rem;
+            line-height: 1.7;
+            color: var(--wf-muted);
             margin-bottom: 1.2rem;
         }
 
-        .toc {
-            list-style: none;
-            border-left: 1px solid var(--rule);
+        .toc{
+            list-style:none;
+            margin:0;
+            padding:0;
+            display:grid;
+            gap:.35rem;
         }
 
-        .toc li a {
-            display: flex;
-            align-items: baseline;
-            gap: .65rem;
-            padding: .6rem 0 .6rem 1.2rem;
-            text-decoration: none;
-            color: var(--ink-40);
-            font-size: .85rem;
-            font-weight: 400;
-            line-height: 1.45;
-            transition: color .2s, border-color .2s;
-            border-left: 2px solid transparent;
-            margin-left: -1px;
+        .toc a{
+            display:flex;
+            align-items:flex-start;
+            gap:.8rem;
+            text-decoration:none;
+            border:1px solid transparent;
+            border-radius:16px;
+            padding:.8rem .9rem;
+            color: var(--wf-muted);
+            transition: .2s ease;
         }
 
-        .toc li a .num {
-            font-family: var(--serif);
-            font-size: .8rem;
-            color: var(--gold);
-            flex-shrink: 0;
+        .toc a:hover{
+            background: rgba(255,255,255,.7);
+            border-color: rgba(199,165,82,.18);
+            color: var(--wf-ink);
+            transform: translateX(3px);
         }
 
-        .toc li a:hover {
-            color: var(--ink);
-            border-left-color: var(--gold);
+        .toc a.active{
+            background: linear-gradient(180deg, rgba(199,165,82,.14), rgba(199,165,82,.05));
+            border-color: rgba(199,165,82,.22);
+            color: var(--wf-ink);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
         }
 
-        .toc li a.active {
-            color: var(--ink);
-            font-weight: 500;
-            border-left-color: var(--gold);
+        .toc .num{
+            min-width: 28px;
+            font-family: var(--wf-serif);
+            font-size: .94rem;
+            color: var(--wf-gold);
+            line-height: 1.4;
         }
 
-        .sidebar-updated {
-            margin-top: 2.5rem;
-            padding: .9rem 1rem;
-            background: var(--gold-faint);
-            border: 1px solid rgba(201,168,76,.18);
-            border-radius: var(--r-md);
-            font-size: .8rem;
-            color: var(--ink-80);
-            line-height: 1.6;
+        .sidebar-meta{
+            margin-top: 1.2rem;
+            padding: 1rem;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(13,23,39,.98), rgba(20,33,53,.98));
+            color: rgba(255,255,255,.76);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
         }
 
-        .sidebar-updated strong { color: var(--gold); }
+        .sidebar-meta-label{
+            display:block;
+            color: rgba(255,255,255,.52);
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            margin-bottom: .25rem;
+        }
 
-        /* ── MAIN CONTENT ───────────────────────────────────────── */
-        .doc-main { min-width: 0; }
+        .sidebar-meta strong{
+            color: #fff;
+            font-size: .95rem;
+        }
 
-        /* ── SECTION ────────────────────────────────────────────── */
-        .doc-section {
-            margin-bottom: 1.75rem;
-            background: var(--white);
-            border: 1px solid var(--rule);
-            border-radius: var(--r-xl);
-            overflow: hidden;
-            box-shadow: var(--shadow-card);
+        /* MAIN */
+        .doc-main{
+            min-width:0;
+        }
+
+        .overview{
+            margin-bottom: 1.4rem;
+            padding: 1.15rem;
+            border-radius: 28px;
+            background: rgba(255,255,255,.68);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,.68);
+            box-shadow: var(--wf-shadow-sm);
+        }
+
+        .overview-grid{
+            display:grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .overview-card{
+            position:relative;
+            overflow:hidden;
+            padding: 1.25rem;
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,255,255,.82));
+            border: 1px solid rgba(15,23,42,.06);
+            box-shadow: var(--wf-shadow-xs);
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+        }
+
+        .overview-card:hover{
+            transform: translateY(-4px);
+            box-shadow: var(--wf-shadow-sm);
+            border-color: rgba(199,165,82,.2);
+        }
+
+        .overview-icon{
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background: #0f1b28;
+            color: var(--wf-gold);
+            font-size: 1rem;
+            margin-bottom: .95rem;
+        }
+
+        .overview-card h3{
+            font-family: var(--wf-serif);
+            font-size: 1.18rem;
+            font-weight: 600;
+            color: var(--wf-ink);
+            margin-bottom: .35rem;
+        }
+
+        .overview-card p{
+            margin:0;
+            color: var(--wf-muted);
+            font-size: .86rem;
+            line-height: 1.7;
+        }
+
+        /* SECTION */
+        .doc-section{
+            position:relative;
+            overflow:hidden;
+            margin-bottom: 1.4rem;
+            background: rgba(255,255,255,.78);
+            border: 1px solid rgba(255,255,255,.82);
+            border-radius: 30px;
+            box-shadow: var(--wf-shadow-sm);
+            backdrop-filter: blur(16px);
             opacity: 0;
-            transform: translateY(22px);
-            transition: opacity .55s cubic-bezier(.22,.68,0,1.2), transform .55s cubic-bezier(.22,.68,0,1.2);
+            transform: translateY(24px);
+            transition: opacity .55s ease, transform .55s ease;
         }
 
-        .doc-section.visible {
+        .doc-section.visible{
             opacity: 1;
             transform: translateY(0);
         }
 
-        .section-head {
-            display: flex;
-            align-items: flex-start;
-            gap: 1.25rem;
-            padding: 1.75rem 2rem 1.5rem;
-            border-bottom: 1px solid var(--rule);
+        .doc-section::before{
+            content:'';
+            position:absolute;
+            inset:0 auto auto 0;
+            width:100%;
+            height:1px;
+            background: linear-gradient(90deg, rgba(199,165,82,.5), rgba(199,165,82,.12), transparent);
+            pointer-events:none;
         }
 
-        .section-num {
-            font-family: var(--serif);
-            font-size: 2.6rem;
-            font-weight: 300;
-            line-height: 1;
-            color: var(--gold);
-            flex-shrink: 0;
-            min-width: 42px;
+        .section-head{
+            display:flex;
+            align-items:flex-start;
+            gap: 1.15rem;
+            padding: 1.6rem 1.75rem 1.3rem;
+            border-bottom: 1px solid var(--wf-line);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,0));
         }
 
-        .section-title-wrap { flex: 1; }
-
-        .section-category {
-            font-size: .68rem;
-            font-weight: 500;
-            letter-spacing: .13em;
-            text-transform: uppercase;
-            color: var(--ink-40);
-            margin-bottom: .3rem;
-        }
-
-        .section-title {
-            font-family: var(--serif);
-            font-size: 1.65rem;
+        .section-num{
+            width: 62px;
+            height: 62px;
+            border-radius: 18px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            font-family: var(--wf-serif);
+            font-size: 1.6rem;
             font-weight: 600;
-            letter-spacing: -.02em;
-            color: var(--ink);
-            line-height: 1.2;
+            color: var(--wf-gold);
+            background: linear-gradient(180deg, rgba(199,165,82,.14), rgba(199,165,82,.06));
+            border: 1px solid rgba(199,165,82,.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
         }
 
-        .section-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: var(--r-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--gold-faint);
-            border: 1px solid rgba(201,168,76,.15);
-            color: var(--gold);
-            font-size: 1.1rem;
-            flex-shrink: 0;
+        .section-title-wrap{
+            flex:1;
+            min-width:0;
         }
 
-        .section-body {
-            padding: 1.75rem 2rem;
+        .section-category{
+            margin: 0 0 .28rem;
+            font-size: .72rem;
+            letter-spacing: .15em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--wf-muted);
         }
 
-        .section-body p {
-            font-size: .975rem;
-            line-height: 1.85;
-            color: var(--ink-80);
-            margin-bottom: 1rem;
+        .section-title{
+            margin:0;
+            font-family: var(--wf-serif);
+            font-size: 1.95rem;
+            line-height: 1.08;
+            letter-spacing: -.025em;
+            color: var(--wf-ink);
         }
 
-        .section-body p:last-child { margin-bottom: 0; }
+        .section-icon{
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            background: linear-gradient(180deg, #111827, #1f2937);
+            color: var(--wf-gold);
+            font-size: 1.05rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
 
-        /* ── 2-COL CARDS ────────────────────────────────────────── */
-        .cards-2col {
-            display: grid;
+        .section-body{
+            padding: 1.55rem 1.75rem 1.8rem;
+        }
+
+        .section-body p{
+            margin: 0 0 1rem;
+            font-size: .98rem;
+            line-height: 1.9;
+            color: rgba(13,19,32,.82);
+        }
+
+        .section-body p:last-child{
+            margin-bottom:0;
+        }
+
+        /* 2-COL CARDS */
+        .cards-2col{
+            display:grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
         }
 
-        .info-card {
-            border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
-            overflow: hidden;
-            background: var(--cream);
-            transition: box-shadow .2s, transform .2s;
+        .info-card{
+            border: 1px solid rgba(15,23,42,.07);
+            border-radius: 22px;
+            overflow:hidden;
+            background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(250,248,244,.95));
+            transition: box-shadow .2s, transform .2s, border-color .2s;
         }
 
-        .info-card:hover {
-            box-shadow: var(--shadow-card);
+        .info-card:hover{
+            box-shadow: var(--wf-shadow-sm);
             transform: translateY(-2px);
+            border-color: rgba(199,165,82,.22);
         }
 
-        .info-card-head {
-            display: flex;
-            align-items: center;
-            gap: .85rem;
+        .info-card-head{
+            display:flex;
+            align-items:center;
+            gap:.85rem;
             padding: 1.1rem 1.25rem .9rem;
-            background: white;
-            border-bottom: 1px solid var(--rule);
+            background: rgba(255,255,255,.86);
+            border-bottom: 1px solid var(--wf-line);
         }
 
-        .info-card-icon {
+        .info-card-icon{
             width: 38px;
             height: 38px;
             border-radius: 12px;
-            background: var(--ink-10);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--ink);
+            background: rgba(15,23,42,.06);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color: var(--wf-ink);
             font-size: 1rem;
-            flex-shrink: 0;
+            flex-shrink:0;
         }
 
-        .info-card-title {
-            font-family: var(--serif);
-            font-size: 1.1rem;
+        .info-card-title{
+            font-family: var(--wf-serif);
+            font-size: 1.12rem;
             font-weight: 600;
-            color: var(--ink);
+            color: var(--wf-ink);
         }
 
-        .info-card-body {
-            padding: 1rem 1.25rem;
-            font-size: .9rem;
-            color: var(--ink-80);
-            line-height: 1.75;
+        .info-card-body{
+            padding: 1rem 1.25rem 1.2rem;
+            font-size: .92rem;
+            color: rgba(13,19,32,.82);
+            line-height: 1.8;
         }
 
-        /* ── NUMBERED ITEMS ─────────────────────────────────────── */
-        .numbered-list {
-            display: grid;
-            gap: .85rem;
-            counter-reset: n;
+        /* NUMBERED ITEMS */
+        .numbered-list{
+            display:grid;
+            gap:.9rem;
         }
 
-        .numbered-item {
-            display: flex;
-            gap: 1.1rem;
-            align-items: flex-start;
-            padding: 1.15rem 1.25rem;
-            border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
-            background: var(--cream);
-            transition: border-color .2s, box-shadow .2s;
+        .numbered-item{
+            display:flex;
+            gap:1rem;
+            align-items:flex-start;
+            padding: 1rem 1.05rem;
+            border-radius: 20px;
+            border: 1px solid rgba(15,23,42,.07);
+            background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(250,248,244,.95));
+            transition: .2s ease;
         }
 
-        .numbered-item:hover {
-            border-color: rgba(201,168,76,.3);
-            box-shadow: 0 4px 20px rgba(201,168,76,.06);
+        .numbered-item:hover{
+            transform: translateY(-2px);
+            border-color: rgba(199,165,82,.24);
+            box-shadow: var(--wf-shadow-xs);
         }
 
-        .item-num {
-            font-family: var(--serif);
-            font-size: 1.4rem;
-            font-weight: 300;
-            color: var(--gold);
-            line-height: 1;
-            min-width: 28px;
-            flex-shrink: 0;
-            counter-increment: n;
+        .item-num{
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            font-family: var(--wf-serif);
+            font-size: 1.1rem;
+            color: var(--wf-gold);
+            background: rgba(199,165,82,.10);
+            border: 1px solid rgba(199,165,82,.18);
         }
 
-        .item-body strong {
-            display: block;
-            font-size: .9rem;
-            font-weight: 500;
-            color: var(--ink);
-            margin-bottom: .35rem;
+        .item-body strong{
+            display:block;
+            font-size:.94rem;
+            font-weight:600;
+            color: var(--wf-ink);
+            margin-bottom:.35rem;
         }
 
-        .item-body p {
-            font-size: .88rem;
-            line-height: 1.75;
-            color: var(--ink-80);
-            margin: 0;
+        .item-body p{
+            margin:0;
+            line-height:1.8;
+            font-size:.92rem;
         }
 
-        /* ── CHECK LIST ─────────────────────────────────────────── */
-        .check-list {
-            list-style: none;
-            display: grid;
-            gap: .55rem;
+        /* CHECK LIST */
+        .check-list{
+            list-style:none;
+            display:grid;
+            gap:.55rem;
+            margin:0;
+            padding:0;
         }
 
-        .check-list li {
-            display: flex;
-            gap: .85rem;
-            align-items: flex-start;
-            font-size: .935rem;
-            line-height: 1.7;
-            color: var(--ink-80);
-            padding: .7rem .9rem;
-            border-radius: var(--r-md);
+        .check-list li{
+            display:flex;
+            gap:.85rem;
+            align-items:flex-start;
+            font-size:.935rem;
+            line-height:1.7;
+            color: rgba(13,19,32,.82);
+            padding:.7rem .9rem;
+            border-radius: 16px;
             transition: background .2s;
         }
 
-        .check-list li:hover { background: var(--ink-10); }
+        .check-list li:hover{
+            background: rgba(15,23,42,.04);
+        }
 
-        .check-list li::before {
-            content: '';
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
+        .check-list li::before{
+            content:'';
+            width:18px;
+            height:18px;
+            border-radius:50%;
             background: rgba(16,185,129,.12);
-            border: 1px solid rgba(16,185,129,.25);
-            flex-shrink: 0;
-            margin-top: .15rem;
+            border:1px solid rgba(16,185,129,.25);
+            flex-shrink:0;
+            margin-top:.15rem;
             background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%2310b981' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: center;
+            background-repeat:no-repeat;
+            background-position:center;
         }
 
-        /* ── CALLOUT BLOCKS ─────────────────────────────────────── */
-        .callout {
-            border-radius: var(--r-lg);
-            padding: 1.2rem 1.4rem;
-            display: flex;
-            gap: 1rem;
-            align-items: flex-start;
-            margin-top: 1.2rem;
+        /* CALLOUTS */
+        .callout{
+            display:flex;
+            gap:1rem;
+            align-items:flex-start;
+            margin-top: 1.25rem;
+            padding: 1.05rem 1.1rem;
+            border-radius: 20px;
+            border:1px solid transparent;
         }
 
-        .callout-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: .95rem;
-            flex-shrink: 0;
+        .callout-icon{
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            font-size:.95rem;
         }
 
-        .callout-body { flex: 1; }
-        .callout-body p { margin: 0; font-size: .9rem; line-height: 1.75; }
+        .callout-body{
+            flex:1;
+        }
 
-        .callout-info {
+        .callout-body p{
+            margin:0;
+            font-size:.92rem;
+            line-height:1.8;
+        }
+
+        .callout-info{
             background: rgba(59,130,246,.06);
-            border: 1px solid rgba(59,130,246,.12);
+            border-color: rgba(59,130,246,.12);
         }
 
-        .callout-info .callout-icon {
-            background: rgba(59,130,246,.10);
+        .callout-info .callout-icon{
             color: #3b82f6;
+            background: rgba(59,130,246,.11);
         }
 
-        .callout-warn {
+        .callout-warn{
             background: rgba(245,158,11,.06);
-            border: 1px solid rgba(245,158,11,.14);
+            border-color: rgba(245,158,11,.16);
         }
 
-        .callout-warn .callout-icon {
-            background: rgba(245,158,11,.12);
+        .callout-warn .callout-icon{
             color: #d97706;
+            background: rgba(245,158,11,.13);
         }
 
-        .callout-danger {
+        .callout-danger{
             background: rgba(220,38,38,.05);
-            border: 1px solid rgba(220,38,38,.12);
+            border-color: rgba(220,38,38,.12);
         }
 
-        .callout-danger .callout-icon {
-            background: rgba(220,38,38,.10);
+        .callout-danger .callout-icon{
             color: #dc2626;
+            background: rgba(220,38,38,.10);
         }
 
-        .callout-gold {
-            background: rgba(201,168,76,.07);
-            border: 1px solid rgba(201,168,76,.18);
+        .callout-gold{
+            background: rgba(199,165,82,.08);
+            border-color: rgba(199,165,82,.16);
         }
 
-        .callout-gold .callout-icon {
-            background: rgba(201,168,76,.14);
-            color: var(--gold);
+        .callout-gold .callout-icon{
+            color: #a57a18;
+            background: rgba(199,165,82,.15);
         }
 
-        /* ── INTRO SUMMARY CARDS ────────────────────────────────── */
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            padding: 1.75rem 2rem;
-            border-bottom: 1px solid var(--rule);
+        /* FOOTER */
+        .doc-footer{
+            text-align:center;
+            padding: 1.8rem 1rem .4rem;
+            color: var(--wf-muted);
+            font-size: .88rem;
         }
 
-        .sum-card {
-            padding: 1.3rem;
-            border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
-            background: var(--cream);
-            transition: box-shadow .2s, transform .2s, border-color .2s;
-            cursor: default;
+        .doc-footer a{
+            color: #9a731f;
+            text-decoration:none;
+            transition: color .2s ease;
         }
 
-        .sum-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-card);
-            border-color: rgba(201,168,76,.3);
+        .doc-footer a:hover{
+            color: var(--wf-ink);
         }
 
-        .sum-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 13px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--ink);
-            color: var(--gold);
-            font-size: 1rem;
-            margin-bottom: 1rem;
-        }
+        /* RESPONSIVE */
+        @media (max-width: 1199px){
+            .hero-grid{
+                grid-template-columns: 1fr;
+                gap: 1.6rem;
+            }
 
-        .sum-card h3 {
-            font-family: var(--serif);
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--ink);
-            margin-bottom: .4rem;
-        }
+            .hero-card{
+                max-width: 520px;
+            }
 
-        .sum-card p {
-            font-size: .84rem;
-            color: var(--ink-40);
-            line-height: 1.65;
-            margin: 0;
-        }
+            .trust-strip-inner,
+            .overview-grid{
+                grid-template-columns: repeat(2, 1fr);
+            }
 
-        /* ── FOOTER NOTE ────────────────────────────────────────── */
-        .doc-footer {
-            text-align: center;
-            padding: 2rem;
-            font-size: .85rem;
-            color: var(--ink-40);
-        }
-
-        .doc-footer a { color: var(--gold); text-decoration: none; }
-
-        /* ══════════════════════════════════════════════════════════
-           RESPONSIVE
-        ══════════════════════════════════════════════════════════ */
-        @media (max-width: 991px) {
-            .doc-layout {
+            .doc-layout{
                 grid-template-columns: 1fr;
             }
-            .sidebar {
+
+            .doc-sidebar{
                 position: static;
-                padding-right: 0;
-                margin-bottom: 2rem;
             }
-            .toc { display: flex; flex-wrap: wrap; gap: .4rem; border-left: none; }
-            .toc li a {
-                border: 1px solid var(--rule);
-                border-radius: 999px;
-                border-left: 1px solid var(--rule);
-                padding: .45rem .9rem;
-                font-size: .78rem;
-            }
-            .toc li a:hover { border-color: var(--gold); }
-            .summary-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
-        @media (max-width: 767px) {
-            .hero { padding: 4.5rem 0 7rem; }
-            .hero h1 { font-size: 2.8rem; }
-            .cards-2col { grid-template-columns: 1fr; }
-            .summary-grid { grid-template-columns: 1fr; }
-            .section-head { padding: 1.25rem; }
-            .section-body { padding: 1.25rem; }
-            .section-num { font-size: 2rem; }
-            .hero-pills { display: none; }
+        @media (max-width: 991px){
+            .cards-2col{
+                grid-template-columns: 1fr;
+            }
+
+            .toc{
+                grid-template-columns: repeat(2, minmax(0,1fr));
+            }
+        }
+
+        @media (max-width: 767px){
+            .cgu-hero{
+                padding: 4.6rem 0 5.5rem;
+            }
+
+            .hero-title{
+                font-size: 2.9rem;
+            }
+
+            .hero-lead{
+                font-size: .98rem;
+                line-height: 1.85;
+            }
+
+            .hero-pills{
+                display:none;
+            }
+
+            .hero-contract-grid,
+            .trust-strip-inner,
+            .overview-grid,
+            .toc{
+                grid-template-columns: 1fr;
+            }
+
+            .section-head,
+            .section-body{
+                padding-left: 1.15rem;
+                padding-right: 1.15rem;
+            }
+
+            .section-head{
+                gap:.9rem;
+            }
+
+            .section-title{
+                font-size: 1.55rem;
+            }
+
+            .section-num{
+                width: 54px;
+                height: 54px;
+                font-size: 1.35rem;
+            }
+
+            .section-icon{
+                display:none;
+            }
+
+            .overview{
+                padding:.9rem;
+            }
+
+            .sidebar-card{
+                padding: 1rem;
+            }
         }
     </style>
 {% endblock %}
@@ -654,396 +1013,534 @@
 {% block body %}
     {% include 'header_public.html.twig' %}
 
-    <main class="pg-wrap">
+    <main class="cgu-page">
 
-        <!-- ══ HERO ══════════════════════════════════════════════ -->
-        <section class="hero">
-            <div class="container">
-                <div class="hero-inner">
-                    <span class="hero-eyebrow">
-                        <i class="bi bi-shield-check"></i>
-                        Cadre d'utilisation · WikiFormation
-                    </span>
-                    <h1>Conditions<br><em>Générales</em><br>d'Utilisation</h1>
-                    <p class="hero-intro">
-                        Les présentes CGU définissent les modalités d'accès et d'utilisation de la plateforme
-                        WikiFormation - droits, obligations et cadre applicable à toute personne y accédant.
-                    </p>
-                    <div class="hero-pills d-flex justify-content-center">
-                        <span class="hero-pill"><i class="bi bi-box-arrow-in-right"></i> Accès encadré</span>
-                        <span class="hero-pill"><i class="bi bi-person-lock"></i> Compte sécurisé</span>
-                        <span class="hero-pill"><i class="bi bi-check2-circle"></i> Usage conforme</span>
-                        <span class="hero-pill"><i class="bi bi-arrow-repeat"></i> Évolutions possibles</span>
+        <section class="cgu-hero">
+            <div class="hero-orb-line"></div>
+
+            <div class="container hero-shell">
+                <div class="hero-grid">
+                    <div>
+                        <span class="hero-badge">
+                            <i class="bi bi-shield-check"></i>
+                            Cadre d’utilisation · WikiFormation
+                        </span>
+
+                        <h1 class="hero-title">
+                            Conditions Générales<br>
+                            d’<span class="accent">Utilisation</span>
+                        </h1>
+
+                        <p class="hero-lead">
+                            Les présentes CGU définissent les modalités d’accès et d’utilisation de la plateforme
+                            WikiFormation, ainsi que les droits, obligations et règles applicables à toute personne
+                            accédant au site, aux espaces sécurisés et aux services numériques proposés.
+                        </p>
+
+                        <div class="hero-pills">
+                            <span class="hero-pill"><i class="bi bi-box-arrow-in-right"></i> Accès encadré</span>
+                            <span class="hero-pill"><i class="bi bi-person-lock"></i> Compte sécurisé</span>
+                            <span class="hero-pill"><i class="bi bi-check2-circle"></i> Usage conforme</span>
+                            <span class="hero-pill"><i class="bi bi-arrow-repeat"></i> Évolutions possibles</span>
+                        </div>
                     </div>
+
+                    <aside class="hero-aside">
+                        <div class="hero-card">
+                            <div class="hero-card-top">
+                                <span class="hero-card-label">Référentiel d’usage</span>
+                                <span class="hero-card-status">En vigueur</span>
+                            </div>
+
+                            <div class="hero-contract-grid">
+                                <div class="hero-contract-item">
+                                    <span>Dernière mise à jour</span>
+                                    <strong>{{ "now"|date("d/m/Y") }}</strong>
+                                </div>
+                                <div class="hero-contract-item">
+                                    <span>Champ d’application</span>
+                                    <strong>Site & plateforme</strong>
+                                </div>
+                                <div class="hero-contract-item">
+                                    <span>Accès</span>
+                                    <strong>Public et authentifié</strong>
+                                </div>
+                                <div class="hero-contract-item">
+                                    <span>Cadre</span>
+                                    <strong>Droits & obligations</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
         </section>
 
-        <svg class="hero-wave" viewBox="0 0 1440 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#0f1b28;">
-            <path d="M0 0C360 52 1080 52 1440 0V52H0V0Z" fill="#faf8f3"/>
+        <svg class="hero-wave" viewBox="0 0 1440 90" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#0f1b28;">
+            <path d="M0 21L80 29.2C160 37.3 320 53.7 480 53.8C640 54 800 38 960 27.2C1120 16.3 1280 10.7 1360 8L1440 5.3V90H1360C1280 90 1120 90 960 90C800 90 640 90 480 90C320 90 160 90 80 90H0V21Z" fill="#f6f2ea"/>
         </svg>
 
-        <!-- ══ DOC LAYOUT ═════════════════════════════════════════ -->
-        <div class="doc-layout">
-
-            <!-- sidebar -->
-            <aside class="sidebar">
-                <p class="sidebar-label">Sommaire</p>
-                <ul class="toc" id="toc">
-                    <li><a href="#s1"><span class="num">01</span> Objet des CGU</a></li>
-                    <li><a href="#s2"><span class="num">02</span> Accès à la plateforme</a></li>
-                    <li><a href="#s3"><span class="num">03</span> Compte &amp; identifiants</a></li>
-                    <li><a href="#s4"><span class="num">04</span> Règles de bonne utilisation</a></li>
-                    <li><a href="#s5"><span class="num">05</span> Contenus &amp; responsabilité</a></li>
-                    <li><a href="#s6"><span class="num">06</span> Propriété intellectuelle</a></li>
-                    <li><a href="#s7"><span class="num">07</span> Disponibilité</a></li>
-                    <li><a href="#s8"><span class="num">08</span> Suspension d'accès</a></li>
-                    <li><a href="#s9"><span class="num">09</span> Données personnelles</a></li>
-                    <li><a href="#s10"><span class="num">10</span> Services payants</a></li>
-                    <li><a href="#s11"><span class="num">11</span> Modification des CGU</a></li>
-                    <li><a href="#s12"><span class="num">12</span> Droit applicable</a></li>
-                </ul>
-                <div class="sidebar-updated">
-                    <strong>Dernière mise à jour</strong><br>
-                    {{ "now"|date("d/m/Y") }}
+        <div class="trust-strip-wrap">
+            <div class="trust-strip">
+                <div class="trust-strip-inner">
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-box-arrow-in-right"></i></div>
+                        <div>
+                            <strong>Accès encadré</strong>
+                            <span>Certaines fonctionnalités nécessitent un compte et des droits spécifiques.</span>
+                        </div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-person-lock"></i></div>
+                        <div>
+                            <strong>Compte sécurisé</strong>
+                            <span>L’utilisateur demeure responsable de la confidentialité de ses identifiants.</span>
+                        </div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-slash-circle"></i></div>
+                        <div>
+                            <strong>Usage conforme</strong>
+                            <span>La plateforme doit être utilisée de manière loyale, licite et conforme à sa destination.</span>
+                        </div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-arrow-repeat"></i></div>
+                        <div>
+                            <strong>Évolutions possibles</strong>
+                            <span>La plateforme et les présentes CGU peuvent évoluer selon les besoins légaux et techniques.</span>
+                        </div>
+                    </div>
                 </div>
-            </aside>
+            </div>
+        </div>
 
-            <!-- main content -->
-            <div class="doc-main">
+        <div class="doc-shell">
+            <div class="doc-layout">
 
-                <!-- Summary cards -->
-                <article class="doc-section visible" style="opacity:1;transform:none;">
-                    <div class="summary-grid">
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-box-arrow-in-right"></i></div>
-                            <h3>Accès encadré</h3>
-                            <p>Certaines fonctionnalités nécessitent un compte et des droits spécifiques.</p>
+                <aside class="doc-sidebar">
+                    <div class="sidebar-card">
+                        <div class="sidebar-kicker">
+                            <i class="bi bi-list-stars"></i>
+                            Navigation
                         </div>
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-person-lock"></i></div>
-                            <h3>Compte sécurisé</h3>
-                            <p>L'utilisateur est responsable de la confidentialité de ses identifiants.</p>
-                        </div>
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-slash-circle"></i></div>
-                            <h3>Usage conforme</h3>
-                            <p>L'utilisation doit rester loyale, licite et conforme à la destination.</p>
-                        </div>
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-arrow-repeat"></i></div>
-                            <h3>Évolutions</h3>
-                            <p>La plateforme et les CGU peuvent évoluer pour suivre les besoins.</p>
-                        </div>
-                    </div>
-                </article>
 
-                <!-- 1. Objet -->
-                <article class="doc-section" id="s1">
-                    <div class="section-head">
-                        <span class="section-num">01</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Fondements</p>
-                            <h2 class="section-title">Objet des CGU</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-journal-text"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>Les présentes Conditions Générales d'Utilisation définissent le cadre applicable à l'accès au site et à la plateforme WikiFormation, ainsi qu'à l'utilisation des services numériques, espaces de gestion, fonctionnalités collaboratives, modules administratifs et contenus disponibles.</p>
-                        <p>Toute utilisation de la plateforme implique l'acceptation sans réserve des présentes CGU par l'utilisateur.</p>
-                    </div>
-                </article>
+                        <h2 class="sidebar-title">Sommaire</h2>
+                        <p class="sidebar-text">
+                            Consultez rapidement chaque clause essentielle relative à l’accès, à l’usage et au fonctionnement de WikiFormation.
+                        </p>
 
-                <!-- 2. Accès -->
-                <article class="doc-section" id="s2">
-                    <div class="section-head">
-                        <span class="section-num">02</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Accès</p>
-                            <h2 class="section-title">Accès à la plateforme</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-door-open"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <div class="cards-2col">
-                            <div class="info-card">
-                                <div class="info-card-head">
-                                    <div class="info-card-icon"><i class="bi bi-globe"></i></div>
-                                    <span class="info-card-title">Accès public</span>
-                                </div>
-                                <div class="info-card-body">
-                                    Certaines parties du site sont accessibles librement - pages de présentation, d'information, de contact ou de documentation publique.
-                                </div>
-                            </div>
-                            <div class="info-card">
-                                <div class="info-card-head">
-                                    <div class="info-card-icon"><i class="bi bi-person-workspace"></i></div>
-                                    <span class="info-card-title">Accès authentifié</span>
-                                </div>
-                                <div class="info-card-body">
-                                    L'accès aux fonctionnalités avancées, espaces de travail, outils de gestion et contenus réservés nécessite la création d'un compte et une authentification valide.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-
-                <!-- 3. Compte -->
-                <article class="doc-section" id="s3">
-                    <div class="section-head">
-                        <span class="section-num">03</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Identité</p>
-                            <h2 class="section-title">Compte utilisateur &amp; identifiants</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-person-badge"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <div class="numbered-list">
-                            <div class="numbered-item">
-                                <span class="item-num">1</span>
-                                <div class="item-body">
-                                    <strong>Exactitude des informations</strong>
-                                    <p>L'utilisateur s'engage à fournir des informations exactes, complètes et à jour lors de la création ou de la mise à jour de son compte.</p>
-                                </div>
-                            </div>
-                            <div class="numbered-item">
-                                <span class="item-num">2</span>
-                                <div class="item-body">
-                                    <strong>Confidentialité des accès</strong>
-                                    <p>L'utilisateur est seul responsable de la conservation de ses identifiants, de son mot de passe et de toute action réalisée depuis son compte.</p>
-                                </div>
-                            </div>
-                            <div class="numbered-item">
-                                <span class="item-num">3</span>
-                                <div class="item-body">
-                                    <strong>Usage personnel des accès</strong>
-                                    <p>Sauf autorisation expresse ou fonctionnement prévu par la plateforme, les identifiants ne doivent pas être partagés, cédés ou utilisés par une personne non habilitée.</p>
-                                </div>
-                            </div>
-                            <div class="numbered-item">
-                                <span class="item-num">4</span>
-                                <div class="item-body">
-                                    <strong>Signalement</strong>
-                                    <p>En cas de suspicion d'utilisation frauduleuse, de perte d'identifiants ou d'accès non autorisé, l'utilisateur doit en informer WikiFormation dans les meilleurs délais.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-
-                <!-- 4. Règles -->
-                <article class="doc-section" id="s4">
-                    <div class="section-head">
-                        <span class="section-num">04</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Conduite</p>
-                            <h2 class="section-title">Règles de bonne utilisation</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-check2-square"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <ul class="check-list">
-                            <li>utiliser WikiFormation conformément à sa destination professionnelle et fonctionnelle ;</li>
-                            <li>respecter les lois et règlements applicables, ainsi que les droits des tiers ;</li>
-                            <li>ne pas détourner la plateforme de son usage normal, notamment par des tentatives d'intrusion, de surcharge, de scraping abusif ou de contournement de sécurité ;</li>
-                            <li>ne pas publier, transmettre ou stocker de contenus illicites, diffamatoires, injurieux, discriminatoires, violents, frauduleux ou contraires à l'ordre public ;</li>
-                            <li>ne pas porter atteinte à l'image, à la réputation, au fonctionnement ou à la sécurité de WikiFormation.</li>
+                        <ul class="toc" id="toc">
+                            <li><a href="#s1"><span class="num">01</span><span>Objet des CGU</span></a></li>
+                            <li><a href="#s2"><span class="num">02</span><span>Accès à la plateforme</span></a></li>
+                            <li><a href="#s3"><span class="num">03</span><span>Compte & identifiants</span></a></li>
+                            <li><a href="#s4"><span class="num">04</span><span>Règles de bonne utilisation</span></a></li>
+                            <li><a href="#s5"><span class="num">05</span><span>Contenus & responsabilité</span></a></li>
+                            <li><a href="#s6"><span class="num">06</span><span>Propriété intellectuelle</span></a></li>
+                            <li><a href="#s7"><span class="num">07</span><span>Disponibilité</span></a></li>
+                            <li><a href="#s8"><span class="num">08</span><span>Suspension d’accès</span></a></li>
+                            <li><a href="#s9"><span class="num">09</span><span>Données personnelles</span></a></li>
+                            <li><a href="#s10"><span class="num">10</span><span>Services payants</span></a></li>
+                            <li><a href="#s11"><span class="num">11</span><span>Modification des CGU</span></a></li>
+                            <li><a href="#s12"><span class="num">12</span><span>Droit applicable</span></a></li>
                         </ul>
-                    </div>
-                </article>
 
-                <!-- 5. Contenus -->
-                <article class="doc-section" id="s5">
-                    <div class="section-head">
-                        <span class="section-num">05</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Responsabilité</p>
-                            <h2 class="section-title">Contenus, données &amp; responsabilité</h2>
+                        <div class="sidebar-meta">
+                            <span class="sidebar-meta-label">Document contractuel</span>
+                            <strong>Version en vigueur au {{ "now"|date("d/m/Y") }}</strong>
                         </div>
-                        <div class="section-icon"><i class="bi bi-file-earmark-lock"></i></div>
                     </div>
-                    <div class="section-body">
-                        <p>L'utilisateur demeure responsable des contenus, informations, documents, données et fichiers qu'il téléverse, crée, transmet ou exploite sur la plateforme. Il garantit disposer de tous les droits, autorisations et bases légales nécessaires à leur utilisation.</p>
-                        <div class="callout callout-danger">
-                            <div class="callout-icon"><i class="bi bi-exclamation-lg"></i></div>
-                            <div class="callout-body">
-                                <p>Il appartient notamment à chaque utilisateur ou organisation cliente de s'assurer que les données personnelles traitées via WikiFormation le sont conformément à la réglementation applicable.</p>
+                </aside>
+
+                <div class="doc-main">
+
+                    <section class="overview visible" style="opacity:1;transform:none;">
+                        <div class="overview-grid">
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-box-arrow-in-right"></i></div>
+                                <h3>Accès encadré</h3>
+                                <p>Certaines fonctionnalités nécessitent un compte et des droits spécifiques.</p>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-person-lock"></i></div>
+                                <h3>Compte sécurisé</h3>
+                                <p>L’utilisateur est responsable de la confidentialité de ses identifiants.</p>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-slash-circle"></i></div>
+                                <h3>Usage conforme</h3>
+                                <p>L’utilisation doit rester loyale, licite et conforme à la destination du service.</p>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-arrow-repeat"></i></div>
+                                <h3>Évolutions</h3>
+                                <p>La plateforme et les présentes CGU peuvent évoluer pour suivre les besoins et obligations.</p>
                             </div>
                         </div>
-                    </div>
-                </article>
+                    </section>
 
-                <!-- 6. PI -->
-                <article class="doc-section" id="s6">
-                    <div class="section-head">
-                        <span class="section-num">06</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Droits</p>
-                            <h2 class="section-title">Propriété intellectuelle</h2>
+                    <article class="doc-section" id="s1">
+                        <div class="section-head">
+                            <span class="section-num">01</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Fondements</p>
+                                <h2 class="section-title">Objet des CGU</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-journal-text"></i></div>
                         </div>
-                        <div class="section-icon"><i class="bi bi-c-circle"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>La structure générale de la plateforme, ses interfaces, ses éléments graphiques, ses textes, ses logos, ses marques, ses développements, ses bases de données, ses composants techniques et plus généralement tout élément composant WikiFormation sont protégés par le droit de la propriété intellectuelle.</p>
-                        <p>Toute reproduction, représentation, extraction, réutilisation, adaptation ou exploitation, totale ou partielle, sans autorisation préalable écrite, est interdite sauf disposition légale contraire.</p>
-                    </div>
-                </article>
+                        <div class="section-body">
+                            <p>
+                                Les présentes Conditions Générales d’Utilisation définissent le cadre applicable à l’accès au site
+                                et à la plateforme WikiFormation, ainsi qu’à l’utilisation des services numériques, espaces de gestion,
+                                fonctionnalités collaboratives, modules administratifs et contenus disponibles.
+                            </p>
+                            <p>
+                                Toute utilisation de la plateforme implique l’acceptation sans réserve des présentes CGU par l’utilisateur.
+                            </p>
+                        </div>
+                    </article>
 
-                <!-- 7. Disponibilité -->
-                <article class="doc-section" id="s7">
-                    <div class="section-head">
-                        <span class="section-num">07</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Fiabilité</p>
-                            <h2 class="section-title">Disponibilité de la plateforme</h2>
+                    <article class="doc-section" id="s2">
+                        <div class="section-head">
+                            <span class="section-num">02</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Accès</p>
+                                <h2 class="section-title">Accès à la plateforme</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-door-open"></i></div>
                         </div>
-                        <div class="section-icon"><i class="bi bi-wifi-off"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>WikiFormation met en œuvre tous les moyens raisonnables pour assurer un accès fiable et sécurisé à la plateforme. L'accès peut toutefois être temporairement interrompu en raison d'opérations de maintenance, d'évolutions techniques, d'incidents, de contraintes réseau ou de cas de force majeure.</p>
-                        <div class="callout callout-info">
-                            <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
-                            <div class="callout-body">
-                                <p>WikiFormation ne garantit pas une disponibilité continue, ininterrompue ou exempte de toute erreur, même si tout est mis en œuvre pour maintenir un haut niveau de service.</p>
+                        <div class="section-body">
+                            <div class="cards-2col">
+                                <div class="info-card">
+                                    <div class="info-card-head">
+                                        <div class="info-card-icon"><i class="bi bi-globe"></i></div>
+                                        <span class="info-card-title">Accès public</span>
+                                    </div>
+                                    <div class="info-card-body">
+                                        Certaines parties du site sont accessibles librement : pages de présentation, informations générales,
+                                        contact ou documentation publique.
+                                    </div>
+                                </div>
+
+                                <div class="info-card">
+                                    <div class="info-card-head">
+                                        <div class="info-card-icon"><i class="bi bi-person-workspace"></i></div>
+                                        <span class="info-card-title">Accès authentifié</span>
+                                    </div>
+                                    <div class="info-card-body">
+                                        L’accès aux fonctionnalités avancées, espaces de travail, outils de gestion et contenus réservés
+                                        nécessite la création d’un compte et une authentification valide.
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </article>
+                    </article>
 
-                <!-- 8. Suspension -->
-                <article class="doc-section" id="s8">
-                    <div class="section-head">
-                        <span class="section-num">08</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Sanctions</p>
-                            <h2 class="section-title">Suspension ou restriction d'accès</h2>
+                    <article class="doc-section" id="s3">
+                        <div class="section-head">
+                            <span class="section-num">03</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Identité</p>
+                                <h2 class="section-title">Compte utilisateur & identifiants</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-person-badge"></i></div>
                         </div>
-                        <div class="section-icon"><i class="bi bi-exclamation-diamond"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>WikiFormation se réserve la possibilité de suspendre, restreindre ou désactiver tout ou partie de l'accès à la plateforme en cas de :</p>
-                        <ul class="check-list mt-3">
-                            <li>violation des présentes CGU ;</li>
-                            <li>usage illicite, frauduleux ou anormal de la plateforme ;</li>
-                            <li>atteinte à la sécurité, au bon fonctionnement ou aux intérêts légitimes de WikiFormation ou de tiers ;</li>
-                            <li>nécessité technique, réglementaire ou contractuelle.</li>
-                        </ul>
-                    </div>
-                </article>
+                        <div class="section-body">
+                            <div class="numbered-list">
+                                <div class="numbered-item">
+                                    <span class="item-num">1</span>
+                                    <div class="item-body">
+                                        <strong>Exactitude des informations</strong>
+                                        <p>L’utilisateur s’engage à fournir des informations exactes, complètes et à jour lors de la création ou de la mise à jour de son compte.</p>
+                                    </div>
+                                </div>
 
-                <!-- 9. Données -->
-                <article class="doc-section" id="s9">
-                    <div class="section-head">
-                        <span class="section-num">09</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Vie privée</p>
-                            <h2 class="section-title">Données personnelles</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-shield-lock"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>L'utilisation de WikiFormation peut entraîner le traitement de données personnelles. Les modalités applicables à ces traitements sont détaillées dans la politique de confidentialité accessible depuis la plateforme.</p>
-                        <p>L'utilisateur est invité à en prendre connaissance afin de comprendre les finalités de traitement, les bases légales, les droits dont il dispose et les conditions d'exercice de ces droits.</p>
-                    </div>
-                </article>
+                                <div class="numbered-item">
+                                    <span class="item-num">2</span>
+                                    <div class="item-body">
+                                        <strong>Confidentialité des accès</strong>
+                                        <p>L’utilisateur est seul responsable de la conservation de ses identifiants, de son mot de passe et de toute action réalisée depuis son compte.</p>
+                                    </div>
+                                </div>
 
-                <!-- 10. Services payants -->
-                <article class="doc-section" id="s10">
-                    <div class="section-head">
-                        <span class="section-num">10</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Commercial</p>
-                            <h2 class="section-title">Services payants &amp; documents contractuels</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-receipt"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>Certaines fonctionnalités ou certains accès peuvent être conditionnés à la souscription d'une offre payante. Dans ce cas, les modalités financières, de paiement, de renouvellement, d'annulation et de résiliation relèvent des Conditions Générales de Vente applicables.</p>
-                        <div class="callout callout-gold">
-                            <div class="callout-icon"><i class="bi bi-file-earmark-text"></i></div>
-                            <div class="callout-body">
-                                <p>Les présentes CGU complètent les CGV, les mentions légales et la politique de confidentialité, sans s'y substituer.</p>
+                                <div class="numbered-item">
+                                    <span class="item-num">3</span>
+                                    <div class="item-body">
+                                        <strong>Usage personnel des accès</strong>
+                                        <p>Sauf autorisation expresse ou fonctionnement prévu par la plateforme, les identifiants ne doivent pas être partagés, cédés ou utilisés par une personne non habilitée.</p>
+                                    </div>
+                                </div>
+
+                                <div class="numbered-item">
+                                    <span class="item-num">4</span>
+                                    <div class="item-body">
+                                        <strong>Signalement</strong>
+                                        <p>En cas de suspicion d’utilisation frauduleuse, de perte d’identifiants ou d’accès non autorisé, l’utilisateur doit en informer WikiFormation dans les meilleurs délais.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </article>
+                    </article>
 
-                <!-- 11. Modification -->
-                <article class="doc-section" id="s11">
-                    <div class="section-head">
-                        <span class="section-num">11</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Évolution</p>
-                            <h2 class="section-title">Modification des CGU</h2>
+                    <article class="doc-section" id="s4">
+                        <div class="section-head">
+                            <span class="section-num">04</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Conduite</p>
+                                <h2 class="section-title">Règles de bonne utilisation</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-check2-square"></i></div>
                         </div>
-                        <div class="section-icon"><i class="bi bi-arrow-repeat"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>WikiFormation peut modifier à tout moment les présentes Conditions Générales d'Utilisation afin de tenir compte d'une évolution légale, réglementaire, technique, fonctionnelle ou éditoriale.</p>
-                        <p>La version applicable est celle en vigueur au moment de l'utilisation de la plateforme, sauf disposition contraire prévue par la réglementation applicable.</p>
-                    </div>
-                </article>
-
-                <!-- 12. Droit -->
-                <article class="doc-section" id="s12">
-                    <div class="section-head">
-                        <span class="section-num">12</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Juridique</p>
-                            <h2 class="section-title">Droit applicable</h2>
+                        <div class="section-body">
+                            <ul class="check-list">
+                                <li>utiliser WikiFormation conformément à sa destination professionnelle et fonctionnelle ;</li>
+                                <li>respecter les lois et règlements applicables, ainsi que les droits des tiers ;</li>
+                                <li>ne pas détourner la plateforme de son usage normal, notamment par des tentatives d’intrusion, de surcharge, de scraping abusif ou de contournement de sécurité ;</li>
+                                <li>ne pas publier, transmettre ou stocker de contenus illicites, diffamatoires, injurieux, discriminatoires, violents, frauduleux ou contraires à l’ordre public ;</li>
+                                <li>ne pas porter atteinte à l’image, à la réputation, au fonctionnement ou à la sécurité de WikiFormation.</li>
+                            </ul>
                         </div>
-                        <div class="section-icon"><i class="bi bi-bank"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>Les présentes Conditions Générales d'Utilisation sont soumises au droit français. En cas de litige, et sous réserve des règles impératives applicables, compétence est attribuée aux juridictions françaises compétentes.</p>
-                    </div>
-                </article>
+                    </article>
 
-                <!-- Footer note -->
-                <p class="doc-footer">
-                    Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong> &nbsp;·&nbsp;
-                    <a href="#">Politique de confidentialité</a> &nbsp;·&nbsp;
-                    <a href="#">CGV</a> &nbsp;·&nbsp;
-                    <a href="#">Mentions légales</a>
-                </p>
+                    <article class="doc-section" id="s5">
+                        <div class="section-head">
+                            <span class="section-num">05</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Responsabilité</p>
+                                <h2 class="section-title">Contenus, données & responsabilité</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-file-earmark-lock"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                L’utilisateur demeure responsable des contenus, informations, documents, données et fichiers qu’il téléverse,
+                                crée, transmet ou exploite sur la plateforme. Il garantit disposer de tous les droits, autorisations
+                                et bases légales nécessaires à leur utilisation.
+                            </p>
 
-            </div><!-- /doc-main -->
-        </div><!-- /doc-layout -->
+                            <div class="callout callout-danger">
+                                <div class="callout-icon"><i class="bi bi-exclamation-lg"></i></div>
+                                <div class="callout-body">
+                                    <p>
+                                        Il appartient notamment à chaque utilisateur ou organisation cliente de s’assurer que les données
+                                        personnelles traitées via WikiFormation le sont conformément à la réglementation applicable.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
 
+                    <article class="doc-section" id="s6">
+                        <div class="section-head">
+                            <span class="section-num">06</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Droits</p>
+                                <h2 class="section-title">Propriété intellectuelle</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-c-circle"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                La structure générale de la plateforme, ses interfaces, ses éléments graphiques, ses textes, ses logos,
+                                ses marques, ses développements, ses bases de données, ses composants techniques et plus généralement
+                                tout élément composant WikiFormation sont protégés par le droit de la propriété intellectuelle.
+                            </p>
+                            <p>
+                                Toute reproduction, représentation, extraction, réutilisation, adaptation ou exploitation, totale ou partielle,
+                                sans autorisation préalable écrite, est interdite sauf disposition légale contraire.
+                            </p>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s7">
+                        <div class="section-head">
+                            <span class="section-num">07</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Fiabilité</p>
+                                <h2 class="section-title">Disponibilité de la plateforme</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-wifi-off"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                WikiFormation met en œuvre tous les moyens raisonnables pour assurer un accès fiable et sécurisé à la plateforme.
+                                L’accès peut toutefois être temporairement interrompu en raison d’opérations de maintenance,
+                                d’évolutions techniques, d’incidents, de contraintes réseau ou de cas de force majeure.
+                            </p>
+
+                            <div class="callout callout-info">
+                                <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
+                                <div class="callout-body">
+                                    <p>
+                                        WikiFormation ne garantit pas une disponibilité continue, ininterrompue ou exempte de toute erreur,
+                                        même si tout est mis en œuvre pour maintenir un haut niveau de service.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s8">
+                        <div class="section-head">
+                            <span class="section-num">08</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Sanctions</p>
+                                <h2 class="section-title">Suspension ou restriction d’accès</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-exclamation-diamond"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                WikiFormation se réserve la possibilité de suspendre, restreindre ou désactiver tout ou partie de l’accès
+                                à la plateforme en cas de :
+                            </p>
+
+                            <ul class="check-list">
+                                <li>violation des présentes CGU ;</li>
+                                <li>usage illicite, frauduleux ou anormal de la plateforme ;</li>
+                                <li>atteinte à la sécurité, au bon fonctionnement ou aux intérêts légitimes de WikiFormation ou de tiers ;</li>
+                                <li>nécessité technique, réglementaire ou contractuelle.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s9">
+                        <div class="section-head">
+                            <span class="section-num">09</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Vie privée</p>
+                                <h2 class="section-title">Données personnelles</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-shield-lock"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                L’utilisation de WikiFormation peut entraîner le traitement de données personnelles.
+                                Les modalités applicables à ces traitements sont détaillées dans la politique de confidentialité
+                                accessible depuis la plateforme.
+                            </p>
+                            <p>
+                                L’utilisateur est invité à en prendre connaissance afin de comprendre les finalités de traitement,
+                                les bases légales, les droits dont il dispose et les conditions d’exercice de ces droits.
+                            </p>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s10">
+                        <div class="section-head">
+                            <span class="section-num">10</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Commercial</p>
+                                <h2 class="section-title">Services payants & documents contractuels</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-receipt"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                Certaines fonctionnalités ou certains accès peuvent être conditionnés à la souscription d’une offre payante.
+                                Dans ce cas, les modalités financières, de paiement, de renouvellement, d’annulation et de résiliation
+                                relèvent des Conditions Générales de Vente applicables.
+                            </p>
+
+                            <div class="callout callout-gold">
+                                <div class="callout-icon"><i class="bi bi-file-earmark-text"></i></div>
+                                <div class="callout-body">
+                                    <p>
+                                        Les présentes CGU complètent les CGV, les mentions légales et la politique de confidentialité,
+                                        sans s’y substituer.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s11">
+                        <div class="section-head">
+                            <span class="section-num">11</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Évolution</p>
+                                <h2 class="section-title">Modification des CGU</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-arrow-repeat"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                WikiFormation peut modifier à tout moment les présentes Conditions Générales d’Utilisation afin de tenir compte
+                                d’une évolution légale, réglementaire, technique, fonctionnelle ou éditoriale.
+                            </p>
+                            <p>
+                                La version applicable est celle en vigueur au moment de l’utilisation de la plateforme,
+                                sauf disposition contraire prévue par la réglementation applicable.
+                            </p>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s12">
+                        <div class="section-head">
+                            <span class="section-num">12</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Juridique</p>
+                                <h2 class="section-title">Droit applicable</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-bank"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                Les présentes Conditions Générales d’Utilisation sont soumises au droit français.
+                                En cas de litige, et sous réserve des règles impératives applicables,
+                                compétence est attribuée aux juridictions françaises compétentes.
+                            </p>
+                        </div>
+                    </article>
+
+                    <p class="doc-footer">
+                        Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong>
+                        &nbsp;·&nbsp;
+                        <a href="{{ path('app_public_politique_confidentialite') }}">Politique de confidentialité</a>
+                        &nbsp;·&nbsp;
+                        <a href="{{ path('app_public_cgv') }}">CGV</a>
+                        &nbsp;·&nbsp;
+                        <a href="{{ path('app_public_mentions_legales') }}">Mentions légales</a>
+                    </p>
+
+                </div>
+            </div>
+        </div>
     </main>
-
 {% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
     <script>
-    (() => {
-        // Intersection observer: animate sections in
-        const sections = document.querySelectorAll('.doc-section');
-        const obs = new IntersectionObserver((entries) => {
-            entries.forEach((e, i) => {
-                if (e.isIntersecting) {
-                    setTimeout(() => e.target.classList.add('visible'), i * 60);
-                    obs.unobserve(e.target);
-                }
-            });
-        }, { threshold: 0.07 });
-        sections.forEach(s => obs.observe(s));
+        (() => {
+            const sections = document.querySelectorAll('.doc-section');
+            const tocLinks = document.querySelectorAll('.toc a');
 
-        // TOC active state on scroll
-        const anchors = document.querySelectorAll('.doc-section[id]');
-        const links   = document.querySelectorAll('.toc a');
-        const scrollObs = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                if (e.isIntersecting) {
-                    links.forEach(l => l.classList.remove('active'));
-                    const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
-                    if (active) active.classList.add('active');
-                }
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach((entry, index) => {
+                    if (entry.isIntersecting) {
+                        setTimeout(() => entry.target.classList.add('visible'), index * 55);
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.08 });
+
+            sections.forEach(section => revealObserver.observe(section));
+
+            const activeObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        tocLinks.forEach(link => link.classList.remove('active'));
+                        const active = document.querySelector(`.toc a[href="#${entry.target.id}"]`);
+                        if (active) active.classList.add('active');
+                    }
+                });
+            }, {
+                rootMargin: '-28% 0px -60% 0px',
+                threshold: 0
             });
-        }, { rootMargin: '-30% 0px -65% 0px' });
-        anchors.forEach(a => scrollObs.observe(a));
-    })();
+
+            document.querySelectorAll('.doc-section[id]').forEach(section => activeObserver.observe(section));
+        })();
     </script>
 {% endblock %}

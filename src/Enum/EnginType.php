@@ -4,15 +4,15 @@ namespace App\Enum;
 
 enum EnginType: string
 {
-    case CATAMARAN = 'catamaran';
-    case MONOCOQUE = 'monocoque';
-    case VOILIER = 'voilier';
-    case PELLE_HYDRAULIQUE = 'pelle hydraulique';
-    case MOTOBASCULEUR = 'motobasculeur';
-    case CHARGEUR = 'chargeur';
+    case CATAMARAN = 'Catamaran';
+    case MONOCOQUE = 'Monocoque';
+    case VOILIER = 'Voilier';
+    case PELLE_HYDRAULIQUE = 'Pelle hydraulique';
+    case MOTOBASCULEUR = 'Motobasculeur';
+    case CHARGEUR = 'Chargeur';
     case COMPACTEUR = 'Compacteur';
-    case BOUTEUR = 'bouteur';
-    case NACELLE = 'nacelle';
+    case BOUTEUR = 'Bouteur';
+    case NACELLE = 'Nacelle';
 
     public function label(): string
     {

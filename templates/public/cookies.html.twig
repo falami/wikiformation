@@ -7,403 +7,697 @@
     {{ parent() }}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 
     <style>
-        /* ── TOKENS ─────────────────────────────────────────────── */
-        :root {
-            --ink:        #0a0a0f;
-            --ink-80:     rgba(10,10,15,.80);
-            --ink-40:     rgba(10,10,15,.40);
-            --ink-10:     rgba(10,10,15,.07);
-            --gold:       #c9a84c;
-            --gold-light: #e8d49a;
-            --gold-faint: rgba(201,168,76,.10);
-            --cream:      #faf8f3;
-            --white:      #ffffff;
-            --rule:       rgba(10,10,15,.08);
+        :root{
+            --wf-bg: #f6f2ea;
+            --wf-bg-soft: #fbf8f2;
+            --wf-panel: rgba(255,255,255,.72);
+            --wf-panel-strong: rgba(255,255,255,.92);
+            --wf-white: #ffffff;
 
-            --r-xl: 28px;
-            --r-lg: 20px;
-            --r-md: 14px;
+            --wf-ink: #0d1320;
+            --wf-ink-2: #1a2233;
+            --wf-muted: #667085;
+            --wf-muted-2: rgba(13,19,32,.58);
+            --wf-line: rgba(15,23,42,.08);
+            --wf-line-strong: rgba(15,23,42,.14);
 
-            --shadow-card: 0 12px 36px rgba(10,10,15,.07), 0 2px 6px rgba(10,10,15,.04);
+            --wf-gold: #c7a552;
+            --wf-gold-2: #e8d29a;
+            --wf-gold-soft: rgba(199,165,82,.12);
 
-            --serif: 'Cormorant Garamond', Georgia, serif;
-            --sans:  'DM Sans', sans-serif;
+            --wf-navy: #0d1727;
+            --wf-navy-2: #122034;
+            --wf-blue: #3b82f6;
+            --wf-indigo: #5b67f1;
+            --wf-emerald: #10b981;
+            --wf-teal: #14b8a6;
+            --wf-amber: #f59e0b;
+            --wf-violet: #7c3aed;
+            --wf-red: #ef4444;
+
+            --wf-shadow-xs: 0 1px 2px rgba(2,6,23,.04);
+            --wf-shadow-sm: 0 10px 30px rgba(15,23,42,.06);
+            --wf-shadow-md: 0 20px 60px rgba(15,23,42,.10);
+            --wf-shadow-lg: 0 30px 90px rgba(15,23,42,.14);
+
+            --wf-r-xs: 12px;
+            --wf-r-sm: 16px;
+            --wf-r-md: 22px;
+            --wf-r-lg: 28px;
+            --wf-r-xl: 34px;
+            --wf-r-pill: 999px;
+
+            --wf-serif: 'Cormorant Garamond', Georgia, serif;
+            --wf-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
-
-        body {
-            font-family: var(--sans);
-            background-color: var(--cream);
-            color: var(--ink);
-            overflow-x: hidden;
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 9999;
-            opacity: .6;
+        html {
+            scroll-behavior: smooth;
         }
 
-        .pg-wrap { min-height: 100vh; }
 
-        /* ══ HERO ══════════════════════════════════════════════════ */
-        .hero {
+        .cookies-page {
             position: relative;
-            background: #0f1b28;
+            isolation: isolate;
+        }
+
+        .cookies-page::before{
+            content:'';
+            position:absolute;
+            left:50%;
+            top:520px;
+            transform:translateX(-50%);
+            width:min(1200px, 86vw);
+            height:500px;
+            border-radius:50%;
+            background: radial-gradient(circle, rgba(245,158,11,.10), transparent 65%);
+            filter: blur(30px);
+            z-index:-1;
+            pointer-events:none;
+        }
+
+        /* HERO */
+        .cookies-hero {
+            position: relative;
             overflow: hidden;
-            padding: 5rem 0 5rem;
+            background: #0f1b28;
+            padding: 5.75rem 0 6.5rem;
         }
 
-        .hero::before {
+        .cookies-hero::before {
             content: '';
             position: absolute;
-            inset: 0;
-            background: repeating-linear-gradient(
-                90deg,
-                rgba(255,255,255,.025) 0px,
-                rgba(255,255,255,.025) 1px,
-                transparent 1px,
-                transparent 72px
-            );
-            pointer-events: none;
+            inset: -2px;
+            z-index: -2;
+            background:
+                radial-gradient(1200px 700px at 15% 10%, rgba(245,158,11,.28), transparent 60%),
+                radial-gradient(900px 520px at 85% 20%, rgba(59,130,246,.24), transparent 60%),
+                radial-gradient(820px 520px at 55% 95%, rgba(199,165,82,.22), transparent 62%),
+                linear-gradient(180deg, #09111b 0%, #0b0f14 70%, #0b0f14 100%);
         }
 
-        /* warm amber orb — cookie palette */
-        .hero-orb-amber {
-            position: absolute;
-            left: -80px;
-            top: -80px;
-            width: 360px;
-            height: 360px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(245,158,11,.14) 0%, transparent 65%);
-            pointer-events: none;
+        .hero-orb-line{
+            position:absolute;
+            inset:0;
+            background:
+                radial-gradient(circle at 15% 22%, rgba(255,255,255,.08) 0 2px, transparent 2px),
+                radial-gradient(circle at 82% 38%, rgba(255,255,255,.06) 0 2px, transparent 2px),
+                radial-gradient(circle at 66% 72%, rgba(255,255,255,.05) 0 2px, transparent 2px);
+            pointer-events:none;
         }
 
-        .hero-orb-gold {
-            position: absolute;
-            right: -120px;
-            bottom: -120px;
-            width: 440px;
-            height: 440px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(201,168,76,.20) 0%, transparent 65%);
-            pointer-events: none;
+        .hero-shell{
+            position:relative;
+            z-index:2;
         }
 
-        .hero-inner {
-            position: relative;
-            z-index: 2;
-            padding: 0 2rem;
+        .hero-grid{
+            display:grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+            gap: 2rem;
+            align-items:end;
         }
 
-        .hero-eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: .6rem;
-            font-size: .72rem;
-            font-weight: 500;
+        .hero-badge{
+            display:inline-flex;
+            align-items:center;
+            gap:.7rem;
+            padding:.6rem 1rem;
+            border-radius: var(--wf-r-pill);
+            border: 1px solid rgba(231,213,160,.22);
+            background: rgba(255,255,255,.05);
+            backdrop-filter: blur(8px);
+            color: var(--wf-gold-2);
+            font-size: .76rem;
             letter-spacing: .16em;
             text-transform: uppercase;
-            color: var(--gold-light);
-            margin-bottom: 2rem;
-            padding: .45rem .9rem;
-            border: 1px solid rgba(201,168,76,.25);
-            border-radius: 999px;
+            font-weight: 600;
+            margin-bottom: 1.6rem;
         }
 
-        .hero h1 {
-            font-family: var(--serif);
-            font-size: clamp(3rem, 6vw, 5.4rem);
-            font-weight: 300;
-            letter-spacing: -.02em;
-            line-height: 1.08;
+        .hero-badge i{
+            font-size: .9rem;
+            color: var(--wf-gold);
+        }
+
+        .hero-title{
+            margin:0 0 1.4rem;
+            font-family: var(--wf-serif);
+            font-size: clamp(3rem, 6vw, 5.65rem);
+            line-height: .95;
+            font-weight: 500;
+            letter-spacing: -.04em;
             color: #fff;
-            margin-bottom: 2rem;
         }
 
-        .hero h1 em {
+        .hero-title .accent{
+            color: #ffe3b3;
             font-style: italic;
-            color: var(--gold-light);
+            font-weight: 400;
         }
 
-        .hero-intro {
+        .hero-lead{
+            max-width: 720px;
+            margin: 0;
+            color: rgba(255,255,255,.72);
             font-size: 1.05rem;
-            line-height: 1.85;
-            color: rgba(255,255,255,.60);
-            font-weight: 300;
-            max-width: 580px;
-            padding-left: 1.4rem;
-            border-left: 2px solid rgba(201,168,76,.35);
+            line-height: 1.95;
+            padding-left: 1.2rem;
+            border-left: 2px solid rgba(255,227,179,.26);
         }
 
-        .hero-pills {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .75rem;
-            margin-top: 3rem;
+        .hero-pills{
+            display:flex;
+            flex-wrap:wrap;
+            gap:.8rem;
+            margin-top: 2rem;
         }
 
-        .hero-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: .55rem;
-            padding: .55rem 1.1rem;
-            border-radius: 999px;
+        .hero-pill{
+            display:inline-flex;
+            align-items:center;
+            gap:.55rem;
+            padding:.75rem 1rem;
+            border-radius: var(--wf-r-pill);
             background: rgba(255,255,255,.06);
             border: 1px solid rgba(255,255,255,.10);
-            color: rgba(255,255,255,.72);
-            font-size: .85rem;
+            color: rgba(255,255,255,.78);
+            font-size: .88rem;
+            backdrop-filter: blur(8px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
         }
 
-        .hero-pill i { color: var(--gold); font-size: .9rem; }
-
-        .hero-wave {
-            display: block;
-            width: 100%;
-            line-height: 0;
-            margin-top: -1px;
+        .hero-pill i{
+            color: var(--wf-gold);
         }
 
-        /* ══ LAYOUT ════════════════════════════════════════════════ */
-        .doc-layout {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            max-width: 1200px;
+        .hero-aside{
+            position:relative;
+        }
+
+        .hero-card{
+            position:relative;
+            overflow:hidden;
+            padding: 1.4rem;
+            border-radius: 26px;
+            background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+            border: 1px solid rgba(255,255,255,.10);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 20px 70px rgba(0,0,0,.22);
+        }
+
+        .hero-card::before{
+            content:'';
+            position:absolute;
+            inset:0;
+            background: radial-gradient(circle at top right, rgba(245,158,11,.16), transparent 35%);
+            pointer-events:none;
+        }
+
+        .hero-card-top{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:1rem;
+            margin-bottom: 1.1rem;
+        }
+
+        .hero-card-label{
+            color: rgba(255,255,255,.58);
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+        }
+
+        .hero-card-status{
+            display:inline-flex;
+            align-items:center;
+            gap:.45rem;
+            color:#ffedd5;
+            font-size:.8rem;
+            padding:.42rem .7rem;
+            border-radius:999px;
+            background: rgba(245,158,11,.12);
+            border:1px solid rgba(245,158,11,.22);
+        }
+
+        .hero-card-status::before{
+            content:'';
+            width:8px;
+            height:8px;
+            border-radius:50%;
+            background:#f59e0b;
+            box-shadow:0 0 0 6px rgba(245,158,11,.13);
+        }
+
+        .hero-contract-grid{
+            display:grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap:.9rem;
+        }
+
+        .hero-contract-item{
+            padding: 1rem;
+            border-radius: 18px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.08);
+        }
+
+        .hero-contract-item span{
+            display:block;
+            font-size:.76rem;
+            color: rgba(255,255,255,.54);
+            margin-bottom:.35rem;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+        }
+
+        .hero-contract-item strong{
+            display:block;
+            font-size:.98rem;
+            font-weight:600;
+            color:#fff;
+            line-height:1.45;
+        }
+
+        .hero-wave{
+            display:block;
+            width:100%;
+            line-height:0;
+            margin-top:-1px;
+        }
+
+        /* TRUST BAR */
+        .trust-strip-wrap{
+            margin-top: -2.8rem;
+            position: relative;
+            z-index: 4;
+        }
+
+        .trust-strip{
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 3.5rem 1.5rem 6rem;
-            align-items: start;
+            padding: 0 1rem;
         }
 
-        /* ── SIDEBAR ───────────────────────────────────────────── */
-        .sidebar {
+        .trust-strip-inner{
+            display:grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,.55);
+            background: rgba(255,255,255,.72);
+            backdrop-filter: blur(18px);
+            box-shadow: var(--wf-shadow-md);
+        }
+
+        .trust-item{
+            display:flex;
+            align-items:flex-start;
+            gap:.9rem;
+            padding: 1rem 1.05rem;
+            border-radius: 18px;
+            background: rgba(255,255,255,.72);
+            border: 1px solid rgba(15,23,42,.05);
+        }
+
+        .trust-icon{
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background: linear-gradient(180deg, #111827, #1f2937);
+            color: var(--wf-gold);
+            font-size: 1rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+            flex-shrink:0;
+        }
+
+        .trust-item strong{
+            display:block;
+            font-size:.98rem;
+            color: var(--wf-ink);
+            margin-bottom:.2rem;
+        }
+
+        .trust-item span{
+            display:block;
+            color: var(--wf-muted);
+            font-size:.84rem;
+            line-height:1.65;
+        }
+
+        /* LAYOUT */
+        .doc-shell{
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 3rem 1.25rem 6rem;
+        }
+
+        .doc-layout{
+            display:grid;
+            grid-template-columns: 290px minmax(0, 1fr);
+            gap: 2rem;
+            align-items:start;
+        }
+
+        /* SIDEBAR */
+        .doc-sidebar{
             position: sticky;
-            top: 2.5rem;
-            padding-right: 2.5rem;
+            top: 2rem;
         }
 
-        .sidebar-label {
-            font-size: .68rem;
-            font-weight: 500;
+        .sidebar-card{
+            position: relative;
+            overflow:hidden;
+            background: rgba(255,255,255,.72);
+            border: 1px solid rgba(255,255,255,.7);
+            border-radius: 26px;
+            box-shadow: var(--wf-shadow-sm);
+            backdrop-filter: blur(16px);
+            padding: 1.25rem;
+        }
+
+        .sidebar-card::before{
+            content:'';
+            position:absolute;
+            inset:0 auto auto 0;
+            width:100%;
+            height:4px;
+            background: linear-gradient(90deg, var(--wf-gold), rgba(245,158,11,.24), transparent);
+        }
+
+        .sidebar-kicker{
+            display:flex;
+            align-items:center;
+            gap:.6rem;
+            margin-bottom: .85rem;
+            font-size: .72rem;
             letter-spacing: .14em;
             text-transform: uppercase;
-            color: var(--ink-40);
+            font-weight: 700;
+            color: var(--wf-muted);
+        }
+
+        .sidebar-title{
+            font-family: var(--wf-serif);
+            font-size: 1.5rem;
+            line-height: 1.05;
+            color: var(--wf-ink);
+            margin-bottom: .35rem;
+        }
+
+        .sidebar-text{
+            font-size: .9rem;
+            line-height: 1.7;
+            color: var(--wf-muted);
             margin-bottom: 1.2rem;
         }
 
-        .toc { list-style: none; border-left: 1px solid var(--rule); }
-
-        .toc li a {
-            display: flex;
-            align-items: baseline;
-            gap: .65rem;
-            padding: .6rem 0 .6rem 1.2rem;
-            text-decoration: none;
-            color: var(--ink-40);
-            font-size: .85rem;
-            line-height: 1.45;
-            transition: color .2s, border-color .2s;
-            border-left: 2px solid transparent;
-            margin-left: -1px;
+        .toc{
+            list-style:none;
+            margin:0;
+            padding:0;
+            display:grid;
+            gap:.35rem;
         }
 
-        .toc li a .num {
-            font-family: var(--serif);
-            font-size: .8rem;
-            color: var(--gold);
-            flex-shrink: 0;
+        .toc a{
+            display:flex;
+            align-items:flex-start;
+            gap:.8rem;
+            text-decoration:none;
+            border:1px solid transparent;
+            border-radius:16px;
+            padding:.8rem .9rem;
+            color: var(--wf-muted);
+            transition: .2s ease;
         }
 
-        .toc li a:hover  { color: var(--ink); border-left-color: var(--gold); }
-        .toc li a.active { color: var(--ink); font-weight: 500; border-left-color: var(--gold); }
-
-        .sidebar-updated {
-            margin-top: 2.5rem;
-            padding: .9rem 1rem;
-            background: var(--gold-faint);
-            border: 1px solid rgba(201,168,76,.18);
-            border-radius: var(--r-md);
-            font-size: .8rem;
-            color: var(--ink-80);
-            line-height: 1.6;
+        .toc a:hover{
+            background: rgba(255,255,255,.7);
+            border-color: rgba(245,158,11,.18);
+            color: var(--wf-ink);
+            transform: translateX(3px);
         }
 
-        .sidebar-updated strong { color: var(--gold); }
-
-        /* ── MAIN ──────────────────────────────────────────────── */
-        .doc-main { min-width: 0; }
-
-        /* ── SECTION ───────────────────────────────────────────── */
-        .doc-section {
-            margin-bottom: 1.75rem;
-            background: var(--white);
-            border: 1px solid var(--rule);
-            border-radius: var(--r-xl);
-            overflow: hidden;
-            box-shadow: var(--shadow-card);
-            opacity: 0;
-            transform: translateY(22px);
-            transition: opacity .55s cubic-bezier(.22,.68,0,1.2), transform .55s cubic-bezier(.22,.68,0,1.2);
+        .toc a.active{
+            background: linear-gradient(180deg, rgba(199,165,82,.14), rgba(245,158,11,.05));
+            border-color: rgba(245,158,11,.18);
+            color: var(--wf-ink);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
         }
 
-        .doc-section.visible { opacity: 1; transform: translateY(0); }
-
-        .section-head {
-            display: flex;
-            align-items: flex-start;
-            gap: 1.25rem;
-            padding: 1.75rem 2rem 1.5rem;
-            border-bottom: 1px solid var(--rule);
+        .toc .num{
+            min-width: 28px;
+            font-family: var(--wf-serif);
+            font-size: .94rem;
+            color: var(--wf-gold);
+            line-height: 1.4;
         }
 
-        .section-num {
-            font-family: var(--serif);
-            font-size: 2.6rem;
-            font-weight: 300;
-            line-height: 1;
-            color: var(--gold);
-            flex-shrink: 0;
-            min-width: 42px;
+        .sidebar-meta{
+            margin-top: 1.2rem;
+            padding: 1rem;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(13,23,39,.98), rgba(20,33,53,.98));
+            color: rgba(255,255,255,.76);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
         }
 
-        .section-title-wrap { flex: 1; }
-
-        .section-category {
-            font-size: .68rem;
-            font-weight: 500;
-            letter-spacing: .13em;
+        .sidebar-meta-label{
+            display:block;
+            color: rgba(255,255,255,.52);
+            font-size: .72rem;
             text-transform: uppercase;
-            color: var(--ink-40);
-            margin-bottom: .3rem;
+            letter-spacing: .12em;
+            margin-bottom: .25rem;
         }
 
-        .section-title {
-            font-family: var(--serif);
-            font-size: 1.65rem;
-            font-weight: 600;
-            letter-spacing: -.02em;
-            color: var(--ink);
-            line-height: 1.2;
+        .sidebar-meta strong{
+            color: #fff;
+            font-size: .95rem;
         }
 
-        .section-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: var(--r-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--gold-faint);
-            border: 1px solid rgba(201,168,76,.15);
-            color: var(--gold);
-            font-size: 1.1rem;
-            flex-shrink: 0;
+        /* MAIN */
+        .doc-main{
+            min-width:0;
         }
 
-        .section-body { padding: 1.75rem 2rem; }
-
-        .section-body p {
-            font-size: .975rem;
-            line-height: 1.85;
-            color: var(--ink-80);
-            margin-bottom: 1rem;
+        .overview{
+            margin-bottom: 1.4rem;
+            padding: 1.15rem;
+            border-radius: 28px;
+            background: rgba(255,255,255,.68);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,.68);
+            box-shadow: var(--wf-shadow-sm);
         }
 
-        .section-body p:last-child { margin-bottom: 0; }
-
-        /* ── SUMMARY GRID ──────────────────────────────────────── */
-        .summary-grid {
-            display: grid;
+        .overview-grid{
+            display:grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 1rem;
-            padding: 1.75rem 2rem;
-            border-bottom: 1px solid var(--rule);
         }
 
-        .sum-card {
-            padding: 1.3rem;
-            border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
-            background: var(--cream);
-            transition: box-shadow .2s, transform .2s, border-color .2s;
-            cursor: default;
+        .overview-card{
+            position:relative;
+            overflow:hidden;
+            padding: 1.25rem;
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,255,255,.82));
+            border: 1px solid rgba(15,23,42,.06);
+            box-shadow: var(--wf-shadow-xs);
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
         }
 
-        .sum-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-card);
-            border-color: rgba(201,168,76,.3);
+        .overview-card:hover{
+            transform: translateY(-4px);
+            box-shadow: var(--wf-shadow-sm);
+            border-color: rgba(245,158,11,.18);
         }
 
-        .sum-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 13px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--ink);
-            color: var(--gold);
+        .overview-icon{
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background: #0f1b28;
+            color: #ffe3b3;
             font-size: 1rem;
-            margin-bottom: 1rem;
+            margin-bottom: .95rem;
         }
 
-        .sum-card h3 {
-            font-family: var(--serif);
-            font-size: 1.1rem;
+        .overview-card h3{
+            font-family: var(--wf-serif);
+            font-size: 1.18rem;
             font-weight: 600;
-            color: var(--ink);
-            margin-bottom: .4rem;
+            color: var(--wf-ink);
+            margin-bottom: .35rem;
         }
 
-        .sum-card p {
-            font-size: .84rem;
-            color: var(--ink-40);
-            line-height: 1.65;
-            margin: 0;
+        .overview-card p{
+            margin:0;
+            color: var(--wf-muted);
+            font-size: .86rem;
+            line-height: 1.7;
         }
 
-        /* ── COOKIE TYPE CARDS (3-col) ─────────────────────────── */
-        .cookie-types {
-            display: grid;
+        /* SECTION */
+        .doc-section{
+            position:relative;
+            overflow:hidden;
+            margin-bottom: 1.4rem;
+            background: rgba(255,255,255,.78);
+            border: 1px solid rgba(255,255,255,.82);
+            border-radius: 30px;
+            box-shadow: var(--wf-shadow-sm);
+            backdrop-filter: blur(16px);
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity .55s ease, transform .55s ease;
+        }
+
+        .doc-section.visible{
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .doc-section::before{
+            content:'';
+            position:absolute;
+            inset:0 auto auto 0;
+            width:100%;
+            height:1px;
+            background: linear-gradient(90deg, rgba(245,158,11,.36), rgba(199,165,82,.12), transparent);
+            pointer-events:none;
+        }
+
+        .section-head{
+            display:flex;
+            align-items:flex-start;
+            gap: 1.15rem;
+            padding: 1.6rem 1.75rem 1.3rem;
+            border-bottom: 1px solid var(--wf-line);
+            background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,0));
+        }
+
+        .section-num{
+            width: 62px;
+            height: 62px;
+            border-radius: 18px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            font-family: var(--wf-serif);
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--wf-gold);
+            background: linear-gradient(180deg, rgba(199,165,82,.14), rgba(199,165,82,.06));
+            border: 1px solid rgba(199,165,82,.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+        }
+
+        .section-title-wrap{
+            flex:1;
+            min-width:0;
+        }
+
+        .section-category{
+            margin: 0 0 .28rem;
+            font-size: .72rem;
+            letter-spacing: .15em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--wf-muted);
+        }
+
+        .section-title{
+            margin:0;
+            font-family: var(--wf-serif);
+            font-size: 1.95rem;
+            line-height: 1.08;
+            letter-spacing: -.025em;
+            color: var(--wf-ink);
+        }
+
+        .section-icon{
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            background: linear-gradient(180deg, #111827, #1f2937);
+            color: #ffe3b3;
+            font-size: 1.05rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+
+        .section-body{
+            padding: 1.55rem 1.75rem 1.8rem;
+        }
+
+        .section-body p{
+            margin: 0 0 1rem;
+            font-size: .98rem;
+            line-height: 1.9;
+            color: rgba(13,19,32,.82);
+        }
+
+        .section-body p:last-child{
+            margin-bottom:0;
+        }
+
+        /* COOKIE TYPE CARDS */
+        .cookie-types{
+            display:grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
         }
 
-        .cookie-card {
-            border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
-            overflow: hidden;
-            background: var(--cream);
+        .cookie-card{
+            border: 1px solid rgba(15,23,42,.07);
+            border-radius: 22px;
+            overflow:hidden;
+            background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(250,248,244,.95));
             transition: box-shadow .2s, transform .2s, border-color .2s;
         }
 
-        .cookie-card:hover {
-            box-shadow: var(--shadow-card);
+        .cookie-card:hover{
+            box-shadow: var(--wf-shadow-sm);
             transform: translateY(-3px);
-            border-color: rgba(201,168,76,.28);
+            border-color: rgba(245,158,11,.18);
         }
 
-        .cookie-card-head {
+        .cookie-card-head{
             padding: 1.1rem 1.25rem .9rem;
-            background: white;
-            border-bottom: 1px solid var(--rule);
+            background: rgba(255,255,255,.86);
+            border-bottom: 1px solid var(--wf-line);
             display: flex;
             align-items: center;
             gap: .8rem;
+            flex-wrap: wrap;
         }
 
-        .cookie-card-dot {
+        .cookie-card-dot{
             width: 10px;
             height: 10px;
             border-radius: 50%;
@@ -415,89 +709,110 @@
         .cookie-card-dot.blue   { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
         .cookie-card-dot.purple { background: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,.15); }
 
-        .cookie-card-title {
-            font-family: var(--serif);
+        .cookie-card-title{
+            font-family: var(--wf-serif);
             font-size: 1.05rem;
             font-weight: 600;
-            color: var(--ink);
+            color: var(--wf-ink);
             flex: 1;
+            min-width: 0;
         }
 
-        .cookie-card-badge {
+        .cookie-card-badge{
             font-size: .68rem;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: .08em;
             text-transform: uppercase;
             padding: .25rem .6rem;
             border-radius: 999px;
         }
 
-        .badge-required { background: rgba(16,185,129,.12); color: #059669; border: 1px solid rgba(16,185,129,.2); }
-        .badge-optional  { background: rgba(245,158,11,.10); color: #b45309; border: 1px solid rgba(245,158,11,.2); }
+        .badge-required{
+            background: rgba(16,185,129,.12);
+            color: #059669;
+            border: 1px solid rgba(16,185,129,.2);
+        }
 
-        .cookie-card-body {
-            padding: 1rem 1.25rem;
+        .badge-optional{
+            background: rgba(245,158,11,.10);
+            color: #b45309;
+            border: 1px solid rgba(245,158,11,.2);
+        }
+
+        .cookie-card-body{
+            padding: 1rem 1.25rem 1.2rem;
             font-size: .88rem;
-            color: var(--ink-80);
+            color: rgba(13,19,32,.82);
             line-height: 1.75;
         }
 
-        /* ── CHECK LIST ────────────────────────────────────────── */
-        .check-list { list-style: none; display: grid; gap: .55rem; }
+        /* CHECK LIST */
+        .check-list{
+            list-style:none;
+            display:grid;
+            gap:.55rem;
+            margin:0;
+            padding:0;
+        }
 
-        .check-list li {
-            display: flex;
-            gap: .85rem;
-            align-items: flex-start;
-            font-size: .935rem;
-            line-height: 1.7;
-            color: var(--ink-80);
-            padding: .7rem .9rem;
-            border-radius: var(--r-md);
+        .check-list li{
+            display:flex;
+            gap:.85rem;
+            align-items:flex-start;
+            font-size:.935rem;
+            line-height:1.7;
+            color: rgba(13,19,32,.82);
+            padding:.7rem .9rem;
+            border-radius: 16px;
             transition: background .2s;
         }
 
-        .check-list li:hover { background: var(--ink-10); }
-
-        .check-list li::before {
-            content: '';
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: rgba(16,185,129,.12);
-            border: 1px solid rgba(16,185,129,.25);
-            flex-shrink: 0;
-            margin-top: .15rem;
-            background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%2310b981' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: center;
+        .check-list li:hover{
+            background: rgba(15,23,42,.04);
         }
 
-        /* ── DURATION TABLE ────────────────────────────────────── */
-        .duration-list { display: grid; gap: .85rem; }
+        .check-list li::before{
+            content:'';
+            width:18px;
+            height:18px;
+            border-radius:50%;
+            background: rgba(16,185,129,.12);
+            border:1px solid rgba(16,185,129,.25);
+            flex-shrink:0;
+            margin-top:.15rem;
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%2310b981' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat:no-repeat;
+            background-position:center;
+        }
 
-        .duration-row {
-            display: flex;
-            align-items: center;
+        /* DURATION ROWS */
+        .duration-list{
+            display:grid;
+            gap:.85rem;
+        }
+
+        .duration-row{
+            display:flex;
+            align-items:center;
             gap: 1rem;
-            border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
-            background: var(--cream);
+            border: 1px solid rgba(15,23,42,.07);
+            border-radius: 20px;
+            background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(250,248,244,.95));
             padding: 1rem 1.25rem;
             transition: border-color .2s, box-shadow .2s;
         }
 
-        .duration-row:hover {
-            border-color: rgba(201,168,76,.28);
-            box-shadow: 0 4px 20px rgba(201,168,76,.06);
+        .duration-row:hover{
+            border-color: rgba(245,158,11,.18);
+            box-shadow: 0 4px 20px rgba(245,158,11,.06);
         }
 
-        .duration-icon {
+        .duration-icon{
             width: 38px;
             height: 38px;
             border-radius: 11px;
-            background: var(--ink);
-            color: var(--gold);
+            background: #0f1b28;
+            color: #ffe3b3;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -505,45 +820,48 @@
             flex-shrink: 0;
         }
 
-        .duration-info { flex: 1; }
+        .duration-info{
+            flex: 1;
+        }
 
-        .duration-name {
-            font-family: var(--serif);
+        .duration-name{
+            font-family: var(--wf-serif);
             font-size: 1rem;
             font-weight: 600;
-            color: var(--ink);
+            color: var(--wf-ink);
             margin-bottom: .18rem;
         }
 
-        .duration-desc {
+        .duration-desc{
             font-size: .85rem;
-            color: var(--ink-80);
+            color: rgba(13,19,32,.82);
             line-height: 1.6;
+            margin: 0;
         }
 
-        .duration-badge {
+        .duration-badge{
             font-size: .75rem;
-            font-weight: 500;
+            font-weight: 600;
             padding: .3rem .75rem;
             border-radius: 999px;
-            background: var(--gold-faint);
-            border: 1px solid rgba(201,168,76,.2);
+            background: rgba(199,165,82,.10);
+            border: 1px solid rgba(199,165,82,.2);
             color: #92670a;
             white-space: nowrap;
             flex-shrink: 0;
         }
 
-        /* ── MANAGE BLOCK ──────────────────────────────────────── */
-        .manage-options {
-            display: grid;
+        /* MANAGE OPTIONS */
+        .manage-options{
+            display:grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
         }
 
-        .manage-card {
-            border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
-            background: var(--cream);
+        .manage-card{
+            border: 1px solid rgba(15,23,42,.07);
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(250,248,244,.95));
             padding: 1.2rem 1.25rem;
             display: flex;
             gap: 1rem;
@@ -551,18 +869,18 @@
             transition: box-shadow .2s, border-color .2s, transform .2s;
         }
 
-        .manage-card:hover {
-            box-shadow: var(--shadow-card);
-            border-color: rgba(201,168,76,.28);
+        .manage-card:hover{
+            box-shadow: var(--wf-shadow-sm);
+            border-color: rgba(245,158,11,.18);
             transform: translateY(-2px);
         }
 
-        .manage-card-icon {
+        .manage-card-icon{
             width: 40px;
             height: 40px;
             border-radius: 12px;
-            background: var(--ink);
-            color: var(--gold);
+            background: #0f1b28;
+            color: #ffe3b3;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -570,94 +888,217 @@
             flex-shrink: 0;
         }
 
-        .manage-card-body strong {
+        .manage-card-body strong{
             display: block;
-            font-family: var(--serif);
+            font-family: var(--wf-serif);
             font-size: 1.05rem;
             font-weight: 600;
-            color: var(--ink);
+            color: var(--wf-ink);
             margin-bottom: .3rem;
         }
 
-        .manage-card-body p {
+        .manage-card-body p{
             font-size: .85rem;
-            color: var(--ink-40);
+            color: var(--wf-muted);
             line-height: 1.65;
             margin: 0;
         }
 
-        /* ── CALLOUT BLOCKS ────────────────────────────────────── */
-        .callout {
-            border-radius: var(--r-lg);
-            padding: 1.2rem 1.4rem;
-            display: flex;
-            gap: 1rem;
-            align-items: flex-start;
-            margin-top: 1.2rem;
+        /* CALLOUTS */
+        .callout{
+            display:flex;
+            gap:1rem;
+            align-items:flex-start;
+            margin-top: 1.25rem;
+            padding: 1.05rem 1.1rem;
+            border-radius: 20px;
+            border:1px solid transparent;
         }
 
-        .callout-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: .95rem;
-            flex-shrink: 0;
+        .callout-icon{
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-shrink:0;
+            font-size:.95rem;
         }
 
-        .callout-body { flex: 1; }
-        .callout-body p { margin: 0; font-size: .9rem; line-height: 1.75; color: var(--ink-80); }
-        .callout-body a { color: var(--gold); text-decoration: none; }
-
-        .callout-info   { background: rgba(59,130,246,.06);  border: 1px solid rgba(59,130,246,.12); }
-        .callout-info .callout-icon { background: rgba(59,130,246,.10); color: #3b82f6; }
-
-        .callout-warn   { background: rgba(245,158,11,.06);  border: 1px solid rgba(245,158,11,.14); }
-        .callout-warn .callout-icon { background: rgba(245,158,11,.12); color: #d97706; }
-
-        .callout-gold   { background: rgba(201,168,76,.07);  border: 1px solid rgba(201,168,76,.18); }
-        .callout-gold .callout-icon { background: rgba(201,168,76,.14); color: var(--gold); }
-
-        /* ── FOOTER ────────────────────────────────────────────── */
-        .doc-footer {
-            text-align: center;
-            padding: 2rem;
-            font-size: .85rem;
-            color: var(--ink-40);
+        .callout-body{
+            flex:1;
         }
 
-        .doc-footer a { color: var(--gold); text-decoration: none; }
+        .callout-body p{
+            margin:0;
+            font-size:.92rem;
+            line-height:1.8;
+            color: rgba(13,19,32,.82);
+        }
 
-        /* ══ RESPONSIVE ════════════════════════════════════════════ */
-        @media (max-width: 991px) {
-            .doc-layout { grid-template-columns: 1fr; }
-            .sidebar { position: static; padding-right: 0; margin-bottom: 2rem; }
-            .toc { display: flex; flex-wrap: wrap; gap: .4rem; border-left: none; }
-            .toc li a {
-                border: 1px solid var(--rule);
-                border-radius: 999px;
-                border-left: 1px solid var(--rule);
-                padding: .45rem .9rem;
-                font-size: .78rem;
+        .callout-body a{
+            color:#9a731f;
+            text-decoration:none;
+        }
+
+        .callout-body a:hover{
+            text-decoration:underline;
+        }
+
+        .callout-body strong{
+            color: var(--wf-ink);
+        }
+
+        .callout-info{
+            background: rgba(59,130,246,.06);
+            border-color: rgba(59,130,246,.12);
+        }
+
+        .callout-info .callout-icon{
+            color: #3b82f6;
+            background: rgba(59,130,246,.11);
+        }
+
+        .callout-warn{
+            background: rgba(245,158,11,.06);
+            border-color: rgba(245,158,11,.16);
+        }
+
+        .callout-warn .callout-icon{
+            color: #d97706;
+            background: rgba(245,158,11,.13);
+        }
+
+        .callout-gold{
+            background: rgba(199,165,82,.08);
+            border-color: rgba(199,165,82,.16);
+        }
+
+        .callout-gold .callout-icon{
+            color: #a57a18;
+            background: rgba(199,165,82,.15);
+        }
+
+        /* FOOTER */
+        .doc-footer{
+            text-align:center;
+            padding: 1.8rem 1rem .4rem;
+            color: var(--wf-muted);
+            font-size: .88rem;
+        }
+
+        .doc-footer a{
+            color: #9a731f;
+            text-decoration:none;
+            transition: color .2s ease;
+        }
+
+        .doc-footer a:hover{
+            color: var(--wf-ink);
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1199px){
+            .hero-grid{
+                grid-template-columns: 1fr;
+                gap: 1.6rem;
             }
-            .toc li a:hover { border-color: var(--gold); }
-            .summary-grid  { grid-template-columns: repeat(2, 1fr); }
-            .cookie-types  { grid-template-columns: 1fr; }
-            .manage-options{ grid-template-columns: 1fr; }
+
+            .hero-card{
+                max-width: 520px;
+            }
+
+            .trust-strip-inner,
+            .overview-grid{
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .doc-layout{
+                grid-template-columns: 1fr;
+            }
+
+            .doc-sidebar{
+                position: static;
+            }
         }
 
-        @media (max-width: 767px) {
-            .hero { padding: 4rem 0 5rem; }
-            .hero h1 { font-size: 2.8rem; }
-            .summary-grid { grid-template-columns: 1fr; }
-            .section-head { padding: 1.25rem; }
-            .section-body { padding: 1.25rem; }
-            .section-num  { font-size: 2rem; }
-            .hero-pills   { display: none; }
-            .duration-row { flex-wrap: wrap; }
-            .duration-badge { width: 100%; text-align: center; }
+        @media (max-width: 991px){
+            .cookie-types,
+            .manage-options{
+                grid-template-columns: 1fr;
+            }
+
+            .toc{
+                grid-template-columns: repeat(2, minmax(0,1fr));
+            }
+        }
+
+        @media (max-width: 767px){
+            .cookies-hero{
+                padding: 4.6rem 0 5.5rem;
+            }
+
+            .hero-title{
+                font-size: 2.9rem;
+            }
+
+            .hero-lead{
+                font-size: .98rem;
+                line-height: 1.85;
+            }
+
+            .hero-pills{
+                display:none;
+            }
+
+            .hero-contract-grid,
+            .trust-strip-inner,
+            .overview-grid,
+            .toc{
+                grid-template-columns: 1fr;
+            }
+
+            .section-head,
+            .section-body{
+                padding-left: 1.15rem;
+                padding-right: 1.15rem;
+            }
+
+            .section-head{
+                gap:.9rem;
+            }
+
+            .section-title{
+                font-size: 1.55rem;
+            }
+
+            .section-num{
+                width: 54px;
+                height: 54px;
+                font-size: 1.35rem;
+            }
+
+            .section-icon{
+                display:none;
+            }
+
+            .overview{
+                padding:.9rem;
+            }
+
+            .sidebar-card{
+                padding: 1rem;
+            }
+
+            .duration-row{
+                flex-wrap: wrap;
+            }
+
+            .duration-badge{
+                width: 100%;
+                text-align: center;
+            }
         }
     </style>
 {% endblock %}
@@ -665,364 +1106,506 @@
 {% block body %}
     {% include 'header_public.html.twig' %}
 
-    <main class="pg-wrap">
+    <main class="cookies-page">
 
-        <!-- ══ HERO ══════════════════════════════════════════════ -->
-        <section class="hero">
-            <div class="hero-orb-amber"></div>
-            <div class="hero-orb-gold"></div>
-            <div class="container">
-                <div class="hero-inner">
-                    <span class="hero-eyebrow">
-                        <i class="bi bi-cookie"></i>
-                        Fonctionnement &amp; gestion des traceurs · WikiFormation
-                    </span>
-                    <h1>Politique de<br><em>cookies</em></h1>
-                    <p class="hero-intro">
-                        Cette page vous explique quels cookies sont utilisés sur WikiFormation,
-                        pourquoi ils sont déposés et comment vous pouvez gérer vos préférences
-                        à tout moment.
-                    </p>
-                    <div class="hero-pills">
-                        <span class="hero-pill"><i class="bi bi-toggles"></i> Cookies nécessaires</span>
-                        <span class="hero-pill"><i class="bi bi-bar-chart-line"></i> Mesure d'audience</span>
-                        <span class="hero-pill"><i class="bi bi-sliders"></i> Vos préférences</span>
-                        <span class="hero-pill"><i class="bi bi-clock-history"></i> Durées encadrées</span>
+        <section class="cookies-hero">
+            <div class="hero-orb-line"></div>
+
+            <div class="container hero-shell">
+                <div class="hero-grid">
+                    <div>
+                        <span class="hero-badge">
+                            <i class="bi bi-cookie"></i>
+                            Fonctionnement & gestion des traceurs · WikiFormation
+                        </span>
+
+                        <h1 class="hero-title">
+                            Politique de<br>
+                            <span class="accent">cookies</span>
+                        </h1>
+
+                        <p class="hero-lead">
+                            Cette page vous explique quels cookies sont utilisés sur WikiFormation,
+                            pourquoi ils sont déposés, à quelles finalités ils répondent et comment
+                            vous pouvez gérer vos préférences à tout moment.
+                        </p>
+
+                        <div class="hero-pills">
+                            <span class="hero-pill"><i class="bi bi-toggles"></i> Cookies nécessaires</span>
+                            <span class="hero-pill"><i class="bi bi-bar-chart-line"></i> Mesure d’audience</span>
+                            <span class="hero-pill"><i class="bi bi-sliders"></i> Préférences</span>
+                            <span class="hero-pill"><i class="bi bi-clock-history"></i> Durées encadrées</span>
+                        </div>
                     </div>
+
+                    <aside class="hero-aside">
+                        <div class="hero-card">
+                            <div class="hero-card-top">
+                                <span class="hero-card-label">Gestion des traceurs</span>
+                                <span class="hero-card-status">Consentement</span>
+                            </div>
+
+                            <div class="hero-contract-grid">
+                                <div class="hero-contract-item">
+                                    <span>Dernière mise à jour</span>
+                                    <strong>{{ "now"|date("d/m/Y") }}</strong>
+                                </div>
+                                <div class="hero-contract-item">
+                                    <span>Champ</span>
+                                    <strong>Cookies & traceurs</strong>
+                                </div>
+                                <div class="hero-contract-item">
+                                    <span>Cadre</span>
+                                    <strong>Transparence & choix</strong>
+                                </div>
+                                <div class="hero-contract-item">
+                                    <span>Gestion</span>
+                                    <strong>À tout moment</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
         </section>
 
-        <svg class="hero-wave" viewBox="0 0 1440 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#0f1b28;">
-            <path d="M0 0C360 52 1080 52 1440 0V52H0V0Z" fill="#faf8f3"/>
+        <svg class="hero-wave" viewBox="0 0 1440 90" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#0f1b28;">
+            <path d="M0 21L80 29.2C160 37.3 320 53.7 480 53.8C640 54 800 38 960 27.2C1120 16.3 1280 10.7 1360 8L1440 5.3V90H0Z" fill="#f6f2ea"/>
         </svg>
 
-        <!-- ══ DOC LAYOUT ═════════════════════════════════════════ -->
-        <div class="doc-layout">
-
-            <!-- sidebar -->
-            <aside class="sidebar">
-                <p class="sidebar-label">Sommaire</p>
-                <ul class="toc" id="toc">
-                    <li><a href="#s1"><span class="num">01</span> Qu'est-ce qu'un cookie ?</a></li>
-                    <li><a href="#s2"><span class="num">02</span> Catégories de cookies</a></li>
-                    <li><a href="#s3"><span class="num">03</span> Finalités d'utilisation</a></li>
-                    <li><a href="#s4"><span class="num">04</span> Durées de conservation</a></li>
-                    <li><a href="#s5"><span class="num">05</span> Gérer vos préférences</a></li>
-                    <li><a href="#s6"><span class="num">06</span> Cookies tiers</a></li>
-                    <li><a href="#s7"><span class="num">07</span> Mise à jour</a></li>
-                </ul>
-                <div class="sidebar-updated">
-                    <strong>Dernière mise à jour</strong><br>
-                    {{ "now"|date("d/m/Y") }}
+        <div class="trust-strip-wrap">
+            <div class="trust-strip">
+                <div class="trust-strip-inner">
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-toggles"></i></div>
+                        <div>
+                            <strong>Nécessaires</strong>
+                            <span>Certains cookies sont strictement indispensables au fonctionnement du service.</span>
+                        </div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-hand-thumbs-up"></i></div>
+                        <div>
+                            <strong>Consentement</strong>
+                            <span>Les cookies non essentiels ne sont déposés qu’après votre accord explicite.</span>
+                        </div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-sliders"></i></div>
+                        <div>
+                            <strong>Contrôle total</strong>
+                            <span>Vous pouvez modifier vos préférences à tout moment depuis la bannière ou votre navigateur.</span>
+                        </div>
+                    </div>
+                    <div class="trust-item">
+                        <div class="trust-icon"><i class="bi bi-clock-history"></i></div>
+                        <div>
+                            <strong>Durées limitées</strong>
+                            <span>Chaque cookie suit une durée de vie adaptée à sa finalité et à la réglementation.</span>
+                        </div>
+                    </div>
                 </div>
-            </aside>
+            </div>
+        </div>
 
-            <!-- main -->
-            <div class="doc-main">
+        <div class="doc-shell">
+            <div class="doc-layout">
 
-                <!-- Summary -->
-                <article class="doc-section visible" style="opacity:1;transform:none;">
-                    <div class="summary-grid">
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-toggles"></i></div>
-                            <h3>Nécessaires</h3>
-                            <p>Certains cookies sont indispensables au fonctionnement du service et déposés sans consentement.</p>
+                <aside class="doc-sidebar">
+                    <div class="sidebar-card">
+                        <div class="sidebar-kicker">
+                            <i class="bi bi-list-stars"></i>
+                            Navigation
                         </div>
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-hand-thumbs-up"></i></div>
-                            <h3>Consentement</h3>
-                            <p>Les cookies non essentiels ne sont déposés qu'après votre accord explicite via la bannière.</p>
-                        </div>
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-sliders"></i></div>
-                            <h3>Contrôle total</h3>
-                            <p>Vous pouvez modifier vos préférences à tout moment depuis la bannière ou votre navigateur.</p>
-                        </div>
-                        <div class="sum-card">
-                            <div class="sum-icon"><i class="bi bi-clock-history"></i></div>
-                            <h3>Durées limitées</h3>
-                            <p>Chaque cookie a une durée de vie définie, adaptée à sa finalité et à la réglementation.</p>
-                        </div>
-                    </div>
-                </article>
 
-                <!-- 1. Qu'est-ce qu'un cookie -->
-                <article class="doc-section" id="s1">
-                    <div class="section-head">
-                        <span class="section-num">01</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Définition</p>
-                            <h2 class="section-title">Qu'est-ce qu'un cookie ?</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-question-circle"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>Un cookie est un petit fichier texte déposé sur votre terminal (ordinateur, tablette, smartphone) lors de votre visite sur un site web. Il permet au site de mémoriser certaines informations relatives à votre navigation afin d'améliorer votre expérience et d'assurer le bon fonctionnement des services.</p>
-                        <p>Les cookies ne peuvent pas exécuter de programmes ni transmettre de virus. Ils sont propres à chaque site et ne peuvent être lus que par le serveur qui les a émis.</p>
-                        <div class="callout callout-info">
-                            <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
-                            <div class="callout-body">
-                                <p>Conformément aux recommandations de la CNIL et à la réglementation ePrivacy, les cookies nécessitant votre consentement ne sont déposés qu'après votre accord explicite.</p>
-                            </div>
-                        </div>
-                    </div>
-                </article>
+                        <h2 class="sidebar-title">Sommaire</h2>
+                        <p class="sidebar-text">
+                            Retrouvez rapidement les informations essentielles relatives aux cookies,
+                            à leurs finalités et aux moyens de gestion disponibles sur WikiFormation.
+                        </p>
 
-                <!-- 2. Catégories -->
-                <article class="doc-section" id="s2">
-                    <div class="section-head">
-                        <span class="section-num">02</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Typologie</p>
-                            <h2 class="section-title">Catégories de cookies utilisées</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-layers"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <div class="cookie-types">
-                            <div class="cookie-card">
-                                <div class="cookie-card-head">
-                                    <span class="cookie-card-dot green"></span>
-                                    <span class="cookie-card-title">Strictement nécessaires</span>
-                                    <span class="cookie-card-badge badge-required">Requis</span>
-                                </div>
-                                <div class="cookie-card-body">
-                                    Indispensables au fonctionnement du site : session utilisateur, sécurité, mémorisation des préférences de consentement. Déposés sans accord préalable.
-                                </div>
-                            </div>
-                            <div class="cookie-card">
-                                <div class="cookie-card-head">
-                                    <span class="cookie-card-dot amber"></span>
-                                    <span class="cookie-card-title">Mesure d'audience</span>
-                                    <span class="cookie-card-badge badge-optional">Optionnel</span>
-                                </div>
-                                <div class="cookie-card-body">
-                                    Permettent de mesurer le trafic, les pages consultées et le comportement des visiteurs (ex. Google Analytics). Soumis à consentement.
-                                </div>
-                            </div>
-                            <div class="cookie-card">
-                                <div class="cookie-card-head">
-                                    <span class="cookie-card-dot blue"></span>
-                                    <span class="cookie-card-title">Fonctionnels</span>
-                                    <span class="cookie-card-badge badge-optional">Optionnel</span>
-                                </div>
-                                <div class="cookie-card-body">
-                                    Mémorisent vos préférences d'affichage, de langue ou d'interface pour personnaliser votre expérience lors de visites ultérieures.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-
-                <!-- 3. Finalités -->
-                <article class="doc-section" id="s3">
-                    <div class="section-head">
-                        <span class="section-num">03</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Objectifs</p>
-                            <h2 class="section-title">Finalités d'utilisation</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-bullseye"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>Les cookies déposés sur WikiFormation poursuivent les finalités suivantes :</p>
-                        <ul class="check-list mt-3">
-                            <li>mémoriser vos préférences utilisateur et paramètres d'interface ;</li>
-                            <li>assurer la sécurité de la session et l'authentification sur la plateforme ;</li>
-                            <li>améliorer la performance, la stabilité et l'ergonomie du site ;</li>
-                            <li>mesurer l'audience via des outils analytiques (avec votre consentement) ;</li>
-                            <li>mémoriser votre choix relatif aux cookies lors de la visite initiale ;</li>
-                            <li>assurer le bon fonctionnement des intégrations techniques nécessaires au service.</li>
+                        <ul class="toc" id="toc">
+                            <li><a href="#s1"><span class="num">01</span><span>Qu’est-ce qu’un cookie ?</span></a></li>
+                            <li><a href="#s2"><span class="num">02</span><span>Catégories de cookies</span></a></li>
+                            <li><a href="#s3"><span class="num">03</span><span>Finalités d’utilisation</span></a></li>
+                            <li><a href="#s4"><span class="num">04</span><span>Durées de conservation</span></a></li>
+                            <li><a href="#s5"><span class="num">05</span><span>Gérer vos préférences</span></a></li>
+                            <li><a href="#s6"><span class="num">06</span><span>Cookies tiers</span></a></li>
+                            <li><a href="#s7"><span class="num">07</span><span>Mise à jour</span></a></li>
                         </ul>
-                    </div>
-                </article>
 
-                <!-- 4. Durées -->
-                <article class="doc-section" id="s4">
-                    <div class="section-head">
-                        <span class="section-num">04</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Rétention</p>
-                            <h2 class="section-title">Durées de conservation</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-clock-history"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>La durée de vie de chaque cookie est adaptée à sa finalité et encadrée par la réglementation applicable.</p>
-                        <div class="duration-list mt-3">
-                            <div class="duration-row">
-                                <div class="duration-icon"><i class="bi bi-shield-check"></i></div>
-                                <div class="duration-info">
-                                    <p class="duration-name">Cookies de session</p>
-                                    <p class="duration-desc">Supprimés automatiquement à la fermeture du navigateur.</p>
-                                </div>
-                                <span class="duration-badge">Session</span>
-                            </div>
-                            <div class="duration-row">
-                                <div class="duration-icon"><i class="bi bi-toggles"></i></div>
-                                <div class="duration-info">
-                                    <p class="duration-name">Préférences de consentement</p>
-                                    <p class="duration-desc">Mémorisent votre choix relatif aux cookies pour éviter de vous le redemander.</p>
-                                </div>
-                                <span class="duration-badge">13 mois max</span>
-                            </div>
-                            <div class="duration-row">
-                                <div class="duration-icon"><i class="bi bi-bar-chart-line"></i></div>
-                                <div class="duration-info">
-                                    <p class="duration-name">Cookies analytiques</p>
-                                    <p class="duration-desc">Mesure d'audience — durée conforme aux recommandations de la CNIL.</p>
-                                </div>
-                                <span class="duration-badge">13 mois max</span>
-                            </div>
-                            <div class="duration-row">
-                                <div class="duration-icon"><i class="bi bi-sliders"></i></div>
-                                <div class="duration-info">
-                                    <p class="duration-name">Cookies fonctionnels</p>
-                                    <p class="duration-desc">Mémorisation des préférences d'interface et paramètres personnalisés.</p>
-                                </div>
-                                <span class="duration-badge">6 à 12 mois</span>
-                            </div>
+                        <div class="sidebar-meta">
+                            <span class="sidebar-meta-label">Document cookies</span>
+                            <strong>Version en vigueur au {{ "now"|date("d/m/Y") }}</strong>
                         </div>
                     </div>
-                </article>
+                </aside>
 
-                <!-- 5. Gérer préférences -->
-                <article class="doc-section" id="s5">
-                    <div class="section-head">
-                        <span class="section-num">05</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Contrôle</p>
-                            <h2 class="section-title">Gérer vos préférences</h2>
+                <div class="doc-main">
+
+                    <section class="overview visible" style="opacity:1;transform:none;">
+                        <div class="overview-grid">
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-toggles"></i></div>
+                                <h3>Nécessaires</h3>
+                                <p>Certains cookies sont indispensables au fonctionnement du service et déposés sans consentement.</p>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-hand-thumbs-up"></i></div>
+                                <h3>Consentement</h3>
+                                <p>Les cookies non essentiels ne sont déposés qu’après votre accord explicite via la bannière.</p>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-sliders"></i></div>
+                                <h3>Contrôle total</h3>
+                                <p>Vous pouvez modifier vos préférences à tout moment depuis le gestionnaire prévu à cet effet.</p>
+                            </div>
+                            <div class="overview-card">
+                                <div class="overview-icon"><i class="bi bi-clock-history"></i></div>
+                                <h3>Durées limitées</h3>
+                                <p>Chaque cookie a une durée de vie définie, cohérente avec sa finalité et les recommandations applicables.</p>
+                            </div>
                         </div>
-                        <div class="section-icon"><i class="bi bi-sliders"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>Vous disposez à tout moment de plusieurs moyens pour gérer les cookies déposés sur votre terminal :</p>
-                        <div class="manage-options mt-3">
-                            <div class="manage-card">
-                                <div class="manage-card-icon"><i class="bi bi-ui-checks"></i></div>
-                                <div class="manage-card-body">
-                                    <strong>Bannière de consentement</strong>
-                                    <p>Acceptez, refusez ou paramétrez les catégories de cookies depuis la bannière affichée lors de votre première visite ou via le lien de gestion des cookies.</p>
+                    </section>
+
+                    <article class="doc-section" id="s1">
+                        <div class="section-head">
+                            <span class="section-num">01</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Définition</p>
+                                <h2 class="section-title">Qu’est-ce qu’un cookie ?</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-question-circle"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                Un cookie est un petit fichier texte déposé sur votre terminal
+                                (ordinateur, tablette ou smartphone) lors de votre visite sur un site web.
+                                Il permet au site de mémoriser certaines informations relatives à votre navigation
+                                afin d’améliorer votre expérience et d’assurer le bon fonctionnement des services.
+                            </p>
+                            <p>
+                                Les cookies ne peuvent pas exécuter de programmes ni transmettre de virus.
+                                Ils sont associés à un domaine précis et ne peuvent être lus que par le site
+                                ou le service qui les a déposés, selon les règles applicables.
+                            </p>
+
+                            <div class="callout callout-info">
+                                <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
+                                <div class="callout-body">
+                                    <p>
+                                        Conformément aux recommandations de la CNIL et à la réglementation ePrivacy,
+                                        les cookies nécessitant votre consentement ne sont déposés qu’après votre accord explicite.
+                                    </p>
                                 </div>
                             </div>
-                            <div class="manage-card">
-                                <div class="manage-card-icon"><i class="bi bi-browser-chrome"></i></div>
-                                <div class="manage-card-body">
-                                    <strong>Paramètres du navigateur</strong>
-                                    <p>Vous pouvez configurer votre navigateur pour bloquer ou supprimer les cookies. Notez que certaines fonctionnalités du site pourraient ne plus être accessibles.</p>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s2">
+                        <div class="section-head">
+                            <span class="section-num">02</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Typologie</p>
+                                <h2 class="section-title">Catégories de cookies utilisées</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-layers"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <div class="cookie-types">
+                                <div class="cookie-card">
+                                    <div class="cookie-card-head">
+                                        <span class="cookie-card-dot green"></span>
+                                        <span class="cookie-card-title">Strictement nécessaires</span>
+                                        <span class="cookie-card-badge badge-required">Requis</span>
+                                    </div>
+                                    <div class="cookie-card-body">
+                                        Indispensables au fonctionnement de la plateforme :
+                                        session utilisateur, sécurité, authentification et mémorisation
+                                        des préférences de consentement. Ils peuvent être déposés sans accord préalable
+                                        lorsqu’ils sont réellement nécessaires.
+                                    </div>
+                                </div>
+
+                                <div class="cookie-card">
+                                    <div class="cookie-card-head">
+                                        <span class="cookie-card-dot amber"></span>
+                                        <span class="cookie-card-title">Mesure d’audience</span>
+                                        <span class="cookie-card-badge badge-optional">Optionnel</span>
+                                    </div>
+                                    <div class="cookie-card-body">
+                                        Permettent de mesurer le trafic, les pages consultées,
+                                        la fréquentation et certains comportements de navigation
+                                        afin d’améliorer le service. Ils sont soumis à votre consentement
+                                        lorsqu’ils ne répondent pas à une exemption réglementaire.
+                                    </div>
+                                </div>
+
+                                <div class="cookie-card">
+                                    <div class="cookie-card-head">
+                                        <span class="cookie-card-dot blue"></span>
+                                        <span class="cookie-card-title">Fonctionnels</span>
+                                        <span class="cookie-card-badge badge-optional">Optionnel</span>
+                                    </div>
+                                    <div class="cookie-card-body">
+                                        Mémorisent vos préférences d’affichage, certains paramètres d’interface
+                                        ou des choix de navigation afin de personnaliser votre expérience
+                                        lors de vos visites ultérieures.
+                                    </div>
                                 </div>
                             </div>
-                            <div class="manage-card">
-                                <div class="manage-card-icon"><i class="bi bi-bar-chart-line"></i></div>
-                                <div class="manage-card-body">
-                                    <strong>Opt-out analytique</strong>
-                                    <p>Si vous utilisez Google Analytics, vous pouvez vous y opposer via le module complémentaire de désactivation disponible depuis Google.</p>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s3">
+                        <div class="section-head">
+                            <span class="section-num">03</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Objectifs</p>
+                                <h2 class="section-title">Finalités d’utilisation</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-bullseye"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>Les cookies déposés sur WikiFormation poursuivent notamment les finalités suivantes :</p>
+
+                            <ul class="check-list">
+                                <li>mémoriser vos préférences utilisateur et certains paramètres d’interface ;</li>
+                                <li>assurer la sécurité de la session et l’authentification sur la plateforme ;</li>
+                                <li>améliorer la performance, la stabilité et l’ergonomie du site ;</li>
+                                <li>mesurer l’audience via des outils analytiques avec votre consentement ;</li>
+                                <li>mémoriser votre choix relatif aux cookies lors de votre visite ;</li>
+                                <li>assurer le bon fonctionnement des intégrations techniques nécessaires au service.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s4">
+                        <div class="section-head">
+                            <span class="section-num">04</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Rétention</p>
+                                <h2 class="section-title">Durées de conservation</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-clock-history"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                La durée de vie de chaque cookie est adaptée à sa finalité
+                                et encadrée par la réglementation applicable.
+                            </p>
+
+                            <div class="duration-list">
+                                <div class="duration-row">
+                                    <div class="duration-icon"><i class="bi bi-shield-check"></i></div>
+                                    <div class="duration-info">
+                                        <p class="duration-name">Cookies de session</p>
+                                        <p class="duration-desc">Supprimés automatiquement à la fermeture du navigateur ou à l’expiration de la session.</p>
+                                    </div>
+                                    <span class="duration-badge">Session</span>
+                                </div>
+
+                                <div class="duration-row">
+                                    <div class="duration-icon"><i class="bi bi-toggles"></i></div>
+                                    <div class="duration-info">
+                                        <p class="duration-name">Préférences de consentement</p>
+                                        <p class="duration-desc">Mémorisent votre choix relatif aux cookies afin d’éviter de vous le redemander à chaque visite.</p>
+                                    </div>
+                                    <span class="duration-badge">13 mois max</span>
+                                </div>
+
+                                <div class="duration-row">
+                                    <div class="duration-icon"><i class="bi bi-bar-chart-line"></i></div>
+                                    <div class="duration-info">
+                                        <p class="duration-name">Cookies analytiques</p>
+                                        <p class="duration-desc">Mesure d’audience et statistiques de navigation, dans une durée conforme aux recommandations applicables.</p>
+                                    </div>
+                                    <span class="duration-badge">13 mois max</span>
+                                </div>
+
+                                <div class="duration-row">
+                                    <div class="duration-icon"><i class="bi bi-sliders"></i></div>
+                                    <div class="duration-info">
+                                        <p class="duration-name">Cookies fonctionnels</p>
+                                        <p class="duration-desc">Mémorisation de certaines préférences d’interface ou de navigation lorsque cette fonctionnalité est activée.</p>
+                                    </div>
+                                    <span class="duration-badge">6 à 12 mois</span>
                                 </div>
                             </div>
-                            <div class="manage-card">
-                                <div class="manage-card-icon"><i class="bi bi-arrow-counterclockwise"></i></div>
-                                <div class="manage-card-body">
-                                    <strong>Retrait du consentement</strong>
-                                    <p>Votre consentement peut être retiré à tout moment avec effet pour l'avenir, sans que cela ne remette en cause les traitements déjà effectués.</p>
+                        </div>
+                    </article>
+
+                    <article class="doc-section" id="s5">
+                        <div class="section-head">
+                            <span class="section-num">05</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Contrôle</p>
+                                <h2 class="section-title">Gérer vos préférences</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-sliders"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                Vous disposez à tout moment de plusieurs moyens pour gérer les cookies
+                                déposés sur votre terminal :
+                            </p>
+
+                            <div class="manage-options">
+                                <div class="manage-card">
+                                    <div class="manage-card-icon"><i class="bi bi-ui-checks"></i></div>
+                                    <div class="manage-card-body">
+                                        <strong>Bannière de consentement</strong>
+                                        <p>Acceptez, refusez ou paramétrez les catégories de cookies depuis la bannière affichée lors de votre première visite ou via le lien de gestion des cookies.</p>
+                                    </div>
+                                </div>
+
+                                <div class="manage-card">
+                                    <div class="manage-card-icon"><i class="bi bi-browser-chrome"></i></div>
+                                    <div class="manage-card-body">
+                                        <strong>Paramètres du navigateur</strong>
+                                        <p>Vous pouvez configurer votre navigateur pour bloquer ou supprimer les cookies. Certaines fonctionnalités du site pourraient alors ne plus être accessibles.</p>
+                                    </div>
+                                </div>
+
+                                <div class="manage-card">
+                                    <div class="manage-card-icon"><i class="bi bi-bar-chart-line"></i></div>
+                                    <div class="manage-card-body">
+                                        <strong>Opposition analytique</strong>
+                                        <p>Lorsque des outils de mesure d’audience sont utilisés, vous pouvez vous y opposer selon les modalités prévues par les services concernés et par la plateforme.</p>
+                                    </div>
+                                </div>
+
+                                <div class="manage-card">
+                                    <div class="manage-card-icon"><i class="bi bi-arrow-counterclockwise"></i></div>
+                                    <div class="manage-card-body">
+                                        <strong>Retrait du consentement</strong>
+                                        <p>Votre consentement peut être retiré à tout moment avec effet pour l’avenir, sans remettre en cause les traitements déjà réalisés avant ce retrait.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="callout callout-warn">
+                                <div class="callout-icon"><i class="bi bi-exclamation-lg"></i></div>
+                                <div class="callout-body">
+                                    <p>
+                                        Le refus ou la suppression des cookies strictement nécessaires peut empêcher l’accès
+                                        à certaines fonctionnalités essentielles de la plateforme, notamment l’authentification
+                                        ou la sécurisation de la session.
+                                    </p>
                                 </div>
                             </div>
                         </div>
-                        <div class="callout callout-warn mt-4">
-                            <div class="callout-icon"><i class="bi bi-exclamation-lg"></i></div>
-                            <div class="callout-body">
-                                <p>Le refus ou la suppression des cookies strictement nécessaires peut empêcher l'accès à certaines fonctionnalités de la plateforme, notamment l'authentification.</p>
+                    </article>
+
+                    <article class="doc-section" id="s6">
+                        <div class="section-head">
+                            <span class="section-num">06</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Partenaires</p>
+                                <h2 class="section-title">Cookies tiers</h2>
+                            </div>
+                            <div class="section-icon"><i class="bi bi-diagram-2"></i></div>
+                        </div>
+                        <div class="section-body">
+                            <p>
+                                Certains services intégrés à WikiFormation peuvent déposer leurs propres cookies sur votre terminal.
+                                Ces cookies relèvent alors des politiques de confidentialité et de cookies des tiers concernés,
+                                sur lesquels WikiFormation n’exerce pas de contrôle direct.
+                            </p>
+
+                            <ul class="check-list">
+                                <li>Google Analytics ou équivalent — mesure d’audience et statistiques de navigation, soumis à consentement selon la configuration retenue ;</li>
+                                <li>Stripe — traitement sécurisé des paiements et fonctionnement technique nécessaire à certaines opérations ;</li>
+                                <li>tout autre service tiers explicitement intégré à la plateforme et mentionné dans la documentation ou la politique de confidentialité.</li>
+                            </ul>
+
+                            <div class="callout callout-gold">
+                                <div class="callout-icon"><i class="bi bi-link-45deg"></i></div>
+                                <div class="callout-body">
+                                    <p>
+                                        Pour en savoir plus sur les traitements éventuellement effectués par ces tiers,
+                                        consultez leurs politiques de confidentialité et de cookies respectives
+                                        disponibles sur leurs sites officiels.
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </article>
+                    </article>
 
-                <!-- 6. Cookies tiers -->
-                <article class="doc-section" id="s6">
-                    <div class="section-head">
-                        <span class="section-num">06</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Partenaires</p>
-                            <h2 class="section-title">Cookies tiers</h2>
-                        </div>
-                        <div class="section-icon"><i class="bi bi-diagram-2"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>Certains services intégrés à WikiFormation peuvent déposer leurs propres cookies sur votre terminal. Ces cookies sont soumis aux politiques de confidentialité des tiers concernés, sur lesquels WikiFormation n'a pas de contrôle direct.</p>
-                        <ul class="check-list mt-3">
-                            <li>Google Analytics — mesure d'audience et statistiques de navigation (soumis à consentement) ;</li>
-                            <li>Stripe — traitement sécurisé des paiements (cookies techniques nécessaires à la transaction) ;</li>
-                            <li>tout autre service tiers mentionné dans la politique de confidentialité.</li>
-                        </ul>
-                        <div class="callout callout-gold">
-                            <div class="callout-icon"><i class="bi bi-link-45deg"></i></div>
-                            <div class="callout-body">
-                                <p>Pour en savoir plus sur les traitements effectués par ces tiers, consultez leurs politiques de confidentialité respectives disponibles sur leurs sites officiels.</p>
+                    <article class="doc-section" id="s7">
+                        <div class="section-head">
+                            <span class="section-num">07</span>
+                            <div class="section-title-wrap">
+                                <p class="section-category">Évolution</p>
+                                <h2 class="section-title">Mise à jour de la politique</h2>
                             </div>
+                            <div class="section-icon"><i class="bi bi-arrow-repeat"></i></div>
                         </div>
-                    </div>
-                </article>
-
-                <!-- 7. Mise à jour -->
-                <article class="doc-section" id="s7">
-                    <div class="section-head">
-                        <span class="section-num">07</span>
-                        <div class="section-title-wrap">
-                            <p class="section-category">Évolution</p>
-                            <h2 class="section-title">Mise à jour de la politique</h2>
+                        <div class="section-body">
+                            <p>
+                                La présente politique de cookies peut être modifiée à tout moment
+                                afin de refléter une évolution des services, des outils utilisés
+                                ou de la réglementation applicable. La date de dernière mise à jour
+                                figure ci-dessous ainsi que dans le sommaire latéral.
+                            </p>
+                            <p>
+                                En cas de modification substantielle, un nouveau recueil de consentement
+                                sera effectué si nécessaire.
+                            </p>
                         </div>
-                        <div class="section-icon"><i class="bi bi-arrow-repeat"></i></div>
-                    </div>
-                    <div class="section-body">
-                        <p>La présente politique de cookies peut être modifiée à tout moment pour refléter une évolution des services, des outils utilisés ou de la réglementation applicable. La date de dernière mise à jour figure ci-dessous ainsi que dans le sommaire latéral.</p>
-                        <p>En cas de modification substantielle, un nouveau recueil de consentement sera effectué si nécessaire.</p>
-                    </div>
-                </article>
+                    </article>
 
-                <!-- Footer -->
-                <p class="doc-footer">
-                    Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong> &nbsp;·&nbsp;
-                    <a href="{{ path('app_public_cgu') }}">CGU</a> &nbsp;·&nbsp;
-                    <a href="{{ path('app_public_cgv') }}">CGV</a> &nbsp;·&nbsp;
-                    <a href="{{ path('app_public_mentions_legales') }}">Mentions légales</a> &nbsp;·&nbsp;
-                    <a href="{{ path('app_public_politique_confidentialite') }}">Confidentialité</a>
-                </p>
+                    <p class="doc-footer">
+                        Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong>
+                        &nbsp;·&nbsp;
+                        <a href="{{ path('app_public_cgu') }}">CGU</a>
+                        &nbsp;·&nbsp;
+                        <a href="{{ path('app_public_cgv') }}">CGV</a>
+                        &nbsp;·&nbsp;
+                        <a href="{{ path('app_public_mentions_legales') }}">Mentions légales</a>
+                        &nbsp;·&nbsp;
+                        <a href="{{ path('app_public_politique_confidentialite') }}">Confidentialité</a>
+                    </p>
 
-            </div><!-- /doc-main -->
-        </div><!-- /doc-layout -->
+                </div>
+            </div>
+        </div>
 
     </main>
-
 {% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
     <script>
-    (() => {
-        const sections = document.querySelectorAll('.doc-section');
-        const obs = new IntersectionObserver((entries) => {
-            entries.forEach((e, i) => {
-                if (e.isIntersecting) {
-                    setTimeout(() => e.target.classList.add('visible'), i * 60);
-                    obs.unobserve(e.target);
-                }
-            });
-        }, { threshold: 0.07 });
-        sections.forEach(s => obs.observe(s));
+        (() => {
+            const sections = document.querySelectorAll('.doc-section');
+            const tocLinks = document.querySelectorAll('.toc a');
 
-        const anchors = document.querySelectorAll('.doc-section[id]');
-        const links   = document.querySelectorAll('.toc a');
-        const scrollObs = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                if (e.isIntersecting) {
-                    links.forEach(l => l.classList.remove('active'));
-                    const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
-                    if (active) active.classList.add('active');
-                }
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach((entry, index) => {
+                    if (entry.isIntersecting) {
+                        setTimeout(() => entry.target.classList.add('visible'), index * 55);
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.08 });
+
+            sections.forEach(section => revealObserver.observe(section));
+
+            const activeObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        tocLinks.forEach(link => link.classList.remove('active'));
+                        const active = document.querySelector(`.toc a[href="#${entry.target.id}"]`);
+                        if (active) active.classList.add('active');
+                    }
+                });
+            }, {
+                rootMargin: '-28% 0px -60% 0px',
+                threshold: 0
             });
-        }, { rootMargin: '-30% 0px -65% 0px' });
-        anchors.forEach(a => scrollObs.observe(a));
-    })();
+
+            document.querySelectorAll('.doc-section[id]').forEach(section => activeObserver.observe(section));
+        })();
     </script>
 {% endblock %}
