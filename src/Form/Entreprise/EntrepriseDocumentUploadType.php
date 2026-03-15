@@ -51,16 +51,16 @@ final class EntrepriseDocumentUploadType extends AbstractType
         'attr' => ['class' => 'form-control'],
         'constraints' => [
           new Assert\NotNull(),
-          new Assert\File([
-            'maxSize' => '15M',
-            'mimeTypes' => [
+          new Assert\File(
+            maxSize: '15M',
+            mimeTypes: [
               'application/pdf',
               'image/png',
               'image/jpeg',
               'image/jpg',
             ],
-            'mimeTypesMessage' => 'Format invalide (PDF/PNG/JPG).',
-          ]),
+            mimeTypesMessage: 'Format invalide (PDF/PNG/JPG).',
+          ),
         ],
         'label_attr' => ['class' => 'form-label fw-semibold'],
         'row_attr' => ['class' => 'mb-3'],

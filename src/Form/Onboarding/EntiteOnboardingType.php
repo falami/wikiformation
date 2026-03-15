@@ -70,11 +70,11 @@ final class EntiteOnboardingType extends AbstractType
           'class' => 'd-none', // on le masque: UI custom en Twig
         ],
         'constraints' => [
-          new Assert\File([
-            'maxSize' => '2M',
-            'mimeTypes' => ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
-            'mimeTypesMessage' => 'Format invalide (PNG/JPG/WebP/SVG).',
-          ]),
+          new Assert\File(
+            maxSize: '2M',
+            mimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+            mimeTypesMessage: 'Format invalide (PNG/JPG/WebP/SVG).',
+          ),
         ],
       ])
 

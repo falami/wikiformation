@@ -52,7 +52,9 @@ final class CategorieType extends AbstractType
         'required' => false,
         'label' => 'Photo',
         'constraints' => [
-          new Image(['maxSize' => '4M'])
+          new Image(
+            maxSize: '4M'
+            )
         ],
       ])
       ->add('showOnHome', CheckboxType::class, [

@@ -60,7 +60,7 @@ final class CheckoutController extends AbstractController
     $this->denyAccessUnlessGranted(TenantPermission::BILLING_MANAGE, $entite);
 
     // ✅ 4) Lire la demande
-    $planCode = strtoupper((string) $request->request->get('plan', ''));
+    $planCode = trim((string) $request->request->get('plan', ''));
     $interval = (string) $request->request->get('interval', 'month'); // month|year
     $addons   = (array)  $request->request->all('addons');
 
@@ -83,7 +83,7 @@ final class CheckoutController extends AbstractController
     $addonPriceIds = [];
     $addonCodes = [];
     foreach ($addons as $addonCode) {
-      $addon = $addonRepo->findOneBy(['code' => strtoupper((string)$addonCode), 'isActive' => true]);
+      $addon = $addonRepo->findOneBy(['code' => trim((string) $addonCode), 'isActive' => true]);
       if ($addon && $addon->getStripePriceId()) {
         $addonPriceIds[] = $addon->getStripePriceId();
         $addonCodes[] = $addon->getCode();

@@ -152,11 +152,11 @@ class FormateurType extends AbstractType
                 'required' => false,
                 'attr' => ['class' => 'form-control'],
                 'constraints' => [
-                    new Assert\File([
-                        'maxSize' => '4M',
-                        'mimeTypes' => ['image/jpeg', 'image/png', 'image/webp'],
-                        'mimeTypesMessage' => 'Formats acceptés : JPG, PNG, WEBP',
-                    ]),
+                    new Assert\File(
+                        maxSize: '4M',
+                        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+                        mimeTypesMessage: 'Formats acceptés : JPG, PNG, WEBP',
+                    ),
                 ],
             ])
         ;

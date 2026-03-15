@@ -164,16 +164,16 @@ final class EntrepriseType extends AbstractType
                     'accept' => 'image/png,image/jpeg,image/webp,image/svg+xml',
                 ],
                 'constraints' => [
-                    new File([
-                        'maxSize' => '4M',
-                        'mimeTypes' => [
+                    new File(
+                        maxSize: '4M',
+                        mimeTypes: [
                             'image/jpeg',
                             'image/png',
                             'image/webp',
                             'image/svg+xml',
                         ],
-                        'mimeTypesMessage' => 'Merci de téléverser une image valide (jpg, png, webp, svg).',
-                    ]),
+                        mimeTypesMessage: 'Merci de téléverser une image valide (jpg, png, webp, svg).',
+                    ),
                 ],
             ])
             ->add('deleteLogo', CheckboxType::class, [

@@ -458,6 +458,16 @@
               {{ form_errors(form.isPublic) }}
             </div>
 
+
+
+            <div class="col-md-12">
+              {{ form_row(form.publicHosts) }}
+            </div>
+
+
+
+            
+
           </div>
         </div>
       </div>
@@ -832,22 +842,33 @@ document.addEventListener('DOMContentLoaded', () => {
   if (window.flatpickr?.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
 
   // ---------- TomSelect (robuste) ----------
-  function initTomSelect(){
-    document.querySelectorAll('select.js-ts, #{{ form.niveau.vars.id }}, #{{ form.engin.vars.id }}, #{{ form.formateur.vars.id }}, #{{ form.categorie.vars.id }}, #{{ form.satisfactionTemplate.vars.id }}, #{{ form.formateurSatisfactionTemplate.vars.id }}')
-      .forEach((sel) => {
-        if (!sel || sel.tomselect) return;
+  function initTomSelect() {
+    document.querySelectorAll(
+      'select.js-ts, ' +
+      '#{{ form.niveau.vars.id }}, ' +
+      '#{{ form.engin.vars.id }}, ' +
+      '#{{ form.formateur.vars.id }}, ' +
+      '#{{ form.categorie.vars.id }}, ' +
+      '#{{ form.satisfactionTemplate.vars.id }}, ' +
+      '#{{ form.formateurSatisfactionTemplate.vars.id }}, ' +
+      '#{{ form.publicHosts.vars.id }}'
+    ).forEach((sel) => {
+      if (!sel || sel.tomselect) return;
 
-        const placeholder = sel.dataset.tsPlaceholder || '- Sélectionner -';
-        new TomSelect(sel, {
-          create: false,
-          allowEmptyOption: true,
-          placeholder,
-          plugins: ['remove_button'],
-          closeAfterSelect: true,
-          maxOptions: 2000,
-          sortField: [{ field: "text", direction: "asc" }]
-        });
+      const placeholder = sel.dataset.tsPlaceholder || '- Sélectionner -';
+      const isMultiple = sel.hasAttribute('multiple');
+
+      new TomSelect(sel, {
+        create: false,
+        allowEmptyOption: true,
+        placeholder,
+        plugins: isMultiple ? ['remove_button'] : [],
+        closeAfterSelect: !isMultiple,
+        hideSelected: true,
+        maxOptions: 2000,
+        sortField: [{ field: 'text', direction: 'asc' }]
       });
+    });
   }
   initTomSelect();
 

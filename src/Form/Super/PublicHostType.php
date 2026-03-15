@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Form\Super;
 
+use App\Entity\Entite;
 use App\Entity\Formation;
 use App\Entity\PublicHost;
 use Doctrine\ORM\EntityRepository;
@@ -17,7 +18,6 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\File;
-use App\Entity\Entite;
 
 final class PublicHostType extends AbstractType
 {
@@ -56,16 +56,16 @@ final class PublicHostType extends AbstractType
                     'class' => 'form-control',
                 ],
                 'constraints' => [
-                    new File([
-                        'maxSize' => '4M',
-                        'mimeTypes' => [
+                    new File(
+                        maxSize: '4M',
+                        mimeTypes: [
                             'image/jpeg',
                             'image/png',
                             'image/webp',
                             'image/svg+xml',
                         ],
-                        'mimeTypesMessage' => 'Veuillez sélectionner une image valide (JPG, PNG, WebP ou SVG).',
-                    ]),
+                        mimeTypesMessage: 'Veuillez sélectionner une image valide (JPG, PNG, WebP ou SVG).',
+                    ),
                 ],
                 'help' => 'Formats acceptés : JPG, PNG, WebP, SVG.',
             ])
@@ -164,6 +164,7 @@ final class PublicHostType extends AbstractType
                     ->addOrderBy('f.titre', 'ASC'),
                 'help' => 'Utilisé uniquement si "Limiter aux formations sélectionnées" est activé.',
             ])
+
             ->add('entite', EntityType::class, [
                 'class' => Entite::class,
                 'label' => 'Entité rattachée',
@@ -183,11 +184,13 @@ final class PublicHostType extends AbstractType
                     ->orderBy('e.nom', 'ASC'),
                 'help' => 'Permet de rattacher ce host public à une entité précise.',
             ])
+
             ->add('showAllPublicFormations', CheckboxType::class, [
                 'label' => 'Afficher toutes les formations publiques',
                 'required' => false,
                 'help' => 'À activer pour le host global Wikiformation. Si coché, ce host affichera toutes les formations publiques de toutes les entités, sauf celles exclues manuellement du catalogue global.',
             ])
+
             ->add('homeUrl', TextType::class, [
                 'label' => 'URL accueil externe',
                 'required' => false,

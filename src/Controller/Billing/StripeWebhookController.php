@@ -141,11 +141,11 @@ final class StripeWebhookController extends AbstractController
 
 
 
-    $sub->setTrialEndsAt(
-      !empty($stripeSub->trial_end)
-        ? (new \DateTimeImmutable())->setTimestamp((int)$stripeSub->trial_end)
-        : null
-    );
+    if (!empty($stripeSub->trial_end)) {
+        $sub->setTrialEndsAt(
+            (new \DateTimeImmutable())->setTimestamp((int) $stripeSub->trial_end)
+        );
+    }
 
 
     // Gestion annulation (Stripe peut utiliser cancel_at_period_end OU cancel_at)

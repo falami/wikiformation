@@ -61,17 +61,17 @@ class PieceDossierStagiaireType extends AbstractType
                     'accept' => 'application/pdf,image/*',
                 ],
                 'constraints' => [
-                    new FileConstraint([
-                        'maxSize' => '10M',
-                        'mimeTypes' => [
+                    new FileConstraint(
+                        maxSize: '10M',
+                        mimeTypes: [
                             'application/pdf',
                             'image/jpeg',
                             'image/png',
                             'image/webp',
                             'image/gif',
                         ],
-                        'mimeTypesMessage' => 'Format invalide (PDF ou image requis).',
-                    ])
+                        mimeTypesMessage: 'Format invalide (PDF ou image requis).',
+                    )
                 ],
             ])
         ;

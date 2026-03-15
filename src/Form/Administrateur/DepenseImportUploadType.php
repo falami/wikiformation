@@ -20,9 +20,9 @@ final class DepenseImportUploadType extends AbstractType
         'required' => true,
         'constraints' => [
           new Assert\NotNull(),
-          new Assert\File([
-            'maxSize' => '12M',
-            'mimeTypes' => [
+          new Assert\File(
+            maxSize: '12M',
+            mimeTypes: [
               // XLSX
               'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
               // CSV (selon navigateurs)
@@ -31,7 +31,7 @@ final class DepenseImportUploadType extends AbstractType
               'application/csv',
               'application/vnd.ms-excel',
             ],
-          ]),
+          ),
         ],
         'attr' => ['class' => 'form-control'],
       ])

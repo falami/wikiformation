@@ -220,15 +220,15 @@ class DepenseType extends AbstractType
         'required' => false,
         'attr' => ['class' => 'form-control'],
         'constraints' => [
-          new Assert\File([
-            'maxSize' => '8M',
-            'mimeTypes' => [
+          new Assert\File(
+            maxSize: '8M',
+            mimeTypes: [
               'application/pdf',
               'image/jpeg',
               'image/png',
               'image/webp',
             ],
-          ]),
+          ),
         ],
       ])
     ;
