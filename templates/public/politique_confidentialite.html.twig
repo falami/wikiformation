@@ -1,199 +1,1218 @@
+{# templates/public/politique_confidentialite.html.twig #}
 {% extends 'base_public.html.twig' %}
 
-{% block title %}Wiki Formation -  du club - Politique de confidentialité{% endblock %}
-
+{% block title %}WikiFormation — Politique de confidentialité{% endblock %}
 
 {% block stylesheets %}
+    {{ parent() }}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+
+    <style>
+        /* ── TOKENS ─────────────────────────────────────────────── */
+        :root {
+            --ink:        #0a0a0f;
+            --ink-80:     rgba(10,10,15,.80);
+            --ink-40:     rgba(10,10,15,.40);
+            --ink-10:     rgba(10,10,15,.07);
+            --gold:       #c9a84c;
+            --gold-light: #e8d49a;
+            --gold-faint: rgba(201,168,76,.10);
+            --cream:      #faf8f3;
+            --white:      #ffffff;
+            --rule:       rgba(10,10,15,.08);
+
+            --r-xl: 28px;
+            --r-lg: 20px;
+            --r-md: 14px;
+
+            --shadow-card: 0 12px 36px rgba(10,10,15,.07), 0 2px 6px rgba(10,10,15,.04);
+
+            --serif: 'Cormorant Garamond', Georgia, serif;
+            --sans:  'DM Sans', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--sans);
+            background-color: var(--cream);
+            color: var(--ink);
+            overflow-x: hidden;
+        }
+
+        /* grain overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 9999;
+            opacity: .6;
+        }
+
+        .pg-wrap { min-height: 100vh; }
+
+        /* ══ HERO ══════════════════════════════════════════════════ */
+        .hero {
+            position: relative;
+            background: #0f1b28;
+            overflow: hidden;
+            padding: 5rem 0 5rem;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                90deg,
+                rgba(255,255,255,.025) 0px,
+                rgba(255,255,255,.025) 1px,
+                transparent 1px,
+                transparent 72px
+            );
+            pointer-events: none;
+        }
+
+        /* green teal orb top-left — distinct identity vs CGU/ML */
+        .hero-orb-teal {
+            position: absolute;
+            left: -100px;
+            top: -100px;
+            width: 380px;
+            height: 380px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(16,185,129,.12) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        .hero-orb-gold {
+            position: absolute;
+            right: -120px;
+            bottom: -120px;
+            width: 440px;
+            height: 440px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(201,168,76,.20) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        .hero-inner {
+            position: relative;
+            z-index: 2;
+            padding: 0 2rem;
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: .6rem;
+            font-size: .72rem;
+            font-weight: 500;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            color: var(--gold-light);
+            margin-bottom: 2rem;
+            padding: .45rem .9rem;
+            border: 1px solid rgba(201,168,76,.25);
+            border-radius: 999px;
+        }
+
+        .hero h1 {
+            font-family: var(--serif);
+            font-size: clamp(3rem, 6vw, 5.4rem);
+            font-weight: 300;
+            letter-spacing: -.02em;
+            line-height: 1.08;
+            color: #fff;
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            color: var(--gold-light);
+        }
+
+        .hero-intro {
+            font-size: 1.05rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,.60);
+            font-weight: 300;
+            max-width: 580px;
+            padding-left: 1.4rem;
+            border-left: 2px solid rgba(201,168,76,.35);
+        }
+
+        .hero-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            margin-top: 3rem;
+        }
+
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .55rem;
+            padding: .55rem 1.1rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.10);
+            color: rgba(255,255,255,.72);
+            font-size: .85rem;
+        }
+
+        .hero-pill i { color: var(--gold); font-size: .9rem; }
+
+        .hero-wave {
+            display: block;
+            width: 100%;
+            line-height: 0;
+            margin-top: -1px;
+        }
+
+        /* ══ LAYOUT ════════════════════════════════════════════════ */
+        .doc-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3.5rem 1.5rem 6rem;
+            align-items: start;
+        }
+
+        /* ── SIDEBAR ───────────────────────────────────────────── */
+        .sidebar {
+            position: sticky;
+            top: 2.5rem;
+            padding-right: 2.5rem;
+        }
+
+        .sidebar-label {
+            font-size: .68rem;
+            font-weight: 500;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--ink-40);
+            margin-bottom: 1.2rem;
+        }
+
+        .toc { list-style: none; border-left: 1px solid var(--rule); }
+
+        .toc li a {
+            display: flex;
+            align-items: baseline;
+            gap: .65rem;
+            padding: .6rem 0 .6rem 1.2rem;
+            text-decoration: none;
+            color: var(--ink-40);
+            font-size: .85rem;
+            line-height: 1.45;
+            transition: color .2s, border-color .2s;
+            border-left: 2px solid transparent;
+            margin-left: -1px;
+        }
+
+        .toc li a .num {
+            font-family: var(--serif);
+            font-size: .8rem;
+            color: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .toc li a:hover  { color: var(--ink); border-left-color: var(--gold); }
+        .toc li a.active { color: var(--ink); font-weight: 500; border-left-color: var(--gold); }
+
+        .sidebar-updated {
+            margin-top: 2.5rem;
+            padding: .9rem 1rem;
+            background: var(--gold-faint);
+            border: 1px solid rgba(201,168,76,.18);
+            border-radius: var(--r-md);
+            font-size: .8rem;
+            color: var(--ink-80);
+            line-height: 1.6;
+        }
+
+        .sidebar-updated strong { color: var(--gold); }
+
+        /* ── MAIN ──────────────────────────────────────────────── */
+        .doc-main { min-width: 0; }
+
+        /* ── SECTION ───────────────────────────────────────────── */
+        .doc-section {
+            margin-bottom: 1.75rem;
+            background: var(--white);
+            border: 1px solid var(--rule);
+            border-radius: var(--r-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            opacity: 0;
+            transform: translateY(22px);
+            transition: opacity .55s cubic-bezier(.22,.68,0,1.2), transform .55s cubic-bezier(.22,.68,0,1.2);
+        }
+
+        .doc-section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.25rem;
+            padding: 1.75rem 2rem 1.5rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .section-num {
+            font-family: var(--serif);
+            font-size: 2.6rem;
+            font-weight: 300;
+            line-height: 1;
+            color: var(--gold);
+            flex-shrink: 0;
+            min-width: 42px;
+        }
+
+        .section-title-wrap { flex: 1; }
+
+        .section-category {
+            font-size: .68rem;
+            font-weight: 500;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+            color: var(--ink-40);
+            margin-bottom: .3rem;
+        }
+
+        .section-title {
+            font-family: var(--serif);
+            font-size: 1.65rem;
+            font-weight: 600;
+            letter-spacing: -.02em;
+            color: var(--ink);
+            line-height: 1.2;
+        }
+
+        .section-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--r-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gold-faint);
+            border: 1px solid rgba(201,168,76,.15);
+            color: var(--gold);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .section-body { padding: 1.75rem 2rem; }
+
+        .section-body p {
+            font-size: .975rem;
+            line-height: 1.85;
+            color: var(--ink-80);
+            margin-bottom: 1rem;
+        }
+
+        .section-body p:last-child { margin-bottom: 0; }
+
+        /* ── SUMMARY GRID ──────────────────────────────────────── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 1.75rem 2rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .sum-card {
+            padding: 1.3rem;
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            background: var(--cream);
+            transition: box-shadow .2s, transform .2s, border-color .2s;
+            cursor: default;
+        }
+
+        .sum-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-card);
+            border-color: rgba(201,168,76,.3);
+        }
+
+        .sum-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--ink);
+            color: var(--gold);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .sum-card h3 {
+            font-family: var(--serif);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: .4rem;
+        }
+
+        .sum-card p {
+            font-size: .84rem;
+            color: var(--ink-40);
+            line-height: 1.65;
+            margin: 0;
+        }
+
+        /* ── 2-COL CARDS ───────────────────────────────────────── */
+        .cards-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .info-card {
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            overflow: hidden;
+            background: var(--cream);
+            transition: box-shadow .2s, transform .2s;
+        }
+
+        .info-card:hover { box-shadow: var(--shadow-card); transform: translateY(-2px); }
+
+        .info-card-head {
+            display: flex;
+            align-items: center;
+            gap: .85rem;
+            padding: 1.1rem 1.25rem .9rem;
+            background: white;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .info-card-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: var(--ink-10);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ink);
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .info-card-title {
+            font-family: var(--serif);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .info-card-body { padding: 1rem 1.25rem; }
+
+        /* ── DATA LIST ─────────────────────────────────────────── */
+        .data-list { list-style: none; }
+
+        .data-list li {
+            display: flex;
+            gap: .75rem;
+            align-items: flex-start;
+            padding: .8rem 0;
+            border-top: 1px solid var(--rule);
+        }
+
+        .data-list li:first-child { border-top: none; padding-top: 0; }
+
+        .data-list-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--gold);
+            flex-shrink: 0;
+            margin-top: .42rem;
+        }
+
+        .data-list-content { flex: 1; }
+
+        .data-label {
+            display: block;
+            font-size: .7rem;
+            font-weight: 500;
+            letter-spacing: .10em;
+            text-transform: uppercase;
+            color: var(--ink-40);
+            margin-bottom: .18rem;
+        }
+
+        .data-value {
+            font-size: .93rem;
+            color: var(--ink);
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .data-value a { color: var(--gold); text-decoration: none; }
+        .data-value a:hover { text-decoration: underline; }
+
+        /* ── DATA ROW LIST (traitements, durées…) ──────────────── */
+        .data-rows { display: grid; gap: .85rem; }
+
+        .data-row {
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            background: var(--cream);
+            padding: 1.1rem 1.25rem;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .data-row:hover {
+            border-color: rgba(201,168,76,.28);
+            box-shadow: 0 4px 20px rgba(201,168,76,.06);
+        }
+
+        .data-row-title {
+            font-family: var(--serif);
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: .35rem;
+        }
+
+        .data-row-desc {
+            font-size: .9rem;
+            color: var(--ink-80);
+            line-height: 1.75;
+            margin: 0;
+        }
+
+        /* ── 4-COL BASE LÉGALES ────────────────────────────────── */
+        .bases-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .base-card {
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            overflow: hidden;
+            background: var(--cream);
+            transition: box-shadow .2s, transform .2s;
+        }
+
+        .base-card:hover { box-shadow: var(--shadow-card); transform: translateY(-2px); }
+
+        .base-card-head {
+            display: flex;
+            align-items: center;
+            gap: .85rem;
+            padding: 1rem 1.25rem .85rem;
+            background: white;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .base-card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 11px;
+            background: var(--ink-10);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ink);
+            font-size: .95rem;
+            flex-shrink: 0;
+        }
+
+        .base-card-title {
+            font-family: var(--serif);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .base-card-body {
+            padding: .9rem 1.25rem;
+            font-size: .88rem;
+            color: var(--ink-80);
+            line-height: 1.75;
+        }
+
+        /* ── CHECK LIST ────────────────────────────────────────── */
+        .check-list { list-style: none; display: grid; gap: .55rem; }
+
+        .check-list li {
+            display: flex;
+            gap: .85rem;
+            align-items: flex-start;
+            font-size: .935rem;
+            line-height: 1.7;
+            color: var(--ink-80);
+            padding: .7rem .9rem;
+            border-radius: var(--r-md);
+            transition: background .2s;
+        }
+
+        .check-list li:hover { background: var(--ink-10); }
+
+        .check-list li::before {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(16,185,129,.12);
+            border: 1px solid rgba(16,185,129,.25);
+            flex-shrink: 0;
+            margin-top: .15rem;
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%2310b981' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* ── RIGHTS GRID (3-col) ───────────────────────────────── */
+        .rights-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .right-card {
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            background: var(--cream);
+            padding: 1.2rem;
+            transition: box-shadow .2s, transform .2s, border-color .2s;
+        }
+
+        .right-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-card);
+            border-color: rgba(201,168,76,.28);
+        }
+
+        .right-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--ink);
+            color: var(--gold);
+            font-size: .95rem;
+            margin-bottom: .9rem;
+        }
+
+        .right-card h3 {
+            font-family: var(--serif);
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: .35rem;
+        }
+
+        .right-card p {
+            font-size: .85rem;
+            color: var(--ink-40);
+            line-height: 1.65;
+            margin: 0;
+        }
+
+        /* ── CALLOUT BLOCKS ────────────────────────────────────── */
+        .callout {
+            border-radius: var(--r-lg);
+            padding: 1.2rem 1.4rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            margin-top: 1.2rem;
+        }
+
+        .callout-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .95rem;
+            flex-shrink: 0;
+        }
+
+        .callout-body { flex: 1; }
+        .callout-body p { margin: 0; font-size: .9rem; line-height: 1.75; color: var(--ink-80); }
+        .callout-body p a { color: var(--gold); text-decoration: none; }
+        .callout-body strong { color: var(--ink); }
+
+        .callout-info   { background: rgba(59,130,246,.06);  border: 1px solid rgba(59,130,246,.12); }
+        .callout-info .callout-icon { background: rgba(59,130,246,.10); color: #3b82f6; }
+
+        .callout-danger { background: rgba(220,38,38,.05);   border: 1px solid rgba(220,38,38,.12); }
+        .callout-danger .callout-icon { background: rgba(220,38,38,.10); color: #dc2626; }
+
+        .callout-green  { background: rgba(16,185,129,.06);  border: 1px solid rgba(16,185,129,.14); }
+        .callout-green .callout-icon { background: rgba(16,185,129,.12); color: #10b981; }
+
+        .callout-gold   { background: rgba(201,168,76,.07);  border: 1px solid rgba(201,168,76,.18); }
+        .callout-gold .callout-icon { background: rgba(201,168,76,.14); color: var(--gold); }
+
+        /* ── FOOTER ────────────────────────────────────────────── */
+        .doc-footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: .85rem;
+            color: var(--ink-40);
+        }
+
+        .doc-footer a { color: var(--gold); text-decoration: none; }
+
+        /* ══ RESPONSIVE ════════════════════════════════════════════ */
+        @media (max-width: 991px) {
+            .doc-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; padding-right: 0; margin-bottom: 2rem; }
+            .toc { display: flex; flex-wrap: wrap; gap: .4rem; border-left: none; }
+            .toc li a {
+                border: 1px solid var(--rule);
+                border-radius: 999px;
+                border-left: 1px solid var(--rule);
+                padding: .45rem .9rem;
+                font-size: .78rem;
+            }
+            .toc li a:hover { border-color: var(--gold); }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .rights-grid  { grid-template-columns: repeat(2, 1fr); }
+            .bases-grid   { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 767px) {
+            .hero { padding: 4rem 0 5rem; }
+            .hero h1 { font-size: 2.8rem; }
+            .cards-2col  { grid-template-columns: 1fr; }
+            .summary-grid{ grid-template-columns: 1fr; }
+            .rights-grid { grid-template-columns: 1fr; }
+            .section-head{ padding: 1.25rem; }
+            .section-body{ padding: 1.25rem; }
+            .section-num { font-size: 2rem; }
+            .hero-pills  { display: none; }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    {% include 'header_public.html.twig' %}
+
+    <main class="pg-wrap">
+
+        <!-- ══ HERO ══════════════════════════════════════════════ -->
+        <section class="hero">
+            <div class="hero-orb-teal"></div>
+            <div class="hero-orb-gold"></div>
+            <div class="container">
+                <div class="hero-inner">
+                    <span class="hero-eyebrow">
+                        <i class="bi bi-shield-lock"></i>
+                        Transparence, sécurité &amp; conformité RGPD · WikiFormation
+                    </span>
+                    <h1>Politique de<br><em>confidentialité</em></h1>
+                    <p class="hero-intro">
+                        Chez WikiFormation, la protection de vos données personnelles est un engagement essentiel.
+                        Cette politique vous informe de manière claire et transparente sur tous les traitements
+                        réalisés dans le cadre de l'utilisation de la plateforme.
+                    </p>
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="bi bi-person-badge"></i> Responsable identifié</span>
+                        <span class="hero-pill"><i class="bi bi-diagram-3"></i> Finalités détaillées</span>
+                        <span class="hero-pill"><i class="bi bi-hourglass-split"></i> Durées maîtrisées</span>
+                        <span class="hero-pill"><i class="bi bi-person-check"></i> Droits garantis</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <svg class="hero-wave" viewBox="0 0 1440 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#0f1b28;">
+            <path d="M0 0C360 52 1080 52 1440 0V52H0V0Z" fill="#faf8f3"/>
+        </svg>
+
+        <!-- ══ DOC LAYOUT ═════════════════════════════════════════ -->
+        <div class="doc-layout">
+
+            <!-- sidebar -->
+            <aside class="sidebar">
+                <p class="sidebar-label">Sommaire</p>
+                <ul class="toc" id="toc">
+                    <li><a href="#s1"><span class="num">01</span> Responsable du traitement</a></li>
+                    <li><a href="#s2"><span class="num">02</span> Données traitées</a></li>
+                    <li><a href="#s3"><span class="num">03</span> Finalités</a></li>
+                    <li><a href="#s4"><span class="num">04</span> Bases légales</a></li>
+                    <li><a href="#s5"><span class="num">05</span> Destinataires</a></li>
+                    <li><a href="#s6"><span class="num">06</span> Transferts hors UE</a></li>
+                    <li><a href="#s7"><span class="num">07</span> Durées de conservation</a></li>
+                    <li><a href="#s8"><span class="num">08</span> Sécurité des données</a></li>
+                    <li><a href="#s9"><span class="num">09</span> Cookies &amp; traceurs</a></li>
+                    <li><a href="#s10"><span class="num">10</span> Vos droits</a></li>
+                    <li><a href="#s11"><span class="num">11</span> Mise à jour</a></li>
+                </ul>
+                <div class="sidebar-updated">
+                    <strong>Dernière mise à jour</strong><br>
+                    {{ "now"|date("d/m/Y") }}
+                </div>
+            </aside>
+
+            <!-- main -->
+            <div class="doc-main">
+
+                <!-- Summary -->
+                <article class="doc-section visible" style="opacity:1;transform:none;">
+                    <div class="summary-grid">
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-person-badge"></i></div>
+                            <h3>Responsable identifié</h3>
+                            <p>Vous savez qui traite vos données, dans quel cadre et pour quels usages principaux.</p>
+                        </div>
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-diagram-3"></i></div>
+                            <h3>Finalités détaillées</h3>
+                            <p>Chaque traitement est présenté avec son objectif, ses catégories de données et sa base légale.</p>
+                        </div>
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-hourglass-split"></i></div>
+                            <h3>Durées maîtrisées</h3>
+                            <p>Les données ne sont pas conservées indéfiniment et suivent des durées adaptées à leur finalité.</p>
+                        </div>
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-person-check"></i></div>
+                            <h3>Droits garantis</h3>
+                            <p>Vous pouvez exercer vos droits d'accès, de rectification, d'effacement et d'opposition.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 1. Responsable -->
+                <article class="doc-section" id="s1">
+                    <div class="section-head">
+                        <span class="section-num">01</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Identification</p>
+                            <h2 class="section-title">Responsable du traitement</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-building"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <div class="cards-2col">
+                            <div class="info-card">
+                                <div class="info-card-head">
+                                    <div class="info-card-icon"><i class="bi bi-info-circle"></i></div>
+                                    <span class="info-card-title">Identité du responsable</span>
+                                </div>
+                                <div class="info-card-body">
+                                    <ul class="data-list">
+                                        <li>
+                                            <span class="data-list-dot"></span>
+                                            <div class="data-list-content">
+                                                <span class="data-label">Plateforme</span>
+                                                <span class="data-value">WikiFormation</span>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <span class="data-list-dot"></span>
+                                            <div class="data-list-content">
+                                                <span class="data-label">Éditeur / responsable</span>
+                                                <span class="data-value">IT FOR YOU – Monsieur JEROEN POPOT</span>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <span class="data-list-dot"></span>
+                                            <div class="data-list-content">
+                                                <span class="data-label">Adresse</span>
+                                                <span class="data-value">88 chemin de Russaud, 30100 Alès, France</span>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-card-head">
+                                    <div class="info-card-icon"><i class="bi bi-envelope-paper"></i></div>
+                                    <span class="info-card-title">Contact RGPD</span>
+                                </div>
+                                <div class="info-card-body">
+                                    <ul class="data-list">
+                                        <li>
+                                            <span class="data-list-dot"></span>
+                                            <div class="data-list-content">
+                                                <span class="data-label">Adresse e-mail</span>
+                                                <span class="data-value"><a href="mailto:contact@wikiformation.fr">contact@wikiformation.fr</a></span>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <span class="data-list-dot"></span>
+                                            <div class="data-list-content">
+                                                <span class="data-label">Objet conseillé</span>
+                                                <span class="data-value">"Protection des données personnelles"</span>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <span class="data-list-dot"></span>
+                                            <div class="data-list-content">
+                                                <span class="data-label">DPO</span>
+                                                <span class="data-value">Aucun délégué à la protection des données n'est désigné à ce jour.</span>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 2. Catégories de données -->
+                <article class="doc-section" id="s2">
+                    <div class="section-head">
+                        <span class="section-num">02</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Périmètre</p>
+                            <h2 class="section-title">Catégories de données traitées</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-collection"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Plusieurs catégories de données personnelles peuvent être traitées selon votre profil, votre rôle sur la plateforme et les fonctionnalités utilisées.</p>
+                        <div class="data-rows mt-3">
+                            <div class="data-row">
+                                <p class="data-row-title">Données d'identification</p>
+                                <p class="data-row-desc">Nom, prénom, adresse e-mail, téléphone, fonction, informations liées au compte utilisateur ou à l'organisation.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Données de connexion &amp; de sécurité</p>
+                                <p class="data-row-desc">Identifiants, mot de passe chiffré, historique de connexion, adresse IP, journaux techniques, informations de sécurité.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Données liées à l'utilisation de la plateforme</p>
+                                <p class="data-row-desc">Entités créées, sessions, stagiaires, entreprises, prospects, documents, inscriptions, interactions fonctionnelles, préférences d'utilisation et paramètres du compte.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Données administratives &amp; commerciales</p>
+                                <p class="data-row-desc">Données de facturation, historique d'abonnement, plan souscrit, statut de paiement, références Stripe ou autres éléments nécessaires à la gestion contractuelle.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Données de navigation</p>
+                                <p class="data-row-desc">Type d'appareil, navigateur, pages consultées, événements techniques, cookies et traceurs selon les préférences exprimées.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 3. Finalités -->
+                <article class="doc-section" id="s3">
+                    <div class="section-head">
+                        <span class="section-num">03</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Objectifs</p>
+                            <h2 class="section-title">Finalités des traitements</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-bullseye"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Les données sont collectées et traitées uniquement pour des finalités déterminées, explicites et légitimes.</p>
+                        <ul class="check-list mt-3">
+                            <li>création, gestion et sécurisation des comptes utilisateurs ;</li>
+                            <li>fourniture des services proposés par WikiFormation et exécution des fonctionnalités souscrites ;</li>
+                            <li>gestion des abonnements, de la facturation, des paiements et de la relation client ;</li>
+                            <li>réponse aux demandes envoyées via les formulaires de contact ou le support ;</li>
+                            <li>amélioration continue de la plateforme, maintenance, sécurité et statistiques ;</li>
+                            <li>respect des obligations légales, comptables, fiscales et réglementaires applicables.</li>
+                        </ul>
+                    </div>
+                </article>
+
+                <!-- 4. Bases légales -->
+                <article class="doc-section" id="s4">
+                    <div class="section-head">
+                        <span class="section-num">04</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Fondements juridiques</p>
+                            <h2 class="section-title">Bases légales des traitements</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-scale"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Selon les cas, les traitements opérés par WikiFormation reposent sur l'une ou plusieurs des bases légales suivantes :</p>
+                        <div class="bases-grid mt-3">
+                            <div class="base-card">
+                                <div class="base-card-head">
+                                    <div class="base-card-icon"><i class="bi bi-file-earmark-check"></i></div>
+                                    <span class="base-card-title">Exécution du contrat</span>
+                                </div>
+                                <div class="base-card-body">Fourniture de la plateforme, gestion du compte, accès aux services, support lié à l'abonnement.</div>
+                            </div>
+                            <div class="base-card">
+                                <div class="base-card-head">
+                                    <div class="base-card-icon"><i class="bi bi-bank"></i></div>
+                                    <span class="base-card-title">Obligation légale</span>
+                                </div>
+                                <div class="base-card-body">Conservation comptable, obligations fiscales, gestion de certaines demandes réglementaires.</div>
+                            </div>
+                            <div class="base-card">
+                                <div class="base-card-head">
+                                    <div class="base-card-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                                    <span class="base-card-title">Intérêt légitime</span>
+                                </div>
+                                <div class="base-card-body">Sécurisation de la plateforme, prévention de la fraude, amélioration du service, statistiques internes compatibles.</div>
+                            </div>
+                            <div class="base-card">
+                                <div class="base-card-head">
+                                    <div class="base-card-icon"><i class="bi bi-hand-thumbs-up"></i></div>
+                                    <span class="base-card-title">Consentement</span>
+                                </div>
+                                <div class="base-card-body">Dépôt de certains cookies, communications facultatives ou traitements nécessitant votre accord préalable.</div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 5. Destinataires -->
+                <article class="doc-section" id="s5">
+                    <div class="section-head">
+                        <span class="section-num">05</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Accès aux données</p>
+                            <h2 class="section-title">Destinataires des données</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-people"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Les données personnelles sont accessibles, dans la stricte limite de leurs attributions, aux personnes habilitées au sein de WikiFormation ainsi qu'aux prestataires techniques intervenant pour l'hébergement, la maintenance, la sécurité, l'envoi d'e-mails, le paiement ou l'analyse technique du service.</p>
+                        <div class="callout callout-info">
+                            <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
+                            <div class="callout-body">
+                                <p>Les sous-traitants agissent sur instruction de WikiFormation et uniquement dans le cadre nécessaire à l'exécution des services. Les données peuvent également être communiquées lorsque la loi l'exige ou à la demande d'une autorité compétente.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 6. Transferts hors UE -->
+                <article class="doc-section" id="s6">
+                    <div class="section-head">
+                        <span class="section-num">06</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">International</p>
+                            <h2 class="section-title">Transferts hors Union européenne</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-globe"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Certains prestataires techniques utilisés par WikiFormation peuvent impliquer un traitement ou un hébergement des données en dehors de l'Union européenne. Dans ce cas, WikiFormation s'engage à mettre en place les garanties appropriées prévues par la réglementation applicable, notamment par le recours à des mécanismes contractuels adaptés lorsque cela est requis.</p>
+                        <div class="callout callout-danger">
+                            <div class="callout-icon"><i class="bi bi-exclamation-lg"></i></div>
+                            <div class="callout-body">
+                                <p>Cette section doit être ajustée selon les outils réels utilisés. Si Stripe ou d'autres prestataires impliquent des flux internationaux, ceux-ci doivent être documentés précisément dans la version finale.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 7. Durées de conservation -->
+                <article class="doc-section" id="s7">
+                    <div class="section-head">
+                        <span class="section-num">07</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Rétention</p>
+                            <h2 class="section-title">Durées de conservation</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-hourglass-bottom"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Les données sont conservées pendant une durée n'excédant pas celle nécessaire aux finalités pour lesquelles elles sont traitées. Une fois ces durées atteintes, elles sont supprimées, anonymisées ou archivées lorsque cela est légalement justifié.</p>
+                        <div class="data-rows mt-3">
+                            <div class="data-row">
+                                <p class="data-row-title">Compte utilisateur actif</p>
+                                <p class="data-row-desc">Conservation pendant la durée de vie du compte, puis selon les besoins de gestion, de preuve ou de suppression demandée.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Données de prospection ou de contact</p>
+                                <p class="data-row-desc">Conservation pendant la durée nécessaire au traitement de la demande, puis selon la relation commerciale existante ou non.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Données contractuelles &amp; de facturation</p>
+                                <p class="data-row-desc">Conservation pendant les durées imposées par la réglementation comptable, fiscale et probatoire applicable.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Logs &amp; données techniques</p>
+                                <p class="data-row-desc">Conservation pour une durée adaptée aux besoins de sécurité, de maintenance et de traçabilité.</p>
+                            </div>
+                            <div class="data-row">
+                                <p class="data-row-title">Cookies &amp; traceurs</p>
+                                <p class="data-row-desc">Conservation selon leur finalité, leur nature et les choix exprimés par l'utilisateur.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 8. Sécurité -->
+                <article class="doc-section" id="s8">
+                    <div class="section-head">
+                        <span class="section-num">08</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Protection</p>
+                            <h2 class="section-title">Sécurité des données</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-lock"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>WikiFormation met en œuvre des mesures techniques et organisationnelles appropriées afin de préserver la confidentialité, l'intégrité et la disponibilité des données personnelles. Ces mesures incluent notamment le chiffrement de certains flux, la protection des accès, la gestion des habilitations, la journalisation, les sauvegardes et la surveillance technique.</p>
+                        <div class="callout callout-green">
+                            <div class="callout-icon"><i class="bi bi-shield-check"></i></div>
+                            <div class="callout-body">
+                                <p>Les mots de passe ne sont jamais stockés en clair. Ils sont protégés par un mécanisme de hachage robuste conforme aux bonnes pratiques de sécurité applicables.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 9. Cookies -->
+                <article class="doc-section" id="s9">
+                    <div class="section-head">
+                        <span class="section-num">09</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Traceurs</p>
+                            <h2 class="section-title">Cookies &amp; autres traceurs</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-cookie"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>WikiFormation peut utiliser des cookies ou technologies similaires pour assurer le fonctionnement du site, mémoriser certains choix, mesurer l'audience, sécuriser les accès et améliorer l'expérience utilisateur.</p>
+                        <ul class="check-list mt-3">
+                            <li>les cookies strictement nécessaires au fonctionnement du service peuvent être déposés sans consentement lorsqu'ils sont réellement indispensables ;</li>
+                            <li>les cookies de mesure d'audience, de personnalisation avancée ou de services tiers peuvent nécessiter votre consentement préalable selon leur configuration ;</li>
+                            <li>vous pouvez accepter, refuser ou paramétrer vos préférences via le bandeau ou l'outil de gestion prévu à cet effet.</li>
+                        </ul>
+                    </div>
+                </article>
+
+                <!-- 10. Droits -->
+                <article class="doc-section" id="s10">
+                    <div class="section-head">
+                        <span class="section-num">10</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Vos droits</p>
+                            <h2 class="section-title">Exercer vos droits</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-person-check"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Conformément à la réglementation applicable, vous disposez, selon les cas, des droits suivants sur vos données personnelles :</p>
+                        <div class="rights-grid mt-3">
+                            <div class="right-card">
+                                <div class="right-card-icon"><i class="bi bi-eye"></i></div>
+                                <h3>Droit d'accès</h3>
+                                <p>Obtenir la confirmation qu'un traitement vous concernant est réalisé et en recevoir communication.</p>
+                            </div>
+                            <div class="right-card">
+                                <div class="right-card-icon"><i class="bi bi-pencil-square"></i></div>
+                                <h3>Droit de rectification</h3>
+                                <p>Demander la correction de données inexactes ou incomplètes.</p>
+                            </div>
+                            <div class="right-card">
+                                <div class="right-card-icon"><i class="bi bi-trash3"></i></div>
+                                <h3>Droit à l'effacement</h3>
+                                <p>Obtenir la suppression de certaines données lorsque les conditions légales sont réunies.</p>
+                            </div>
+                            <div class="right-card">
+                                <div class="right-card-icon"><i class="bi bi-pause-circle"></i></div>
+                                <h3>Droit à la limitation</h3>
+                                <p>Demander une suspension temporaire de certains traitements dans les cas prévus par les textes.</p>
+                            </div>
+                            <div class="right-card">
+                                <div class="right-card-icon"><i class="bi bi-download"></i></div>
+                                <h3>Droit à la portabilité</h3>
+                                <p>Recevoir certaines données dans un format structuré lorsque ce droit est applicable.</p>
+                            </div>
+                            <div class="right-card">
+                                <div class="right-card-icon"><i class="bi bi-slash-circle"></i></div>
+                                <h3>Droit d'opposition</h3>
+                                <p>Vous opposer à certains traitements, notamment ceux reposant sur l'intérêt légitime ou sur la prospection.</p>
+                            </div>
+                        </div>
+                        <div class="callout callout-gold mt-4">
+                            <div class="callout-icon"><i class="bi bi-envelope"></i></div>
+                            <div class="callout-body">
+                                <p>Pour exercer vos droits, écrivez à <a href="mailto:contact@wikiformation.fr">contact@wikiformation.fr</a>. En cas de difficulté non résolue, vous pouvez introduire une réclamation auprès de la <strong>CNIL</strong>.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 11. Mise à jour -->
+                <article class="doc-section" id="s11">
+                    <div class="section-head">
+                        <span class="section-num">11</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Évolution</p>
+                            <h2 class="section-title">Mise à jour de la politique</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-arrow-repeat"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>La présente politique de confidentialité peut être modifiée à tout moment afin de refléter une évolution légale, réglementaire, technique ou fonctionnelle de la plateforme. La date de dernière mise à jour figure ci-dessous ainsi que dans le sommaire latéral.</p>
+                    </div>
+                </article>
+
+                <!-- Footer -->
+                <p class="doc-footer">
+                    Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_cgu') }}">CGU</a> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_cgv') }}">CGV</a> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_mentions_legales') }}">Mentions légales</a> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_cookies') }}">Cookies</a>
+                </p>
+
+            </div><!-- /doc-main -->
+        </div><!-- /doc-layout -->
+
+    </main>
+
 {% endblock %}
 
 {% block javascripts %}
+    {{ parent() }}
+    <script>
+    (() => {
+        const sections = document.querySelectorAll('.doc-section');
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach((e, i) => {
+                if (e.isIntersecting) {
+                    setTimeout(() => e.target.classList.add('visible'), i * 60);
+                    obs.unobserve(e.target);
+                }
+            });
+        }, { threshold: 0.07 });
+        sections.forEach(s => obs.observe(s));
+
+        const anchors = document.querySelectorAll('.doc-section[id]');
+        const links   = document.querySelectorAll('.toc a');
+        const scrollObs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    links.forEach(l => l.classList.remove('active'));
+                    const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+                    if (active) active.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-30% 0px -65% 0px' });
+        anchors.forEach(a => scrollObs.observe(a));
+    })();
+    </script>
 {% endblock %}
-
-
-{% block body %}
-    
-    
-    {% include 'header_public.html.twig' %}
-
-
-
-    <div class="container p-5 mt-5">
-        <h1 class="mb-4">Politique de confidentialité</h1>
-        <p class="lead">Chez <strong>Wiki Formation</strong>, nous accordons une grande importance à la protection de vos données personnelles. Cette page vous explique de manière transparente comment vos données sont collectées, utilisées et protégées.</p>
-
-        <div class="accordion" id="privacyAccordion">
-
-            <!-- Responsable -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading1">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1" aria-expanded="true">
-                        1. Responsable du traitement
-                    </button>
-                </h2>
-                <div id="collapse1" class="accordion-collapse collapse show" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Le responsable du traitement est :<br>
-                        <strong>Wiki Formation</strong><br>
-                        Email : <a href="mailto:contact@wikiformation.fr">contact@wikiformation.fr</a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Données collectées -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading2">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2">
-                        2. Données collectées
-                    </button>
-                </h2>
-                <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        <ul>
-                            <li>Données d'identification : nom, prénom, adresse e-mail, téléphone, etc.</li>
-                            <li>Données de compte : mot de passe, préférences, abonnements</li>
-                            <li>Données de navigation : adresse IP, type de navigateur, pages visitées, etc.</li>
-                            <li>Données de géolocalisation (si activée dans votre profil)</li>
-                            <li>Historique des sorties, évaluations, interactions sur la plateforme</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Finalités -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading3">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3">
-                        3. Finalités de la collecte
-                    </button>
-                </h2>
-                <div id="collapse3" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        <ul>
-                            <li>Fourniture des services proposés (création de compte, gestion des sorties, messagerie)</li>
-                            <li>Communication avec les utilisateurs (emails, notifications)</li>
-                            <li>Amélioration de l’expérience utilisateur et du site</li>
-                            <li>Analyse de l’utilisation du site à des fins statistiques</li>
-                            <li>Respect des obligations légales et réglementaires</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Cookies -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading4">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse4">
-                        4. Utilisation des cookies
-                    </button>
-                </h2>
-                <div id="collapse4" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Nous utilisons des cookies pour :
-                        <ul>
-                            <li>Mémoriser vos préférences de navigation</li>
-                            <li>Établir des statistiques d’audience (via Google Analytics ou Matomo – uniquement avec votre consentement)</li>
-                            <li>Améliorer les performances du site</li>
-                        </ul>
-                        Vous pouvez gérer vos préférences à tout moment via la bannière ou les paramètres de votre navigateur.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Consentement -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading5">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse5">
-                        5. Consentement
-                    </button>
-                </h2>
-                <div id="collapse5" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Lors de votre première visite, vous êtes invité à accepter ou refuser les cookies. Certains services nécessitent votre consentement explicite (ex : newsletter, contact, Google Maps, etc.).
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sécurité des données -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading6">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse6">
-                        6. Sécurité des données
-                    </button>
-                </h2>
-                <div id="collapse6" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Nous utilisons des protocoles sécurisés (HTTPS), une base de données protégée, un contrôle d’accès et des sauvegardes régulières. Les mots de passe sont chiffrés.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Destinataires -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading7">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse7">
-                        7. Destinataires des données
-                    </button>
-                </h2>
-                <div id="collapse7" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Les données sont traitées uniquement par les administrateurs autorisés. Aucun transfert n’est effectué vers des tiers sans votre consentement, sauf obligation légale.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Conservation -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading8">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse8">
-                        8. Durée de conservation
-                    </button>
-                </h2>
-                <div id="collapse8" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Vos données sont conservées aussi longtemps que votre compte est actif, et jusqu’à 3 ans après la dernière activité. Les données fiscales ou comptables peuvent être conservées plus longtemps conformément à la loi.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Droits -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading9">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse9">
-                        9. Vos droits
-                    </button>
-                </h2>
-                <div id="collapse9" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Vous pouvez à tout moment exercer vos droits :
-                        <ul>
-                            <li>Droit d'accès</li>
-                            <li>Droit de rectification</li>
-                            <li>Droit à l'effacement</li>
-                            <li>Droit à la limitation</li>
-                            <li>Droit à la portabilité</li>
-                            <li>Droit d’opposition</li>
-                        </ul>
-                        Contact : <a href="mailto:contact@wikiformation.fr">contact@wikiformation.fr</a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Mise à jour -->
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading10">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse10">
-                        10. Mise à jour de la politique
-                    </button>
-                </h2>
-                <div id="collapse10" class="accordion-collapse collapse" data-bs-parent="#privacyAccordion">
-                    <div class="accordion-body">
-                        Cette politique peut être modifiée à tout moment. Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong>.
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-{% endblock %}
-
-

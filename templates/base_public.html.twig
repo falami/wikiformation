@@ -91,7 +91,6 @@
       .bg-theme{ background:#0f1b28; }
       main{ margin-top:56px; }
       .footer-modern{ background:linear-gradient(135deg, var(--theme-color-principal,#001f3f), #0f1b28 70%); position:relative; overflow:hidden; }
-      .footer-modern::before{ content:""; position:absolute; top:-80px; left:-100px; width:200%; height:200px; background:radial-gradient(circle at 50% 50%, rgba(255,255,255,.05), transparent 70%); animation:waveMove 12s infinite linear; }
       @keyframes waveMove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
       .footer-modern h6, .footer-modern h5{ color:var(--theme-color-secondaire,#0dcaf0); }
       .footer-modern a{ color:rgba(255,255,255,.8); text-decoration:none; transition:.3s; }
@@ -227,9 +226,10 @@
               <li><a href="{{ path('app_public_mentions_legales') }}">{{ 'footer.info.legal'|trans }}</a></li>
               <li><a href="{{ path('app_public_cgv') }}">{{ 'footer.info.cgv'|trans }}</a></li>
               <li><a href="{{ path('app_public_cgu') }}">{{ 'footer.info.cgu'|trans }}</a></li>
-              <li><a href="#" id="manage-cookies">{{ 'footer.info.cookies'|trans }}</a></li>
+              <li><a href="{{ path('app_public_cookies') }}" id="manage-cookies">{{ 'footer.info.cookies'|trans }}</a></li>
             </ul>
           </div>
+          
 
           <div class="col-lg-3 col-md-6">
             <h6 class="fw-semibold text-uppercase mb-3">{{ 'footer.contact.title'|trans }}</h6>
@@ -253,22 +253,30 @@
     <script src="https://www.google.com/recaptcha/api.js?render=6Lejf08sAAAAACFzxVGzBQRBElyWiar71PZwIH3q"></script>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        const form = document.querySelector('form.footer-form') || document.querySelector('form[name="contact"]');
-        if (!form) return;
+        const forms = document.querySelectorAll('form.footer-form, form[name="contact"]');
+        if (!forms.length) return;
 
-        const captchaInput = form.querySelector('input[name$="[captcha]"]');
-        if (!captchaInput) return;
+        forms.forEach((form) => {
+          const captchaInput = form.querySelector('input[name$="[captcha]"]');
+          if (!captchaInput) return;
 
-        form.addEventListener('submit', async (e) => {
-          // si déjà rempli, on laisse
-          if (captchaInput.value) return;
+          form.addEventListener('submit', async (e) => {
+            if (captchaInput.value) return;
 
-          e.preventDefault();
+            e.preventDefault();
 
-          grecaptcha.ready(async () => {
-            const token = await grecaptcha.execute("6Lejf08sAAAAACFzxVGzBQRBElyWiar71PZwIH3q", {action: 'contact'});
-            captchaInput.value = token;
-            form.submit();
+            grecaptcha.ready(async () => {
+              try {
+                const token = await grecaptcha.execute('6Lejf08sAAAAACFzxVGzBQRBElyWiar71PZwIH3q', {
+                  action: 'contact'
+                });
+
+                captchaInput.value = token;
+                form.submit();
+              } catch (err) {
+                console.error('Erreur reCAPTCHA:', err);
+              }
+            });
           });
         });
       });

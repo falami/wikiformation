@@ -27,6 +27,7 @@ use App\Service\Billing\StripeBillingService;
 use App\Form\ContactType;
 use Symfony\Component\Mailer\MailerInterface;
 use App\Service\Public\PublicContext;
+use Psr\Log\LoggerInterface;
 
 #[Route('/')]
 final class PublicController extends AbstractController
@@ -254,64 +255,84 @@ final class PublicController extends AbstractController
 
 
     #[Route('/contact', name: 'app_public_contact', methods: ['GET', 'POST'])]
-    public function contact(Request $request, MailerInterface $mailer): Response
-    {
+    public function contact(
+        Request $request,
+        MailerInterface $mailer,
+        LoggerInterface $logger
+    ): Response {
         if ($this->publicContext->hasCustomHost()) {
             return $this->redirectToRoute('app_public_formation');
         }
+
         $form = $this->createForm(ContactType::class);
         $form->handleRequest($request);
 
-        // pour revenir sur la page d’où vient le footer
         $referer = $request->headers->get('referer');
         $fallbackRedirect = $this->generateUrl('app_public_contact');
 
-        if ($form->isSubmitted() && !$form->isValid()) {
-            // IMPORTANT : si tu rediriges, tu perds les erreurs -> on les met en flash
-            $messages = [];
-            foreach ($form->getErrors(true) as $error) {
-                $messages[] = $error->getMessage();
+        if ($form->isSubmitted()) {
+            if (!$form->isValid()) {
+                $messages = [];
+                foreach ($form->getErrors(true) as $error) {
+                    $messages[] = $error->getMessage();
+                }
+
+                $logger->warning('Formulaire de contact invalide', [
+                    'errors' => $messages,
+                ]);
+
+                $this->addFlash('danger', implode(' • ', array_unique($messages)));
+
+                return $this->redirect($referer ?: $fallbackRedirect);
             }
-            $this->addFlash('danger', implode(' • ', array_unique($messages)));
 
-            return $this->redirect($referer ?: $fallbackRedirect);
-        }
-
-        if ($form->isSubmitted() && $form->isValid()) {
-
-            // honeypot
+            // Honeypot
             if ($form->get('website')->getData()) {
+                $logger->warning('Spam détecté via honeypot sur le formulaire de contact.');
                 $this->addFlash('danger', 'Une erreur est survenue.');
                 return $this->redirect($referer ?: $fallbackRedirect);
             }
 
-            // tempo minimale
+            // Tempo minimale
             $startedAt = (int) $form->get('startedAt')->getData();
             if ($startedAt > 0 && (time() - $startedAt) < 2) {
+                $logger->warning('Soumission trop rapide du formulaire de contact.', [
+                    'delta' => time() - $startedAt,
+                ]);
+
                 $this->addFlash('danger', 'Veuillez réessayer.');
                 return $this->redirect($referer ?: $fallbackRedirect);
             }
 
             $data = $form->getData();
 
-            $email = (new Email())
-                ->from(new Address('no-reply@wikiformation.fr', 'Wikiformation'))
-                ->replyTo($data['email'])
-                ->to('contact@wikiformation.fr')
-                ->subject('Nouveau message de contact — ' . $data['nom'])
-                ->text("Nom : {$data['nom']}\nEmail : {$data['email']}\n\nMessage :\n{$data['message']}");
-
             try {
+                $email = (new Email())
+                    ->from(new Address('contact@wikiformation.fr', 'Wikiformation'))
+                    ->replyTo((string) $data['email'])
+                    ->to('contact@wikiformation.fr')
+                    ->subject('Nouveau message de contact — ' . $data['nom'])
+                    ->text(
+                        "Nom : {$data['nom']}\n" .
+                        "Email : {$data['email']}\n\n" .
+                        "Message :\n{$data['message']}"
+                    );
+
                 $mailer->send($email);
+
                 $this->addFlash('success', 'Votre message a bien été envoyé !');
             } catch (\Throwable $e) {
+                $logger->error('Échec envoi formulaire de contact', [
+                    'message' => $e->getMessage(),
+                    'exception' => $e,
+                ]);
+
                 $this->addFlash('danger', "L'envoi a échoué. Réessayez plus tard.");
             }
 
             return $this->redirect($referer ?: $fallbackRedirect);
         }
 
-        // page dédiée /contact
         return $this->render('public/contact.html.twig', [
             'form' => $form->createView(),
         ]);
@@ -320,7 +341,6 @@ final class PublicController extends AbstractController
     #[Route('/_partials/footer-contact-form', name: 'app_public_footer_contact_form', methods: ['GET'])]
     public function footerContactForm(): Response
     {
-        
         $form = $this->createForm(ContactType::class);
 
         return $this->render('public/_footer_contact_form.html.twig', [
@@ -363,6 +383,16 @@ final class PublicController extends AbstractController
             return $this->redirectToRoute('app_public_formation');
         }
         return $this->render('public/cgv.html.twig');
+    }
+
+
+    #[Route('/cookies', name: 'app_public_cookies')]
+    public function cookie(): Response
+    {
+        if ($this->publicContext->hasCustomHost()) {
+            return $this->redirectToRoute('app_public_formation');
+        }
+        return $this->render('public/cookies.html.twig');
     }
 
 

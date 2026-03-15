@@ -1,44 +1,1113 @@
+{# templates/public/cgv.html.twig #}
 {% extends 'base_public.html.twig' %}
 
-{% block title %}Wiki Formation - Conditions Générales de Vente{% endblock %}
+{% block title %}WikiFormation — Conditions Générales de Vente{% endblock %}
 
-{% block stylesheets %}{% endblock %}
-{% block javascripts %}{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+
+    <style>
+        /* ── TOKENS ─────────────────────────────────────────────── */
+        :root {
+            --ink:        #0a0a0f;
+            --ink-80:     rgba(10,10,15,.80);
+            --ink-40:     rgba(10,10,15,.40);
+            --ink-10:     rgba(10,10,15,.07);
+            --gold:       #c9a84c;
+            --gold-light: #e8d49a;
+            --gold-faint: rgba(201,168,76,.10);
+            --cream:      #faf8f3;
+            --white:      #ffffff;
+            --rule:       rgba(10,10,15,.08);
+
+            --r-xl: 28px;
+            --r-lg: 20px;
+            --r-md: 14px;
+
+            --shadow-card: 0 12px 36px rgba(10,10,15,.07), 0 2px 6px rgba(10,10,15,.04);
+            --shadow-plan: 0 20px 60px rgba(10,10,15,.10), 0 4px 12px rgba(10,10,15,.05);
+
+            --serif: 'Cormorant Garamond', Georgia, serif;
+            --sans:  'DM Sans', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--sans);
+            background-color: var(--cream);
+            color: var(--ink);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 9999;
+            opacity: .6;
+        }
+
+        .pg-wrap { min-height: 100vh; }
+
+        /* ══ HERO ══════════════════════════════════════════════════ */
+        .hero {
+            position: relative;
+            background: #0f1b28;
+            overflow: hidden;
+            padding: 5rem 0 5rem;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                90deg,
+                rgba(255,255,255,.025) 0px,
+                rgba(255,255,255,.025) 1px,
+                transparent 1px,
+                transparent 72px
+            );
+            pointer-events: none;
+        }
+
+        /* indigo orb — commerce / SaaS feel */
+        .hero-orb-indigo {
+            position: absolute;
+            left: -100px;
+            top: -100px;
+            width: 380px;
+            height: 380px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(99,102,241,.13) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        .hero-orb-gold {
+            position: absolute;
+            right: -120px;
+            bottom: -120px;
+            width: 440px;
+            height: 440px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(201,168,76,.20) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        .hero-inner {
+            position: relative;
+            z-index: 2;
+            padding: 0 2rem;
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: .6rem;
+            font-size: .72rem;
+            font-weight: 500;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            color: var(--gold-light);
+            margin-bottom: 2rem;
+            padding: .45rem .9rem;
+            border: 1px solid rgba(201,168,76,.25);
+            border-radius: 999px;
+        }
+
+        .hero h1 {
+            font-family: var(--serif);
+            font-size: clamp(3rem, 6vw, 5.4rem);
+            font-weight: 300;
+            letter-spacing: -.02em;
+            line-height: 1.08;
+            color: #fff;
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            color: var(--gold-light);
+        }
+
+        .hero-intro {
+            font-size: 1.05rem;
+            line-height: 1.85;
+            color: rgba(255,255,255,.60);
+            font-weight: 300;
+            max-width: 580px;
+            padding-left: 1.4rem;
+            border-left: 2px solid rgba(201,168,76,.35);
+        }
+
+        .hero-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            margin-top: 3rem;
+        }
+
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .55rem;
+            padding: .55rem 1.1rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.10);
+            color: rgba(255,255,255,.72);
+            font-size: .85rem;
+        }
+
+        .hero-pill i { color: var(--gold); font-size: .9rem; }
+
+        .hero-wave {
+            display: block;
+            width: 100%;
+            line-height: 0;
+            margin-top: -1px;
+        }
+
+        /* ══ LAYOUT ════════════════════════════════════════════════ */
+        .doc-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3.5rem 1.5rem 6rem;
+            align-items: start;
+        }
+
+        /* ── SIDEBAR ───────────────────────────────────────────── */
+        .sidebar {
+            position: sticky;
+            top: 2.5rem;
+            padding-right: 2.5rem;
+        }
+
+        .sidebar-label {
+            font-size: .68rem;
+            font-weight: 500;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--ink-40);
+            margin-bottom: 1.2rem;
+        }
+
+        .toc { list-style: none; border-left: 1px solid var(--rule); }
+
+        .toc li a {
+            display: flex;
+            align-items: baseline;
+            gap: .65rem;
+            padding: .6rem 0 .6rem 1.2rem;
+            text-decoration: none;
+            color: var(--ink-40);
+            font-size: .85rem;
+            line-height: 1.45;
+            transition: color .2s, border-color .2s;
+            border-left: 2px solid transparent;
+            margin-left: -1px;
+        }
+
+        .toc li a .num {
+            font-family: var(--serif);
+            font-size: .8rem;
+            color: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .toc li a:hover  { color: var(--ink); border-left-color: var(--gold); }
+        .toc li a.active { color: var(--ink); font-weight: 500; border-left-color: var(--gold); }
+
+        .sidebar-updated {
+            margin-top: 2.5rem;
+            padding: .9rem 1rem;
+            background: var(--gold-faint);
+            border: 1px solid rgba(201,168,76,.18);
+            border-radius: var(--r-md);
+            font-size: .8rem;
+            color: var(--ink-80);
+            line-height: 1.6;
+        }
+
+        .sidebar-updated strong { color: var(--gold); }
+
+        /* ── MAIN ──────────────────────────────────────────────── */
+        .doc-main { min-width: 0; }
+
+        /* ── SECTION ───────────────────────────────────────────── */
+        .doc-section {
+            margin-bottom: 1.75rem;
+            background: var(--white);
+            border: 1px solid var(--rule);
+            border-radius: var(--r-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            opacity: 0;
+            transform: translateY(22px);
+            transition: opacity .55s cubic-bezier(.22,.68,0,1.2), transform .55s cubic-bezier(.22,.68,0,1.2);
+        }
+
+        .doc-section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.25rem;
+            padding: 1.75rem 2rem 1.5rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .section-num {
+            font-family: var(--serif);
+            font-size: 2.6rem;
+            font-weight: 300;
+            line-height: 1;
+            color: var(--gold);
+            flex-shrink: 0;
+            min-width: 42px;
+        }
+
+        .section-title-wrap { flex: 1; }
+
+        .section-category {
+            font-size: .68rem;
+            font-weight: 500;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+            color: var(--ink-40);
+            margin-bottom: .3rem;
+        }
+
+        .section-title {
+            font-family: var(--serif);
+            font-size: 1.65rem;
+            font-weight: 600;
+            letter-spacing: -.02em;
+            color: var(--ink);
+            line-height: 1.2;
+        }
+
+        .section-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--r-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gold-faint);
+            border: 1px solid rgba(201,168,76,.15);
+            color: var(--gold);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .section-body { padding: 1.75rem 2rem; }
+
+        .section-body p {
+            font-size: .975rem;
+            line-height: 1.85;
+            color: var(--ink-80);
+            margin-bottom: 1rem;
+        }
+
+        .section-body p:last-child { margin-bottom: 0; }
+
+        /* ── SUMMARY GRID ──────────────────────────────────────── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 1.75rem 2rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .sum-card {
+            padding: 1.3rem;
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            background: var(--cream);
+            transition: box-shadow .2s, transform .2s, border-color .2s;
+            cursor: default;
+        }
+
+        .sum-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-card);
+            border-color: rgba(201,168,76,.3);
+        }
+
+        .sum-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--ink);
+            color: var(--gold);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .sum-card h3 {
+            font-family: var(--serif);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: .4rem;
+        }
+
+        .sum-card p {
+            font-size: .84rem;
+            color: var(--ink-40);
+            line-height: 1.65;
+            margin: 0;
+        }
+
+        /* ══ PLAN CARDS ════════════════════════════════════════════ */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+
+        .plan-card {
+            position: relative;
+            border-radius: var(--r-lg);
+            overflow: hidden;
+            border: 1px solid var(--rule);
+            background: var(--white);
+            box-shadow: var(--shadow-card);
+            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-plan);
+            border-color: rgba(10,10,15,.12);
+        }
+
+        .plan-card.featured {
+            border-color: rgba(201,168,76,.35);
+        }
+
+        /* colored top bar */
+        .plan-topbar {
+            height: 4px;
+            width: 100%;
+        }
+
+        .plan-header {
+            padding: 1.5rem 1.5rem 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .plan-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--white);
+            flex-shrink: 0;
+        }
+
+        .plan-meta { flex: 1; }
+
+        .plan-name {
+            font-family: var(--serif);
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--ink);
+            line-height: 1.1;
+            margin-bottom: .3rem;
+        }
+
+        .plan-subtitle {
+            font-size: .85rem;
+            color: var(--ink-40);
+            line-height: 1.55;
+            margin-bottom: .6rem;
+        }
+
+        .plan-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .28rem .7rem;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 500;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            background: rgba(201,168,76,.12);
+            border: 1px solid rgba(201,168,76,.25);
+            color: #92670a;
+        }
+
+        .plan-pricing {
+            padding: 0 1.5rem 1rem;
+            display: flex;
+            align-items: baseline;
+            gap: .5rem;
+        }
+
+        .plan-price {
+            font-family: var(--serif);
+            font-size: 2.4rem;
+            font-weight: 600;
+            letter-spacing: -.03em;
+            color: var(--ink);
+            line-height: 1;
+        }
+
+        .plan-period {
+            font-size: .85rem;
+            color: var(--ink-40);
+        }
+
+        .plan-annual {
+            padding: 0 1.5rem .9rem;
+            font-size: .8rem;
+            color: var(--ink-40);
+        }
+
+        .plan-divider {
+            height: 1px;
+            background: var(--rule);
+            margin: 0 1.5rem;
+        }
+
+        .plan-features {
+            list-style: none;
+            padding: 1rem 1.5rem 1.5rem;
+        }
+
+        .plan-features li {
+            display: flex;
+            align-items: flex-start;
+            gap: .75rem;
+            padding: .65rem 0;
+            border-top: 1px solid var(--rule);
+            font-size: .88rem;
+            color: var(--ink-80);
+            line-height: 1.6;
+        }
+
+        .plan-features li:first-child { border-top: none; padding-top: 0; }
+
+        .plan-features li::before {
+            content: '';
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: .15rem;
+            background: rgba(16,185,129,.12);
+            border: 1px solid rgba(16,185,129,.25);
+            background-image: url("data:image/svg+xml,%3Csvg width='8' height='7' viewBox='0 0 8 7' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3.5l2.2 2.2 4-4.4' stroke='%2310b981' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* ── LEGAL ITEMS LIST ──────────────────────────────────── */
+        .legal-list { display: grid; gap: .85rem; }
+
+        .legal-item {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            background: var(--cream);
+            padding: 1rem 1.25rem;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .legal-item:hover {
+            border-color: rgba(201,168,76,.28);
+            box-shadow: 0 4px 20px rgba(201,168,76,.06);
+        }
+
+        .legal-item-num {
+            font-family: var(--serif);
+            font-size: 1.3rem;
+            font-weight: 300;
+            color: var(--gold);
+            line-height: 1;
+            flex-shrink: 0;
+            min-width: 24px;
+            margin-top: .1rem;
+        }
+
+        .legal-item p {
+            font-size: .92rem;
+            color: var(--ink-80);
+            line-height: 1.75;
+            margin: 0;
+        }
+
+        /* ── CHECK LIST ────────────────────────────────────────── */
+        .check-list { list-style: none; display: grid; gap: .55rem; }
+
+        .check-list li {
+            display: flex;
+            gap: .85rem;
+            align-items: flex-start;
+            font-size: .935rem;
+            line-height: 1.7;
+            color: var(--ink-80);
+            padding: .7rem .9rem;
+            border-radius: var(--r-md);
+            transition: background .2s;
+        }
+
+        .check-list li:hover { background: var(--ink-10); }
+
+        .check-list li::before {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(16,185,129,.12);
+            border: 1px solid rgba(16,185,129,.25);
+            flex-shrink: 0;
+            margin-top: .15rem;
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%2310b981' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* ── CALLOUT BLOCKS ────────────────────────────────────── */
+        .callout {
+            border-radius: var(--r-lg);
+            padding: 1.2rem 1.4rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            margin-top: 1.2rem;
+        }
+
+        .callout-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .95rem;
+            flex-shrink: 0;
+        }
+
+        .callout-body { flex: 1; }
+        .callout-body p { margin: 0; font-size: .9rem; line-height: 1.75; color: var(--ink-80); }
+        .callout-body strong { color: var(--ink); }
+
+        .callout-info { background: rgba(59,130,246,.06); border: 1px solid rgba(59,130,246,.12); }
+        .callout-info .callout-icon { background: rgba(59,130,246,.10); color: #3b82f6; }
+
+        .callout-gold { background: rgba(201,168,76,.07); border: 1px solid rgba(201,168,76,.18); }
+        .callout-gold .callout-icon { background: rgba(201,168,76,.14); color: var(--gold); }
+
+        .callout-warn { background: rgba(245,158,11,.06); border: 1px solid rgba(245,158,11,.14); }
+        .callout-warn .callout-icon { background: rgba(245,158,11,.12); color: #d97706; }
+
+        /* ── FOOTER ────────────────────────────────────────────── */
+        .doc-footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: .85rem;
+            color: var(--ink-40);
+        }
+
+        .doc-footer a { color: var(--gold); text-decoration: none; }
+
+        /* ══ RESPONSIVE ════════════════════════════════════════════ */
+        @media (max-width: 991px) {
+            .doc-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; padding-right: 0; margin-bottom: 2rem; }
+            .toc { display: flex; flex-wrap: wrap; gap: .4rem; border-left: none; }
+            .toc li a {
+                border: 1px solid var(--rule);
+                border-radius: 999px;
+                border-left: 1px solid var(--rule);
+                padding: .45rem .9rem;
+                font-size: .78rem;
+            }
+            .toc li a:hover { border-color: var(--gold); }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .plans-grid   { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 767px) {
+            .hero { padding: 4rem 0 5rem; }
+            .hero h1 { font-size: 2.8rem; }
+            .summary-grid { grid-template-columns: 1fr; }
+            .section-head { padding: 1.25rem; }
+            .section-body { padding: 1.25rem; }
+            .section-num  { font-size: 2rem; }
+            .hero-pills   { display: none; }
+        }
+    </style>
+{% endblock %}
 
 {% block body %}
     {% include 'header_public.html.twig' %}
 
-    <div class="container py-5 mt-5">
-        <div class="bg-white shadow rounded p-4 p-md-5">
-            <div class="text-center mb-5">
-                <h1 class="display-5 fw-bold text-primary">Conditions Générales de Vente</h1>
-                <p class="lead text-muted">Informations contractuelles relatives à la souscription d’un abonnement sur Wiki Formation</p>
-            </div>
+    {% set abonnements = [
+        {
+            'type': 'Essentiel',
+            'icon': 'rocket-takeoff',
+            'subtitle': 'Idéal pour les petits organismes de formation en croissance.',
+            'price_monthly': '199 €',
+            'price_yearly': '1 908 €',
+            'badge': null,
+            'color': '#2E6BFF',
+            'features': [
+                'Jusqu\'à 500 apprenants par an',
+                'Jusqu\'à 4 administrateurs',
+                'Jusqu\'à 20 formateurs',
+                'Paiement mensuel ou annuel via Stripe'
+            ]
+        },
+        {
+            'type': 'Professionnel',
+            'icon': 'briefcase',
+            'subtitle': 'La solution complète pour structurer et piloter votre organisme.',
+            'price_monthly': '399 €',
+            'price_yearly': '3 828 €',
+            'badge': 'Recommandé',
+            'color': '#11B981',
+            'features': [
+                'Jusqu\'à 1 500 apprenants par an',
+                'Jusqu\'à 8 administrateurs',
+                'Support prioritaire inclus',
+                'Facturation récurrente mensuelle ou annuelle'
+            ]
+        },
+        {
+            'type': 'Expert',
+            'icon': 'bar-chart-line',
+            'subtitle': 'Une formule avancée pour accompagner la montée en puissance de votre structure.',
+            'price_monthly': '549 €',
+            'price_yearly': '5 268 €',
+            'badge': null,
+            'color': '#F59E0B',
+            'features': [
+                'Jusqu\'à 2 500 apprenants par an',
+                'Jusqu\'à 12 administrateurs',
+                'Environnement adapté aux structures plus développées',
+                'Paiement sécurisé et gestion fluide des renouvellements'
+            ]
+        },
+        {
+            'type': 'Excellence',
+            'icon': 'gem',
+            'subtitle': 'Optimisez vos performances avec des outils puissants et stratégiques.',
+            'price_monthly': '799 €',
+            'price_yearly': '7 668 €',
+            'badge': null,
+            'color': '#7C3AED',
+            'features': [
+                'Formule premium de très haut niveau',
+                'Accès à l\'environnement le plus avancé de la plateforme',
+                'Pensée pour les structures exigeantes et ambitieuses',
+                'Souscription mensuelle ou annuelle'
+            ]
+        }
+    ] %}
 
-            {% set abonnements = [
-                {'type': 'Premium', 'icon': 'gem'},
-                {'type': 'Administrateur', 'icon': 'person-gear'},
-                {'type': 'Utilisateur', 'icon': 'person'}
-            ] %}
+    <main class="pg-wrap">
 
-            {% for abonnement in abonnements %}
-                <div class="card mb-4 border-0 shadow-sm">
-                    <div class="card-header bg-theme text-white d-flex align-items-center">
-                        <i class="bi bi-{{ abonnement.icon }} me-2 fs-4"></i>
-                        <h5 class="mb-0">Abonnement {{ abonnement.type }}</h5>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item"><strong>Produits :</strong> Abonnements {{ abonnement.type|lower }}.</li>
-                            <li class="list-group-item"><strong>Prix :</strong> Affichés TTC sur la page d'accueil une fois connecté.</li>
-                            <li class="list-group-item"><strong>Paiement :</strong> Par Stripe via une plateforme 100% sécurisée.</li>
-                            <li class="list-group-item"><strong>Rétractation :</strong> Pas de droit de rétractation après souscription. Vous pouvez néanmoins annuler à tout moment.</li>
-                            <li class="list-group-item"><strong>Résiliation :</strong> Possible à tout moment via votre espace personnel.</li>
-                            <li class="list-group-item"><strong>Litiges :</strong> Possibilité de recours à un médiateur de la consommation.</li>
-                        </ul>
+        <!-- ══ HERO ══════════════════════════════════════════════ -->
+        <section class="hero">
+            <div class="hero-orb-indigo"></div>
+            <div class="hero-orb-gold"></div>
+            <div class="container">
+                <div class="hero-inner">
+                    <span class="hero-eyebrow">
+                        <i class="bi bi-shield-check"></i>
+                        Conditions contractuelles des abonnements · WikiFormation
+                    </span>
+                    <h1>Conditions<br>Générales de <em>Vente</em></h1>
+                    <p class="hero-intro">
+                        Modalités de souscription, de paiement, d'activation, de renouvellement
+                        et de résiliation des abonnements proposés sur la plateforme WikiFormation.
+                    </p>
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="bi bi-credit-card-2-front"></i> Paiement sécurisé</span>
+                        <span class="hero-pill"><i class="bi bi-arrow-repeat"></i> Formules récurrentes</span>
+                        <span class="hero-pill"><i class="bi bi-sliders"></i> Capacités par plan</span>
+                        <span class="hero-pill"><i class="bi bi-door-open"></i> Résiliation maîtrisée</span>
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-    </div>
+            </div>
+        </section>
+
+        <svg class="hero-wave" viewBox="0 0 1440 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:#0f1b28;">
+            <path d="M0 0C360 52 1080 52 1440 0V52H0V0Z" fill="#faf8f3"/>
+        </svg>
+
+        <!-- ══ DOC LAYOUT ═════════════════════════════════════════ -->
+        <div class="doc-layout">
+
+            <!-- sidebar -->
+            <aside class="sidebar">
+                <p class="sidebar-label">Sommaire</p>
+                <ul class="toc" id="toc">
+                    <li><a href="#s1"><span class="num">01</span> Objet</a></li>
+                    <li><a href="#s2"><span class="num">02</span> Offres &amp; abonnements</a></li>
+                    <li><a href="#s3"><span class="num">03</span> Tarifs</a></li>
+                    <li><a href="#s4"><span class="num">04</span> Modalités de paiement</a></li>
+                    <li><a href="#s5"><span class="num">05</span> Comptes &amp; limites d'usage</a></li>
+                    <li><a href="#s6"><span class="num">06</span> Activation des services</a></li>
+                    <li><a href="#s7"><span class="num">07</span> Renouvellement</a></li>
+                    <li><a href="#s8"><span class="num">08</span> Résiliation</a></li>
+                    <li><a href="#s9"><span class="num">09</span> Droit de rétractation</a></li>
+                    <li><a href="#s10"><span class="num">10</span> Responsabilité &amp; disponibilité</a></li>
+                    <li><a href="#s11"><span class="num">11</span> Données &amp; confidentialité</a></li>
+                    <li><a href="#s12"><span class="num">12</span> Litiges &amp; médiation</a></li>
+                </ul>
+                <div class="sidebar-updated">
+                    <strong>Dernière mise à jour</strong><br>
+                    {{ "now"|date("d/m/Y") }}
+                </div>
+            </aside>
+
+            <!-- main -->
+            <div class="doc-main">
+
+                <!-- Summary -->
+                <article class="doc-section visible" style="opacity:1;transform:none;">
+                    <div class="summary-grid">
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-credit-card-2-front"></i></div>
+                            <h3>Paiement sécurisé</h3>
+                            <p>Les abonnements sont réglés en ligne via Stripe, dans un environnement sécurisé.</p>
+                        </div>
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-arrow-repeat"></i></div>
+                            <h3>Formules récurrentes</h3>
+                            <p>Les offres sont disponibles en mensualisation ou en facturation annuelle.</p>
+                        </div>
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-sliders"></i></div>
+                            <h3>Capacités selon le plan</h3>
+                            <p>Chaque abonnement prévoit des plafonds d'usage adaptés au niveau souscrit.</p>
+                        </div>
+                        <div class="sum-card">
+                            <div class="sum-icon"><i class="bi bi-door-open"></i></div>
+                            <h3>Résiliation maîtrisée</h3>
+                            <p>La gestion de l'abonnement est accessible selon les modalités de l'espace client.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 1. Objet -->
+                <article class="doc-section" id="s1">
+                    <div class="section-head">
+                        <span class="section-num">01</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Fondements</p>
+                            <h2 class="section-title">Objet</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-journal-check"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Les présentes Conditions Générales de Vente encadrent l'accès aux services SaaS de WikiFormation. Elles définissent les conditions dans lesquelles un client peut souscrire à une offre payante, utiliser les fonctionnalités de la plateforme et bénéficier des services associés selon le plan choisi.</p>
+                        <p>Elles s'appliquent à toute commande d'une formule payante effectuée en ligne par un organisme de formation, une structure cliente ou un utilisateur habilité.</p>
+                    </div>
+                </article>
+
+                <!-- 2. Offres -->
+                <article class="doc-section" id="s2">
+                    <div class="section-head">
+                        <span class="section-num">02</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Catalogue</p>
+                            <h2 class="section-title">Offres &amp; abonnements disponibles</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-layers"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>WikiFormation commercialise plusieurs formules d'abonnement payantes destinées aux organismes de formation et structures professionnelles. Chaque formule donne accès à un niveau de service, des capacités d'utilisation et des limites de comptes distinctes.</p>
+
+                        <div class="plans-grid mt-4">
+                            {% for abonnement in abonnements %}
+                                <article class="plan-card {% if abonnement.badge %}featured{% endif %}">
+                                    <div class="plan-topbar" style="background: {{ abonnement.color }};"></div>
+                                    <div class="plan-header">
+                                        <div class="plan-icon" style="background: {{ abonnement.color }};">
+                                            <i class="bi bi-{{ abonnement.icon }}"></i>
+                                        </div>
+                                        <div class="plan-meta">
+                                            <p class="plan-name">{{ abonnement.type }}</p>
+                                            <p class="plan-subtitle">{{ abonnement.subtitle }}</p>
+                                            {% if abonnement.badge %}
+                                                <span class="plan-badge"><i class="bi bi-stars"></i> {{ abonnement.badge }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="plan-pricing">
+                                        <span class="plan-price">{{ abonnement.price_monthly }}</span>
+                                        <span class="plan-period">/ mois HT</span>
+                                    </div>
+                                    <p class="plan-annual">Soit {{ abonnement.price_yearly }} / an</p>
+                                    <div class="plan-divider"></div>
+                                    <ul class="plan-features">
+                                        {% for feature in abonnement.features %}
+                                            <li>{{ feature }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 3. Tarifs -->
+                <article class="doc-section" id="s3">
+                    <div class="section-head">
+                        <span class="section-num">03</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Prix</p>
+                            <h2 class="section-title">Tarifs</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-tags"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Les prix applicables sont ceux affichés sur la plateforme au moment de la souscription. Les abonnements WikiFormation sont proposés en formule mensuelle et, lorsque l'option est disponible, en formule annuelle. Les montants sont indiqués avant validation définitive de la commande.</p>
+                        <div class="callout callout-gold">
+                            <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
+                            <div class="callout-body">
+                                <p><strong>À titre indicatif :</strong> la gamme comprend les formules <strong>Essentiel</strong>, <strong>Professionnel</strong>, <strong>Expert</strong> et <strong>Excellence</strong>, avec des niveaux tarifaires et capacités distincts présentés ci-dessus.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 4. Paiement -->
+                <article class="doc-section" id="s4">
+                    <div class="section-head">
+                        <span class="section-num">04</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Transaction</p>
+                            <h2 class="section-title">Modalités de paiement</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-credit-card"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <div class="legal-list">
+                            <div class="legal-item">
+                                <span class="legal-item-num">1</span>
+                                <p>Le paiement des abonnements s'effectue exclusivement en ligne via la solution Stripe.</p>
+                            </div>
+                            <div class="legal-item">
+                                <span class="legal-item-num">2</span>
+                                <p>La souscription devient effective après validation du paiement et confirmation de la transaction.</p>
+                            </div>
+                            <div class="legal-item">
+                                <span class="legal-item-num">3</span>
+                                <p>En cas d'abonnement récurrent, le client autorise le renouvellement automatique selon la périodicité choisie.</p>
+                            </div>
+                            <div class="legal-item">
+                                <span class="legal-item-num">4</span>
+                                <p>En cas d'échec, refus ou incident de paiement, l'accès à tout ou partie des services peut être suspendu Jusqu\'à régularisation.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 5. Comptes & limites -->
+                <article class="doc-section" id="s5">
+                    <div class="section-head">
+                        <span class="section-num">05</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Usage</p>
+                            <h2 class="section-title">Comptes, accès &amp; limites d'usage</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-people"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Les droits d'accès, le nombre d'administrateurs, le volume d'apprenants, les capacités de gestion et certaines options de service dépendent du plan souscrit. Le client reconnaît que les fonctionnalités et plafonds applicables peuvent varier d'une formule à l'autre.</p>
+                        <p>Il appartient au client de choisir l'abonnement le plus adapté à sa taille, à son activité et à ses besoins opérationnels.</p>
+                    </div>
+                </article>
+
+                <!-- 6. Activation -->
+                <article class="doc-section" id="s6">
+                    <div class="section-head">
+                        <span class="section-num">06</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Mise en service</p>
+                            <h2 class="section-title">Activation des services</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-lightning-charge"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Après validation de la souscription, l'accès au service est activé dans les meilleurs délais. L'activation peut nécessiter la création ou la configuration d'un espace client, la définition des utilisateurs autorisés et, selon les cas, certains paramétrages internes réalisés par le client.</p>
+                    </div>
+                </article>
+
+                <!-- 7. Renouvellement -->
+                <article class="doc-section" id="s7">
+                    <div class="section-head">
+                        <span class="section-num">07</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Reconduction</p>
+                            <h2 class="section-title">Renouvellement</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-arrow-repeat"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Sauf résiliation effectuée dans les conditions prévues, les abonnements souscrits en mode récurrent sont reconduits automatiquement à chaque échéance mensuelle ou annuelle. Le client peut consulter les informations relatives à sa souscription depuis son espace de gestion lorsqu'elles y sont disponibles.</p>
+                        <div class="callout callout-info">
+                            <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
+                            <div class="callout-body">
+                                <p>Un rappel peut être envoyé avant la date de renouvellement afin de permettre au client d'ajuster ou de résilier son abonnement si nécessaire.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 8. Résiliation -->
+                <article class="doc-section" id="s8">
+                    <div class="section-head">
+                        <span class="section-num">08</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Fin de contrat</p>
+                            <h2 class="section-title">Résiliation</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-x-circle"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Le client peut mettre fin à son abonnement selon les modalités prévues sur la plateforme. Sauf mention contraire, la résiliation prend effet à l'issue de la période d'abonnement en cours et ne donne pas lieu au remboursement automatique des échéances déjà payées.</p>
+                        <div class="callout callout-warn">
+                            <div class="callout-icon"><i class="bi bi-exclamation-lg"></i></div>
+                            <div class="callout-body">
+                                <p>WikiFormation met à disposition une fonctionnalité de résiliation par voie électronique accessible depuis l'espace client, conformément aux obligations légales applicables.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 9. Rétractation -->
+                <article class="doc-section" id="s9">
+                    <div class="section-head">
+                        <span class="section-num">09</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Droit légal</p>
+                            <h2 class="section-title">Droit de rétractation</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-exclamation-diamond"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Lorsque les services numériques sont exécutés rapidement après la souscription, et sous réserve des règles applicables, le client reconnaît que l'exécution du service peut débuter avant l'expiration du délai de rétractation, ce qui peut limiter ou exclure l'exercice de ce droit selon le cadre légal en vigueur.</p>
+                    </div>
+                </article>
+
+                <!-- 10. Responsabilité -->
+                <article class="doc-section" id="s10">
+                    <div class="section-head">
+                        <span class="section-num">10</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Engagements</p>
+                            <h2 class="section-title">Responsabilité &amp; disponibilité du service</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-shield-lock"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>WikiFormation s'engage à mettre en œuvre tous les moyens raisonnables pour assurer la disponibilité, la sécurité et le bon fonctionnement de la plateforme. Toutefois, sa responsabilité ne saurait être engagée en cas d'interruption temporaire, de maintenance, de force majeure, d'incident technique externe ou d'utilisation non conforme du service par le client.</p>
+                    </div>
+                </article>
+
+                <!-- 11. Données -->
+                <article class="doc-section" id="s11">
+                    <div class="section-head">
+                        <span class="section-num">11</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Protection</p>
+                            <h2 class="section-title">Données &amp; confidentialité</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-database-lock"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>Les traitements de données réalisés dans le cadre de l'utilisation de WikiFormation sont encadrés par la politique de confidentialité applicable sur la plateforme. Le client est invité à la consulter pour connaître les modalités de collecte, d'utilisation, de conservation et de protection des données.</p>
+                    </div>
+                </article>
+
+                <!-- 12. Litiges -->
+                <article class="doc-section" id="s12">
+                    <div class="section-head">
+                        <span class="section-num">12</span>
+                        <div class="section-title-wrap">
+                            <p class="section-category">Juridique</p>
+                            <h2 class="section-title">Litiges &amp; médiation</h2>
+                        </div>
+                        <div class="section-icon"><i class="bi bi-bank"></i></div>
+                    </div>
+                    <div class="section-body">
+                        <p>En cas de différend relatif à la souscription ou à l'exécution des présentes Conditions Générales de Vente, les parties s'efforceront de rechercher une solution amiable. Le client peut, lorsque la réglementation le permet, recourir à un dispositif de médiation de la consommation avant toute action contentieuse.</p>
+                    </div>
+                </article>
+
+                <!-- Footer -->
+                <p class="doc-footer">
+                    Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_cgu') }}">CGU</a> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_mentions_legales') }}">Mentions légales</a> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_politique_confidentialite') }}">Confidentialité</a> &nbsp;·&nbsp;
+                    <a href="{{ path('app_public_cookies') }}">Cookies</a>
+                </p>
+
+            </div><!-- /doc-main -->
+        </div><!-- /doc-layout -->
+
+    </main>
+
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+    (() => {
+        const sections = document.querySelectorAll('.doc-section');
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach((e, i) => {
+                if (e.isIntersecting) {
+                    setTimeout(() => e.target.classList.add('visible'), i * 60);
+                    obs.unobserve(e.target);
+                }
+            });
+        }, { threshold: 0.07 });
+        sections.forEach(s => obs.observe(s));
+
+        const anchors = document.querySelectorAll('.doc-section[id]');
+        const links   = document.querySelectorAll('.toc a');
+        const scrollObs = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    links.forEach(l => l.classList.remove('active'));
+                    const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+                    if (active) active.classList.add('active');
+                }
+            });
+        }, { rootMargin: '-30% 0px -65% 0px' });
+        anchors.forEach(a => scrollObs.observe(a));
+    })();
+    </script>
 {% endblock %}
