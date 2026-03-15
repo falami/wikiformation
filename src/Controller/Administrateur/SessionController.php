@@ -2307,6 +2307,8 @@ public function newStagiaireAjax(
         $user->setTelephone($telephone !== '' ? $telephone : null);
         $user->setCreateur($creator);
         $user->setEntite($entite);
+        $user->setRoles(["ROLE_USER"]);
+      
 
         $plainPassword = bin2hex(random_bytes(8));
         $user->setPassword($passwordHasher->hashPassword($user, $plainPassword));
