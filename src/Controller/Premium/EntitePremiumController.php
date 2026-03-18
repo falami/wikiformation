@@ -78,9 +78,12 @@ final class EntitePremiumController extends AbstractController
     }
 
     #[Route('/modifier/{id}', name: 'modifier')]
-    public function modifier(Entite $entite, Entite $id, FileUploader $fileUploader, Request $request): Response
-    {
-
+    public function modifier(
+        Entite $entite,
+        Entite $id,
+        FileUploader $fileUploader,
+        Request $request
+    ): Response {
         $form = $this->createForm(EntitePremiumType::class, $id);
         $form->handleRequest($request);
 
@@ -134,6 +137,7 @@ final class EntitePremiumController extends AbstractController
         return $this->render('premium/entite/modifier.html.twig', [
             'form' => $form->createView(),
             'entite' => $entite,
+            'google_maps_browser_key' => $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),
         ]);
     }
 
