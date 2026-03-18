@@ -33,12 +33,6 @@ final class PositioningAssignmentController extends AbstractController
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
-    // ✅ sécurité : admin rattaché à l’entité
-    $ue = $this->utilisateurEntiteManager->getUserEntiteLink($entite);
-    if (!$ue) {
-      throw $this->createAccessDeniedException('Accès interdit à cette entité.');
-    }
-
     $form = $this->createForm(PositioningAssignmentType::class, null, ['entite' => $entite]);
     $form->handleRequest($req);
 
@@ -101,7 +95,6 @@ final class PositioningAssignmentController extends AbstractController
       'entite' => $entite,
       'form' => $form->createView(),
       'formateurs' => $formateurs,
-      'utilisateurEntite' => $ue,
       'sessions' => $sessions,
     ]);
   }
