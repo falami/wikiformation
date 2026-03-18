@@ -15,7 +15,11 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+
+#[Route('/premium/{entite}/entite', name: 'app_premium_entite_', requirements: ['entite' => '\d+', 'id' => '\d+'])]
+#[IsGranted(TenantPermission::PREMIUM_MANAGE, subject: 'entite')]
 final class EntitePremiumController extends AbstractController
 {
     public function __construct(
@@ -63,22 +67,19 @@ final class EntitePremiumController extends AbstractController
         return $utilisateurEntite;
     }
 
-    #[Route('/premium/{entite}/entite/{id}', name: 'app_premium_entite')]
+    #[Route('/{id}', name: 'index')]
     public function index(Entite $entite): Response
     {
-        $role = $this->denyIfNoEntiteAccess($entite);
 
         return $this->render('premium/entite/index.html.twig', [
             'utilisateur' => $this->getUser(),
             'entite' => $entite,
-            'utilisateurEntite' => $role,
         ]);
     }
 
-    #[Route('/premium/{entite}/entite/modifier/{id}', name: 'app_premium_entite_modifier')]
+    #[Route('/modifier/{id}', name: 'modifier')]
     public function modifier(Entite $entite, Entite $id, FileUploader $fileUploader, Request $request): Response
     {
-        $role = $this->denyIfNoEntiteAccess($entite);
 
         $form = $this->createForm(EntitePremiumType::class, $id);
         $form->handleRequest($request);
@@ -121,7 +122,7 @@ final class EntitePremiumController extends AbstractController
             if ($this->entiteManager->create($id)) {
                 $this->addFlash('success', 'Les paramètres du club ont bien été mis à jour !');
 
-                return $this->redirectToRoute('app_premium_entite', [
+                return $this->redirectToRoute('app_premium_entite_index', [
                     'id' => $id->getId(),
                     'entite' => $entite->getId(),
                 ]);
@@ -133,11 +134,10 @@ final class EntitePremiumController extends AbstractController
         return $this->render('premium/entite/modifier.html.twig', [
             'form' => $form->createView(),
             'entite' => $entite,
-            'utilisateurEntite' => $role,
         ]);
     }
 
-    #[Route('/premium/{entite}/entite/adherent/ajouter', name: 'app_premium_entite_adherent_ajouter')]
+    #[Route('/adherent/ajouter', name: 'adherent_ajouter')]
     public function creerEntite(Entite $entite, FileUploader $fileUploader, Request $request): Response
     {
         /** @var Utilisateur|null $user */
@@ -230,7 +230,7 @@ final class EntitePremiumController extends AbstractController
         ]);
     }
 
-    #[Route('/premium/{entite}/entite/adherent/nouvelle', name: 'app_premium_entite_adherent_nouvelle')]
+    #[Route('/adherent/nouvelle', name: 'adherent_nouvelle')]
     public function nouveauEntite(Entite $entite): Response
     {
         /** @var Utilisateur|null $user */

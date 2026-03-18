@@ -5,6 +5,9 @@ namespace App\Security\Permission;
 final class TenantPermission
 {
 
+
+  public const PREMIUM_MANAGE = 'PREMIUM_MANAGE';
+
   public const ENTREPRISE_DOCUMENTS_MANAGE = 'ENTREPRISE_DOCUMENTS_MANAGE';
   public const DASHBOARD_ENTREPRISE_MANAGE = 'DASHBOARD_ENTREPRISE_MANAGE';
   public const CONVENTION_SIGNATURE_ENTREPRISE_MANAGE = 'CONVENTION_SIGNATURE_ENTREPRISE_MANAGE';
@@ -146,6 +149,8 @@ final class TenantPermission
     self::OF,
     self::OPCO,
     self::COMMERCIAL,
+
+    self::PREMIUM_MANAGE,
 
     self::FORMATEUR_EMARGEMENT_PDF_MANAGE,
     self::FORMATEUR_DASHBOARD_MANAGE,

@@ -135,6 +135,8 @@ final class TenantVoter extends Voter
 
 
   private const ADMIN_ONLY = [
+
+    TenantPermission::PREMIUM_MANAGE,
     TenantPermission::CONTRAT_FORMATEUR_MANAGE,
     TenantPermission::DEPENSE_MANAGE,
     TenantPermission::QCM_ASSIGNMENT_MANAGE,
