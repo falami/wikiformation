@@ -512,6 +512,137 @@
   label{
     color: black;
   }
+
+
+
+  /* =========================
+   PREMIUM FORM / ERRORS
+   ========================= */
+
+.wk-form-card{
+  border: 1px solid rgba(15,35,54,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.92));
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 14px 32px rgba(15,35,54,.06);
+}
+
+.wk-field{
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+
+.wk-label{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  font-weight: 900;
+  color: var(--wk-ink);
+  letter-spacing: .15px;
+}
+
+.wk-required{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  font-size:.76rem;
+  font-weight:900;
+  color:#b42318;
+  background: rgba(220,53,69,.08);
+  border:1px solid rgba(220,53,69,.16);
+  border-radius:999px;
+  padding:.2rem .5rem;
+}
+
+.wk-input-wrap{
+  position: relative;
+}
+
+.wk-input-wrap .form-control,
+.wk-input-wrap .form-select{
+  min-height: 52px;
+  padding-right: 44px;
+}
+
+.wk-field-icon{
+  position:absolute;
+  top:50%;
+  right:14px;
+  transform:translateY(-50%);
+  color: rgba(15,35,54,.28);
+  pointer-events:none;
+}
+
+.wk-help{
+  font-size:.82rem;
+  color: rgba(15,35,54,.56);
+  margin-top: .1rem;
+}
+
+.wk-form .form-control.is-invalid,
+.wk-form .form-select.is-invalid{
+  border-color: rgba(220,53,69,.72);
+  background-image: none;
+  box-shadow: 0 0 0 .25rem rgba(220,53,69,.10);
+}
+
+.wk-form .form-control.is-valid,
+.wk-form .form-select.is-valid{
+  border-color: rgba(25,135,84,.52);
+  background-image: none;
+  box-shadow: 0 0 0 .25rem rgba(25,135,84,.08);
+}
+
+.wk-invalid{
+  margin-top: .15rem;
+  font-size: .86rem;
+  font-weight: 700;
+  color: #b42318;
+  display:flex;
+  gap:.45rem;
+  align-items:flex-start;
+}
+
+.wk-invalid i{
+  margin-top: .1rem;
+}
+
+.wk-error-summary{
+  border: 1px solid rgba(220,53,69,.18);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,245,245,.95));
+  border-left: 5px solid #dc3545;
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 28px rgba(220,53,69,.08);
+}
+
+.wk-error-summary-title{
+  display:flex;
+  align-items:center;
+  gap:.6rem;
+  font-weight: 950;
+  color: #8f1d1d;
+  margin-bottom: .35rem;
+}
+
+.wk-error-summary ul{
+  margin: .25rem 0 0 1.1rem;
+  padding: 0;
+}
+
+.wk-error-summary li{
+  color: rgba(15,35,54,.84);
+  margin-bottom: .2rem;
+}
+
+.wk-section-note{
+  color: rgba(15,35,54,.58);
+  font-size:.92rem;
+  max-width: 68ch;
+}
 </style>
 
 <div class="wk-wrap py-5">
@@ -546,6 +677,34 @@
                 novalidate: 'novalidate'
               }
             }) }}
+
+
+
+            {% set hasErrors = form.vars.submitted and not form.vars.valid %}
+
+            {% if hasErrors %}
+              <div class="wk-error-summary mb-4" id="formErrorSummary">
+                <div class="wk-error-summary-title">
+                  <i class="bi bi-exclamation-octagon-fill"></i>
+                  <span>Le formulaire contient des informations à corriger</span>
+                </div>
+
+                <div class="small text-muted mb-2">
+                  Vérifiez les champs signalés ci-dessous puis réessayez.
+                </div>
+
+                <ul class="mb-0">
+                  {% for child in form %}
+                    {% if child.vars.errors|length > 0 %}
+                      <li>
+                        <strong>{{ child.vars.label|default(child.vars.name) }}</strong> :
+                        {{ form_errors(child) }}
+                      </li>
+                    {% endif %}
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
 
               <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
                 <div>
@@ -628,12 +787,6 @@
               {% if form.planCode.vars.errors|length %}
                 <div class="wk-error mt-3">{{ form_errors(form.planCode) }}</div>
               {% endif %}
-
-              <div class="wk-divider"></div>
-
-              <div class="wk-section-title mb-2">Informations de base</div>
-
-
 
               <div class="wk-divider"></div>
 
@@ -750,17 +903,127 @@
 
               <div class="wk-divider"></div>
 
+              <div class="wk-section-title mb-1">Informations de base</div>
+              <div class="wk-section-note mb-3">
+                Renseignez les informations principales de votre organisme. Les champs obligatoires sont indiqués clairement.
+              </div>
 
+              <div class="wk-form-card">
+                <div class="row g-3">
 
+                  <div class="col-12">
+                    <div class="wk-field">
+                      <div class="wk-label">
+                        <label for="{{ form.nom.vars.id }}">{{ form.nom.vars.label }}</label>
+                        <span class="wk-required"><i class="bi bi-asterisk"></i> Obligatoire</span>
+                      </div>
+                      <div class="wk-input-wrap">
+                        {{ form_widget(form.nom, {
+                          attr: {
+                            class: 'form-control form-control-lg' ~ (form.nom.vars.errors|length ? ' is-invalid' : ''),
+                            'data-required': 'true'
+                          }
+                        }) }}
+                        <i class="bi bi-buildings wk-field-icon"></i>
+                      </div>
+                      {% if form.nom.vars.help %}
+                        <div class="wk-help">{{ form.nom.vars.help }}</div>
+                      {% endif %}
+                      {% for error in form.nom.vars.errors %}
+                        <div class="wk-invalid"><i class="bi bi-exclamation-circle-fill"></i><span>{{ error.message }}</span></div>
+                      {% endfor %}
+                    </div>
+                  </div>
 
+                  <div class="col-md-6">
+                    <div class="wk-field">
+                      <div class="wk-label">
+                        <label for="{{ form.email.vars.id }}">{{ form.email.vars.label }}</label>
+                        <span class="wk-required"><i class="bi bi-asterisk"></i> Obligatoire</span>
+                      </div>
+                      <div class="wk-input-wrap">
+                        {{ form_widget(form.email, {
+                          attr: {
+                            class: 'form-control' ~ (form.email.vars.errors|length ? ' is-invalid' : ''),
+                            'data-required': 'true'
+                          }
+                        }) }}
+                        <i class="bi bi-envelope wk-field-icon"></i>
+                      </div>
+                      {% for error in form.email.vars.errors %}
+                        <div class="wk-invalid"><i class="bi bi-exclamation-circle-fill"></i><span>{{ error.message }}</span></div>
+                      {% endfor %}
+                    </div>
+                  </div>
 
+                  <div class="col-md-6">
+                    <div class="wk-field">
+                      <div class="wk-label">
+                        <label for="{{ form.telephone.vars.id }}">{{ form.telephone.vars.label }}</label>
+                        <span class="wk-required"><i class="bi bi-asterisk"></i> Obligatoire</span>
+                      </div>
+                      <div class="wk-input-wrap">
+                        {{ form_widget(form.telephone, {
+                          attr: {
+                            class: 'form-control' ~ (form.telephone.vars.errors|length ? ' is-invalid' : ''),
+                            'data-required': 'true'
+                          }
+                        }) }}
+                        <i class="bi bi-telephone wk-field-icon"></i>
+                      </div>
+                      <div class="wk-help">
+                        Exemple : 0606060606 sera automatiquement converti en +33606060606.
+                      </div>
+                      {% for error in form.telephone.vars.errors %}
+                        <div class="wk-invalid"><i class="bi bi-exclamation-circle-fill"></i><span>{{ error.message }}</span></div>
+                      {% endfor %}
+                    </div>
+                  </div>
 
-              <div class="mb-3">{{ form_row(form.nom) }}</div>
-              <div class="row g-3">
-                <div class="col-md-6">{{ form_row(form.email) }}</div>
-                <div class="col-md-6">{{ form_row(form.telephone) }}</div>
-                <div class="col-md-6">{{ form_row(form.siret) }}</div>
-                <div class="col-md-6">{{ form_row(form.ville) }}</div>
+                  <div class="col-md-6">
+                    <div class="wk-field">
+                      <div class="wk-label">
+                        <label for="{{ form.siret.vars.id }}">{{ form.siret.vars.label }}</label>
+                      </div>
+                      <div class="wk-input-wrap">
+                        {{ form_widget(form.siret, {
+                          attr: {
+                            class: 'form-control' ~ (form.siret.vars.errors|length ? ' is-invalid' : '')
+                          }
+                        }) }}
+                        <i class="bi bi-hash wk-field-icon"></i>
+                      </div>
+                      <div class="wk-help">
+                        Optionnel. S’il est renseigné, il doit contenir exactement 14 chiffres.
+                      </div>
+                      {% for error in form.siret.vars.errors %}
+                        <div class="wk-invalid"><i class="bi bi-exclamation-circle-fill"></i><span>{{ error.message }}</span></div>
+                      {% endfor %}
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="wk-field">
+                      <div class="wk-label">
+                        <label for="{{ form.ville.vars.id }}">{{ form.ville.vars.label }}</label>
+                        <span class="wk-required"><i class="bi bi-asterisk"></i> Obligatoire</span>
+                      </div>
+                      <div class="wk-input-wrap">
+                        {{ form_widget(form.ville, {
+                          attr: {
+                            class: 'form-control' ~ (form.ville.vars.errors|length ? ' is-invalid' : ''),
+                            'data-required': 'true'
+                          }
+                        }) }}
+                        <i class="bi bi-geo-alt wk-field-icon"></i>
+                      </div>
+                      {% for error in form.ville.vars.errors %}
+                        <div class="wk-invalid"><i class="bi bi-exclamation-circle-fill"></i><span>{{ error.message }}</span></div>
+                      {% endfor %}
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
               <button class="btn btn-primary btn-lg mt-4 w-100 wk-cta" id="submitBtn" type="submit">
@@ -913,15 +1176,6 @@
     const found = planButtons.find(b => (b.dataset.plan || '') === planInput.value);
     if (found) selectPlan(found, {scrollToForm: false});
   }
-
-  form?.addEventListener('submit', (e) => {
-    if (planInput && !planInput.value) {
-      e.preventDefault();
-      submitBtn?.blur();
-      document.getElementById('planGrid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      planButtons[0]?.focus();
-    }
-  });
 
   // ============================================================
   // 2) Logo upload (drop + preview)
@@ -1117,6 +1371,138 @@
 
     input.addEventListener('input', syncPressed);
     syncPressed();
+  });
+
+
+
+
+
+    // ============================================================
+  // 5) Validation premium côté front
+  // ============================================================
+  const requiredFields = Array.from(form.querySelectorAll('[data-required="true"]'));
+
+  function isEmailValid(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value || '').trim());
+  }
+
+  function markInvalid(input, message) {
+    input.classList.remove('is-valid');
+    input.classList.add('is-invalid');
+
+    let feedback = input.closest('.wk-field')?.querySelector('.wk-invalid.js-inline-invalid');
+    if (!feedback) {
+      feedback = document.createElement('div');
+      feedback.className = 'wk-invalid js-inline-invalid';
+      feedback.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i><span></span>';
+      input.closest('.wk-field')?.appendChild(feedback);
+    }
+
+    const span = feedback.querySelector('span');
+    if (span) span.textContent = message;
+  }
+
+  function clearInvalid(input) {
+    input.classList.remove('is-invalid');
+
+    const value = (input.value || '').trim();
+    if (value !== '') {
+      input.classList.add('is-valid');
+    } else {
+      input.classList.remove('is-valid');
+    }
+
+    const feedback = input.closest('.wk-field')?.querySelector('.wk-invalid.js-inline-invalid');
+    if (feedback) feedback.remove();
+  }
+
+  function validateField(input) {
+    const name = input.getAttribute('name') || '';
+    const value = (input.value || '').trim();
+
+    if (input.dataset.required === 'true' && value === '') {
+      markInvalid(input, 'Ce champ est obligatoire.');
+      return false;
+    }
+
+    if (name.includes('[email]') && value !== '' && !isEmailValid(value)) {
+      markInvalid(input, 'Veuillez saisir une adresse email valide.');
+      return false;
+    }
+
+    if (name.includes('[telephone]') && value !== '') {
+      const digits = value.replace(/[^\d+]/g, '');
+      if (digits.length < 10) {
+        markInvalid(input, 'Veuillez saisir un numéro de téléphone valide.');
+        return false;
+      }
+    }
+
+    if (name.includes('[siret]') && value !== '') {
+      const siret = value.replace(/\s+/g, '');
+      if (!/^\d{14}$/.test(siret)) {
+        markInvalid(input, 'Le SIRET doit contenir exactement 14 chiffres.');
+        return false;
+      }
+    }
+
+    clearInvalid(input);
+    return true;
+  }
+
+  requiredFields.forEach(input => {
+    input.addEventListener('input', () => validateField(input));
+    input.addEventListener('blur', () => validateField(input));
+  });
+
+  const extraFields = [
+    document.getElementById('{{ form.email.vars.id }}'),
+    document.getElementById('{{ form.telephone.vars.id }}'),
+    document.getElementById('{{ form.siret.vars.id }}'),
+    document.getElementById('{{ form.ville.vars.id }}')
+  ].filter(Boolean);
+
+  extraFields.forEach(input => {
+    input.addEventListener('input', () => validateField(input));
+    input.addEventListener('blur', () => validateField(input));
+  });
+
+  form?.addEventListener('submit', (e) => {
+    let ok = true;
+
+    // validation plan
+    if (planInput && !planInput.value) {
+      ok = false;
+      document.getElementById('planGrid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      planButtons[0]?.focus();
+    }
+
+    // validation champs
+    const fieldsToValidate = [...new Set([...requiredFields, ...extraFields])];
+    let firstInvalid = null;
+
+    fieldsToValidate.forEach(input => {
+      const valid = validateField(input);
+      if (!valid && !firstInvalid) {
+        firstInvalid = input;
+      }
+      ok = ok && valid;
+    });
+
+    if (!ok) {
+      e.preventDefault();
+
+      if (firstInvalid) {
+        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => firstInvalid.focus(), 220);
+      } else {
+        document.getElementById('formErrorSummary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
+
+    submitBtn?.setAttribute('disabled', 'disabled');
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Création en cours...';
   });
 
 })();
