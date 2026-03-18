@@ -138,6 +138,7 @@ final class UtilisateurType extends AbstractType
                 'required' => true,
                 'multiple' => true,
                 'expanded' => false,
+                'label' => 'Rôles',
                 'data' => $o['ueRoles'] ?? [UtilisateurEntite::TENANT_STAGIAIRE],
                 'choices' => $choices,
                 'attr' => ['class' => 'form-select js-ts-ueroles'],
