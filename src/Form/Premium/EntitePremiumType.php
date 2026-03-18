@@ -21,7 +21,7 @@ class EntitePremiumType extends AbstractType
     {
         $builder
             ->add('nom', TextType::class, [
-                'label' => '*Nom du club',
+                'label' => '*Nom de l\'organisme de formation',
                 'attr' => ['class' => 'form-control'],
                 'required' => true,
             ])
@@ -80,7 +80,7 @@ class EntitePremiumType extends AbstractType
                 ],
             ])
             ->add('email', TextType::class, [
-                'label' => '*Email du club',
+                'label' => '*Email de l\'organisme de formation',
                 'attr' => ['class' => 'form-control'],
                 'required' => true,
                 'constraints' => [
