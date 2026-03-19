@@ -114,7 +114,6 @@ final class ProspectController extends AbstractController
     $p->setScore(50);
     $form = $this->createForm(ProspectType::class, $p, [
       'entite' => $entite,
-      'attr' => ['class' => 'needs-validation', 'novalidate' => 'novalidate'],
     ]);
     $form->handleRequest($request);
 
@@ -235,7 +234,6 @@ final class ProspectController extends AbstractController
 
     $form = $this->createForm(ProspectType::class, $prospect, [
       'entite' => $entite,
-      'attr' => ['class' => 'needs-validation', 'novalidate' => 'novalidate'],
     ]);
     $form->handleRequest($request);
 

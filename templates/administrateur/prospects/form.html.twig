@@ -1651,20 +1651,12 @@ document.addEventListener('DOMContentLoaded', function () {
   })();
 </script>
 
-<script>
-  // Flag pour éviter double init
-  window.__entreprisePlacesInited = false;
-
-  window.__initEntreprisePlaces = function () {
-    // Google a chargé -> on ne fait rien tant que la modale n'est pas ouverte
-    // (on init à l'ouverture, plus fiable en modal)
-  };
-</script>
 
 {# ⚠️ passe la clé via une variable twig : google_maps_api_key #}
 <script
-  src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&callback=__initEntreprisePlaces"
-  async defer
+  src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&callback=__initGooglePlaces"
+  async
+  defer
 ></script>
 
 
@@ -1741,10 +1733,19 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-
-
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+window.__entreprisePlacesInited = false;
+window.__prospectPlacesInited = false;
+
+window.__initGooglePlaces = function () {
+  initProspectAddressAutocomplete();
+  initEntrepriseModalPlaces();
+};
+
+function initProspectAddressAutocomplete() {
+  if (window.__prospectPlacesInited) return;
+  if (!window.google?.maps?.places) return;
+
   const searchId = {{ form.googleAddressSearch is defined ? form.googleAddressSearch.vars.id|json_encode|raw : 'null' }};
   const adresseId = {{ form.adresse is defined ? form.adresse.vars.id|json_encode|raw : 'null' }};
   const cpId = {{ form.codePostal is defined ? form.codePostal.vars.id|json_encode|raw : 'null' }};
@@ -1761,9 +1762,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const regionEl = regionId ? document.getElementById(regionId) : null;
   const paysEl = paysId ? document.getElementById(paysId) : null;
 
-  if (!searchEl || !window.google?.maps?.places) {
-    return;
-  }
+  if (!searchEl) return;
 
   const autocomplete = new google.maps.places.Autocomplete(searchEl, {
     types: ['address'],
@@ -1779,28 +1778,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
   autocomplete.addListener('place_changed', function () {
     const place = autocomplete.getPlace();
-    if (!place || !place.address_components) {
-      return;
-    }
+    if (!place || !place.address_components) return;
 
     const components = place.address_components;
 
     const streetNumber = getComponent(components, 'street_number');
     const route = getComponent(components, 'route');
     const postalCode = getComponent(components, 'postal_code');
+
     const locality =
       getComponent(components, 'locality') ||
       getComponent(components, 'postal_town') ||
       getComponent(components, 'administrative_area_level_3');
 
-    const department =
-      getComponent(components, 'administrative_area_level_2');
-
-    const region =
-      getComponent(components, 'administrative_area_level_1');
-
-    const country =
-      getComponent(components, 'country');
+    const department = getComponent(components, 'administrative_area_level_2');
+    const region = getComponent(components, 'administrative_area_level_1');
+    const country = getComponent(components, 'country');
 
     const street = [streetNumber, route].filter(Boolean).join(' ').trim();
 
@@ -1818,7 +1811,143 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   });
-});
+
+  window.__prospectPlacesInited = true;
+}
+
+function initEntrepriseModalPlaces() {
+  if (!window.google?.maps?.places) return;
+
+  const modalEl = document.getElementById('modal-new-entreprise');
+  const inputSearch = document.getElementById('entreprise-google-search');
+
+  if (!modalEl || !inputSearch) return;
+
+  modalEl.addEventListener('shown.bs.modal', function () {
+    if (window.__entreprisePlacesInited) {
+      setTimeout(() => inputSearch.focus(), 50);
+      return;
+    }
+
+    const options = {
+      types: ['establishment'],
+      componentRestrictions: { country: ['fr'] },
+      fields: ['place_id', 'name', 'formatted_address', 'address_components', 'geometry'],
+    };
+
+    const ac = new google.maps.places.Autocomplete(inputSearch, options);
+
+    const f = {
+      raison: document.getElementById('entreprise-raison'),
+      siret: document.getElementById('entreprise-siret'),
+      emailFactu: document.getElementById('entreprise-emailFacturation'),
+      adresse: document.getElementById('entreprise-adresse'),
+      cp: document.getElementById('entreprise-cp'),
+      ville: document.getElementById('entreprise-ville'),
+      pays: document.getElementById('entreprise-pays'),
+      tva: document.getElementById('entreprise-tva'),
+      placeId: document.getElementById('entreprise-place-id'),
+      formattedAddress: document.getElementById('entreprise-formatted-address'),
+    };
+
+    function getComp(components, type) {
+      const c = components?.find(x => x.types?.includes(type));
+      return c ? (c.long_name || c.short_name || '') : '';
+    }
+
+    function refreshPreview() {
+      const setText = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = (v && String(v).trim()) ? String(v).trim() : '—';
+      };
+
+      setText('preview-raison', f.raison?.value);
+      setText('preview-address', f.adresse?.value);
+      setText('preview-cpville', [f.cp?.value, f.ville?.value].filter(Boolean).join(' ') || null);
+      setText('preview-pays', f.pays?.value);
+      setText('preview-siret', f.siret?.value);
+      setText('preview-email', f.emailFactu?.value);
+    }
+
+    function renderMiniMap(latLng) {
+      const wrap = document.getElementById('entreprise-mini-map');
+      if (!wrap || !latLng) return;
+
+      wrap.innerHTML = '';
+      const map = new google.maps.Map(wrap, {
+        center: latLng,
+        zoom: 16,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+      });
+
+      new google.maps.Marker({
+        map,
+        position: latLng,
+      });
+    }
+
+    ac.addListener('place_changed', async function () {
+      const place = ac.getPlace();
+      if (!place || !place.place_id) return;
+
+      const name = place?.name || '';
+      const formatted = place?.formatted_address || '';
+      const comps = place?.address_components || [];
+
+      const streetNumber = getComp(comps, 'street_number');
+      const route = getComp(comps, 'route');
+      const postal = getComp(comps, 'postal_code');
+      const locality =
+        getComp(comps, 'locality') ||
+        getComp(comps, 'postal_town') ||
+        getComp(comps, 'administrative_area_level_2') ||
+        getComp(comps, 'administrative_area_level_1');
+      const country = getComp(comps, 'country');
+
+      if (f.raison && name) f.raison.value = name;
+      if (f.formattedAddress) f.formattedAddress.value = formatted;
+      if (f.placeId && place.place_id) f.placeId.value = place.place_id;
+
+      const street = [streetNumber, route].filter(Boolean).join(' ').trim();
+      if (f.adresse && street) f.adresse.value = street;
+      if (f.cp && postal) f.cp.value = postal;
+      if (f.ville && locality) f.ville.value = locality;
+      if (f.pays && country) f.pays.value = country;
+
+      refreshPreview();
+
+      const loc = place?.geometry?.location;
+      if (loc && typeof loc.lat === 'function') {
+        renderMiniMap({ lat: loc.lat(), lng: loc.lng() });
+      }
+
+      const fd = new FormData();
+      fd.append('raisonSociale', f.raison?.value || '');
+      fd.append('codePostal', f.cp?.value || '');
+      fd.append('ville', f.ville?.value || '');
+
+      try {
+        const resp = await fetch("{{ path('app_administrateur_prospect_entreprise_resolve', { entite: entite.id }) }}", {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        const data = await resp.json().catch(() => null);
+        if (resp.ok && data?.success) {
+          if (data.siret && f.siret && !f.siret.value) f.siret.value = data.siret;
+          if (data.tva && f.tva && !f.tva.value) f.tva.value = data.tva;
+          refreshPreview();
+        }
+      } catch (e) {}
+    });
+
+    window.__entreprisePlacesInited = true;
+    setTimeout(() => inputSearch.focus(), 50);
+  });
+}
 </script>
 
 {% endblock %}

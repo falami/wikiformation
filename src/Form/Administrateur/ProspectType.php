@@ -368,9 +368,12 @@ final class ProspectType extends AbstractType
 
   public function configureOptions(OptionsResolver $r): void
   {
-    $r->setDefaults([
-      'data_class' => Prospect::class,
-      'entite' => null,
-    ]);
+      $r->setDefaults([
+          'data_class' => Prospect::class,
+          'entite' => null,
+          'csrf_protection' => true,
+          'csrf_field_name' => '_token',
+          'csrf_token_id' => 'prospect_form',
+      ]);
   }
 }
