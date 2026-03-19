@@ -61,6 +61,8 @@ final class PlanningFormateursController extends AbstractController
   #[Route('/data', name: 'data', methods: ['GET'])]
   public function data(Entite $entite, Request $request, EM $em): JsonResponse
   {
+
+  
     $start = (string)$request->query->get('start', '');
     $end   = (string)$request->query->get('end', '');
 

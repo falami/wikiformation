@@ -131,7 +131,7 @@ final class ProspectController extends AbstractController
       'entite' => $entite,
       'prospect' => $p,
       'form' => $form->createView(),
-      'modeEdition' => true,
+      'modeEdition' => false,
       'title' => 'Nouveau prospect',
       'googleMapsBrowserKey' => $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),
     ]);
@@ -471,59 +471,70 @@ final class ProspectController extends AbstractController
 
   #[Route('/entreprise/new', name: 'entreprise_new', methods: ['POST'])]
   public function newEntrepriseAjax(
-    Entite $entite,
-    Request $request,
-    EM $em
+      Entite $entite,
+      Request $request,
+      EM $em
   ): JsonResponse {
-    if (!$request->isXmlHttpRequest()) {
-      return new JsonResponse(['success' => false, 'message' => 'Requête invalide.'], 400);
-    }
+      if (!$request->isXmlHttpRequest()) {
+          return new JsonResponse(['success' => false, 'message' => 'Requête invalide.'], 400);
+      }
 
-    $raison = trim((string) $request->request->get('raisonSociale', ''));
-    if ($raison === '') {
-      return new JsonResponse(['success' => false, 'message' => 'Raison sociale obligatoire.'], 422);
-    }
+      $token = (string) $request->request->get('_token', '');
+      if (!$this->isCsrfTokenValid('new_entreprise_ajax', $token)) {
+          return new JsonResponse(['success' => false, 'message' => 'Jeton CSRF invalide.'], 419);
+      }
 
-    $e = new Entreprise();
-    $e->setEntite($entite);
-    $e->setCreateur($this->getUser()); // ✅ chez toi c’est obligatoire
-    $e->setRaisonSociale($raison);
+      $raison = trim((string) $request->request->get('raisonSociale', ''));
+      if ($raison === '') {
+          return new JsonResponse(['success' => false, 'message' => 'Raison sociale obligatoire.'], 422);
+      }
 
-    $siret = trim((string) $request->request->get('siret', ''));
-    if ($siret !== '') $e->setSiret($siret);
+      $e = new Entreprise();
+      $e->setEntite($entite);
+      $e->setCreateur($this->getUser());
+      $e->setRaisonSociale($raison);
 
-    $mail = trim((string) $request->request->get('emailFacturation', ''));
-    if ($mail !== '') $e->setEmailFacturation($mail);
+      $siret = trim((string) $request->request->get('siret', ''));
+      if ($siret !== '') {
+          $e->setSiret($siret);
+      }
 
-    $tva = trim((string) $request->request->get('numeroTVA', ''));
-    if ($tva !== '') $e->setNumeroTVA($tva); // adapte au nom exact du setter
+      $mail = trim((string) $request->request->get('emailFacturation', ''));
+      if ($mail !== '') {
+          $e->setEmailFacturation($mail);
+      }
 
-    $adresse = trim((string)$request->request->get('adresse', ''));
-    $cp = trim((string)$request->request->get('codePostal', ''));
-    $ville = trim((string)$request->request->get('ville', ''));
-    $pays = trim((string)$request->request->get('pays', ''));
+      $tva = trim((string) $request->request->get('numeroTVA', ''));
+      if ($tva !== '') {
+          $e->setNumeroTVA($tva);
+      }
 
-    if ($adresse !== '') $e->setAdresse($adresse);
-    if ($cp !== '') $e->setCodePostal($cp);
-    if ($ville !== '') $e->setVille($ville);
-    if ($pays !== '') $e->setPays($pays);
+      $adresse = trim((string) $request->request->get('adresse', ''));
+      $cp = trim((string) $request->request->get('codePostal', ''));
+      $ville = trim((string) $request->request->get('ville', ''));
+      $pays = trim((string) $request->request->get('pays', ''));
 
-    $em->persist($e);
+      if ($adresse !== '') $e->setAdresse($adresse);
+      if ($cp !== '') $e->setCodePostal($cp);
+      if ($ville !== '') $e->setVille($ville);
+      if ($pays !== '') $e->setPays($pays);
 
-    try {
-      $em->flush();
-    } catch (\Throwable $ex) {
+      $em->persist($e);
+
+      try {
+          $em->flush();
+      } catch (\Throwable $ex) {
+          return new JsonResponse([
+              'success' => false,
+              'message' => 'Impossible de créer l’entreprise (doublon ou contrainte).'
+          ], 409);
+      }
+
       return new JsonResponse([
-        'success' => false,
-        'message' => 'Impossible de créer l’entreprise (doublon ou contrainte).'
-      ], 409);
-    }
-
-    return new JsonResponse([
-      'success' => true,
-      'id' => $e->getId(),
-      'label' => (string) $e->getRaisonSociale(),
-    ]);
+          'success' => true,
+          'id' => $e->getId(),
+          'label' => (string) $e->getRaisonSociale(),
+      ]);
   }
 
 

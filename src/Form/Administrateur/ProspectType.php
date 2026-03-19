@@ -21,6 +21,7 @@ use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 
+
 final class ProspectType extends AbstractType
 {
   public function __construct(
@@ -330,6 +331,17 @@ final class ProspectType extends AbstractType
           return $qb;
         },
         'attr' => ['class' => 'form-select js-ts'], // ou js-tomselect selon ton init
+      ])
+
+      ->add('googleAddressSearch', TextType::class, [
+          'label' => 'Recherche d’adresse',
+          'mapped' => false,
+          'required' => false,
+          'attr' => [
+              'class' => 'form-control',
+              'placeholder' => 'Commencez à saisir une adresse…',
+              'autocomplete' => 'off',
+          ],
       ])
     ;
 
