@@ -412,12 +412,29 @@
       {% set total_tva_after_rg = total_tva_after_rg + tva_rate_amount %}
     {% endfor %}
 
+    {# ===== DÉBOURS ===== #}
+    {# Garde uniquement le champ qui existe réellement dans ton entité #}
+    {% set debours_cents =
+      facture.deboursCents
+        ?? facture.montantDeboursCents
+        ?? meta.deboursCents
+        ?? 0
+    %}
+
     {% set total_ttc_calc = total_ht_apres_rg + total_tva_after_rg %}
+    {% set total_a_payer_calc = total_ttc_calc + debours_cents %}
 
     {# affichage : si la facture est "figée" (montants > 0), on affiche les champs, sinon on affiche le calcul #}
     {% set ht_display = (facture.montantHtCents is defined and facture.montantHtCents > 0) ? facture.montantHtCents : total_ht_apres_rg %}
     {% set tva_display = (facture.montantTvaCents is defined and facture.montantTvaCents > 0) ? facture.montantTvaCents : total_tva_after_rg %}
     {% set ttc_display = (facture.montantTtcCents is defined and facture.montantTtcCents > 0) ? facture.montantTtcCents : total_ttc_calc %}
+
+    {# si tu as déjà un champ figé pour le total avec débours, utilise-le ici #}
+    {% set total_a_payer_display =
+      (facture.montantTotalCents is defined and facture.montantTotalCents > 0)
+        ? facture.montantTotalCents
+        : (ttc_display + debours_cents)
+    %}
 
     {# ===== TOTAUX ===== #}
     <table class="totaux" cellspacing="0" cellpadding="0">
@@ -481,8 +498,22 @@
 
       <tr>
         <td style="border:none"></td>
-        <td class="label total titre">Total TTC</td>
-        <td class="val total titre">{{ m.eur(ttc_display) }}</td>
+        <td class="label">Total TTC</td>
+        <td class="val">{{ m.eur(ttc_display) }}</td>
+      </tr>
+
+      {% if debours_cents > 0 %}
+        <tr>
+          <td style="border:none"></td>
+          <td class="label">Frais de débours</td>
+          <td class="val">{{ m.eur(debours_cents) }}</td>
+        </tr>
+      {% endif %}
+
+      <tr>
+        <td style="border:none"></td>
+        <td class="label total titre">Total à payer</td>
+        <td class="val total titre">{{ m.eur(total_a_payer_display) }}</td>
       </tr>
     </table>
   </div>
