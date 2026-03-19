@@ -424,17 +424,13 @@
     {% set total_ttc_calc = total_ht_apres_rg + total_tva_after_rg %}
     {% set total_a_payer_calc = total_ttc_calc + debours_cents %}
 
-    {# affichage : si la facture est "figée" (montants > 0), on affiche les champs, sinon on affiche le calcul #}
-    {% set ht_display = (facture.montantHtCents is defined and facture.montantHtCents > 0) ? facture.montantHtCents : total_ht_apres_rg %}
-    {% set tva_display = (facture.montantTvaCents is defined and facture.montantTvaCents > 0) ? facture.montantTvaCents : total_tva_after_rg %}
-    {% set ttc_display = (facture.montantTtcCents is defined and facture.montantTtcCents > 0) ? facture.montantTtcCents : total_ttc_calc %}
+    {# Ici on force l'affichage à partir du recalcul des lignes #}
+    {% set ht_display = total_ht_apres_rg %}
+    {% set tva_display = total_tva_after_rg %}
+    {% set ttc_display = total_ttc_calc %}
 
-    {# si tu as déjà un champ figé pour le total avec débours, utilise-le ici #}
-    {% set total_a_payer_display =
-      (facture.montantTotalCents is defined and facture.montantTotalCents > 0)
-        ? facture.montantTotalCents
-        : (ttc_display + debours_cents)
-    %}
+    {# Si les débours sont déjà une ligne de facture, ne pas les rajouter une seconde fois #}
+    {% set total_a_payer_display = ttc_display %}
 
     {# ===== TOTAUX ===== #}
     <table class="totaux" cellspacing="0" cellpadding="0">
@@ -501,14 +497,6 @@
         <td class="label">Total TTC</td>
         <td class="val">{{ m.eur(ttc_display) }}</td>
       </tr>
-
-      {% if debours_cents > 0 %}
-        <tr>
-          <td style="border:none"></td>
-          <td class="label">Frais de débours</td>
-          <td class="val">{{ m.eur(debours_cents) }}</td>
-        </tr>
-      {% endif %}
 
       <tr>
         <td style="border:none"></td>
