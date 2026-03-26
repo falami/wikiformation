@@ -68,6 +68,13 @@ class FormationType extends AbstractType
                     NiveauFormation::INTERMEDIAIRE => 'Intermédiaire',
                     NiveauFormation::AVANCEE => 'Avancée',
                     NiveauFormation::PERFECTIONNEMENT => 'Perfectionnement',
+                    NiveauFormation::NIVEAU1 => 'Niveau 1',
+                    NiveauFormation::NIVEAU2 => 'Niveau 2',
+                    NiveauFormation::NIVEAU3 => 'Niveau 3',
+                    NiveauFormation::NIVEAU4 => 'Niveau 4',
+                    NiveauFormation::NIVEAU5 => 'Niveau 5',
+                    NiveauFormation::NIVEAU6 => 'Niveau 6',
+                    NiveauFormation::NIVEAU7 => 'Niveau 7',
                     default => $e->name,
                 },
             ])
@@ -310,6 +317,7 @@ class FormationType extends AbstractType
                 'class' => SatisfactionTemplate::class,
                 'required' => false,
                 'placeholder' => 'Aucun template',
+                'label' => 'Questionnaire évaluation stagiaire',
                 'choice_label' => 'titre',
                 'attr' => [
                     'class' => 'form-select js-ts',
@@ -327,6 +335,7 @@ class FormationType extends AbstractType
                 'class' => FormateurSatisfactionTemplate::class,
                 'required' => false,
                 'placeholder' => 'Aucun template',
+                'label' => 'Questionnaire évaluation formateur',
                 'choice_label' => 'titre',
                 'attr' => ['class' => 'form-select'],
                 'query_builder' => function (EntityRepository $er) use ($entite) {
