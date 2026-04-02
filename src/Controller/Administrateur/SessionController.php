@@ -1713,21 +1713,23 @@ final class SessionController extends AbstractController
                     $inscription->setSession($session);
                 }
 
-                // si ces champs existent chez toi
                 if (method_exists($inscription, 'getEntite') && $inscription->getEntite() === null) {
                     $inscription->setEntite($entite);
                 }
+
                 if (method_exists($inscription, 'getCreateur') && $inscription->getCreateur() === null) {
                     $inscription->setCreateur($user);
                 }
+
                 if (method_exists($inscription, 'getDateCreation') && $inscription->getDateCreation() === null) {
                     $inscription->setDateCreation(new \DateTimeImmutable());
                 }
 
-                // ✅ juste vérifier qu'il y a un stagiaire
                 if (method_exists($inscription, 'getStagiaire') && !$inscription->getStagiaire()) {
                     throw new \RuntimeException('Inscription sans stagiaire.');
                 }
+
+                $this->hydrateInscriptionEntrepriseFromStagiaire($inscription);
             }
 
 
@@ -1777,6 +1779,37 @@ final class SessionController extends AbstractController
             'entite'      => $entite,
             'googleMapsBrowserKey' => $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),
         ]);
+    }
+
+
+
+    private function hydrateInscriptionEntrepriseFromStagiaire(Inscription $inscription): void
+    {
+        if (!method_exists($inscription, 'getEntreprise') || !method_exists($inscription, 'setEntreprise')) {
+            return;
+        }
+
+        // On ne remplace pas une entreprise déjà choisie manuellement
+        if ($inscription->getEntreprise() !== null) {
+            return;
+        }
+
+        if (!method_exists($inscription, 'getStagiaire')) {
+            return;
+        }
+
+        $stagiaire = $inscription->getStagiaire();
+        if (!$stagiaire) {
+            return;
+        }
+
+        // Cas simple : entreprise directement portée par l'utilisateur
+        if (method_exists($stagiaire, 'getEntreprise')) {
+            $entreprise = $stagiaire->getEntreprise();
+            if ($entreprise !== null) {
+                $inscription->setEntreprise($entreprise);
+            }
+        }
     }
 
     #[Route('/dupliquer/{id}', name: 'app_administrateur_session_duplicate', methods: ['GET'])]
