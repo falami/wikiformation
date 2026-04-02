@@ -83,8 +83,8 @@ final class TaxEngine
         'amountCents' => $amountCents,
 
         // 👇 nouveaux champs (à utiliser pour KPI/graph/table "charges à payer")
-        'baseEur'     => $this->ceilEur($baseCents),
-        'amountEur'   => $this->ceilEur($amountCents),
+        'baseEur'     => $this->roundEur($baseCents),
+        'amountEur'   => $this->roundEur($amountCents),
 
         'meta'        => $r->getMeta(),
       ];
@@ -96,7 +96,7 @@ final class TaxEngine
     // ✅ totaux arrondis à l'euro supérieur (pour KPI/graph/table)
     $byKindEur = [];
     foreach ($byKindCents as $k => $cents) {
-      $byKindEur[$k] = $this->ceilEur((int) $cents);
+      $byKindEur[$k] = $this->roundEur((int) $cents);
     }
 
     return [
@@ -105,14 +105,14 @@ final class TaxEngine
 
       // ✅ bases exactes en cents (utile si besoin) + optionnel arrondi en €
       'baseTotals'   => $baseTotals,
-      'baseTotalsEur' => array_map(fn($c) => $this->ceilEur((int) $c), $baseTotals),
+      'baseTotalsEur' => array_map(fn($c) => $this->roundEur((int) $c), $baseTotals),
 
       // ✅ exact (cents)
       'totalCents'   => $grandTotalCents,
       'byKindCents'  => $byKindCents,
 
       // ✅ "à payer" (arrondi euro supérieur)
-      'totalEur'     => $this->ceilEur($grandTotalCents),
+      'totalEur'     => $this->roundEur($grandTotalCents),
       'byKind'       => $byKindEur,
 
       'items'        => $items,
@@ -123,10 +123,10 @@ final class TaxEngine
    * Arrondi à l'euro supérieur (charges à payer).
    * 1000.00€ => 1000 ; 1000.01€ => 1001
    */
-  private function ceilEur(int $cents): int
+  private function roundEur(int $cents): int
   {
-    if ($cents <= 0) return 0;
-    return (int) ceil($cents / 100);
+      if ($cents <= 0) return 0;
+      return (int) round($cents / 100, 0, PHP_ROUND_HALF_UP);
   }
 
 
