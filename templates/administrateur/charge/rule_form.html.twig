@@ -461,34 +461,46 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 
 <script>
-(function(){
-  const from = document.getElementById('{{ form.validFrom.vars.id }}');
-  const to   = document.getElementById('{{ form.validTo.vars.id }}');
-  if(!from || !to) return;
+(function () {
+  const fromEl = document.getElementById('{{ form.validFrom.vars.id }}');
+  const toEl   = document.getElementById('{{ form.validTo.vars.id }}');
 
-  const pad = (n)=> String(n).padStart(2,'0');
-  const fmt = (d)=> pad(d.getDate()) + "/" + pad(d.getMonth()+1) + "/" + d.getFullYear();
+  if (!fromEl || !toEl) return;
 
-  to.readOnly = true;
-
-  flatpickr(from, {
+  const commonConfig = {
     locale: flatpickr.l10ns.fr,
     dateFormat: "d/m/Y",
-    mode: "range",
-    allowInput: true,
-    onChange: function(selectedDates){
-      if(selectedDates.length === 0){
-        from.value = "";
-        to.value = "";
+    allowInput: true
+  };
+
+  const toPicker = flatpickr(toEl, {
+    ...commonConfig,
+    onChange: function(selectedDates) {
+      if (selectedDates.length && fromPicker.selectedDates.length) {
+        const fromDate = fromPicker.selectedDates[0];
+        const toDate   = selectedDates[0];
+
+        if (toDate < fromDate) {
+          toPicker.setDate(fromDate, true);
+        }
+      }
+    }
+  });
+
+  const fromPicker = flatpickr(fromEl, {
+    ...commonConfig,
+    onChange: function(selectedDates) {
+      if (!selectedDates.length) {
+        toPicker.set('minDate', null);
         return;
       }
-      if(selectedDates.length === 1){
-        from.value = fmt(selectedDates[0]); // ✅ début
-        to.value = "";
-        return;
+
+      const fromDate = selectedDates[0];
+      toPicker.set('minDate', fromDate);
+
+      if (toPicker.selectedDates.length && toPicker.selectedDates[0] < fromDate) {
+        toPicker.setDate(fromDate, true);
       }
-      from.value = fmt(selectedDates[0]);   // ✅ début
-      to.value   = fmt(selectedDates[1]);   // ✅ fin
     }
   });
 })();
