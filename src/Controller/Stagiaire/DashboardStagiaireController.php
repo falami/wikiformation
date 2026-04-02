@@ -528,41 +528,46 @@ class DashboardStagiaireController extends AbstractController
         ]);
     }
 
-    /** Feed FullCalendar - mes sessions */
     #[Route('/calendar/feed', name: 'calendar_feed', methods: ['GET'])]
-    public function calendarFeed(EntityManagerInterface $em): JsonResponse
+    public function calendarFeed(Entite $entite, EntityManagerInterface $em): JsonResponse
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
         $list = $em->createQueryBuilder()
-            ->select('s')
+            ->select('s, fo, j')
             ->distinct()
             ->from(Session::class, 's')
             ->join(Inscription::class, 'i', 'WITH', 'i.session = s')
-            ->andWhere('i.stagiaire = :me')->setParameter('me', $user)
-
-            ->join('s.formation', 'fo')->addSelect('fo')
-            ->leftJoin('s.jours', 'j')->addSelect('j')
-
-            // ->andWhere('s.entite = :entite')->setParameter('entite', $entite) // si dispo
-
+            ->andWhere('i.stagiaire = :me')
+            ->setParameter('me', $user)
+            ->andWhere('s.entite = :entite')
+            ->setParameter('entite', $entite)
+            ->join('s.formation', 'fo')
+            ->leftJoin('s.jours', 'j')
             ->addOrderBy('j.dateDebut', 'ASC')
             ->getQuery()
             ->getResult();
 
-
-
         $events = [];
+
         foreach ($list as $s) {
             foreach ($s->getJours() as $j) {
+                if (!$j->getDateDebut() || !$j->getDateFin()) {
+                    continue;
+                }
+
                 $events[] = [
-                    'id'    => $s->getId(),
-                    'title' => trim(($s->getFormation()
-                        ? $s->getFormation()->getTitre()
-                        : $s->getFormationIntituleLibre()) . ' - ' . $s->getCode()),
-                    'start' => $j->getDateDebut()->format('c'),
-                    'end'   => $j->getDateFin()->format('c'),
+                    'id'    => $s->getId() . '-' . $j->getId(),
+                    'title' => trim(
+                        ($s->getFormation()
+                            ? $s->getFormation()->getTitre()
+                            : $s->getFormationIntituleLibre()
+                        ) . ' - ' . $s->getCode()
+                    ),
+                    'start' => $j->getDateDebut()->format(\DateTimeInterface::ATOM),
+                    'end'   => $j->getDateFin()->format(\DateTimeInterface::ATOM),
+                    'allDay' => false,
                     'extendedProps' => [
                         'sessionId' => $s->getId(),
                         'jourId'    => $j->getId(),
@@ -570,6 +575,7 @@ class DashboardStagiaireController extends AbstractController
                 ];
             }
         }
+
         return new JsonResponse($events);
     }
 
