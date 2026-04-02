@@ -814,25 +814,27 @@ body{ overflow-x:hidden; }
           {% if session.jours|length > 0 %}
             <div class="timeline">
               {% for j in session.jours %}
-                {% set totalEmarg = 0 %}
-                  {% set signedEmarg = 0 %}
-                  {% set dayKey = j.dateDebut|date('Y-m-d') %}
+                {% set dayKey = j.dateDebut|date('Y-m-d') %}
 
-                  {% for e in session.emargements %}
-                    {% if e.dateJour and e.dateJour|date('Y-m-d') == dayKey %}
-                      {% set totalEmarg = totalEmarg + 1 %}
+                {# Calcul du total ATTENDU = (stagiaires + formateur) × 2 créneaux (matin/après-midi) #}
+                {% set nbStagiaires = session.inscriptions|length %}
+                {% set nbFormateurs = session.formateur ? 1 : 0 %}
+                {% set totalEmarg = (nbStagiaires + nbFormateurs) * 2 %}
 
-                      {% set isSigned =
-                        (e.signedAt is not null)
-                        or (e.signatureDataUrl is defined and e.signatureDataUrl)
-                        or (e.signaturePath is defined and e.signaturePath)
-                      %}
-
-                      {% if isSigned %}
-                        {% set signedEmarg = signedEmarg + 1 %}
-                      {% endif %}
+                {# Comptage des signatures réelles pour ce jour #}
+                {% set signedEmarg = 0 %}
+                {% for e in session.emargements %}
+                  {% if e.dateJour and e.dateJour|date('Y-m-d') == dayKey %}
+                    {% set isSigned =
+                      (e.signedAt is not null)
+                      or (e.signatureDataUrl is defined and e.signatureDataUrl)
+                      or (e.signaturePath is defined and e.signaturePath)
+                    %}
+                    {% if isSigned %}
+                      {% set signedEmarg = signedEmarg + 1 %}
                     {% endif %}
-                  {% endfor %}
+                  {% endif %}
+                {% endfor %}
 
 
                 <div class="timeline-item">
