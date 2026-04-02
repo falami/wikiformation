@@ -25,6 +25,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
+use App\Enum\StatusInscription;
 
 
 #[Route('/entreprise/{entite}', name: 'app_entreprise_', requirements: ['entite' => '\d+'])]
@@ -135,10 +136,14 @@ final class DashboardEntrepriseController extends AbstractController
         'statut' => $statusBadge,
         'actions' => sprintf(
           '<div class="d-flex gap-2 justify-content-end">
-                       <button class="btn btn-sm btn-outline-secondary js-open-docs" data-session="%d">
-                         <i class="bi bi-folder2-open"></i> Docs
-                       </button>
-                     </div>',
+              <button class="btn btn-sm btn-outline-primary js-open-session-detail" data-session="%d">
+                <i class="bi bi-eye"></i> Détail
+              </button>
+              <button class="btn btn-sm btn-outline-secondary js-open-docs" data-session="%d">
+                <i class="bi bi-folder2-open"></i> Docs
+              </button>
+          </div>',
+          (int)$s->getId(),
           (int)$s->getId()
         ),
         'firstStartIso' => $first?->format(\DateTimeInterface::ATOM),
@@ -364,5 +369,165 @@ final class DashboardEntrepriseController extends AbstractController
     $em->flush();
 
     return new JsonResponse(['success' => true]);
+  }
+
+  #[Route('/session/{session}/detail', name: 'session_detail_ajax', methods: ['GET'])]
+  public function sessionDetailAjax(Entite $entite, Session $session, EM $em): JsonResponse
+  {
+      $entreprise = $this->getEntrepriseUserOrFail();
+
+      if ($session->getEntite()?->getId() !== $entite->getId()) {
+          return new JsonResponse([
+              'success' => false,
+              'message' => 'Session introuvable.'
+          ], 404);
+      }
+
+      // ✅ sécurité : on vérifie que cette entreprise a bien au moins une inscription sur cette session
+      $count = (int) $em->createQueryBuilder()
+          ->select('COUNT(i.id)')
+          ->from(Inscription::class, 'i')
+          ->andWhere('i.session = :session')->setParameter('session', $session)
+          ->andWhere('i.entreprise = :entreprise')->setParameter('entreprise', $entreprise)
+          ->getQuery()
+          ->getSingleScalarResult();
+
+      if ($count <= 0) {
+          return new JsonResponse([
+              'success' => false,
+              'message' => 'Accès refusé à cette session.'
+          ], 403);
+      }
+
+      // ✅ on recharge proprement les inscriptions de l’entreprise pour cette session
+      $inscriptions = $em->createQueryBuilder()
+          ->select('i, u')
+          ->from(Inscription::class, 'i')
+          ->join('i.stagiaire', 'u')
+          ->andWhere('i.session = :session')->setParameter('session', $session)
+          ->andWhere('i.entreprise = :entreprise')->setParameter('entreprise', $entreprise)
+          ->orderBy('u.nom', 'ASC')
+          ->addOrderBy('u.prenom', 'ASC')
+          ->getQuery()
+          ->getResult();
+
+      $participants = [];
+      $presentCount = 0;
+      $absentCount  = 0;
+
+      foreach ($inscriptions as $inscription) {
+          /** @var Inscription $inscription */
+          $stagiaire = $inscription->getStagiaire();
+          $status = $inscription->getStatus();
+
+          $isAbsent = ($status === StatusInscription::ABSENT);
+          $isPresent = in_array($status, [
+              StatusInscription::CONFIRME,
+              StatusInscription::EN_COURS,
+              StatusInscription::TERMINE,
+          ], true);
+
+          if ($isPresent) {
+              $presentCount++;
+          }
+          if ($isAbsent) {
+              $absentCount++;
+          }
+
+          $participants[] = [
+              'id' => $stagiaire?->getId(),
+              'nom' => trim(($stagiaire?->getPrenom() ?? '') . ' ' . ($stagiaire?->getNom() ?? '')),
+              'email' => $stagiaire?->getEmail(),
+              'telephone' => $stagiaire?->getTelephone(),
+              'statut' => $status?->label() ?? '-',
+              'present' => $isPresent,
+              'absent' => $isAbsent,
+              'montantDu' => $inscription->getMontantDuCents() !== null
+                  ? number_format($inscription->getMontantDuCents() / 100, 2, ',', ' ') . ' €'
+                  : null,
+              'montantRegle' => $inscription->getMontantRegleCents() !== null
+                  ? number_format($inscription->getMontantRegleCents() / 100, 2, ',', ' ') . ' €'
+                  : null,
+              'assiduite' => $inscription->getTauxAssiduite(),
+              'reussi' => $inscription->isReussi(),
+          ];
+      }
+
+      $jours = [];
+      foreach ($session->getJours() as $jour) {
+          /** @var \App\Entity\SessionJour $jour */
+          $jourFormateur = $jour->getFormateur()?->getUtilisateur();
+
+          $jours[] = [
+              'id' => $jour->getId(),
+              'dateDebutIso' => $jour->getDateDebut()?->format(\DateTimeInterface::ATOM),
+              'dateFinIso'   => $jour->getDateFin()?->format(\DateTimeInterface::ATOM),
+              'dateLabel'    => $jour->getDateDebut()?->format('d/m/Y'),
+              'heureDebut'   => $jour->getDateDebut()?->format('H:i'),
+              'heureFin'     => $jour->getDateFin()?->format('H:i'),
+              'formateur'    => $jourFormateur
+                  ? trim(($jourFormateur->getPrenom() ?? '') . ' ' . ($jourFormateur->getNom() ?? ''))
+                  : null,
+          ];
+      }
+
+      usort($jours, static fn(array $a, array $b) => strcmp($a['dateDebutIso'] ?? '', $b['dateDebutIso'] ?? ''));
+
+      $site = $session->getSite();
+      $formateur = $session->getFormateur()?->getUtilisateur();
+
+      $adresse = null;
+      $mapQuery = null;
+
+      if ($site) {
+          $adresseParts = array_filter([
+              $site->getAdresse(),
+              $site->getComplement(),
+              trim(($site->getCodePostal() ?? '') . ' ' . ($site->getVille() ?? '')),
+              $site->getPays(),
+          ]);
+
+          $adresse = implode(', ', $adresseParts);
+
+          if ($site->getLatitude() !== null && $site->getLongitude() !== null) {
+              $mapQuery = $site->getLatitude() . ',' . $site->getLongitude();
+          } elseif ($adresse !== '') {
+              $mapQuery = $adresse;
+          }
+      }
+
+      $sessionMontant = $session->getMontantCents();
+      if ($sessionMontant === null && method_exists($session, 'getTarifEffectifCents')) {
+          $sessionMontant = $session->getTarifEffectifCents();
+      }
+
+      return new JsonResponse([
+          'success' => true,
+          'session' => [
+              'id' => $session->getId(),
+              'code' => $session->getCode(),
+              'formation' => $session->getFormation()?->getTitre() ?? $session->getFormationIntituleLibre() ?? '—',
+              'statut' => method_exists($session->getStatus(), 'label')
+                  ? $session->getStatus()->label()
+                  : $session->getStatus()->value,
+              'capacite' => $session->getCapacite(),
+              'montant' => $sessionMontant !== null
+                  ? number_format($sessionMontant / 100, 2, ',', ' ') . ' €'
+                  : '—',
+              'siteNom' => $site?->getNom(),
+              'adresse' => $adresse,
+              'latitude' => $site?->getLatitude(),
+              'longitude' => $site?->getLongitude(),
+              'mapQuery' => $mapQuery,
+              'formateur' => $formateur
+                  ? trim(($formateur->getPrenom() ?? '') . ' ' . ($formateur->getNom() ?? ''))
+                  : null,
+              'jours' => $jours,
+              'participants' => $participants,
+              'participantsCount' => count($participants),
+              'presentCount' => $presentCount,
+              'absentCount' => $absentCount,
+          ],
+      ]);
   }
 }
