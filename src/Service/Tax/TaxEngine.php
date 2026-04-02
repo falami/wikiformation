@@ -423,44 +423,50 @@ final class TaxEngine
   }
 
 
-  private function mapFactureNonDeboursParts(Entite $entite, \DateTimeImmutable $from, \DateTimeImmutable $toExclusive): array
+  private function mapFactureNonDeboursPartsByFacture(Entite $entite): array
   {
-    try {
-      $rows = $this->em->createQueryBuilder()
-        ->select('f.id AS factureId')
-        ->addSelect('COALESCE(SUM(
-                CASE WHEN lf.isDebours = 0 THEN
-                    (lf.qte * lf.puHtCents) * (1 - (COALESCE(lf.remisePourcent,0)/100))
-                ELSE 0 END
-            ),0) AS htNonDeb')
-        ->addSelect('COALESCE(SUM(
-                CASE WHEN lf.isDebours = 0 THEN
-                    ((lf.qte * lf.puHtCents) * (1 - (COALESCE(lf.remisePourcent,0)/100))) * (lf.tvaBp / 10000)
-                ELSE 0 END
-            ),0) AS tvaNonDeb')
-        ->from(Paiement::class, 'p')
-        ->innerJoin('p.facture', 'f')
-        ->innerJoin(LigneFacture::class, 'lf', 'WITH', 'lf.facture = f')
-        ->andWhere('f.entite = :e')->setParameter('e', $entite)
-        ->andWhere('p.datePaiement >= :from')->setParameter('from', $from)
-        ->andWhere('p.datePaiement < :to')->setParameter('to', $toExclusive)
-        ->groupBy('f.id')
-        ->getQuery()->getArrayResult();
+      try {
+          $rows = $this->em->createQueryBuilder()
+              ->select('f.id AS factureId')
+              ->addSelect('COALESCE(SUM(
+                  CASE WHEN lf.isDebours = 0 THEN
+                      (lf.qte * lf.puHtCents)
+                      - COALESCE(lf.remiseMontantCents, 0)
+                      - ROUND((lf.qte * lf.puHtCents) * (COALESCE(lf.remisePourcent, 0) / 100), 0)
+                  ELSE 0 END
+              ), 0) AS htNonDeb')
+              ->addSelect('COALESCE(SUM(
+                  CASE WHEN lf.isDebours = 0 THEN
+                      ROUND((
+                          (lf.qte * lf.puHtCents)
+                          - COALESCE(lf.remiseMontantCents, 0)
+                          - ROUND((lf.qte * lf.puHtCents) * (COALESCE(lf.remisePourcent, 0) / 100), 0)
+                      ) * (lf.tvaBp / 10000), 0)
+                  ELSE 0 END
+              ), 0) AS tvaNonDeb')
+              ->from(LigneFacture::class, 'lf')
+              ->innerJoin('lf.facture', 'f')
+              ->andWhere('f.entite = :e')->setParameter('e', $entite)
+              ->groupBy('f.id')
+              ->getQuery()
+              ->getArrayResult();
 
-      $map = [];
-      foreach ($rows as $r) {
-        $ht  = (int) round((float) ($r['htNonDeb'] ?? 0));
-        $tva = (int) round((float) ($r['tvaNonDeb'] ?? 0));
-        $map[(int)$r['factureId']] = [
-          'ht'  => $ht,
-          'tva' => $tva,
-          'ttc' => $ht + $tva,
-        ];
+          $map = [];
+          foreach ($rows as $r) {
+              $ht  = max(0, (int) round((float) ($r['htNonDeb'] ?? 0)));
+              $tva = max(0, (int) round((float) ($r['tvaNonDeb'] ?? 0)));
+
+              $map[(int) $r['factureId']] = [
+                  'ht'  => $ht,
+                  'tva' => $tva,
+                  'ttc' => $ht + $tva,
+              ];
+          }
+
+          return $map;
+      } catch (\Throwable) {
+          return [];
       }
-      return $map;
-    } catch (\Throwable $e) {
-      dd('ERR mapFactureNonDeboursParts', $e->getMessage());
-    }
   }
 
 
@@ -469,70 +475,114 @@ final class TaxEngine
 
   private function sumEncaisseTtcHorsDebours(Entite $entite, \DateTimeImmutable $from, \DateTimeImmutable $toExclusive): int
   {
-    $map = $this->mapFactureNonDeboursParts($entite, $from, $toExclusive);
+      try {
+          $rows = $this->em->createQueryBuilder()
+              ->select('
+                  p.montantCents AS payCents,
+                  p.ventilationHtHorsDeboursCents AS ventHt,
+                  p.ventilationTvaHorsDeboursCents AS ventTva,
+                  f.id AS factureId,
+                  f.montantTtcCents AS fTtc
+              ')
+              ->from(Paiement::class, 'p')
+              ->innerJoin('p.facture', 'f')
+              ->andWhere('p.entite = :e')->setParameter('e', $entite)
+              ->andWhere('p.datePaiement >= :from')->setParameter('from', $from)
+              ->andWhere('p.datePaiement < :to')->setParameter('to', $toExclusive)
+              ->getQuery()
+              ->getArrayResult();
 
-    try {
-      $rows = $this->em->createQueryBuilder()
-        ->select('p.montantCents AS payCents, f.id AS factureId, f.montantTtcCents AS fTtc')
-        ->from(Paiement::class, 'p')
-        ->innerJoin('p.facture', 'f')
-        ->andWhere('f.entite = :e')->setParameter('e', $entite)
-        ->andWhere('p.datePaiement >= :from')->setParameter('from', $from)
-        ->andWhere('p.datePaiement < :to')->setParameter('to', $toExclusive)
-        ->getQuery()->getArrayResult();
+          $sum = 0.0;
 
-      $sum = 0.0;
-      foreach ($rows as $r) {
-        $id = (int)$r['factureId'];
-        $pay = (int)$r['payCents'];
-        $fTtc = (int)$r['fTtc'];
+          // fallback si anciennes ventilations absentes
+          $fallbackMap = null;
 
-        $ttcNonDeb = (int)($map[$id]['ttc'] ?? 0);
+          foreach ($rows as $r) {
+              $ventHt  = $r['ventHt'] !== null ? (int) $r['ventHt'] : null;
+              $ventTva = $r['ventTva'] !== null ? (int) $r['ventTva'] : null;
 
-        if ($fTtc > 0 && $ttcNonDeb > 0) {
-          $ratio = min(1, max(0, $ttcNonDeb / $fTtc)); // ✅ clamp sécurité
-          $sum += $pay * $ratio;
-        }
+              // ✅ cas idéal : ventilation snapshot disponible sur le paiement
+              if ($ventHt !== null || $ventTva !== null) {
+                  $sum += max(0, $ventHt ?? 0) + max(0, $ventTva ?? 0);
+                  continue;
+              }
+
+              // ✅ fallback pour anciens paiements non ventilés
+              if ($fallbackMap === null) {
+                  $fallbackMap = $this->mapFactureNonDeboursPartsByFacture($entite);
+              }
+
+              $factureId = (int) $r['factureId'];
+              $pay       = (int) $r['payCents'];
+              $fTtc      = (int) $r['fTtc'];
+
+              $ttcNonDeb = (int) ($fallbackMap[$factureId]['ttc'] ?? 0);
+
+              if ($fTtc > 0 && $ttcNonDeb > 0) {
+                  $ratio = min(1, max(0, $ttcNonDeb / $fTtc));
+                  $sum += $pay * $ratio;
+              }
+          }
+
+          return (int) round($sum);
+      } catch (\Throwable) {
+          return 0;
       }
-      return (int) round($sum);
-    } catch (\Throwable) {
-      return 0;
-    }
   }
 
   private function sumEncaisseHtHorsDebours(Entite $entite, \DateTimeImmutable $from, \DateTimeImmutable $toExclusive): int
   {
-    $map = $this->mapFactureNonDeboursParts($entite, $from, $toExclusive);
+      try {
+          $rows = $this->em->createQueryBuilder()
+              ->select('
+                  p.montantCents AS payCents,
+                  p.ventilationHtHorsDeboursCents AS ventHt,
+                  f.id AS factureId,
+                  f.montantTtcCents AS fTtc
+              ')
+              ->from(Paiement::class, 'p')
+              ->innerJoin('p.facture', 'f')
+              ->andWhere('p.entite = :e')->setParameter('e', $entite)
+              ->andWhere('p.datePaiement >= :from')->setParameter('from', $from)
+              ->andWhere('p.datePaiement < :to')->setParameter('to', $toExclusive)
+              ->getQuery()
+              ->getArrayResult();
 
-    try {
-      $rows = $this->em->createQueryBuilder()
-        ->select('p.montantCents AS payCents, f.id AS factureId, f.montantTtcCents AS fTtc')
-        ->from(Paiement::class, 'p')
-        ->innerJoin('p.facture', 'f')
-        ->andWhere('f.entite = :e')->setParameter('e', $entite)
-        ->andWhere('p.datePaiement >= :from')->setParameter('from', $from)
-        ->andWhere('p.datePaiement < :to')->setParameter('to', $toExclusive)
-        ->getQuery()->getArrayResult();
+          $sum = 0.0;
 
+          // fallback si anciennes ventilations absentes
+          $fallbackMap = null;
 
+          foreach ($rows as $r) {
+              $ventHt = $r['ventHt'] !== null ? (int) $r['ventHt'] : null;
 
-      $sum = 0.0;
-      foreach ($rows as $r) {
-        $id = (int)$r['factureId'];
-        $pay = (int)$r['payCents'];
-        $fTtc = (int)$r['fTtc'];
+              // ✅ cas idéal : ventilation HT snapshot disponible
+              if ($ventHt !== null) {
+                  $sum += max(0, $ventHt);
+                  continue;
+              }
 
-        $htNonDeb = (int)($map[$id]['ht'] ?? 0);
+              // ✅ fallback pour anciens paiements non ventilés
+              if ($fallbackMap === null) {
+                  $fallbackMap = $this->mapFactureNonDeboursPartsByFacture($entite);
+              }
 
-        if ($fTtc > 0 && $htNonDeb > 0) {
-          $ratio = min(1, max(0, $htNonDeb / $fTtc)); // ✅ clamp sécurité
-          $sum += $pay * $ratio;
-        }
+              $factureId = (int) $r['factureId'];
+              $pay       = (int) $r['payCents'];
+              $fTtc      = (int) $r['fTtc'];
+
+              $htNonDeb = (int) ($fallbackMap[$factureId]['ht'] ?? 0);
+
+              if ($fTtc > 0 && $htNonDeb > 0) {
+                  $ratio = min(1, max(0, $htNonDeb / $fTtc));
+                  $sum += $pay * $ratio;
+              }
+          }
+
+          return (int) round($sum);
+      } catch (\Throwable) {
+          return 0;
       }
-      return (int) round($sum);
-    } catch (\Throwable) {
-      return 0;
-    }
   }
 
   private function sumPaiementsEncaisseHorsDebours(Entite $entite, \DateTimeImmutable $from, \DateTimeImmutable $toExclusive): int
