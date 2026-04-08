@@ -599,34 +599,6 @@
       <div class="text-small text-muted">Par l’organisme de formation</div>
       <div class="signature-name">{{ entite.nom|default('Nom de l’organisme') }}</div>
     </div>
-
-    {# FOOTER : si tu le trouves trop présent (sur toutes les pages), supprime ce bloc #}
-    <div class="footer">
-      <div class="footer-box">
-        <div class="footer-title">Coordonnées</div>
-        <div style="text-align:center;">
-          {% set foot = [] %}
-          {% if entite.adresse|default('') %}{% set foot = foot|merge([entite.adresse]) %}{% endif %}
-          {% set foot2 = [] %}
-          {% if entite.codePostal|default('') %}{% set foot2 = foot2|merge([entite.codePostal]) %}{% endif %}
-          {% if entite.ville|default('') %}{% set foot2 = foot2|merge([entite.ville]) %}{% endif %}
-          {% if foot2 is not empty %}{% set foot = foot|merge([foot2|join(' ')]) %}{% endif %}
-          {% if entite.pays|default('') %}{% set foot = foot|merge([entite.pays]) %}{% endif %}
-          {% if foot is not empty %}{{ foot|join(' · ') }}<br>{% endif %}
-
-          {% set contact = [] %}
-          {% if entite.telephone|default('') %}{% set contact = contact|merge([entite.telephone]) %}{% endif %}
-          {% if entite.email|default('') %}{% set contact = contact|merge([entite.email]) %}{% endif %}
-          {% if contact is not empty %}{{ contact|join(' · ') }}{% endif %}
-          {% if entite.siret or entite.numeroDeclarant %}
-            <p>
-              {% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}
-              {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %} - N° NDA : {{ entite.numeroDeclarant }}{% endif %}
-            </p>
-          {% endif %}
-        </div>
-      </div>
-    </div>
   </div>
 
 </body>
