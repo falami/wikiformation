@@ -21,6 +21,9 @@ final class TenantPermission
   public const OPCO        = 'ENTITE_OPCO';
   public const COMMERCIAL  = 'ENTITE_COMMERCIAL';
 
+  public const OF_DOCUMENTS_MANAGE = 'OF_DOCUMENTS_MANAGE';
+  public const OF_FORMATIONS_MANAGE = 'OF_FORMATIONS_MANAGE';
+
 
 
 
@@ -32,6 +35,9 @@ final class TenantPermission
   public const FORMATEUR_SATISFACTION_MANAGE = 'FORMATEUR_SATISFACTION_MANAGE';
   public const FORMATEUR_POSITIONING_MANAGE = 'FORMATEUR_POSITIONING_MANAGE';
   public const FORMATEUR_RAPPORT_MANAGE = 'FORMATEUR_RAPPORT_MANAGE';
+  public const DASHBOARD_OF_MANAGE = 'DASHBOARD_OF_MANAGE';
+
+  
 
 
 
@@ -151,6 +157,11 @@ final class TenantPermission
     self::COMMERCIAL,
 
     self::PREMIUM_MANAGE,
+
+
+    self::DASHBOARD_OF_MANAGE,
+    self::OF_DOCUMENTS_MANAGE,
+    self::OF_FORMATIONS_MANAGE,
 
     self::FORMATEUR_EMARGEMENT_PDF_MANAGE,
     self::FORMATEUR_DASHBOARD_MANAGE,

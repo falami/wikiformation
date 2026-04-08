@@ -18,6 +18,7 @@
 	{% set canFormateur  = is_granted('ENTITE_FORMATEUR', entite) %}
 	{% set canStagiaire  = is_granted('ENTITE_STAGIAIRE', entite) %}
 	{% set canEntreprise = is_granted('ENTITE_ENTREPRISE', entite) %}
+	{% set canOF = is_granted('ENTITE_OF', entite) %}
 
 	<ul class="nav flex-column">
 	
@@ -1135,6 +1136,47 @@
 				<span class="{% if app.request.attributes.get('_route') == 'app_entreprise_documents_index' %}text-theme-secondaire{% else %}text-white{% endif %}">
 					<i class="bi bi-file-earmark-pdf"></i>
 					{{ 'navbar.entreprise.document'|trans }}
+				</span>
+			</a>
+		</li>
+
+
+		{% endif %}
+
+
+
+		{% if canOF %}
+		<hr class="mt-3 mb-1">
+		<center>OF</center>
+		<hr class="mt-1 mb-1">
+
+
+
+		<li class="nav-item">
+			<a href="{{ path('app_of_dashboard', {'entite' : entite.id}) }}">
+				<span class="{% if app.request.attributes.get('_route') == 'app_of_dashboard' %}text-theme-secondaire{% else %}text-white{% endif %}">
+					<i class="bi bi-speedometer2"></i>
+					{{ 'navbar.of.title'|trans }}
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="{{ path('app_of_formations', {'entite' : entite.id}) }}">
+				<span class="{% if app.request.attributes.get('_route') == 'app_of_formations' %}text-theme-secondaire{% else %}text-white{% endif %}">
+					<i class="bi bi-file-earmark-pdf"></i>
+					{{ 'navbar.of.formations'|trans }}
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="{{ path('app_of_documents_index', {'entite' : entite.id}) }}">
+				<span class="{% if app.request.attributes.get('_route') == 'app_of_documents_index' %}text-theme-secondaire{% else %}text-white{% endif %}">
+					<i class="bi bi-file-earmark-pdf"></i>
+					{{ 'navbar.of.document'|trans }}
 				</span>
 			</a>
 		</li>

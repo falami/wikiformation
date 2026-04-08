@@ -54,8 +54,6 @@ final class UtilisateurController extends AbstractController
 
     return $this->render('administrateur/utilisateur/index.html.twig', [
       'entite' => $entite,
-
-
     ]);
   }
 

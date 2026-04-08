@@ -70,6 +70,12 @@ final class TenantVoter extends Voter
         && $user->getEntreprise() !== null;
     }
 
+
+    // ✅ Extranet of : uniquement si rôle of + of liée
+    if (in_array($attribute, self::OF_ALLOWED, true)) {
+      return $membership->hasRole(UtilisateurEntite::TENANT_OF);
+    }
+
     // ✅ Extranet stagiaire
     if (in_array($attribute, self::STAGIAIRE_ALLOWED, true)) {
       return $membership->hasRole(UtilisateurEntite::TENANT_STAGIAIRE);
@@ -114,6 +120,14 @@ final class TenantVoter extends Voter
     TenantPermission::ENTREPRISE_DOCUMENTS_MANAGE,
     TenantPermission::CONVENTION_SIGNATURE_ENTREPRISE_MANAGE,
   ];
+
+
+  private const OF_ALLOWED = [
+    TenantPermission::OF_DOCUMENTS_MANAGE,
+    TenantPermission::OF_FORMATIONS_MANAGE,
+    TenantPermission::DASHBOARD_OF_MANAGE,
+  ];
+
 
 
 

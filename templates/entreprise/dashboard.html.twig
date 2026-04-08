@@ -385,6 +385,46 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
   .fc .fc-col-header-cell-cushion{ padding: .55rem .2rem !important; }
   .fc .fc-daygrid-day-number{ padding: .35rem .45rem !important; }
 }
+
+
+#detail-map-wrap{
+  min-height: 420px;
+  height: 420px;
+}
+
+#detail-map-wrap .detail-map-frame{
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 1rem;
+  display: block;
+}
+
+@media (max-width: 991.98px){
+  #detail-map-wrap{
+    height: 320px;
+    min-height: 320px;
+  }
+}
+
+#sessionDetailContent > .row.g-4{
+  align-items: stretch;
+}
+
+#sessionDetailContent > .row.g-4 > .col-12.col-lg-7,
+#sessionDetailContent > .row.g-4 > .col-12.col-lg-5{
+  display: flex;
+}
+
+#sessionDetailContent > .row.g-4 > .col-12.col-lg-7 > .section-card,
+#sessionDetailContent > .row.g-4 > .col-12.col-lg-5 > .section-card{
+  width: 100%;
+}
+
+#sessionDetailContent > .row.g-4 > .col-12.col-lg-5 > .section-card .card-body{
+  height: 100%;
+}
+
 </style>
 {% endblock %}
 
@@ -917,15 +957,12 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
       if (s.mapQuery) {
         const q = encodeURIComponent(s.mapQuery);
         mapWrap.innerHTML = `
-          <div class="ratio ratio-16x9 round overflow-hidden">
-            <iframe
-              src="https://www.google.com/maps?q=${q}&output=embed"
-              style="border:0;"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-              allowfullscreen>
-            </iframe>
-          </div>
+          <iframe
+            class="detail-map-frame"
+            src="https://www.google.com/maps?q=${q}&output=embed"
+            loading="lazy"
+            allowfullscreen>
+          </iframe>
         `;
       } else {
         mapWrap.innerHTML = `<div class="text-muted">Aucune localisation disponible.</div>`;
