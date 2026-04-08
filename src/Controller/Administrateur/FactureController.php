@@ -1166,4 +1166,66 @@ class FactureController extends AbstractController
     $this->addFlash('success', 'Facture supprimée.');
     return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);
   }
+
+
+
+  #[Route('/{id}/pdf-acquittee', name: 'pdf_acquittee', methods: ['GET'])]
+  public function facturePdfAcquittee(Entite $entite, Facture $facture): Response
+  {
+      if (!$this->pdf) {
+          throw $this->createNotFoundException('Service PDF non disponible.');
+      }
+
+      if ($facture->getEntite()?->getId() !== $entite->getId()) {
+          throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
+      }
+
+      // Total payé
+      $paidCents = 0;
+      $paiements = $facture->getPaiements()->toArray();
+
+      usort(
+          $paiements,
+          fn($a, $b) => ($a->getDatePaiement()?->getTimestamp() ?? 0) <=> ($b->getDatePaiement()?->getTimestamp() ?? 0)
+      );
+
+      foreach ($paiements as $paiement) {
+          $paidCents += (int) $paiement->getMontantCents();
+      }
+
+      // ⚠️ ici on reprend ta logique métier actuelle
+      // si tu as une méthode fiable type getTtcTotalCents(), on s'appuie dessus
+      $ttcTotalCents = method_exists($facture, 'getTtcTotalCents')
+          ? (int) $facture->getTtcTotalCents()
+          : ((int) $facture->getMontantTtcCents());
+
+      $remainingCents = max(0, $ttcTotalCents - $paidCents);
+
+      if ($remainingCents > 0) {
+          $this->addFlash('warning', 'La facture n’est pas totalement payée, la version acquittée est indisponible.');
+          return $this->redirectToRoute('app_administrateur_facture_index', [
+              'entite' => $entite->getId(),
+          ]);
+      }
+
+      // Date d’acquittement = date du dernier paiement
+      $datePaiement = null;
+      if (!empty($paiements)) {
+          $last = end($paiements);
+          $datePaiement = $last?->getDatePaiement();
+      }
+
+      $html = $this->renderView('pdf/facture_acquittee.html.twig', [
+          'entite'         => $entite,
+          'facture'        => $facture,
+          'datePaiement'   => $datePaiement,
+          'paidCents'      => $paidCents,
+          'remainingCents' => $remainingCents,
+          'preferences'    => $entite->getPreferences(),
+      ]);
+
+      $fileName = sprintf('FACTURE_ACQUITTEE_%s', $facture->getNumero() ?: $facture->getId());
+
+      return $this->pdf->createPortrait($html, $fileName);
+  }
 }

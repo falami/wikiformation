@@ -37,6 +37,31 @@
       </a>
     </li>
 
+
+    <li>
+      <a class="dropdown-item"
+        data-bs-toggle="tooltip"
+        title="Télécharger PDF"
+        href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
+        <i class="bi bi-file-earmark-pdf me-2"></i> PDF
+      </a>
+    </li>
+
+    <li>
+      <a class="dropdown-item {% if remaining > 0 or status == 'canceled' %}disabled{% endif %}"
+        data-bs-toggle="tooltip"
+        title="{% if remaining > 0 %}Disponible uniquement pour une facture soldée{% else %}Télécharger la facture acquittée{% endif %}"
+        {% if remaining <= 0 and status != 'canceled' %}
+          href="{{ path('app_administrateur_facture_pdf_acquittee', {entite: entite.id, id: f.id}) }}"
+        {% else %}
+          href="#"
+          tabindex="-1"
+          aria-disabled="true"
+        {% endif %}>
+        <i class="bi bi-patch-check me-2"></i> PDF acquittée
+      </a>
+    </li>
+
     <li>
       <form method="post"
             action="{{ path('app_administrateur_facture_send', { entite: entite.id, id: f.id }) }}"
