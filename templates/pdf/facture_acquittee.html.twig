@@ -1,4 +1,3 @@
-{# templates/pdf/facture_acquittee.html.twig #}
 {% import _self as m %}
 
 {% macro eur(cents) %}{{ ((cents ?? 0) / 100)|number_format(2, ',', ' ') }} €{% endmacro %}
@@ -17,6 +16,7 @@
 {% set signaturePath = prefs ? prefs.signatureOrganismePath : null %}
 {% set signatureNom = prefs ? prefs.signatureOrganismeNom : null %}
 {% set signatureFonction = prefs ? prefs.signatureOrganismeFonction : null %}
+{% set tamponPath = prefs ? prefs.tamponOrganismePath : null %}
 
 <!DOCTYPE html>
 <html lang="fr">
@@ -29,9 +29,13 @@
 
     body{
       font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-      color:#14212b; font-size:11px; line-height:1.35;
-      padding:0; margin:0;
+      color:#14212b;
+      font-size:11px;
+      line-height:1.35;
+      padding:0;
+      margin:0;
     }
+
     .wrap{ padding-bottom:0; }
     h1,h2,h3,p,table{ margin:0; padding:0 }
     .content{ padding-bottom: 55mm; }
@@ -39,14 +43,15 @@
     .brand-name{ font-size:20px; font-weight:800; color:{{ brand.primary }}; letter-spacing:.5px }
     .brand-meta{ margin-top:6px; font-size:10px; color:#506576 }
     .brand-meta p{ line-height:1.35 }
+
     .logo{
-      height: 54pt;
-      width: auto;
-      display: inline-block;
-      border: 1pt solid {{ brand.line }};
-      padding: 4pt;
-      border-radius: 10pt;
-      background: #fff;
+      height:54pt;
+      width:auto;
+      display:inline-block;
+      border:1pt solid {{ brand.line }};
+      padding:4pt;
+      border-radius:10pt;
+      background:#fff;
     }
 
     .doc-right{ text-align:right }
@@ -68,12 +73,12 @@
 
     .watermark{
       position: fixed;
-      top: 37%;
+      top: 38%;
       left: 50%;
       transform: translate(-50%, -50%) rotate(-18deg);
-      font-size: 50px;
+      font-size: 54px;
       font-weight: 900;
-      color: rgba(21, 128, 61, 0.10);
+      color: rgba(21, 128, 61, 0.08);
       letter-spacing: 4px;
       z-index: 0;
       white-space: nowrap;
@@ -81,30 +86,20 @@
 
     table{ width:100%; border-collapse:collapse }
     th,td{ padding:8px 9px; vertical-align:top }
+
     thead th{
-      font-size:10.5px; letter-spacing:.6px; text-transform:uppercase;
-      background:#f3f7fb; color:#2a4154; border-bottom:1px solid {{ brand.line }};
+      font-size:10.5px;
+      letter-spacing:.6px;
+      text-transform:uppercase;
+      background:#f3f7fb;
+      color:#2a4154;
+      border-bottom:1px solid {{ brand.line }};
     }
+
     tbody td{ font-size:11px }
     .num{ text-align:right; white-space:nowrap }
     .ref{ color:#5c7890; font-size:10px }
     .muted{ color:#688296 }
-
-    .totaux{
-      width:75%;
-      margin-left:auto;
-      margin-top:6mm;
-      border-collapse:collapse;
-      page-break-inside: avoid;
-    }
-    .totaux td{ border-bottom:1px solid #edf2f7; font-size:12px; padding:6px 9px }
-    .totaux .label{ text-align:right; color:#355068 }
-    .totaux .val{ text-align:right; white-space:nowrap }
-    .totaux .total.titre{
-      background:#f3f7fb;
-      font-weight:900;
-      border-top:2px solid {{ brand.line }};
-    }
 
     .rule{
       height:2px;
@@ -114,8 +109,90 @@
     }
 
     .titre{
-      background:#f3f7fb; font-size:12px; color:#2a4154;
-      text-align:center; text-transform:uppercase;
+      background:#f3f7fb;
+      font-size:12px;
+      color:#2a4154;
+      text-align:center;
+      text-transform:uppercase;
+    }
+
+    .header{ width:100%; border-collapse:collapse; margin-bottom:10mm; }
+    .header td{ vertical-align:top; padding:0; }
+    .header .left{ width:62%; }
+    .header .right{ width:38%; text-align:right; }
+
+    .totaux{
+      width:75%;
+      margin-left:auto;
+      margin-top:6mm;
+      border-collapse:collapse;
+      page-break-inside: avoid;
+    }
+
+    .totaux td{
+      border-bottom:1px solid #edf2f7;
+      font-size:12px;
+      padding:6px 9px;
+    }
+
+    .totaux .label{ text-align:right; color:#355068 }
+    .totaux .val{ text-align:right; white-space:nowrap }
+    .totaux .total.titre{
+      background:#f3f7fb;
+      font-weight:900;
+      border-top:2px solid {{ brand.line }};
+    }
+
+    .detail-row td{ padding-top:2px; padding-bottom:2px; border-bottom:none; }
+    .detail-text{ font-size:10px; color:#2a4154; }
+    tr.line-main td{ border-bottom:none; }
+    tr.line-end td{ border-bottom:1px solid #edf2f7; }
+
+    .proof-block{
+      margin-top: 12mm;
+      page-break-inside: avoid;
+    }
+
+    .proof-table{
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .proof-box{
+      border: 1px solid {{ brand.line }};
+      border-radius: 12px;
+      background: #fff;
+      padding: 12px;
+      min-height: 150px;
+    }
+
+    .proof-title{
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: {{ brand.primary }};
+      margin-bottom: 8px;
+    }
+
+    .tampon-img{
+      max-width: 180px;
+      max-height: 110px;
+      display:block;
+      margin: 8px auto 0 auto;
+    }
+
+    .signature-image{
+      max-height: 75px;
+      max-width: 200px;
+      display:block;
+      margin-top: 8px;
+    }
+
+    .signature-meta{
+      margin-top:8px;
+      font-size:10px;
+      color:#506576;
+      line-height:1.4;
     }
 
     .footer-wrapper{
@@ -155,69 +232,6 @@
       padding-bottom:3px;
       margin-bottom:3px;
     }
-
-    .header{ width:100%; border-collapse:collapse; margin-bottom:10mm; }
-    .header td{ vertical-align:top; padding:0; }
-    .header .left{ width:62%; }
-    .header .right{ width:38%; text-align:right; }
-
-    .detail-row td{ padding-top:2px; padding-bottom:2px; border-bottom:none; }
-    .detail-text{ font-size:10px; color:#2a4154; }
-    tr.line-main td{ border-bottom:none; }
-    tr.line-end td{ border-bottom:1px solid #edf2f7; }
-
-    .sign-block{
-      margin-top: 10mm;
-      width: 100%;
-      page-break-inside: avoid;
-    }
-
-    .sign-table{
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .sign-box{
-      width: 48%;
-      border: 1px solid {{ brand.line }};
-      border-radius: 12px;
-      padding: 10px;
-      background: #fff;
-      min-height: 120px;
-    }
-
-    .sign-title{
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      color: {{ brand.primary }};
-      margin-bottom: 8px;
-    }
-
-    .tampon{
-      display: inline-block;
-      padding: 8px 14px;
-      border: 2px solid #15803d;
-      color: #15803d;
-      border-radius: 999px;
-      font-weight: 900;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      margin-top: 6px;
-    }
-
-    .signature-image{
-      max-height: 65px;
-      max-width: 180px;
-      margin-top: 8px;
-    }
-
-    .signature-meta{
-      margin-top: 8px;
-      font-size: 10px;
-      color: #506576;
-      line-height: 1.4;
-    }
   </style>
 </head>
 
@@ -226,6 +240,7 @@
 
 <div class="wrap">
   <div class="content">
+
     <table class="header" cellspacing="0" cellpadding="0">
       <tr>
         <td class="left">
@@ -259,7 +274,7 @@
               <div><strong>N°</strong> {{ facture.numero }}</div>
               <div><strong>Émise le</strong> {{ facture.dateEmission|date('d/m/Y') }}</div>
               <div><strong>Réglée le</strong> {{ datePaiement ? datePaiement|date('d/m/Y') : '—' }}</div>
-              <div class="stamp">PAYÉE / ACQUITTÉE</div>
+              <div class="stamp">PAYÉE</div>
             </div>
           </div>
         </td>
@@ -284,15 +299,6 @@
             <br>
             Modalité paiement : {{ meta.modalite ?? 'Virement' }}<br>
             Date de paiement : {{ datePaiement ? datePaiement|date('d/m/Y') : '—' }}<br>
-
-            {% if facture.inscriptions is defined and facture.inscriptions|length > 0 %}
-              <span style="margin-top:6px; display:inline-block;">
-                Réf. inscriptions :
-                {% for ins in facture.inscriptions %}
-                  #{{ ins.id }}{% if not loop.last %}, {% endif %}
-                {% endfor %}
-              </span>
-            {% endif %}
           </p>
         </td>
 
@@ -346,7 +352,7 @@
         {% set total_ht_brut = 0 %}
         {% set total_remises_lignes = 0 %}
         {% set total_ht_net = 0 %}
-        {% set bases_by_rate = {} %}
+        {% set total_tva = 0 %}
 
         {% for l in facture.lignes %}
           {% set qte = l.qte ?? 0 %}
@@ -354,16 +360,12 @@
           {% set line_ht = l.totalHtBrutCents ?? (qte * pu) %}
           {% set line_remise = l.remiseCents ?? 0 %}
           {% set line_ht_net = l.totalHtNetCents ?? (line_ht - line_remise) %}
-          {% set tva_rate = l.tva ?? 0 %}
-          {% set line_tva = (line_ht_net * tva_rate / 100)|round(0, 'floor') %}
+          {% set line_tva = l.totalTvaCents ?? 0 %}
 
           {% set total_ht_brut = total_ht_brut + line_ht %}
           {% set total_remises_lignes = total_remises_lignes + line_remise %}
           {% set total_ht_net = total_ht_net + line_ht_net %}
-          {% set rate_key = (tva_rate|number_format(2, '.', '')) %}
-          {% set bases_by_rate = bases_by_rate|merge({
-            (rate_key): (bases_by_rate[rate_key]|default(0) + line_ht_net)
-          }) %}
+          {% set total_tva = total_tva + line_tva %}
 
           {% set raw = (l.label ?? '')|replace({"\r\n":"\n", "\r":"\n"}) %}
           {% set parts = raw|split("\n") %}
@@ -379,9 +381,6 @@
             <td class="num">
               {% if line_remise > 0 %}
                 -{{ m.eur(line_remise) }}
-                {% if l.remisePourcent is not null and l.remisePourcent > 0 %}
-                  <span class="muted">({{ m.pct(l.remisePourcent) }})</span>
-                {% endif %}
               {% else %}
                 -
               {% endif %}
@@ -406,33 +405,7 @@
       </tbody>
     </table>
 
-    {% set rg_pct   = facture.remiseGlobalePourcent ?? null %}
-    {% set rg_cents = facture.remiseGlobaleMontantCents ?? null %}
-
-    {% set remise_globale = 0 %}
-    {% if rg_cents is not null and rg_cents > 0 %}
-      {% set remise_globale = rg_cents %}
-    {% elseif rg_pct is not null and rg_pct > 0 %}
-      {% set remise_globale = (total_ht_net * rg_pct / 100)|round(0, 'floor') %}
-    {% endif %}
-
-    {% if remise_globale > total_ht_net %}{% set remise_globale = total_ht_net %}{% endif %}
-    {% set total_ht_apres_rg = total_ht_net - remise_globale %}
-
-    {% set total_tva_after_rg = 0 %}
-    {% for rate_key, base_ht_net in bases_by_rate %}
-      {% set rate = rate_key + 0 %}
-      {% set base_after = base_ht_net %}
-      {% if remise_globale > 0 and total_ht_net > 0 %}
-        {% set share = (remise_globale * base_ht_net / total_ht_net)|round(0, 'floor') %}
-        {% set base_after = base_ht_net - share %}
-        {% if base_after < 0 %}{% set base_after = 0 %}{% endif %}
-      {% endif %}
-      {% set tva_rate_amount = (base_after * rate / 100)|round(0, 'floor') %}
-      {% set total_tva_after_rg = total_tva_after_rg + tva_rate_amount %}
-    {% endfor %}
-
-    {% set total_ttc_calc = total_ht_apres_rg + total_tva_after_rg %}
+    {% set total_ttc = total_ht_net + total_tva %}
 
     <table class="totaux" cellspacing="0" cellpadding="0">
       <tr>
@@ -449,30 +422,22 @@
         </tr>
       {% endif %}
 
-      {% if remise_globale > 0 %}
-        <tr>
-          <td style="border:none"></td>
-          <td class="label">Remise globale</td>
-          <td class="val">-{{ m.eur(remise_globale) }}</td>
-        </tr>
-      {% endif %}
-
       <tr>
         <td style="border:none"></td>
         <td class="label">Total HT (net)</td>
-        <td class="val">{{ m.eur(total_ht_apres_rg) }}</td>
+        <td class="val">{{ m.eur(total_ht_net) }}</td>
       </tr>
 
       <tr>
         <td style="border:none"></td>
         <td class="label">Montant TVA</td>
-        <td class="val">{{ m.eur(total_tva_after_rg) }}</td>
+        <td class="val">{{ m.eur(total_tva) }}</td>
       </tr>
 
       <tr>
         <td style="border:none"></td>
         <td class="label">Total TTC</td>
-        <td class="val">{{ m.eur(total_ttc_calc) }}</td>
+        <td class="val">{{ m.eur(total_ttc) }}</td>
       </tr>
 
       <tr>
@@ -483,34 +448,33 @@
 
       <tr>
         <td style="border:none"></td>
-        <td class="label total titre">Solde</td>
-        <td class="val total titre">ACQUITTÉE</td>
+        <td class="label total titre">Statut</td>
+        <td class="val total titre">FACTURE ACQUITTÉE</td>
       </tr>
     </table>
 
-    <div class="sign-block">
-      <table class="sign-table">
+    <div class="proof-block">
+      <table class="proof-table">
         <tr>
-          <td style="width:52%; vertical-align:top; padding-right:10px;">
-            <div class="sign-box">
-              <div class="sign-title">Tampon organisme de formation</div>
-              <div class="tampon">
-                Facture acquittée<br>
-                {{ datePaiement ? datePaiement|date('d/m/Y') : '—' }}
-                {% if tamponOrganismePath %}
-                    {% if tamponOrganismePath starts with '/' %}
-                    <img class="signature-image" src="{{ absolute_url(tamponOrganismePath) }}" alt="Tampon organisme">
-                    {% else %}
-                    <img class="signature-image" src="{{ absolute_url(asset(tamponOrganismePath)) }}" alt="Tampon organisme">
-                    {% endif %}
+          <td style="width:50%; padding-right:8px; vertical-align:top;">
+            <div class="proof-box">
+              <div class="proof-title">Tampon organisme</div>
+
+              {% if tamponPath %}
+                {% if tamponPath starts with '/' %}
+                  <img class="tampon-img" src="{{ absolute_url(tamponPath) }}" alt="Tampon organisme">
+                {% else %}
+                  <img class="tampon-img" src="{{ absolute_url(asset(tamponPath)) }}" alt="Tampon organisme">
                 {% endif %}
-              </div>
+              {% else %}
+                <div class="muted">Aucun tampon configuré.</div>
+              {% endif %}
             </div>
           </td>
 
-          <td style="width:48%; vertical-align:top; padding-left:10px;">
-            <div class="sign-box">
-              <div class="sign-title">Signature de l’organisme</div>
+          <td style="width:50%; padding-left:8px; vertical-align:top;">
+            <div class="proof-box">
+              <div class="proof-title">Signature organisme</div>
 
               {% if signaturePath %}
                 {% if signaturePath starts with '/' %}
@@ -526,25 +490,26 @@
                 {% if signatureNom %}<div><strong>{{ signatureNom }}</strong></div>{% endif %}
                 {% if signatureFonction %}<div>{{ signatureFonction }}</div>{% endif %}
                 <div>{{ entite.nom }}</div>
-                <div>Date : {{ datePaiement ? datePaiement|date('d/m/Y') : '—' }}</div>
+                <div>Date d’acquittement : {{ datePaiement ? datePaiement|date('d/m/Y') : '—' }}</div>
               </div>
             </div>
           </td>
         </tr>
       </table>
     </div>
+
   </div>
 </div>
 
-{% set meta = facture.meta ?? {} %}
-{% set noteText = 'Cette facture a été intégralement réglée. Merci pour votre confiance.' %}
-
 <div class="footer-wrapper">
-  <div class="footer-note">{{ noteText }}</div>
+  <div class="footer-note">
+    Cette facture a été intégralement réglée. Merci pour votre confiance.
+  </div>
 
   {% if entite.banque %}
     <div class="footer-banque">
       <div class="footer-banque-title">Informations bancaires</div>
+
       <table style="width:100%; border-collapse:collapse; font-size:9.3px;">
         <tr>
           <td style="width:50%; padding:2px 4px; text-align:left;">
@@ -552,6 +517,7 @@
             {% if entite.codeBanque %}<strong>Code :</strong> {{ entite.codeBanque }}<br>{% endif %}
             {% if entite.numeroCompte %}<strong>N° compte :</strong> {{ entite.numeroCompte }}{% endif %}
           </td>
+
           <td style="width:50%; padding:2px 4px; text-align:left;">
             {% if entite.iban %}<strong>IBAN :</strong> {{ entite.iban }}<br>{% endif %}
             {% if entite.bic %}<strong>BIC :</strong> {{ entite.bic }}<br>{% endif %}

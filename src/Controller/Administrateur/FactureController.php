@@ -1180,8 +1180,6 @@ class FactureController extends AbstractController
           throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
       }
 
-      // Total payé
-      $paidCents = 0;
       $paiements = $facture->getPaiements()->toArray();
 
       usort(
@@ -1189,26 +1187,24 @@ class FactureController extends AbstractController
           fn($a, $b) => ($a->getDatePaiement()?->getTimestamp() ?? 0) <=> ($b->getDatePaiement()?->getTimestamp() ?? 0)
       );
 
+      $paidCents = 0;
       foreach ($paiements as $paiement) {
           $paidCents += (int) $paiement->getMontantCents();
       }
 
-      // ⚠️ ici on reprend ta logique métier actuelle
-      // si tu as une méthode fiable type getTtcTotalCents(), on s'appuie dessus
-      $ttcTotalCents = method_exists($facture, 'getTtcTotalCents')
+      $ttcTotal = method_exists($facture, 'getTtcTotalCents')
           ? (int) $facture->getTtcTotalCents()
-          : ((int) $facture->getMontantTtcCents());
+          : (int) $facture->getMontantTtcCents();
 
-      $remainingCents = max(0, $ttcTotalCents - $paidCents);
+      $remainingCents = max(0, $ttcTotal - $paidCents);
 
       if ($remainingCents > 0) {
-          $this->addFlash('warning', 'La facture n’est pas totalement payée, la version acquittée est indisponible.');
+          $this->addFlash('warning', 'La facture n’est pas totalement payée. Le PDF acquitté n’est pas disponible.');
           return $this->redirectToRoute('app_administrateur_facture_index', [
               'entite' => $entite->getId(),
           ]);
       }
 
-      // Date d’acquittement = date du dernier paiement
       $datePaiement = null;
       if (!empty($paiements)) {
           $last = end($paiements);
