@@ -594,7 +594,11 @@
 
     <div class="signature">
       <div class="signature-date">
-        Fait à {{ entite.ville|default('Ville') }}, le {{ "now"|date('d/m/Y') }}.
+        {% if hasJours %}
+          Fait à {{ entite.ville|default('Ville') }}, le {{ firstJour.dateDebut|date('d/m/Y') }}.
+        {% else %}
+          Fait à {{ entite.ville|default('Ville') }}, le {{ "now"|date('d/m/Y') }}.
+        {% endif %}
       </div>
       <div class="text-small text-muted">Par l’organisme de formation</div>
       <div class="signature-name">{{ entite.nom|default('Nom de l’organisme') }}</div>
