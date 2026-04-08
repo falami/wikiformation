@@ -107,6 +107,9 @@ class EntitePreferences
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $signatureOrganismeSha256 = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $tamponOrganismePath = null;
+
     public function __construct()
     {
         $this->dateCreation = new \DateTimeImmutable();
@@ -398,6 +401,18 @@ class EntitePreferences
     public function setSignatureOrganismeSha256(?string $v): static
     {
         $this->signatureOrganismeSha256 = $v;
+        return $this;
+    }
+
+    public function getTamponOrganismePath(): ?string
+    {
+        return $this->tamponOrganismePath;
+    }
+
+    public function setTamponOrganismePath(?string $tamponOrganismePath): static
+    {
+        $this->tamponOrganismePath = $tamponOrganismePath;
+
         return $this;
     }
 }

@@ -351,6 +351,51 @@
         </div>
 
 
+
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title d-flex justify-content-between align-items-center">
+            <div>
+              <i class="fa-solid fa-stamp text-theme-secondaire me-2"></i>
+              Tampon organisme
+            </div>
+
+            {% if prefs and prefs.tamponOrganismePath %}
+              <span class="badge text-bg-success">Configuré</span>
+            {% else %}
+              <span class="badge text-bg-warning">Manquant</span>
+            {% endif %}
+          </div>
+
+          <div class="card-body">
+            <div class="small text-muted mb-2">
+              Ce tampon sera affiché automatiquement dans le PDF de la facture acquittée.
+            </div>
+
+            <div id="tamponPreviewWrap" class="border rounded-3 p-2 bg-white text-center">
+              {% if prefs and prefs.tamponOrganismePath %}
+                <img id="tamponPreviewImg"
+                    src="{{ app.request.basePath ~ prefs.tamponOrganismePath }}"
+                    alt="Tampon organisme"
+                    style="max-width:100%; max-height:140px; display:block; margin:0 auto;">
+              {% else %}
+                <div class="text-center text-muted py-4">
+                  <i class="fa-solid fa-stamp fa-2x mb-2"></i>
+                  <div>Aucun tampon enregistré</div>
+                </div>
+                <img id="tamponPreviewImg" src="" alt="" style="display:none;">
+              {% endif %}
+            </div>
+
+            <div class="d-grid gap-2 mt-3">
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#tamponOrganismeModal">
+                <i class="fa-solid fa-upload me-1"></i> Importer / Mettre à jour
+              </button>
+            </div>
+          </div>
+        </div>
+
+
       
 
       <div class="help-card p-3 shadow-sm mb-3">
@@ -462,150 +507,280 @@
   </div>
 </div>
 
+
+
+<div class="modal fade" id="tamponOrganismeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-stamp text-theme-secondaire me-2"></i>
+          Tampon organisme
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="alert alert-info small">
+          Importe une image PNG ou JPG de ton tampon.  
+          Idéalement avec fond transparent pour un meilleur rendu sur le PDF.
+        </div>
+
+        <input type="file" class="form-control" id="tamponFileInput" accept="image/png,image/jpeg,image/jpg">
+
+        <div class="mt-3 border rounded-3 p-3 bg-light text-center">
+          <img id="tamponModalPreview" src="" alt="" style="max-width:100%; max-height:220px; display:none; margin:0 auto;">
+          <div id="tamponModalEmpty" class="text-muted py-4">
+            <i class="fa-regular fa-image fa-2x mb-2"></i>
+            <div>Aperçu du tampon</div>
+          </div>
+        </div>
+
+        <div id="tamponError" class="alert alert-danger mt-3 d-none"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="tamponSaveBtn">
+          <i class="fa-solid fa-floppy-disk me-1"></i> Enregistrer le tampon
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (() => {
+  // =========================
+  // SIGNATURE
+  // =========================
   const canvas = document.getElementById('sigCanvas');
-  if (!canvas) return;
 
-  // canvas "retina"
-  const ctx = canvas.getContext('2d');
-  let drawing = false;
-  let last = null;
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let last = null;
 
-  function resizeCanvas() {
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(rect.width * ratio);
-    canvas.height = Math.floor(rect.height * ratio);
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    function resizeCanvas() {
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * ratio);
+      canvas.height = Math.floor(rect.height * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-    // style
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#111';
-  }
-
-  function getPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches && e.touches[0] ? e.touches[0] : null;
-    const clientX = touch ? touch.clientX : e.clientX;
-    const clientY = touch ? touch.clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  }
-
-  function start(e) {
-    drawing = true;
-    last = getPos(e);
-  }
-  function move(e) {
-    if (!drawing) return;
-    e.preventDefault();
-    const p = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    last = p;
-  }
-  function stop() {
-    drawing = false;
-    last = null;
-  }
-
-  // events
-  const modalEl = document.getElementById('signatureOrganismeModal');
-  modalEl.addEventListener('shown.bs.modal', () => {
-    resizeCanvas();
-  });
-
-  window.addEventListener('resize', () => {
-    // si modal ouvert, on resize
-    if (modalEl.classList.contains('show')) resizeCanvas();
-  });
-
-  canvas.addEventListener('mousedown', start);
-  canvas.addEventListener('mousemove', move);
-  window.addEventListener('mouseup', stop);
-
-  canvas.addEventListener('touchstart', start, { passive: false });
-  canvas.addEventListener('touchmove', move, { passive: false });
-  window.addEventListener('touchend', stop);
-
-  document.getElementById('sigClearBtn').addEventListener('click', () => {
-    const rect = canvas.getBoundingClientRect();
-    ctx.clearRect(0, 0, rect.width, rect.height);
-    hideError();
-  });
-
-  function showError(msg) {
-    const box = document.getElementById('sigError');
-    box.textContent = msg;
-    box.classList.remove('d-none');
-  }
-  function hideError() {
-    document.getElementById('sigError').classList.add('d-none');
-  }
-
-  function isCanvasEmpty() {
-    // check pixels
-    const w = canvas.width, h = canvas.height;
-    const data = ctx.getImageData(0, 0, w, h).data;
-    for (let i = 3; i < data.length; i += 4) {
-      if (data[i] !== 0) return false;
-    }
-    return true;
-  }
-
-  document.getElementById('sigSaveBtn').addEventListener('click', async () => {
-    hideError();
-
-    if (isCanvasEmpty()) {
-      showError("Merci de signer dans la zone avant d'enregistrer.");
-      return;
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#111';
     }
 
-    // Export en PNG (dataURL)
-    const dataUrl = canvas.toDataURL('image/png');
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches && e.touches[0] ? e.touches[0] : null;
+      const clientX = touch ? touch.clientX : e.clientX;
+      const clientY = touch ? touch.clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
 
-    const nom = (document.getElementById('sigNom').value || '').trim();
-    const fonction = (document.getElementById('sigFonction').value || '').trim();
+    function start(e) {
+      drawing = true;
+      last = getPos(e);
+    }
 
-    const body = new URLSearchParams();
-    body.set('dataUrl', dataUrl);
-    body.set('nom', nom);
-    body.set('fonction', fonction);
+    function move(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+    }
 
-    try {
-      const res = await fetch("{{ path('app_administrateur_preferences_formateurs_contrat_signature', { entite: entite.id }) }}", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body: body.toString()
-      });
+    function stop() {
+      drawing = false;
+      last = null;
+    }
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        showError(json.message || "Erreur lors de l'enregistrement.");
+    const modalEl = document.getElementById('signatureOrganismeModal');
+
+    modalEl.addEventListener('shown.bs.modal', () => {
+      resizeCanvas();
+    });
+
+    window.addEventListener('resize', () => {
+      if (modalEl.classList.contains('show')) resizeCanvas();
+    });
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', stop);
+
+    document.getElementById('sigClearBtn').addEventListener('click', () => {
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      hideSigError();
+    });
+
+    function showSigError(msg) {
+      const box = document.getElementById('sigError');
+      box.textContent = msg;
+      box.classList.remove('d-none');
+    }
+
+    function hideSigError() {
+      document.getElementById('sigError').classList.add('d-none');
+    }
+
+    function isCanvasEmpty() {
+      const w = canvas.width, h = canvas.height;
+      const data = ctx.getImageData(0, 0, w, h).data;
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] !== 0) return false;
+      }
+      return true;
+    }
+
+    document.getElementById('sigSaveBtn').addEventListener('click', async () => {
+      hideSigError();
+
+      if (isCanvasEmpty()) {
+        showSigError("Merci de signer dans la zone avant d'enregistrer.");
         return;
       }
 
-      // update preview
-      const img = document.getElementById('sigPreviewImg');
-      img.src = (json.publicUrl || json.publicPath) + '?v=' + Date.now();
-      img.style.display = 'block';
+      const dataUrl = canvas.toDataURL('image/png');
+      const nom = (document.getElementById('sigNom').value || '').trim();
+      const fonction = (document.getElementById('sigFonction').value || '').trim();
 
-      const wrap = document.getElementById('sigPreviewWrap');
-      // si tu veux, tu peux reconstruire le bloc de texte proprement, mais on fait simple :
-      // on force un reload partiel : au minimum l'image se met à jour
+      const body = new URLSearchParams();
+      body.set('dataUrl', dataUrl);
+      body.set('nom', nom);
+      body.set('fonction', fonction);
 
-      // close modal
-      const bsModal = bootstrap.Modal.getInstance(modalEl);
-      bsModal.hide();
+      try {
+        const res = await fetch("{{ path('app_administrateur_preferences_formateurs_contrat_signature', { entite: entite.id }) }}", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: body.toString()
+        });
 
-    } catch (e) {
-      showError("Erreur réseau lors de l'enregistrement.");
-    }
-  });
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          showSigError(json.message || "Erreur lors de l'enregistrement.");
+          return;
+        }
+
+        const img = document.getElementById('sigPreviewImg');
+        img.src = (json.publicUrl || json.publicPath) + '?v=' + Date.now();
+        img.style.display = 'block';
+
+        const bsModal = bootstrap.Modal.getInstance(modalEl);
+        bsModal.hide();
+
+        window.location.reload();
+      } catch (e) {
+        showSigError("Erreur réseau lors de l'enregistrement.");
+      }
+    });
+  }
+
+  // =========================
+  // TAMPON
+  // =========================
+  const tamponInput = document.getElementById('tamponFileInput');
+  const tamponPreview = document.getElementById('tamponModalPreview');
+  const tamponEmpty = document.getElementById('tamponModalEmpty');
+  const tamponSaveBtn = document.getElementById('tamponSaveBtn');
+  let tamponDataUrl = '';
+
+  function showTamponError(msg) {
+    const box = document.getElementById('tamponError');
+    box.textContent = msg;
+    box.classList.remove('d-none');
+  }
+
+  function hideTamponError() {
+    document.getElementById('tamponError').classList.add('d-none');
+  }
+
+  if (tamponInput) {
+    tamponInput.addEventListener('change', (e) => {
+      hideTamponError();
+
+      const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+      if (!file) {
+        tamponDataUrl = '';
+        tamponPreview.style.display = 'none';
+        tamponEmpty.style.display = 'block';
+        return;
+      }
+
+      if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+        showTamponError('Format non supporté. Utilise un PNG ou JPG.');
+        e.target.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        tamponDataUrl = evt.target.result || '';
+        if (tamponDataUrl) {
+          tamponPreview.src = tamponDataUrl;
+          tamponPreview.style.display = 'block';
+          tamponEmpty.style.display = 'none';
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (tamponSaveBtn) {
+    tamponSaveBtn.addEventListener('click', async () => {
+      hideTamponError();
+
+      if (!tamponDataUrl) {
+        showTamponError("Merci d'importer une image de tampon.");
+        return;
+      }
+
+      const body = new URLSearchParams();
+      body.set('dataUrl', tamponDataUrl);
+
+      try {
+        const res = await fetch("{{ path('app_administrateur_preferences_formateurs_contrat_tampon', { entite: entite.id }) }}", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: body.toString()
+        });
+
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          showTamponError(json.message || "Erreur lors de l'enregistrement du tampon.");
+          return;
+        }
+
+        const img = document.getElementById('tamponPreviewImg');
+        img.src = (json.publicUrl || json.publicPath) + '?v=' + Date.now();
+        img.style.display = 'block';
+
+        const modalEl = document.getElementById('tamponOrganismeModal');
+        const bsModal = bootstrap.Modal.getInstance(modalEl);
+        bsModal.hide();
+
+        window.location.reload();
+      } catch (e) {
+        showTamponError("Erreur réseau lors de l'enregistrement du tampon.");
+      }
+    });
+  }
 })();
 </script>
 
