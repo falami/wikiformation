@@ -265,6 +265,44 @@ final class FinanceDashboardController extends AbstractController
       ->select('COUNT(pa.id) as cnt, COALESCE(SUM(pa.montantCents),0) as total')
       ->getQuery()->getSingleResult();
 
+    $payVentKpi = (clone $payBase)
+      ->select('
+        COALESCE(SUM(pa.ventilationHtHorsDeboursCents), 0) as htEncaisse,
+        COALESCE(SUM(pa.ventilationTvaHorsDeboursCents), 0) as tvaEncaissee,
+        COALESCE(SUM(pa.ventilationDeboursCents), 0) as deboursEncaisse
+      ')
+      ->getQuery()
+      ->getSingleResult();
+
+    $caHtEncaisse = (int) ($payVentKpi['htEncaisse'] ?? 0);
+    $deboursEncaisse = (int) ($payVentKpi['deboursEncaisse'] ?? 0);
+
+
+    $facDeboursKpi = $em->createQueryBuilder()
+      ->select('COALESCE(SUM(lf.qte * lf.puHtCents - 
+          CASE
+            WHEN lf.remiseMontantCents IS NOT NULL AND lf.remiseMontantCents > 0 THEN lf.remiseMontantCents
+            WHEN lf.remisePourcent IS NOT NULL AND lf.remisePourcent > 0 THEN ROUND((lf.qte * lf.puHtCents) * (lf.remisePourcent / 100))
+            ELSE 0
+          END
+        ), 0) as deboursFacture')
+      ->from(\App\Entity\LigneFacture::class, 'lf')
+      ->innerJoin('lf.facture', 'fa')
+      ->andWhere('fa.entite = :e')->setParameter('e', $entite)
+      ->andWhere('fa.dateEmission BETWEEN :start AND :end')
+      ->andWhere('lf.isDebours = 1')
+      ->setParameter('start', $f['start'])
+      ->setParameter('end', $f['end']);
+
+    if ($f['devise']) {
+      $facDeboursKpi->andWhere('fa.devise = :dev')->setParameter('dev', $f['devise']);
+    }
+    if ($f['factureStatus']) {
+      $facDeboursKpi->andWhere('fa.status = :st')->setParameter('st', $f['factureStatus']);
+    }
+
+    $deboursFacture = (int) ($facDeboursKpi->getQuery()->getSingleScalarResult() ?? 0);
+
     $payMonthlyRows = (clone $payBase)
       ->select('pa.datePaiement as dt, pa.montantCents as total')
       ->getQuery()->getArrayResult();
@@ -320,7 +358,7 @@ final class FinanceDashboardController extends AbstractController
       'filters' => [
         'dateStart' => $f['start']->format('Y-m-d'),
         'dateEnd'   => $f['end']->format('Y-m-d'),
-        'monthsCovered' => $monthsCovered,
+        'monthsCovered' => $monthsCovered, // 👈 pratique pour afficher "sur X mois"
       ],
       'kpis' => [
         'dep' => $depKpi,
@@ -329,13 +367,19 @@ final class FinanceDashboardController extends AbstractController
         'pay' => $payKpi,
         'avo' => $avoKpi,
         'caHtHorsDebours' => $caHtHorsDebours,
+        'caHtEncaisse' => $caHtEncaisse,
+        'deboursEncaisse' => $deboursEncaisse,
+        'deboursFacture' => $deboursFacture ?? 0,
         'netTtc' => $net,
         'cashGap' => $cashGap,
+
+        // ✅ nouveaux KPI lissés / mois
         'avgMonthly' => [
           'depTtc' => $depAvgMonthlyTtc,
           'pay' => $payAvgMonthly,
           'facTtc' => $facAvgMonthlyTtc,
           'devisTtc' => $devisAvgMonthlyTtc,
+          // optionnel : aussi net/cashgap lissés
           'netTtc' => $avgMonthly($net),
           'cashGap' => $avgMonthly($cashGap),
         ],

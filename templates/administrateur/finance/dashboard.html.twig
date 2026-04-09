@@ -579,9 +579,46 @@
           <div class="sub" id="kpiPayCount">-</div>
         </div>
         <div class="kpi">
-          <div class="label">Chiffre d’affaire (HT)</div>
+          <div class="label">Avoirs (TTC)</div>
+          <div class="value" id="kpiAvoTotal">-</div>
+          <div class="sub" id="kpiAvoCount">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  {# ===== KPI ===== #}
+  <div class="cardx mb-4">
+    <div class="cardx-h">
+      <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Chiffre d'affaire</h5>
+      <span class="chip">Live</span>
+    </div>
+    <div class="p-3 p-md-4">
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="label">Chiffre d’affaire (HT avant encaissement)</div>
           <div class="value" id="kpiCaHt">-</div>
           <div class="sub" id="kpiCaHint">Hors frais de débours</div>
+        </div>
+
+        <div class="kpi">
+          <div class="label">Chiffre d’affaire à l’encaissement (HT)</div>
+          <div class="value" id="kpiCaHtEncaisse">-</div>
+          <div class="sub" id="kpiCaHtEncaisseHint">Paiements ventilés hors débours</div>
+        </div>
+
+        <div class="kpi">
+          <div class="label">Frais de débours encaissés</div>
+          <div class="value" id="kpiDeboursEncaisse">-</div>
+          <div class="sub" id="kpiDeboursEncaisseHint">Part débours des paiements</div>
+        </div>
+
+        <div class="kpi">
+          <div class="label">Frais de débours facturés</div>
+          <div class="value" id="kpiDeboursFacture">-</div>
+          <div class="sub" id="kpiDeboursFactureHint">Débours présents sur les factures</div>
         </div>
       </div>
     </div>
@@ -1410,8 +1447,20 @@ document.addEventListener('click', (e) => {
     document.getElementById('kpiDevisTtc').textContent = money(k.devis.ttc);
     document.getElementById('kpiDevisCount').textContent = `${k.devis.cnt} devis`;
 
+    document.getElementById('kpiAvoTotal').textContent = money(k.avo.total);
+    document.getElementById('kpiAvoCount').textContent = `${k.avo.cnt} avoir(s)`;
+
     document.getElementById('kpiCaHt').textContent = money(k.caHtHorsDebours);
     document.getElementById('kpiCaHint').textContent = 'Hors frais de débours';
+
+    document.getElementById('kpiCaHtEncaisse').textContent = money(k.caHtEncaisse || 0);
+    document.getElementById('kpiCaHtEncaisseHint').textContent = 'Paiements ventilés hors débours';
+
+    document.getElementById('kpiDeboursEncaisse').textContent = money(k.deboursEncaisse || 0);
+    document.getElementById('kpiDeboursEncaisseHint').textContent = 'Part débours des paiements';
+
+    document.getElementById('kpiDeboursFacture').textContent = money(k.deboursFacture || 0);
+    document.getElementById('kpiDeboursFactureHint').textContent = 'Débours présents sur les factures';
 
 
     if (k.avgMonthly) {
