@@ -677,8 +677,8 @@ final class FormationController extends AbstractController
 
 
 
-    #[Route('/{id}/programme-pdf', name: 'programme_pdf', methods: ['GET'])]
-    public function programmePdf(Entite $entite, Formation $formation): Response
+    #[Route('/{id}/programme-complet-pdf', name: 'programme_complet_pdf', methods: ['GET'])]
+    public function programmeCompletPdf(Entite $entite, Formation $formation): Response
     {
         if ($formation->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createAccessDeniedException('Formation hors entité.');
@@ -686,7 +686,7 @@ final class FormationController extends AbstractController
 
         $nodes = $formation->getContentNodes()->toArray();
 
-        // On ne garde que les chapitres racines publiés
+        // Chapitres racines publiés
         $chapitres = array_values(array_filter($nodes, static function ($node) {
             return $node->getParent() === null && $node->isPublished();
         }));
@@ -695,14 +695,14 @@ final class FormationController extends AbstractController
             return [$a->getPosition(), $a->getId()] <=> [$b->getPosition(), $b->getId()];
         });
 
-        $html = $this->renderView('pdf/formation_programme_sommaire.html.twig', [
+        $html = $this->renderView('pdf/formation_programme_complet.html.twig', [
             'entite'    => $entite,
             'formation' => $formation,
             'chapitres' => $chapitres,
         ]);
 
         $filename = sprintf(
-            'programme-formation-%s.pdf',
+            'programme-complet-%s.pdf',
             preg_replace('/[^a-zA-Z0-9\-_]+/', '-', strtolower($formation->getSlug() ?: ('formation-' . $formation->getId())))
         );
 

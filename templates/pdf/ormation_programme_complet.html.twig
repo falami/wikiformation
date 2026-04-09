@@ -1,0 +1,543 @@
+{% set brand = {
+  primary:   entite.couleurPrincipal  |default('#1e3a5f'),
+  secondary: entite.couleurSecondaire |default('#4ba3ff'),
+  accent:    entite.couleurSecondaire |default('#d4a574'),
+  ink:       '#0f2336',
+  text:      '#1e2d3d',
+  muted:     '#5a6b7d',
+  line:      '#dce4ed',
+  soft:      '#f8fafc',
+  paper:     '#ffffff',
+  soft2:     '#f4f8fc'
+} %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Programme complet - {{ formation.titre }}</title>
+
+  <style>
+    @page { margin: 10mm 10mm 8mm 10mm; size: A4 portrait; }
+
+    body{
+      font-family: DejaVu Sans, Helvetica, Arial, sans-serif;
+      color: {{ brand.text }};
+      font-size: 10.2pt;
+      line-height: 1.48;
+    }
+
+    p{ margin: 0 0 8pt; }
+    strong{ color: {{ brand.ink }}; }
+    ul{ margin: 4pt 0 8pt 16pt; padding: 0; }
+    li{ margin: 0 0 4pt; }
+
+    .page{ padding: 0 1mm; }
+
+    .text-muted{ color: {{ brand.muted }}; }
+    .small{ font-size: 8.8pt; }
+    .mb-0{ margin-bottom: 0 !important; }
+    .mt-8{ margin-top: 8pt !important; }
+    .mt-12{ margin-top: 12pt !important; }
+
+    .header{
+      width:100%;
+      padding-bottom: 10pt;
+      margin-bottom: 12pt;
+      border-bottom: 1.5pt solid {{ brand.primary }};
+      page-break-inside: avoid;
+    }
+
+    .header-table{ width:100%; border-collapse: collapse; }
+    .header-left{ width:68%; vertical-align: top; padding-right: 12pt; }
+    .header-right{ width:32%; vertical-align: top; text-align:right; padding-top: 20pt; }
+
+    .logo{
+      height: 78pt;
+      width:auto;
+      margin-bottom: 4pt;
+    }
+
+    .brand-name{
+      font-size: 18pt;
+      font-weight: 800;
+      color: {{ brand.primary }};
+      margin-bottom: 4pt;
+      letter-spacing: -.2pt;
+    }
+
+    .brand-meta{
+      font-size: 9pt;
+      color: {{ brand.muted }};
+      line-height: 1.45;
+    }
+
+    .brand-meta p{ margin:0 0 2pt; }
+
+    .doc-badge{
+      display:inline-block;
+      background: {{ brand.primary }};
+      color:#fff;
+      font-weight:900;
+      font-size: 12pt;
+      letter-spacing: .9pt;
+      padding: 8pt 12pt;
+      border-radius: 6pt;
+      text-transform: uppercase;
+    }
+
+    .doc-meta{
+      margin-top: 8pt;
+      font-size: 9pt;
+      color: {{ brand.muted }};
+      line-height: 1.45;
+    }
+
+    .hero{
+      background: linear-gradient(135deg, {{ brand.primary }}, color-mix(in srgb, {{ brand.primary }} 70%, white 30%));
+      color: #fff;
+      border-radius: 10pt;
+      padding: 14pt 16pt;
+      margin-bottom: 12pt;
+      page-break-inside: avoid;
+    }
+
+    .hero-title{
+      font-size: 19pt;
+      font-weight: 900;
+      line-height: 1.2;
+      margin-bottom: 6pt;
+      color:#fff;
+    }
+
+    .hero-sub{
+      font-size: 10pt;
+      line-height: 1.55;
+      color: rgba(255,255,255,.95);
+    }
+
+    .chip{
+      display:inline-block;
+      padding: 3pt 7pt;
+      border-radius: 999pt;
+      background: rgba(255,255,255,.14);
+      color:#fff;
+      font-size: 8.5pt;
+      font-weight: 800;
+      margin-right: 4pt;
+      margin-top: 6pt;
+      border: 1pt solid rgba(255,255,255,.18);
+    }
+
+    .card{
+      background: {{ brand.paper }};
+      border: 1pt solid {{ brand.line }};
+      border-left: 3pt solid {{ brand.primary }};
+      border-radius: 8pt;
+      padding: 12pt 14pt;
+      margin-bottom: 10pt;
+      page-break-inside: avoid;
+    }
+
+    .card-soft{
+      background: {{ brand.soft }};
+      border-left-color: {{ brand.accent }};
+    }
+
+    .section-title{
+      font-size: 10pt;
+      font-weight: 900;
+      color: {{ brand.primary }};
+      text-transform: uppercase;
+      letter-spacing: .8pt;
+      margin: 0 0 10pt;
+      padding-bottom: 6pt;
+      border-bottom: 1pt solid #ebf1f6;
+    }
+
+    .grid-2{ width:100%; border-collapse: collapse; margin-bottom: 6pt; }
+    .grid-2 td{ width:50%; vertical-align: top; }
+    .grid-2 td:first-child{ padding-right: 6pt; }
+    .grid-2 td:last-child{ padding-left: 6pt; }
+
+    .info-block{ margin-bottom: 8pt; }
+    .info-label{
+      display:block;
+      font-size: 8.3pt;
+      font-weight: 800;
+      color: {{ brand.ink }};
+      text-transform: uppercase;
+      letter-spacing: .45pt;
+      margin-bottom: 3pt;
+    }
+    .info-content{
+      font-size: 9.7pt;
+      color: {{ brand.text }};
+      line-height: 1.5;
+    }
+
+    .badge-soft{
+      display:inline-block;
+      padding: 2pt 6pt;
+      border-radius: 999pt;
+      border: 1pt solid {{ brand.line }};
+      background: rgba(75,163,255,.08);
+      color: {{ brand.ink }};
+      font-weight: 800;
+      font-size: 8.5pt;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .program-card{
+      border: 1pt solid {{ brand.line }};
+      border-left: 3pt solid {{ brand.accent }};
+      border-radius: 8pt;
+      padding: 10pt 12pt;
+      margin-bottom: 10pt;
+      background: #fff;
+      page-break-inside: avoid;
+    }
+
+    .program-title{
+      font-size: 11pt;
+      font-weight: 900;
+      color: {{ brand.ink }};
+      margin-bottom: 5pt;
+    }
+
+    .program-meta{
+      font-size: 8.8pt;
+      color: {{ brand.muted }};
+      margin-bottom: 6pt;
+    }
+
+    .subnode{
+      margin-top: 8pt;
+      padding: 8pt 10pt;
+      border-left: 3pt solid {{ brand.primary }};
+      background: {{ brand.soft2 }};
+      border-radius: 6pt;
+      page-break-inside: avoid;
+    }
+
+    .subnode-title{
+      font-size: 9.8pt;
+      font-weight: 800;
+      color: {{ brand.ink }};
+      margin-bottom: 4pt;
+    }
+
+    .richtext{
+      margin-top: 4pt;
+      font-size: 9.5pt;
+      color: {{ brand.text }};
+      line-height: 1.55;
+    }
+
+    .richtext p:last-child{ margin-bottom:0; }
+
+    .footer-note{
+      margin-top: 10pt;
+      font-size: 8.7pt;
+      color: {{ brand.muted }};
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="header">
+      <table class="header-table">
+        <tr>
+          <td class="header-left">
+            {% if entite.logo %}
+              <img class="logo"
+                   src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}"
+                   alt="Logo {{ entite.nom|default('') }}">
+            {% endif %}
+
+            <div class="brand-name">{{ entite.nom|default('') }}</div>
+
+            <div class="brand-meta">
+              {% if entite.adresse %}<p>{{ entite.adresse }}</p>{% endif %}
+              <p>
+                {{ entite.codePostal|default('') }} {{ entite.ville|default('') }}
+                {% if entite.pays %} · {{ entite.pays }}{% endif %}
+              </p>
+              {% if entite.telephone or entite.email %}
+                <p>
+                  {{ entite.telephone|default('') }}
+                  {% if entite.telephone and entite.email %} · {% endif %}
+                  {{ entite.email|default('') }}
+                </p>
+              {% endif %}
+              {% if entite.siret or entite.numeroDeclarant %}
+                <p>
+                  {% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}
+                  {% if entite.siret and entite.numeroDeclarant is defined and entite.numeroDeclarant %} · {% endif %}
+                  {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %}NDA : {{ entite.numeroDeclarant }}{% endif %}
+                </p>
+              {% endif %}
+            </div>
+          </td>
+
+          <td class="header-right">
+            <div class="doc-badge">Programme complet</div>
+            <div class="doc-meta">
+              <div><strong>Date :</strong> {{ "now"|date('d/m/Y') }}</div>
+              <div><strong>Réf. formation :</strong> #{{ formation.id }}</div>
+              {% if formation.slug %}
+                <div><strong>Slug :</strong> {{ formation.slug }}</div>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="hero">
+      <div class="hero-title">{{ formation.titre }}</div>
+
+      {% if formation.description %}
+        <div class="hero-sub">{{ formation.description|striptags|raw }}</div>
+      {% else %}
+        <div class="hero-sub">
+          Programme détaillé de la formation, objectifs, public visé, prérequis, modalités pédagogiques et contenu pédagogique.
+        </div>
+      {% endif %}
+
+      <div>
+        {% if formation.niveau %}
+          <span class="chip">Niveau : {{ formation.niveau.label() }}</span>
+        {% endif %}
+        {% if formation.duree %}
+          <span class="chip">Durée : {{ formation.duree }} jour{% if formation.duree > 1 %}s{% endif %}</span>
+        {% endif %}
+        {% if formation.prixBaseCents %}
+          <span class="chip">Prix : {{ (formation.prixBaseCents / 100)|number_format(2, ',', ' ') }} €</span>
+        {% endif %}
+        {% if formation.categorie %}
+          <span class="chip">
+            Catégorie :
+            {% if formation.categorie.parent %}
+              {{ formation.categorie.parent.nom }} / {{ formation.categorie.nom }}
+            {% else %}
+              {{ formation.categorie.nom }}
+            {% endif %}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Fiche formation</div>
+
+      <table class="grid-2">
+        <tr>
+          <td>
+            <div class="info-block">
+              <span class="info-label">Intitulé</span>
+              <div class="info-content">{{ formation.titre ?: '-' }}</div>
+            </div>
+
+            <div class="info-block">
+              <span class="info-label">Niveau</span>
+              <div class="info-content">{{ formation.niveau ? formation.niveau.label() : '-' }}</div>
+            </div>
+
+            <div class="info-block">
+              <span class="info-label">Durée</span>
+              <div class="info-content">
+                {% if formation.duree %}
+                  {{ formation.duree }} jour{% if formation.duree > 1 %}s{% endif %}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info-block mb-0">
+              <span class="info-label">Prix de base</span>
+              <div class="info-content">
+                {% if formation.prixBaseCents %}
+                  {{ (formation.prixBaseCents / 100)|number_format(2, ',', ' ') }} €
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+          </td>
+
+          <td>
+            <div class="info-block">
+              <span class="info-label">Lieu</span>
+              <div class="info-content">
+                {% if formation.site %}
+                  <strong>{{ formation.site.nom|default('-') }}</strong><br>
+                  {{ formation.site.adresse|default('') }}<br>
+                  {{ (formation.site.codePostal|default('') ~ ' ' ~ formation.site.ville|default(''))|trim }}
+                {% elseif formation.adresse or formation.ville %}
+                  {{ formation.adresse|default('') }}<br>
+                  {{ (formation.codePostal|default('') ~ ' ' ~ formation.ville|default(''))|trim }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info-block">
+              <span class="info-label">Formateur</span>
+              <div class="info-content">
+                {% if formation.formateur and formation.formateur.utilisateur %}
+                  {{ formation.formateur.utilisateur.prenom ~ ' ' ~ formation.formateur.utilisateur.nom }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="info-block">
+              <span class="info-label">Financements</span>
+              <div class="info-content">
+                {% set financements = [] %}
+                {% if formation.financementIndividuel %}{% set financements = financements|merge(['Individuel']) %}{% endif %}
+                {% if formation.financementCpf %}{% set financements = financements|merge(['CPF']) %}{% endif %}
+                {% if formation.financementEntreprise %}{% set financements = financements|merge(['Entreprise']) %}{% endif %}
+                {% if formation.financementOpco %}{% set financements = financements|merge(['OPCO']) %}{% endif %}
+                {{ financements is not empty ? financements|join(' · ') : '-' }}
+              </div>
+            </div>
+
+            <div class="info-block mb-0">
+              <span class="info-label">Référence / note</span>
+              <div class="info-content">{{ formation.note ?: (formation.codeQualiopi ?: '-') }}</div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card card-soft">
+      <div class="section-title">Objectifs pédagogiques</div>
+      <div class="info-content">
+        {{ formation.objectifs ? formation.objectifs|nl2br : '-' }}
+      </div>
+    </div>
+
+    <table class="grid-2">
+      <tr>
+        <td>
+          <div class="card">
+            <div class="section-title">Public concerné</div>
+            <div class="info-content">
+              {{ formation.public ? formation.public|nl2br : '-' }}
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="card">
+            <div class="section-title">Prérequis</div>
+            <div class="info-content">
+              {{ formation.conditionPrealable ? formation.conditionPrealable|nl2br : '-' }}
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="card">
+      <div class="section-title">Méthodes et moyens pédagogiques</div>
+      <div class="info-content">
+        {% if formation.pedagogie %}
+          {{ formation.pedagogie|nl2br }}
+        {% else %}
+          -
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Modalités pratiques</div>
+      <div class="info-content">
+        {% if formation.modalitesPratiques %}
+          {{ formation.modalitesPratiques|nl2br }}
+        {% else %}
+          -
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Modalités d’évaluation</div>
+      <div class="info-content">
+        {% if formation.modalitesEvaluation %}
+          {{ formation.modalitesEvaluation|nl2br }}
+        {% else %}
+          -
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card card-soft">
+      <div class="section-title">Programme détaillé</div>
+
+      {% if chapitres is not empty %}
+        {% for chapitre in chapitres %}
+          <div class="program-card">
+            <div class="program-title">
+              {{ loop.index }}. {{ chapitre.titre }}
+              {% if chapitre.dureeMinutes %}
+                <span class="badge-soft" style="margin-left:6pt;">{{ chapitre.dureeMinutes }} min</span>
+              {% endif %}
+            </div>
+
+            {% if chapitre.blocks is defined and chapitre.blocks|length > 0 %}
+              {% for b in chapitre.blocks %}
+                {% if b.type is defined and (b.type.value ?? b.type) == 'richtext' and b.content %}
+                  <div class="richtext">
+                    {{ b.content|raw }}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+
+            {% set enfants = chapitre.children is defined ? chapitre.children : [] %}
+            {% if enfants and enfants|length > 0 %}
+              {% for sub in enfants %}
+                {% if sub.isPublished %}
+                  <div class="subnode">
+                    <div class="subnode-title">
+                      {{ loop.parent.loop.index }}.{{ loop.index }} {{ sub.titre }}
+                      {% if sub.dureeMinutes %}
+                        <span class="badge-soft" style="margin-left:6pt;">{{ sub.dureeMinutes }} min</span>
+                      {% endif %}
+                    </div>
+
+                    {% if sub.blocks is defined and sub.blocks|length > 0 %}
+                      {% for b in sub.blocks %}
+                        {% if b.type is defined and (b.type.value ?? b.type) == 'richtext' and b.content %}
+                          <div class="richtext">
+                            {{ b.content|raw }}
+                          </div>
+                        {% endif %}
+                      {% endfor %}
+                    {% endif %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="info-content">Aucun contenu pédagogique publié pour cette formation.</div>
+      {% endif %}
+    </div>
+
+    <div class="footer-note">
+      Ce programme est édité automatiquement depuis la fiche formation et le contenu pédagogique saisi dans la plateforme.
+    </div>
+
+  </div>
+</body>
+</html>
