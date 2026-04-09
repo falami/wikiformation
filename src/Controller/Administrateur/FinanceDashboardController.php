@@ -198,6 +198,8 @@ final class FinanceDashboardController extends AbstractController
                 COALESCE(SUM(fa.montantTtcCents),0) as ttc')
       ->getQuery()->getSingleResult();
 
+    $caHtHorsDebours = (int) $facKpi['ht'];
+
     $facMonthlyRows = (clone $facBase)
       ->select('fa.dateEmission as dt, fa.montantTtcCents as ttc')
       ->getQuery()->getArrayResult();
@@ -318,7 +320,7 @@ final class FinanceDashboardController extends AbstractController
       'filters' => [
         'dateStart' => $f['start']->format('Y-m-d'),
         'dateEnd'   => $f['end']->format('Y-m-d'),
-        'monthsCovered' => $monthsCovered, // 👈 pratique pour afficher "sur X mois"
+        'monthsCovered' => $monthsCovered,
       ],
       'kpis' => [
         'dep' => $depKpi,
@@ -326,16 +328,14 @@ final class FinanceDashboardController extends AbstractController
         'devis' => $devisKpi,
         'pay' => $payKpi,
         'avo' => $avoKpi,
+        'caHtHorsDebours' => $caHtHorsDebours,
         'netTtc' => $net,
         'cashGap' => $cashGap,
-
-        // ✅ nouveaux KPI lissés / mois
         'avgMonthly' => [
           'depTtc' => $depAvgMonthlyTtc,
           'pay' => $payAvgMonthly,
           'facTtc' => $facAvgMonthlyTtc,
           'devisTtc' => $devisAvgMonthlyTtc,
-          // optionnel : aussi net/cashgap lissés
           'netTtc' => $avgMonthly($net),
           'cashGap' => $avgMonthly($cashGap),
         ],
