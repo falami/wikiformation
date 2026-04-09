@@ -278,30 +278,48 @@ final class FinanceDashboardController extends AbstractController
     $deboursEncaisse = (int) ($payVentKpi['deboursEncaisse'] ?? 0);
 
 
-    $facDeboursKpi = $em->createQueryBuilder()
-      ->select('COALESCE(SUM(lf.qte * lf.puHtCents - 
-          CASE
-            WHEN lf.remiseMontantCents IS NOT NULL AND lf.remiseMontantCents > 0 THEN lf.remiseMontantCents
-            WHEN lf.remisePourcent IS NOT NULL AND lf.remisePourcent > 0 THEN ROUND((lf.qte * lf.puHtCents) * (lf.remisePourcent / 100))
-            ELSE 0
-          END
-        ), 0) as deboursFacture')
+    $facDeboursRowsQb = $em->createQueryBuilder()
+      ->select('
+        lf.qte as qte,
+        lf.puHtCents as puHtCents,
+        lf.remiseMontantCents as remiseMontantCents,
+        lf.remisePourcent as remisePourcent
+      ')
       ->from(\App\Entity\LigneFacture::class, 'lf')
       ->innerJoin('lf.facture', 'fa')
       ->andWhere('fa.entite = :e')->setParameter('e', $entite)
       ->andWhere('fa.dateEmission BETWEEN :start AND :end')
-      ->andWhere('lf.isDebours = 1')
+      ->andWhere('lf.isDebours = true')
       ->setParameter('start', $f['start'])
       ->setParameter('end', $f['end']);
 
     if ($f['devise']) {
-      $facDeboursKpi->andWhere('fa.devise = :dev')->setParameter('dev', $f['devise']);
+      $facDeboursRowsQb->andWhere('fa.devise = :dev')->setParameter('dev', $f['devise']);
     }
     if ($f['factureStatus']) {
-      $facDeboursKpi->andWhere('fa.status = :st')->setParameter('st', $f['factureStatus']);
+      $facDeboursRowsQb->andWhere('fa.status = :st')->setParameter('st', $f['factureStatus']);
     }
 
-    $deboursFacture = (int) ($facDeboursKpi->getQuery()->getSingleScalarResult() ?? 0);
+    $facDeboursRows = $facDeboursRowsQb->getQuery()->getArrayResult();
+
+    $deboursFacture = 0;
+    foreach ($facDeboursRows as $row) {
+      $qte = (int) ($row['qte'] ?? 0);
+      $pu = (int) ($row['puHtCents'] ?? 0);
+      $base = $qte * $pu;
+
+      $remiseMontant = $row['remiseMontantCents'] !== null ? (int) $row['remiseMontantCents'] : null;
+      $remisePourcent = $row['remisePourcent'] !== null ? (float) $row['remisePourcent'] : null;
+
+      $remise = 0;
+      if ($remiseMontant !== null && $remiseMontant > 0) {
+        $remise = min($remiseMontant, $base);
+      } elseif ($remisePourcent !== null && $remisePourcent > 0) {
+        $remise = (int) round($base * ($remisePourcent / 100));
+      }
+
+      $deboursFacture += max(0, $base - $remise);
+    }
 
     $payMonthlyRows = (clone $payBase)
       ->select('pa.datePaiement as dt, pa.montantCents as total')
