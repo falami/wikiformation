@@ -111,13 +111,238 @@
     .cardx-title{ margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink); display:flex; align-items:center; gap:.6rem; }
     .chip{ font-size:.78rem; padding:.25rem .55rem; border-radius:999px; background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent); border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke)); color: var(--muted); white-space:nowrap; }
 
-    .kpi-grid{ display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
-    .kpi{ grid-column: span 3; padding: 14px 14px; border: 1px solid var(--stroke); border-radius: 18px;
-      background: white;
+    /* ================= KPI ULTRA PREMIUM ================= */
+    .kpi-section{
+      position: relative;
+      overflow: hidden;
     }
-    .kpi .label{ color: var(--muted); font-size: .85rem; }
-    .kpi .value{ font-weight: 900; font-size: 1.25rem; color: var(--ink); letter-spacing:-.01em;}
-    .kpi .sub{ color: var(--muted); font-size: .82rem; margin-top: 2px;}
+
+    .kpi-section .cardx-h{
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.32)),
+        linear-gradient(90deg,
+          color-mix(in srgb, var(--theme-color-principal) 8%, #fff),
+          color-mix(in srgb, var(--theme-color-secondaire) 8%, #fff)
+        );
+      backdrop-filter: blur(8px);
+    }
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0,1fr));
+      gap: 16px;
+    }
+
+    .kpi{
+      --kpi-accent: var(--theme-color-principal);
+      --kpi-accent-soft: color-mix(in srgb, var(--kpi-accent) 14%, #fff);
+      --kpi-accent-line: color-mix(in srgb, var(--kpi-accent) 24%, var(--stroke));
+
+      position: relative;
+      grid-column: span 3;
+      padding: 16px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,.55);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.88)),
+        radial-gradient(220px 90px at 100% 0%, color-mix(in srgb, var(--kpi-accent) 10%, transparent), transparent 70%);
+      box-shadow:
+        0 14px 34px rgba(15,23,42,.08),
+        inset 0 1px 0 rgba(255,255,255,.75);
+      overflow: hidden;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .kpi::before{
+      content:"";
+      position:absolute;
+      inset:0 auto 0 0;
+      width: 5px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--kpi-accent), color-mix(in srgb, var(--kpi-accent) 55%, #fff));
+      opacity: .95;
+    }
+
+    .kpi::after{
+      content:"";
+      position:absolute;
+      top:-30%;
+      right:-10%;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--kpi-accent) 14%, transparent), transparent 68%);
+      pointer-events:none;
+    }
+
+    .kpi:hover{
+      transform: translateY(-2px);
+      border-color: var(--kpi-accent-line);
+      box-shadow:
+        0 18px 40px rgba(15,23,42,.12),
+        0 0 0 1px color-mix(in srgb, var(--kpi-accent) 10%, transparent),
+        inset 0 1px 0 rgba(255,255,255,.85);
+    }
+
+    .kpi-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .kpi-meta{
+      min-width: 0;
+    }
+
+    .kpi .label{
+      margin:0;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      line-height: 1.25;
+    }
+
+    .kpi-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      margin-top: .4rem;
+      padding: .28rem .58rem;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 800;
+      color: color-mix(in srgb, var(--kpi-accent) 68%, #111);
+      background: var(--kpi-accent-soft);
+      border: 1px solid color-mix(in srgb, var(--kpi-accent) 16%, transparent);
+      white-space: nowrap;
+    }
+
+    .kpi-icon{
+      flex: 0 0 auto;
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 1.05rem;
+      color: #fff;
+      background:
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--kpi-accent) 88%, #fff 12%),
+          color-mix(in srgb, var(--kpi-accent) 62%, #000 12%)
+        );
+      box-shadow:
+        0 10px 24px color-mix(in srgb, var(--kpi-accent) 28%, transparent),
+        inset 0 1px 0 rgba(255,255,255,.35);
+    }
+
+    .kpi-body{
+      display:flex;
+      flex-direction:column;
+      gap:.45rem;
+    }
+
+    .kpi .value{
+      margin:0;
+      font-size: clamp(1.35rem, 1.1rem + .8vw, 2rem);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -.03em;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi .sub{
+      margin:0;
+      color: var(--muted);
+      font-size: .84rem;
+      line-height: 1.4;
+      min-height: 2.2em;
+    }
+
+    .kpi .sub strong{
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .kpi-foot{
+      margin-top: .8rem;
+      padding-top: .8rem;
+      border-top: 1px dashed color-mix(in srgb, var(--kpi-accent) 18%, var(--stroke));
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+    }
+
+    .kpi-trend{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      font-size: .75rem;
+      font-weight: 800;
+      color: color-mix(in srgb, var(--kpi-accent) 65%, #0f172a);
+    }
+
+    .kpi-hint{
+      font-size: .73rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* Variantes couleurs */
+    .kpi--gold{ --kpi-accent: #d4a017; }
+    .kpi--emerald{ --kpi-accent: #0f9f6e; }
+    .kpi--blue{ --kpi-accent: #2563eb; }
+    .kpi--violet{ --kpi-accent: #7c3aed; }
+    .kpi--rose{ --kpi-accent: #e11d48; }
+    .kpi--orange{ --kpi-accent: #f97316; }
+    .kpi--slate{ --kpi-accent: #475569; }
+    .kpi--danger{ --kpi-accent: #dc3545; }
+
+    /* Variante hero spéciale CA */
+    .kpi--hero{
+      background:
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--kpi-accent) 10%, #fff 90%),
+          rgba(255,255,255,.96)
+        );
+      border-color: color-mix(in srgb, var(--kpi-accent) 20%, rgba(255,255,255,.65));
+      box-shadow:
+        0 18px 40px rgba(15,23,42,.10),
+        0 0 0 1px color-mix(in srgb, var(--kpi-accent) 10%, transparent),
+        inset 0 1px 0 rgba(255,255,255,.9);
+    }
+
+    .kpi--hero .value{
+      font-size: clamp(1.55rem, 1.2rem + 1vw, 2.25rem);
+    }
+
+    /* Responsive */
+    @media (max-width: 1399px){
+      .kpi{ grid-column: span 4; }
+    }
+    @media (max-width: 991px){
+      .kpi{ grid-column: span 6; }
+    }
+    @media (max-width: 768px){
+      .kpi-grid{ gap: 12px; }
+      .kpi{
+        grid-column: span 12;
+        border-radius: 18px;
+        padding: 14px;
+      }
+      .kpi-icon{
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+      }
+    }
 
     @media (max-width: 1200px){ .kpi{ grid-column: span 4; } }
     @media (max-width: 768px){ .kpi{ grid-column: span 12; } .hero{ border-radius:16px; } }
@@ -554,110 +779,88 @@
 
   </div>
 
-  {# ===== KPI ===== #}
-  <div class="cardx mb-4">
+  <div class="cardx mb-4 kpi-section">
     <div class="cardx-h">
-      <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Comptabilité</h5>
-      <span class="chip">Live</span>
+      <h5 class="cardx-title">
+        <i class="bi bi-bank2 text-warning"></i>
+        Comptabilité
+      </h5>
+      <span class="chip">Vue globale</span>
     </div>
+
     <div class="p-3 p-md-4">
       <div class="kpi-grid">
 
-        <div class="kpi">
-          <div class="label">Devis (pipeline TTC)</div>
-          <div class="value" id="kpiDevisTtc">-</div>
-          <div class="sub" id="kpiDevisCount">-</div>
-        </div>
-        <div class="kpi">
-          <div class="label">Factures (TTC)</div>
-          <div class="value" id="kpiFacTtc">-</div>
-          <div class="sub" id="kpiFacCount">-</div>
-        </div>
-        <div class="kpi">
-          <div class="label">Paiements encaissés</div>
-          <div class="value" id="kpiPayTotal">-</div>
-          <div class="sub" id="kpiPayCount">-</div>
-        </div>
-        <div class="kpi">
-          <div class="label">Avoirs (TTC)</div>
-          <div class="value" id="kpiAvoTotal">-</div>
-          <div class="sub" id="kpiAvoCount">-</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-
-  {# ===== KPI ===== #}
-  <div class="cardx mb-4">
-    <div class="cardx-h">
-      <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Chiffre d'affaire</h5>
-      <span class="chip">Live</span>
-    </div>
-    <div class="p-3 p-md-4">
-      <div class="kpi-grid">
-
-        <div class="kpi">
-          <div class="label">CA à l’encaissement (HT)</div>
-          <div class="value" id="kpiCaHtEncaisse">-</div>
-          <div class="sub" id="kpiCaHtEncaisseHint">Paiements ventilés hors débours</div>
+        <div class="kpi kpi--violet">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Devis (pipeline TTC)</p>
+              <span class="kpi-badge"><i class="bi bi-file-earmark-text"></i> Pipeline</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-journal-text"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiDevisTtc">-</div>
+            <div class="sub" id="kpiDevisCount">-</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-bar-chart-line"></i> Prospection</span>
+            <span class="kpi-hint">TTC</span>
+          </div>
         </div>
 
-        <div class="kpi">
-          <div class="label">Frais de débours encaissés</div>
-          <div class="value" id="kpiDeboursEncaisse">-</div>
-          <div class="sub" id="kpiDeboursEncaisseHint">Part débours des paiements</div>
+        <div class="kpi kpi--blue">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Factures émises</p>
+              <span class="kpi-badge"><i class="bi bi-receipt"></i> Production</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-receipt-cutoff"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiFacTtc">-</div>
+            <div class="sub" id="kpiFacCount">-</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-check2-square"></i> Facturation</span>
+            <span class="kpi-hint">TTC</span>
+          </div>
         </div>
 
-        <div class="kpi">
-          <div class="label">CA avant encaissement (HT)</div>
-          <div class="value" id="kpiCaHt">-</div>
-          <div class="sub" id="kpiCaHint">Hors frais de débours</div>
+        <div class="kpi kpi--emerald">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Paiements encaissés</p>
+              <span class="kpi-badge"><i class="bi bi-cash-stack"></i> Trésorerie</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-cash-coin"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiPayTotal">-</div>
+            <div class="sub" id="kpiPayCount">-</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-arrow-down-circle"></i> Encaissement</span>
+            <span class="kpi-hint">TTC</span>
+          </div>
         </div>
 
-        <div class="kpi">
-          <div class="label">Frais de débours facturés</div>
-          <div class="value" id="kpiDeboursFacture">-</div>
-          <div class="sub" id="kpiDeboursFactureHint">Débours présents sur les factures</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-
-
-  {# ===== KPI ===== #}
-  <div class="cardx mb-4">
-    <div class="cardx-h">
-      <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Moyenne par mois sur 12 mois</h5>
-      <span class="chip">Live</span>
-    </div>
-    <div class="p-3 p-md-4">
-      <div class="kpi-grid">
-        <div class="kpi">
-          <div class="label">Dépenses moy./mois</div>
-          <div class="value" id="kpiDepAvgMonth">-</div>
-          <div class="sub" id="kpiAvgHint">-</div>
-        </div>
-
-        <div class="kpi">
-          <div class="label">Factures moy./mois</div>
-          <div class="value" id="kpiFacAvgMonth">-</div>
-          <div class="sub">Lissé sur la période</div>
-        </div>
-
-        <div class="kpi">
-          <div class="label">Paiements moy./mois</div>
-          <div class="value" id="kpiPayAvgMonth">-</div>
-          <div class="sub">Encaissements</div>
-        </div>
-
-        <div class="kpi">
-          <div class="label">Devis moy./mois</div>
-          <div class="value" id="kpiDevisAvgMonth">-</div>
-          <div class="sub">Pipeline</div>
+        <div class="kpi kpi--orange">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Avoirs</p>
+              <span class="kpi-badge"><i class="bi bi-arrow-counterclockwise"></i> Correctif</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-arrow-counterclockwise"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiAvoTotal">-</div>
+            <div class="sub" id="kpiAvoCount">-</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-exclamation-circle"></i> Ajustements</span>
+            <span class="kpi-hint">TTC</span>
+          </div>
         </div>
 
       </div>
@@ -665,33 +868,235 @@
   </div>
 
 
-    {# ===== KPI ===== #}
-  <div class="cardx mb-4">
+
+  <div class="cardx mb-4 kpi-section">
     <div class="cardx-h">
-      <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Indicateurs</h5>
-      <span class="chip">Live</span>
+      <h5 class="cardx-title">
+        <i class="bi bi-gem text-warning"></i>
+        Chiffre d'affaire
+      </h5>
+      <span class="chip">Pilotage premium</span>
     </div>
+
     <div class="p-3 p-md-4">
       <div class="kpi-grid">
-        <div class="kpi">
-          <div class="label">Dépenses (TTC)</div>
-          <div class="value" id="kpiDepTtc">-</div>
-          <div class="sub" id="kpiDepCount">-</div>
+
+        <div class="kpi kpi--hero kpi--emerald">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">CA à l’encaissement (HT)</p>
+              <span class="kpi-badge"><i class="bi bi-wallet2"></i> Réel</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiCaHtEncaisse">-</div>
+            <div class="sub" id="kpiCaHtEncaisseHint">Paiements ventilés hors débours</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-check-circle"></i> Performance encaissée</span>
+            <span class="kpi-hint">HT</span>
+          </div>
         </div>
-        <div class="kpi">
-          <div class="label">TVA déductible</div>
-          <div class="value" id="kpiTvaDed">-</div>
-          <div class="sub">Selon % déductible</div>
+
+        <div class="kpi kpi--hero kpi--blue">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">CA avant encaissement (HT)</p>
+              <span class="kpi-badge"><i class="bi bi-hourglass-split"></i> Émis</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-currency-euro"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiCaHt">-</div>
+            <div class="sub" id="kpiCaHint">Hors frais de débours</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-receipt"></i> Facturation nette</span>
+            <span class="kpi-hint">HT</span>
+          </div>
         </div>
-        <div class="kpi">
-          <div class="label">Résultat (Factures - Dépenses)</div>
-          <div class="value" id="kpiNet">-</div>
-          <div class="sub">Sur la période</div>
+
+        <div class="kpi kpi--gold">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Frais de débours encaissés</p>
+              <span class="kpi-badge"><i class="bi bi-box-arrow-in-down"></i> Refacturé</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-briefcase"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiDeboursEncaisse">-</div>
+            <div class="sub" id="kpiDeboursEncaisseHint">Part débours des paiements</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-arrow-down-right"></i> Encaissement débours</span>
+            <span class="kpi-hint">TTC/ventilé</span>
+          </div>
         </div>
-        <div class="kpi">
-          <div class="label">Cash gap (Paiements - Dépenses)</div>
-          <div class="value" id="kpiCashGap">-</div>
-          <div class="sub">Trésorerie nette</div>
+
+        <div class="kpi kpi--slate">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Frais de débours facturés</p>
+              <span class="kpi-badge"><i class="bi bi-files"></i> Suivi</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-folder2-open"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiDeboursFacture">-</div>
+            <div class="sub" id="kpiDeboursFactureHint">Débours présents sur les factures</div>
+          </div>
+          <div class="kpi-foot">
+            <span class="kpi-trend"><i class="bi bi-arrow-left-right"></i> Refacturation</span>
+            <span class="kpi-hint">Suivi</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <div class="cardx mb-4 kpi-section">
+    <div class="cardx-h">
+      <h5 class="cardx-title">
+        <i class="bi bi-calendar3 text-warning"></i>
+        Moyenne par mois
+      </h5>
+      <span class="chip">12 mois glissants</span>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <div class="kpi-grid">
+
+        <div class="kpi kpi--danger">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Dépenses moy./mois</p>
+              <span class="kpi-badge"><i class="bi bi-wallet"></i> Charges</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-credit-card-2-front"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiDepAvgMonth">-</div>
+            <div class="sub" id="kpiAvgHint">-</div>
+          </div>
+        </div>
+
+        <div class="kpi kpi--blue">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Factures moy./mois</p>
+              <span class="kpi-badge"><i class="bi bi-receipt-cutoff"></i> Émises</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-file-earmark-bar-graph"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiFacAvgMonth">-</div>
+            <div class="sub">Lissé sur la période</div>
+          </div>
+        </div>
+
+        <div class="kpi kpi--emerald">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Paiements moy./mois</p>
+              <span class="kpi-badge"><i class="bi bi-cash-coin"></i> Encaissements</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-piggy-bank"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiPayAvgMonth">-</div>
+            <div class="sub">Encaissements</div>
+          </div>
+        </div>
+
+        <div class="kpi kpi--violet">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Devis moy./mois</p>
+              <span class="kpi-badge"><i class="bi bi-journal-richtext"></i> Pipeline</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-stars"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiDevisAvgMonth">-</div>
+            <div class="sub">Pipeline</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <div class="cardx mb-4 kpi-section">
+    <div class="cardx-h">
+      <h5 class="cardx-title">
+        <i class="bi bi-activity text-warning"></i>
+        Indicateurs
+      </h5>
+      <span class="chip">Analyse financière</span>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <div class="kpi-grid">
+
+        <div class="kpi kpi--danger">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Dépenses (TTC)</p>
+              <span class="kpi-badge"><i class="bi bi-box-seam"></i> Sorties</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-cart-x"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiDepTtc">-</div>
+            <div class="sub" id="kpiDepCount">-</div>
+          </div>
+        </div>
+
+        <div class="kpi kpi--gold">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">TVA déductible</p>
+              <span class="kpi-badge"><i class="bi bi-percent"></i> Fiscalité</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-calculator"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiTvaDed">-</div>
+            <div class="sub">Selon % déductible</div>
+          </div>
+        </div>
+
+        <div class="kpi kpi--emerald">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Résultat</p>
+              <span class="kpi-badge"><i class="bi bi-graph-up"></i> Rentabilité</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-trophy"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiNet">-</div>
+            <div class="sub">Factures - Dépenses</div>
+          </div>
+        </div>
+
+        <div class="kpi kpi--blue">
+          <div class="kpi-head">
+            <div class="kpi-meta">
+              <p class="label">Cash gap</p>
+              <span class="kpi-badge"><i class="bi bi-water"></i> Trésorerie</span>
+            </div>
+            <div class="kpi-icon"><i class="bi bi-bank"></i></div>
+          </div>
+          <div class="kpi-body">
+            <div class="value" id="kpiCashGap">-</div>
+            <div class="sub">Paiements - Dépenses</div>
+          </div>
         </div>
 
       </div>
