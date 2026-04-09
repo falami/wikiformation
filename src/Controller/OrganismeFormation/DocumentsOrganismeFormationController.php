@@ -16,7 +16,7 @@ use App\Security\Permission\TenantPermission;
 use App\Service\FileUploader;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\{Request, JsonResponse, Response};
+use Symfony\Component\HttpFoundation\{Request, JsonResponse, Response, ResponseHeaderBag};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -47,15 +47,26 @@ final class DocumentsOrganismeFormationController extends AbstractController
         $draw   = $request->request->getInt('draw', 1);
         $start  = max(0, $request->request->getInt('start', 0));
         $length = $request->request->getInt('length', 10);
-        if ($length <= 0) $length = 10;
+        if ($length <= 0) {
+            $length = 10;
+        }
 
-        $searchV = trim((string)(($request->request->all('search')['value'] ?? '') ?: ''));
+        $searchV = trim((string) (($request->request->all('search')['value'] ?? '') ?: ''));
         $order   = $request->request->all('order') ?? [];
 
-        $orderColIdx = isset($order[0]['column']) ? (int)$order[0]['column'] : 0;
-        $orderDir    = (isset($order[0]['dir']) && strtolower((string)$order[0]['dir']) === 'asc') ? 'ASC' : 'DESC';
+        $orderColIdx = isset($order[0]['column']) ? (int) $order[0]['column'] : 0;
+        $orderDir    = (isset($order[0]['dir']) && strtolower((string) $order[0]['dir']) === 'asc') ? 'ASC' : 'DESC';
 
         return [$draw, $start, $length, $searchV, $orderColIdx, $orderDir];
+    }
+
+    private function resolveSessionPiecePath(SessionPiece $piece): string
+    {
+        $filename = basename((string) $piece->getFilename());
+
+        return rtrim((string) $this->getParameter('session_piece_dir'), '/\\')
+            . DIRECTORY_SEPARATOR
+            . $filename;
     }
 
     #[Route('', name: 'index', methods: ['GET'])]
@@ -77,6 +88,7 @@ final class DocumentsOrganismeFormationController extends AbstractController
 
         $typeFilter = (string) $request->request->get('typeFilter', 'all');
         $validFilter = (string) $request->request->get('validFilter', 'all');
+        $sessionFilter = $request->request->getInt('sessionId', 0);
 
         $map = [
             0 => 'sp.uploadedAt',
@@ -91,10 +103,15 @@ final class DocumentsOrganismeFormationController extends AbstractController
             ->andWhere('sp.entite = :entite')->setParameter('entite', $entite)
             ->andWhere('s.organismeFormation = :of')->setParameter('of', $of);
 
+        if ($sessionFilter > 0) {
+            $qb->andWhere('s.id = :sid')->setParameter('sid', $sessionFilter);
+        }
+
         $recordsTotal = (int) (clone $qb)
             ->select('COUNT(DISTINCT sp.id)')
             ->resetDQLPart('orderBy')
-            ->getQuery()->getSingleScalarResult();
+            ->getQuery()
+            ->getSingleScalarResult();
 
         if ($searchV !== '') {
             $qb->andWhere('(sp.filename LIKE :s OR s.code LIKE :s)')
@@ -114,7 +131,8 @@ final class DocumentsOrganismeFormationController extends AbstractController
         $recordsFiltered = (int) (clone $qb)
             ->select('COUNT(DISTINCT sp.id)')
             ->resetDQLPart('orderBy')
-            ->getQuery()->getSingleScalarResult();
+            ->getQuery()
+            ->getSingleScalarResult();
 
         $orderBy = $map[$orderColIdx] ?? 'sp.uploadedAt';
 
@@ -130,28 +148,41 @@ final class DocumentsOrganismeFormationController extends AbstractController
             $session = $sp->getSession();
             $sessionLabel = $session?->getCode() ?: ('Session #' . $session?->getId());
 
-            $typeLabel = method_exists($sp->getType(), 'label')
-                ? $sp->getType()->label()
-                : (method_exists($sp->getType(), 'value') ? $sp->getType()->value : '—');
+            $type = $sp->getType();
+            $typeLabel = $type
+                ? (method_exists($type, 'label') ? $type->label() : (method_exists($type, 'value') ? $type->value : '—'))
+                : '—';
 
-            $url = '/uploads/session-pieces/' . ltrim($sp->getFilename(), '/');
+            $viewUrl = $this->generateUrl('app_of_documents_session_piece_view', [
+                'entite' => $entite->getId(),
+                'id' => $sp->getId(),
+            ]);
+
+            $downloadUrl = $this->generateUrl('app_of_documents_session_piece_download', [
+                'entite' => $entite->getId(),
+                'id' => $sp->getId(),
+            ]);
 
             $data[] = [
                 'date' => $sp->getUploadedAt()?->format('d/m/Y H:i') ?? '—',
-                'session' => htmlspecialchars($sessionLabel),
-                'formation' => htmlspecialchars($session?->getFormation()?->getTitre() ?? $session?->getFormationIntituleLibre() ?? '—'),
-                'type' => '<span class="badge bg-light text-dark">' . htmlspecialchars($typeLabel) . '</span>',
-                'fichier' => htmlspecialchars($sp->getFilename()),
+                'session' => htmlspecialchars($sessionLabel, ENT_QUOTES),
+                'formation' => htmlspecialchars($session?->getFormation()?->getTitre() ?? $session?->getFormationIntituleLibre() ?? '—', ENT_QUOTES),
+                'type' => '<span class="badge bg-light text-dark">' . htmlspecialchars((string) $typeLabel, ENT_QUOTES) . '</span>',
+                'fichier' => htmlspecialchars($sp->getFilename(), ENT_QUOTES),
                 'statut' => $sp->isValide()
                     ? '<span class="badge bg-success-subtle text-success">Validé</span>'
                     : '<span class="badge bg-warning-subtle text-warning">En attente</span>',
                 'actions' => sprintf(
-                    '<div class="d-flex gap-2 justify-content-end">
-                        <a class="btn btn-sm btn-outline-secondary" href="%s" target="_blank">
-                            <i class="bi bi-file-earmark-arrow-down"></i> Ouvrir
+                    '<div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <a class="btn btn-sm btn-outline-primary" href="%s" target="_blank">
+                            <i class="bi bi-eye"></i> Voir
+                        </a>
+                        <a class="btn btn-sm btn-outline-secondary" href="%s">
+                            <i class="bi bi-download"></i> Télécharger
                         </a>
                     </div>',
-                    htmlspecialchars($url, ENT_QUOTES)
+                    htmlspecialchars($viewUrl, ENT_QUOTES),
+                    htmlspecialchars($downloadUrl, ENT_QUOTES)
                 ),
             ];
         }
@@ -167,23 +198,46 @@ final class DocumentsOrganismeFormationController extends AbstractController
     #[Route('/upload', name: 'upload', methods: ['POST'])]
     public function upload(Entite $entite, EM $em, Request $request): Response
     {
-        $this->getOrganismeFormationUserOrFail();
+        $of = $this->getOrganismeFormationUserOrFail();
 
         $piece = new SessionPiece();
-        $form = $this->createForm(SessionPieceUploadType::class, $piece, [
-            'entite' => $entite,
-        ]);
+        $form = $this->createForm(SessionPieceUploadType::class, $piece);
         $form->handleRequest($request);
+
+        $sessionId = $request->request->getInt('session_id', 0);
 
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var Utilisateur $user */
             $user = $this->getUser();
+
+            /** @var Session|null $session */
+            $session = null;
+            if ($sessionId > 0) {
+                $session = $em->getRepository(Session::class)->find($sessionId);
+            }
+
+            if (!$session) {
+                $this->addFlash('danger', 'Aucune session valide n’a été fournie pour ce document.');
+
+                return $this->redirectToRoute('app_of_dashboard', [
+                    'entite' => $entite->getId(),
+                ]);
+            }
+
+            if ($session->getEntite()?->getId() !== $entite->getId()) {
+                throw $this->createAccessDeniedException();
+            }
+
+            if ($session->getOrganismeFormation()?->getId() !== $of->getId()) {
+                throw $this->createAccessDeniedException();
+            }
 
             $file = $form->get('file')->getData();
 
             if ($file) {
                 $stored = $this->uploader->upload($file, 'session_pieces');
 
+                $piece->setSession($session);
                 $piece->setEntite($entite);
                 $piece->setCreateur($user);
                 $piece->setFilename($stored['filename']);
@@ -201,5 +255,60 @@ final class DocumentsOrganismeFormationController extends AbstractController
         return $this->redirectToRoute('app_of_dashboard', [
             'entite' => $entite->getId(),
         ]);
+    }
+
+    #[Route('/session-piece/{id}/view', name: 'session_piece_view', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function sessionPieceView(Entite $entite, SessionPiece $piece): Response
+    {
+        $of = $this->getOrganismeFormationUserOrFail();
+
+        if ($piece->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        $session = $piece->getSession();
+        if (!$session || $session->getOrganismeFormation()?->getId() !== $of->getId()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $filename = basename((string) $piece->getFilename());
+        $path = $this->resolveSessionPiecePath($piece);
+
+        if (!is_file($path)) {
+            throw $this->createNotFoundException(sprintf('Fichier introuvable : %s', $filename));
+        }
+
+        return $this->file(
+            $path,
+            $filename,
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            [
+                'Content-Type' => $piece->getMimeType() ?: 'application/octet-stream',
+            ]
+        );
+    }
+
+    #[Route('/session-piece/{id}/download', name: 'session_piece_download', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function sessionPieceDownload(Entite $entite, SessionPiece $piece): Response
+    {
+        $of = $this->getOrganismeFormationUserOrFail();
+
+        if ($piece->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        $session = $piece->getSession();
+        if (!$session || $session->getOrganismeFormation()?->getId() !== $of->getId()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $filename = basename((string) $piece->getFilename());
+        $path = $this->resolveSessionPiecePath($piece);
+
+        if (!is_file($path)) {
+            throw $this->createNotFoundException(sprintf('Fichier introuvable : %s', $filename));
+        }
+
+        return $this->file($path, $filename);
     }
 }

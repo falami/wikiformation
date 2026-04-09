@@ -24,6 +24,7 @@ use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Form\Administrateur\CategorieType;
 use App\Repository\CategorieRepository;
+use App\Service\Pdf\PdfManager;
 
 
 
@@ -38,6 +39,7 @@ final class FormationController extends AbstractController
         private FileUploader $fileUploader,
         private FormationCloner $formationCloner,
         private EntityManagerInterface $em,
+        private PdfManager $pdfManager,
     ) {}
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Entite $entite): Response
@@ -671,5 +673,39 @@ final class FormationController extends AbstractController
         return $this->redirectToRoute('categorie_index', [
             'entite' => $entite->getId(),
         ]);
+    }
+
+
+
+    #[Route('/{id}/programme-pdf', name: 'programme_pdf', methods: ['GET'])]
+    public function programmePdf(Entite $entite, Formation $formation): Response
+    {
+        if ($formation->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createAccessDeniedException('Formation hors entité.');
+        }
+
+        $nodes = $formation->getContentNodes()->toArray();
+
+        // On ne garde que les chapitres racines publiés
+        $chapitres = array_values(array_filter($nodes, static function ($node) {
+            return $node->getParent() === null && $node->isPublished();
+        }));
+
+        usort($chapitres, static function ($a, $b) {
+            return [$a->getPosition(), $a->getId()] <=> [$b->getPosition(), $b->getId()];
+        });
+
+        $html = $this->renderView('pdf/formation_programme_sommaire.html.twig', [
+            'entite'    => $entite,
+            'formation' => $formation,
+            'chapitres' => $chapitres,
+        ]);
+
+        $filename = sprintf(
+            'programme-formation-%s.pdf',
+            preg_replace('/[^a-zA-Z0-9\-_]+/', '-', strtolower($formation->getSlug() ?: ('formation-' . $formation->getId())))
+        );
+
+        return $this->pdfManager->streamPdfFromHtml($html, $filename, 'portrait');
     }
 }

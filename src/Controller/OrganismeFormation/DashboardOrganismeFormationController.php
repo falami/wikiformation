@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
 #[Route('/of/{entite}', name: 'app_of_', requirements: ['entite' => '\d+'])]
 #[IsGranted(TenantPermission::DASHBOARD_OF_MANAGE, subject: 'entite')]
@@ -198,7 +199,7 @@ final class DashboardOrganismeFormationController extends AbstractController
     }
 
     #[Route('/session/{session}/detail', name: 'session_detail_ajax', methods: ['GET'])]
-    public function sessionDetailAjax(Entite $entite, Session $session, EM $em): JsonResponse
+    public function sessionDetailAjax(Entite $entite, Session $session, EM $em, Request $request): JsonResponse
     {
         $of = $this->getOrganismeFormationUserOrFail();
 
@@ -216,127 +217,208 @@ final class DashboardOrganismeFormationController extends AbstractController
             ], 403);
         }
 
-        $inscriptions = $em->createQueryBuilder()
-            ->select('i, u')
-            ->from(Inscription::class, 'i')
-            ->join('i.stagiaire', 'u')
-            ->andWhere('i.session = :session')->setParameter('session', $session)
-            ->orderBy('u.nom', 'ASC')
-            ->addOrderBy('u.prenom', 'ASC')
-            ->getQuery()
-            ->getResult();
+        try {
+            $inscriptions = $em->createQueryBuilder()
+                ->select('i, u')
+                ->from(Inscription::class, 'i')
+                ->join('i.stagiaire', 'u')
+                ->andWhere('i.session = :session')->setParameter('session', $session)
+                ->orderBy('u.nom', 'ASC')
+                ->addOrderBy('u.prenom', 'ASC')
+                ->getQuery()
+                ->getResult();
 
-        $participants = [];
-        $presentCount = 0;
-        $absentCount  = 0;
+            $participants = [];
+            $presentCount = 0;
+            $absentCount = 0;
 
-        foreach ($inscriptions as $inscription) {
-            /** @var Inscription $inscription */
-            $stagiaire = $inscription->getStagiaire();
-            $status = $inscription->getStatus();
+            foreach ($inscriptions as $inscription) {
+                /** @var Inscription $inscription */
+                $stagiaire = $inscription->getStagiaire();
+                $status = $inscription->getStatus();
 
-            $statusValue = method_exists($status, 'value') ? $status->value : (string) $status;
-            $isAbsent = in_array($statusValue, ['ABSENT', 'absent'], true);
-            $isPresent = in_array($statusValue, ['CONFIRME', 'EN_COURS', 'TERMINE', 'confirme', 'en_cours', 'termine'], true);
+                $statusValue = $status instanceof \BackedEnum
+                    ? (string) $status->value
+                    : ($status instanceof \UnitEnum ? $status->name : (string) $status);
 
-            if ($isPresent) {
-                $presentCount++;
+                $statusUpper = mb_strtoupper($statusValue);
+
+                $isAbsent = ($status === \App\Enum\StatusInscription::ABSENT);
+                $isPresent = in_array($status, [
+                    \App\Enum\StatusInscription::CONFIRME,
+                    \App\Enum\StatusInscription::EN_COURS,
+                    \App\Enum\StatusInscription::TERMINE,
+                ], true);
+
+                if ($isPresent) {
+                    $presentCount++;
+                }
+                if ($isAbsent) {
+                    $absentCount++;
+                }
+
+                $participants[] = [
+                    'id' => $stagiaire?->getId(),
+                    'nom' => trim(($stagiaire?->getPrenom() ?? '') . ' ' . ($stagiaire?->getNom() ?? '')),
+                    'email' => $stagiaire?->getEmail(),
+                    'telephone' => $stagiaire?->getTelephone(),
+                    'statut' => method_exists($status, 'label') ? $status->label() : $statusValue,
+                    'present' => $isPresent,
+                    'absent' => $isAbsent,
+                    'montantDu' => $inscription->getMontantDuCents() !== null
+                        ? number_format($inscription->getMontantDuCents() / 100, 2, ',', ' ') . ' €'
+                        : null,
+                    'montantRegle' => $inscription->getMontantRegleCents() !== null
+                        ? number_format($inscription->getMontantRegleCents() / 100, 2, ',', ' ') . ' €'
+                        : null,
+                    'assiduite' => $inscription->getTauxAssiduite(),
+                    'reussi' => $inscription->isReussi(),
+                ];
             }
-            if ($isAbsent) {
-                $absentCount++;
+
+            $jours = [];
+            foreach ($session->getJours() as $jour) {
+                $jourFormateurName = null;
+                $jourFormateur = $jour->getFormateur();
+
+                if ($jourFormateur) {
+                    if (method_exists($jourFormateur, 'getUtilisateur') && $jourFormateur->getUtilisateur()) {
+                        $ju = $jourFormateur->getUtilisateur();
+                        $jourFormateurName = trim(($ju->getPrenom() ?? '') . ' ' . ($ju->getNom() ?? ''));
+                    } elseif (method_exists($jourFormateur, 'getNom')) {
+                        $jourFormateurName = (string) $jourFormateur?->getUtilisateur()->getNom();
+                    }
+                }
+
+                $jours[] = [
+                    'id' => $jour->getId(),
+                    'dateDebutIso' => $jour->getDateDebut()?->format(\DateTimeInterface::ATOM),
+                    'dateFinIso' => $jour->getDateFin()?->format(\DateTimeInterface::ATOM),
+                    'dateLabel' => $jour->getDateDebut()?->format('d/m/Y'),
+                    'heureDebut' => $jour->getDateDebut()?->format('H:i'),
+                    'heureFin' => $jour->getDateFin()?->format('H:i'),
+                    'formateur' => $jourFormateurName,
+                ];
             }
 
-            $participants[] = [
-                'id' => $stagiaire?->getId(),
-                'nom' => trim(($stagiaire?->getPrenom() ?? '') . ' ' . ($stagiaire?->getNom() ?? '')),
-                'email' => $stagiaire?->getEmail(),
-                'telephone' => $stagiaire?->getTelephone(),
-                'statut' => method_exists($status, 'label') ? $status->label() : $statusValue,
-                'present' => $isPresent,
-                'absent' => $isAbsent,
-                'montantDu' => $inscription->getMontantDuCents() !== null
-                    ? number_format($inscription->getMontantDuCents() / 100, 2, ',', ' ') . ' €'
-                    : null,
-                'montantRegle' => $inscription->getMontantRegleCents() !== null
-                    ? number_format($inscription->getMontantRegleCents() / 100, 2, ',', ' ') . ' €'
-                    : null,
-                'assiduite' => $inscription->getTauxAssiduite(),
-                'reussi' => $inscription->isReussi(),
-            ];
-        }
+            usort($jours, static fn(array $a, array $b) => strcmp($a['dateDebutIso'] ?? '', $b['dateDebutIso'] ?? ''));
 
-        $jours = [];
-        foreach ($session->getJours() as $jour) {
-            $jourFormateur = $jour->getFormateur()?->getUtilisateur();
+            $site = $session->getSite();
 
-            $jours[] = [
-                'id' => $jour->getId(),
-                'dateDebutIso' => $jour->getDateDebut()?->format(\DateTimeInterface::ATOM),
-                'dateFinIso'   => $jour->getDateFin()?->format(\DateTimeInterface::ATOM),
-                'dateLabel'    => $jour->getDateDebut()?->format('d/m/Y'),
-                'heureDebut'   => $jour->getDateDebut()?->format('H:i'),
-                'heureFin'     => $jour->getDateFin()?->format('H:i'),
-                'formateur'    => $jourFormateur
-                    ? trim(($jourFormateur->getPrenom() ?? '') . ' ' . ($jourFormateur->getNom() ?? ''))
-                    : null,
-            ];
-        }
+            $formateurName = null;
+            $formateur = $session->getFormateur();
+            if ($formateur) {
+                if (method_exists($formateur, 'getUtilisateur') && $formateur->getUtilisateur()) {
+                    $fu = $formateur->getUtilisateur();
+                    $formateurName = trim(($fu->getPrenom() ?? '') . ' ' . ($fu->getNom() ?? ''));
+                } elseif (method_exists($formateur, 'getNom')) {
+                    $formateurName = (string) $formateur?->getUtilisateur()->getNom();
+                }
+            }
 
-        usort($jours, static fn(array $a, array $b) => strcmp($a['dateDebutIso'] ?? '', $b['dateDebutIso'] ?? ''));
+            $siteNom = null;
+            if ($site) {
+                if (method_exists($site, 'getNom')) {
+                    $siteNom = $site->getNom();
+                } elseif (method_exists($site, '__toString')) {
+                    $siteNom = (string) $site;
+                }
+            }
 
-        $site = $session->getSite();
-        $formateur = $session->getFormateur()?->getUtilisateur();
+            $adresse = null;
+            $mapQuery = null;
 
-        $adresse = null;
-        $mapQuery = null;
+            if ($site) {
+                $adresseParts = array_filter([
+                    method_exists($site, 'getAdresse') ? $site->getAdresse() : null,
+                    method_exists($site, 'getComplement') ? $site->getComplement() : null,
+                    trim(((method_exists($site, 'getCodePostal') ? $site->getCodePostal() : '') ?? '') . ' ' . ((method_exists($site, 'getVille') ? $site->getVille() : '') ?? '')),
+                    method_exists($site, 'getPays') ? $site->getPays() : null,
+                ]);
 
-        if ($site) {
-            $adresseParts = array_filter([
-                method_exists($site, 'getAdresse') ? $site->getAdresse() : null,
-                method_exists($site, 'getComplement') ? $site->getComplement() : null,
-                trim(((method_exists($site, 'getCodePostal') ? $site->getCodePostal() : '') ?? '') . ' ' . ((method_exists($site, 'getVille') ? $site->getVille() : '') ?? '')),
-                method_exists($site, 'getPays') ? $site->getPays() : null,
+                $adresse = implode(', ', array_filter($adresseParts, static fn($v) => $v !== null && $v !== ''));
+
+                if (
+                    method_exists($site, 'getLatitude') &&
+                    method_exists($site, 'getLongitude') &&
+                    $site->getLatitude() !== null &&
+                    $site->getLongitude() !== null
+                ) {
+                    $mapQuery = $site->getLatitude() . ',' . $site->getLongitude();
+                } elseif ($adresse) {
+                    $mapQuery = $adresse;
+                }
+            }
+
+            $documents = [];
+
+            foreach ($session->getPieces() as $piece) {
+                /** @var SessionPiece $piece */
+                $type = $piece->getType();
+                $typeLabel = $type
+                    ? (method_exists($type, 'label') ? $type->label() : (method_exists($type, 'value') ? $type->value : (string) $type))
+                    : 'Document';
+
+                $viewUrl = $this->generateUrl('app_of_session_piece_view', [
+                    'entite' => $entite->getId(),
+                    'id' => $piece->getId(),
+                ]);
+
+                $downloadUrl = $this->generateUrl('app_of_session_piece_download', [
+                    'entite' => $entite->getId(),
+                    'id' => $piece->getId(),
+                ]);
+
+                $documents[] = [
+                    'id' => $piece->getId(),
+                    'name' => $piece->getFilename(),
+                    'type' => $typeLabel,
+                    'mimeType' => $piece->getMimeType(),
+                    'uploadedAt' => $piece->getUploadedAt()?->format('d/m/Y H:i'),
+                    'valide' => $piece->isValide(),
+                    'commentaire' => $piece->getCommentaireControle(),
+                    'viewUrl' => $viewUrl,
+                    'downloadUrl' => $downloadUrl,
+                ];
+            }
+
+            usort($documents, static function (array $a, array $b): int {
+                return strcmp((string) ($b['uploadedAt'] ?? ''), (string) ($a['uploadedAt'] ?? ''));
+            });
+
+            $sessionMontant = $session->getMontantCents();
+
+            return new JsonResponse([
+                'success' => true,
+                'session' => [
+                    'id' => $session->getId(),
+                    'code' => $session->getCode(),
+                    'formation' => $session->getFormation()?->getTitre() ?? $session->getFormationIntituleLibre() ?? '—',
+                    'statut' => method_exists($session->getStatus(), 'label')
+                        ? $session->getStatus()->label()
+                        : (method_exists($session->getStatus(), 'value') ? $session->getStatus()->value : '—'),
+                    'capacite' => $session->getCapacite(),
+                    'montant' => $sessionMontant !== null
+                        ? number_format($sessionMontant / 100, 2, ',', ' ') . ' €'
+                        : '—',
+                    'siteNom' => $siteNom,
+                    'adresse' => $adresse,
+                    'mapQuery' => $mapQuery,
+                    'formateur' => $formateurName,
+                    'jours' => $jours,
+                    'participants' => $participants,
+                    'participantsCount' => count($participants),
+                    'presentCount' => $presentCount,
+                    'absentCount' => $absentCount,
+                    'documents' => $documents,
+                ],
             ]);
-
-            $adresse = implode(', ', $adresseParts);
-
-            if (method_exists($site, 'getLatitude') && method_exists($site, 'getLongitude') && $site->getLatitude() !== null && $site->getLongitude() !== null) {
-                $mapQuery = $site->getLatitude() . ',' . $site->getLongitude();
-            } elseif ($adresse !== '') {
-                $mapQuery = $adresse;
-            }
+        } catch (\Throwable $e) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Erreur serveur : ' . $e->getMessage(),
+            ], 500);
         }
-
-        $sessionMontant = $session->getMontantCents();
-
-        return new JsonResponse([
-            'success' => true,
-            'session' => [
-                'id' => $session->getId(),
-                'code' => $session->getCode(),
-                'formation' => $session->getFormation()?->getTitre() ?? $session->getFormationIntituleLibre() ?? '—',
-                'statut' => method_exists($session->getStatus(), 'label')
-                    ? $session->getStatus()->label()
-                    : (method_exists($session->getStatus(), 'value') ? $session->getStatus()->value : '—'),
-                'capacite' => $session->getCapacite(),
-                'montant' => $sessionMontant !== null
-                    ? number_format($sessionMontant / 100, 2, ',', ' ') . ' €'
-                    : '—',
-                'siteNom' => method_exists($site, 'getNom') ? $site?->getNom() : null,
-                'adresse' => $adresse,
-                'latitude' => method_exists($site, 'getLatitude') ? $site?->getLatitude() : null,
-                'longitude' => method_exists($site, 'getLongitude') ? $site?->getLongitude() : null,
-                'mapQuery' => $mapQuery,
-                'formateur' => $formateur
-                    ? trim(($formateur->getPrenom() ?? '') . ' ' . ($formateur->getNom() ?? ''))
-                    : null,
-                'jours' => $jours,
-                'participants' => $participants,
-                'participantsCount' => count($participants),
-                'presentCount' => $presentCount,
-                'absentCount' => $absentCount,
-            ],
-        ]);
     }
 
     #[Route('/formations', name: 'formations', methods: ['GET'])]
@@ -404,5 +486,64 @@ final class DashboardOrganismeFormationController extends AbstractController
             'recordsFiltered' => count($data),
             'draw' => (int) ($request->request->get('draw') ?? 1),
         ]);
+    }
+
+    #[Route('/session-piece/{id}/view', name: 'session_piece_view', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function sessionPieceView(Entite $entite, SessionPiece $piece): Response
+    {
+        $of = $this->getOrganismeFormationUserOrFail();
+
+        if ($piece->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        $session = $piece->getSession();
+        if (!$session || $session->getOrganismeFormation()?->getId() !== $of->getId()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $path = rtrim((string) $this->getParameter('session_piece_dir'), '/\\') . DIRECTORY_SEPARATOR . $piece->getFilename();
+
+        if (!is_file($path)) {
+            throw $this->createNotFoundException(sprintf(
+                'Fichier introuvable : %s',
+                $piece->getFilename()
+            ));
+        }
+
+        return $this->file(
+            $path,
+            $piece->getFilename(),
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            [
+                'Content-Type' => $piece->getMimeType() ?: 'application/octet-stream',
+            ]
+        );
+    }
+
+    #[Route('/session-piece/{id}/download', name: 'session_piece_download', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function sessionPieceDownload(Entite $entite, SessionPiece $piece): Response
+    {
+        $of = $this->getOrganismeFormationUserOrFail();
+
+        if ($piece->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        $session = $piece->getSession();
+        if (!$session || $session->getOrganismeFormation()?->getId() !== $of->getId()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $path = rtrim((string) $this->getParameter('session_piece_dir'), '/\\') . DIRECTORY_SEPARATOR . $piece->getFilename();
+
+        if (!is_file($path)) {
+            throw $this->createNotFoundException(sprintf(
+                'Fichier introuvable : %s',
+                $piece->getFilename()
+            ));
+        }
+
+        return $this->file($path, $piece->getFilename());
     }
 }

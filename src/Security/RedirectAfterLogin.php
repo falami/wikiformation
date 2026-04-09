@@ -71,47 +71,59 @@ final class RedirectAfterLogin
 
   private function redirectByMembershipRoles(Utilisateur $u, UtilisateurEntite $ue): RedirectResponse
   {
-    $entite = $ue->getEntite();
-    if (!$entite || !$entite->getId()) {
-      return new RedirectResponse($this->router->generate('app_onboarding'));
-    }
-
-    $entiteId = $entite->getId();
-
-    if ($ue->isTenantAdmin()) {
-      return new RedirectResponse($this->router->generate('app_administrateur_dashboard_index', [
-        'entite' => $entiteId,
-      ]));
-    }
-
-    if ($ue->hasRole(UtilisateurEntite::TENANT_FORMATEUR)) {
-      return new RedirectResponse($this->router->generate('app_formateur_dashboard', [
-        'entite' => $entiteId,
-      ]));
-    }
-
-    if ($ue->hasRole(UtilisateurEntite::TENANT_ENTREPRISE)) {
-      if ($u->getEntreprise() !== null) {
-        return new RedirectResponse($this->router->generate('app_entreprise_dashboard', [
-          'entite' => $entiteId,
-        ]));
+      $entite = $ue->getEntite();
+      if (!$entite || !$entite->getId()) {
+          return new RedirectResponse($this->router->generate('app_onboarding'));
       }
-    }
 
-    if ($ue->hasRole(UtilisateurEntite::TENANT_OPCO)) {
-      return new RedirectResponse($this->router->generate('app_opco_dashboard', [
-        'entite' => $entiteId,
-      ]));
-    }
+      $entiteId = $entite->getId();
 
-    if ($ue->hasRole(UtilisateurEntite::TENANT_COMMERCIAL)) {
-      return new RedirectResponse($this->router->generate('app_commercial_dashboard', [
-        'entite' => $entiteId,
-      ]));
-    }
+      if ($ue->isTenantAdmin()) {
+          return new RedirectResponse($this->router->generate('app_administrateur_dashboard_index', [
+              'entite' => $entiteId,
+          ]));
+      }
 
-    return new RedirectResponse($this->router->generate('app_stagiaire_dashboard', [
-      'entite' => $entiteId,
-    ]));
+      if ($ue->hasRole(UtilisateurEntite::TENANT_OF)) {
+          if ($u->getEntreprise() !== null) {
+              return new RedirectResponse($this->router->generate('app_of_dashboard', [
+                  'entite' => $entiteId,
+              ]));
+          }
+      }
+
+      if ($ue->hasRole(UtilisateurEntite::TENANT_FORMATEUR)) {
+          return new RedirectResponse($this->router->generate('app_formateur_dashboard', [
+              'entite' => $entiteId,
+          ]));
+      }
+
+      if ($ue->hasRole(UtilisateurEntite::TENANT_ENTREPRISE)) {
+          if ($u->getEntreprise() !== null) {
+              return new RedirectResponse($this->router->generate('app_entreprise_dashboard', [
+                  'entite' => $entiteId,
+              ]));
+          }
+      }
+
+      if ($ue->hasRole(UtilisateurEntite::TENANT_OPCO)) {
+          return new RedirectResponse($this->router->generate('app_opco_dashboard', [
+              'entite' => $entiteId,
+          ]));
+      }
+
+      if ($ue->hasRole(UtilisateurEntite::TENANT_COMMERCIAL)) {
+          return new RedirectResponse($this->router->generate('app_commercial_dashboard', [
+              'entite' => $entiteId,
+          ]));
+      }
+
+      if ($ue->hasRole(UtilisateurEntite::TENANT_STAGIAIRE)) {
+          return new RedirectResponse($this->router->generate('app_stagiaire_dashboard', [
+              'entite' => $entiteId,
+          ]));
+      }
+
+      return new RedirectResponse($this->router->generate('app_onboarding'));
   }
 }
