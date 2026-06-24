@@ -1062,16 +1062,12 @@ document.addEventListener('DOMContentLoaded', function(){
     function applyDeboursUI(){
       const isDeb = !!(deboursInput && deboursInput.checked);
 
-      // style visuel
+      // style visuel uniquement
       item.classList.toggle('is-debours', isDeb);
 
-      // ✅ débours => TVA mise à 0, mais on NE désactive PAS le select
-      if (tvaInput) {
-        if (isDeb) {
-          tvaInput.value = '0';
-          tvaInput.dispatchEvent(new Event('change', { bubbles:true }));
-        }
-      }
+      // IMPORTANT :
+      // On ne touche pas à la TVA.
+      // Une ligne débours peut rester à 20%, 10%, 5.5%, 0%, etc.
     }
 
 
@@ -1171,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const remisePct = clamp(parseNumberFR(rpInput?.value || 0), 0, 100);
     const remiseEurCents = clamp(parseEurosToCents(reInput?.value || 0), 0, 999999999);
 
-    // débours => TVA forcée 0
+    // Débours : on conserve la TVA choisie
     const tvaBp = clamp(parseNumberFR(tvaInput?.value || 0), 0, 10000);
     const tva = tvaBp / 100;
 
@@ -1253,6 +1249,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // ✅ Total débours HT (net, sans remise globale)
     const totalDeboursHt = debours.reduce((s, l) => s + l.netHtCents, 0);
+
     const totalDeboursTva = debours.reduce((s, l) => {
         return s + Math.round(l.netHtCents * (l.tva / 100));
     }, 0);
