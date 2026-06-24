@@ -983,14 +983,15 @@ $(function () {
       $('#badgePayeurUsers').text(getSelectedPayeurUserIds().length);
       $('#badgePayeurEnt').text(getSelectedPayeurEntrepriseIds().length);
     }
-    function selectAllOnLoad(){
-      $('.payeur-user-check').prop('checked', true);
-      $('.payeur-ent-check').prop('checked', true);
+    function resetPayeurFilters(){
+      $('.payeur-user-check').prop('checked', false);
+      $('.payeur-ent-check').prop('checked', false);
       $('#searchPayeurUsers').val('');
       $('#searchPayeurEnt').val('');
       refreshPayeurBadges();
     }
-    selectAllOnLoad();
+
+    resetPayeurFilters();
     togglePeriodControls();
 
     function togglePeriodControls(){
@@ -1177,6 +1178,7 @@ $(function () {
       ajax:{
         url: "{{ path('app_administrateur_facture_ajax', { entite: entite.id }) }}",
         type:"POST",
+        traditional: true,
         data: function(d){
           d.statusFilter = $filter.val() || 'all';
 
@@ -1188,7 +1190,6 @@ $(function () {
           d.payeurUserIds = getSelectedPayeurUserIds();
           d.payeurEntrepriseIds = getSelectedPayeurEntrepriseIds();
         }
-
       },
 
       dom:
@@ -1451,7 +1452,7 @@ $(function () {
       togglePeriodControls();
 
       table.search('');
-      table.order([[3,'desc']]); // date_emission
+      table.order([[2,'desc']]); // date_emission
       table.ajax.reload(null, true);
     });
 
