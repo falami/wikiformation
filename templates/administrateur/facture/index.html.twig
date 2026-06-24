@@ -436,7 +436,15 @@
       background:
         radial-gradient(900px 220px at 10% 0%, rgba(255,193,7,.10), transparent 55%),
         #fff;
-      overflow: hidden;
+      overflow: visible;
+    }
+
+    #listPayeurUsers,
+    #listPayeurEnt{
+      max-height: 280px !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      display: block;
     }
 
     /* Petit "header" du menu : zone recherche */
@@ -991,7 +999,15 @@ $(function () {
       refreshPayeurBadges();
     }
 
-    resetPayeurFilters();
+    function selectAllOnLoad(){
+      $('.payeur-user-check').prop('checked', true);
+      $('.payeur-ent-check').prop('checked', true);
+      $('#searchPayeurUsers').val('');
+      $('#searchPayeurEnt').val('');
+      refreshPayeurBadges();
+    }
+
+    selectAllOnLoad();
     togglePeriodControls();
 
     function togglePeriodControls(){
@@ -1188,6 +1204,9 @@ $(function () {
 
           d.payeurUserIds = getSelectedPayeurUserIds();
           d.payeurEntrepriseIds = getSelectedPayeurEntrepriseIds();
+
+          d.payeurUserTotal = $('.payeur-user-check').length;
+          d.payeurEntrepriseTotal = $('.payeur-ent-check').length;
         }
       },
 
@@ -1443,15 +1462,12 @@ $(function () {
       $monthFilter.val('all');
       $quarterFilter.val('all');
 
-      $('.payeur-user-check, .payeur-ent-check').prop('checked', false);
-      $('#searchPayeurUsers').val('');
-      $('#searchPayeurEnt').val('');
-      refreshPayeurBadges();
+      selectAllOnLoad();
 
       togglePeriodControls();
 
       table.search('');
-      table.order([[2,'desc']]); // date_emission
+      table.order([[2,'desc']]);
       table.ajax.reload(null, true);
     });
 

@@ -116,6 +116,7 @@ class FactureController extends AbstractController
     if (!is_array($payeurEntrepriseIds)) {
         $payeurEntrepriseIds = [];
     }
+    
 
 
     // =========================
@@ -161,9 +162,24 @@ class FactureController extends AbstractController
     $params = ['entiteId' => $entite->getId()];
     $types  = ['entiteId' => ParameterType::INTEGER];
 
+    
+
     // ===== Filtres destinataires =====
     $payeurUserIds = array_values(array_filter(array_map('intval', (array)$payeurUserIds)));
     $payeurEntrepriseIds = array_values(array_filter(array_map('intval', (array)$payeurEntrepriseIds)));
+    
+    
+    $payeurUserTotal = $request->request->getInt('payeurUserTotal', 0);
+$payeurEntrepriseTotal = $request->request->getInt('payeurEntrepriseTotal', 0);
+
+if (
+    $payeurUserTotal > 0
+    && $payeurEntrepriseTotal > 0
+    && empty($payeurUserIds)
+    && empty($payeurEntrepriseIds)
+) {
+    $where[] = '1 = 0';
+}
 
 
     if (!empty($payeurUserIds) || !empty($payeurEntrepriseIds)) {
