@@ -1,11 +1,13 @@
+{# templates/of/dashboard.html.twig #}
 {% extends 'base_admin.html.twig' %}
-{% block title %}Espace OF — Tableau de bord{% endblock %}
+{% block title %}Espace OF - Tableau de bord{% endblock %}
 
 {% block stylesheets %}
 {{ parent() }}
 <link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
 <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+
 <style>
 :root{
   --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
@@ -13,10 +15,9 @@
   --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
   --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
 
-  --teal:  {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
+  --teal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
   --amber: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffb703')) }};
-  --sand:  {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#eef3f7')) }};
-
+  --sand: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#eef3f7')) }};
   --ink:#0f2336;
   --ink-2:#28435a;
   --muted:#6f8897;
@@ -25,15 +26,21 @@
   --line:#e6eef5;
   --radius:1.15rem;
   --ring:0 14px 48px rgba(15,35,54,.12);
-  --glass:rgba(255,255,255,.18);
-  --blur:14px;
+}
+
+html, body{
+  max-width:100%;
+  overflow-x:hidden;
 }
 
 body{ color:var(--ink); }
+
 .round{ border-radius: var(--radius); }
 .shadow-premium{ box-shadow: var(--ring); }
 
 .section-card{
+  position:relative;
+  z-index:1;
   background:var(--card);
   border:1px solid var(--line);
   border-radius:var(--radius);
@@ -45,7 +52,12 @@ body{ color:var(--ink); }
   border-top-left-radius:var(--radius);
   border-top-right-radius:var(--radius);
 }
+.section-title{
+  font-weight:900;
+  letter-spacing:.2px;
+}
 
+/* ================= HERO ================= */
 .hero{
   border-radius: 22px;
   position: relative;
@@ -53,10 +65,22 @@ body{ color:var(--ink); }
   color: #fff;
   box-shadow: 0 18px 50px rgba(0,0,0,.14);
   background:
-    radial-gradient(1200px 420px at 12% -10%, color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent), transparent 58%),
-    radial-gradient(900px 380px at 92% 0%, color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent), transparent 60%),
-    radial-gradient(700px 260px at 55% 115%, color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent), transparent 62%),
-    linear-gradient(135deg, color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%), color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%));
+    radial-gradient(1200px 420px at 12% -10%,
+      color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(900px 380px at 92% 0%,
+      color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(700px 260px at 55% 115%,
+      color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+      color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+    );
 }
 .hero::after{
   content:"";
@@ -72,53 +96,158 @@ body{ color:var(--ink); }
   background: var(--theme-color-secondaire);
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
 }
-.hero .chip{
+.hero .meta-chip{
   display:inline-flex;
   align-items:center;
-  gap:.5rem;
-  padding:.32rem .7rem;
-  border-radius: 999px;
+  gap:.45rem;
+  padding:.28rem .65rem;
+  border-radius:999px;
+  font-size:.82rem;
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.14);
-  font-size:.82rem;
   color: rgba(255,255,255,.92);
-  backdrop-filter: blur(6px);
   white-space: nowrap;
 }
-.hero .chip i{ color: var(--theme-color-secondaire); }
-.hero .chip--pill{
-  background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
-  border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
-  color:#fff;
+.hero .meta-chip i{ color: var(--theme-color-secondaire); }
+.hero .btn{
+  border-radius: 14px;
+  font-weight: 800;
 }
-.hero .btn-outline-theme{
+.hero .btn-outline-hero{
   border-color: rgba(255,255,255,.35);
   color:#fff;
 }
-.hero .btn-outline-theme:hover{
+.hero .btn-outline-hero:hover{
   background: rgba(255,255,255,.10);
   border-color: rgba(255,255,255,.55);
   color:#fff;
 }
+.hero .btn.btn-light{
+  background: rgba(255,255,255,.90);
+  border-color: rgba(0,0,0,.10);
+  box-shadow: 0 10px 22px rgba(0,0,0,.08);
+}
+.hero .btn.btn-light:hover{
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 14px 28px rgba(0,0,0,.12);
+}
 
+/* ================= KPI ================= */
 .kpi{
   position:relative;
+  border: 1px solid color-mix(in oklab, var(--theme-color-principal) 10%, var(--line) 90%);
+  border-radius: 1.15rem;
+  padding: 1.05rem 1.15rem;
+  box-shadow: 0 16px 50px rgba(15,35,54,.10);
+  overflow:hidden;
+  background:#fff;
+}
+.kpi::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+  pointer-events:none;
+  opacity:.75;
+}
+.kpi .kpi-top{
+  position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.85rem;
+  z-index:1;
+}
+.kpi .kpi-ico{
+  width:44px;
+  height:44px;
+  border-radius: 1rem;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  background:
+    radial-gradient(120px 60px at 30% 20%, rgba(255,255,255,.22), transparent 60%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 88%, black 12%),
+      color-mix(in oklab, var(--theme-color-principal) 55%, var(--theme-color-secondaire) 45%)
+    );
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow:
+    0 16px 30px rgba(15,35,54,.16),
+    0 0 0 6px color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+}
+.kpi .kpi-ico i{
+  color:#fff;
+  font-size: 1.25rem;
+}
+.kpi .kpi-main{
+  position:relative;
+  z-index:1;
+  flex:1 1 auto;
+  min-width:0;
+}
+.kpi .label{
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 900;
+  letter-spacing: .2px;
+  margin-top: .55rem;
+}
+.kpi .value{
+  font-weight: 950;
+  font-size: 1.85rem;
+  line-height: 1;
+  letter-spacing: .2px;
+  color: var(--ink);
+}
+.kpi .sub{
+  margin-top: .35rem;
+  font-size: .82rem;
+  color: color-mix(in oklab, var(--muted) 82%, var(--ink) 18%);
+  font-weight: 800;
+}
+.kpi:hover{
+  transform: translateY(-2px);
+  transition: transform .14s ease, box-shadow .14s ease;
+  box-shadow: 0 22px 70px rgba(15,35,54,.14);
+}
+
+/* ================= TOOLBAR ================= */
+.toolbar{
   background:var(--card);
   border:1px solid var(--line);
-  border-radius:1rem;
-  padding:1rem 1.25rem;
+  border-radius:var(--radius);
+  padding:.8rem;
   box-shadow: var(--ring);
 }
-.kpi .label{ color:var(--muted); font-size:.82rem; }
-.kpi .value{ font-weight:900; font-size:1.7rem; color:var(--ink); }
+.toolbar .form-control,
+.toolbar .input-group-text{
+  border-color: var(--line);
+  background: var(--card);
+}
 
+/* ================= DATATABLES ================= */
+.dt-scroll{
+  width:100%;
+  overflow-x:auto !important;
+  -webkit-overflow-scrolling:touch;
+}
+.dt-scroll .dataTables_wrapper{ width:100%; }
+.dt-scroll table.dataTable{
+  width:100% !important;
+  min-width:880px;
+}
 .table thead th{
-  font-weight:800;
+  font-weight:900;
   color:var(--ink-2);
   border-bottom:1px solid var(--line) !important;
 }
-table.dataTable tbody tr{ transition: background .15s ease; }
-table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%, white 65%); }
+table.dataTable tbody tr{
+  transition: background .15s ease;
+}
+table.dataTable tbody tr:hover{
+  background: color-mix(in oklab, var(--sand) 35%, white 65%);
+}
 .dataTables_wrapper .dataTables_filter input{
   border:1px solid var(--line);
   border-radius:.65rem;
@@ -126,23 +255,316 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
   background:var(--card-2);
   color:var(--ink);
 }
+.compact td, .compact th{ padding:.75rem .8rem !important; }
 
+.status-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  background: color-mix(in oklab, var(--amber) 12%, white 88%);
+  color: color-mix(in oklab, var(--amber) 60%, black 40%);
+  border:1px solid color-mix(in oklab, var(--amber) 35%, white 65%);
+  border-radius:999px;
+  padding:.25rem .55rem;
+  font-weight:800;
+  font-size:.8rem;
+}
+.status-pill.info{
+  background: color-mix(in oklab, #0ea5e9 10%, white 90%);
+  color: color-mix(in oklab, #0284c7 70%, black 30%);
+  border-color: color-mix(in oklab, #38bdf8 25%, white 75%);
+}
+.status-pill.success{
+  background: color-mix(in oklab, #22c55e 12%, white 88%);
+  color: color-mix(in oklab, #16a34a 70%, black 30%);
+  border-color: color-mix(in oklab, #22c55e 25%, white 75%);
+}
+.status-pill.secondary{
+  background: color-mix(in oklab, #64748b 12%, white 88%);
+  color: color-mix(in oklab, #475569 72%, black 28%);
+  border-color: color-mix(in oklab, #94a3b8 22%, white 78%);
+}
+
+.actions-wrap{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:.4rem;
+  flex-wrap:wrap;
+}
+.btn-mini{
+  padding:.25rem .5rem;
+  border-radius:.55rem;
+  font-weight:800;
+}
+
+/* ================= DROPDOWN ACTIONS ================= */
+.action-dd .btn-action{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  border-radius:.85rem;
+  font-weight:900;
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 45%, white 55%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 16%, white 84%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
+}
+.action-dd .btn-action:hover,
+.action-dd .btn-action:focus{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 22%, white 78%);
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 22%, transparent 78%);
+}
+.action-dd .dropdown-menu{
+  border-radius: 1rem;
+  border:1px solid var(--line);
+  box-shadow: var(--ring);
+  overflow:hidden;
+  padding:.35rem;
+}
+.action-dd .dropdown-menu .dd-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: .55rem .65rem .5rem;
+  margin: -.35rem -.35rem .35rem;
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+    color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+  );
+  color:#fff;
+}
+.action-dd .dropdown-menu .dd-head .t{
+  font-weight: 950;
+  letter-spacing:.2px;
+}
+.action-dd .dropdown-menu :is(a, button){
+  width: 100%;
+  display:flex !important;
+  align-items:center;
+  gap:.6rem;
+  padding:.55rem .65rem !important;
+  margin: .18rem 0 !important;
+  border-radius:.9rem !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  line-height: 1.15;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+.action-dd .dropdown-menu :is(a, button):hover{
+  background: color-mix(in oklab, var(--sand) 45%, white 55%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-principal) 14%, transparent 86%) !important;
+  transform: translateY(-1px);
+}
+.action-dd .dropdown-menu :is(a, button) i{
+  width: 1.25rem;
+  text-align:center;
+  font-size: 1.05rem;
+  opacity: .95;
+}
+
+/* ================= CALENDAR ================= */
 #calendar{
-  min-height: 530px;
+  min-height: 520px;
   border-radius: 18px;
   overflow: hidden;
   background: var(--card, #fff);
   border: 1px solid var(--line, rgba(0,0,0,.08));
   box-shadow: var(--ring, 0 14px 48px rgba(15,35,54,.12));
 }
+.fc{
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 70%, transparent 30%);
+  --fc-border-color: color-mix(in oklab, var(--theme-color-principal) 12%, transparent 88%);
+  --fc-today-bg-color: color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%);
+  --fc-event-bg-color: color-mix(in oklab, var(--theme-color-principal) 92%, black 8%);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #fff;
+  --fc-list-event-hover-bg-color: color-mix(in oklab, var(--theme-color-tertiaire) 65%, white 35%);
+}
+.fc .fc-header-toolbar{
+  padding: 1rem 1rem .75rem;
+  margin: 0 !important;
+  background:
+    radial-gradient(900px 260px at 10% -40%, color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%), transparent 60%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+      color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+    );
+  border-bottom: 1px solid rgba(255,255,255,.14);
+}
+.fc .fc-toolbar-title{
+  color:#fff;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.fc .fc-button{
+  border: 1px solid rgba(255,255,255,.18) !important;
+  background: rgba(255,255,255,.10) !important;
+  color: #fff !important;
+  border-radius: .75rem !important;
+  box-shadow: none !important;
+  padding: .45rem .7rem !important;
+  font-weight: 800 !important;
+}
+.fc .fc-button:hover{ background: rgba(255,255,255,.16) !important; }
+.fc .fc-button.fc-button-active{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 72%, black 0%) !important;
+  border-color: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%) !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%) !important;
+}
+.fc .fc-col-header-cell{
+  background: color-mix(in oklab, var(--theme-color-tertiaire) 70%, white 30%);
+}
+.fc .fc-col-header-cell-cushion{
+  padding: .75rem .25rem !important;
+  color: var(--theme-color-quaternaire);
+  font-weight: 900;
+  text-decoration: none !important;
+}
+.fc .fc-daygrid-day-number{
+  padding: .45rem .55rem !important;
+  color: color-mix(in oklab, var(--theme-color-principal) 82%, black 18%);
+  font-weight: 800;
+  text-decoration: none !important;
+}
+.fc .fc-day-today{
+  background: var(--fc-today-bg-color) !important;
+}
+.fc .fc-day-today .fc-daygrid-day-number{
+  background: color-mix(in oklab, var(--theme-color-secondaire) 55%, white 45%);
+  color: color-mix(in oklab, var(--theme-color-principal) 25%, black 75%);
+  border-radius: 999px;
+  padding: .25rem .6rem !important;
+}
+.fc .fc-event{
+  border-radius: .75rem !important;
+  padding: .2rem .35rem !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,.10);
+}
+.fc .fc-event .fc-event-title{ font-weight: 800; }
+.fc .fc-event .fc-event-time{ font-weight: 800; opacity: .92; }
 
+/* ================= TIMELINE ================= */
+.timeline{
+  list-style:none;
+  margin:0;
+  padding:0;
+}
+.timeline li{
+  display:flex;
+  align-items:flex-start;
+  gap:.8rem;
+  padding:.65rem .2rem;
+  border-bottom:1px dashed var(--line);
+}
+.timeline .dot{
+  width:.7rem;
+  height:.7rem;
+  border-radius:999px;
+  background: color-mix(in oklab, var(--teal) 94%, white 0%);
+  margin-top:.25rem;
+  flex:0 0 .7rem;
+}
+.timeline .when{
+  font-weight:900;
+  min-width: 110px;
+}
+.timeline .what{
+  color:var(--muted);
+}
+
+/* ================= DETAIL / DOCS ================= */
+.detail-stat{
+  border:1px solid var(--line);
+  background:var(--card-2);
+  border-radius:1rem;
+  padding:.9rem 1rem;
+  height:100%;
+}
+.detail-stat .label{
+  font-size:.8rem;
+  color:var(--muted);
+  font-weight:800;
+}
+.detail-stat .value{
+  font-size:1.15rem;
+  font-weight:900;
+  color:var(--ink);
+}
+
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:.4rem;
+  border:1px solid var(--line);
+  background: var(--card);
+  border-radius:999px;
+  padding:.35rem .65rem;
+  font-weight:900;
+  font-size:.85rem;
+}
+.soft-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.4rem;
+  border-radius:999px;
+  padding:.3rem .65rem;
+  font-size:.82rem;
+  font-weight:900;
+  border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 30%, var(--line) 70%);
+  background: color-mix(in oklab, var(--theme-color-secondaire) 10%, white 90%);
+  color: color-mix(in oklab, var(--theme-color-secondaire) 62%, black 38%);
+}
+
+.asset-item{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  padding:.7rem .8rem;
+  border:1px solid var(--line);
+  border-radius:.85rem;
+  background:#fff;
+}
+.asset-icon{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:.75rem;
+  background: color-mix(in oklab, var(--teal) 10%, white 90%);
+  color: color-mix(in oklab, var(--teal) 85%, black 15%);
+}
+.asset-name{
+  font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.asset-meta{
+  font-size:.8rem;
+  color:var(--muted);
+}
+.empty-state{
+  border:1px dashed var(--line);
+  border-radius:1rem;
+  padding:1.25rem;
+  background:var(--card-2);
+  color:var(--muted);
+  text-align:center;
+}
+
+/* ================= MODALS ================= */
+.modal .modal-content.section-card{
+  border-radius: calc(var(--radius) + .2rem);
+  overflow:hidden;
+}
 .modal-header-premium{
   background:
     radial-gradient(900px 280px at 10% -40%, rgba(255,255,255,.14), transparent 60%),
-    linear-gradient(135deg,
-      color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
-      color-mix(in oklab, var(--theme-color-secondaire) 55%, white 10%)
-    );
+    linear-gradient(135deg, color-mix(in oklab, var(--teal) 92%, black 8%), color-mix(in oklab, var(--amber) 55%, white 10%));
   color:#fff;
   border-bottom: 1px solid rgba(255,255,255,.18);
 }
@@ -150,590 +572,873 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
   filter: invert(1) grayscale(100%);
   opacity:.85;
 }
-
-#detail-map-wrap{
-  min-height: 420px;
-  height: 420px;
+.modal-subtitle{
+  opacity:.9;
+  font-size:.9rem;
 }
-#detail-map-wrap .detail-map-frame{
-  width: 100%;
-  height: 100%;
-  border: 0;
-  border-radius: 1rem;
-  display: block;
+
+/* ================= MOBILE ================= */
+@media (max-width: 576px){
+  .fc .fc-header-toolbar{
+    flex-wrap: wrap !important;
+    gap: .6rem !important;
+    padding: .9rem .85rem .75rem !important;
+  }
+  .fc .fc-toolbar-chunk{
+    flex: 1 1 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+  .fc .fc-toolbar-chunk:first-child{ order: 1; justify-content: space-between !important; }
+  .fc .fc-toolbar-chunk:nth-child(2){ order: 2; }
+  .fc .fc-toolbar-chunk:last-child{ order: 3; }
+  .fc .fc-button-group{
+    flex-wrap: wrap !important;
+    gap: .35rem !important;
+    justify-content: center !important;
+  }
+  .fc .fc-button{
+    padding: .35rem .55rem !important;
+    font-size: .9rem !important;
+  }
+  .fc .fc-toolbar-title{
+    font-size: 1.2rem !important;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .dt-scroll table.dataTable{
+    min-width:760px;
+  }
+
+  .timeline .when{
+    min-width: 86px;
+    font-size:.85rem;
+  }
 }
 </style>
 {% endblock %}
 
 {% block body %}
-  <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
 
-    <div class="flex-grow-1">
-      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-        <div>
-          <h2 class="m-0 fw-bold">
-            <i class="bi bi-mortarboard-fill me-2" style="color:var(--theme-color-secondaire)"></i>
-            Espace organisme de formation
-          </h2>
+<div class="hero p-3 mb-4 d-flex gap-3">
+  <div class="accent"></div>
 
-          <div class="opacity-75 mt-1">
-            Formations · Sessions · Stagiaires · Documents
-            {% if organismeFormation is defined and organismeFormation %}
-              · <strong>{{ organismeFormation.raisonSociale }}</strong>
-            {% endif %}
-          </div>
+  <div class="flex-grow-1">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+      <div>
+        <h2 class="m-0 fw-bold">
+          <i class="bi bi-mortarboard-fill me-2" style="color:var(--theme-color-secondaire)"></i>
+          Tableau de bord OF
+        </h2>
 
-          <div class="d-flex flex-wrap gap-2 mt-3">
-            <span class="chip"><i class="bi bi-speedometer2"></i> Tableau de bord</span>
-            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom ?? '—' }}</span>
-            <span class="chip"><i class="bi bi-mortarboard"></i> OF</span>
-            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
-          </div>
+        <div class="opacity-75 mt-1">
+          Pilotez vos inscriptions, visualisez vos sessions et centralisez vos documents pédagogiques.
         </div>
 
-        <div class="d-flex gap-2 flex-wrap">
-          <a class="btn btn-outline-theme btn-sm fw-semibold" href="{{ path('app_of_documents_index', {entite: entite.id}) }}">
-            <i class="bi bi-folder2-open me-1"></i> Documents
-          </a>
-          <a class="btn btn-outline-theme btn-sm fw-semibold" href="{{ path('app_of_formations', {entite: entite.id}) }}">
-            <i class="bi bi-book me-1"></i> Formations
-          </a>
-          <button class="btn btn-outline-theme btn-sm fw-semibold"
-                  data-bs-toggle="modal"
-                  data-bs-target="#uploadDocModal">
-            <i class="bi bi-upload me-1"></i> Déposer un document
-          </button>
+        <div class="d-flex gap-2 flex-wrap mt-3">
+          <span class="meta-chip"><i class="bi bi-building"></i> {{ organismeFormation.nom ?? organismeFormation.raisonSociale ?? 'Organisme de formation' }}</span>
+          <span class="meta-chip"><i class="bi bi-diagram-3"></i> {{ entite.nom ?? '—' }}</span>
+          <span class="meta-chip"><i class="bi bi-clock-history"></i> <strong>{{ 'now'|date('d/m/Y H:i') }}</strong></span>
+        </div>
+      </div>
 
-          <button class="btn btn-outline-theme btn-sm fw-semibold" id="btnRefresh">
-            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
-          </button>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ path('app_of_dashboard', { entite: entite.id }) }}"
+           class="btn btn-light btn-sm fw-semibold">
+          <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+        </a>
+
+        <a href="{{ path('app_of_formations', { entite: entite.id }) }}"
+           class="btn btn-outline-hero btn-sm fw-semibold">
+          <i class="bi bi-journal-bookmark me-1"></i> Formations
+        </a>
+
+        <button type="button"
+                class="btn btn-outline-hero btn-sm fw-semibold"
+                data-bs-toggle="modal"
+                data-bs-target="#uploadDocModal">
+          <i class="bi bi-cloud-arrow-up me-1"></i> Ajouter un document
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-top">
+        <div class="kpi-ico"><i class="bi bi-calendar2-week-fill"></i></div>
+        <div class="kpi-main">
+          <div class="value" id="kpi-upcoming">-</div>
+          <div class="label">Sessions à venir</div>
+          <div class="sub"><i class="bi bi-clock-history me-1"></i>Prochaines dates</div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Stagiaires</div><div class="value" id="kpi-trainees">—</div></div></div>
-    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Sessions à venir</div><div class="value" id="kpi-upcoming">—</div></div></div>
-    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Sessions en cours</div><div class="value" id="kpi-live">—</div></div></div>
-    <div class="col-12 col-sm-6 col-xl-3"><div class="kpi h-100"><div class="label">Documents</div><div class="value" id="kpi-docs">—</div></div></div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-top">
+        <div class="kpi-ico"><i class="bi bi-broadcast-pin"></i></div>
+        <div class="kpi-main">
+          <div class="value" id="kpi-live">-</div>
+          <div class="label">Sessions en cours</div>
+          <div class="sub"><i class="bi bi-lightning-charge me-1"></i>Suivi temps réel</div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="row g-4">
-    <div class="col-12">
-      <div class="section-card">
-        <div class="card-header px-3 py-3 d-flex justify-content-between">
-          <h5 class="mb-0 fw-bold">Stagiaires & sessions</h5>
-          <div class="text-muted small">DataTable</div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-top">
+        <div class="kpi-ico"><i class="bi bi-people-fill"></i></div>
+        <div class="kpi-main">
+          <div class="value" id="kpi-trainees">-</div>
+          <div class="label">Inscriptions affichées</div>
+          <div class="sub"><i class="bi bi-person-check-fill me-1"></i>Total filtré</div>
         </div>
-        <div class="card-body p-4">
-          <table id="table-of" class="table table-striped align-middle w-100">
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="kpi h-100">
+      <div class="kpi-top">
+        <div class="kpi-ico"><i class="bi bi-folder2-open"></i></div>
+        <div class="kpi-main">
+          <div class="value" id="kpi-docs">-</div>
+          <div class="label">Documents liés</div>
+          <div class="sub"><i class="bi bi-file-earmark-text me-1"></i>Depuis les sessions chargées</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4">
+  <div class="input-group" style="max-width:580px;">
+    <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+    <input id="searchAll" type="text" class="form-control border-start-0" placeholder="Rechercher un stagiaire, une session, un code, une formation…">
+  </div>
+
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <button class="btn btn-outline-secondary" id="btnExportTable">
+      <i class="bi bi-box-arrow-down"></i> Export CSV
+    </button>
+    <button class="btn btn-outline-primary" id="btnReloadTable">
+      <i class="bi bi-arrow-repeat"></i> Recharger
+    </button>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12">
+    <div class="section-card">
+      <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+        <h5 class="section-title mb-0">
+          <i class="bi bi-people me-1"></i> Inscriptions & sessions
+        </h5>
+        <span class="text-muted small">Vue consolidée par stagiaire et session</span>
+      </div>
+
+      <div class="card-body">
+        <div class="table-responsive dt-scroll p-1">
+          <table id="table-of-inscriptions" class="table table-striped align-middle compact w-100">
             <thead>
               <tr>
                 <th>Stagiaire</th>
                 <th>Formation</th>
                 <th>Code</th>
                 <th>Dates</th>
-                <th class="text-center">Statut</th>
+                <th>Statut</th>
                 <th class="text-center">Actions</th>
-                <th>firstStartIso</th>
-                <th>lastEndIso</th>
-                <th>sessionId</th>
               </tr>
             </thead>
-            <tbody><tr><td colspan="9"></td></tr></tbody>
+            <tbody>
+              <tr><td colspan="6"></td></tr>
+            </tbody>
           </table>
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="col-12">
-      <div class="section-card">
-        <div class="card-header px-3 py-3 d-flex justify-content-between">
-          <h5 class="mb-0 fw-bold">Calendrier</h5>
-          <div class="text-muted small">FullCalendar</div>
-        </div>
-        <div class="card-body p-4">
-          <div id="calendar"></div>
-        </div>
+  <div class="col-12">
+    <div class="section-card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+        <h5 class="section-title mb-0">
+          <i class="bi bi-calendar3 me-1"></i> Calendrier des sessions
+        </h5>
+        <span class="text-muted small">Clique sur un évènement pour ouvrir le détail</span>
+      </div>
+      <div class="card-body p-1">
+        <div id="calendar"></div>
       </div>
     </div>
   </div>
 
-  <div class="modal fade" id="uploadDocModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content section-card">
-        <div class="modal-header modal-header-premium px-4 py-3">
-          <div class="w-100 d-flex justify-content-between align-items-start gap-3">
-            <div>
-              <h5 class="mb-1 fw-bold"><i class="bi bi-upload me-1"></i> Déposer un document</h5>
-              <div class="opacity-75 small">Rattache le document à une session</div>
+  <div class="col-12">
+    <div class="section-card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+        <h5 class="section-title mb-0">
+          <i class="bi bi-lightning-charge me-1"></i> À venir
+        </h5>
+        <span class="text-muted small">Prochaines sessions</span>
+      </div>
+      <div class="card-body p-4">
+        <ul class="timeline" id="upcoming-timeline">
+          <li><span class="dot"></span><span class="when">-</span><span class="what">Chargement…</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================= MODAL DETAIL SESSION ================= #}
+<div class="modal fade" id="sessionDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100 d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <h5 class="section-title mb-1">
+              <i class="bi bi-eye me-1"></i> Détail session
+            </h5>
+            <div class="modal-subtitle" id="detail-subtitle">Chargement…</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-3 p-lg-4">
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="detail-stat">
+              <div class="label">Participants</div>
+              <div class="value" id="detail-participants-count">-</div>
             </div>
-            <button class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="detail-stat">
+              <div class="label">Présents / confirmés</div>
+              <div class="value" id="detail-present-count">-</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="detail-stat">
+              <div class="label">Absents</div>
+              <div class="value" id="detail-absent-count">-</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="detail-stat">
+              <div class="label">Montant session</div>
+              <div class="value" id="detail-montant">-</div>
+            </div>
           </div>
         </div>
-        <div class="modal-body p-4">
-          {{ form_start(formUpload, { attr:{ novalidate:'novalidate' } }) }}
-            {{ form_row(formUpload.type) }}
-            <div class="mt-3">{{ form_row(formUpload.commentaireControle) }}</div>
-            <div class="mt-3">{{ form_row(formUpload.valide) }}</div>
-            <div class="mt-3">{{ form_row(formUpload.file) }}</div>
 
-            <div class="d-flex justify-content-end gap-2 mt-4">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button class="btn btn-success">
-                <i class="bi bi-check2-circle me-1"></i> Envoyer
+        <div class="row g-4">
+          <div class="col-12 col-xl-7">
+            <div class="section-card border-0 shadow-none h-100">
+              <div class="card-header px-3 py-3">
+                <h6 class="section-title mb-0"><i class="bi bi-info-circle me-1"></i> Informations générales</h6>
+              </div>
+              <div class="card-body">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <span class="pill"><i class="bi bi-upc-scan"></i> <span id="detail-code">-</span></span>
+                  <span class="soft-chip"><i class="bi bi-journal-bookmark"></i> <span id="detail-formation">-</span></span>
+                  <span class="pill"><i class="bi bi-flag"></i> <span id="detail-statut">-</span></span>
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted mb-1">Capacité</div>
+                    <div class="fw-bold" id="detail-capacite">-</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-muted mb-1">Formateur</div>
+                    <div class="fw-bold" id="detail-formateur">-</div>
+                  </div>
+                  <div class="col-12">
+                    <div class="small text-muted mb-1">Site</div>
+                    <div class="fw-bold" id="detail-site">-</div>
+                  </div>
+                  <div class="col-12">
+                    <div class="small text-muted mb-1">Adresse</div>
+                    <div class="fw-bold" id="detail-adresse">-</div>
+                  </div>
+                </div>
+
+                <hr>
+
+                <h6 class="fw-bold mb-3"><i class="bi bi-calendar-week me-1"></i> Jours de session</h6>
+                <div id="detail-jours" class="d-flex flex-column gap-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-xl-5">
+            <div class="section-card border-0 shadow-none h-100">
+              <div class="card-header px-3 py-3 d-flex align-items-center justify-content-between">
+                <h6 class="section-title mb-0"><i class="bi bi-folder2-open me-1"></i> Documents</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btn-open-docs-from-detail">
+                  <i class="bi bi-box-arrow-up-right"></i> Ouvrir
                 </button>
+              </div>
+              <div class="card-body">
+                <div id="detail-documents-preview"></div>
+              </div>
             </div>
-            {{ form_end(formUpload) }}
+          </div>
+
+          <div class="col-12">
+            <div class="section-card border-0 shadow-none">
+              <div class="card-header px-3 py-3">
+                <h6 class="section-title mb-0"><i class="bi bi-people-fill me-1"></i> Participants</h6>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table align-middle compact">
+                    <thead>
+                      <tr>
+                        <th>Participant</th>
+                        <th>Email</th>
+                        <th>Téléphone</th>
+                        <th>Statut</th>
+                        <th>Montant dû</th>
+                        <th>Montant réglé</th>
+                        <th class="text-center">Assiduité</th>
+                        <th class="text-center">Réussi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="detail-participants-body">
+                      <tr><td colspan="8" class="text-center text-muted py-4">Chargement…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
+      </div>
+
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4 d-flex gap-2 justify-content-end">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i> Fermer
+        </button>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="modal fade" id="sessionDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content section-card">
-        <div class="modal-header modal-header-premium px-4 py-3">
-          <div class="w-100 d-flex justify-content-between align-items-start gap-3">
-            <div>
-              <h5 class="mb-1 fw-bold">
-                <i class="bi bi-calendar-event me-1"></i> Détail de la session
-              </h5>
-              <div class="opacity-75 small" id="sessionDetailSubtitle">—</div>
-            </div>
-            <button class="btn-close" data-bs-dismiss="modal"></button>
+{# ================= MODAL DOCUMENTS ================= #}
+<div class="modal fade" id="docsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100 d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <h5 class="section-title mb-1">
+              <i class="bi bi-folder2-open me-1"></i> Documents de session
+            </h5>
+            <div class="modal-subtitle" id="docs-subtitle">Session : -</div>
           </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-3 p-lg-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="small text-muted">
+            Visualisation et téléchargement des pièces liées à cette session.
+          </div>
+
+          <button type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#uploadDocModal">
+            <i class="bi bi-cloud-arrow-up me-1"></i> Ajouter un document
+          </button>
         </div>
 
-        <div class="modal-body p-4">
-          <div id="sessionDetailLoading" class="text-center py-5 d-none">
-            <div class="spinner-border text-primary" role="status"></div>
-            <div class="mt-3 text-muted">Chargement...</div>
-          </div>
+        <div id="docs-list" class="row g-3"></div>
+      </div>
 
-          <div id="sessionDetailError" class="alert alert-danger d-none"></div>
-
-          <div id="sessionDetailContent" class="d-none">
-            <div class="row g-3 mb-4">
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="kpi h-100">
-                  <div class="label">Code session</div>
-                  <div class="value fs-5" id="detail-code">—</div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="kpi h-100">
-                  <div class="label">Montant</div>
-                  <div class="value fs-5" id="detail-montant">—</div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="kpi h-100">
-                  <div class="label">Présents</div>
-                  <div class="value fs-5" id="detail-presents">—</div>
-                </div>
-              </div>
-              <div class="col-12 col-sm-6 col-xl-3">
-                <div class="kpi h-100">
-                  <div class="label">Absents</div>
-                  <div class="value fs-5" id="detail-absents">—</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="row g-4">
-              <div class="col-12 col-lg-7">
-                <div class="section-card h-100">
-                  <div class="card-header px-3 py-3">
-                    <h6 class="mb-0 fw-bold">Informations générales</h6>
-                  </div>
-                  <div class="card-body p-3">
-                    <div class="row g-3">
-                      <div class="col-12 col-md-6">
-                        <div class="small text-muted">Formation</div>
-                        <div class="fw-semibold" id="detail-formation">—</div>
-                      </div>
-                      <div class="col-12 col-md-6">
-                        <div class="small text-muted">Statut</div>
-                        <div class="fw-semibold" id="detail-statut">—</div>
-                      </div>
-                      <div class="col-12 col-md-6">
-                        <div class="small text-muted">Formateur</div>
-                        <div class="fw-semibold" id="detail-formateur">—</div>
-                      </div>
-                      <div class="col-12 col-md-6">
-                        <div class="small text-muted">Capacité</div>
-                        <div class="fw-semibold" id="detail-capacite">—</div>
-                      </div>
-                      <div class="col-12">
-                        <div class="small text-muted">Lieu</div>
-                        <div class="fw-semibold" id="detail-site">—</div>
-                        <div class="text-muted small" id="detail-adresse">—</div>
-                      </div>
-                    </div>
-
-                    <hr>
-
-                    <div>
-                      <div class="small text-muted mb-2">Horaires</div>
-                      <div id="detail-jours" class="d-flex flex-column gap-2"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col-12 col-lg-5">
-                <div class="section-card h-100">
-                  <div class="card-header px-3 py-3">
-                    <h6 class="mb-0 fw-bold">Carte</h6>
-                  </div>
-                  <div class="card-body p-3">
-                    <div id="detail-map-wrap">
-                      <div class="text-muted">Aucune localisation disponible.</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col-12">
-                <div class="section-card">
-                  <div class="card-header px-3 py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold">Participants</h6>
-                    <div class="text-muted small" id="detail-participants-count">0 participant</div>
-                  </div>
-                  <div class="card-body p-3">
-                    <div class="table-responsive">
-                      <table class="table align-middle mb-0">
-                        <thead>
-                          <tr>
-                            <th>Nom</th>
-                            <th>Email</th>
-                            <th>Téléphone</th>
-                            <th class="text-center">Statut</th>
-                            <th class="text-center">Présence</th>
-                            <th class="text-end">Montant dû</th>
-                            <th class="text-end">Montant réglé</th>
-                          </tr>
-                        </thead>
-                        <tbody id="detail-participants-body">
-                          <tr>
-                            <td colspan="7" class="text-muted text-center py-4">Aucune donnée.</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-
-              <div class="col-12">
-                <div class="section-card">
-                  <div class="card-header px-3 py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold">Documents de la session</h6>
-                    <div class="text-muted small" id="detail-documents-count">0 document</div>
-                  </div>
-                  <div class="card-body p-3">
-                    <div id="detail-documents-list" class="row g-3">
-                      <div class="col-12 text-muted text-center py-4">Aucun document.</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-
-
-            </div>
-          </div>
-        </div>
+      <div class="modal-footer bg-transparent border-top-0 px-3 px-lg-4 pb-4">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i> Fermer
+        </button>
       </div>
     </div>
   </div>
+</div>
+
+{# ================= MODAL UPLOAD ================= #}
+<div class="modal fade" id="uploadDocModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content section-card">
+      <div class="modal-header modal-header-premium px-3 px-lg-4 py-3">
+        <div class="w-100 d-flex align-items-start justify-content-between gap-3">
+          <div>
+            <h5 class="section-title mb-1">
+              <i class="bi bi-cloud-arrow-up me-1"></i> Ajouter un document
+            </h5>
+            <div class="modal-subtitle">Dépose une pièce de session depuis l’espace OF</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+
+      <div class="modal-body p-3 p-lg-4">
+        {{ form_start(formUpload, { attr: { enctype: 'multipart/form-data' } }) }}
+          <div class="row g-3">
+            {% for field in formUpload %}
+              {% if field.vars.name != '_token' %}
+                <div class="col-12">
+                  {{ form_label(field) }}
+                  {{ form_widget(field, { attr: { class: (field.vars.attr.class|default('') ~ ' form-control')|trim } }) }}
+                  {{ form_errors(field) }}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              <i class="bi bi-x-lg me-1"></i> Annuler
+            </button>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check2-circle me-1"></i> Envoyer
+            </button>
+          </div>
+        {{ form_end(formUpload) }}
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block javascripts %}
 {{ parent() }}
+
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/fr.global.min.js"></script>
+
 <script>
 (function(){
-  const escapeHtml = s => String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-  const nowLabel = () => {
-    const d = new Date();
-    return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-  };
+  const FC=(window.FullCalendar=window.FullCalendar||{});
+  FC.globalLocales=FC.globalLocales||[];
+  if(!FC.globalLocales.some(l=>l.code==='fr')){
+    FC.globalLocales.push({
+      code:'fr',
+      buttonText:{prev:'Préc.',next:'Suiv.',today:'Aujourd’hui',year:'Année',month:'Mois',week:'Semaine',day:'Jour',list:'Liste'},
+      weekText:'Sem.',allDayText:'Toute la journée',moreLinkText:'en plus',noEventsText:'Aucun évènement à afficher',
+      week:{dow:1,doy:4}
+    });
+  }
+})();
+</script>
 
-  const refreshEl = document.getElementById('hero-last-refresh');
-  if(refreshEl) refreshEl.textContent = 'Maj : ' + nowLabel();
+<script>
+$(function(){
 
-  const urls = {
-    dt: "{{ path('app_of_inscriptions_ajax', { entite: entite.id }) }}",
-    cal: "{{ path('app_of_calendar_feed', { entite: entite.id }) }}",
-    sessionDetailBase: "{{ path('app_of_session_detail_ajax', { entite: entite.id, session: '__ID__' }) }}",
-  };
-
-  function sessionDetailUrl(sessionId){
-    return urls.sessionDetailBase.replace('__ID__', String(sessionId));
+  function escapeHtml(s){
+    return String(s || '').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
   }
 
-  function computeKpis(rows){
-    const now = new Date();
-    const trainees = new Set();
-    let upcoming=0, live=0;
+  function stripHtml(html){
+    return String(html || '').replace(/<[^>]+>/g,'').trim();
+  }
 
-    rows.forEach(r=>{
-      trainees.add(r.stagiaire || '');
-      const start = r.firstStartIso ? new Date(r.firstStartIso) : null;
-      const end   = r.lastEndIso ? new Date(r.lastEndIso) : null;
-      if(!start || !end) return;
-      if(now < start) upcoming++;
-      else if(now >= start && now <= end) live++;
+  function formatStatusBadgeFromHtml(html){
+    const txt = stripHtml(html).toLowerCase();
+    if(txt.includes('à venir')){
+      return '<span class="status-pill info"><i class="bi bi-clock-history"></i> À venir</span>';
+    }
+    if(txt.includes('en cours')){
+      return '<span class="status-pill success"><i class="bi bi-lightning-charge"></i> En cours</span>';
+    }
+    if(txt.includes('terminée')){
+      return '<span class="status-pill secondary"><i class="bi bi-check2-circle"></i> Terminée</span>';
+    }
+    return '<span class="status-pill secondary"><i class="bi bi-dash-circle"></i> —</span>';
+  }
+
+  let currentSessionPayload = null;
+
+  const dt = $('#table-of-inscriptions').DataTable({
+    scrollX: true,
+    autoWidth: false,
+    responsive: false,
+    ajax:{
+      url:"{{ path('app_of_inscriptions_ajax', { entite: entite.id }) }}",
+      type:'POST'
+    },
+    columns:[
+      {data:'stagiaire'},
+      {data:'formation'},
+      {data:'code'},
+      {data:'dates'},
+      {
+        data:'statut',
+        render: function(d){
+          return formatStatusBadgeFromHtml(d);
+        }
+      },
+      {
+        data:'actions',
+        className:'text-center',
+        orderable:false,
+        searchable:false,
+        render:function(d, type, row){
+          const raw = (d || '').trim();
+          const key = String(row.sessionId || row.inscriptionId || row.code || Math.random()).replace(/\W+/g,'_');
+          const menuId = 'act_of_' + key;
+
+          return `
+            <div class="actions-wrap">
+              <div class="dropdown action-dd">
+                <button class="btn btn-action btn-sm dropdown-toggle" type="button"
+                        id="${menuId}"
+                        data-bs-toggle="dropdown"
+                        data-bs-boundary="viewport"
+                        data-bs-display="static"
+                        aria-expanded="false">
+                  <i class="bi bi-three-dots-vertical"></i> Actions
+                </button>
+                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="${menuId}">
+                  <div class="dd-head">
+                    <div class="t"><i class="bi bi-lightning-charge me-1"></i> Actions</div>
+                  </div>
+                  ${raw}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      },
+      {data:'firstStartIso', visible:false, searchable:false},
+      {data:'lastEndIso', visible:false, searchable:false},
+      {data:'sessionId', visible:false, searchable:false}
+    ],
+    order:[[6,'desc']],
+    pageLength:10,
+    language:{ url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' },
+    drawCallback:function(){
+      computeKpisFromTable(this.api());
+      buildTimelineFromTable(this.api(), '#upcoming-timeline', 7);
+    }
+  });
+
+  $('#searchAll').on('input', function(){
+    dt.search(this.value).draw();
+  });
+
+  $('#btnReloadTable').on('click', function(){
+    dt.ajax.reload(null, false);
+    calendar.refetchEvents();
+  });
+
+  $('#btnExportTable').on('click', function(){
+    const rows = dt.rows({search:'applied'}).data().toArray();
+    const header = ['Stagiaire','Formation','Code','Dates','Statut'];
+    const lines = [header.join(';')].concat(
+      rows.map(r => [
+        r.stagiaire,
+        stripHtml(r.formation),
+        r.code,
+        stripHtml(r.dates),
+        stripHtml(r.statut)
+      ].map(v => '"' + String(v ?? '').replaceAll('"','""') + '"').join(';'))
+    );
+
+    const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'inscriptions_of.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  function computeKpisFromTable(api){
+    const data = api.rows({search:'applied'}).data().toArray();
+    const now = new Date();
+
+    let upcoming = 0;
+    let live = 0;
+    let trainees = data.length;
+    let sessionsDocs = new Set();
+
+    data.forEach(row => {
+      if(row.firstStartIso && row.lastEndIso){
+        const start = new Date(row.firstStartIso);
+        const end = new Date(row.lastEndIso);
+
+        if(now < start) upcoming++;
+        else if(now >= start && now <= end) live++;
+      }
     });
 
-    document.getElementById('kpi-trainees').textContent = trainees.size || 0;
-    document.getElementById('kpi-upcoming').textContent = upcoming;
-    document.getElementById('kpi-live').textContent = live;
-  }
+    $('#kpi-upcoming').text(upcoming);
+    $('#kpi-live').text(live);
+    $('#kpi-trainees').text(trainees);
 
-  function badgePresence(participant){
-    if (participant.present) return `<span class="badge bg-success-subtle text-success">Présent</span>`;
-    if (participant.absent) return `<span class="badge bg-danger-subtle text-danger">Absent</span>`;
-    return `<span class="badge bg-secondary-subtle text-secondary">Non renseigné</span>`;
-  }
-
-  function renderJour(j){
-    return `
-      <div class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2 flex-wrap gap-2">
-        <div>
-          <div class="fw-semibold">${escapeHtml(j.dateLabel || '-')}</div>
-          ${j.formateur ? `<div class="small text-muted"><i class="bi bi-person-badge me-1"></i>${escapeHtml(j.formateur)}</div>` : ``}
-        </div>
-        <div class="text-muted">${escapeHtml(j.heureDebut || '--:--')} → ${escapeHtml(j.heureFin || '--:--')}</div>
-      </div>
-    `;
-  }
-
-  function renderParticipant(p){
-    return `
-      <tr>
-        <td class="fw-semibold">${escapeHtml(p.nom || '-')}</td>
-        <td>${escapeHtml(p.email || '-')}</td>
-        <td>${escapeHtml(p.telephone || '-')}</td>
-        <td class="text-center">${escapeHtml(p.statut || '-')}</td>
-        <td class="text-center">${badgePresence(p)}</td>
-        <td class="text-end">${escapeHtml(p.montantDu || '-')}</td>
-        <td class="text-end">${escapeHtml(p.montantRegle || '-')}</td>
-      </tr>
-    `;
-  }
-
-  function setSessionDetailLoadingState(state){
-    document.getElementById('sessionDetailLoading').classList.toggle('d-none', state !== 'loading');
-    document.getElementById('sessionDetailError').classList.toggle('d-none', state !== 'error');
-    document.getElementById('sessionDetailContent').classList.toggle('d-none', state !== 'content');
-  }
-
-
-  function badgeDocValid(doc){
-    return doc.valide
-      ? `<span class="badge bg-success-subtle text-success">Validé</span>`
-      : `<span class="badge bg-warning-subtle text-warning">En attente</span>`;
-  }
-
-  function renderDocument(doc){
-    return `
-      <div class="col-12 col-md-6 col-xl-4">
-        <div class="border rounded-3 p-3 h-100 bg-white">
-          <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-            <div>
-              <div class="fw-semibold">${escapeHtml(doc.type || 'Document')}</div>
-              <div class="small text-muted text-break">${escapeHtml(doc.name || '-')}</div>
-            </div>
-            ${badgeDocValid(doc)}
-          </div>
-
-          <div class="small text-muted mb-2">
-            ${doc.uploadedAt ? `<div><i class="bi bi-clock me-1"></i>${escapeHtml(doc.uploadedAt)}</div>` : ''}
-            ${doc.mimeType ? `<div><i class="bi bi-file-earmark me-1"></i>${escapeHtml(doc.mimeType)}</div>` : ''}
-          </div>
-
-          ${doc.commentaire ? `<div class="small mb-3"><strong>Commentaire :</strong> ${escapeHtml(doc.commentaire)}</div>` : ''}
-
-          <div class="d-flex flex-wrap gap-2 justify-content-end">
-            <a class="btn btn-sm btn-outline-primary" href="${escapeHtml(doc.viewUrl)}" target="_blank">
-              <i class="bi bi-eye me-1"></i> Voir
-            </a>
-            <a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(doc.downloadUrl)}">
-              <i class="bi bi-download me-1"></i> Télécharger
-            </a>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  async function openSessionDetail(sessionId){
-    const modalEl = document.getElementById('sessionDetailModal');
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-    document.getElementById('sessionDetailSubtitle').textContent = 'Chargement...';
-    document.getElementById('sessionDetailError').textContent = '';
-    setSessionDetailLoadingState('loading');
-    modal.show();
-
-    try {
-      const res = await fetch(sessionDetailUrl(sessionId), {
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || 'Impossible de charger le détail de la session.');
-      }
-
-      const s = json.session;
-
-      document.getElementById('sessionDetailSubtitle').textContent = `${s.formation || '-'} · ${s.code || '-'}`;
-      document.getElementById('detail-code').textContent = s.code || '-';
-      document.getElementById('detail-montant').textContent = s.montant || '-';
-      document.getElementById('detail-presents').textContent = s.presentCount ?? 0;
-      document.getElementById('detail-absents').textContent = s.absentCount ?? 0;
-
-      document.getElementById('detail-formation').textContent = s.formation || '-';
-      document.getElementById('detail-statut').textContent = s.statut || '-';
-      document.getElementById('detail-formateur').textContent = s.formateur || '-';
-      document.getElementById('detail-capacite').textContent = s.capacite ?? '-';
-      document.getElementById('detail-site').textContent = s.siteNom || '-';
-      document.getElementById('detail-adresse').textContent = s.adresse || '-';
-
-      document.getElementById('detail-jours').innerHTML =
-        (s.jours || []).length
-          ? s.jours.map(renderJour).join('')
-          : `<div class="text-muted">Aucun horaire défini.</div>`;
-
-      const participants = s.participants || [];
-      document.getElementById('detail-participants-count').textContent =
-        `${participants.length} ${participants.length > 1 ? 'participants' : 'participant'}`;
-
-      document.getElementById('detail-participants-body').innerHTML =
-        participants.length
-          ? participants.map(renderParticipant).join('')
-          : `<tr><td colspan="7" class="text-muted text-center py-4">Aucun participant.</td></tr>`;
-
-      const documents = s.documents || [];
-      document.getElementById('detail-documents-count').textContent =
-        `${documents.length} ${documents.length > 1 ? 'documents' : 'document'}`;
-
-      document.getElementById('detail-documents-list').innerHTML =
-        documents.length
-          ? documents.map(renderDocument).join('')
-          : `<div class="col-12 text-muted text-center py-4">Aucun document.</div>`;
-
-      const mapWrap = document.getElementById('detail-map-wrap');
-      if (s.mapQuery) {
-        const q = encodeURIComponent(s.mapQuery);
-        mapWrap.innerHTML = `
-          <iframe
-            class="detail-map-frame"
-            src="https://www.google.com/maps?q=${q}&output=embed"
-            loading="lazy"
-            allowfullscreen>
-          </iframe>
-        `;
-      } else {
-        mapWrap.innerHTML = `<div class="text-muted">Aucune localisation disponible.</div>`;
-      }
-
-      setSessionDetailLoadingState('content');
-    } catch (e) {
-      console.error('Erreur session detail:', e);
-      document.getElementById('sessionDetailError').textContent = e.message || 'Erreur de chargement.';
-      setSessionDetailLoadingState('error');
+    // On calcule les docs sur la dernière session ouverte quand dispo,
+    // sinon on garde une valeur informative légère.
+    if(currentSessionPayload?.session?.documents){
+      $('#kpi-docs').text(currentSessionPayload.session.documents.length || 0);
+    } else {
+      $('#kpi-docs').text('—');
     }
   }
 
-  $(function(){
-    const DT = $('#table-of').DataTable({
-      ajax:{ url: urls.dt, type:'POST' },
-      columns:[
-        {data:'stagiaire'},
-        {data:'formation'},
-        {data:'code'},
-        {data:'dates'},
-        {data:'statut', className:'text-center'},
-        {data:'actions', className:'text-center'},
-        {data:'firstStartIso', visible:false, searchable:false},
-        {data:'lastEndIso', visible:false, searchable:false},
-        {data:'sessionId', visible:false, searchable:false},
-      ],
-      order:[[6,'desc']],
-      pageLength:10,
-      language: { url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' },
-      drawCallback:function(){
-        const rows = this.api().rows().data().toArray();
-        computeKpis(rows);
-      }
-    });
+  function buildTimelineFromTable(api, selector, maxItems){
+    const data = api.rows().data().toArray();
+    const now = new Date();
 
-    $('#btnRefresh').on('click', ()=>{
-      DT.ajax.reload();
-      const el = document.getElementById('hero-last-refresh');
-      if(el) el.textContent = 'Maj : ' + nowLabel();
-    });
+    const items = data
+      .filter(r => r.firstStartIso)
+      .map(r => {
+        const start = new Date(r.firstStartIso);
+        return {
+          whenDate: start,
+          when: start.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+          what: `${stripHtml(r.formation)} (${r.code || ''})`
+        };
+      })
+      .filter(it => it.whenDate > now)
+      .sort((a,b)=> a.whenDate - b.whenDate);
 
-    $(document).on('click', '.js-open-session-detail', function(){
-      const sid = this.dataset.session || '';
-      if (!sid) return;
-      openSessionDetail(sid);
-    });
+    const ul = document.querySelector(selector);
+    ul.innerHTML = '';
 
-    $(document).on('click', '.js-open-docs', function(){
-      const sid = this.dataset.session || '';
-      if (!sid) {
-        window.location.href = "{{ path('app_of_documents_index', { entite: entite.id }) }}";
-        return;
-      }
-      window.location.href = "{{ path('app_of_documents_index', { entite: entite.id }) }}" + '?session=' + encodeURIComponent(sid);
-    });
+    if(items.length === 0){
+      ul.innerHTML = '<li><span class="dot"></span><span class="when">-</span><span class="what">Aucune session à venir.</span></li>';
+      return;
+    }
 
-    const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
-      locale: 'fr',
-      timeZone: 'Europe/Paris',
-      firstDay: 1,
-      height: 'auto',
-      initialView: 'dayGridMonth',
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,listWeek'
-      },
-      buttonText: {
-        today: "Aujourd'hui",
-        month: "Mois",
-        week: "Semaine",
-        day: "Jour",
-        list: "Liste"
-      },
-      titleFormat: { year: 'numeric', month: 'long' },
-      dayHeaderFormat: { weekday: 'short' },
-      events: urls.cal,
-      eventClick: (info) => {
-        info.jsEvent?.preventDefault();
-        const sid = info.event.extendedProps?.sessionId || info.event.id;
-        if (!sid) return;
+    items.slice(0, maxItems || 6).forEach(it => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="dot"></span><span class="when">${it.when}</span><span class="what">${escapeHtml(it.what)}</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+  const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    locale:'fr',
+    height:'auto',
+    initialView:'dayGridMonth',
+    headerToolbar:{
+      left:'prev,next today',
+      center:'title',
+      right:'dayGridMonth,timeGridWeek,listWeek'
+    },
+    events:"{{ path('app_of_calendar_feed', { entite: entite.id }) }}",
+    eventDidMount:(info)=>{
+      info.el.style.borderRadius = '.6rem';
+      info.el.style.boxShadow = '0 8px 20px rgba(0,0,0,.08)';
+    },
+    eventClick:(info)=>{
+      info.jsEvent?.preventDefault();
+      const sid = info.event.extendedProps?.sessionId || info.event.id;
+      if(sid){
         openSessionDetail(sid);
       }
-    });
-    cal.render();
+    }
   });
-})();
+  calendar.render();
+
+  async function fetchSessionDetail(sessionId){
+    const url = "{{ path('app_of_session_detail_ajax', { entite: entite.id, session: '__SESSION__' }) }}".replace('__SESSION__', sessionId);
+    const res = await fetch(url, { headers:{ 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json' }});
+    const json = await res.json();
+    if(!res.ok || !json || json.success !== true){
+      throw new Error(json?.message || 'Impossible de charger le détail de la session.');
+    }
+    return json;
+  }
+
+  function renderDocumentsPreview(documents, containerSelector, emptyText){
+    const wrap = document.querySelector(containerSelector);
+    if(!wrap) return;
+
+    const docs = documents || [];
+    if(docs.length === 0){
+      wrap.innerHTML = `<div class="empty-state"><i class="bi bi-folder-x me-1"></i> ${escapeHtml(emptyText || 'Aucun document disponible.')}</div>`;
+      return;
+    }
+
+    wrap.innerHTML = docs.map(doc => `
+      <div class="asset-item mb-2">
+        <div class="asset-icon"><i class="bi bi-file-earmark-text-fill"></i></div>
+        <div class="flex-grow-1 text-truncate">
+          <div class="asset-name" title="${escapeHtml(doc.type || 'Document')}">${escapeHtml(doc.type || 'Document')}</div>
+          <div class="asset-meta">
+            ${doc.uploadedAt ? escapeHtml(doc.uploadedAt) : ''}
+            ${doc.mimeType ? ' · ' +  escapeHtml(doc.mimeType) : ''}
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="${doc.viewUrl}" target="_blank" title="Voir">
+            <i class="bi bi-eye"></i>
+          </a>
+          <a class="btn btn-sm btn-outline-primary" href="${doc.downloadUrl}" title="Télécharger">
+            <i class="bi bi-download"></i>
+          </a>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderParticipants(participants){
+    const tbody = document.getElementById('detail-participants-body');
+    if(!tbody) return;
+
+    if(!participants || participants.length === 0){
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">Aucun participant trouvé.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = participants.map(p => `
+      <tr>
+        <td class="fw-bold">${escapeHtml(p.nom || '—')}</td>
+        <td>${p.email ? escapeHtml(p.email) : '<span class="text-muted">—</span>'}</td>
+        <td>${p.telephone ? escapeHtml(p.telephone) : '<span class="text-muted">—</span>'}</td>
+        <td>
+          <span class="status-pill ${p.absent ? 'secondary' : (p.present ? 'success' : 'info')}">
+            <i class="bi ${p.absent ? 'bi-x-circle' : (p.present ? 'bi-check2-circle' : 'bi-info-circle')}"></i>
+            ${escapeHtml(p.statut || '—')}
+          </span>
+        </td>
+        <td>${p.montantDu ? escapeHtml(p.montantDu) : '<span class="text-muted">—</span>'}</td>
+        <td>${p.montantRegle ? escapeHtml(p.montantRegle) : '<span class="text-muted">—</span>'}</td>
+        <td class="text-center">${p.assiduite !== null && p.assiduite !== undefined ? escapeHtml(p.assiduite) + '%' : '<span class="text-muted">—</span>'}</td>
+        <td class="text-center">
+          ${p.reussi === true
+            ? '<span class="badge bg-success">Oui</span>'
+            : (p.reussi === false ? '<span class="badge bg-secondary">Non</span>' : '<span class="text-muted">—</span>')
+          }
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderJours(jours){
+    const wrap = document.getElementById('detail-jours');
+    if(!wrap) return;
+
+    if(!jours || jours.length === 0){
+      wrap.innerHTML = `<div class="empty-state">Aucun jour de session.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = jours.map(j => `
+      <div class="asset-item">
+        <div class="asset-icon"><i class="bi bi-calendar-event"></i></div>
+        <div class="flex-grow-1">
+          <div class="asset-name">${escapeHtml(j.dateLabel || '—')}</div>
+          <div class="asset-meta">
+            ${escapeHtml(j.heureDebut || '--:--')} → ${escapeHtml(j.heureFin || '--:--')}
+            ${j.formateur ? ' · ' + escapeHtml(j.formateur) : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function fillDetailModal(payload){
+    currentSessionPayload = payload;
+    const s = payload.session || {};
+
+    $('#detail-subtitle').text(`${s.formation || 'Session'} · ${s.code || ''}`);
+    $('#detail-participants-count').text(s.participantsCount ?? 0);
+    $('#detail-present-count').text(s.presentCount ?? 0);
+    $('#detail-absent-count').text(s.absentCount ?? 0);
+    $('#detail-montant').text(s.montant || '—');
+
+    $('#detail-code').text(s.code || '—');
+    $('#detail-formation').text(s.formation || '—');
+    $('#detail-statut').text(s.statut || '—');
+    $('#detail-capacite').text(s.capacite ?? '—');
+    $('#detail-formateur').text(s.formateur || '—');
+    $('#detail-site').text(s.siteNom || '—');
+    $('#detail-adresse').text(s.adresse || '—');
+
+    renderJours(s.jours || []);
+    renderParticipants(s.participants || []);
+    renderDocumentsPreview(s.documents || [], '#detail-documents-preview', 'Aucun document lié à cette session.');
+
+    $('#kpi-docs').text((s.documents || []).length || 0);
+  }
+
+  async function openSessionDetail(sessionId){
+    try{
+      $('#detail-subtitle').text('Chargement…');
+      $('#detail-participants-body').html('<tr><td colspan="8" class="text-center text-muted py-4">Chargement…</td></tr>');
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('sessionDetailModal')).show();
+
+      const payload = await fetchSessionDetail(sessionId);
+      fillDetailModal(payload);
+    }catch(e){
+      $('#detail-subtitle').text('Erreur');
+      $('#detail-participants-body').html(`<tr><td colspan="8" class="text-center text-danger py-4">${escapeHtml(e.message || 'Erreur')}</td></tr>`);
+    }
+  }
+
+  function openDocsModalFromCurrentSession(){
+    const s = currentSessionPayload?.session || null;
+    const wrap = document.getElementById('docs-list');
+    if(!wrap) return;
+
+    if(!s){
+      $('#docs-subtitle').text('Session : -');
+      renderDocumentsPreview([], '#docs-list', 'Aucune session sélectionnée.');
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('docsModal')).show();
+      return;
+    }
+
+    $('#docs-subtitle').text(`Session : ${s.formation || '—'} · ${s.code || ''}`);
+    renderDocumentsPreview(s.documents || [], '#docs-list', 'Aucun document sur cette session.');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('docsModal')).show();
+  }
+
+  $(document).on('click', '.js-open-session-detail', function(e){
+    e.preventDefault();
+    const sessionId = this.dataset.session;
+    if(sessionId) openSessionDetail(sessionId);
+  });
+
+  $(document).on('click', '.js-open-docs', async function(e){
+    e.preventDefault();
+    const sessionId = this.dataset.session;
+    if(!sessionId) return;
+
+    try{
+      const payload = await fetchSessionDetail(sessionId);
+      currentSessionPayload = payload;
+      openDocsModalFromCurrentSession();
+    }catch(err){
+      $('#docs-subtitle').text('Erreur');
+      renderDocumentsPreview([], '#docs-list', err.message || 'Impossible de charger les documents.');
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('docsModal')).show();
+    }
+  });
+
+  $('#btn-open-docs-from-detail').on('click', function(){
+    openDocsModalFromCurrentSession();
+  });
+
+});
 </script>
 {% endblock %}

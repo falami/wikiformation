@@ -1,0 +1,1197 @@
+{# templates/of/documents.html.twig #}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Espace OF — Documents{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --teal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#1e3a5f')) }};
+      --amber: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffb703')) }};
+      --sand: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#eef3f7')) }};
+
+      --ink:#0f2336;
+      --ink-2:#28435a;
+      --muted:#6f8897;
+      --card:#ffffff;
+      --card-2:#f8fbfe;
+      --line:#e6eef5;
+      --radius:1.15rem;
+      --ring:0 14px 48px rgba(15,35,54,.12);
+    }
+
+    body{ color:var(--ink); }
+    .page-wrap{ width:100%; }
+
+    /* ================= HERO ================= */
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      background:
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    .hero .accent{
+      width:12px;
+      border-radius:999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      flex: 0 0 12px;
+    }
+
+    .hero .meta-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+
+    .hero .meta-chip i{
+      color: var(--theme-color-secondaire);
+    }
+
+    .hero .btn{
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .hero .btn-outline-hero{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+
+    .hero .btn-outline-hero:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    .hero .btn.btn-light{
+      background: rgba(255,255,255,.90);
+      border-color: rgba(0,0,0,.10);
+      box-shadow: 0 10px 22px rgba(0,0,0,.08);
+    }
+
+    .hero .btn.btn-light:hover{
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 14px 28px rgba(0,0,0,.12);
+    }
+
+    /* ================= KPI ================= */
+    .kpi{
+      position:relative;
+      border: 1px solid color-mix(in oklab, var(--theme-color-principal) 10%, var(--line) 90%);
+      border-radius: 1.15rem;
+      padding: 1.05rem 1.15rem;
+      box-shadow: 0 16px 50px rgba(15,35,54,.10);
+      overflow:hidden;
+      background: #fff;
+      height: 100%;
+    }
+
+    .kpi::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      pointer-events:none;
+      opacity:.75;
+    }
+
+    .kpi .kpi-top{
+      position:relative;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:.85rem;
+      z-index:1;
+    }
+
+    .kpi .kpi-ico{
+      width:44px;
+      height:44px;
+      border-radius: 1rem;
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+      background:
+        radial-gradient(120px 60px at 30% 20%, rgba(255,255,255,.22), transparent 60%),
+        linear-gradient(135deg,
+          color-mix(in oklab, var(--theme-color-principal) 88%, black 12%),
+          color-mix(in oklab, var(--theme-color-principal) 55%, var(--theme-color-secondaire) 45%)
+        );
+      border: 1px solid rgba(255,255,255,.22);
+      box-shadow:
+        0 16px 30px rgba(15,35,54,.16),
+        0 0 0 6px color-mix(in oklab, var(--theme-color-secondaire) 16%, transparent 84%);
+    }
+
+    .kpi .kpi-ico i{
+      color:#fff;
+      font-size: 1.2rem;
+      filter: drop-shadow(0 10px 16px rgba(0,0,0,.20));
+    }
+
+    .kpi .kpi-main{
+      position:relative;
+      z-index:1;
+      flex:1 1 auto;
+      min-width: 0;
+    }
+
+    .kpi .label{
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 900;
+      letter-spacing: .2px;
+      margin-top: .55rem;
+    }
+
+    .kpi .value{
+      font-weight: 950;
+      font-size: 1.85rem;
+      line-height: 1;
+      letter-spacing: .2px;
+      color: var(--ink);
+      text-shadow: 0 10px 26px rgba(15,35,54,.10);
+    }
+
+    .kpi .sub{
+      margin-top: .35rem;
+      font-size: .82rem;
+      color: color-mix(in oklab, var(--muted) 82%, var(--ink) 18%);
+      font-weight: 800;
+    }
+
+    .kpi:hover{
+      transform: translateY(-2px);
+      transition: transform .14s ease, box-shadow .14s ease;
+      box-shadow: 0 22px 70px rgba(15,35,54,.14);
+    }
+
+    /* ================= CARDS ================= */
+    .section-card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow: var(--ring);
+      overflow: hidden;
+    }
+
+    .section-card .card-header{
+      background: linear-gradient(180deg, var(--card-2), var(--card));
+      border-bottom:1px solid var(--line);
+      border-top-left-radius:var(--radius);
+      border-top-right-radius:var(--radius);
+    }
+
+    .section-title{
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+
+    /* ================= TOOLBAR ================= */
+    .toolbar{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:.9rem;
+      box-shadow: var(--ring);
+    }
+
+    .toolbar .input-group-text{
+      background:transparent;
+      border-color:var(--line);
+      color:var(--muted);
+    }
+
+    .toolbar .form-control,
+    .toolbar .form-select{
+      border-color:var(--line);
+      border-radius:.8rem;
+      min-height: 42px;
+      box-shadow:none !important;
+    }
+
+    .toolbar .form-control:focus,
+    .toolbar .form-select:focus{
+      border-color: color-mix(in oklab, var(--theme-color-secondaire) 45%, var(--line) 55%);
+      box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 18%, transparent 82%) !important;
+    }
+
+    .soft-badge{
+      border:1px solid color-mix(in oklab, var(--amber) 38%, white 62%);
+      background: color-mix(in oklab, var(--amber) 10%, white 90%);
+      color: color-mix(in oklab, var(--amber) 55%, black 45%);
+      border-radius:999px;
+      padding:.35rem .6rem;
+      font-weight:900;
+      font-size:.85rem;
+    }
+
+    .filter-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      border:1px solid var(--line);
+      background: var(--card-2);
+      border-radius:999px;
+      padding:.4rem .7rem;
+      font-weight:900;
+      color:var(--ink-2);
+      font-size:.82rem;
+      white-space: nowrap;
+    }
+
+    /* ================= DATATABLES ================= */
+    html, body{
+      max-width:100%;
+      overflow-x:hidden;
+    }
+
+    .dt-scroll{
+      width:100%;
+      overflow-x:auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .dt-scroll .dataTables_wrapper{
+      width:100%;
+    }
+
+    .dt-scroll table.dataTable{
+      width:100% !important;
+      min-width: 980px;
+    }
+
+    .table thead th{
+      font-weight:900;
+      color:var(--ink-2);
+      border-bottom:1px solid var(--line) !important;
+      white-space: nowrap;
+    }
+
+    table.dataTable tbody tr{
+      transition: background .15s ease;
+    }
+
+    table.dataTable tbody tr:hover{
+      background: color-mix(in oklab, var(--sand) 35%, white 65%);
+    }
+
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select{
+      border:1px solid var(--line);
+      border-radius:.65rem;
+      padding:.45rem .75rem;
+      background:var(--card-2);
+      color:var(--ink);
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button{
+      border-radius:.65rem !important;
+    }
+
+    .compact td,
+    .compact th{
+      padding:.75rem .8rem !important;
+      vertical-align: middle;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      background: color-mix(in oklab, var(--amber) 12%, white 88%);
+      color: color-mix(in oklab, var(--amber) 60%, black 40%);
+      border:1px solid color-mix(in oklab, var(--amber) 35%, white 65%);
+      border-radius:999px;
+      padding:.25rem .55rem;
+      font-weight:800;
+      font-size:.8rem;
+    }
+
+    .doc-type-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      padding:.28rem .6rem;
+      font-weight:900;
+      font-size:.78rem;
+      border:1px solid color-mix(in oklab, var(--theme-color-principal) 18%, white 82%);
+      background: color-mix(in oklab, var(--theme-color-principal) 8%, white 92%);
+      color: color-mix(in oklab, var(--theme-color-principal) 72%, black 28%);
+    }
+
+    .file-cell{
+      display:flex;
+      align-items:center;
+      gap:.65rem;
+      min-width:0;
+    }
+
+    .file-ico{
+      width:36px;
+      height:36px;
+      border-radius:.8rem;
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+      background: color-mix(in oklab, var(--theme-color-principal) 10%, white 90%);
+      color: color-mix(in oklab, var(--theme-color-principal) 78%, black 22%);
+      border:1px solid color-mix(in oklab, var(--theme-color-principal) 14%, white 86%);
+    }
+
+    .file-meta{
+      min-width:0;
+    }
+
+    .file-name{
+      font-weight:800;
+      color:var(--ink);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .file-sub{
+      font-size:.78rem;
+      color:var(--muted);
+    }
+
+    /* ================= ACTIONS DROPDOWN ================= */
+    .actions-wrap{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap:.4rem;
+      flex-wrap:wrap;
+    }
+
+    .action-dd .btn-action{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      border-radius:.85rem;
+      font-weight:900;
+      border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 45%, white 55%);
+      background: color-mix(in oklab, var(--theme-color-secondaire) 16%, white 84%);
+      color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
+    }
+
+    .action-dd .btn-action:hover,
+    .action-dd .btn-action:focus{
+      background: color-mix(in oklab, var(--theme-color-secondaire) 22%, white 78%);
+      box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 22%, transparent 78%);
+    }
+
+    .action-dd .dropdown-menu{
+      border-radius: 1rem;
+      border:1px solid var(--line);
+      box-shadow: var(--ring);
+      overflow:hidden;
+      padding:.35rem;
+    }
+
+    .action-dd .dropdown-menu .dd-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: .55rem .65rem .5rem;
+      margin: -.35rem -.35rem .35rem;
+      background: linear-gradient(135deg,
+        color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
+        color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
+      );
+      color:#fff;
+    }
+
+    .action-dd .dropdown-menu .dd-head .t{
+      font-weight: 950;
+      letter-spacing:.2px;
+    }
+
+    .action-dd .dropdown-menu :is(a, button){
+      width: 100%;
+      display:flex !important;
+      align-items:center;
+      justify-content:flex-start;
+      gap:.6rem;
+      padding:.55rem .65rem !important;
+      margin: .18rem 0 !important;
+      border-radius:.9rem !important;
+      border: 1px solid transparent !important;
+      background: transparent !important;
+      font-weight: 900 !important;
+      text-decoration: none !important;
+      line-height: 1.15;
+      color: var(--ink) !important;
+      box-shadow: none !important;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+
+    .action-dd .dropdown-menu :is(a, button):hover{
+      background: color-mix(in oklab, var(--sand) 45%, white 55%) !important;
+      border-color: color-mix(in oklab, var(--theme-color-principal) 14%, transparent 86%) !important;
+      transform: translateY(-1px);
+    }
+
+    .action-dd .dropdown-menu :is(a, button) i{
+      width: 1.25rem;
+      text-align:center;
+      font-size: 1.05rem;
+      opacity: .95;
+    }
+
+    .action-dd .dropdown-menu .btn-outline-success i,
+    .action-dd .dropdown-menu .btn-success i{ color: #16a34a; }
+
+    .action-dd .dropdown-menu .btn-outline-primary i,
+    .action-dd .dropdown-menu .btn-primary i{
+      color: color-mix(in oklab, var(--theme-color-principal) 70%, black 30%);
+    }
+
+    .action-dd .dropdown-menu .btn-outline-warning i,
+    .action-dd .dropdown-menu .btn-warning i{ color: #b45309; }
+
+    .action-dd .dropdown-menu .btn-outline-danger i,
+    .action-dd .dropdown-menu .btn-danger i{ color: #dc2626; }
+
+    .section-card{ position: relative; z-index: 1; }
+    #table-documents_wrapper{ position: relative; z-index: 50; }
+    #table-documents_wrapper .dropdown-menu{ z-index: 9999 !important; }
+
+    /* ================= MOBILE ================= */
+    @media (max-width: 991.98px){
+      .hero .d-flex.align-items-start.justify-content-between{
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 576px){
+      .hero{
+        border-radius: 18px;
+      }
+
+      .hero h2{
+        font-size: 1.25rem;
+      }
+
+      .toolbar{
+        padding:.8rem;
+      }
+
+      .toolbar .w-mobile-full{
+        width:100%;
+      }
+
+      .dt-scroll table.dataTable{
+        min-width: 860px;
+      }
+    }
+
+
+    /* ===== FILTERBAR ===== */
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid rgba(0,0,0,.06);
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      overflow-y:visible;
+    }
+    .filterbar__top{
+      padding:.9rem 1rem;
+      border-bottom:1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
+    .filterbar__title{
+      font-weight:900;
+      margin:0;
+      font-size:1rem;
+    }
+    .filterbar__hint{
+      color:rgba(0,0,0,.55);
+      font-size:.85rem;
+    }
+    .filterbar__body{
+      padding:1rem;
+    }
+    .filtergrid{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap:.75rem;
+      align-items:end;
+    }
+
+    .fcol-session{ grid-column: span 3; }
+    .fcol-formation{ grid-column: span 3; }
+    .fcol-type{ grid-column: span 2; }
+    .fcol-status{ grid-column: span 2; }
+    .fcol-period{ grid-column: span 2; }
+
+    @media (max-width: 1200px){
+      .fcol-session{ grid-column: span 6; }
+      .fcol-formation{ grid-column: span 6; }
+      .fcol-type{ grid-column: span 4; }
+      .fcol-status{ grid-column: span 4; }
+      .fcol-period{ grid-column: span 4; }
+    }
+
+    @media (max-width: 768px){
+      .fcol-session,
+      .fcol-formation,
+      .fcol-type,
+      .fcol-status,
+      .fcol-period{
+        grid-column: span 12;
+      }
+    }
+
+    .filter-control .form-label{
+      font-size:.78rem;
+      font-weight:800;
+      color:rgba(0,0,0,.55);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      margin-bottom:.25rem;
+    }
+    .filterbox{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      padding:.55rem .6rem;
+      background:#fff;
+      box-shadow:0 8px 18px rgba(0,0,0,.04);
+    }
+    .filterbox:focus-within{
+      border-color: rgba(255,193,7,.55);
+      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
+    }
+    .filterbox .form-select,
+    .filterbox .form-control{
+      border:0 !important;
+      box-shadow:none !important;
+      padding-left:0 !important;
+      padding-right:0 !important;
+      background:transparent !important;
+    }
+    .filterrow{
+      display:flex;
+      gap:.6rem;
+      align-items:center;
+    }
+    .filter-icon{
+      width:34px;
+      height:34px;
+      border-radius:12px;
+      display:grid;
+      place-items:center;
+      background:rgba(0,0,0,.04);
+      border:1px solid rgba(0,0,0,.06);
+      color:rgba(0,0,0,.55);
+      flex:0 0 auto;
+    }
+
+    /* recherche premium */
+    .search-pro{
+      min-width: 280px;
+    }
+    .search-pro .input-group-text{
+      border-radius:999px 0 0 999px;
+      border:1px solid rgba(0,0,0,.10);
+      border-right:0;
+      background:#fff;
+      color:rgba(0,0,0,.45);
+      box-shadow:0 10px 18px rgba(0,0,0,.04);
+    }
+    .search-pro .form-control{
+      border-radius:0 999px 999px 0;
+      border:1px solid rgba(0,0,0,.10);
+      border-left:0;
+      box-shadow:0 10px 18px rgba(0,0,0,.04);
+      background:#fff;
+    }
+    .search-pro .form-control:focus{
+      border-color:rgba(255,193,7,.55);
+      box-shadow:0 0 0 .2rem rgba(255,193,7,.18), 0 12px 22px rgba(0,0,0,.05);
+    }
+    .search-pro--sm{
+      max-width: 420px;
+    }
+
+    .ts-dropdown{
+      z-index: 2000 !important;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3 px-lg-4 page-wrap">
+
+  {% set rs = organismeFormation.raisonSociale|default('Organisme de formation') %}
+
+  {# ===== HERO ===== #}
+  <div class="hero p-3 mb-4 d-flex gap-3">
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 class="m-0 fw-bold">
+            <i class="bi bi-folder2-open me-2" style="color:var(--theme-color-secondaire)"></i>
+            Documents OF
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Gérez vos pièces de session, suivez les statuts et accédez rapidement aux documents de l’organisme.
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <span class="meta-chip"><i class="bi bi-building"></i> {{ rs }}</span>
+            <span class="meta-chip"><i class="bi bi-diagram-3"></i> {{ entite.nom ?? '—' }}</span>
+            <span class="meta-chip">
+              <i class="bi bi-clock-history"></i>
+              <strong>{{ 'now'|date('d/m/Y H:i') }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ path('app_of_dashboard', { entite: entite.id }) }}"
+             class="btn btn-light btn-sm fw-semibold">
+            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+          </a>
+
+          <a href="{{ path('app_of_formations', { entite: entite.id }) }}"
+             class="btn btn-outline-hero btn-sm fw-semibold">
+            <i class="bi bi-book me-1"></i> Formations
+          </a>
+
+          <button type="button"
+                  class="btn btn-outline-hero btn-sm fw-semibold"
+                  id="btnGlobalReload">
+            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== KPI ===== #}
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-folder-fill"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-total">-</div>
+            <div class="label">Documents affichés</div>
+            <div class="sub"><i class="bi bi-list-ul me-1"></i>Résultats courants</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-patch-check-fill"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-valid">-</div>
+            <div class="label">Validés</div>
+            <div class="sub"><i class="bi bi-check2-circle me-1"></i>Documents conformes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-hourglass-split"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-pending">-</div>
+            <div class="label">En attente</div>
+            <div class="sub"><i class="bi bi-clock me-1"></i>À traiter</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="kpi">
+        <div class="kpi-top">
+          <div class="kpi-ico"><i class="bi bi-funnel-fill"></i></div>
+          <div class="kpi-main">
+            <div class="value" id="kpi-types">-</div>
+            <div class="label">Types visibles</div>
+            <div class="sub"><i class="bi bi-tags-fill me-1"></i>Diversité affichée</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== FILTERBAR ===== #}
+  <div class="filterbar mb-3">
+    <div class="filterbar__top">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
+        <div>
+          <div class="filterbar__title">Filtres</div>
+          <div class="filterbar__hint">Session • Formation • Type • Statut • Période</div>
+        </div>
+      </div>
+
+      <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
+        <div class="input-group search-pro search-pro--sm">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input id="searchPieces"
+                type="text"
+                class="form-control"
+                placeholder="Rechercher une session, une formation, un fichier…">
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm fw-semibold" id="btnReloadPieces">
+          <i class="bi bi-arrow-repeat"></i> Actualiser
+        </button>
+
+        <button class="btn btn-outline-secondary btn-sm fw-semibold" id="btnClearPieces">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+      </div>
+    </div>
+
+    <div class="filterbar__body">
+      <div class="filtergrid">
+
+        <div class="filter-control fcol-session">
+          <div class="form-label">Session</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-hash"></i></div>
+              <select id="sessionFilter" class="form-select form-select-sm">
+                <option value="all">Toutes</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-formation">
+          <div class="form-label">Formation</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-mortarboard"></i></div>
+              <select id="formationFilter" class="form-select form-select-sm">
+                <option value="all">Toutes</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-type">
+          <div class="form-label">Type</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-tags"></i></div>
+              <select id="typeFilter" class="form-select form-select-sm">
+                <option value="all">Tous</option>
+                <option value="CONVENTION">Convention</option>
+                <option value="CONVOCATION">Convocation</option>
+                <option value="EMARGEMENT">Émargement</option>
+                <option value="FACTURE">Facture</option>
+                <option value="AUTRE">Autre</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-status">
+          <div class="form-label">Statut</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-shield-check"></i></div>
+              <select id="validFilter" class="form-select form-select-sm">
+                <option value="all">Tous</option>
+                <option value="valid">Validés</option>
+                <option value="pending">En attente</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-control fcol-period">
+          <div class="form-label">Période</div>
+          <div class="filterbox">
+            <div class="filterrow">
+              <div class="filter-icon"><i class="bi bi-calendar-range"></i></div>
+              <input type="text"
+                    id="dateRange"
+                    class="form-control form-control-sm"
+                    placeholder="Période">
+              <input type="hidden" id="dateFrom">
+              <input type="hidden" id="dateTo">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ===== TABLE ===== #}
+  <div class="section-card">
+    <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
+      <h5 class="section-title mb-0">
+        <i class="bi bi-folder2-open me-1"></i> Pièces de session
+      </h5>
+      <span class="text-muted small">Documents internes OF</span>
+    </div>
+
+    <div class="card-body">
+      <div class="dt-scroll p-1">
+        <table id="table-documents" class="table table-striped align-middle compact w-100">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Session</th>
+              <th>Formation</th>
+              <th>Type</th>
+              <th>Fichier</th>
+              <th>Statut</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script>
+    $(function(){
+
+      function escapeHtml(s){
+        return String(s || '').replace(/[&<>"']/g, m => ({
+          '&':'&amp;',
+          '<':'&lt;',
+          '>':'&gt;',
+          '"':'&quot;',
+          "'":'&#39;'
+        }[m]));
+      }
+
+      function stripHtml(html){
+        return String(html || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+      }
+
+      function wrapType(value){
+        const text = stripHtml(value || '-');
+        return `
+          <span class="doc-type-pill">
+            <i class="bi bi-tag-fill"></i>${escapeHtml(text)}
+          </span>
+        `;
+      }
+
+      function wrapFile(value){
+        const text = stripHtml(value || 'Document');
+        return `
+          <div class="file-cell">
+            <div class="file-ico"><i class="bi bi-file-earmark-text-fill"></i></div>
+            <div class="file-meta">
+              <div class="file-name" title="${escapeHtml(text)}">${escapeHtml(text)}</div>
+              <div class="file-sub">Pièce jointe de session</div>
+            </div>
+          </div>
+        `;
+      }
+
+      function wrapStatus(value){
+        const raw = String(value || '');
+        const text = stripHtml(raw || 'Statut');
+        return `<span class="status-pill"><i class="bi bi-shield-check"></i>${escapeHtml(text)}</span>`;
+      }
+
+      function wrapActions(d, row){
+        const raw = (d || '').trim();
+        if(!raw) return '';
+
+        const key = String(row.session || row.formation || Math.random()).replace(/\W+/g,'_');
+        const menuId = 'doc_actions_' + key;
+
+        return `
+          <div class="actions-wrap">
+            <div class="dropdown action-dd">
+              <button class="btn btn-action btn-sm dropdown-toggle" type="button"
+                      id="${menuId}"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      data-bs-display="static"
+                      aria-expanded="false">
+                <i class="bi bi-three-dots-vertical"></i> Actions
+              </button>
+
+              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="${menuId}">
+                <div class="dd-head">
+                  <div class="t"><i class="bi bi-lightning-charge me-1"></i> Actions</div>
+                </div>
+                ${raw}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function computeKpis(api){
+        const rows = api.rows({ search:'applied' }).data().toArray();
+
+        let total = rows.length;
+        let valid = 0;
+        let pending = 0;
+        const types = new Set();
+
+        rows.forEach(row => {
+          const statutText = stripHtml(row.statut || '').toLowerCase();
+          const typeText = stripHtml(row.type || '');
+
+          if(typeText) types.add(typeText);
+
+          if(statutText.includes('valid')) valid++;
+          else if(statutText.includes('attente') || statutText.includes('pending')) pending++;
+        });
+
+        $('#kpi-total').text(total);
+        $('#kpi-valid').text(valid);
+        $('#kpi-pending').text(pending);
+        $('#kpi-types').text(types.size);
+      }
+
+      let tsSession = null;
+      let tsFormation = null;
+      let tsType = null;
+      let tsValid = null;
+      let fpRange = null;
+
+      function refreshTable(resetPaging = false){
+        dt.ajax.reload(null, resetPaging);
+      }
+
+      async function loadMeta(){
+        const res = await fetch("{{ path('app_of_documents_filters_meta', { entite: entite.id }) }}", {
+          headers: { 'Accept':'application/json' }
+        });
+
+        if(!res.ok) return;
+        const json = await res.json().catch(() => null);
+        if(!json) return;
+
+        tsSession?.destroy();
+        tsFormation?.destroy();
+        tsType?.destroy();
+        tsValid?.destroy();
+
+        const $session = document.getElementById('sessionFilter');
+        const $formation = document.getElementById('formationFilter');
+
+        if($session){
+          $session.innerHTML = '<option value="all">Toutes</option>';
+          (json.sessions || []).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = String(s.id);
+            opt.textContent = s.label;
+            $session.appendChild(opt);
+          });
+        }
+
+        if($formation){
+          $formation.innerHTML = '<option value="all">Toutes</option>';
+          (json.formations || []).forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = String(f.id);
+            opt.textContent = f.label;
+            $formation.appendChild(opt);
+          });
+        }
+
+        const commonTs = {
+          create:false,
+          maxItems:1,
+          allowEmptyOption:true,
+          plugins:['clear_button']
+        };
+
+        tsSession = new TomSelect('#sessionFilter', commonTs);
+        tsFormation = new TomSelect('#formationFilter', commonTs);
+        tsType = new TomSelect('#typeFilter', commonTs);
+        tsValid = new TomSelect('#validFilter', commonTs);
+
+        [tsSession, tsFormation, tsType, tsValid].forEach(ts => {
+          ts.on('change', () => refreshTable(true));
+        });
+      }
+
+      function initDateRange(){
+        fpRange?.destroy?.();
+
+        fpRange = flatpickr('#dateRange', {
+          locale: 'fr',
+          mode: 'range',
+          dateFormat: 'd/m/Y',
+          allowInput: true,
+          disableMobile: true,
+          onClose: function(selectedDates){
+            const from = selectedDates[0] ? selectedDates[0].toISOString().slice(0,10) : '';
+            const to   = selectedDates[1] ? selectedDates[1].toISOString().slice(0,10) : '';
+            $('#dateFrom').val(from);
+            $('#dateTo').val(to);
+            refreshTable(true);
+          }
+        });
+      }
+
+      const dt = $('#table-documents').DataTable({
+        serverSide: true,
+        processing: true,
+        pageLength: 10,
+        lengthMenu: [10, 25, 50],
+        scrollX: true,
+        autoWidth: false,
+        responsive: false,
+        language: {
+          url: 'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json'
+        },
+        ajax: {
+          url: "{{ path('app_of_documents_session_pieces_ajax', { entite: entite.id }) }}",
+          type: 'POST',
+          data: function(d){
+            d.typeFilter = $('#typeFilter').val() || 'all';
+            d.validFilter = $('#validFilter').val() || 'all';
+            d.sessionId = $('#sessionFilter').val() || 'all';
+            d.formationId = $('#formationFilter').val() || 'all';
+            d.dateFrom = $('#dateFrom').val() || '';
+            d.dateTo = $('#dateTo').val() || '';
+          }
+        },
+        columns: [
+          { data:'date' },
+          { data:'session' },
+          { data:'formation' },
+          {
+            data:'type',
+            orderable:false,
+            render:function(d){ return wrapType(d); }
+          },
+          {
+            data:'fichier',
+            render:function(d){ return wrapFile(d); }
+          },
+          {
+            data:'statut',
+            orderable:false,
+            render:function(d){ return wrapStatus(d); }
+          },
+          {
+            data:'actions',
+            orderable:false,
+            searchable:false,
+            className:'text-end',
+            render:function(d, type, row){ return wrapActions(d, row); }
+          }
+        ],
+        drawCallback: function(){
+          computeKpis(this.api());
+        }
+      });
+
+      $('#searchPieces').on('input', function(){
+        dt.search(this.value).draw();
+      });
+
+      $('#btnReloadPieces, #btnGlobalReload').on('click', function(){
+        refreshTable(false);
+      });
+
+      $('#btnClearPieces').on('click', function(){
+        $('#searchPieces').val('');
+        $('#dateFrom').val('');
+        $('#dateTo').val('');
+        $('#dateRange').val('');
+
+        dt.search('').draw();
+
+        tsSession?.setValue('all', true);
+        tsFormation?.setValue('all', true);
+        tsType?.setValue('all', true);
+        tsValid?.setValue('all', true);
+
+        fpRange?.clear();
+
+        refreshTable(true);
+      });
+
+      initDateRange();
+      loadMeta();
+    });
+  </script>
+{% endblock %}

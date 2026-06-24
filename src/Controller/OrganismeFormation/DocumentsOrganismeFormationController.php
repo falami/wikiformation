@@ -74,7 +74,7 @@ final class DocumentsOrganismeFormationController extends AbstractController
     {
         $of = $this->getOrganismeFormationUserOrFail();
 
-        return $this->render('of/documents/index.html.twig', [
+        return $this->render('of/documents.html.twig', [
             'entite' => $entite,
             'organismeFormation' => $of,
         ]);
@@ -86,15 +86,23 @@ final class DocumentsOrganismeFormationController extends AbstractController
         $of = $this->getOrganismeFormationUserOrFail();
         [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
-        $typeFilter = (string) $request->request->get('typeFilter', 'all');
-        $validFilter = (string) $request->request->get('validFilter', 'all');
-        $sessionFilter = $request->request->getInt('sessionId', 0);
+        $typeFilter      = (string) $request->request->get('typeFilter', 'all');
+        $validFilter     = (string) $request->request->get('validFilter', 'all');
+        $sessionRaw      = (string) $request->request->get('sessionId', 'all');
+        $formationRaw    = (string) $request->request->get('formationId', 'all');
+        $dateFromRaw     = trim((string) $request->request->get('dateFrom', ''));
+        $dateToRaw       = trim((string) $request->request->get('dateTo', ''));
+
+        $sessionFilter   = ctype_digit($sessionRaw) ? (int) $sessionRaw : 0;
+        $formationFilter = ctype_digit($formationRaw) ? (int) $formationRaw : 0;
 
         $map = [
             0 => 'sp.uploadedAt',
             1 => 's.code',
-            2 => 'sp.type',
-            3 => 'sp.valide',
+            2 => 'f.titre',
+            3 => 'sp.type',
+            4 => 'sp.filename',
+            5 => 'sp.valide',
         ];
 
         $qb = $em->getRepository(SessionPiece::class)->createQueryBuilder('sp')
@@ -107,6 +115,26 @@ final class DocumentsOrganismeFormationController extends AbstractController
             $qb->andWhere('s.id = :sid')->setParameter('sid', $sessionFilter);
         }
 
+        if ($formationFilter > 0) {
+            $qb->andWhere('f.id = :fid')->setParameter('fid', $formationFilter);
+        }
+
+        if ($dateFromRaw !== '') {
+            try {
+                $from = new \DateTimeImmutable($dateFromRaw . ' 00:00:00');
+                $qb->andWhere('sp.uploadedAt >= :dateFrom')->setParameter('dateFrom', $from);
+            } catch (\Throwable) {
+            }
+        }
+
+        if ($dateToRaw !== '') {
+            try {
+                $to = new \DateTimeImmutable($dateToRaw . ' 23:59:59');
+                $qb->andWhere('sp.uploadedAt <= :dateTo')->setParameter('dateTo', $to);
+            } catch (\Throwable) {
+            }
+        }
+
         $recordsTotal = (int) (clone $qb)
             ->select('COUNT(DISTINCT sp.id)')
             ->resetDQLPart('orderBy')
@@ -114,7 +142,7 @@ final class DocumentsOrganismeFormationController extends AbstractController
             ->getSingleScalarResult();
 
         if ($searchV !== '') {
-            $qb->andWhere('(sp.filename LIKE :s OR s.code LIKE :s)')
+            $qb->andWhere('(sp.filename LIKE :s OR s.code LIKE :s OR f.titre LIKE :s)')
                 ->setParameter('s', '%' . $searchV . '%');
         }
 
@@ -167,11 +195,9 @@ final class DocumentsOrganismeFormationController extends AbstractController
                 'date' => $sp->getUploadedAt()?->format('d/m/Y H:i') ?? '—',
                 'session' => htmlspecialchars($sessionLabel, ENT_QUOTES),
                 'formation' => htmlspecialchars($session?->getFormation()?->getTitre() ?? $session?->getFormationIntituleLibre() ?? '—', ENT_QUOTES),
-                'type' => '<span class="badge bg-light text-dark">' . htmlspecialchars((string) $typeLabel, ENT_QUOTES) . '</span>',
+                'type' => htmlspecialchars((string) $typeLabel, ENT_QUOTES),
                 'fichier' => htmlspecialchars($sp->getFilename(), ENT_QUOTES),
-                'statut' => $sp->isValide()
-                    ? '<span class="badge bg-success-subtle text-success">Validé</span>'
-                    : '<span class="badge bg-warning-subtle text-warning">En attente</span>',
+                'statut' => $sp->isValide() ? 'Validé' : 'En attente',
                 'actions' => sprintf(
                     '<div class="d-flex gap-2 justify-content-end flex-wrap">
                         <a class="btn btn-sm btn-outline-primary" href="%s" target="_blank">
@@ -310,5 +336,45 @@ final class DocumentsOrganismeFormationController extends AbstractController
         }
 
         return $this->file($path, $filename);
+    }
+
+    #[Route('/filters/meta', name: 'filters_meta', methods: ['GET'])]
+    public function filtersMeta(Entite $entite, EM $em): JsonResponse
+    {
+        $of = $this->getOrganismeFormationUserOrFail();
+
+        $sessions = $em->getRepository(Session::class)->createQueryBuilder('s')
+            ->leftJoin('s.formation', 'f')->addSelect('f')
+            ->andWhere('s.entite = :entite')->setParameter('entite', $entite)
+            ->andWhere('s.organismeFormation = :of')->setParameter('of', $of)
+            ->orderBy('s.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $sessionData = [];
+        $formationMap = [];
+
+        foreach ($sessions as $session) {
+            $sessionLabel = $session->getCode() ?: ('Session #' . $session->getId());
+            $formationLabel = $session->getFormation()?->getTitre() ?? $session->getFormationIntituleLibre() ?? '—';
+
+            $sessionData[] = [
+                'id' => $session->getId(),
+                'label' => trim($sessionLabel . ' — ' . $formationLabel),
+            ];
+
+            $formation = $session->getFormation();
+            if ($formation && !isset($formationMap[$formation->getId()])) {
+                $formationMap[$formation->getId()] = [
+                    'id' => $formation->getId(),
+                    'label' => $formation->getTitre(),
+                ];
+            }
+        }
+
+        return new JsonResponse([
+            'sessions' => $sessionData,
+            'formations' => array_values($formationMap),
+        ]);
     }
 }

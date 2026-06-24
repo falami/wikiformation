@@ -226,11 +226,6 @@ class LigneFacture
     public function setIsDebours(bool $isDebours): static
     {
         $this->isDebours = $isDebours;
-
-        if ($isDebours) {
-            $this->tvaBp = 0; // ✅ débours -> pas de TVA
-        }
-
         return $this;
     }
 
@@ -255,10 +250,6 @@ class LigneFacture
 
     public function setTvaBp(?int $bp): static
     {
-        if ($this->isDebours) {
-            $this->tvaBp = 0;
-            return $this;
-        }
         $this->tvaBp = max(0, $bp ?? 2000);
         return $this;
     }
