@@ -106,8 +106,16 @@ class FactureController extends AbstractController
     $monthFilter = (string)$request->request->get('monthFilter', 'all');
     $quarterFilter = (string)$request->request->get('quarterFilter', 'all');
 
-    $payeurUserIds = $request->request->all('payeurUserIds') ?? [];
-    $payeurEntrepriseIds = $request->request->all('payeurEntrepriseIds') ?? [];
+    $payeurUserIds = $request->request->all('payeurUserIds');
+    $payeurEntrepriseIds = $request->request->all('payeurEntrepriseIds');
+
+    if (!is_array($payeurUserIds)) {
+        $payeurUserIds = [];
+    }
+
+    if (!is_array($payeurEntrepriseIds)) {
+        $payeurEntrepriseIds = [];
+    }
 
 
     // =========================
