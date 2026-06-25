@@ -170,16 +170,16 @@ class FactureController extends AbstractController
     
     
     $payeurUserTotal = $request->request->getInt('payeurUserTotal', 0);
-$payeurEntrepriseTotal = $request->request->getInt('payeurEntrepriseTotal', 0);
+    $payeurEntrepriseTotal = $request->request->getInt('payeurEntrepriseTotal', 0);
 
-if (
-    $payeurUserTotal > 0
-    && $payeurEntrepriseTotal > 0
-    && empty($payeurUserIds)
-    && empty($payeurEntrepriseIds)
-) {
-    $where[] = '1 = 0';
-}
+    if (
+        $payeurUserTotal > 0
+        && $payeurEntrepriseTotal > 0
+        && empty($payeurUserIds)
+        && empty($payeurEntrepriseIds)
+    ) {
+        $where[] = '1 = 0';
+    }
 
 
     if (!empty($payeurUserIds) || !empty($payeurEntrepriseIds)) {
