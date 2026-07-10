@@ -609,20 +609,11 @@
 
   let suspendAutoRefresh = false;
 
-
-  autoRefreshFilterIds.forEach((id) => {
-    const el = document.getElementById(id);
-
-    if (!el) {
-      return;
+  function requestRefresh() {
+    if (!suspendAutoRefresh) {
+      refresh();
     }
-
-    if (el.tomselect) {
-      el.tomselect.on('change', requestRefresh);
-    } else {
-      el.addEventListener('change', requestRefresh);
-    }
-  });
+  }
 
   // ===== Toggle filtres avancés =====
   const $filtersCard = document.getElementById('filtersCard');
