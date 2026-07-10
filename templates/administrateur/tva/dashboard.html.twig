@@ -221,12 +221,6 @@
             <span class="chip chip--pill"><i class="bi bi-stars"></i> Déclaration & pilotage</span>
           </div>
         </div>
-
-        <div class="d-flex gap-2 flex-wrap">
-          <button class="btn btn-light btn-sm fw-semibold" id="btnRefresh" type="button">
-            <i class="bi bi-arrow-repeat me-1"></i> Actualiser
-          </button>
-        </div>
       </div>
     </div>
   </div>
@@ -351,8 +345,10 @@
         </div>
 
         <div class="col-12 d-flex gap-2">
-          <button class="btn btn-gradient fw-semibold" id="btnApply"><i class="bi bi-check2"></i> Appliquer</button>
-          <button class="btn btn-light" id="btnReset">Réinitialiser</button>
+          <button class="btn btn-light" id="btnReset" type="button">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>
+            Réinitialiser
+          </button>
         </div>
       </div>
     </div>
@@ -611,6 +607,23 @@
   };
   const pct = (v) => (Number(v||0)).toFixed(1).replace('.', ',') + ' %';
 
+  let suspendAutoRefresh = false;
+
+
+  autoRefreshFilterIds.forEach((id) => {
+    const el = document.getElementById(id);
+
+    if (!el) {
+      return;
+    }
+
+    if (el.tomselect) {
+      el.tomselect.on('change', requestRefresh);
+    } else {
+      el.addEventListener('change', requestRefresh);
+    }
+  });
+
   // ===== Toggle filtres avancés =====
   const $filtersCard = document.getElementById('filtersCard');
   const $btnToggle   = document.getElementById('btnToggleFilters');
@@ -712,12 +725,25 @@
   function handlePeriodChange() {
     updatePeriodControls();
     updatePeriodDates();
+    requestRefresh();
   }
 
   periodTypeFilter.addEventListener('change', handlePeriodChange);
-  yearFilter.addEventListener('change', updatePeriodDates);
-  monthFilter.addEventListener('change', updatePeriodDates);
-  quarterFilter.addEventListener('change', updatePeriodDates);
+
+  yearFilter.addEventListener('change', () => {
+    updatePeriodDates();
+    requestRefresh();
+  });
+
+  monthFilter.addEventListener('change', () => {
+    updatePeriodDates();
+    requestRefresh();
+  });
+
+  quarterFilter.addEventListener('change', () => {
+    updatePeriodDates();
+    requestRefresh();
+  });
 
   const today = new Date();
 
@@ -743,6 +769,30 @@
   initTS('fDepTvaOnly','all');
   initTS('fRate');
   initTS('fRegime','debits');
+
+  const autoRefreshFilterIds = [
+    'fRegime',
+    'fCategorie',
+    'fFournisseur',
+    'fDepTvaOnly',
+    'fRate',
+    'fDevise'
+  ];
+
+  autoRefreshFilterIds.forEach((id) => {
+    const el = document.getElementById(id);
+
+    if (!el) {
+      return;
+    }
+
+    if (el.tomselect) {
+      el.tomselect.on('change', requestRefresh);
+    } else {
+      el.addEventListener('change', requestRefresh);
+    }
+  });
+
 
   function getFilters(){
     return {
@@ -989,27 +1039,40 @@
   }
 
   // ===== Refresh =====
-  async function refresh(){
-    document.getElementById('btnRefresh').disabled = true;
-    document.getElementById('btnApply').disabled = true;
-    try{
+  let refreshInProgress = false;
+  let refreshPending = false;
+
+  async function refresh() {
+    if (refreshInProgress) {
+      refreshPending = true;
+      return;
+    }
+
+    refreshInProgress = true;
+
+    try {
       const data = await loadSummary();
+
       applyKpis(data.kpis);
       applyCharts(data.charts);
       reloadAllDt();
-    }catch(e){
+    } catch (e) {
       console.error(e);
       alert(e.message || 'Erreur');
-    }finally{
-      document.getElementById('btnRefresh').disabled = false;
-      document.getElementById('btnApply').disabled = false;
+    } finally {
+      refreshInProgress = false;
+
+      if (refreshPending) {
+        refreshPending = false;
+        refresh();
+      }
     }
   }
 
-  document.getElementById('btnApply').addEventListener('click', refresh);
-  document.getElementById('btnRefresh').addEventListener('click', refresh);
 
   document.getElementById('btnReset').addEventListener('click', () => {
+    suspendAutoRefresh = true;
+
     document.getElementById('fRegime').tomselect?.setValue('debits', true);
     document.getElementById('fCategorie').tomselect?.clear(true);
     document.getElementById('fFournisseur').tomselect?.clear(true);
@@ -1026,6 +1089,8 @@
 
     updatePeriodControls();
     updatePeriodDates();
+
+    suspendAutoRefresh = false;
 
     refresh();
   });
