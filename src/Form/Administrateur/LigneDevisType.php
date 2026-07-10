@@ -4,7 +4,7 @@ namespace App\Form\Administrateur;
 
 use App\Entity\LigneDevis;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\{ChoiceType, IntegerType, MoneyType, TextareaType, NumberType};
+use Symfony\Component\Form\Extension\Core\Type\{ChoiceType, IntegerType, MoneyType, TextareaType, NumberType, CheckboxType};
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\{GreaterThanOrEqual, Length, Positive};
@@ -54,6 +54,10 @@ final class LigneDevisType extends AbstractType
                 ],
                 'placeholder' => '-',
                 'attr' => ['class' => 'form-select'],
+            ])
+            ->add('isDebours', CheckboxType::class, [
+                'label' => 'Débours',
+                'required' => false,
             ])
             ->add('remisePourcent', NumberType::class, [
                 'label' => 'Remise %',

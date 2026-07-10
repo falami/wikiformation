@@ -859,7 +859,7 @@ final class PaiementController extends AbstractController
     private function factureTtcTotalCents(Facture $f): int
     {
         // ✅ ton modèle actuel : TTC total = TTC hors débours + débours
-        return (int) ($f->getMontantTtcHorsDeboursCents() ?? 0) + $this->factureDeboursTtcCents($f);
+        return $f->getMontantTtcCents() + $this->factureDeboursTtcCents($f);
     }
 
     /**

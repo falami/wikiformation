@@ -618,56 +618,11 @@ class Facture
     }
 
 
-    public function getMontantHtHorsDeboursCents(): int
-    {
-        $sum = 0;
-        foreach ($this->lignes as $l) {
-            if ($l->isDebours()) continue;
-            $sum += $l->getTotalHtNetCents();
-        }
-
-        // si tu appliques une remise globale, elle doit s'appliquer sur le HT net (hors débours)
-        $sum = max(0, $sum - $this->getRemiseGlobaleCents());
-
-        return $sum;
-    }
-
-    public function getMontantTvaHorsDeboursCents(): int
-    {
-        $tva = 0;
-
-        // On calcule la TVA sur les lignes (hors débours) AVANT remise globale,
-        // puis on applique la remise globale proportionnellement via le ratio HT.
-        $htAvantRemise = 0;
-        foreach ($this->lignes as $l) {
-            if ($l->isDebours()) continue;
-            $htAvantRemise += $l->getTotalHtNetCents();
-            $tva += $l->getTotalTvaCents();
-        }
-
-        $htApresRemise = $this->getMontantHtHorsDeboursCents();
-        if ($htAvantRemise <= 0) return 0;
-
-        $ratio = $htApresRemise / $htAvantRemise; // 0..1
-        return (int) round($tva * $ratio);
-    }
-
     public function getMontantTtcHorsDeboursCents(): int
     {
         return $this->getMontantHtHorsDeboursCents() + $this->getMontantTvaHorsDeboursCents();
     }
 
-    public function getMontantDeboursTtcCents(): int
-    {
-        $sum = 0;
-        foreach ($this->lignes as $l) {
-            if (!$l->isDebours()) continue;
-
-            // ✅ débours TTC = HT net uniquement (TVA 0)
-            $sum += $l->getTotalHtNetCents();
-        }
-        return max(0, $sum);
-    }
 
     public function getNote(): ?string
     {
@@ -714,16 +669,6 @@ class Facture
         return $this->getTtcTotalCents() > 0;
     }
 
-    /**
-     * ✅ TTC total "réel" à payer dans TON modèle :
-     * TTC total = TTC hors débours (montantTtcCents) + débours TTC (calculé depuis les lignes)
-     *
-     * Important : tu as déjà getMontantDeboursTtcCents() et getMontantTtcCents().
-     */
-    public function getTtcTotalCents(): int
-    {
-        return max(0, (int)($this->getMontantTtcCents() ?? 0) + (int)($this->getMontantDeboursTtcCents() ?? 0));
-    }
 
     /**
      * ✅ remaining "théorique" si tu as besoin côté Twig rapidement
@@ -732,5 +677,79 @@ class Facture
     public function isPayableAmountPositive(): bool
     {
         return $this->getTtcTotalCents() > 0;
+    }
+
+
+    public function getMontantHtHorsDeboursCents(): int
+    {
+        $sum = 0;
+
+        foreach ($this->lignes as $l) {
+            if ($l->isDebours()) {
+                continue;
+            }
+
+            $sum += $l->getTotalHtNetCents();
+        }
+
+        return max(0, $sum - $this->getRemiseGlobaleCents());
+    }
+
+    public function getMontantTvaHorsDeboursCents(): int
+    {
+        $sum = 0;
+
+        foreach ($this->lignes as $l) {
+            if ($l->isDebours()) {
+                continue;
+            }
+
+            $sum += $l->getTotalTvaCents();
+        }
+
+        return max(0, $sum);
+    }
+
+    public function getMontantDeboursHtCents(): int
+    {
+        $sum = 0;
+
+        foreach ($this->lignes as $l) {
+            if (!$l->isDebours()) {
+                continue;
+            }
+
+            $sum += $l->getTotalHtNetCents();
+        }
+
+        return max(0, $sum);
+    }
+
+    public function getMontantDeboursTvaCents(): int
+    {
+        $sum = 0;
+
+        foreach ($this->lignes as $l) {
+            if (!$l->isDebours()) {
+                continue;
+            }
+
+            $sum += $l->getTotalTvaCents();
+        }
+
+        return max(0, $sum);
+    }
+
+    public function getMontantDeboursTtcCents(): int
+    {
+        return $this->getMontantDeboursHtCents() + $this->getMontantDeboursTvaCents();
+    }
+
+    public function getTtcTotalCents(): int
+    {
+        return $this->getMontantHtHorsDeboursCents()
+            + $this->getMontantTvaHorsDeboursCents()
+            + $this->getMontantDeboursHtCents()
+            + $this->getMontantDeboursTvaCents();
     }
 }

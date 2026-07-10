@@ -210,6 +210,7 @@ class DevisController extends AbstractController
       $lf->setQte($ld->getQte());
       $lf->setPuHtCents($ld->getPuHtCents());
       $lf->setTva($ld->getTva());
+      $lf->setIsDebours($ld->isDebours());
 
       // Remise par ligne (si tes lignes de devis ont ces champs)
       if (method_exists($ld, 'getRemisePourcent') && method_exists($lf, 'setRemisePourcent')) {

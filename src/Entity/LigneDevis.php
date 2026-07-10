@@ -232,4 +232,14 @@ class LigneDevis
 
         return $this;
     }
+
+    public function getTotalTvaCents(): int
+    {
+        return (int) round($this->getTotalHtNetCents() * (($this->tva ?? 0) / 100));
+    }
+
+    public function getTotalTtcCents(): int
+    {
+        return $this->getTotalHtNetCents() + $this->getTotalTvaCents();
+    }
 }
