@@ -1077,23 +1077,6 @@ $(function () {
         'Maj : ' + nowLabel()
       );
 
-
-      // barres (simple et stable)
-      const countTarget = Math.max(10, count);
-      setBar($('#kpi-bar-pay-count'), (count / countTarget) * 100);
-
-      // barres : % par rapport à la baseline (total entité, non filtré)
-      const baseCount = baseline?.count ?? count;
-      const baseSum   = baseline?.sumCents ?? sumCents;
-      const base30Sum = baseline?.last30SumCents ?? last30SumCents;
-
-      setBar($('#kpi-bar-pay-count'), baseCount > 0 ? (count / baseCount) * 100 : 0);
-      setBar($('#kpi-bar-pay-sum'),   baseSum   > 0 ? (sumCents / baseSum) * 100 : 0);
-      setBar($('#kpi-bar-pay-30d'),   base30Sum > 0 ? (last30SumCents / base30Sum) * 100 : 0);
-
-
-
-      $('#hero-last-refresh').text('Maj : ' + nowLabel());
     } catch (e) {
       console.error('KPI paiements error:', e);
       $('#hero-last-refresh').text('Maj : —');
