@@ -364,42 +364,7 @@ final class PaiementController extends AbstractController
             // ✅ payé (déjà en base)
             $paid = (int) $paiementRepo->sumPaidForFacture($facture->getId());
 
-            // ✅ TTC hors débours (stocké sur facture)
-            $ttcHorsDebours = (int) ($facture->getMontantTtcHorsDeboursCents() ?? 0);
-
-            // ✅ débours TTC : on récupère via méthode si dispo, sinon fallback par SQL
-            $deboursTtc = 0;
-
-            if (method_exists($facture, 'getMontantDeboursTtcCents')) {
-                $deboursTtc = (int) $facture->getMontantDeboursTtcCents();
-            } else {
-                // Fallback SQL (même logique que ton ajax)
-                $sql = "
-                SELECT COALESCE(SUM(
-                  GREATEST(
-                    0,
-                    (qte * pu_ht_cents)
-                    - CASE
-                        WHEN COALESCE(remise_montant_cents, 0) > 0
-                          THEN LEAST(remise_montant_cents, (qte * pu_ht_cents))
-                        WHEN COALESCE(remise_pourcent, 0) > 0
-                          THEN ROUND((qte * pu_ht_cents) * (remise_pourcent / 100))
-                        ELSE 0
-                      END
-                  )
-                ), 0) AS debours_ttc
-                FROM ligne_facture
-                WHERE facture_id = :fid AND is_debours = 1
-            ";
-                $deboursTtc = (int) $em->getConnection()->fetchOne(
-                    $sql,
-                    ['fid' => $facture->getId()],
-                    ['fid' => ParameterType::INTEGER]
-                );
-            }
-
-            // ✅ TTC total à payer = TTC hors débours + débours
-            $ttcTotal = $ttcHorsDebours + $deboursTtc;
+            $ttcTotal = (int) $facture->getTtcTotalCents();
 
             // ✅ remaining basé sur TTC total
             $remaining = max(0, $ttcTotal - $paid);
@@ -820,11 +785,14 @@ final class PaiementController extends AbstractController
         // ✅ TTC total = hors débours + débours
         $ttcTotal = $this->factureTtcTotalCents($f);
 
-        // ✅ TTC / HT hors débours
         $ttcHd = (int) $f->getMontantTtcHorsDeboursCents();
         $htHd  = (int) $f->getMontantHtHorsDeboursCents();
 
-        if ($ttcTotal <= 0 || $ttcHd <= 0 || $htHd < 0) {
+        $debHt  = (int) $f->getMontantDeboursHtCents();
+        $debTva = (int) $f->getMontantDeboursTvaCents();
+        $debTtc = $debHt + $debTva;
+
+        if ($ttcTotal <= 0) {
             $p->setVentilationSource('facture_auto');
             $p->setVentilationHtHorsDeboursCents(0);
             $p->setVentilationTvaHorsDeboursCents(0);
@@ -832,18 +800,19 @@ final class PaiementController extends AbstractController
             return;
         }
 
-        // 1) part TTC hors débours payée (proportion sur TTC total)
-        $paidTtcHd  = (int) round($paidTtc * ($ttcHd / $ttcTotal));
-        $paidDebours = max(0, $paidTtc - $paidTtcHd);
+        $paidTtcHd  = $ttcHd > 0 ? (int) round($paidTtc * ($ttcHd / $ttcTotal)) : 0;
+        $paidTtcDeb = max(0, $paidTtc - $paidTtcHd);
 
-        // 2) conversion TTC(hd) -> HT(hd)
-        $paidHtHd  = (int) round($paidTtcHd * ($htHd / $ttcHd));
+        $paidHtHd  = $ttcHd > 0 ? (int) round($paidTtcHd * ($htHd / $ttcHd)) : 0;
         $paidTvaHd = max(0, $paidTtcHd - $paidHtHd);
+
+        $paidDebHt  = $debTtc > 0 ? (int) round($paidTtcDeb * ($debHt / $debTtc)) : 0;
+        $paidDebTva = max(0, $paidTtcDeb - $paidDebHt);
 
         $p->setVentilationSource('facture_auto');
         $p->setVentilationHtHorsDeboursCents($paidHtHd);
-        $p->setVentilationTvaHorsDeboursCents($paidTvaHd);
-        $p->setVentilationDeboursCents($paidDebours);
+        $p->setVentilationTvaHorsDeboursCents($paidTvaHd + $paidDebTva);
+        $p->setVentilationDeboursCents($paidDebHt);
     }
 
 
@@ -858,8 +827,7 @@ final class PaiementController extends AbstractController
 
     private function factureTtcTotalCents(Facture $f): int
     {
-        // ✅ ton modèle actuel : TTC total = TTC hors débours + débours
-        return $f->getMontantTtcCents() + $this->factureDeboursTtcCents($f);
+        return (int) $f->getTtcTotalCents();
     }
 
     /**

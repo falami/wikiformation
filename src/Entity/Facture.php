@@ -710,6 +710,8 @@ class Facture
         return max(0, $sum);
     }
 
+
+
     public function getMontantDeboursHtCents(): int
     {
         $sum = 0;
@@ -747,9 +749,10 @@ class Facture
 
     public function getTtcTotalCents(): int
     {
-        return $this->getMontantHtHorsDeboursCents()
-            + $this->getMontantTvaHorsDeboursCents()
-            + $this->getMontantDeboursHtCents()
-            + $this->getMontantDeboursTvaCents();
+        return max(
+            0,
+            $this->getMontantTtcHorsDeboursCents()
+            + $this->getMontantDeboursTtcCents()
+        );
     }
 }
