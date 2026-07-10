@@ -25,7 +25,8 @@ final class BackfillPaiementVentilationCommand extends Command
     $q = $repo->createQueryBuilder('p')
       ->leftJoin('p.facture', 'f')->addSelect('f')
       ->andWhere('p.facture IS NOT NULL')
-      ->andWhere('p.ventilationHtHorsDeboursCents IS NULL OR p.ventilationTvaHorsDeboursCents IS NULL OR p.ventilationDeboursCents IS NULL')
+->andWhere('p.ventilationSource IS NULL OR p.ventilationSource = :auto')
+->setParameter('auto', 'facture_auto')
       ->orderBy('p.id', 'ASC')
       ->getQuery();
 
@@ -49,38 +50,46 @@ final class BackfillPaiementVentilationCommand extends Command
 
   private function hydrateVentilation(Paiement $p): void
   {
-    $paidTtc = (int) ($p->getMontantCents() ?? 0);
-    $f = $p->getFacture();
+      $paidTtc = (int) ($p->getMontantCents() ?? 0);
+      $f = $p->getFacture();
 
-    if (!$f || $paidTtc <= 0) {
-      $p->setVentilationSource('non_ventile');
-      $p->setVentilationHtHorsDeboursCents(null);
-      $p->setVentilationTvaHorsDeboursCents(null);
-      $p->setVentilationDeboursCents(null);
-      return;
-    }
+      if (!$f || $paidTtc <= 0) {
+          $p->setVentilationSource('non_ventile');
+          $p->setVentilationHtHorsDeboursCents(null);
+          $p->setVentilationTvaHorsDeboursCents(null);
+          $p->setVentilationDeboursCents(null);
+          return;
+      }
 
-    $ttcTotal = (int) ($f->getTtcTotalCents() ?? 0);
-    $ttcHd    = (int) $f->getMontantTtcHorsDeboursCents();
-    $htHd     = (int) $f->getMontantHtHorsDeboursCents();
+      $ttcTotal = (int) $f->getTtcTotalCents();
 
-    if ($ttcTotal <= 0 || $ttcHd <= 0 || $htHd < 0) {
+      $ttcHd = (int) $f->getMontantTtcHorsDeboursCents();
+      $htHd  = (int) $f->getMontantHtHorsDeboursCents();
+
+      $debHt  = (int) $f->getMontantDeboursHtCents();
+      $debTva = (int) $f->getMontantDeboursTvaCents();
+      $debTtc = $debHt + $debTva;
+
+      if ($ttcTotal <= 0) {
+          $p->setVentilationSource('facture_auto');
+          $p->setVentilationHtHorsDeboursCents(0);
+          $p->setVentilationTvaHorsDeboursCents(0);
+          $p->setVentilationDeboursCents(0);
+          return;
+      }
+
+      $paidTtcHd  = $ttcHd > 0 ? (int) round($paidTtc * ($ttcHd / $ttcTotal)) : 0;
+      $paidTtcDeb = max(0, $paidTtc - $paidTtcHd);
+
+      $paidHtHd  = $ttcHd > 0 ? (int) round($paidTtcHd * ($htHd / $ttcHd)) : 0;
+      $paidTvaHd = max(0, $paidTtcHd - $paidHtHd);
+
+      $paidDebHt  = $debTtc > 0 ? (int) round($paidTtcDeb * ($debHt / $debTtc)) : 0;
+      $paidDebTva = max(0, $paidTtcDeb - $paidDebHt);
+
       $p->setVentilationSource('facture_auto');
-      $p->setVentilationHtHorsDeboursCents(0);
-      $p->setVentilationTvaHorsDeboursCents(0);
-      $p->setVentilationDeboursCents(0);
-      return;
-    }
-
-    $paidTtcHd   = (int) round($paidTtc * ($ttcHd / $ttcTotal));
-    $paidDebours = max(0, $paidTtc - $paidTtcHd);
-
-    $paidHtHd = (int) round($paidTtcHd * ($htHd / $ttcHd));
-    $paidTvaHd = max(0, $paidTtcHd - $paidHtHd);
-
-    $p->setVentilationSource('facture_auto');
-    $p->setVentilationHtHorsDeboursCents($paidHtHd);
-    $p->setVentilationTvaHorsDeboursCents($paidTvaHd);
-    $p->setVentilationDeboursCents($paidDebours);
+      $p->setVentilationHtHorsDeboursCents($paidHtHd);              // CA
+      $p->setVentilationTvaHorsDeboursCents($paidTvaHd + $paidDebTva); // TVA totale
+      $p->setVentilationDeboursCents($paidDebHt);                   // débours HT
   }
 }

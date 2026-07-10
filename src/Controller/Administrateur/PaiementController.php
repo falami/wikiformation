@@ -478,17 +478,23 @@ final class PaiementController extends AbstractController
         }
 
         // 1) part TTC hors débours payée (allocation proportionnelle)
-        $paidTtcHd = (int) round($paidTtc * ($ttcHd / $ttcTotal));
-        $paidDebours = max(0, $paidTtc - $paidTtcHd);
+        $debHt  = (int) $f->getMontantDeboursHtCents();
+        $debTva = (int) $f->getMontantDeboursTvaCents();
+        $debTtc = $debHt + $debTva;
 
-        // 2) conversion TTC(hd) -> HT(hd)
-        $paidHtHd = (int) round($paidTtcHd * ($htHd / $ttcHd));
+        $paidTtcHd  = $ttcHd > 0 ? (int) round($paidTtc * ($ttcHd / $ttcTotal)) : 0;
+        $paidTtcDeb = max(0, $paidTtc - $paidTtcHd);
+
+        $paidHtHd  = $ttcHd > 0 ? (int) round($paidTtcHd * ($htHd / $ttcHd)) : 0;
         $paidTvaHd = max(0, $paidTtcHd - $paidHtHd);
+
+        $paidDebHt  = $debTtc > 0 ? (int) round($paidTtcDeb * ($debHt / $debTtc)) : 0;
+        $paidDebTva = max(0, $paidTtcDeb - $paidDebHt);
 
         return [
             'ht' => $paidHtHd,
-            'tva' => $paidTvaHd,
-            'debours' => $paidDebours,
+            'tva' => $paidTvaHd + $paidDebTva,
+            'debours' => $paidDebHt,
             'ttc' => $paidTtc,
         ];
     }
@@ -753,28 +759,10 @@ final class PaiementController extends AbstractController
 
     private function hydrateVentilation(Paiement $p): void
     {
-        // si manuel déjà renseigné et pas de facture -> ne touche pas
-        if (!$p->getFacture()) {
-            $hasManual = $p->getVentilationHtHorsDeboursCents() !== null
-                || $p->getVentilationTvaHorsDeboursCents() !== null
-                || $p->getVentilationDeboursCents() !== null;
-
-            if ($hasManual) {
-                $p->setVentilationSource('manuel');
-                return;
-            }
-
-            $p->setVentilationSource('non_ventile');
-            $p->setVentilationHtHorsDeboursCents(null);
-            $p->setVentilationTvaHorsDeboursCents(null);
-            $p->setVentilationDeboursCents(null);
-            return;
-        }
-
         $paidTtc = (int) ($p->getMontantCents() ?? 0);
         $f = $p->getFacture();
 
-        if ($paidTtc <= 0) {
+        if (!$f || $paidTtc <= 0) {
             $p->setVentilationSource('non_ventile');
             $p->setVentilationHtHorsDeboursCents(null);
             $p->setVentilationTvaHorsDeboursCents(null);
@@ -782,8 +770,7 @@ final class PaiementController extends AbstractController
             return;
         }
 
-        // ✅ TTC total = hors débours + débours
-        $ttcTotal = $this->factureTtcTotalCents($f);
+        $ttcTotal = (int) $f->getTtcTotalCents();
 
         $ttcHd = (int) $f->getMontantTtcHorsDeboursCents();
         $htHd  = (int) $f->getMontantHtHorsDeboursCents();
@@ -810,9 +797,9 @@ final class PaiementController extends AbstractController
         $paidDebTva = max(0, $paidTtcDeb - $paidDebHt);
 
         $p->setVentilationSource('facture_auto');
-        $p->setVentilationHtHorsDeboursCents($paidHtHd);
-        $p->setVentilationTvaHorsDeboursCents($paidTvaHd + $paidDebTva);
-        $p->setVentilationDeboursCents($paidDebHt);
+        $p->setVentilationHtHorsDeboursCents($paidHtHd);              // CA
+        $p->setVentilationTvaHorsDeboursCents($paidTvaHd + $paidDebTva); // TVA totale
+        $p->setVentilationDeboursCents($paidDebHt);                   // débours HT
     }
 
 

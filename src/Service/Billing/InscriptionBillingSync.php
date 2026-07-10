@@ -78,7 +78,7 @@ final class InscriptionBillingSync
    */
   private function factureTtcTotalCents(Facture $f): int
   {
-      return max(0, (int) $f->getTtcTotalCents());
+      return (int) $f->getTtcTotalCents();
   }
 
   /**
