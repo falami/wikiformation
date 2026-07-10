@@ -367,7 +367,9 @@
     <div class="p-3 p-md-4">
       <div class="kpi-grid">
         <div class="kpi">
-          <div class="label">TVA collectée (ventes)</div>
+          <div class="label" id="kpiOutLabel">
+            TVA collectée sur factures
+          </div>
           <div class="value" id="kpiOut">—</div>
           <div class="sub" id="kpiOutHint">Factures (hors débours)</div>
         </div>
@@ -388,7 +390,9 @@
         </div>
 
         <div class="kpi">
-          <div class="label">HT ventes (hors débours)</div>
+          <div class="label" id="kpiSalesHtLabel">
+            HT facturé hors débours
+          </div>
           <div class="value" id="kpiSalesHt">—</div>
           <div class="sub" id="kpiSalesCnt">—</div>
         </div>
@@ -771,19 +775,60 @@
     return new Chart(el, cfg);
   }
 
-  function applyKpis(k){
-    document.getElementById('kpiOut').textContent = money(k.out.tva);
-    document.getElementById('kpiInDed').textContent = money(k.in.tvaDed);
-    document.getElementById('kpiPayable').textContent = money(k.payable);
-    document.getElementById('kpiInNoDed').textContent = money(k.in.tvaNoDed);
+  function applyKpis(k) {
+    const isEncaissements =
+      k.regime === 'encaissements';
 
-    document.getElementById('kpiSalesHt').textContent = money(k.out.ht);
-    document.getElementById('kpiSalesCnt').textContent = `${k.out.cnt} facture(s)`;
-    document.getElementById('kpiBuyHt').textContent = money(k.in.ht);
-    document.getElementById('kpiBuyCnt').textContent = `${k.in.cnt} dépense(s)`;
+    document.getElementById('kpiOutLabel').textContent =
+      isEncaissements
+        ? 'TVA collectée sur encaissements'
+        : 'TVA collectée sur factures';
 
-    document.getElementById('kpiDedRatio').textContent = k.in.tva > 0 ? pct((k.in.tvaDed / k.in.tva) * 100) : '—';
-    document.getElementById('kpiRegime').textContent = (k.regime === 'encaissements') ? 'Encaissements' : 'Débits';
+    document.getElementById('kpiOutHint').textContent =
+      isEncaissements
+        ? 'Selon la date des paiements'
+        : 'Selon la date des factures';
+
+    document.getElementById('kpiSalesHtLabel').textContent =
+      isEncaissements
+        ? 'HT encaissé hors débours'
+        : 'HT facturé hors débours';
+
+    document.getElementById('kpiOut').textContent =
+      money(k.out.tva);
+
+    document.getElementById('kpiInDed').textContent =
+      money(k.in.tvaDed);
+
+    document.getElementById('kpiPayable').textContent =
+      money(k.payable);
+
+    document.getElementById('kpiInNoDed').textContent =
+      money(k.in.tvaNoDed);
+
+    document.getElementById('kpiSalesHt').textContent =
+      money(k.out.ht);
+
+    document.getElementById('kpiSalesCnt').textContent =
+      isEncaissements
+        ? `${k.out.cnt} paiement(s)`
+        : `${k.out.cnt} facture(s)`;
+
+    document.getElementById('kpiBuyHt').textContent =
+      money(k.in.ht);
+
+    document.getElementById('kpiBuyCnt').textContent =
+      `${k.in.cnt} dépense(s)`;
+
+    document.getElementById('kpiDedRatio').textContent =
+      k.in.tva > 0
+        ? pct((k.in.tvaDed / k.in.tva) * 100)
+        : '—';
+
+    document.getElementById('kpiRegime').textContent =
+      isEncaissements
+        ? 'Encaissements'
+        : 'Débits';
   }
 
   function applyCharts(c){
