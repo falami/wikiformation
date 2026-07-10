@@ -573,53 +573,122 @@ body .paiement-floating-dropdown{
 
   {# ===== KPI ===== #}
   <div class="row g-3 mb-3">
-    <div class="col-12 col-md-6 col-xl-4">
+
+    {# Nombre de paiements #}
+    <div class="col-12 col-md-6 col-xl">
       <div class="kpi-card h-100">
         <div class="p-3">
           <div class="d-flex align-items-center gap-3">
-            <div class="kpi-ico"><i class="bi bi-receipt fs-4"></i></div>
+            <div class="kpi-ico">
+              <i class="bi bi-receipt fs-4"></i>
+            </div>
+
             <div class="flex-grow-1">
               <div class="kpi-label">Paiements</div>
               <div class="kpi-value" id="kpi-pay-count">—</div>
               <div class="kpi-sub">{{ entite.nom }}</div>
             </div>
           </div>
-          <div class="mt-3 kpi-bar"><span id="kpi-bar-pay-count"></span></div>
+
+          <div class="mt-3 kpi-bar">
+            <span id="kpi-bar-pay-count"></span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-12 col-md-6 col-xl-4">
+    {# Chiffre d'affaires HT hors débours #}
+    <div class="col-12 col-md-6 col-xl">
       <div class="kpi-card h-100">
         <div class="p-3">
           <div class="d-flex align-items-center gap-3">
-            <div class="kpi-ico"><i class="bi bi-cash-stack fs-4"></i></div>
+            <div class="kpi-ico">
+              <i class="bi bi-graph-up-arrow fs-4"></i>
+            </div>
+
             <div class="flex-grow-1">
-              <div class="kpi-label">Total encaissé</div>
-              <div class="kpi-value" id="kpi-pay-sum">—</div>
+              <div class="kpi-label">Chiffre d’affaires HT</div>
+              <div class="kpi-value" id="kpi-pay-ht">—</div>
+              <div class="kpi-sub">Hors frais de débours</div>
+            </div>
+          </div>
+
+          <div class="mt-3 kpi-bar">
+            <span id="kpi-bar-pay-ht"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Frais de débours HT #}
+    <div class="col-12 col-md-6 col-xl">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico">
+              <i class="bi bi-receipt-cutoff fs-4"></i>
+            </div>
+
+            <div class="flex-grow-1">
+              <div class="kpi-label">Frais de débours</div>
+              <div class="kpi-value" id="kpi-pay-debours">—</div>
+              <div class="kpi-sub">Montant HT hors chiffre d’affaires</div>
+            </div>
+          </div>
+
+          <div class="mt-3 kpi-bar">
+            <span id="kpi-bar-pay-debours"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# TVA totale #}
+    <div class="col-12 col-md-6 col-xl">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico">
+              <i class="bi bi-percent fs-4"></i>
+            </div>
+
+            <div class="flex-grow-1">
+              <div class="kpi-label">TVA encaissée</div>
+              <div class="kpi-value" id="kpi-pay-tva">—</div>
+              <div class="kpi-sub">TVA normale et TVA sur débours</div>
+            </div>
+          </div>
+
+          <div class="mt-3 kpi-bar">
+            <span id="kpi-bar-pay-tva"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Total TTC encaissé #}
+    <div class="col-12 col-md-6 col-xl">
+      <div class="kpi-card h-100">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="kpi-ico">
+              <i class="bi bi-cash-stack fs-4"></i>
+            </div>
+
+            <div class="flex-grow-1">
+              <div class="kpi-label">Total TTC encaissé</div>
+              <div class="kpi-value" id="kpi-pay-ttc">—</div>
               <div class="kpi-sub">Somme des paiements</div>
             </div>
           </div>
-          <div class="mt-3 kpi-bar"><span id="kpi-bar-pay-sum"></span></div>
+
+          <div class="mt-3 kpi-bar">
+            <span id="kpi-bar-pay-ttc"></span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-12 col-md-6 col-xl-4">
-      <div class="kpi-card h-100">
-        <div class="p-3">
-          <div class="d-flex align-items-center gap-3">
-            <div class="kpi-ico"><i class="bi bi-calendar-range fs-4"></i></div>
-            <div class="flex-grow-1">
-              <div class="kpi-label">30 derniers jours</div>
-              <div class="kpi-value" id="kpi-pay-30d-sum">—</div>
-              <div class="kpi-sub"><span id="kpi-pay-30d-count">—</span> paiements</div>
-            </div>
-          </div>
-          <div class="mt-3 kpi-bar"><span id="kpi-bar-pay-30d"></span></div>
-        </div>
-      </div>
-    </div>
   </div>
 
   {% include 'flagMessage.html.twig' %}
@@ -902,7 +971,14 @@ $(function () {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
       });
       if(!res.ok) throw new Error('HTTP ' + res.status);
-      baseline = await res.json(); // {count,sumCents,last30...}
+      baseline = await res.json();
+      // {
+      //   count,
+      //   htCents,
+      //   tvaCents,
+      //   deboursCents,
+      //   ttcCents
+      // }
     }catch(e){
       console.warn('Baseline paiements KO:', e);
       baseline = null;
@@ -937,15 +1013,70 @@ $(function () {
 
       const j = await res.json();
 
-      const count = Number(j.count || 0);
-      const sumCents = Number(j.sumCents || 0);
-      const last30Count = Number(j.last30Count || 0);
-      const last30SumCents = Number(j.last30SumCents || 0);
+      const count        = Number(j.count || 0);
+      const htCents      = Number(j.htCents || 0);
+      const tvaCents     = Number(j.tvaCents || 0);
+      const deboursCents = Number(j.deboursCents || 0);
+      const ttcCents     = Number(j.ttcCents || 0);
 
-      $('#kpi-pay-count').text(count.toLocaleString('fr-FR'));
-      $('#kpi-pay-sum').text(formatEUR(sumCents));
-      $('#kpi-pay-30d-count').text(last30Count.toLocaleString('fr-FR'));
-      $('#kpi-pay-30d-sum').text(formatEUR(last30SumCents));
+      // Valeurs
+      $('#kpi-pay-count').text(
+        count.toLocaleString('fr-FR')
+      );
+
+      $('#kpi-pay-ht').text(
+        formatEUR(htCents)
+      );
+
+      $('#kpi-pay-debours').text(
+        formatEUR(deboursCents)
+      );
+
+      $('#kpi-pay-tva').text(
+        formatEUR(tvaCents)
+      );
+
+      $('#kpi-pay-ttc').text(
+        formatEUR(ttcCents)
+      );
+
+      // Baseline non filtrée
+      const baseCount   = Number(baseline?.count || count);
+      const baseHt      = Number(baseline?.htCents || htCents);
+      const baseDebours = Number(baseline?.deboursCents || deboursCents);
+      const baseTva     = Number(baseline?.tvaCents || tvaCents);
+      const baseTtc     = Number(baseline?.ttcCents || ttcCents);
+
+      // Barres
+      setBar(
+        $('#kpi-bar-pay-count'),
+        baseCount > 0 ? (count / baseCount) * 100 : 0
+      );
+
+      setBar(
+        $('#kpi-bar-pay-ht'),
+        baseHt > 0 ? (htCents / baseHt) * 100 : 0
+      );
+
+      setBar(
+        $('#kpi-bar-pay-debours'),
+        baseDebours > 0 ? (deboursCents / baseDebours) * 100 : 0
+      );
+
+      setBar(
+        $('#kpi-bar-pay-tva'),
+        baseTva > 0 ? (tvaCents / baseTva) * 100 : 0
+      );
+
+      setBar(
+        $('#kpi-bar-pay-ttc'),
+        baseTtc > 0 ? (ttcCents / baseTtc) * 100 : 0
+      );
+
+      $('#hero-last-refresh').text(
+        'Maj : ' + nowLabel()
+      );
+
 
       // barres (simple et stable)
       const countTarget = Math.max(10, count);

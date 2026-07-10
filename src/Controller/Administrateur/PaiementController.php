@@ -582,24 +582,29 @@ final class PaiementController extends AbstractController
     // -------------------------
     // KPIS
     // -------------------------
-    // KPIS
     #[Route('/kpis', name: 'kpis', methods: ['GET'])]
     public function kpis(Entite $entite, EM $em, Request $request): JsonResponse
     {
         $modeFilter = (string) $request->query->get('modeFilter', 'all');
-        $since = (new \DateTimeImmutable())->sub(new \DateInterval('P30D'));
 
         $periodType    = (string) $request->query->get('periodType', 'all');
         $yearFilter    = (string) $request->query->get('yearFilter', 'all');
         $monthFilter   = (string) $request->query->get('monthFilter', 'all');
         $quarterFilter = (string) $request->query->get('quarterFilter', 'all');
 
-        // ✅ IDs payeurs (GET query) => mêmes noms que JS
         $payeurUserIds = $request->query->all('payeurUserIds') ?? [];
-        $payeurUserIds = array_values(array_filter(array_map('intval', (array) $payeurUserIds)));
+        $payeurUserIds = array_values(
+            array_filter(
+                array_map('intval', (array) $payeurUserIds)
+            )
+        );
 
         $payeurEntrepriseIds = $request->query->all('payeurEntrepriseIds') ?? [];
-        $payeurEntrepriseIds = array_values(array_filter(array_map('intval', (array) $payeurEntrepriseIds)));
+        $payeurEntrepriseIds = array_values(
+            array_filter(
+                array_map('intval', (array) $payeurEntrepriseIds)
+            )
+        );
 
         $baseQb = $em->createQueryBuilder()
             ->select('p', 'f')
@@ -608,40 +613,67 @@ final class PaiementController extends AbstractController
             ->andWhere('p.entite = :e')
             ->setParameter('e', $entite);
 
-        $this->applyModeFilter($baseQb, 'p', $modeFilter);
-        $this->applyPeriodFilter($baseQb, 'p', $periodType, $yearFilter, $monthFilter, $quarterFilter);
+        $this->applyModeFilter(
+            $baseQb,
+            'p',
+            $modeFilter
+        );
 
-        // ✅ on applique les IDs
-        $this->applyPayeurIdsFilter($baseQb, 'p', $payeurUserIds, $payeurEntrepriseIds);
+        $this->applyPeriodFilter(
+            $baseQb,
+            'p',
+            $periodType,
+            $yearFilter,
+            $monthFilter,
+            $quarterFilter
+        );
 
-        /** @var Paiement[] $all */
-        $all = $baseQb->getQuery()->getResult();
+        $this->applyPayeurIdsFilter(
+            $baseQb,
+            'p',
+            $payeurUserIds,
+            $payeurEntrepriseIds
+        );
 
-        $count = count($all);
+        /** @var Paiement[] $paiements */
+        $paiements = $baseQb->getQuery()->getResult();
 
-        $sumHt = 0;
-        $last30Count = 0;
-        $last30SumHt = 0;
+        $count = count($paiements);
 
-        foreach ($all as $p) {
-            $ht = $p->getVentilationHtHorsDeboursCents();
-            if ($ht === null) {
-                $ht = $this->paiementHtHorsDeboursCents($p);
-            }
+        $sumHtCents      = 0;
+        $sumTvaCents     = 0;
+        $sumDeboursCents = 0;
+        $sumTtcCents     = 0;
 
-            $sumHt += $ht;
+        foreach ($paiements as $p) {
+            /*
+            * On utilise la ventilation sauvegardée.
+            * Si elle manque, on recalcule l'affichage depuis la facture.
+            */
+            $ventilation = $this->paiementVentilationDisplayCents($p);
 
-            if ($p->getDatePaiement() >= $since) {
-                $last30Count++;
-                $last30SumHt += $ht;
-            }
+            $sumHtCents += (int) $ventilation['ht'];
+            $sumTvaCents += (int) $ventilation['tva'];
+            $sumDeboursCents += (int) $ventilation['debours'];
+
+            // TTC réellement encaissé
+            $sumTtcCents += (int) ($p->getMontantCents() ?? 0);
         }
 
         return new JsonResponse([
             'count' => $count,
-            'sumCents' => $sumHt,
-            'last30Count' => $last30Count,
-            'last30SumCents' => $last30SumHt,
+
+            // Chiffre d'affaires HT hors débours
+            'htCents' => $sumHtCents,
+
+            // TVA hors débours + TVA des débours
+            'tvaCents' => $sumTvaCents,
+
+            // Débours HT uniquement
+            'deboursCents' => $sumDeboursCents,
+
+            // Montant total encaissé TTC
+            'ttcCents' => $sumTtcCents,
         ]);
     }
 
