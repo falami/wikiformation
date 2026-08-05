@@ -10,7 +10,7 @@ use App\Entity\Entite;
 use App\Enum\StatusInscription;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\{CheckboxType, ChoiceType, MoneyType};
+use Symfony\Component\Form\Extension\Core\Type\{ ChoiceType, MoneyType};
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Doctrine\ORM\EntityRepository;

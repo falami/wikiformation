@@ -25,8 +25,8 @@ final class BackfillPaiementVentilationCommand extends Command
     $q = $repo->createQueryBuilder('p')
       ->leftJoin('p.facture', 'f')->addSelect('f')
       ->andWhere('p.facture IS NOT NULL')
-->andWhere('p.ventilationSource IS NULL OR p.ventilationSource = :auto')
-->setParameter('auto', 'facture_auto')
+      ->andWhere('p.ventilationSource IS NULL OR p.ventilationSource = :auto')
+      ->setParameter('auto', 'facture_auto')
       ->orderBy('p.id', 'ASC')
       ->getQuery();
 
