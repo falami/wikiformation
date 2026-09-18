@@ -14,33 +14,29 @@ final class ConventionContratRepository extends ServiceEntityRepository
         parent::__construct($registry, ConventionContrat::class);
     }
 
-    public function findOneForInscription(Inscription $inscription): ?ConventionContrat
+    /** @return list<ConventionContrat> */
+    public function findForInscription(Inscription $inscription): array
     {
-        $session = $inscription->getSession();
-        $entite  = $session?->getEntite();
+        if (!$inscription->getSession() || !$inscription->getEntite()) return [];
+        return $this->createQueryBuilder('c')
+            ->innerJoin('c.inscriptions', 'i')
+            ->andWhere('i = :inscription AND c.session = :session AND c.entite = :entite')
+            ->setParameter('inscription', $inscription)
+            ->setParameter('session', $inscription->getSession())
+            ->setParameter('entite', $inscription->getEntite())
+            ->orderBy('c.id', 'DESC')->getQuery()->getResult();
+    }
 
-        if (!$session || !$entite) {
+    public function findOneForInscription(Inscription $inscription, ?int $conventionId = null): ?ConventionContrat
+    {
+        $conventions = $this->findForInscription($inscription);
+        if ($conventionId !== null) {
+            foreach ($conventions as $convention) {
+                if ($convention->getId() === $conventionId) return $convention;
+            }
             return null;
         }
-
-        // ✅ CAS ENTREPRISE : 1 convention partagée
-        if ($inscription->getEntreprise()) {
-            return $this->findOneBy([
-                'session'    => $session,
-                'entite'     => $entite,
-                'entreprise' => $inscription->getEntreprise(),
-            ]);
-        }
-
-        // ✅ CAS INDIVIDUEL : 1 convention par stagiaire
-        if ($inscription->getStagiaire()) {
-            return $this->findOneBy([
-                'session'   => $session,
-                'entite'    => $entite,
-                'stagiaire' => $inscription->getStagiaire(),
-            ]);
-        }
-
-        return null;
+        // Les anciens liens restent utilisables uniquement sans ambiguïté.
+        return count($conventions) === 1 ? $conventions[0] : null;
     }
 }

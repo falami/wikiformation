@@ -3,12 +3,11 @@
 namespace App\EventSubscriber;
 
 use App\Entity\Inscription;
-use App\Entity\Utilisateur;
-use App\Entity\Entite;
+use App\Entity\QcmAssignment;
 use App\Enum\StatusInscription;
 use App\Service\Qcm\QcmAssignmentManager;
 use Doctrine\Common\EventSubscriber;
-use Doctrine\ORM\Event\PreUpdateEventArgs;
+use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Events;
 
 final class InscriptionQcmSubscriber implements EventSubscriber
@@ -17,22 +16,34 @@ final class InscriptionQcmSubscriber implements EventSubscriber
 
   public function getSubscribedEvents(): array
   {
-    return [Events::preUpdate];
+    return [Events::onFlush];
   }
 
-  public function preUpdate(PreUpdateEventArgs $args, Utilisateur $user, Entite $entite): void
+  public function onFlush(OnFlushEventArgs $args): void
   {
-    $entity = $args->getObject();
-    if (!$entity instanceof Inscription) return;
+    $em = $args->getObjectManager();
+    $uow = $em->getUnitOfWork();
 
-    if (!$args->hasChangedField('status')) return;
+    foreach (array_merge($uow->getScheduledEntityInsertions(), $uow->getScheduledEntityUpdates()) as $inscription) {
+      if (!$inscription instanceof Inscription
+        || !in_array($inscription->getStatus(), [StatusInscription::TERMINE, StatusInscription::CONFIRME], true)) {
+        continue;
+      }
 
-    $new = $args->getNewValue('status');
-    if (!$new instanceof StatusInscription) return;
+      $changes = $uow->getEntityChangeSet($inscription);
+      $createur = $inscription->getCreateur();
+      $entite = $inscription->getEntite();
+      if (!isset($changes['status']) || !$createur || !$entite) {
+        continue;
+      }
 
-    // 👉 adapte si ton enum s'appelle autrement
-    if ($new === StatusInscription::TERMINE || $new === StatusInscription::CONFIRME) {
-      $this->manager->ensurePreAndPostAssignments($entity, $user, $entite);
+      $this->manager->ensurePreAndPostAssignments($inscription, $createur, $entite, flush: false);
+
+      foreach ($uow->getScheduledEntityInsertions() as $assignment) {
+        if ($assignment instanceof QcmAssignment && $assignment->getInscription() === $inscription) {
+          $uow->computeChangeSet($em->getClassMetadata(QcmAssignment::class), $assignment);
+        }
+      }
     }
   }
 }

@@ -292,6 +292,7 @@
     {% set entreprise = entreprise ?? (convention ? convention.entreprise : null) %}
     {% set stagiaire  = stagiaire ?? (convention ? convention.stagiaire : null) %}
     {% set preferences = entite.preferences ?? null %}
+    {% set devis = convention ? convention.devis : null %}
 
     {# Programme détaillé #}
     {% set nodes = (formation and formation.contentNodes is defined) ? formation.contentNodes : [] %}
@@ -308,8 +309,6 @@
           {% set stagiairesList = stagiairesList|merge([u]) %}
         {% endif %}
       {% endfor %}
-    {% elseif stagiaire %}
-      {% set stagiairesList = [stagiaire] %}
     {% endif %}
 
     {# jours session #}
@@ -365,6 +364,9 @@
               <div class="doc-meta-item"><strong>Date d’édition :</strong> {{ "now"|date('d/m/Y') }}</div>
               {% if session and session.code is defined and session.code %}
                 <div class="doc-meta-item"><strong>Réf. session :</strong> {{ session.code }}</div>
+              {% endif %}
+              {% if devis %}
+                <div class="doc-meta-item"><strong>Réf. devis :</strong> {{ devis.numero }}</div>
               {% endif %}
             </div>
           </td>
@@ -469,9 +471,18 @@
                 </div>
               </div>
             {% endif %}
-            {% if formation and formation.prixBaseCents is defined and formation.prixBaseCents %}
+            {% if devis %}
               <div class="info-block mb-0">
-                <span class="info-label">Montant HT</span>
+                <span class="info-label">Total du devis {{ devis.numero }}</span>
+                <div class="info-content">
+                  HT : {{ (devis.montantHtCents / 100)|number_format(2, ',', ' ') }} {{ devis.devise }}<br>
+                  TVA : {{ (devis.montantTvaCents / 100)|number_format(2, ',', ' ') }} {{ devis.devise }}<br>
+                  TTC : {{ (devis.montantTtcCents / 100)|number_format(2, ',', ' ') }} {{ devis.devise }}
+                </div>
+              </div>
+            {% elseif formation and formation.prixBaseCents is defined and formation.prixBaseCents %}
+              <div class="info-block mb-0">
+                <span class="info-label">Tarif catalogue HT</span>
                 <div class="info-content text-nowrap">
                   {{ (formation.prixBaseCents / 100)|number_format(2, ',', ' ') }} €
                 </div>
@@ -681,7 +692,7 @@
                 <td><strong>{{ (u.nom ?? '')|upper }}</strong> {{ u.prenom ?? '' }}</td>
                 <td>{{ u.email ?? '-' }}</td>
                 <td>
-                  <span class="badge-soft">{{ session.typeFinancement.value|upper }}</span>
+                  <span class="badge-soft">{{ entreprise ? entreprise.raisonSociale : 'Individuel' }}</span>
                 </td>
               </tr>
             {% endfor %}
@@ -747,7 +758,7 @@
       </div>
 
       <p class="text-muted mb-0">
-        Fait à {{ entite.ville|default('Ville') }}, le {{ "now"|date('d/m/Y') }}.
+        Fait à {{ entite.ville|default('Ville') }}, le {{ convention ? convention.dateCreation|date('d/m/Y') : "now"|date('d/m/Y') }}.
       </p>
 
       <table class="grid-2" style="margin-top:10pt;">
@@ -773,7 +784,7 @@
                          alt="Signature organisme">
                     <div class="sig-meta">
                       {% if preferences.signatureOrganismeAt %}
-                        Signé le {{ "now"|date('d/m/Y') }}
+                        Signature configurée le {{ preferences.signatureOrganismeAt|date('d/m/Y') }}
                       {% else %}
                         Signature configurée
                       {% endif %}
@@ -798,11 +809,13 @@
                   {% endif %}
                 </strong>
 
-                <div class="sig-box {% if convention and convention.signatureDataUrlStagiaire %}is-filled{% endif %}">
-                  {% if convention and convention.signatureDataUrlStagiaire %}
-                    <img class="sig-img" src="{{ convention.signatureDataUrlStagiaire }}" alt="Signature client">
+                {% set signatureClient = convention ? (entreprise ? convention.signatureDataUrlEntreprise : convention.signatureDataUrlStagiaire) : null %}
+                {% set dateSignatureClient = convention ? (entreprise ? convention.dateSignatureEntreprise : convention.dateSignatureStagiaire) : null %}
+                <div class="sig-box {% if signatureClient %}is-filled{% endif %}">
+                  {% if signatureClient %}
+                    <img class="sig-img" src="{{ signatureClient }}" alt="Signature client">
                     <div class="sig-meta">
-                      Signé le {{ convention.dateSignatureStagiaire ? convention.dateSignatureStagiaire|date('d/m/Y') : '-' }}
+                      Signé le {{ dateSignatureClient ? dateSignatureClient|date('d/m/Y') : '-' }}
                     </div>
                   {% else %}
                     Signature :

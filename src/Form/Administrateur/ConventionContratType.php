@@ -2,343 +2,148 @@
 
 namespace App\Form\Administrateur;
 
-use App\Entity\ConventionContrat;
-use App\Entity\Entreprise;
-use App\Entity\Utilisateur;
-use App\Entity\Session;
-use App\Entity\Entite;
-use App\Entity\Inscription;
+use App\Entity\{ConventionContrat, Entreprise, Utilisateur, Session, Entite, Inscription};
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query\Expr\Join;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\{TextareaType, DateType};
-use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\Form\FormEvent;
-use Symfony\Component\Form\FormEvents;
-use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\{FormBuilderInterface, FormEvent, FormEvents, FormInterface};
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Count;
 
 final class ConventionContratType extends AbstractType
 {
-    public function buildForm(FormBuilderInterface $b, array $options): void
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        /** @var Entite|null $entite */
         $entite = $options['entite'];
-
         if (!$entite instanceof Entite) {
             throw new \InvalidArgumentException('Option "entite" obligatoire pour ConventionContratType.');
         }
 
-        /** @var ConventionContrat|null $cc */
-        $cc = $b->getData();
-        $currentStagiaire  = $cc?->getStagiaire();
-        $currentEntreprise = $cc?->getEntreprise();
-        $currentSession    = $cc?->getSession();
+        /** @var ConventionContrat|null $convention */
+        $convention = $builder->getData();
+        $sessionId = $convention?->getSession()?->getId();
+        $entrepriseId = $convention?->getEntreprise()?->getId();
+        $stagiaireId = $convention?->getStagiaire()?->getId();
 
-        // ✅ Build champs "base"
-        $b
+        $builder
             ->add('session', EntityType::class, [
                 'class' => Session::class,
                 'choice_label' => fn(Session $s) => sprintf('%s - %s', $s->getCode(), $s->getFormation()?->getTitre() ?? ''),
-                'label' => '*Session',
+                'label' => 'Session',
                 'placeholder' => 'Sélectionner une session',
-                'disabled' => (bool) $options['lock_session'],
-                'query_builder' => function (EntityRepository $er) use ($entite) {
-                    return $er->createQueryBuilder('s')
-                        ->leftJoin('s.formation', 'f')->addSelect('f')
-                        ->andWhere('s.entite = :e')
-                        ->setParameter('e', $entite)
-                        ->orderBy('s.id', 'DESC');
-                },
+                'disabled' => $options['lock_session'],
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('s')
+                    ->leftJoin('s.formation', 'f')->addSelect('f')
+                    ->andWhere('s.entite = :entite')->setParameter('entite', $entite)
+                    ->orderBy('s.id', 'DESC'),
                 'attr' => ['class' => 'form-select'],
             ])
-
             ->add('entreprise', EntityType::class, [
                 'class' => Entreprise::class,
                 'choice_label' => 'raisonSociale',
-                'label' => 'Entreprise',
-                'placeholder' => '- Aucune (financement individuel) -',
+                'label' => 'Entreprise destinataire',
+                'placeholder' => '- Aucune -',
                 'required' => false,
-                'disabled' => (bool) $options['lock_entreprise'],
-                'query_builder' => function (EntityRepository $er) use ($entite, $currentEntreprise) {
-                    $qb = $er->createQueryBuilder('e')
-                        ->andWhere('e.entite = :entite')
-                        ->setParameter('entite', $entite)
-                        ->orderBy('e.raisonSociale', 'ASC');
-
-                    // ✅ inclure l’entreprise déjà sélectionnée
-                    if ($currentEntreprise) {
-                        $qb->orWhere('e.id = :curE')
-                            ->setParameter('curE', $currentEntreprise->getId());
-                    }
-
-                    return $qb;
-                },
+                'disabled' => $options['lock_entreprise'],
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('e')
+                    ->andWhere('e.entite = :entite')->setParameter('entite', $entite)
+                    ->orderBy('e.raisonSociale', 'ASC'),
                 'attr' => ['class' => 'form-select'],
             ])
-
             ->add('stagiaire', EntityType::class, [
                 'class' => Utilisateur::class,
-                'label' => 'Stagiaire',
-                'choice_label' => fn(Utilisateur $u) => trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '') . ' - ' . ($u->getEmail() ?? '')),
-                'placeholder' => '- Aucun (financement entreprise) -',
+                'label' => 'Stagiaire destinataire',
+                'choice_label' => fn(Utilisateur $u) => trim($u->getPrenom() . ' ' . $u->getNom() . ' - ' . $u->getEmail()),
+                'placeholder' => '- Aucun -',
                 'required' => false,
-                'disabled' => (bool) $options['lock_stagiaire'],
-                'query_builder' => function (EntityRepository $er) use ($entite, $currentStagiaire) {
-                    $qb = $er->createQueryBuilder('u');
-
-                    $qb->leftJoin('u.utilisateurEntites', 'ue', Join::WITH, 'ue.entite = :entite')
-                        ->setParameter('entite', $entite)
-                        ->andWhere('ue.id IS NOT NULL');
-
-                    if ($currentStagiaire) {
-                        $qb->orWhere('u.id = :curU')
-                            ->setParameter('curU', $currentStagiaire->getId());
-                    }
-
-                    return $qb
-                        ->orderBy('u.nom', 'ASC')
-                        ->addOrderBy('u.prenom', 'ASC');
-                },
+                'disabled' => $options['lock_stagiaire'],
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('u')
+                    ->distinct()
+                    ->leftJoin('u.utilisateurEntites', 'ue', Join::WITH, 'ue.entite = :entite')
+                    ->leftJoin('u.inscriptions', 'i')
+                    ->leftJoin('i.session', 's', Join::WITH, 's.entite = :entite')
+                    ->andWhere('ue.id IS NOT NULL OR s.id IS NOT NULL')
+                    ->setParameter('entite', $entite)
+                    ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC'),
                 'attr' => ['class' => 'form-select'],
             ])
-
-            // dates (disabled)
-            ->add('dateSignatureStagiaire', DateType::class, [
-                'widget' => 'single_text',
-                'input'  => 'datetime_immutable',
-                'required' => false,
-                'disabled' => true,
-                'attr' => ['class' => 'form-control flatpickr-date', 'placeholder' => 'jj/mm/aaaa'],
-            ])
-            ->add('dateSignatureEntreprise', DateType::class, [
-                'widget' => 'single_text',
-                'input'  => 'datetime_immutable',
-                'required' => false,
-                'disabled' => true,
-                'attr' => ['class' => 'form-control flatpickr-date', 'placeholder' => 'jj/mm/aaaa'],
-            ])
-            ->add('dateSignatureOf', DateType::class, [
-                'widget' => 'single_text',
-                'input'  => 'datetime_immutable',
-                'required' => false,
-                'disabled' => true,
-                'attr' => ['class' => 'form-control flatpickr-date', 'placeholder' => 'jj/mm/aaaa'],
-            ])
-
             ->add('conditionsFinancieres', TextareaType::class, [
                 'label' => 'Conditions financières',
                 'required' => false,
-                'attr' => [
-                    'class' => 'form-control',
-                    'rows' => 6,
-                    'placeholder' => 'Modalités de règlement, échéancier, OPCO, etc.',
-                ],
-                'help' => 'Texte libre figurant sur la convention.',
-            ])
-        ;
+                'attr' => ['class' => 'form-control', 'rows' => 6],
+                'help' => 'Modalités de règlement et échéancier figurant sur la convention.',
+            ]);
 
-        /**
-         * ✅ Champ inscriptions (multi) : on l’ajoute dynamiquement en fonction (session+entreprise)
-         * - PRE_SET_DATA : affichage initial (édition)
-         * - PRE_SUBMIT : validation submit (évite "This value is not valid")
-         */
-        $this->addInscriptionsField(
-            $b,
-            $entite,
-            $currentSession,
-            $currentEntreprise
-        );
+        foreach (['dateSignatureStagiaire', 'dateSignatureEntreprise', 'dateSignatureOf'] as $field) {
+            $builder->add($field, DateType::class, [
+                'widget' => 'single_text', 'input' => 'datetime_immutable',
+                'required' => false, 'disabled' => true,
+                'attr' => ['class' => 'form-control'],
+            ]);
+        }
 
-        $b->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $event) use ($entite) {
-            /** @var ConventionContrat|null $cc */
-            $cc = $event->getData();
-            if (!$cc) return;
-
+        $this->addInscriptionsField($builder, $entite, $sessionId, $entrepriseId, $stagiaireId);
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) use (
+            $entite, $options, $sessionId, $entrepriseId, $stagiaireId
+        ): void {
+            $data = $event->getData();
+            if (!is_array($data)) {
+                return;
+            }
+            // Les champs verrouillés conservent leur contexte, même en cas de requête falsifiée.
+            $submittedId = static fn(mixed $value): ?int => is_scalar($value) && ctype_digit((string) $value)
+                && (int) $value > 0 ? (int) $value : null;
             $this->addInscriptionsField(
                 $event->getForm(),
                 $entite,
-                $cc->getSession(),
-                $cc->getEntreprise()
+                $options['lock_session'] ? $sessionId : $submittedId($data['session'] ?? null),
+                $options['lock_entreprise'] ? $entrepriseId : $submittedId($data['entreprise'] ?? null),
+                $options['lock_stagiaire'] ? $stagiaireId : $submittedId($data['stagiaire'] ?? null),
             );
-        });
-
-        // ✅ Exclusivité + restauration entreprise/stagiaire + robustesse inscriptions
-        $b->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) use ($entite, $currentStagiaire, $currentEntreprise, $currentSession, $cc) {
-            $data = $event->getData() ?? [];
-
-            $entreprise = $data['entreprise'] ?? null;
-            $stagiaire  = $data['stagiaire'] ?? null;
-
-            $entrepriseEmpty = !is_string($entreprise) || trim($entreprise) === '';
-            $stagiaireEmpty  = !is_string($stagiaire)  || trim($stagiaire)  === '';
-
-            // ✅ 1) Restaurer si TomSelect envoie vide alors qu’une valeur existait déjà
-            if ($stagiaireEmpty && $currentStagiaire) {
-                $data['stagiaire'] = (string) $currentStagiaire->getId();
-                $stagiaireEmpty = false;
-            }
-            if ($entrepriseEmpty && $currentEntreprise) {
-                $data['entreprise'] = (string) $currentEntreprise->getId();
-                $entrepriseEmpty = false;
-            }
-
-            // ✅ 2) Exclusivité entreprise / stagiaire (priorité entreprise)
-            $hasEntreprise = !$entrepriseEmpty;
-            $hasStagiaire  = !$stagiaireEmpty;
-
-            if ($hasEntreprise) {
-                $data['stagiaire'] = null;
-            } elseif ($hasStagiaire) {
-                $data['entreprise'] = null;
-            }
-
-            // ✅ 3) Inscriptions : sécurité
-            // - si on est en individuel => on ignore/vidange inscriptions
-            // - si entreprise => on garde celles envoyées, ou on restaure si champ absent
-            if (!$hasEntreprise) {
-                $data['inscriptions'] = []; // convention individuelle => pas de liste
-            } else {
-                // entreprise = ON
-                if (!array_key_exists('inscriptions', $data)) {
-                    // champ pas soumis (pas rendu / JS) => on restaure l’existant pour éviter de perdre les liens
-                    $existingIds = [];
-                    if ($cc) {
-                        foreach ($cc->getInscriptions() as $i) {
-                            $existingIds[] = (string) $i->getId();
-                        }
-                    }
-                    $data['inscriptions'] = $existingIds;
-                } else {
-                    // normaliser array (TomSelect renvoie souvent array de strings)
-                    $data['inscriptions'] = array_values(array_filter((array) $data['inscriptions'], static function ($v) {
-                        return is_string($v) && trim($v) !== '';
-                    }));
-                }
-            }
-
-            // ✅ 4) Ré-injecter le champ inscriptions avec un QB cohérent (session + entreprise)
-            // pour que Symfony accepte les valeurs soumises.
-            // Session soumise peut être '' => on fallback sur currentSession
-            $sessionId = $data['session'] ?? null;
-            $session   = null;
-
-            if (is_string($sessionId) && trim($sessionId) !== '') {
-                // on ne requête pas en DB ici : on filtre par id dans le QB
-                $session = (int) $sessionId;
-            } elseif ($currentSession) {
-                $session = $currentSession->getId();
-            }
-
-            $entrepriseId = null;
-            if (is_string($data['entreprise'] ?? null) && trim((string)$data['entreprise']) !== '') {
-                $entrepriseId = (int) $data['entreprise'];
-            } elseif ($currentEntreprise) {
-                $entrepriseId = $currentEntreprise->getId();
-            }
-
-            $this->addInscriptionsFieldForSubmit(
-                $event->getForm(),
-                $entite,
-                $session,
-                $entrepriseId
-            );
-
-            $event->setData($data);
         });
     }
 
-    /**
-     * Champ inscriptions pour affichage (avec objets Session/Entreprise)
-     */
     private function addInscriptionsField(
         FormBuilderInterface|FormInterface $form,
         Entite $entite,
-        ?Session $session,
-        ?Entreprise $entreprise
-    ): void {
-        $form->add('inscriptions', EntityType::class, [
-            'class' => Inscription::class,
-            'label' => 'Stagiaires (inscriptions)',
-            'multiple' => true,
-            'required' => false,
-            'by_reference' => false, // IMPORTANT ManyToMany
-            'placeholder' => '',
-            'choice_label' => function (Inscription $i) {
-                $u = $i->getStagiaire();
-                $name = $u ? trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')) : '—';
-                $mail = $u?->getEmail() ?? '';
-                return sprintf('#%d — %s%s', $i->getId(), $name, $mail ? ' (' . $mail . ')' : '');
-            },
-            'query_builder' => function (EntityRepository $er) use ($entite, $session, $entreprise) {
-                $qb = $er->createQueryBuilder('i')
-                    ->leftJoin('i.session', 's')->addSelect('s')
-                    ->leftJoin('i.entreprise', 'e')->addSelect('e')
-                    ->leftJoin('i.stagiaire', 'u')->addSelect('u')
-                    ->andWhere('s.entite = :entite')
-                    ->setParameter('entite', $entite)
-                    ->orderBy('i.id', 'DESC');
-
-                // Si session/entreprise non définies => on ne propose rien (évite mélanges)
-                if (!$session || !$entreprise) {
-                    return $qb->andWhere('1=0');
-                }
-
-                return $qb
-                    ->andWhere('i.session = :s')->setParameter('s', $session)
-                    ->andWhere('i.entreprise = :e')->setParameter('e', $entreprise);
-            },
-            'attr' => [
-                'class' => 'form-select',
-                'data-placeholder' => 'Sélectionner les inscriptions (stagiaires)',
-            ],
-            'help' => 'Disponible uniquement si une entreprise est sélectionnée (convention groupe).',
-        ]);
-    }
-
-    /**
-     * Champ inscriptions pour le submit (sans objets, en filtrant par IDs)
-     * -> indispensable pour éviter "This value is not valid" quand le QB dépend du contexte.
-     */
-    private function addInscriptionsFieldForSubmit(
-        FormInterface $form,
-        Entite $entite,
         ?int $sessionId,
-        ?int $entrepriseId
+        ?int $entrepriseId,
+        ?int $stagiaireId
     ): void {
         $form->add('inscriptions', EntityType::class, [
             'class' => Inscription::class,
-            'label' => 'Stagiaires (inscriptions)',
+            'label' => 'Stagiaires couverts par la convention',
             'multiple' => true,
-            'required' => false,
+            'required' => true,
             'by_reference' => false,
-            'choice_label' => function (Inscription $i) {
-                $u = $i->getStagiaire();
-                $name = $u ? trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')) : '—';
-                $mail = $u?->getEmail() ?? '';
-                return sprintf('#%d — %s%s', $i->getId(), $name, $mail ? ' (' . $mail . ')' : '');
+            'constraints' => [new Count(min: 1, minMessage: 'Sélectionnez au moins une inscription.')],
+            'choice_label' => static function (Inscription $inscription): string {
+                $u = $inscription->getStagiaire();
+                return sprintf('#%d — %s (%s)', $inscription->getId(), trim($u?->getPrenom() . ' ' . $u?->getNom()), $u?->getEmail());
             },
-            'query_builder' => function (EntityRepository $er) use ($entite, $sessionId, $entrepriseId) {
+            'query_builder' => static function (EntityRepository $er) use ($entite, $sessionId, $entrepriseId, $stagiaireId) {
                 $qb = $er->createQueryBuilder('i')
-                    ->leftJoin('i.session', 's')
-                    ->leftJoin('i.entreprise', 'e')
-                    ->andWhere('s.entite = :entite')
+                    ->innerJoin('i.session', 's')
+                    ->leftJoin('i.stagiaire', 'u')->addSelect('u')
+                    ->andWhere('s.entite = :entite')->andWhere('i.entite = :entite')
                     ->setParameter('entite', $entite)
-                    ->orderBy('i.id', 'DESC');
-
-                if (!$sessionId || !$entrepriseId) {
-                    return $qb->andWhere('1=0');
+                    ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC');
+                if (!$sessionId || (!$entrepriseId && !$stagiaireId)) {
+                    return $qb->andWhere('1 = 0');
                 }
-
-                return $qb
-                    ->andWhere('s.id = :sid')->setParameter('sid', $sessionId)
-                    ->andWhere('e.id = :eid')->setParameter('eid', $entrepriseId);
+                $qb->andWhere('s.id = :session')->setParameter('session', $sessionId);
+                if ($entrepriseId) {
+                    $qb->andWhere('i.entreprise = :entreprise')->setParameter('entreprise', $entrepriseId);
+                } else {
+                    // Un devis adressé au stagiaire peut couvrir son inscription, même si son employeur est renseigné.
+                    $qb->andWhere('i.stagiaire = :stagiaire')->setParameter('stagiaire', $stagiaireId);
+                }
+                return $qb;
             },
-            'attr' => [
-                'class' => 'form-select',
-                'data-placeholder' => 'Sélectionner les inscriptions (stagiaires)',
-            ],
+            'attr' => ['class' => 'form-select', 'data-placeholder' => 'Sélectionner les inscriptions'],
+            'help' => 'Seuls ces stagiaires figurent sur la convention. Plusieurs conventions peuvent partager une session.',
         ]);
     }
 
@@ -351,10 +156,9 @@ final class ConventionContratType extends AbstractType
             'lock_entreprise' => false,
             'lock_stagiaire' => false,
         ]);
-
         $resolver->setAllowedTypes('entite', [Entite::class, 'null']);
-        $resolver->setAllowedTypes('lock_session', 'bool');
-        $resolver->setAllowedTypes('lock_entreprise', 'bool');
-        $resolver->setAllowedTypes('lock_stagiaire', 'bool');
+        foreach (['lock_session', 'lock_entreprise', 'lock_stagiaire'] as $option) {
+            $resolver->setAllowedTypes($option, 'bool');
+        }
     }
 }

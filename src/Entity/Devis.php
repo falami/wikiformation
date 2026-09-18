@@ -93,6 +93,10 @@ class Devis
     #[ORM\ManyToMany(targetEntity: Inscription::class, inversedBy: 'devis')]
     private Collection $inscriptions;
 
+    /** @var Collection<int, ConventionContrat> */
+    #[ORM\OneToMany(targetEntity: ConventionContrat::class, mappedBy: 'devis')]
+    private Collection $conventions;
+
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $remiseGlobalePourcent = null;
 
@@ -129,6 +133,7 @@ class Devis
         $this->dateEmission = new \DateTimeImmutable();
         $this->lignes = new ArrayCollection();
         $this->inscriptions = new ArrayCollection();
+        $this->conventions = new ArrayCollection();
         $this->prospectInteractions = new ArrayCollection();
         $this->emailLogs = new ArrayCollection();
     }
@@ -365,6 +370,7 @@ class Devis
     {
         if (!$this->inscriptions->contains($inscription)) {
             $this->inscriptions->add($inscription);
+            $inscription->addDevi($this);
         }
 
         return $this;
@@ -372,7 +378,34 @@ class Devis
 
     public function removeInscription(Inscription $inscription): static
     {
-        $this->inscriptions->removeElement($inscription);
+        if ($this->inscriptions->removeElement($inscription)) {
+            $inscription->removeDevi($this);
+        }
+
+        return $this;
+    }
+
+    /** @return Collection<int, ConventionContrat> */
+    public function getConventions(): Collection
+    {
+        return $this->conventions;
+    }
+
+    public function addConvention(ConventionContrat $convention): static
+    {
+        if (!$this->conventions->contains($convention)) {
+            $this->conventions->add($convention);
+            $convention->setDevis($this);
+        }
+
+        return $this;
+    }
+
+    public function removeConvention(ConventionContrat $convention): static
+    {
+        if ($this->conventions->removeElement($convention) && $convention->getDevis() === $this) {
+            $convention->setDevis(null);
+        }
 
         return $this;
     }
@@ -446,22 +479,35 @@ class Devis
         $hasEnt      = $this->entrepriseDestinataire !== null;
         $hasProspect = $this->prospect !== null;
 
-        // 1) au moins un destinataire
-        if (!$hasUser && !$hasEnt && !$hasProspect) {
-            $context->buildViolation('Choisis un destinataire : prospect, entreprise et/ou personne.')
+        if ((int) $hasUser + (int) $hasEnt + (int) $hasProspect !== 1) {
+            $context->buildViolation('Choisissez un seul destinataire : une entreprise, une personne ou un prospect.')
                 ->atPath('entrepriseDestinataire')
                 ->addViolation();
-            return;
         }
 
-        // 2) prospect exclusif
-        if ($hasProspect && ($hasUser || $hasEnt)) {
-            $context->buildViolation('Un prospect ne peut pas être combiné avec une entreprise ou une personne.')
+        if ($this->entrepriseDestinataire && $this->entrepriseDestinataire->getEntite() !== $this->entite) {
+            $context->buildViolation('L’entreprise doit appartenir au même organisme que le devis.')
+                ->atPath('entrepriseDestinataire')
+                ->addViolation();
+        }
+
+        if ($this->prospect && $this->prospect->getEntite() !== $this->entite) {
+            $context->buildViolation('Le prospect doit appartenir au même organisme que le devis.')
                 ->atPath('prospect')
                 ->addViolation();
         }
 
-        // 3) entreprise + personne = OK (et personne seule = OK)
+        if ($this->destinataire && $this->entite) {
+            $belongsToEntite = $this->destinataire->getEntite() === $this->entite || $this->destinataire->getUtilisateurEntites()->exists(
+                fn ($key, UtilisateurEntite $membership): bool => $membership->getEntite() === $this->entite
+            );
+
+            if (!$belongsToEntite) {
+                $context->buildViolation('Le destinataire doit appartenir au même organisme que le devis.')
+                    ->atPath('destinataire')
+                    ->addViolation();
+            }
+        }
     }
 
 

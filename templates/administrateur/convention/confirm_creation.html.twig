@@ -1,0 +1,29 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Créer une convention{% endblock %}
+
+{% block body %}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="h3">Créer une convention</h1>
+      <p>Session <strong>{{ session.code }}</strong> — {{ session.formationLabel }}</p>
+      <p>Destinataire : <strong>{{ destinataire }}</strong></p>
+      {% if inscriptions|length %}
+        <p>Cette nouvelle convention couvrira les inscriptions suivantes. Vous pourrez ajuster la sélection avant de générer le document.</p>
+        <ul>
+          {% for inscription in inscriptions %}
+            <li>{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}</li>
+          {% endfor %}
+        </ul>
+        <form method="post">
+          <input type="hidden" name="_token" value="{{ csrf_token(tokenId) }}">
+          <button class="btn btn-primary" type="submit">Créer la convention</button>
+          <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_convention_index', {entite: entite.id}) }}">Annuler</a>
+        </form>
+      {% else %}
+        <p class="alert alert-warning">Aucune inscription pour ce destinataire dans cette session.</p>
+        <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_convention_index', {entite: entite.id}) }}">Retour</a>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

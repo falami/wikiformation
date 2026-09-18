@@ -256,6 +256,12 @@
           </a>
 
           {% if form.vars.value and form.vars.value.id %}
+            {% if form.vars.value.status.value != 'canceled' %}
+              <a class="btn btn-warning btn-sm fw-semibold"
+                href="{{ path('app_administrateur_devis_convention', {entite: entite.id, id: form.vars.value.id}) }}">
+                <i class="bi bi-file-earmark-text me-1"></i> Créer une convention
+              </a>
+            {% endif %}
             <a class="btn btn-light btn-sm fw-semibold"
               href="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: form.vars.value.id}) }}">
               <i class="bi bi-filetype-pdf me-1"></i> PDF
@@ -324,6 +330,10 @@
               </div>
             </div>
 
+            <div class="col-md-12">
+              <p class="form-text mb-0">Choisissez un seul destinataire : l’entreprise qui finance la formation, le stagiaire à titre individuel, ou un prospect. Les stagiaires concernés sont sélectionnés séparément lors de la création de la convention.</p>
+            </div>
+
             <div class="col-md-12">{{ form_row(form.prospect) }}</div>
 
             <div class="col-md-12">{{ form_row(form.destinataire) }}</div>
@@ -346,7 +356,7 @@
 
             <div class="col-md-12">
               {{ form_row(form.inscriptions) }}
-              <div class="form-text">Sélection multiple possible (TomSelect).</div>
+              <div class="form-text">Vous pouvez laisser ce champ vide et choisir ou créer la session, puis sélectionner les stagiaires lors de la création de la convention.</div>
             </div>
 
             <div class="col-md-4">{{ form_row(form.dateEmission) }}</div>

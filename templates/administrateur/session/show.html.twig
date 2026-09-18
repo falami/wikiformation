@@ -1120,11 +1120,6 @@ body{ overflow-x:hidden; }
                     {% set mode = ins.modeFinancement ?? ins.mode ?? null %}
                     {% set entreprise = ins.entreprise ?? null %}
 
-                    {# IMPORTANT : Inscription n'a PAS "convention". On la retrouve via session.conventionContrats + entreprise #}
-                    {% set conv = (entreprise and conventionsByEntrepriseId[entreprise.id] is defined) ? conventionsByEntrepriseId[entreprise.id] : null %}
-
-
-
                     <tr>
                       <td>
                         <input class="form-check-input bulk-one"
@@ -1172,104 +1167,18 @@ body{ overflow-x:hidden; }
                       </td>
 
                       <td>
-                        {% set entreprise = ins.entreprise ?? null %}
-                        {% set stagiaire  = ins.stagiaire ?? null %}
-                        {% set mode       = ins.modeFinancement ?? ins.mode ?? null %}
-
-                        {# retrouver la convention (entreprise OU stagiaire) #}
-                        {% set conv = null %}
-                        {% if entreprise and conventionsByEntrepriseId[entreprise.id] is defined %}
-                          {% set conv = conventionsByEntrepriseId[entreprise.id] %}
-                        {% elseif stagiaire and conventionsByStagiaireId[stagiaire.id] is defined %}
-                          {% set conv = conventionsByStagiaireId[stagiaire.id] %}
-                        {% endif %}
-
-                        {# si mode non renseigné #}
-                        {% if mode is null %}
-                          <span class="text-muted small">-</span>
-
-                        {# cas convention entreprise requise #}
-                        {% elseif mode.requiresConvention() %}
-                          {% if entreprise is null %}
-                            <span class="badge bg-warning-subtle text-warning" title="Le mode de financement nécessite une entreprise.">
-                              <i class="fa fa-building me-1"></i> Entreprise requise
-                            </span>
-                          {% else %}
-                            {% if conv %}
-                              {% set isSigned =
-                                (conv.signatureDataUrlStagiaire is defined and conv.signatureDataUrlStagiaire)
-                                or (conv.signatureDataUrlEntreprise is defined and conv.signatureDataUrlEntreprise)
-                                or (conv.dateSignatureOf is defined and conv.dateSignatureOf)
-                              %}
-
-                              <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
-                                  class="btn {{ isSigned ? 'btn-outline-success' : 'btn-outline-warning' }}"
-                                  title="{{ isSigned ? 'Convention signée' : 'Convention à signer' }}">
-                                  <i class="fa {{ isSigned ? 'fa-check-circle' : 'fa-pen-nib' }}"></i>
-                                  {{ isSigned ? 'Signée' : 'À signer' }}
-                                </a>
-
-                                <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
-                                  class="btn btn-outline-secondary" title="Ouvrir">
-                                  <i class="fa fa-eye"></i>
-                                </a>
-
-                                {% if conv.pdfPath %}
-                                  <a href="{{ path('app_administrateur_convention_pdf', { entite: entite.id, id: conv.id }) }}"
-                                    class="btn btn-outline-primary" target="_blank" title="PDF">
-                                    <i class="fa fa-file-pdf"></i>
-                                  </a>
-                                {% else %}
-                                  <form method="post"
-                                        action="{{ path('app_administrateur_convention_generate_pdf', { entite: entite.id, id: conv.id }) }}"
-                                        class="d-inline"
-                                        onsubmit="return confirm('Générer le PDF de cette convention ?');">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('genpdf' ~ conv.id) }}">
-                                    <button class="btn btn-outline-primary" type="submit" title="Générer PDF">
-                                      <i class="fa fa-gears"></i>
-                                    </button>
-                                  </form>
-                                {% endif %}
-                              </div>
-                            {% else %}
-                              <a href="{{ path('app_administrateur_convention_from_inscription', { entite: entite.id, id: ins.id }) }}"
-                                class="btn btn-outline-primary btn-sm">
-                                <i class="fa fa-file-contract"></i> Préparer
-                              </a>
-                            {% endif %}
-                          {% endif %}
-
-                        {# cas contrat stagiaire (financement individuel) #}
-                        {% elseif mode.requiresContratStagiaire() %}
-                          {% if conv %}
-                            {% set isSigned =
-                              (conv.signatureDataUrlStagiaire is defined and conv.signatureDataUrlStagiaire)
-                              or (conv.dateSignatureOf is defined and conv.dateSignatureOf)
-                            %}
-
-                            <div class="btn-group btn-group-sm" role="group">
-                              <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
-                                class="btn {{ isSigned ? 'btn-outline-success' : 'btn-outline-warning' }}">
-                                <i class="fa {{ isSigned ? 'fa-check-circle' : 'fa-pen-nib' }}"></i>
-                                {{ isSigned ? 'Signé' : 'À signer' }}
-                              </a>
-
-                              <a href="{{ path('app_administrateur_convention_show', { entite: entite.id, id: conv.id }) }}"
-                                class="btn btn-outline-secondary" title="Ouvrir">
-                                <i class="fa fa-eye"></i>
-                              </a>
-                            </div>
-                          {% else %}
-                            <a href="{{ path('app_administrateur_convention_from_inscription', { entite: entite.id, id: ins.id }) }}"
-                              class="btn btn-outline-primary btn-sm">
-                              <i class="fa fa-file-contract"></i> Préparer
+                        {% for conv in ins.conventionContrats %}
+                          <div class="mb-1">
+                            <a href="{{ path('app_administrateur_convention_show', {entite: entite.id, id: conv.id}) }}"
+                               class="btn btn-sm {{ conv.signed ? 'btn-outline-success' : 'btn-outline-warning' }}">
+                              {{ conv.numero ?: 'Convention #' ~ conv.id }} · {{ conv.signed ? 'Signée' : 'À signer' }}
                             </a>
-                          {% endif %}
-
+                          </div>
                         {% else %}
-                          <span class="text-muted small">-</span>
-                        {% endif %}
+                          <span class="text-muted small d-block">Aucune convention rattachée</span>
+                        {% endfor %}
+                        <a href="{{ path('app_administrateur_convention_from_inscription', {entite: entite.id, id: ins.id}) }}"
+                           class="btn btn-outline-primary btn-sm mt-1">Nouvelle convention</a>
                       </td>
 
 

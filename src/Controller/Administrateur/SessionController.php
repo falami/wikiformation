@@ -251,42 +251,28 @@ final class SessionController extends AbstractController
                     ->andWhere('c1.status = :cf_brouillon')
                     ->getDQL();
 
-                // 3) conventions : manquantes ou non signées
-                // On part des entreprises impliquées dans la session
+                // Une convention couvre ses inscriptions explicites, jamais toute l'entreprise.
                 $subExistsConv = $em->createQueryBuilder()
                     ->select('1')
                     ->from(ConventionContrat::class, 'cc2')
-                    ->where('cc2.session = s')
-                    ->andWhere('cc2.entite = :entite')
-                    ->andWhere('cc2.entreprise = e2')
+                    ->innerJoin('cc2.inscriptions', 'ci2')
+                    ->where('cc2.session = s AND cc2.entite = :entite AND ci2 = i2')
                     ->getDQL();
 
                 $subEntrepriseSansConvention = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(Inscription::class, 'i2')
-                    ->innerJoin('i2.entreprise', 'e2')
-                    ->where('i2.session = s')
-                    ->andWhere('e2 IS NOT NULL')
-                    ->andWhere('NOT EXISTS(' . $subExistsConv . ')')
-                    ->getDQL();
-
+                    ->select('1')->from(Inscription::class, 'i2')
+                    ->where('i2.session = s')->andWhere('i2.status != :ins_annule')
+                    ->andWhere('NOT EXISTS(' . $subExistsConv . ')')->getDQL();
 
                 $subEntrepriseConventionNonSignee = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(Inscription::class, 'i3')
-                    ->innerJoin('i3.entreprise', 'e3')
-                    ->innerJoin(
-                        ConventionContrat::class,
-                        'cc3',
-                        'WITH',
-                        'cc3.session = s AND cc3.entite = :entite AND cc3.entreprise = e3'
-                    )
-                    ->where('i3.session = s')
-                    ->andWhere('e3 IS NOT NULL')
+                    ->select('1')->from(Inscription::class, 'i3')
+                    ->innerJoin('i3.conventionContrats', 'cc3')
+                    ->where('i3.session = s AND cc3.session = s AND cc3.entite = :entite')
+                    ->andWhere('i3.status != :ins_annule')
                     ->andWhere('cc3.dateSignatureStagiaire IS NULL')
                     ->andWhere('cc3.dateSignatureEntreprise IS NULL')
-                    ->andWhere('cc3.dateSignatureOf IS NULL')
-                    ->getDQL();
+                    ->andWhere('cc3.dateSignatureOf IS NULL')->getDQL();
+                $filteredQb->setParameter('ins_annule', StatusInscription::ANNULE);
 
                 // 4) émargement non signé (approx) + override “scan déposé”
                 $subEmargNotSigned = $em->createQueryBuilder()
@@ -572,26 +558,20 @@ final class SessionController extends AbstractController
                     ];
                 }
 
-                // 6) Conventions attendues/presentes/signees
+                // Couverture des inscriptions : plusieurs conventions ne multiplient pas les effectifs.
                 $rowsConv = $conn->executeQuery(
                     "SELECT i.session_id AS sid,
-                        COUNT(DISTINCT i.entreprise_id) AS expected,
-                        SUM(CASE WHEN cc.id IS NOT NULL THEN 1 ELSE 0 END) AS present,
-                        SUM(CASE
-                            WHEN cc.id IS NULL THEN 0
-                            WHEN cc.date_signature_stagiaire IS NOT NULL THEN 1
-                            WHEN cc.date_signature_entreprise IS NOT NULL THEN 1
-                            WHEN cc.date_signature_of IS NOT NULL THEN 1
-                            ELSE 0
-                        END) AS signed_any
-                 FROM inscription i
-                 LEFT JOIN convention_contrat cc
-                        ON cc.session_id = i.session_id
-                       AND cc.entreprise_id = i.entreprise_id
-                       AND cc.entite_id = ?
-                 WHERE i.session_id IN (?)
-                   AND i.entreprise_id IS NOT NULL
-                 GROUP BY i.session_id",
+                        COUNT(DISTINCT i.id) AS expected,
+                        COUNT(DISTINCT CASE WHEN cc.id IS NOT NULL THEN i.id END) AS present,
+                        COUNT(DISTINCT CASE WHEN cc.date_signature_stagiaire IS NOT NULL
+                            OR cc.date_signature_entreprise IS NOT NULL
+                            OR cc.date_signature_of IS NOT NULL THEN i.id END) AS signed_any
+                     FROM inscription i
+                     LEFT JOIN convention_contrat_inscription cci ON cci.inscription_id = i.id
+                     LEFT JOIN convention_contrat cc ON cc.id = cci.convention_contrat_id
+                        AND cc.session_id = i.session_id AND cc.entite_id = ?
+                     WHERE i.session_id IN (?) AND i.status <> 'annule'
+                     GROUP BY i.session_id",
                     [$entite->getId(), $ids],
                     [\PDO::PARAM_INT, \Doctrine\DBAL\ArrayParameterType::INTEGER]
                 )->fetchAllAssociative();
@@ -1082,17 +1062,17 @@ final class SessionController extends AbstractController
                     if (!$presentOk) {
                         $conventionsLine = $line(
                             '<i class="bi bi-building me-1"></i> Conventions',
-                            $badge('bg-danger-subtle text-danger', $convPresent . '/' . $convExpected . ' présentes')
+                            $badge('bg-danger-subtle text-danger', $convPresent . '/' . $convExpected . ' inscriptions couvertes')
                         );
                     } elseif (!$signedOk) {
                         $conventionsLine = $line(
                             '<i class="bi bi-pen me-1"></i> Conventions',
-                            $badge('bg-warning-subtle text-warning', $convSigned . '/' . $convExpected . ' signées')
+                            $badge('bg-warning-subtle text-warning', $convSigned . '/' . $convExpected . ' inscriptions couvertes et signées')
                         );
                     } else {
                         $conventionsLine = $line(
                             '<i class="bi bi-check2-circle me-1"></i> Conventions',
-                            $badge('bg-success-subtle text-success', $convSigned . '/' . $convExpected . ' signées')
+                            $badge('bg-success-subtle text-success', $convSigned . '/' . $convExpected . ' inscriptions couvertes et signées')
                         );
                     }
                 }
@@ -2076,15 +2056,6 @@ final class SessionController extends AbstractController
 
 
 
-        // --- Conventions ---
-        $conventionsByEntrepriseId = [];
-        $conventionsByStagiaireId  = [];
-
-        foreach ($session->getConventionContrats() as $cc) {
-            if ($cc->getEntreprise()) $conventionsByEntrepriseId[$cc->getEntreprise()->getId()] = $cc;
-            if ($cc->getStagiaire())  $conventionsByStagiaireId[$cc->getStagiaire()->getId()] = $cc;
-        }
-
         // --- Inscriptions groupées par entreprise (pour bulk conventions) ---
         $inscriptions = $em->getRepository(Inscription::class)->createQueryBuilder('i')
             ->leftJoin('i.entreprise', 'e')->addSelect('e')
@@ -2220,8 +2191,6 @@ final class SessionController extends AbstractController
             'byEntreprise' => $byEntreprise,
             'formateursSession' => $formateursSession,
             'contratsByFormateur' => $contratsByFormateur,
-            'conventionsByEntrepriseId' => $conventionsByEntrepriseId,
-            'conventionsByStagiaireId'  => $conventionsByStagiaireId,
             'travelByFormateurId' => $travelByFormateurId,
             'kmRate' => $kmRate,
             'assignmentsByPhase' => $byPhase,

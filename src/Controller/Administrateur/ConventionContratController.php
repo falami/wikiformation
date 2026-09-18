@@ -51,8 +51,8 @@ final class ConventionContratController extends AbstractController
     #[Route('/ajax', name: 'ajax', methods: ['POST'])]
     public function ajax(Entite $entite, Request $request, EM $em): JsonResponse
     {
-        $start   = $request->request->getInt('start', 0);
-        $length  = $request->request->getInt('length', 10);
+        $start   = max(0, $request->request->getInt('start', 0));
+        $length  = min(100, max(1, $request->request->getInt('length', 10)));
         $searchV = (string) (($request->request->all('search')['value'] ?? ''));
 
         $order   = $request->request->all('order');
@@ -71,6 +71,7 @@ final class ConventionContratController extends AbstractController
             ->leftJoin('c.session', 'se')->addSelect('se')
             ->leftJoin('se.formation', 'f')->addSelect('f')
             ->leftJoin('c.entreprise', 'e')->addSelect('e')
+            ->leftJoin('c.stagiaire', 'u')->addSelect('u')
             ->andWhere('c.entite = :entite')
             ->setParameter('entite', $entite);
 
@@ -80,19 +81,15 @@ final class ConventionContratController extends AbstractController
             ->getQuery()->getSingleScalarResult();
 
         if ($searchV !== '') {
-            $qb->andWhere('
-        c.numero LIKE :s
-        OR e.raisonSociale LIKE :s
-        OR f.titre LIKE :s
-        OR se.code LIKE :s
-    ')
-                ->setParameter('s', '%' . $searchV . '%');
-
-            // bonus: si la recherche est numérique, on tente aussi un match sur l'id
+            $search = $qb->expr()->orX(
+                'c.numero LIKE :s', 'e.raisonSociale LIKE :s',
+                'u.nom LIKE :s', 'u.prenom LIKE :s', 'f.titre LIKE :s', 'se.code LIKE :s'
+            );
             if (ctype_digit($searchV)) {
-                $qb->orWhere('c.id = :idExact')
-                    ->setParameter('idExact', (int) $searchV);
+                $search->add('c.id = :idExact');
+                $qb->setParameter('idExact', (int) $searchV);
             }
+            $qb->andWhere($search)->setParameter('s', '%' . $searchV . '%');
         }
 
 
@@ -119,7 +116,7 @@ final class ConventionContratController extends AbstractController
             return [
                 'id'        => $c->getId(),
                 'numero'    => $c->getNumero() ?: '—',
-                'entreprise' => $c->getEntreprise()?->getRaisonSociale() ?? '—',
+                'entreprise' => $c->getDestinataireLabel(),
                 'formation' => $form?->getTitre() ?? '—',
                 'session'   => $sess?->getCode() ?? '—',
                 'actions'   => $this->renderView('administrateur/convention/_actions.html.twig', [
@@ -137,8 +134,8 @@ final class ConventionContratController extends AbstractController
         ]);
     }
 
-    #[Route('/from-inscription/{id}', name: 'from_inscription', methods: ['GET'])]
-    public function fromInscription(Entite $entite, Inscription $inscription, EM $em): RedirectResponse
+    #[Route('/from-inscription/{id}', name: 'from_inscription', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
+    public function fromInscription(Entite $entite, Inscription $inscription, Request $request, EM $em): Response
     {
         // sécurité entité/session si besoin
         if ($inscription->getSession()?->getEntite()?->getId() !== $entite->getId()) {
@@ -155,56 +152,30 @@ final class ConventionContratController extends AbstractController
             throw new \LogicException('Inscription sans session.');
         }
 
-        // ✅ 1) trouver la convention selon le cas
-        $criteria = ['entite' => $entite, 'session' => $session];
-
-        if ($entreprise) {
-            $criteria['entreprise'] = $entreprise;
-        } else {
-            if (!$stagiaire) {
-                throw new \LogicException("Inscription sans stagiaire.");
-            }
-            $criteria['stagiaire'] = $stagiaire;
+        if (!$stagiaire || ($entreprise && $entreprise->getEntite()?->getId() !== $entite->getId())) {
+            throw $this->createNotFoundException('Destinataire introuvable.');
         }
 
-
-
-        /** @var ConventionContrat|null $c */
-        $c = $em->getRepository(ConventionContrat::class)->findOneBy($criteria);
-
-        // ✅ 2) créer si besoin
-        if (!$c) {
-            $c = (new ConventionContrat())
-                ->setEntite($entite)
-                ->setCreateur($user)
-                ->setSession($session);
-
-            if (!$c->hasNumero()) { // ✅ robuste
-                $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
-            }
-
-            if ($entreprise) $c->setEntreprise($entreprise);
-            else $c->setStagiaire($stagiaire);
-
-            $em->persist($c);
+        $tokenId = 'conv_inscription_' . $inscription->getId();
+        if ($request->isMethod('GET')) {
+            return $this->render('administrateur/convention/confirm_creation.html.twig', [
+                'entite' => $entite, 'session' => $session,
+                'destinataire' => $entreprise?->getRaisonSociale() ?? trim($stagiaire->getPrenom() . ' ' . $stagiaire->getNom()),
+                'inscriptions' => [$inscription], 'tokenId' => $tokenId,
+            ]);
+        }
+        if (!$this->isCsrfTokenValid($tokenId, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
         }
 
-
-        // ✅ 3) attacher l'inscription à la convention (ManyToMany)
-        $c->addInscription($inscription);
-
-        $em->flush();
-
-        return $this->redirectToRoute('app_administrateur_convention_edit', [
-            'entite' => $entite->getId(),
-            'id'     => $c->getId(),
-        ]);
+        return $this->createFromInscriptions($entite, $session, $entreprise, [$inscription], $em);
     }
 
 
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     public function show(Entite $entite, ConventionContrat $c): Response
     {
+        $this->assertConventionTenant($entite, $c);
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -217,18 +188,18 @@ final class ConventionContratController extends AbstractController
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
     public function edit(Entite $entite, ConventionContrat $c, Request $req, EM $em): Response
     {
+        $this->assertConventionTenant($entite, $c);
+        if ($c->isSigned()) {
+            $this->addFlash('warning', 'Une convention signée ne peut plus être modifiée.');
+            return $this->redirectToRoute('app_administrateur_convention_show', ['entite' => $entite->getId(), 'id' => $c->getId()]);
+        }
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
         // 🔒 logique de lock
         $lockSession   = true;
-        $lockEntreprise = $c->getEntreprise() !== null; // lock si déjà pré-rempli
-        $lockStagiaire  = $c->getStagiaire() !== null;  // lock si déjà pré-rempli
-
-        if (!$c->hasNumero()) {
-            $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
-            $em->flush(); // ou laisser pour le flush du form
-        }
+        $lockEntreprise = ($c->getEntreprise() !== null) !== ($c->getStagiaire() !== null);
+        $lockStagiaire  = $lockEntreprise;
 
 
         $form = $this->createForm(ConventionContratType::class, $c, [
@@ -239,7 +210,14 @@ final class ConventionContratController extends AbstractController
         ])->handleRequest($req);
 
         if ($form->isSubmitted() && $form->isValid()) {
-
+            foreach ($c->getInscriptions() as $inscription) {
+                $c->getDevis()?->addInscription($inscription);
+            }
+            if (!$c->hasNumero()) {
+                $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
+            }
+            // Toute modification rend le précédent document obsolète.
+            $c->setPdfPath(null);
             $em->flush();
             $this->addFlash('success', 'Convention mise à jour.');
 
@@ -261,6 +239,10 @@ final class ConventionContratController extends AbstractController
     #[Route('/{id}/generer-pdf', name: 'generate_pdf', methods: ['POST'])]
     public function generatePdf(Entite $entite, ConventionContrat $c, Request $req, EM $em): RedirectResponse
     {
+        $this->assertConventionTenant($entite, $c);
+        if ($c->isSigned() && $c->getPdfPath()) {
+            throw $this->createAccessDeniedException('Le PDF d’une convention signée ne peut pas être remplacé.');
+        }
         if (!$this->isCsrfTokenValid('genpdf' . $c->getId(), (string)$req->request->get('_token'))) {
             throw $this->createAccessDeniedException('CSRF invalide.');
         }
@@ -274,7 +256,6 @@ final class ConventionContratController extends AbstractController
         return $this->redirectToRoute('app_administrateur_convention_show', [
             'entite' => $entite->getId(),
             'id'     => $c->getId(),
-            'preferences' => $entite->getPreferences(),
         ]);
     }
 
@@ -283,6 +264,7 @@ final class ConventionContratController extends AbstractController
     #[Route('/{id}/pdf', name: 'pdf', methods: ['GET'])]
     public function pdf(Entite $entite, ConventionContrat $c): Response
     {
+        $this->assertConventionTenant($entite, $c);
         $rel = $c->getPdfPath();
         if (!$rel) {
             $this->addFlash('warning', 'Aucun PDF généré.');
@@ -307,6 +289,10 @@ final class ConventionContratController extends AbstractController
     #[Route('/{id}/supprimer', name: 'delete', methods: ['POST'])]
     public function delete(Entite $entite, ConventionContrat $c, Request $req, EM $em): RedirectResponse
     {
+        $this->assertConventionTenant($entite, $c);
+        if ($c->isSigned()) {
+            throw $this->createAccessDeniedException('Une convention signée ne peut pas être supprimée.');
+        }
         if ($this->isCsrfTokenValid('del' . $c->getId(), (string)$req->request->get('_token'))) {
             $em->remove($c);
             $em->flush();
@@ -344,246 +330,144 @@ final class ConventionContratController extends AbstractController
 
 
 
-    #[Route('/from-entreprise/{entreprise}/{session}', name: 'from_entreprise_session', methods: ['GET'])]
+    #[Route('/from-entreprise/{entreprise}/{session}', name: 'from_entreprise_session', methods: ['GET', 'POST'])]
     public function fromEntrepriseSession(
         Entite $entite,
         Entreprise $entreprise,
         Session $session,
+        Request $request,
         EM $em
-    ): RedirectResponse {
-        // 🔒 sécurités entité
-        if ($entreprise->getEntite()?->getId() !== $entite->getId()) {
-            throw $this->createNotFoundException();
-        }
-        if ($session->getEntite()?->getId() !== $entite->getId()) {
+    ): Response {
+        if ($entreprise->getEntite()?->getId() !== $entite->getId()
+            || $session->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException();
         }
 
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
-
-        return $em->wrapInTransaction(function () use ($em, $entite, $entreprise, $session, $user) {
-
-            // 1) récupérer (ou créer) la convention entreprise unique (entite+session+entreprise)
-            $c = $em->getRepository(ConventionContrat::class)->findOneBy([
-                'entite'     => $entite,
-                'session'    => $session,
-                'entreprise' => $entreprise,
+        $inscriptions = $em->getRepository(Inscription::class)->findBy([
+            'session' => $session, 'entreprise' => $entreprise,
+        ]);
+        $tokenId = 'conv_entreprise_' . $entreprise->getId() . '_' . $session->getId();
+        if ($request->isMethod('GET')) {
+            return $this->render('administrateur/convention/confirm_creation.html.twig', [
+                'entite' => $entite, 'session' => $session,
+                'destinataire' => $entreprise->getRaisonSociale(),
+                'inscriptions' => $inscriptions, 'tokenId' => $tokenId,
             ]);
+        }
+        if (!$this->isCsrfTokenValid($tokenId, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
 
-            if (!$c) {
-                $c = (new ConventionContrat())
-                    ->setEntite($entite)
-                    ->setCreateur($user)
-                    ->setSession($session)
-                    ->setEntreprise($entreprise)
-                    ->setStagiaire(null);
-
-                if (!$c->hasNumero()) {
-                    $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
-                }
-
-                $em->persist($c);
-            } else {
-                // robustesse : si par erreur stagiaire rempli, on nettoie
-                if ($c->getStagiaire()) {
-                    $c->setStagiaire(null);
-                }
-            }
-
-            // 2) attacher toutes les inscriptions de cette entreprise pour cette session
-            //    (tu peux filtrer sur statut "validée" si tu as un champ status)
-            $inscriptions = $em->getRepository(Inscription::class)->createQueryBuilder('i')
-                ->andWhere('i.session = :s')
-                ->andWhere('i.entreprise = :e')
-                ->setParameter('s', $session)
-                ->setParameter('e', $entreprise)
-                ->getQuery()
-                ->getResult();
-
-            foreach ($inscriptions as $insc) {
-                $c->addInscription($insc);
-            }
-
-            $em->flush();
-
-            return $this->redirectToRoute('app_administrateur_convention_edit', [
-                'entite' => $entite->getId(),
-                'id'     => $c->getId(),
-            ]);
-        });
+        return $this->createFromInscriptions($entite, $session, $entreprise, $inscriptions, $em);
     }
-
-
 
     #[Route('/bulk-from-inscriptions', name: 'bulk_from_inscriptions', methods: ['POST'])]
     public function bulkFromInscriptions(Entite $entite, Request $req, EM $em): RedirectResponse
     {
-        if (!$this->isCsrfTokenValid('bulk_conv', (string)$req->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('bulk_conv', (string) $req->request->get('_token'))) {
             throw $this->createAccessDeniedException('CSRF invalide.');
         }
 
-        $ids = $req->request->all('ids'); // tableau d'IDs inscription
-        $ids = array_values(array_filter(array_map('intval', (array)$ids)));
-
-        if (!$ids) {
-            $this->addFlash('warning', 'Aucune inscription sélectionnée.');
+        $inscriptions = $this->loadSelectedInscriptions($entite, $req->request->all('ids'), $em);
+        if (!$inscriptions) {
+            $this->addFlash('warning', 'Sélectionnez au moins une inscription.');
             return $this->redirectToRoute('app_administrateur_convention_index', ['entite' => $entite->getId()]);
         }
 
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
+        return $this->createFromInscriptions(
+            $entite, $inscriptions[0]->getSession(), $inscriptions[0]->getEntreprise(), $inscriptions, $em
+        );
+    }
 
-        return $em->wrapInTransaction(function () use ($em, $entite, $ids, $user) {
+    #[Route('/from-session-entreprise', name: 'from_session_entreprise', methods: ['POST'])]
+    public function fromSessionEntreprise(Entite $entite, Request $request, EM $em): RedirectResponse
+    {
+        if (!$this->isCsrfTokenValid('conv_bulk_' . $entite->getId(), (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF invalide.');
+        }
 
-            /** @var Inscription[] $inscriptions */
-            $inscriptions = $em->getRepository(Inscription::class)->createQueryBuilder('i')
-                ->leftJoin('i.session', 's')->addSelect('s')
-                ->leftJoin('i.entreprise', 'e')->addSelect('e')
-                ->leftJoin('i.stagiaire', 'u')->addSelect('u')
-                ->andWhere('i.id IN (:ids)')->setParameter('ids', $ids)
-                ->getQuery()->getResult();
+        $session = $em->getRepository(Session::class)->find($request->request->getInt('sessionId'));
+        $entreprise = $em->getRepository(Entreprise::class)->find($request->request->getInt('entrepriseId'));
+        if (!$session || !$entreprise || $session->getEntite()?->getId() !== $entite->getId()
+            || $entreprise->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException('Session ou entreprise introuvable.');
+        }
 
-            // sécurité entité + cohérence
-            foreach ($inscriptions as $i) {
-                if ($i->getSession()?->getEntite()?->getId() !== $entite->getId()) {
-                    throw $this->createNotFoundException();
-                }
+        $inscriptions = $this->loadSelectedInscriptions($entite, $request->request->all('inscriptionIds'), $em);
+        return $this->createFromInscriptions($entite, $session, $entreprise, $inscriptions, $em);
+    }
+
+    /** @return list<Inscription> */
+    private function loadSelectedInscriptions(Entite $entite, array $ids, EM $em): array
+    {
+        foreach ($ids as $id) {
+            if (!is_scalar($id) || !ctype_digit((string) $id) || (int) $id <= 0) {
+                throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Inscription invalide.');
             }
-
-            // ici on impose : toutes même session + même entreprise
-            $session = $inscriptions[0]->getSession();
-            $entreprise = $inscriptions[0]->getEntreprise();
-
-            if (!$session || !$entreprise) {
-                throw new \LogicException('Bulk: il faut une session et une entreprise.');
+        }
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if (!$ids) {
+            return [];
+        }
+        $inscriptions = $em->getRepository(Inscription::class)->findBy(['id' => $ids]);
+        if (count($inscriptions) !== count($ids)) {
+            throw $this->createNotFoundException('Une inscription sélectionnée est introuvable.');
+        }
+        foreach ($inscriptions as $inscription) {
+            if ($inscription->getSession()?->getEntite()?->getId() !== $entite->getId()
+                || $inscription->getEntite()?->getId() !== $entite->getId()) {
+                throw $this->createNotFoundException();
             }
+        }
+        return $inscriptions;
+    }
 
-            foreach ($inscriptions as $i) {
-                if ($i->getSession()?->getId() !== $session->getId() || $i->getEntreprise()?->getId() !== $entreprise->getId()) {
-                    throw new \LogicException('Bulk: sélection invalide (mélange sessions/entreprises).');
-                }
+    /** @param list<Inscription> $inscriptions */
+    private function createFromInscriptions(
+        Entite $entite, Session $session, ?Entreprise $entreprise, array $inscriptions, EM $em
+    ): RedirectResponse {
+        if (!$inscriptions) {
+            $this->addFlash('warning', 'Sélectionnez au moins une inscription.');
+            return $this->redirectToRoute('app_administrateur_convention_index', ['entite' => $entite->getId()]);
+        }
+        $stagiaire = $entreprise ? null : $inscriptions[0]->getStagiaire();
+        foreach ($inscriptions as $inscription) {
+            if ($inscription->getSession()?->getId() !== $session->getId()
+                || $inscription->getEntite()?->getId() !== $entite->getId()
+                || ($entreprise && $inscription->getEntreprise()?->getId() !== $entreprise->getId())
+                || (!$entreprise && (!$stagiaire || $inscription->getStagiaire()?->getId() !== $stagiaire->getId()))) {
+                throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                    'Les inscriptions doivent appartenir à la même session et au même destinataire.'
+                );
             }
+        }
 
-            $c = $em->getRepository(ConventionContrat::class)->findOneBy([
-                'entite' => $entite,
-                'session' => $session,
-                'entreprise' => $entreprise,
-            ]);
-
-            if (!$c) {
-                $c = (new ConventionContrat())
-                    ->setEntite($entite)
-                    ->setCreateur($user)
-                    ->setSession($session)
-                    ->setEntreprise($entreprise)
-                    ->setStagiaire(null);
-
-                if (!$c->hasNumero()) {
-                    $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
-                }
-
-                $em->persist($c);
+        // Chaque création représente un dossier distinct, même pour une entreprise/session déjà utilisée.
+        return $em->wrapInTransaction(function () use ($entite, $session, $entreprise, $stagiaire, $inscriptions, $em) {
+            $c = (new ConventionContrat())
+                ->setEntite($entite)
+                ->setCreateur($this->getUser())
+                ->setSession($session)
+                ->setEntreprise($entreprise)
+                ->setStagiaire($stagiaire)
+                ->setNumero($this->ccNumber->nextForEntite($entite->getId()));
+            foreach ($inscriptions as $inscription) {
+                $c->addInscription($inscription);
             }
-
-
-            foreach ($inscriptions as $i) {
-                $c->addInscription($i);
-            }
-
+            $em->persist($c);
             $em->flush();
 
             return $this->redirectToRoute('app_administrateur_convention_edit', [
-                'entite' => $entite->getId(),
-                'id' => $c->getId(),
+                'entite' => $entite->getId(), 'id' => $c->getId(),
             ]);
         });
     }
 
-
-
-    #[Route('/from-session-entreprise', name: 'from_session_entreprise', methods: ['POST'])]
-    public function fromSessionEntreprise(
-        Entite $entite,
-        Request $request,
-        EM $em
-    ): RedirectResponse {
-        if (!$this->isCsrfTokenValid('conv_bulk_' . $entite->getId(), (string)$request->request->get('_token'))) {
-            throw $this->createAccessDeniedException('CSRF invalide');
+    private function assertConventionTenant(Entite $entite, ConventionContrat $c): void
+    {
+        if ($c->getEntite()?->getId() !== $entite->getId()
+            || $c->getSession()?->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException('Convention introuvable.');
         }
-
-        $sessionId    = (int)$request->request->get('sessionId');
-        $entrepriseId = (int)$request->request->get('entrepriseId');
-        $ids          = (array)$request->request->all('inscriptionIds'); // array de strings
-
-        /** @var Session|null $session */
-        $session = $em->getRepository(Session::class)->find($sessionId);
-        if (!$session || $session->getEntite()?->getId() !== $entite->getId()) {
-            throw $this->createNotFoundException('Session introuvable');
-        }
-
-        /** @var Entreprise|null $entreprise */
-        $entreprise = $em->getRepository(Entreprise::class)->find($entrepriseId);
-        if (!$entreprise || $entreprise->getEntite()?->getId() !== $entite->getId()) {
-            throw $this->createNotFoundException('Entreprise introuvable');
-        }
-
-        // 1) récupérer (ou créer) la convention entreprise de cette session
-        $ccRepo = $em->getRepository(ConventionContrat::class);
-        $cc = $ccRepo->findOneBy(['entite' => $entite, 'session' => $session, 'entreprise' => $entreprise]);
-
-        if (!$cc) {
-            /** @var Utilisateur $user */
-            $user = $this->getUser();
-
-            $cc = (new ConventionContrat())
-                ->setEntite($entite)
-                ->setCreateur($user)
-                ->setSession($session)
-                ->setEntreprise($entreprise)
-                ->setStagiaire(null);
-
-            if (!$cc->hasNumero()) {
-                $cc->setNumero($this->ccNumber->nextForEntite($entite->getId()));
-            }
-
-            $em->persist($cc);
-        }
-
-
-        // 2) associer les inscriptions sélectionnées, MAIS uniquement celles qui matchent session+entreprise
-        $insRepo = $em->getRepository(Inscription::class);
-
-        $inscriptions = [];
-        foreach ($ids as $id) {
-            $id = (int)$id;
-            if ($id <= 0) continue;
-            $ins = $insRepo->find($id);
-            if (!$ins) continue;
-
-            if ($ins->getSession()?->getId() !== $session->getId()) continue;
-            if (($ins->getEntreprise()?->getId() ?? 0) !== $entreprise->getId()) continue;
-
-            $inscriptions[] = $ins;
-        }
-
-        // option : si aucune, on n’écrase pas l’existant, on redirect quand même sur la convention
-        if (!empty($inscriptions)) {
-            // stratégie simple : on replace la liste
-            // (si tu veux “ajouter sans retirer”, dis-le et je te donne la version additive)
-            foreach ($cc->getInscriptions() as $existing) {
-                $cc->removeInscription($existing);
-            }
-            foreach ($inscriptions as $ins) {
-                $cc->addInscription($ins);
-            }
-        }
-
-        $em->flush();
-
-        return $this->redirectToRoute('app_administrateur_convention_show', [
-            'entite' => $entite->getId(),
-            'id' => $cc->getId(),
-        ]);
     }
 }

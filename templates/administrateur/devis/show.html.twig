@@ -287,7 +287,7 @@
           </div>
         </div>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
           <a href="{{ path('app_administrateur_devis_index', {entite: entite.id}) }}"
              class="btn btn-outline-light btn-sm fw-semibold">
             <i class="fa fa-arrow-left me-1"></i> Retour
@@ -303,8 +303,14 @@
             <i class="fa fa-file-pdf me-1"></i> PDF
           </a>
 
+          {% if st != 'canceled' %}
+            <a href="{{ path('app_administrateur_devis_convention', {entite: entite.id, id: d.id}) }}" class="btn btn-warning btn-sm fw-semibold">
+              <i class="bi bi-file-earmark-text me-1"></i> Créer une convention
+            </a>
+          {% endif %}
+
           {# Transformer en facture (si autorisé) #}
-          {% if d.factureCreee is null and st in ['accepted','sent'] %}
+          {% if d.factureCreee is null and st in ['accepted','sent'] and not d.prospect %}
             <form method="post"
                   action="{{ path('app_administrateur_devis_to_facture', { entite: entite.id, id: d.id }) }}"
                   class="d-inline">
@@ -453,6 +459,26 @@
       </div>
 
       {# ===== FACTURE LIÉE (si existe) ===== #}
+      <div class="panel mb-3">
+        <div class="panel-hd">
+          <div class="panel-title"><i class="bi bi-file-earmark-text"></i> Conventions du devis</div>
+          <span class="badge-soft pill-muted">{{ d.conventions|length }}</span>
+        </div>
+        <div class="panel-bd">
+          {% for convention in d.conventions %}
+            <div class="d-flex justify-content-between align-items-center gap-3 py-2">
+              <div>
+                <strong>{{ convention.numero ?: ('Convention #' ~ convention.id) }}</strong>
+                <div class="small text-muted">Session {{ convention.session ? convention.session.code : '—' }} · {{ convention.inscriptions|length }} stagiaire{{ convention.inscriptions|length > 1 ? 's' : '' }}</div>
+              </div>
+              <a class="btn btn-outline-primary btn-sm" href="{{ path('app_administrateur_convention_show', {entite: entite.id, id: convention.id}) }}">Ouvrir</a>
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">Aucune convention. Créez-en une pour sélectionner une session et les stagiaires concernés.</p>
+          {% endfor %}
+        </div>
+      </div>
+
       {% if d.factureCreee %}
         <div class="panel">
           <div class="panel-hd">

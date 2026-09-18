@@ -98,6 +98,15 @@
 #}
 
 <div class="convention-card p-3 mb-4">
+  {% if conventions|length > 1 %}
+    <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Conventions de cette inscription">
+      {% for item in conventions %}
+        <a class="btn btn-sm {{ selectedConvention and item.id == selectedConvention.id ? 'btn-primary' : 'btn-outline-primary' }}"
+           href="{{ path('app_stagiaire_dossier_edit', {entite: entite.id, id: inscription.id, convention: item.id}) }}">{{ item.numero }}</a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
     <div>
       <div class="d-flex align-items-center gap-2">

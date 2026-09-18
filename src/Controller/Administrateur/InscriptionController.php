@@ -293,20 +293,19 @@ class InscriptionController extends AbstractController
         $user = $this->getUser();
 
 
-        $convention = null;
-
-        if ($ins->getEntreprise()) {
-            $convention = $em->getRepository(ConventionContrat::class)->findOneBy([
-                'entite'     => $entite,
-                'session'    => $ins->getSession(),
-                'entreprise' => $ins->getEntreprise(),
-            ]);
+        if ($ins->getEntite()?->getId() !== $entite->getId() || $ins->getSession()?->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException('Inscription introuvable.');
         }
+
+        $conventions = $ins->getConventionContrats()->filter(
+            static fn (ConventionContrat $convention): bool => $convention->getEntite()?->getId() === $entite->getId()
+                && $convention->getSession()?->getId() === $ins->getSession()?->getId()
+        );
 
         return $this->render('administrateur/inscription/show.html.twig', [
             'ins' => $ins,
             'entite' => $entite,
-            'convention' => $convention,
+            'conventions' => $conventions,
 
         ]);
     }
@@ -447,7 +446,7 @@ class InscriptionController extends AbstractController
 
         // sécurité entité : la session liée doit appartenir à l’entité
         $session = $ins->getSession();
-        if (!$session || $session->getEntite()?->getId() !== $entite->getId()) {
+        if (!$session || $ins->getEntite()?->getId() !== $entite->getId() || $session->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException();
         }
         /** @var Utilisateur $user */
@@ -467,25 +466,11 @@ class InscriptionController extends AbstractController
                 ]);
             }
 
-            $convention = $em->getRepository(ConventionContrat::class)->findOneBy([
-                'entite'     => $entite,
-                'session'    => $session,
-                'entreprise' => $entreprise,
-            ]);
-
-            if (!$convention) {
-                $convention = (new ConventionContrat())
-                    ->setCreateur($user)
-                    ->setEntite($entite)
-                    ->setSession($session)
-                    ->setEntreprise($entreprise);
-                $em->persist($convention);
-                $em->flush();
-            }
-
-            return $this->redirectToRoute('app_administrateur_convention_edit', [
+            // La création contrôlée sélectionne explicitement les inscriptions,
+            // attribue un numéro et demande un POST protégé par CSRF.
+            return $this->redirectToRoute('app_administrateur_convention_from_inscription', [
                 'entite' => $entite->getId(),
-                'id'     => $convention->getId(),
+                'id'     => $ins->getId(),
             ]);
         }
 

@@ -31,33 +31,38 @@ class ConventionSignatureEntrepriseController extends AbstractController
       throw $this->createAccessDeniedException('Inscription invalide pour cette entité.');
     }
 
-        // ✅ Comme tu as une ManyToMany, on récupère une convention depuis la collection
-    /** @var ConventionContrat|null $convention */
-    $convention = $inscription->getConventionContrats()->first() ?: null;
-
+    if (!$this->isCsrfTokenValid('sign_convention_' . $inscription->getId(), (string) $request->request->get('_token'))) {
+      throw $this->createAccessDeniedException('Token CSRF invalide.');
+    }
+    $entreprise = $user->getEntreprise();
+    $candidates = $inscription->getConventionContrats()->filter(static fn(ConventionContrat $c) =>
+      $entreprise && $c->getEntreprise() === $entreprise && $c->getEntite() === $entite
+      && $c->getSession() === $inscription->getSession()
+    );
+    $conventionId = $request->request->getInt('convention') ?: $request->query->getInt('convention');
+    $convention = null;
+    foreach ($candidates as $candidate) {
+      if ($candidate->getId() === $conventionId || (!$conventionId && count($candidates) === 1)) $convention = $candidate;
+    }
     if (!$convention) {
-      $this->addFlash('danger', 'Aucune convention associée à cette inscription.');
-      return $this->redirectToRoute('app_entreprise_inscription_show', [
-        'entite' => $entite,
-        'id'     => $inscription,
-      ]);
+      throw $this->createAccessDeniedException('Choisissez une convention rattachée à votre entreprise et à cette inscription.');
     }
 
     if ($convention->getDateSignatureEntreprise()) {
       $this->addFlash('info', 'La convention est déjà signée par l’entreprise.');
-      return $this->redirectToRoute('app_entreprise_inscription_show', [
+      return $this->redirectToRoute('app_entreprise_dashboard', [
         'entite' => $entite->getId(),
-        'id'     => $inscription->getId(),
       ]);
     }
 
+    if (!$convention->getPdfPath()) throw $this->createAccessDeniedException('Générez le document avant signature.');
     $convention->setDateSignatureEntreprise(new \DateTimeImmutable());
+    $convention->setPdfPath(null);
     $this->em->flush();
 
     $this->addFlash('success', 'Vous avez signé la convention pour l’entreprise.');
-    return $this->redirectToRoute('app_entreprise_inscription_show', [
+    return $this->redirectToRoute('app_entreprise_dashboard', [
       'entite' => $entite->getId(),
-      'id'     => $inscription->getId(),
     ]);
   }
 }

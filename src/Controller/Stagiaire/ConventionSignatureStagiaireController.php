@@ -47,12 +47,12 @@ class ConventionSignatureStagiaireController extends AbstractController
       throw $this->createNotFoundException('Session ou entité introuvable.');
     }
 
-    if ($sessionEntite->getId() !== (int) $entite) {
+    if ($sessionEntite->getId() !== $entite->getId()) {
       throw $this->createAccessDeniedException('Accès invalide pour cette entité.');
     }
 
     // Retrouver la convention via la contrainte unique (session + entreprise + entite)
-    $convention = $this->conventionRepo->findOneForInscription($inscription);
+    $convention = $this->conventionRepo->findOneForInscription($inscription, $request->query->getInt('convention') ?: null);
 
     if (!$convention) {
       // cause la plus fréquente chez toi : entreprise = null
@@ -62,27 +62,32 @@ class ConventionSignatureStagiaireController extends AbstractController
         $this->addFlash('danger', "Aucune convention n'a été trouvée pour cette inscription.");
       }
 
-      return $this->redirectToRoute('app_stagiaire_inscription_show', [
+      return $this->redirectToRoute('app_stagiaire_dossier_edit', [
         'entite' => $entite->getId(),
         'id'     => $inscription->getId(),
       ]);
     }
 
+    if ($convention->getStagiaire() !== $user || !$convention->getPdfPath()) {
+      throw $this->createAccessDeniedException('Seul le destinataire individuel peut signer sa convention après consultation du PDF.');
+    }
+
     // Déjà signée => on ne touche pas (trace Qualiopi)
     if ($convention->getDateSignatureStagiaire() !== null) {
       $this->addFlash('info', 'La convention est déjà signée par le stagiaire.');
-      return $this->redirectToRoute('app_stagiaire_inscription_show', [
+      return $this->redirectToRoute('app_stagiaire_dossier_edit', [
         'entite' => $entite->getId(),
         'id'     => $inscription->getId(),
       ]);
     }
 
     $convention->setDateSignatureStagiaire(new \DateTimeImmutable());
+    $convention->setPdfPath(null);
     $this->em->flush();
 
     $this->addFlash('success', 'Vous avez signé la convention.');
 
-    return $this->redirectToRoute('app_stagiaire_inscription_show', [
+    return $this->redirectToRoute('app_stagiaire_dossier_edit', [
       'entite' => $entite->getId(),
       'id'     => $inscription->getId(),
     ]);
@@ -90,7 +95,7 @@ class ConventionSignatureStagiaireController extends AbstractController
 
 
   #[Route('/inscription/{id}/convention/view', name: 'convention_view', methods: ['GET'])]
-  public function view(int $entite, Inscription $inscription): Response
+  public function view(Entite $entite, Inscription $inscription, Request $request): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -100,11 +105,11 @@ class ConventionSignatureStagiaireController extends AbstractController
       throw $this->createAccessDeniedException();
     }
     $session = $inscription->getSession();
-    if (!$session || !$session->getEntite() || $session->getEntite()->getId() !== (int)$entite) {
+    if (!$session || !$session->getEntite() || $session->getEntite()->getId() !== $entite->getId()) {
       throw $this->createAccessDeniedException();
     }
 
-    $convention = $this->conventionRepo->findOneForInscription($inscription);
+    $convention = $this->conventionRepo->findOneForInscription($inscription, $request->query->getInt('convention') ?: null);
     if (!$convention || !$convention->getPdfPath()) {
       return new Response('PDF introuvable', 404);
     }
@@ -118,7 +123,7 @@ class ConventionSignatureStagiaireController extends AbstractController
   }
 
   #[Route('/inscription/{id}/convention/esign', name: 'convention_esign', methods: ['POST'])]
-  public function esignByStagiaire(int $entite, Inscription $inscription, Request $request): Response
+  public function esignByStagiaire(Entite $entite, Inscription $inscription, Request $request): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -132,18 +137,24 @@ class ConventionSignatureStagiaireController extends AbstractController
     }
 
     $session = $inscription->getSession();
-    if (!$session || !$session->getEntite() || $session->getEntite()->getId() !== (int)$entite) {
+    if (!$session || !$session->getEntite() || $session->getEntite()->getId() !== $entite->getId()) {
       return new JsonResponse(['success' => false, 'message' => 'Entité invalide'], 403);
     }
 
-    $convention = $this->conventionRepo->findOneForInscription($inscription);
+    $convention = $this->conventionRepo->findOneForInscription($inscription, $request->query->getInt('convention') ?: null);
     if (!$convention) {
       return new JsonResponse(['success' => false, 'message' => 'Convention introuvable'], 404);
+    }
+
+    if ($convention->getStagiaire() !== $user) {
+      return new JsonResponse(['success' => false, 'message' => 'La signature appartient au destinataire de la convention.'], 403);
     }
 
     if ($convention->getDateSignatureStagiaire() !== null) {
       return new JsonResponse(['success' => true, 'alreadySigned' => true]);
     }
+
+    if (!$convention->getPdfPath()) return new JsonResponse(['success' => false, 'message' => 'Générez le document avant signature.'], 400);
 
     $sig = (string)$request->request->get('signatureData', '');
     if (!str_starts_with($sig, 'data:image/png;base64,')) {
@@ -153,6 +164,7 @@ class ConventionSignatureStagiaireController extends AbstractController
     // 👉 il te faut un champ pour stocker l’image (dans ConventionContrat)
     $convention->setSignatureDataUrlStagiaire($sig);
     $convention->setDateSignatureStagiaire(new \DateTimeImmutable());
+    $convention->setPdfPath(null);
 
     $this->em->flush();
 

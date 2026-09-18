@@ -73,12 +73,6 @@ class DevisController extends AbstractController
 
 
     if ($form->isSubmitted() && $form->isValid()) {
-      // 🔐 Exclusivité serveur : Prospect / Destinataire / Entreprise
-      // ✅ Règle serveur : Prospect exclusif, entreprise + personne autorisées
-      $this->normalizeDestinataires($d);
-
-
-
       if (!$d->getNumero()) {
         $d->setNumero($gen->nextForEntite($entite->getId(), (int) $d->getDateEmission()->format('Y')));
       }
@@ -105,7 +99,7 @@ class DevisController extends AbstractController
       $em->flush();
 
       $this->addFlash('success', 'Devis créé.');
-      return $this->redirectToRoute('app_administrateur_devis_index', ['entite' => $entite->getId()]);
+      return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $d->getId()]);
     }
 
     return $this->render('administrateur/devis/form.html.twig', [
@@ -117,13 +111,29 @@ class DevisController extends AbstractController
 
   private function recalcDevis(Devis $d): void
   {
-    // 🔒 Sécurité minimale : empêcher valeurs négatives
-    $d->setMontantHtCents(max(0, (int) $d->getMontantHtCents()));
-    $d->setMontantTvaCents(max(0, (int) $d->getMontantTvaCents()));
-    $d->setMontantTtcCents(max(
-      $d->getMontantHtCents() + $d->getMontantTvaCents(),
-      (int) $d->getMontantTtcCents()
+    $lines = array_values(array_filter(
+      $d->getLignes()->toArray(),
+      static fn (LigneDevis $line): bool => $line->getTotalHtNetCents() > 0
     ));
+    $base = array_sum(array_map(static fn (LigneDevis $line): int => $line->getTotalHtNetCents(), $lines));
+    $discount = $d->getRemiseGlobaleMontantCents() ?: (int) round($base * (($d->getRemiseGlobalePourcent() ?? 0) / 100));
+    $remaining = min($base, max(0, $discount));
+    $discount = $remaining;
+    $ht = $tva = 0;
+
+    foreach ($lines as $index => $line) {
+      $lineHt = $line->getTotalHtNetCents();
+      $share = $index === count($lines) - 1 ? $remaining : (int) round($discount * $lineHt / $base);
+      $share = min($lineHt, $remaining, max(0, $share));
+      $remaining -= $share;
+      $lineHt -= $share;
+      $ht += $lineHt;
+      $tva += (int) round($lineHt * max(0, (float) $line->getTva()) / 100);
+    }
+
+    $d->setMontantHtCents($ht);
+    $d->setMontantTvaCents($tva);
+    $d->setMontantTtcCents($ht + $tva);
   }
 
 
@@ -158,11 +168,17 @@ class DevisController extends AbstractController
       $this->addFlash('warning', 'Ce devis ne peut pas être transformé en facture (statut : ' . $devis->getStatus()->label() . ').');
       return $this->redirectToRoute('app_administrateur_devis_index', ['entite' => $entite->getId()]);
     }
+    if ($devis->getProspect() || (($devis->getDestinataire() !== null) === ($devis->getEntrepriseDestinataire() !== null))) {
+      $this->addFlash('warning', 'Choisissez une entreprise ou une personne comme destinataire du devis avant de créer la facture.');
+      return $this->redirectToRoute('app_administrateur_devis_edit', ['entite' => $entite->getId(), 'id' => $devis->getId()]);
+    }
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
     // 5) recalcul devis côté serveur (sécurité)
-    $this->recalcDevis($devis);
+    if ($devis->getConventions()->isEmpty()) {
+      $this->recalcDevis($devis);
+    }
 
     // 6) créer la facture
     $f = new Facture();
@@ -258,16 +274,16 @@ class DevisController extends AbstractController
     $statusFilter = (string)$request->request->get('statusFilter', 'all');
 
     $map = [
-      0 => 'd.id',
-      1 => 'd.numero',
-      2 => 'u.email',
-      3 => 'd.montantTtcCents',
-      4 => 'd.status',
-      5 => 'd.dateEmission',
+      0 => 'd.numero',
+      1 => 'COALESCE(e.raisonSociale, u.nom, p.nom)',
+      2 => 'd.montantTtcCents',
+      3 => 'd.status',
     ];
 
     $qb = $em->getRepository(Devis::class)->createQueryBuilder('d')
       ->leftJoin('d.destinataire', 'u')->addSelect('u')
+      ->leftJoin('d.entrepriseDestinataire', 'e')->addSelect('e')
+      ->leftJoin('d.prospect', 'p')->addSelect('p')
       ->leftJoin('d.factureCreee', 'f')->addSelect('f')
       ->andWhere('d.entite = :entite')
       ->setParameter('entite', $entite);
@@ -285,6 +301,12 @@ class DevisController extends AbstractController
             OR u.email LIKE :s
             OR u.nom LIKE :s
             OR u.prenom LIKE :s
+            OR e.raisonSociale LIKE :s
+            OR e.email LIKE :s
+            OR p.nom LIKE :s
+            OR p.prenom LIKE :s
+            OR p.email LIKE :s
+            OR p.societe LIKE :s
         ')->setParameter('s', '%' . $searchV . '%');
     }
 
@@ -389,15 +411,16 @@ class DevisController extends AbstractController
       throw $this->createAccessDeniedException('Devis non autorisé pour cette entité.');
     }
 
+    if (!$id->getConventions()->isEmpty()) {
+      $this->addFlash('warning', 'Ce devis est lié à une convention. Dupliquez-le pour préparer une nouvelle proposition sans modifier les documents existants.');
+      return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
+    }
+
     $form = $this->createForm(DevisType::class, $id, [
       'entite' => $entite,
     ])->handleRequest($req);
 
     if ($form->isSubmitted() && $form->isValid()) {
-
-      // ✅ Règle serveur : Prospect exclusif, entreprise + personne autorisées
-      $this->normalizeDestinataires($id);
-
 
       // ✅ Filet de sécurité : si pas de numéro, on le génère
       if (!$id->getNumero()) {
@@ -647,7 +670,6 @@ class DevisController extends AbstractController
     if (method_exists($copy, 'setEntrepriseDestinataire')) {
       $copy->setEntrepriseDestinataire($devis->getEntrepriseDestinataire());
     }
-    $this->normalizeDestinataires($copy);
 
 
     // autres champs éventuels
@@ -686,6 +708,7 @@ class DevisController extends AbstractController
       $lc->setQte($ld->getQte());
       $lc->setPuHtCents($ld->getPuHtCents());
       $lc->setTva($ld->getTva());
+      $lc->setIsDebours($ld->isDebours());
 
       if (method_exists($ld, 'getRemisePourcent') && method_exists($lc, 'setRemisePourcent')) {
         $lc->setRemisePourcent($ld->getRemisePourcent());
@@ -733,8 +756,8 @@ class DevisController extends AbstractController
     }
 
     // garde-fous : pas de suppression si déjà facturé
-    if ($devis->getFactureCreee() || $devis->getStatus() === DevisStatus::INVOICED) {
-      $this->addFlash('warning', 'Impossible de supprimer un devis déjà facturé.');
+    if ($devis->getFactureCreee() || $devis->getStatus() === DevisStatus::INVOICED || !$devis->getConventions()->isEmpty()) {
+      $this->addFlash('warning', 'Impossible de supprimer un devis lié à une facture ou à une convention.');
       return $this->redirectToRoute('app_administrateur_devis_index', ['entite' => $entite->getId()]);
     }
 
@@ -927,20 +950,6 @@ class DevisController extends AbstractController
     }
 
     return $content;
-  }
-
-
-  /**
-   * Règles serveur:
-   * - Prospect EXCLUSIF (si prospect => on vide entreprise + personne)
-   * - Sinon: entreprise + personne autorisées ensemble
-   */
-  private function normalizeDestinataires(Devis $d): void
-  {
-    if ($d->getProspect()) {
-      $d->setDestinataire(null);
-      $d->setEntrepriseDestinataire(null);
-    }
   }
 
 

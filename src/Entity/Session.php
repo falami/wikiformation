@@ -579,7 +579,9 @@ class Session
     }
     public function removeConventionContrat(ConventionContrat $cc): static
     {
-        $this->conventionContrats->removeElement($cc);
+        if ($this->conventionContrats->removeElement($cc) && $cc->getSession() === $this) {
+            $cc->setSession(null);
+        }
         return $this;
     }
 

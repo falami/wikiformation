@@ -20,7 +20,7 @@ final class QcmAssignmentManager
     private QcmAssignmentRepository $assignRepo,
   ) {}
 
-  public function ensurePreAndPostAssignments(Inscription $inscription, Utilisateur $user, Entite $entite): void
+  public function ensurePreAndPostAssignments(Inscription $inscription, Utilisateur $user, Entite $entite, bool $flush = true): void
   {
     $session = $inscription->getSession();
     $entite = $session?->getEntite();
@@ -32,7 +32,16 @@ final class QcmAssignmentManager
     }
 
     foreach ([QcmPhase::PRE, QcmPhase::POST] as $phase) {
-      $existing = $this->assignRepo->findOneByInscriptionAndPhase($inscription, $phase);
+      $existing = null;
+      foreach ($this->em->getUnitOfWork()->getScheduledEntityInsertions() as $pending) {
+        if ($pending instanceof QcmAssignment && $pending->getInscription() === $inscription && $pending->getPhase() === $phase) {
+          $existing = $pending;
+          break;
+        }
+      }
+      if (!$existing && $inscription->getId() !== null) {
+        $existing = $this->assignRepo->findOneByInscriptionAndPhase($inscription, $phase);
+      }
       if ($existing) continue;
 
       $a = (new QcmAssignment())
@@ -45,8 +54,11 @@ final class QcmAssignmentManager
         ->setStatus(QcmAssignmentStatus::ASSIGNED);
 
       $this->em->persist($a);
+      $inscription->addQcmAssignment($a);
     }
 
-    $this->em->flush();
+    if ($flush) {
+      $this->em->flush();
+    }
   }
 }

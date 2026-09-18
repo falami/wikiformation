@@ -90,10 +90,8 @@ services:
     arguments:
       $uploadDir: "%piece_dossier_dir%"
   App\EventSubscriber\Positioning\AutoCreateAttemptsOnFlushSubscriber:
-    tags: ["doctrine.event_subscriber"]
-
-  App\EventSubscriber\Positioning\InscriptionPositioningSubscriber:
-    tags: ["doctrine.event_subscriber"]
+    tags:
+      - { name: doctrine.event_listener, event: onFlush }
 
   App\Service\Bpf\BpfCalculator: ~
 
@@ -101,7 +99,8 @@ services:
     tags: ["doctrine.event_subscriber"]
 
   App\EventSubscriber\InscriptionQcmSubscriber:
-    tags: ["doctrine.event_subscriber"]
+    tags:
+      - { name: doctrine.event_listener, event: onFlush }
 
   App\Service\Depense\DepenseUploader:
     arguments:

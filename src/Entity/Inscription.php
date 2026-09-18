@@ -333,8 +333,9 @@ class Inscription
     }
     public function removeConventionContrat(ConventionContrat $cc): static
     {
-        $this->conventionContrats->removeElement($cc);
-        $cc->removeInscription($this);
+        if ($this->conventionContrats->removeElement($cc)) {
+            $cc->removeInscription($this);
+        }
         return $this;
     }
 

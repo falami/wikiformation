@@ -6,21 +6,18 @@ use App\Repository\ConventionContratRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ConventionContratRepository::class)]
 #[ORM\Table(name: 'convention_contrat')]
 #[ORM\Index(name: 'idx_convention_numero', columns: ['numero'])]
+#[ORM\Index(name: 'idx_convention_devis', columns: ['devis_id'])]
+#[ORM\Index(name: 'idx_conv_entite_session_entreprise', columns: ['entite_id', 'session_id', 'entreprise_id'])]
+#[ORM\Index(name: 'idx_conv_entite_session_stagiaire', columns: ['entite_id', 'session_id', 'stagiaire_id'])]
 #[ORM\UniqueConstraint(
     name: 'uniq_convention_numero',
     columns: ['numero']
-)]
-#[ORM\UniqueConstraint(
-    name: 'uniq_conv_entite_session_entreprise',
-    columns: ['entite_id', 'session_id', 'entreprise_id']
-)]
-#[ORM\UniqueConstraint(
-    name: 'uniq_conv_entite_session_stagiaire',
-    columns: ['entite_id', 'session_id', 'stagiaire_id']
 )]
 class ConventionContrat
 {
@@ -50,7 +47,12 @@ class ConventionContrat
 
     #[ORM\ManyToOne(inversedBy: 'conventionContrats')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[Assert\NotNull(message: 'Sélectionnez une session.')]
     private ?Session $session = null;
+
+    #[ORM\ManyToOne(inversedBy: 'conventions')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Devis $devis = null;
 
     // ✅ devient nullable (cas individuel)
     #[ORM\ManyToOne(inversedBy: 'conventionContrats')]
@@ -170,7 +172,34 @@ class ConventionContrat
 
     public function setSession(?Session $session): static
     {
+        if ($this->session === $session) {
+            return $this;
+        }
+
+        $previous = $this->session;
         $this->session = $session;
+        $previous?->removeConventionContrat($this);
+        $session?->addConventionContrat($this);
+
+        return $this;
+    }
+
+    public function getDevis(): ?Devis
+    {
+        return $this->devis;
+    }
+
+    public function setDevis(?Devis $devis): static
+    {
+        if ($this->devis === $devis) {
+            return $this;
+        }
+
+        $previous = $this->devis;
+        $this->devis = $devis;
+        $previous?->removeConvention($this);
+        $devis?->addConvention($this);
+
         return $this;
     }
 
@@ -233,6 +262,15 @@ class ConventionContrat
         return null !== $this->dateSignatureOf;
     }
 
+    public function isSigned(): bool
+    {
+        return $this->isSignedByStagiaire()
+            || $this->isSignedByEntreprise()
+            || $this->isSignedByOf()
+            || !empty($this->signatureDataUrlStagiaire)
+            || !empty($this->signatureDataUrlEntreprise);
+    }
+
     public function getDestinataireLabel(): string
     {
         if ($this->entreprise) {
@@ -266,8 +304,7 @@ class ConventionContrat
     {
         if (!$this->inscriptions->contains($inscription)) {
             $this->inscriptions->add($inscription);
-            // 🔁 si tu veux vraiment maintenir la bidirectionnalité :
-            // $inscription->addConventionContrat($this);
+            $inscription->addConventionContrat($this);
         }
         return $this;
     }
@@ -275,8 +312,7 @@ class ConventionContrat
     public function removeInscription(Inscription $inscription): static
     {
         if ($this->inscriptions->removeElement($inscription)) {
-            // 🔁 si tu veux vraiment maintenir la bidirectionnalité :
-            // $inscription->removeConventionContrat($this);
+            $inscription->removeConventionContrat($this);
         }
         return $this;
     }
@@ -319,5 +355,61 @@ class ConventionContrat
     public function hasNumero(): bool
     {
         return !empty($this->numero ?? '');
+    }
+
+    #[Assert\Callback]
+    public function validateCoherence(ExecutionContextInterface $context): void
+    {
+        if (($this->entreprise === null) === ($this->stagiaire === null)) {
+            $context->buildViolation('Choisissez une entreprise ou un stagiaire comme destinataire de la convention.')
+                ->atPath('entreprise')->addViolation();
+        }
+
+        if ($this->session && $this->session->getEntite() !== $this->entite) {
+            $context->buildViolation('La session doit appartenir au même organisme que la convention.')
+                ->atPath('session')->addViolation();
+        }
+
+        if ($this->entreprise && $this->entreprise->getEntite() !== $this->entite) {
+            $context->buildViolation('L’entreprise doit appartenir au même organisme que la convention.')
+                ->atPath('entreprise')->addViolation();
+        }
+
+        foreach ($this->inscriptions as $inscription) {
+            if ($inscription->getSession() !== $this->session || $inscription->getEntite() !== $this->entite) {
+                $context->buildViolation('Toutes les inscriptions doivent appartenir à la session et à l’organisme de la convention.')
+                    ->atPath('inscriptions')->addViolation();
+                break;
+            }
+
+            if (($this->entreprise && $inscription->getEntreprise() !== $this->entreprise)
+                || ($this->stagiaire && $inscription->getStagiaire() !== $this->stagiaire)) {
+                $context->buildViolation('Les inscriptions doivent correspondre au destinataire de la convention.')
+                    ->atPath('inscriptions')->addViolation();
+                break;
+            }
+        }
+
+        if (!$this->devis) {
+            return;
+        }
+
+        if ($this->devis->getEntite() !== $this->entite) {
+            $context->buildViolation('Le devis doit appartenir au même organisme que la convention.')
+                ->atPath('devis')->addViolation();
+        }
+
+        if ($this->devis->getFormation() && $this->session
+            && $this->devis->getFormation() !== $this->session->getFormation()) {
+            $context->buildViolation('La session doit correspondre à la formation du devis.')
+                ->atPath('session')->addViolation();
+        }
+
+        $entrepriseDevis = $this->devis->getEntrepriseDestinataire();
+        if (($entrepriseDevis && $entrepriseDevis !== $this->entreprise)
+            || (!$entrepriseDevis && $this->devis->getDestinataire() !== $this->stagiaire)) {
+            $context->buildViolation('Le destinataire de la convention doit correspondre à celui du devis.')
+                ->atPath('devis')->addViolation();
+        }
     }
 }

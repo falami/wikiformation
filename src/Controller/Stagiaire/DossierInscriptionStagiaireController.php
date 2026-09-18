@@ -95,7 +95,12 @@ class DossierInscriptionStagiaireController extends AbstractController
     }
 
 
-    $convention = $this->conventionRepo->findOneForInscription($id);
+    $conventions = $this->conventionRepo->findForInscription($id);
+    $selectedConventionId = $req->query->getInt('convention');
+    $convention = $selectedConventionId
+      ? $this->conventionRepo->findOneForInscription($id, $selectedConventionId)
+      : ($conventions[0] ?? null);
+    if ($selectedConventionId && !$convention) throw $this->createNotFoundException('Convention introuvable.');
 
     $conventionPdfUrl = null;
     $conventionSignedAt = null;
@@ -107,6 +112,7 @@ class DossierInscriptionStagiaireController extends AbstractController
         $conventionPdfUrl = $this->generateUrl('app_stagiaire_convention_view', [
           'entite' => $entite->getId(),
           'id'     => $id->getId(),
+          'convention' => $convention->getId(),
         ]);
       }
 
@@ -116,12 +122,13 @@ class DossierInscriptionStagiaireController extends AbstractController
       }
 
       // autoriser e-sign seulement si PDF dispo et pas déjà signé
-      $conventionCanESign = (bool) $conventionPdfUrl && $conventionSignedAt === null;
+      $conventionCanESign = (bool) $conventionPdfUrl && $conventionSignedAt === null && $convention->getStagiaire() === $user;
     }
 
     $conventionSignUrl = $this->generateUrl('app_stagiaire_convention_esign', [
       'entite' => $entite->getId(),
       'id'     => $id->getId(),
+      'convention' => $convention?->getId(),
     ]);
 
     $csrfConventionToken = $this->container->get('security.csrf.token_manager')
@@ -140,6 +147,8 @@ class DossierInscriptionStagiaireController extends AbstractController
       ]),
 
       // ✅ Convention / e-sign
+      'conventions' => $conventions,
+      'selectedConvention' => $convention,
       'conventionPdfUrl' => $conventionPdfUrl,
       'conventionSignedAt' => $conventionSignedAt,
       'conventionCanESign' => $conventionCanESign,

@@ -309,11 +309,14 @@
             <i class="bi bi-arrow-left me-1"></i> Retour
           </a>
 
+          {% if not c.signed %}
           <a class="btn btn-outline-theme btn-sm fw-semibold"
             href="{{ path('app_administrateur_convention_edit', { entite: entite.id, id: c.id }) }}">
             <i class="bi bi-pencil-square me-1"></i> Éditer
           </a>
+          {% endif %}
 
+          {% if not c.signed or not c.pdfPath %}
           <form method="post"
                 action="{{ path('app_administrateur_convention_generate_pdf', { entite: entite.id, id: c.id }) }}"
                 class="d-inline">
@@ -322,6 +325,7 @@
               <i class="bi bi-filetype-pdf me-1"></i> Générer PDF
             </button>
           </form>
+          {% endif %}
 
           {% if c.pdfPath %}
             <a class="btn btn-light btn-sm fw-semibold"
@@ -337,6 +341,10 @@
 
 
   {% include 'flagMessage.html.twig' %}
+
+  {% if c.signed %}
+    <div class="alert alert-info">Cette convention est signée. Son contenu et son PDF sont conservés.</div>
+  {% endif %}
 
   <div class="row g-3">
 
@@ -420,6 +428,24 @@
 
         <div class="panel-bd d-grid gap-2">
 
+          {% if c.devis %}
+            <div class="info">
+              <div class="k">Devis d’origine</div>
+              <div class="v">{{ c.devis.numero }}</div>
+            </div>
+          {% endif %}
+
+          <div class="info">
+            <div class="k">Stagiaires couverts ({{ c.inscriptions|length }})</div>
+            <div class="v">
+              {% for inscription in c.inscriptions %}
+                <div>{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}</div>
+              {% else %}
+                Aucune inscription rattachée
+              {% endfor %}
+            </div>
+          </div>
+
           {% if c.session and c.session.code %}
             <div class="info">
               <div class="k">Session</div>
@@ -487,6 +513,7 @@
         </div>
       </div>
 
+      {% if not c.signed %}
       <div class="panel border-danger">
         <div class="panel-hd" style="background:rgba(220,53,69,.08)">
           <div class="panel-title text-danger">
@@ -584,6 +611,7 @@
         </div>
       </div>
 
+      {% endif %}
     </div>
 
   </div>
@@ -636,4 +664,3 @@
     });
   </script>
 {% endblock %}
-

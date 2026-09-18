@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace App\EventSubscriber\Positioning;
 
 use App\Entity\Inscription;
-use App\Entity\Utilisateur;
-use App\Entity\Entite;
+use App\Entity\PositioningAssignment;
 use App\Entity\PositioningAttempt;
-use App\Entity\SessionPositioning;
 use Doctrine\Common\EventSubscriber;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 
@@ -21,7 +18,7 @@ final class AutoCreateAttemptsOnFlushSubscriber implements EventSubscriber
     return [Events::onFlush];
   }
 
-  public function onFlush(OnFlushEventArgs $args, Utilisateur $user, Entite $entite): void
+  public function onFlush(OnFlushEventArgs $args): void
   {
     $em  = $args->getObjectManager();
     $uow = $em->getUnitOfWork();
@@ -31,39 +28,64 @@ final class AutoCreateAttemptsOnFlushSubscriber implements EventSubscriber
         continue;
       }
 
-      $this->handleNewInscription($em, $uow, $entity, $user, $entite);
-    }
-  }
+      $inscription = $entity;
+      $session = $inscription->getSession();
+      $stagiaire = $inscription->getStagiaire();
+      $createur = $inscription->getCreateur();
+      $entite = $inscription->getEntite();
+      if (!$session || !$stagiaire || !$createur || !$entite) {
+        continue;
+      }
 
-  private function handleNewInscription(EntityManagerInterface $em, $uow, Inscription $inscription, Utilisateur $user, Entite $entite): void
-  {
-    $session   = $inscription->getSession();
-    $stagiaire = $inscription->getStagiaire();
+      // Inclut les questionnaires d'une session créée dans cette transaction.
+      foreach ($session->getSessionPositionings() as $positioning) {
+        $questionnaire = $positioning->getQuestionnaire();
+        if (!$questionnaire) {
+          continue;
+        }
 
-    if (!$session || !$stagiaire) {
-      return;
-    }
+        $assignment = null;
+        foreach (array_merge($inscription->getPositioningAssignments()->toArray(), $uow->getScheduledEntityInsertions()) as $candidate) {
+          if ($candidate instanceof PositioningAssignment
+            && $candidate->getInscription() === $inscription
+            && $candidate->getQuestionnaire() === $questionnaire) {
+            $assignment = $candidate;
+            break;
+          }
+        }
 
-    $sessionPositionings = $em->getRepository(SessionPositioning::class)->findBy(
-      ['session' => $session],
-      ['position' => 'ASC', 'id' => 'ASC']
-    );
+        if (!$assignment) {
+          $assignment = (new PositioningAssignment())
+            ->setCreateur($createur)
+            ->setEntite($entite)
+            ->setSession($session)
+            ->setInscription($inscription)
+            ->setStagiaire($stagiaire)
+            ->setQuestionnaire($questionnaire)
+            ->setIsRequired($positioning->isRequired())
+            ->setLinkedAt(new \DateTimeImmutable());
+          $inscription->addPositioningAssignment($assignment);
+          $em->persist($assignment);
+          $uow->computeChangeSet($em->getClassMetadata(PositioningAssignment::class), $assignment);
+        }
 
-    foreach ($sessionPositionings as $sp) {
-      $q = $sp->getQuestionnaire();
+        if ($assignment->getAttempt()) {
+          continue;
+        }
 
-      $attempt = (new PositioningAttempt())
-        ->setCreateur($user)
-        ->setEntite($entite)
-        ->setSession($session)
-        ->setInscription($inscription)
-        ->setStagiaire($stagiaire)
-        ->setQuestionnaire($q);
-
-      $em->persist($attempt);
-
-      $meta = $em->getClassMetadata(PositioningAttempt::class);
-      $uow->computeChangeSet($meta, $attempt);
+        $attempt = (new PositioningAttempt())
+          ->setCreateur($createur)
+          ->setEntite($entite)
+          ->setAssignment($assignment)
+          ->setSession($session)
+          ->setInscription($inscription)
+          ->setStagiaire($stagiaire)
+          ->setQuestionnaire($questionnaire);
+        $assignment->setAttempt($attempt);
+        $inscription->addPositioningAttempt($attempt);
+        $em->persist($attempt);
+        $uow->computeChangeSet($em->getClassMetadata(PositioningAttempt::class), $attempt);
+      }
     }
   }
 }

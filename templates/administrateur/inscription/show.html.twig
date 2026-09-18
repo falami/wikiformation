@@ -711,9 +711,9 @@
               <div class="info">
                 <div class="k">Documents finaux</div>
                 <div class="v">
-                  Convention / contrat :
-                  {% if convention %}
-                    <span class="badge-soft pill-success ms-1">Générée</span>
+                  Conventions :
+                  {% if conventions|length %}
+                    <span class="badge-soft pill-success ms-1">{{ conventions|length }}</span>
                   {% else %}
                     <span class="badge-soft pill-muted ms-1">Non générée</span>
                   {% endif %}
@@ -724,6 +724,16 @@
                   {% else %}
                     <span class="badge-soft pill-muted ms-1">Non générée</span>
                   {% endif %}
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                  {% for convention in conventions %}
+                    <a class="btn btn-outline-primary btn-sm" href="{{ path('app_administrateur_convention_show', {entite: entite.id, id: convention.id}) }}">
+                      {{ convention.numero ?: ('Convention #' ~ convention.id) }}
+                    </a>
+                  {% endfor %}
+                  <a class="btn btn-primary btn-sm" href="{{ path('app_administrateur_convention_from_inscription', {entite: entite.id, id: ins.id}) }}">
+                    <i class="bi bi-file-earmark-plus me-1"></i> Créer une convention
+                  </a>
                 </div>
               </div>
             </div>

@@ -1,0 +1,56 @@
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{{ form_start(form, {attr: {class: 'js-quick-create-form', 'data-kind': kind, novalidate: 'novalidate'}}) }}
+  <div class="qc-modal-intro mb-4">
+    {% if kind == 'session' %}
+      <p class="text-muted mb-0">Planifiez la formation : la session créée sera automatiquement sélectionnée dans votre convention.</p>
+    {% elseif kind == 'site' %}
+      <p class="text-muted mb-0">Ajoutez un lieu de formation à votre organisme. Vous pourrez compléter sa fiche à tout moment.</p>
+    {% else %}
+      <p class="text-muted mb-0">Le client sera disponible immédiatement dans la sélection des stagiaires.{% if devis.entrepriseDestinataire %} Les nouveaux clients seront rattachés à <strong>{{ devis.entrepriseDestinataire.raisonSociale }}</strong>.{% endif %}</p>
+    {% endif %}
+  </div>
+  {{ form_errors(form) }}
+  {% if kind == 'session' %}
+    {{ form_row(form.formation) }}
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-2">
+      {{ form_label(form.site) }}
+      {% if is_granted('SITE_MANAGE', entite) %}<button type="button" class="btn btn-sm btn-outline-primary" data-quick-create="site" data-url="{{ path('app_administrateur_devis_convention_quick_create', {entite: entite.id, id: devis.id, kind: 'site'}) }}"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouveau site</button>{% endif %}
+    </div>
+    <div class="mb-3">{{ form_widget(form.site) }}{{ form_errors(form.site) }}</div>
+    {{ form_row(form.capacite) }}
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-3"><h3 class="h6 mb-0">Créneaux de formation</h3><button type="button" class="btn btn-sm btn-outline-primary" data-add-slot><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Ajouter un créneau</button></div>
+    {{ form_errors(form.jours) }}
+    {% set slotPrototype %}
+      <div class="js-session-slot qc-slot border rounded-3 p-3 mb-3">
+        <div class="row g-3"><div class="col-sm-6">{{ form_row(form.jours.vars.prototype.dateDebut, {attr: {'data-datepicker': 'datetime'}}) }}</div><div class="col-sm-6">{{ form_row(form.jours.vars.prototype.dateFin, {attr: {'data-datepicker': 'datetime'}}) }}</div></div>
+        <button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-slot><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Retirer ce créneau</button>
+      </div>
+    {% endset %}
+    {% set nextSlotIndex = 0 %}
+    {% for jour in form.jours %}{% set nextSlotIndex = max(nextSlotIndex, jour.vars.name + 1) %}{% endfor %}
+    <div data-collection data-index="{{ nextSlotIndex }}" data-prototype="{{ slotPrototype|e('html_attr') }}">
+      {% for jour in form.jours %}
+        <div class="js-session-slot qc-slot border rounded-3 p-3 mb-3">
+          {{ form_errors(jour) }}
+          <div class="row g-3"><div class="col-sm-6">{{ form_row(jour.dateDebut, {attr: {'data-datepicker': 'datetime'}}) }}</div><div class="col-sm-6">{{ form_row(jour.dateFin, {attr: {'data-datepicker': 'datetime'}}) }}</div></div>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-slot><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Retirer ce créneau</button>
+        </div>
+      {% endfor %}
+    </div>
+    {% do form.jours.setRendered %}
+  {% elseif kind == 'site' %}
+    {{ form_row(form.nom) }}{{ form_row(form.adresse) }}
+    <div class="row g-3"><div class="col-sm-4">{{ form_row(form.codePostal) }}</div><div class="col-sm-8">{{ form_row(form.ville) }}</div></div>
+    {{ form_row(form.pays) }}
+  {% else %}
+    {{ form_row(form.civilite) }}
+    <div class="row g-3"><div class="col-sm-6">{{ form_row(form.prenom) }}</div><div class="col-sm-6">{{ form_row(form.nom) }}</div></div>
+    {{ form_row(form.email) }}{{ form_row(form.telephone) }}
+    <p class="small text-muted">Si cette adresse correspond déjà à un client de votre organisme, sa fiche sera réutilisée. Aucun e-mail ne sera envoyé.</p>
+  {% endif %}
+  {{ form_rest(form) }}
+  <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+    <button type="button" class="btn btn-light" data-quick-cancel>Annuler</button>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check2 me-1" aria-hidden="true"></i>{{ kind == 'session' ? 'Créer et sélectionner la session' : (kind == 'site' ? 'Créer et sélectionner le site' : 'Ajouter le stagiaire') }}</button>
+  </div>
+{{ form_end(form) }}

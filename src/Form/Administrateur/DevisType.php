@@ -43,6 +43,8 @@ final class DevisType extends AbstractType
 
                 'query_builder' => function ($repo) use ($opt) {
                     $qb = $repo->createQueryBuilder('u')
+                        ->leftJoin('u.utilisateurEntites', 'ue')
+                        ->distinct()
                         ->orderBy('u.nom', 'ASC')
                         ->addOrderBy('u.prenom', 'ASC');
 
@@ -51,7 +53,7 @@ final class DevisType extends AbstractType
                     }
 
                     return $qb
-                        ->andWhere('u.entite = :entite')
+                        ->andWhere('u.entite = :entite OR ue.entite = :entite')
                         ->setParameter('entite', $opt['entite']);
                 },
             ])
@@ -71,14 +73,10 @@ final class DevisType extends AbstractType
                     $qb = $repo->createQueryBuilder('p')
                         ->orderBy('p.createdAt', 'DESC');
 
-                    if (!empty($opt['entite'])) {
-                        $qb->andWhere('p.entite = :entite')->setParameter('entite', $opt['entite']);
+                    if (empty($opt['entite'])) {
+                        return $qb->andWhere('1 = 0');
                     }
-
-                    // optionnel: cacher les prospects "inactifs"
-                    // $qb->andWhere('p.isActive = 1');
-
-                    return $qb;
+                    return $qb->andWhere('p.entite = :entite')->setParameter('entite', $opt['entite']);
                 },
                 'attr' => ['class' => 'form-select'],
             ])
@@ -89,7 +87,7 @@ final class DevisType extends AbstractType
                 'required' => false,
                 'placeholder' => '- Formation -',
                 'choice_label' => fn(Formation $f) =>
-                sprintf('%s - %s - %sj', $f->getTitre(), $f->getNiveau()->label(), (string)($f->getDuree() ?? '-')),
+                sprintf('%s - %s - %sj', $f->getTitre(), $f->getNiveau()?->label() ?? '-', (string)($f->getDuree() ?? '-')),
                 'choice_attr' => function (Formation $f) {
                     $jours  = (int)($f->getDuree() ?? 0);
                     $heures = $jours * 7;
@@ -104,10 +102,10 @@ final class DevisType extends AbstractType
                 },
                 'query_builder' => function (FormationRepository $repo) use ($opt) {
                     $qb = $repo->createQueryBuilder('f')->orderBy('f.titre', 'ASC');
-                    if (!empty($opt['entite'])) {
-                        $qb->andWhere('f.entite = :entite')->setParameter('entite', $opt['entite']);
+                    if (empty($opt['entite'])) {
+                        return $qb->andWhere('1 = 0');
                     }
-                    return $qb;
+                    return $qb->andWhere('f.entite = :entite')->setParameter('entite', $opt['entite']);
                 },
                 'attr' => ['class' => 'form-select'],
             ])
@@ -122,14 +120,10 @@ final class DevisType extends AbstractType
                     $qb = $repo->createQueryBuilder('e')
                         ->orderBy('e.raisonSociale', 'ASC');
 
-                    // ✅ si Entreprise a bien un champ "entite"
-                    // (tu l'as utilisé dans FactureType)
-                    if (!empty($opt['entite'])) {
-                        $qb->andWhere('e.entite = :entite')
-                            ->setParameter('entite', $opt['entite']);
+                    if (empty($opt['entite'])) {
+                        return $qb->andWhere('1 = 0');
                     }
-
-                    return $qb;
+                    return $qb->andWhere('e.entite = :entite')->setParameter('entite', $opt['entite']);
                 },
                 'attr' => ['class' => 'form-select'],
             ])
@@ -141,9 +135,10 @@ final class DevisType extends AbstractType
                 'choice_label' => function (Inscription $i) {
                     $sess = $i->getSession();
                     return sprintf(
-                        'Inscription #%d - %s',
+                        'Inscription #%d - %s - %s',
                         $i->getId(),
-                        $sess ? $sess->getCode() : '-'
+                        $sess ? $sess->getCode() : '-',
+                        trim(($i->getStagiaire()?->getPrenom() ?? '') . ' ' . ($i->getStagiaire()?->getNom() ?? '')) ?: '-'
                     );
                 },
                 'label' => 'Inscriptions rattachées (optionnel)',
@@ -152,14 +147,13 @@ final class DevisType extends AbstractType
                     $qb = $repo->createQueryBuilder('i')
                         ->leftJoin('i.session', 's')
                         ->addSelect('s')
+                        ->leftJoin('i.stagiaire', 'stagiaire')->addSelect('stagiaire')
                         ->orderBy('i.id', 'DESC');
 
-                    // adapte selon ton modèle : inscription -> session -> entite
-                    if (!empty($opt['entite'])) {
-                        $qb->andWhere('s.entite = :entite')->setParameter('entite', $opt['entite']);
+                    if (empty($opt['entite'])) {
+                        return $qb->andWhere('1 = 0');
                     }
-
-                    return $qb;
+                    return $qb->andWhere('i.entite = :entite AND s.entite = :entite')->setParameter('entite', $opt['entite']);
                 },
             ])
 
@@ -171,7 +165,6 @@ final class DevisType extends AbstractType
 
             ->add('devise', CurrencyType::class, [
                 'label' => '*Devise',
-                'data' => 'EUR',
                 'attr' => ['class' => 'form-select'],
             ])
 

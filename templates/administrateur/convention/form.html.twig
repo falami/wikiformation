@@ -165,7 +165,7 @@
       <div class="d-flex flex-wrap align-items-end gap-2">
         <div class="me-auto">
           <h2 class="fw-bold mb-1">{{ title }}</h2>
-          <div class="opacity-75">Références, signatures et conditions — UI cohérente (TomSelect + Flatpickr).</div>
+          <div class="opacity-75">Session, destinataire, stagiaires couverts et conditions financières.</div>
         </div>
 
         <div class="d-flex gap-2">
@@ -247,7 +247,7 @@
 
             <div class="col-md-12">
               {{ form_row(form.inscriptions) }}
-              <div class="form-text">Sélection multiple possible (TomSelect).</div>
+              <div class="form-text">Sélectionnez un ou plusieurs stagiaires couverts par ce dossier.</div>
             </div>
 
             <div class="col-12">
@@ -618,11 +618,12 @@ document.addEventListener('DOMContentLoaded', function(){
     if ($resume.s3) $resume.s3.textContent = (ds3?.value || '').trim() || '—';
 
     const sessionOk = !!(s?.value && s.value.trim());
-    const linkOk    = !!((e?.value && e.value.trim()) || (st?.value && st.value.trim()));
+    const linkOk    = Boolean(e?.value) !== Boolean(st?.value);
+    const inscriptionsOk = insTexts.length > 0;
     const okHtml    = formEl ? formEl.checkValidity() : true;
 
     // Ici : session obligatoire + (entreprise OU stagiaire)
-    const ok = sessionOk && linkOk && okHtml;
+    const ok = sessionOk && linkOk && inscriptionsOk && okHtml;
     submitButtons.forEach(b => b.disabled = !ok);
 
     if ($resume.pill) {
