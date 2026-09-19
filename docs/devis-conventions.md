@@ -12,6 +12,22 @@ Une session et un devis peuvent avoir plusieurs conventions. Chaque convention c
 
 Le PDF contient la référence et le **total du devis**, dans sa devise. Ce total n’est pas réparti automatiquement entre plusieurs conventions ni imputé intégralement à chaque stagiaire. Les conditions financières permettent de préciser la prise en charge de chaque dossier.
 
+## Intitulé, durée et liste de stagiaires à compléter
+
+La conversion permet de personnaliser l’intitulé et la durée affichés sur la convention (par exemple « H0B0 — indices adaptés » et « 7 heures »). Ces textes sont copiés dans le document ; ils ne modifient ni la formation du catalogue, ni son programme, ni les créneaux de la session. Les anciennes conventions utilisent le catalogue tant qu’aucune valeur personnalisée n’est renseignée.
+
+Pour une convention d’entreprise, il est possible de combiner :
+
+- les clients existants, dont les inscriptions sont créées ou réutilisées ;
+- des noms libres, un nom complet par ligne, sans adresse e-mail ;
+- un effectif prévisionnel total lorsque certains ou tous les noms ne sont pas encore connus.
+
+Un effectif laissé vide est calculé à partir des clients et des noms saisis. Un total renseigné doit inclure ces personnes. Par exemple, 2 clients sélectionnés + 3 noms libres + un total de 8 produisent une convention de 8 stagiaires, dont 3 restent à désigner. Les noms libres et les places anonymes ne créent aucun compte, aucun faux e-mail et aucune inscription fictive. Le PDF les présente comme une liste à compléter.
+
+Depuis **Modifier la convention**, avant signature, compléter les noms ou rattacher les inscriptions de la session lorsque les fiches clients sont créées. Retirer alors les noms libres correspondants pour éviter de les compter deux fois. Une convention individuelle reste liée au seul destinataire du devis.
+
+La conversion vérifie que l’effectif de ce dossier tient dans la capacité disponible de la session. L’effectif prévisionnel est une mention du document, pas une réservation globale de places entre conventions : plusieurs conventions peuvent concerner les mêmes stagiaires.
+
 Un devis ayant une convention doit être dupliqué pour préparer une nouvelle proposition. Une convention signée ne peut plus être modifiée ou supprimée. Une nouvelle signature invalide le PDF précédent afin de permettre sa génération avec la signature.
 
 ## Base de données
@@ -27,6 +43,13 @@ php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version202609181
 
 Le retour arrière automatique est désactivé : les nouvelles conventions multiples ne respecteraient plus les anciennes contraintes.
 
+La migration additive `DoctrineMigrations\Version20260919010000` ajoute les quatre colonnes facultatives `intitule_formation`, `duree_formation`, `participants_libres` et `effectif_previsionnel`, sans supprimer ni réécrire les données existantes. Pour une autre installation :
+
+```sh
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20260919010000' --up --dry-run
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20260919010000' --up
+```
+
 ## Vérifications
 
 ```sh
@@ -36,3 +59,5 @@ php bin/console doctrine:schema:validate --skip-sync
 ```
 
 Les tests d’intégration créent une base SQLite en mémoire, sans modifier la base de développement. Ils couvrent la persistance des relations, la réutilisation des inscriptions, les conventions multiples, le formulaire HTTP et son double envoi, le filtrage par organisme, les inscriptions individuelles, les questionnaires associés et le rendu PDF. Les tests métier vérifient aussi la capacité, les annulations, les horaires et les montants du devis.
+
+Le parcours HTTP vers une session existante dispose d’un test de régression : aucun `SessionJour` vide n’est initialisé ni validé dans ce mode. Les autres scénarios couvrent aussi les noms sans e-mail, l’effectif seul, les listes mixtes, les effectifs incohérents, la personnalisation du document et l’ajout ultérieur d’inscriptions.

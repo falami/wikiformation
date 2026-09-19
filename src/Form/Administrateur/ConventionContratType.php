@@ -7,10 +7,9 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query\Expr\Join;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\{TextareaType, DateType};
+use Symfony\Component\Form\Extension\Core\Type\{TextareaType, DateType, TextType, IntegerType};
 use Symfony\Component\Form\{FormBuilderInterface, FormEvent, FormEvents, FormInterface};
 use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Validator\Constraints\Count;
 
 final class ConventionContratType extends AbstractType
 {
@@ -69,12 +68,40 @@ final class ConventionContratType extends AbstractType
                     ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC'),
                 'attr' => ['class' => 'form-select'],
             ])
+            ->add('intituleFormation', TextType::class, [
+                'label' => 'Intitulé sur la convention',
+                'required' => false,
+                'attr' => ['maxlength' => 255, 'placeholder' => $convention?->getSession()?->getFormation()?->getTitre() ?? 'Intitulé de la formation'],
+                'help' => 'Personnalisez le titre pour ce document. Vide : l’intitulé du catalogue est utilisé.',
+            ])
+            ->add('dureeFormation', TextType::class, [
+                'label' => 'Durée sur la convention',
+                'required' => false,
+                'attr' => ['maxlength' => 255, 'placeholder' => $convention?->getDureeFormationEffective() ?? 'Ex. : 1 jour / 7 heures'],
+                'help' => 'Ex. : 1 jour / 7 heures. Vide : la durée du catalogue est utilisée.',
+            ])
             ->add('conditionsFinancieres', TextareaType::class, [
                 'label' => 'Conditions financières',
                 'required' => false,
                 'attr' => ['class' => 'form-control', 'rows' => 6],
                 'help' => 'Modalités de règlement et échéancier figurant sur la convention.',
             ]);
+
+        if (!$convention?->getStagiaire()) {
+            $builder
+                ->add('participantsLibres', TextareaType::class, [
+                    'label' => 'Stagiaires sans compte ou sans e-mail',
+                    'required' => false,
+                    'attr' => ['rows' => 4, 'placeholder' => "Camille Durand\nAlex Martin"],
+                    'help' => 'Un nom complet par ligne. Ces noms apparaissent dans la convention sans créer de compte ni d’inscription. Retirez la ligne lorsque vous rattachez l’inscription correspondante.',
+                ])
+                ->add('effectifPrevisionnel', IntegerType::class, [
+                    'label' => 'Nombre total de stagiaires prévu',
+                    'required' => false,
+                    'attr' => ['min' => 1, 'placeholder' => 'Calculé à partir des stagiaires renseignés'],
+                    'help' => 'Ce total inclut les inscriptions, les noms saisis et les stagiaires encore inconnus. Vous pouvez renseigner uniquement ce nombre. Vide : calcul automatique.',
+                ]);
+        }
 
         foreach (['dateSignatureStagiaire', 'dateSignatureEntreprise', 'dateSignatureOf'] as $field) {
             $builder->add($field, DateType::class, [
@@ -116,9 +143,8 @@ final class ConventionContratType extends AbstractType
             'class' => Inscription::class,
             'label' => 'Stagiaires couverts par la convention',
             'multiple' => true,
-            'required' => true,
+            'required' => false,
             'by_reference' => false,
-            'constraints' => [new Count(min: 1, minMessage: 'Sélectionnez au moins une inscription.')],
             'choice_label' => static function (Inscription $inscription): string {
                 $u = $inscription->getStagiaire();
                 return sprintf('#%d — %s (%s)', $inscription->getId(), trim($u?->getPrenom() . ' ' . $u?->getNom()), $u?->getEmail());
@@ -143,7 +169,7 @@ final class ConventionContratType extends AbstractType
                 return $qb;
             },
             'attr' => ['class' => 'form-select', 'data-placeholder' => 'Sélectionner les inscriptions'],
-            'help' => 'Seuls ces stagiaires figurent sur la convention. Plusieurs conventions peuvent partager une session.',
+            'help' => 'Rattachez les inscriptions existantes de cette session. Pour une entreprise, vous pouvez compléter cette sélection plus tard.',
         ]);
     }
 

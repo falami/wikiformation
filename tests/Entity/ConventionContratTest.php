@@ -136,4 +136,64 @@ final class ConventionContratTest extends TestCase
         $convention->setSignatureDataUrlEntreprise('data:image/png;base64,signature');
         self::assertTrue($convention->isSigned());
     }
+
+    public function testCompanyConventionWithUnknownParticipantsIsValid(): void
+    {
+        $convention = $this->companyConvention()->setEffectifPrevisionnel(5);
+        $violations = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator()->validate($convention);
+        self::assertCount(0, $violations);
+        self::assertSame(5, $convention->getEffectifTotal());
+    }
+
+    public function testCompanyConventionNeedsAtLeastOneParticipant(): void
+    {
+        $violations = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator()->validate($this->companyConvention());
+        self::assertCount(1, $violations);
+        self::assertSame('effectifPrevisionnel', $violations[0]->getPropertyPath());
+    }
+
+    public function testFreeNamesAreNormalizedAndIncludedInHeadcount(): void
+    {
+        $convention = $this->companyConvention()->setParticipantsLibres("  Alice Martin\r\n\r\n Benoît Dupré \n");
+        $convention->addInscription((new Inscription())->setEntite($convention->getEntite())->setSession($convention->getSession())
+            ->setEntreprise($convention->getEntreprise())->setStagiaire(new Utilisateur()));
+
+        self::assertSame(['Alice Martin', 'Benoît Dupré'], $convention->getParticipantsLibresListe());
+        self::assertSame(3, $convention->getEffectifTotal());
+        self::assertCount(0, Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator()->validate($convention));
+
+        $convention->setEffectifPrevisionnel(2);
+        $violations = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator()->validate($convention);
+        self::assertCount(1, $violations);
+        self::assertSame('effectifPrevisionnel', $violations[0]->getPropertyPath());
+    }
+
+    public function testIndividualConventionCannotReplaceRecipientWithFreeNames(): void
+    {
+        $entite = new Entite();
+        $convention = (new ConventionContrat())->setEntite($entite)->setSession((new Session())->setEntite($entite))
+            ->setStagiaire(new Utilisateur())->setParticipantsLibres('Alice Martin')->setEffectifPrevisionnel(2);
+        $violations = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator()->validate($convention);
+        self::assertCount(3, $violations);
+        self::assertSame(['inscriptions', 'participantsLibres', 'effectifPrevisionnel'], array_map(static fn($violation) => $violation->getPropertyPath(), iterator_to_array($violations)));
+    }
+
+    public function testLegacyConventionsFallbackToFormationTitleAndDuration(): void
+    {
+        $formation = (new Formation())->setTitre('H0B0 - 1 jour')->setDuree(1);
+        $convention = (new ConventionContrat())->setSession((new Session())->setFormation($formation));
+        self::assertSame('H0B0 - 1 jour', $convention->getIntituleFormationEffectif());
+        self::assertSame('1 jour', $convention->getDureeFormationEffective());
+        $convention->setIntituleFormation('  H0B0 adapté  ')->setDureeFormation('  7 heures  ');
+        self::assertSame('H0B0 adapté', $convention->getIntituleFormationEffectif());
+        self::assertSame('7 heures', $convention->getDureeFormationEffective());
+        self::assertSame('H0B0 - 1 jour', $formation->getTitre());
+    }
+
+    private function companyConvention(): ConventionContrat
+    {
+        $entite = new Entite();
+        return (new ConventionContrat())->setEntite($entite)->setSession((new Session())->setEntite($entite))
+            ->setEntreprise((new Entreprise())->setEntite($entite));
+    }
 }

@@ -22,13 +22,13 @@ class SessionJour
     private ?Session $session = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
-    #[Assert\NotNull]
+    #[Assert\NotNull(message: 'Renseignez la date et l’heure de début du créneau.')]
     private ?\DateTimeImmutable $dateDebut = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
-    #[Assert\NotNull]
+    #[Assert\NotNull(message: 'Renseignez la date et l’heure de fin du créneau.')]
     #[Assert\Expression(
-        "this.getDateFin() > this.getDateDebut()",
+        "this.getDateFin() == null or this.getDateDebut() == null or this.getDateFin() > this.getDateDebut()",
         message: "L’heure de fin doit être après l’heure de début."
     )]
     private ?\DateTimeImmutable $dateFin = null;

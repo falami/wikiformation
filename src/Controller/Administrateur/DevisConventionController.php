@@ -40,11 +40,24 @@ final class DevisConventionController extends AbstractController
             $this->denyAccessUnlessGranted(TenantPermission::SESSION_MANAGE, $entite);
         }
 
-        $initial = ['conditionsFinancieres' => null, 'stagiaires' => [], 'formation' => $devis->getFormation(), 'capacite' => 8, 'jours' => [new SessionJour()]];
+        $formation = $devis->getFormation();
+        $initial = [
+            'conditionsFinancieres' => null,
+            'intituleFormation' => $formation?->getTitre(),
+            'dureeFormation' => $formation?->getDuree() ? $formation->getDuree() . ' jour' . ($formation->getDuree() > 1 ? 's' : '') : null,
+        ];
+        if ($devis->getEntrepriseDestinataire()) {
+            $initial += ['stagiaires' => [], 'participantsLibres' => null, 'effectifPrevisionnel' => null];
+        }
+        // Symfony valide aussi les objets présents dans les données initiales sans champ affiché.
+        // Un créneau vide n'a sa place que dans le parcours de création d'une nouvelle session.
+        if ($createSession) {
+            $initial += ['formation' => $formation, 'capacite' => 8, 'jours' => [new SessionJour()]];
+        }
         foreach ($devis->getInscriptions() as $inscription) {
             if ($inscription->getEntite()?->getId() === $entite->getId()) {
-                $initial['stagiaires'][] = $inscription->getStagiaire();
-                $initial['session'] ??= $inscription->getSession();
+                if ($devis->getEntrepriseDestinataire()) $initial['stagiaires'][] = $inscription->getStagiaire();
+                if (!$createSession) $initial['session'] ??= $inscription->getSession();
             }
         }
         // Une clé par formulaire empêche un double clic / renvoi POST de recréer tout le dossier.
@@ -82,10 +95,14 @@ final class DevisConventionController extends AbstractController
                     $stagiaires = iterator_to_array($stagiaires);
                 }
                 try {
-                    $convention = $creator->create($devis, $session, $stagiaires, $user, $data['conditionsFinancieres']);
+                    $convention = $creator->create(
+                        $devis, $session, $stagiaires, $user, $data['conditionsFinancieres'],
+                        $data['intituleFormation'] ?? null, $data['dureeFormation'] ?? null,
+                        $data['participantsLibres'] ?? null, $data['effectifPrevisionnel'] ?? null,
+                    );
                     $operations[$data['operation']]['convention'] = $convention->getId();
                     $request->getSession()->set('devis_convention_operations', $operations);
-                    $this->addFlash('success', 'Convention créée depuis le devis. Les inscriptions sont rattachées à la session.');
+                    $this->addFlash('success', 'Convention créée depuis le devis. Vous pouvez vérifier le document et compléter les participants depuis sa fiche.');
                     return $this->redirectToRoute('app_administrateur_convention_show', ['entite' => $entite->getId(), 'id' => $convention->getId()]);
                 } catch (\DomainException $e) {
                     // Doctrine ferme l’EntityManager si la transaction est annulée : repartir sur un GET propre.

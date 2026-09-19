@@ -143,6 +143,121 @@ final class DevisConventionCreatorTest extends TestCase
         $this->creator->create($this->devis, $this->session, [$this->participant(11)], $this->user, null);
     }
 
+    public function testCompanyConventionCanBeCreatedWithHeadcountOnly(): void
+    {
+        $persisted = [];
+        $this->em->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void { $persisted[] = $entity; });
+        $convention = $this->creator->create($this->devis, $this->session, [], $this->user, null, effectifPrevisionnel: 6);
+
+        self::assertSame(6, $convention->getEffectifTotal());
+        self::assertSame(6, $convention->getEffectifPrevisionnel());
+        self::assertCount(0, $convention->getInscriptions());
+        self::assertCount(0, $this->devis->getInscriptions());
+        self::assertSame([$this->session, $convention], $persisted, 'Les places anonymes ne doivent créer aucun faux compte, dossier ou inscription.');
+    }
+
+    public function testCompanyConventionMixesRegisteredFreeAndUnknownParticipants(): void
+    {
+        $convention = $this->creator->create(
+            $this->devis, $this->session, [$this->participant(11)], $this->user, null,
+            participantsLibres: " Alice Martin\r\n\n Benoît Dupré  ", effectifPrevisionnel: 5,
+        );
+
+        self::assertCount(1, $convention->getInscriptions());
+        self::assertSame(['Alice Martin', 'Benoît Dupré'], $convention->getParticipantsLibresListe());
+        self::assertSame("Alice Martin\nBenoît Dupré", $convention->getParticipantsLibres());
+        self::assertSame(5, $convention->getEffectifTotal());
+    }
+
+    public function testFreeNamesAreSufficientWithoutAnEmailAddressOrHeadcount(): void
+    {
+        $convention = $this->creator->create($this->devis, $this->session, [], $this->user, null, participantsLibres: "Alice Martin\nBenoît Dupré");
+        self::assertSame(2, $convention->getEffectifTotal());
+        self::assertNull($convention->getEffectifPrevisionnel());
+        self::assertCount(0, $convention->getInscriptions());
+    }
+
+    public function testExplicitHeadcountCannotBeSmallerThanNamedParticipants(): void
+    {
+        $this->em->expects(self::never())->method('persist');
+        $this->expectException(\DomainException::class);
+        $this->creator->create($this->devis, $this->session, [$this->participant(11)], $this->user, null, participantsLibres: 'Alice Martin', effectifPrevisionnel: 1);
+    }
+
+    public function testAtLeastOneParticipantMustBeDeclared(): void
+    {
+        $this->em->expects(self::never())->method('persist');
+        $this->expectException(\DomainException::class);
+        $this->creator->create($this->devis, $this->session, [], $this->user, null, participantsLibres: " \n ");
+    }
+
+    public function testUnknownParticipantsAlsoConsumeCapacity(): void
+    {
+        $this->session->setCapacite(2);
+        $this->em->expects(self::never())->method('persist');
+        $this->expectException(\DomainException::class);
+        $this->creator->create($this->devis, $this->session, [], $this->user, null, effectifPrevisionnel: 3);
+    }
+
+    public function testMixedHeadcountCountsAnExistingInscriptionOnlyOnce(): void
+    {
+        $participant = $this->participant(11);
+        $other = $this->participant(12);
+        $this->session->setCapacite(4);
+        $inscription = (new Inscription())->setEntite($this->entite)->setSession($this->session)->setStagiaire($participant)->setEntreprise($this->entreprise);
+        $otherInscription = (new Inscription())->setEntite($this->entite)->setSession($this->session)->setStagiaire($other)->setEntreprise($this->entreprise);
+        $this->existingSession([$inscription, $otherInscription]);
+        $convention = $this->creator->create($this->devis, $this->session, [$participant], $this->user, null, effectifPrevisionnel: 3);
+
+        self::assertSame(3, $convention->getEffectifTotal());
+        self::assertSame($inscription, $convention->getInscriptions()->first());
+    }
+
+    public function testExistingOtherParticipantsReduceCapacityForUnknownParticipants(): void
+    {
+        $this->session->setCapacite(4);
+        $inscription = (new Inscription())->setEntite($this->entite)->setSession($this->session)->setStagiaire($this->participant(11))->setEntreprise($this->entreprise);
+        $this->existingSession([$inscription]);
+        $this->em->expects(self::never())->method('persist');
+        $this->expectException(\DomainException::class);
+        $this->creator->create($this->devis, $this->session, [], $this->user, null, effectifPrevisionnel: 4);
+    }
+
+    public function testIndividualConventionCannotAddFreeNames(): void
+    {
+        $this->devis->setEntrepriseDestinataire(null)->setDestinataire($this->user);
+        $this->em->expects(self::never())->method('persist');
+        $this->expectException(\DomainException::class);
+        $this->creator->create($this->devis, $this->session, [$this->user], $this->user, null, participantsLibres: 'Alice Martin');
+    }
+
+    public function testIndividualConventionCannotHaveAnAnonymousGroup(): void
+    {
+        $this->devis->setEntrepriseDestinataire(null)->setDestinataire($this->user);
+        $this->em->expects(self::never())->method('persist');
+        $this->expectException(\DomainException::class);
+        $this->creator->create($this->devis, $this->session, [$this->user], $this->user, null, effectifPrevisionnel: 2);
+    }
+
+    public function testDocumentOverridesDoNotChangeTheCatalogue(): void
+    {
+        $formation = $this->session->getFormation()->setTitre('H0B0 - 1 jour')->setDuree(1);
+        $convention = $this->creator->create($this->devis, $this->session, [], $this->user, null, 'H0B0 - indices adaptés', '2 jours / 14 heures', effectifPrevisionnel: 2);
+        self::assertSame('H0B0 - indices adaptés', $convention->getIntituleFormationEffectif());
+        self::assertSame('2 jours / 14 heures', $convention->getDureeFormationEffective());
+        self::assertSame('H0B0 - 1 jour', $formation->getTitre());
+        self::assertSame(1, $formation->getDuree());
+    }
+
+    public function testDefaultDocumentTitleAndDurationAreSnapshots(): void
+    {
+        $formation = $this->session->getFormation()->setTitre('H0B0 - 1 jour')->setDuree(1);
+        $convention = $this->creator->create($this->devis, $this->session, [], $this->user, null, effectifPrevisionnel: 1);
+        $formation->setTitre('Autre titre du catalogue')->setDuree(3);
+        self::assertSame('H0B0 - 1 jour', $convention->getIntituleFormationEffectif());
+        self::assertSame('1 jour', $convention->getDureeFormationEffective());
+    }
+
     private function existingSession(array $inscriptions): void
     {
         $this->identified($this->session, 20);

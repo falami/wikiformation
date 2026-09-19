@@ -293,6 +293,8 @@
     {% set stagiaire  = stagiaire ?? (convention ? convention.stagiaire : null) %}
     {% set preferences = entite.preferences ?? null %}
     {% set devis = convention ? convention.devis : null %}
+    {% set intituleDocument = convention ? convention.intituleFormationEffectif : (formation ? formation.titre : '') %}
+    {% set dureeDocument = convention ? convention.dureeFormationEffective : (formation and formation.duree ? formation.duree ~ (formation.duree > 1 ? ' jours' : ' jour') : null) %}
 
     {# Programme détaillé #}
     {% set nodes = (formation and formation.contentNodes is defined) ? formation.contentNodes : [] %}
@@ -310,6 +312,10 @@
         {% endif %}
       {% endfor %}
     {% endif %}
+
+    {% set participantsLibres = convention ? convention.participantsLibresListe : [] %}
+    {% set effectifTotal = convention ? convention.effectifTotal : stagiairesList|length %}
+    {% set participantsInconnus = max(0, effectifTotal - stagiairesList|length - participantsLibres|length) %}
 
     {# jours session #}
     {% set jours = (session and session.jours is defined) ? session.jours : [] %}
@@ -451,7 +457,7 @@
           <td>
             <div class="info-block">
               <span class="info-label">Intitulé</span>
-              <div class="info-content"> - {{ formation ? formation.titre : '' }}</div>
+              <div class="info-content"> - {{ intituleDocument }}</div>
             </div>
 
             {% if formation and formation.niveau is defined and formation.niveau %}
@@ -463,11 +469,11 @@
               </div>
             {% endif %}
 
-            {% if formation and formation.duree is defined and formation.duree %}
+            {% if dureeDocument %}
               <div class="info-block">
                 <span class="info-label">Durée</span>
                 <div class="info-content">
-                  - {{ formation.duree }} jour{% if formation.duree > 1 %}s{% endif %}
+                  - {{ dureeDocument }}
                 </div>
               </div>
             {% endif %}
@@ -670,14 +676,15 @@
       {% endif %}
     {% endif %}
 
-    {# ===== Stagiaires inscrits ===== #}
+    {# ===== Participants couverts par la convention ===== #}
     <div class="card">
       <div class="section-title">
-        Stagiaires inscrits
+        Participants à la formation
         <div class="section-title-accent"></div>
       </div>
 
-      {% if stagiairesList and stagiairesList|length > 0 %}
+      <p><strong>Effectif prévu : {{ effectifTotal }} stagiaire{{ effectifTotal > 1 ? 's' : '' }}.</strong></p>
+      {% if stagiairesList|length > 0 or participantsLibres|length > 0 %}
         <table class="table table-stagiaire">
           <thead>
             <tr>
@@ -696,18 +703,21 @@
                 </td>
               </tr>
             {% endfor %}
+            {% for nomComplet in participantsLibres %}
+              <tr>
+                <td>{{ nomComplet }}</td>
+                <td class="text-muted">Non renseigné</td>
+                <td><span class="badge-soft">{{ entreprise ? entreprise.raisonSociale : 'Individuel' }}</span></td>
+              </tr>
+            {% endfor %}
           </tbody>
         </table>
 
-        <p class="text-muted text-small mb-0 mt-8">
-          {% if stagiairesList|length > 1 %}
-            {{ stagiairesList|length }} stagiaires rattachés à la convention.
-          {% else %}
-            {{ stagiairesList|length }} stagiaire rattaché à la convention.
-          {% endif %}
-        </p>
-      {% else %}
-        <p class="text-muted mb-0">-</p>
+      {% endif %}
+      {% if participantsInconnus > 0 %}
+        <p class="text-muted text-small mb-0 mt-8">Liste nominative à compléter : {{ participantsInconnus }} stagiaire{{ participantsInconnus > 1 ? 's' : '' }} à désigner.</p>
+      {% elseif effectifTotal == 0 %}
+        <p class="text-muted mb-0">Liste nominative à compléter.</p>
       {% endif %}
     </div>
 

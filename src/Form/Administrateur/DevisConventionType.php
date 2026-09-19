@@ -7,10 +7,11 @@ use App\Enum\StatusSession;
 use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\{CollectionType, HiddenType, IntegerType, TextareaType};
+use Symfony\Component\Form\Extension\Core\Type\{CollectionType, HiddenType, IntegerType, TextareaType, TextType};
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 final class DevisConventionType extends AbstractType
 {
@@ -27,6 +28,10 @@ final class DevisConventionType extends AbstractType
                     'choice_label' => 'titre',
                     'placeholder' => 'Choisir la formation',
                     'attr' => ['class' => 'js-convention-select', 'data-entity' => 'formation'],
+                    'choice_attr' => static fn(Formation $formation) => ['data-formation' => json_encode([
+                        'title' => $formation->getTitre(),
+                        'duration' => $formation->getDuree() ? $formation->getDuree() . ' jour' . ($formation->getDuree() > 1 ? 's' : '') : '',
+                    ], JSON_THROW_ON_ERROR)],
                     'disabled' => $devis->getFormation() !== null,
                     'constraints' => [new Assert\NotNull(message: 'Choisissez une formation.')],
                     'query_builder' => fn(EntityRepository $r) => $r->createQueryBuilder('f')
@@ -65,6 +70,7 @@ final class DevisConventionType extends AbstractType
                     return ['data-session' => json_encode([
                         'code' => $session->getCode(),
                         'title' => $session->getFormationLabel(),
+                        'duration' => $session->getFormation()?->getDuree() ? $session->getFormation()->getDuree() . ' jour' . ($session->getFormation()->getDuree() > 1 ? 's' : '') : '',
                         'startLabel' => $session->getDateDebut()?->format('d/m/Y à H:i'),
                         'endLabel' => $session->getDateFin()?->format('d/m/Y à H:i'),
                         'site' => $session->getSite()?->getNom(),
@@ -93,22 +99,48 @@ final class DevisConventionType extends AbstractType
                 'label' => 'Stagiaires couverts par cette convention',
                 'multiple' => true,
                 'expanded' => false,
+                'required' => false,
                 'attr' => ['class' => 'js-convention-select', 'data-entity' => 'client', 'data-placeholder' => 'Rechercher un client par nom ou adresse e-mail…'],
                 'choice_label' => static fn(Utilisateur $u) => trim($u->getPrenom() . ' ' . $u->getNom()) . ' — ' . $u->getEmail(),
                 'choice_attr' => static fn(Utilisateur $u) => ['data-client' => json_encode([
                     'firstName' => $u->getPrenom(), 'lastName' => $u->getNom(), 'email' => $u->getEmail(),
                     'company' => $u->getEntreprise()?->getRaisonSociale(),
                 ], JSON_THROW_ON_ERROR)],
-                'constraints' => [new Assert\Count(min: 1, minMessage: 'Sélectionnez au moins un stagiaire.')],
                 'query_builder' => fn(EntityRepository $r) => $r->createQueryBuilder('u')
                     ->leftJoin('u.utilisateurEntites', 'ue')
                     ->andWhere('(ue.entite = :e OR u.entite = :e)')->setParameter('e', $entite)
                     ->distinct()->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC'),
                 'help' => 'Les inscriptions existantes seront réutilisées. Les stagiaires absents de la session seront inscrits automatiquement.',
-            ]);
+            ])
+                ->add('participantsLibres', TextareaType::class, [
+                    'label' => 'Stagiaires sans fiche client ou sans e-mail',
+                    'required' => false,
+                    'constraints' => [new Assert\Length(max: 20000)],
+                    'attr' => ['rows' => 3, 'data-free-participants' => '', 'placeholder' => "Camille Durand\nAlex Martin"],
+                    'help' => 'Un nom complet par ligne. Ces noms apparaîtront sur la convention ; vous pourrez créer leurs fiches et rattacher leurs inscriptions plus tard.',
+                ])
+                ->add('effectifPrevisionnel', IntegerType::class, [
+                    'label' => 'Nombre total de stagiaires prévu',
+                    'required' => false,
+                    'constraints' => [new Assert\Positive(message: 'Indiquez un effectif supérieur à zéro.'), new Assert\LessThanOrEqual(100000)],
+                    'attr' => ['min' => 1, 'max' => 100000, 'data-planned-count' => '', 'placeholder' => 'Calculé à partir des noms renseignés'],
+                    'help' => 'Inclut les clients sélectionnés, les noms saisis et les personnes encore inconnues. Renseignez seulement ce nombre si vous n’avez pas encore la liste.',
+                ]);
         }
 
         $builder
+            ->add('intituleFormation', TextType::class, [
+                'label' => 'Intitulé de la formation sur la convention',
+                'required' => false,
+                'constraints' => [new Assert\Length(max: 255)],
+                'attr' => ['maxlength' => 255, 'data-document-title' => '', 'placeholder' => 'Intitulé du catalogue si laissé vide'],
+            ])
+            ->add('dureeFormation', TextType::class, [
+                'label' => 'Durée indiquée sur la convention',
+                'required' => false,
+                'constraints' => [new Assert\Length(max: 255)],
+                'attr' => ['maxlength' => 255, 'data-document-duration' => '', 'placeholder' => 'Ex. : 1 jour (7 heures)'],
+            ])
             ->add('conditionsFinancieres', TextareaType::class, [
                 'label' => 'Conditions financières',
                 'required' => false,
@@ -122,7 +154,23 @@ final class DevisConventionType extends AbstractType
     {
         $resolver->setRequired('devis');
         $resolver->setAllowedTypes('devis', Devis::class);
-        $resolver->setDefaults(['create_session' => false]);
+        $resolver->setDefaults([
+            'create_session' => false,
+            'constraints' => [new Assert\Callback(static function (mixed $data, ExecutionContextInterface $context): void {
+                if (!is_array($data) || !array_key_exists('stagiaires', $data)) return;
+                $names = preg_split('/\R/u', trim($data['participantsLibres'] ?? ''), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                $names = array_values(array_filter(array_map('trim', $names), static fn(string $name) => $name !== ''));
+                $known = count($data['stagiaires'] ?? []) + count($names);
+                $total = $data['effectifPrevisionnel'] ?? $known;
+                if ($total < 1) {
+                    $context->buildViolation('Sélectionnez un client, saisissez un nom ou indiquez le nombre de stagiaires prévu.')
+                        ->atPath('[effectifPrevisionnel]')->addViolation();
+                } elseif ($total < $known) {
+                    $context->buildViolation('L’effectif total ne peut pas être inférieur au nombre de clients sélectionnés et de noms saisis.')
+                        ->atPath('[effectifPrevisionnel]')->addViolation();
+                }
+            })],
+        ]);
         $resolver->setAllowedTypes('create_session', 'bool');
     }
 }

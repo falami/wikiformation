@@ -18,8 +18,17 @@ final class DevisConventionCreator
     ) {}
 
     /** @param list<Utilisateur> $stagiaires */
-    public function create(Devis $devis, Session $session, array $stagiaires, Utilisateur $createur, ?string $conditions): ConventionContrat
-    {
+    public function create(
+        Devis $devis,
+        Session $session,
+        array $stagiaires,
+        Utilisateur $createur,
+        ?string $conditions,
+        ?string $intituleFormation = null,
+        ?string $dureeFormation = null,
+        ?string $participantsLibres = null,
+        ?int $effectifPrevisionnel = null,
+    ): ConventionContrat {
         $entite = $devis->getEntite();
         if (!$entite || !$entite->getId() || !$devis->getId()) {
             throw new \DomainException('Le devis doit être enregistré avant de créer une convention.');
@@ -55,11 +64,32 @@ final class DevisConventionCreator
             }
             $participants[$stagiaire->getId()] = $stagiaire;
         }
-        if (!$participants) {
-            throw new \DomainException('Sélectionnez au moins un stagiaire.');
-        }
         if ($destinataire && (count($participants) !== 1 || !isset($participants[$destinataire->getId()]))) {
             throw new \DomainException('Une convention individuelle doit couvrir le stagiaire destinataire du devis.');
+        }
+
+        // Ces informations appartiennent au document : elles ne changent ni le
+        // catalogue de formations ni les comptes clients de l’organisme.
+        $document = (new ConventionContrat())
+            ->setIntituleFormation($intituleFormation)->setDureeFormation($dureeFormation)
+            ->setParticipantsLibres($participantsLibres)->setEffectifPrevisionnel($effectifPrevisionnel);
+        $intituleFormation = $document->getIntituleFormation() ?? $session->getFormation()->getTitre() ?? 'Formation';
+        $jours = $session->getFormation()->getDuree();
+        $dureeFormation = $document->getDureeFormation() ?? ($jours ? $jours . ' jour' . ($jours > 1 ? 's' : '') : null);
+        $participantsLibres = $document->getParticipantsLibres();
+        $nombreNomsLibres = count($document->getParticipantsLibresListe());
+        if (mb_strlen($intituleFormation) > 255 || mb_strlen($dureeFormation ?? '') > 255) {
+            throw new \DomainException('L’intitulé et la durée de formation ne doivent pas dépasser 255 caractères.');
+        }
+        $effectif = $effectifPrevisionnel ?? count($participants) + $nombreNomsLibres;
+        if ($effectif < 1) {
+            throw new \DomainException('Sélectionnez des stagiaires, renseignez leurs noms ou indiquez un effectif prévisionnel.');
+        }
+        if ($destinataire && ($nombreNomsLibres > 0 || $effectif !== 1)) {
+            throw new \DomainException('Une convention individuelle doit couvrir uniquement le stagiaire destinataire, avec un effectif de 1.');
+        }
+        if ($effectif < count($participants) + $nombreNomsLibres) {
+            throw new \DomainException('L’effectif prévisionnel ne peut pas être inférieur au nombre de stagiaires renseignés.');
         }
         if (!$session->getId()) {
             if ($session->getJours()->isEmpty()) {
@@ -77,7 +107,7 @@ final class DevisConventionCreator
             }
         }
 
-        return $this->em->wrapInTransaction(function () use ($devis, $session, $participants, $createur, $conditions, $entite, $entreprise, $destinataire) {
+        return $this->em->wrapInTransaction(function () use ($devis, $session, $participants, $createur, $conditions, $entite, $entreprise, $destinataire, $intituleFormation, $dureeFormation, $participantsLibres, $effectifPrevisionnel, $effectif) {
             $existing = [];
             if ($session->getId()) {
                 // Sérialise les ajouts concurrents à la même session (unicité + capacité).
@@ -106,8 +136,11 @@ final class DevisConventionCreator
                     throw new \DomainException(sprintf('L’inscription de %s %s doit être rattachée à l’entreprise du devis avant la conversion.', $stagiaire->getPrenom(), $stagiaire->getNom()));
                 }
             }
-            if ($session->getCapacite() < 1 || $activeCount + $newCount > $session->getCapacite()) {
-                throw new \DomainException('La capacité de la session est insuffisante pour les stagiaires sélectionnés.');
+            // Les noms libres et les places encore anonymes consomment aussi
+            // de la capacité pour ce dossier, sans fabriquer d’inscriptions.
+            $placesSansInscription = $effectif - count($participants);
+            if ($session->getCapacite() < 1 || $activeCount + $newCount + $placesSansInscription > $session->getCapacite()) {
+                throw new \DomainException('La capacité de la session est insuffisante pour l’effectif de la convention.');
             }
 
             if (!$session->getId()) {
@@ -121,7 +154,9 @@ final class DevisConventionCreator
                 ->setDevis($devis)->setEntite($entite)->setCreateur($createur)->setSession($session)
                 ->setEntreprise($entreprise)->setStagiaire($destinataire)
                 ->setNumero($this->conventionNumbers->nextForEntite($entite->getId()))
-                ->setConditionsFinancieres($conditions);
+                ->setConditionsFinancieres($conditions)
+                ->setIntituleFormation($intituleFormation)->setDureeFormation($dureeFormation)
+                ->setParticipantsLibres($participantsLibres)->setEffectifPrevisionnel($effectifPrevisionnel);
 
             foreach ($participants as $id => $stagiaire) {
                 $inscription = $byStagiaire[$id] ?? null;

@@ -182,17 +182,7 @@ final class DevisConventionTest extends KernelTestCase
 
     public function testHttpConversionCreatesOnceWhenTheSameFormIsPostedTwice(): void
     {
-        $this->user->setRoles(['ROLE_SUPER_ADMIN']);
-        $membership = (new \App\Entity\UtilisateurEntite())->setEntite($this->entite)->setUtilisateur($this->user)->setCreateur($this->user)->setRoles(['TENANT_ADMIN']);
-        $this->user->addUtilisateurEntite($membership);
-        $subscription = (new \App\Entity\Billing\EntiteSubscription())->setEntite($this->entite)->setStatus('active');
-        $this->em->persist($subscription);
-        $this->em->flush();
-        self::getContainer()->set(DevisConventionCreator::class, $this->creator);
-        $client = new \Symfony\Bundle\FrameworkBundle\KernelBrowser(self::$kernel);
-        $client->disableReboot();
-        $client->catchExceptions(false);
-        $client->loginUser($this->user);
+        $client = $this->createHttpClient();
         $url = self::getContainer()->get('router')->generate('app_administrateur_devis_convention', [
             'entite' => $this->entite->getId(), 'id' => $this->devis->getId(), 'mode' => 'new',
         ]);
@@ -215,5 +205,276 @@ final class DevisConventionTest extends KernelTestCase
         self::assertSame(1, $this->em->getRepository(Session::class)->count([]));
         $client->followRedirect();
         self::assertSame(200, $client->getResponse()->getStatusCode());
+    }
+
+    public function testHttpExistingSessionConversionDoesNotValidateAnUnusedEmptySlot(): void
+    {
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertCount(0, $crawler->filter('[name^="devis_convention[jours]"]'));
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[stagiaires]' => [(string) $this->user->getId()],
+        ]);
+        $result = $client->submit($form);
+        $errors = $result->filter('.invalid-feedback, .alert-danger')->each(static fn($node) => trim($node->text()));
+        self::assertSame(302, $client->getResponse()->getStatusCode(), implode("\n", $errors));
+        self::assertStringContainsString('/conventions/', $client->getResponse()->headers->get('Location'));
+        self::assertSame(1, $this->em->getRepository(ConventionContrat::class)->count([]));
+        self::assertSame(1, $this->em->getRepository(Session::class)->count([]));
+        self::assertSame(1, $this->em->getRepository(Inscription::class)->count([]));
+    }
+
+    public function testHttpCompanyConventionPersistsFreeNamesAndEditableDocumentDetails(): void
+    {
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[stagiaires]' => [],
+            'devis_convention[intituleFormation]' => 'Atelier Excel avancé — équipe finance',
+            'devis_convention[dureeFormation]' => '14 heures sur 2 journées',
+            'devis_convention[participantsLibres]' => "Aïcha Ben Salem\n\nMarc Legrand",
+            'devis_convention[effectifPrevisionnel]' => '3',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/conventions/', $client->getResponse()->headers->get('Location'));
+        $this->em->clear();
+        $convention = $this->em->getRepository(ConventionContrat::class)->findOneBy(['devis' => $this->devis->getId()]);
+        self::assertNotNull($convention);
+        self::assertSame('Atelier Excel avancé — équipe finance', $convention->getIntituleFormation());
+        self::assertSame('14 heures sur 2 journées', $convention->getDureeFormation());
+        self::assertSame(['Aïcha Ben Salem', 'Marc Legrand'], $convention->getParticipantsLibresListe());
+        self::assertSame(3, $convention->getEffectifPrevisionnel());
+        self::assertCount(0, $convention->getInscriptions());
+        self::assertSame(0, $this->em->getRepository(Inscription::class)->count([]));
+        self::assertSame(1, $this->em->getRepository(Utilisateur::class)->count([]));
+        self::assertSame('Formation test', $convention->getSession()->getFormation()->getTitre());
+        self::assertSame('2026-10-01 09:00', $convention->getSession()->getDateDebut()->format('Y-m-d H:i'));
+        self::assertSame('2026-10-01 17:00', $convention->getSession()->getDateFin()->format('Y-m-d H:i'));
+        $html = self::getContainer()->get('twig')->render('pdf/convention_contrat.html.twig', [
+            'entite' => $convention->getEntite(), 'convention' => $convention, 'session' => $convention->getSession(),
+            'formation' => $convention->getSession()->getFormation(), 'entreprise' => $convention->getEntreprise(), 'stagiaire' => null,
+        ]);
+        self::assertStringContainsString('Atelier Excel avancé — équipe finance', $html);
+        self::assertStringContainsString('14 heures sur 2 journées', $html);
+        self::assertStringContainsString('Aïcha Ben Salem', $html);
+        self::assertStringContainsString('Marc Legrand', $html);
+        $client->followRedirect();
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+    }
+
+    public function testHttpCompanyConventionCanUseOnlyFreeNamesWithoutAnEffectif(): void
+    {
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[stagiaires]' => [],
+            'devis_convention[participantsLibres]' => "Anna Martin\nPaul Petit",
+            'devis_convention[effectifPrevisionnel]' => '',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/conventions/', $client->getResponse()->headers->get('Location'));
+        $this->em->clear();
+        $convention = $this->em->getRepository(ConventionContrat::class)->findOneBy(['devis' => $this->devis->getId()]);
+        self::assertSame(['Anna Martin', 'Paul Petit'], $convention->getParticipantsLibresListe());
+        self::assertCount(0, $convention->getInscriptions());
+        self::assertSame(1, $this->em->getRepository(Utilisateur::class)->count([]));
+    }
+
+    public function testHttpCompanyConventionCanUseOnlyAnExpectedHeadcount(): void
+    {
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[stagiaires]' => [],
+            'devis_convention[participantsLibres]' => '',
+            'devis_convention[effectifPrevisionnel]' => '4',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/conventions/', $client->getResponse()->headers->get('Location'));
+        $this->em->clear();
+        $convention = $this->em->getRepository(ConventionContrat::class)->findOneBy(['devis' => $this->devis->getId()]);
+        self::assertSame(4, $convention->getEffectifPrevisionnel());
+        self::assertSame([], $convention->getParticipantsLibresListe());
+        self::assertCount(0, $convention->getInscriptions());
+    }
+
+    public function testHttpCompanyConventionCreatesInscriptionsOnlyForSelectedExistingClients(): void
+    {
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[stagiaires]' => [(string) $this->user->getId()],
+            'devis_convention[participantsLibres]' => 'Anna Martin',
+            'devis_convention[effectifPrevisionnel]' => '3',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/conventions/', $client->getResponse()->headers->get('Location'));
+        $this->em->clear();
+        $convention = $this->em->getRepository(ConventionContrat::class)->findOneBy(['devis' => $this->devis->getId()]);
+        self::assertSame(3, $convention->getEffectifPrevisionnel());
+        self::assertSame(['Anna Martin'], $convention->getParticipantsLibresListe());
+        self::assertCount(1, $convention->getInscriptions());
+        self::assertSame($this->user->getId(), $convention->getInscriptions()->first()->getStagiaire()->getId());
+        self::assertSame(1, $this->em->getRepository(Utilisateur::class)->count([]));
+    }
+
+    public function testHttpCompanyConventionRejectsHeadcountSmallerThanNamedParticipants(): void
+    {
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[stagiaires]' => [(string) $this->user->getId()],
+            'devis_convention[participantsLibres]' => "Anna Martin\nPaul Petit",
+            'devis_convention[effectifPrevisionnel]' => '2',
+        ]);
+        $client->submit($form);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        self::assertSame(0, $this->em->getRepository(ConventionContrat::class)->count([]));
+        self::assertSame(0, $this->em->getRepository(Inscription::class)->count([]));
+    }
+
+    public function testHttpCompanyConventionStillRejectsAnEmptyParticipantScope(): void
+    {
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[stagiaires]' => [],
+            'devis_convention[participantsLibres]' => " \n ",
+            'devis_convention[effectifPrevisionnel]' => '',
+        ]);
+        $client->submit($form);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        self::assertSame(0, $this->em->getRepository(ConventionContrat::class)->count([]));
+    }
+
+    public function testHttpIndividualConventionKeepsQuotePayeeAndAllowsDocumentDetails(): void
+    {
+        $this->devis->setEntrepriseDestinataire(null)->setDestinataire($this->user);
+        $this->persistSession();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        self::assertCount(0, $crawler->filter('[name="devis_convention[stagiaires][]"]'));
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $this->session->getId(),
+            'devis_convention[intituleFormation]' => 'Accompagnement individuel Excel',
+            'devis_convention[dureeFormation]' => '7 heures',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/conventions/', $client->getResponse()->headers->get('Location'));
+        $this->em->clear();
+        $convention = $this->em->getRepository(ConventionContrat::class)->findOneBy(['devis' => $this->devis->getId()]);
+        self::assertSame($this->user->getId(), $convention->getStagiaire()->getId());
+        self::assertNull($convention->getEntreprise());
+        self::assertCount(1, $convention->getInscriptions());
+        self::assertSame($this->user->getId(), $convention->getInscriptions()->first()->getStagiaire()->getId());
+        self::assertSame('Accompagnement individuel Excel', $convention->getIntituleFormation());
+        self::assertSame('7 heures', $convention->getDureeFormation());
+    }
+
+    public function testHttpCompanyConventionCanBeCompletedWithRealInscriptionsLater(): void
+    {
+        $this->persistSession();
+        $convention = $this->creator->create($this->devis, $this->session, [], $this->user, null,
+            'H0B0 adapté', '7 heures', "Camille Durand", 2);
+        $convention->setPdfPath('documents/ancien-document.pdf');
+        $secondUser = (new Utilisateur())->setEntite($this->entite)->setCreateur($this->user)
+            ->setPrenom('Alex')->setNom('Martin')->setEmail('alex@example.test')->setPassword('unused');
+        $this->em->persist($secondUser);
+        $ids = [];
+        foreach ([$this->user, $secondUser] as $learner) {
+            $inscription = (new Inscription())->setEntite($this->entite)->setCreateur($this->user)
+                ->setSession($this->session)->setEntreprise($this->entreprise)->setStagiaire($learner);
+            $this->em->persist($inscription);
+            $ids[] = $inscription;
+        }
+        $this->em->flush();
+        $conventionId = $convention->getId();
+        $inscriptionIds = array_map(static fn(Inscription $i) => (string) $i->getId(), $ids);
+        $client = $this->createHttpClient();
+        $url = self::getContainer()->get('router')->generate('app_administrateur_convention_edit', [
+            'entite' => $this->entite->getId(), 'id' => $conventionId,
+        ]);
+        $crawler = $client->request('GET', $url);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $form = $crawler->filter('form[name="convention_contrat"]')->form([
+            'convention_contrat[inscriptions]' => $inscriptionIds,
+            'convention_contrat[participantsLibres]' => '',
+            'convention_contrat[effectifPrevisionnel]' => '2',
+            'convention_contrat[intituleFormation]' => 'H0B0 adapté après confirmation',
+            'convention_contrat[dureeFormation]' => '7 heures',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $saved = $this->em->find(ConventionContrat::class, $conventionId);
+        self::assertSame(2, $saved->getEffectifTotal());
+        self::assertCount(2, $saved->getInscriptions());
+        self::assertSame([], $saved->getParticipantsLibresListe());
+        self::assertSame('H0B0 adapté après confirmation', $saved->getIntituleFormation());
+        self::assertSame('7 heures', $saved->getDureeFormation());
+        self::assertNull($saved->getPdfPath());
+        self::assertCount(2, $saved->getDevis()->getInscriptions());
+
+        $crawler = $client->request('GET', $url);
+        $form = $crawler->filter('form[name="convention_contrat"]')->form([
+            'convention_contrat[effectifPrevisionnel]' => '1',
+        ]);
+        $client->submit($form);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        self::assertSame(2, $this->em->find(ConventionContrat::class, $conventionId)->getEffectifTotal());
+    }
+
+    private function persistSession(): void
+    {
+        $this->session->setCode('SES-EXISTING');
+        foreach ($this->session->getJours() as $jour) {
+            $jour->setEntite($this->entite)->setCreateur($this->user);
+        }
+        $this->em->persist($this->session);
+        $this->em->flush();
+    }
+
+    private function conversionUrl(): string
+    {
+        return self::getContainer()->get('router')->generate('app_administrateur_devis_convention', [
+            'entite' => $this->entite->getId(), 'id' => $this->devis->getId(),
+        ]);
+    }
+
+    private function createHttpClient(): \Symfony\Bundle\FrameworkBundle\KernelBrowser
+    {
+        $this->user->setRoles(['ROLE_SUPER_ADMIN']);
+        $membership = (new \App\Entity\UtilisateurEntite())->setEntite($this->entite)->setUtilisateur($this->user)->setCreateur($this->user)->setRoles(['TENANT_ADMIN']);
+        $this->user->addUtilisateurEntite($membership);
+        $subscription = (new \App\Entity\Billing\EntiteSubscription())->setEntite($this->entite)->setStatus('active');
+        $this->em->persist($subscription);
+        $this->em->flush();
+        self::getContainer()->set(DevisConventionCreator::class, $this->creator);
+        $client = new \Symfony\Bundle\FrameworkBundle\KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->catchExceptions(false);
+        $client->loginUser($this->user);
+        return $client;
     }
 }

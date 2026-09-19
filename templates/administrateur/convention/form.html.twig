@@ -165,7 +165,7 @@
       <div class="d-flex flex-wrap align-items-end gap-2">
         <div class="me-auto">
           <h2 class="fw-bold mb-1">{{ title }}</h2>
-          <div class="opacity-75">Session, destinataire, stagiaires couverts et conditions financières.</div>
+          <div class="opacity-75">Personnalisez le document et complétez les participants au fil de votre dossier.</div>
         </div>
 
         <div class="d-flex gap-2">
@@ -245,18 +245,47 @@
               <div class="form-text">Stagiaire = financement individuel.</div>
             </div>
 
-            <div class="col-md-12">
-              {{ form_row(form.inscriptions) }}
-              <div class="form-text">Sélectionnez un ou plusieurs stagiaires couverts par ce dossier.</div>
-            </div>
-
             <div class="col-12">
               <div class="form-text">
-                Astuce : choisis <strong>Entreprise</strong> <em>ou</em> <strong>Stagiaire</strong> (exclusif).
+                Le destinataire et la session restent ceux du dossier d’origine.
               </div>
             </div>
 
           </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-pencil-square text-warning"></i> Formation sur le document</h5>
+          <span class="chip">Personnalisation</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="row g-3">
+            <div class="col-12">{{ form_row(form.intituleFormation) }}</div>
+            <div class="col-12">{{ form_row(form.dureeFormation) }}</div>
+          </div>
+          <div class="info-box small mt-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Ces libellés concernent uniquement cette convention. Le catalogue, le programme et les horaires de la session restent inchangés.
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h">
+          <h5 class="cardx-title"><i class="bi bi-people text-warning"></i> Participants</h5>
+          <span class="chip">À compléter au besoin</span>
+        </div>
+        <div class="p-3 p-md-4">
+          {{ form_row(form.inscriptions) }}
+          {% if form.participantsLibres is defined %}
+            <div class="border-top pt-3 mt-3">{{ form_row(form.participantsLibres) }}</div>
+            {{ form_row(form.effectifPrevisionnel) }}
+            <div class="info-box small mt-3">
+              La liste nominative peut être complétée tant que la convention n’est pas signée. Lorsqu’un stagiaire obtient son compte, rattachez son inscription ici et retirez son nom du champ libre pour éviter de le compter deux fois.
+            </div>
+          {% endif %}
         </div>
       </div>
 
@@ -282,7 +311,7 @@
           </div>
 
           <div class="form-text mt-2">
-            Dates informatives (souvent verrouillées). Flatpickr ne gêne pas même si les champs sont disabled.
+            Ces dates sont renseignées lors de la signature. Une convention signée ne peut plus être modifiée.
           </div>
         </div>
       </div>
@@ -297,7 +326,7 @@
         <div class="p-3 p-md-4">
           {{ form_row(form.conditionsFinancieres) }}
           <div class="form-text mt-2">
-            Précise tarifs, prises en charge, échéances, etc.
+            Indiquez les modalités de règlement, les prises en charge et les échéances.
           </div>
         </div>
       </div>
@@ -321,7 +350,7 @@
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Vérifiez les informations du document avant d’enregistrer.</div>
 
           <div class="info-box mb-3">
             <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -349,6 +378,14 @@
               <div class="d-flex justify-content-between gap-3 py-1">
                 <span class="text-muted">Inscriptions</span>
                 <span class="fw-semibold text-end" id="resume-inscriptions">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Effectif total</span>
+                <span class="fw-semibold text-end" id="resume-effectif">—</span>
+              </div>
+              <div class="d-flex justify-content-between gap-3 py-1">
+                <span class="text-muted">Noms à compléter</span>
+                <span class="fw-semibold text-end" id="resume-unnamed">—</span>
               </div>
 
               <hr class="my-2" style="border-color: var(--stroke);">
@@ -527,13 +564,14 @@ document.addEventListener('DOMContentLoaded', function(){
   const idEntreprise  = '#{{ form.entreprise.vars.id }}';
   const idStagiaire   = '#{{ form.stagiaire.vars.id }}';
   const idInscriptions= '#{{ form.inscriptions.vars.id }}';
+  const elFreeNames = document.getElementById('{{ form.participantsLibres is defined ? form.participantsLibres.vars.id : "unused-free-names" }}');
+  const elEffectif = document.getElementById('{{ form.effectifPrevisionnel is defined ? form.effectifPrevisionnel.vars.id : "unused-effectif" }}');
 
   const idS1 = '#{{ form.dateSignatureStagiaire.vars.id }}';
   const idS2 = '#{{ form.dateSignatureEntreprise.vars.id }}';
   const idS3 = '#{{ form.dateSignatureOf.vars.id }}';
 
-  const formEl = document.querySelector('form[name="convention_form"]');
-  const submitButtons = formEl ? [...formEl.querySelectorAll('button[type="submit"]')] : [];
+  const formEl = document.getElementById('{{ form.vars.id }}');
 
   const $resume = {
     pill: document.getElementById('resume-valid-pill'),
@@ -541,6 +579,8 @@ document.addEventListener('DOMContentLoaded', function(){
     entreprise: document.getElementById('resume-entreprise'),
     stagiaire: document.getElementById('resume-stagiaire'),
     inscriptions: document.getElementById('resume-inscriptions'),
+    effectif: document.getElementById('resume-effectif'),
+    unnamed: document.getElementById('resume-unnamed'),
     s1: document.getElementById('resume-s1'),
     s2: document.getElementById('resume-s2'),
     s3: document.getElementById('resume-s3'),
@@ -551,7 +591,7 @@ document.addEventListener('DOMContentLoaded', function(){
   ========================================================= */
   function initTomSelect(selector, opts = {}){
     const el = document.querySelector(selector);
-    if (!el || el.tomselect) return el;
+    if (!el || el.tomselect || !window.TomSelect) return el;
 
     new TomSelect(el, Object.assign({
       create:false,
@@ -574,9 +614,8 @@ document.addEventListener('DOMContentLoaded', function(){
   if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
 
   document.querySelectorAll('.flatpickr-date').forEach(el => {
-    // évite double init
-    if (el._flatpickr) return;
-    flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
+    if (el._flatpickr || el.disabled || !window.flatpickr) return;
+    flatpickr(el, { dateFormat:'Y-m-d', altInput:true, altFormat:'d/m/Y', allowInput:true });
   });
 
   /* =========================================================
@@ -612,6 +651,13 @@ document.addEventListener('DOMContentLoaded', function(){
 
     const insTexts = getSelectedTexts(ins);
     if ($resume.inscriptions) $resume.inscriptions.textContent = insTexts.length ? insTexts.join(', ') : '—';
+    const freeNames = (elFreeNames?.value || '').split(/\r\n|\r|\n/).map(name => name.trim()).filter(Boolean);
+    const knownCount = insTexts.length + freeNames.length;
+    const declared = (elEffectif?.value || '').trim();
+    const total = declared ? Number(declared) : knownCount;
+    const effectifOk = Number.isInteger(total) && total > 0 && total >= knownCount;
+    if ($resume.effectif) $resume.effectif.textContent = effectifOk ? String(total) : 'À vérifier';
+    if ($resume.unnamed) $resume.unnamed.textContent = effectifOk ? String(total - knownCount) : '—';
 
     if ($resume.s1) $resume.s1.textContent = (ds1?.value || '').trim() || '—';
     if ($resume.s2) $resume.s2.textContent = (ds2?.value || '').trim() || '—';
@@ -619,12 +665,11 @@ document.addEventListener('DOMContentLoaded', function(){
 
     const sessionOk = !!(s?.value && s.value.trim());
     const linkOk    = Boolean(e?.value) !== Boolean(st?.value);
-    const inscriptionsOk = insTexts.length > 0;
+    const participantsOk = e?.value ? effectifOk : insTexts.length === 1;
     const okHtml    = formEl ? formEl.checkValidity() : true;
 
     // Ici : session obligatoire + (entreprise OU stagiaire)
-    const ok = sessionOk && linkOk && inscriptionsOk && okHtml;
-    submitButtons.forEach(b => b.disabled = !ok);
+    const ok = sessionOk && linkOk && participantsOk && okHtml;
 
     if ($resume.pill) {
       if (ok) {
@@ -646,6 +691,10 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!el) return;
     el.addEventListener('change', refreshResume);
     el.addEventListener('input', refreshResume);
+  });
+  [elFreeNames, elEffectif].filter(Boolean).forEach(el => {
+    el.addEventListener('input', refreshResume);
+    el.addEventListener('change', refreshResume);
   });
 
   /* =========================================================

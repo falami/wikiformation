@@ -83,7 +83,7 @@ final class ConventionContratController extends AbstractController
         if ($searchV !== '') {
             $search = $qb->expr()->orX(
                 'c.numero LIKE :s', 'e.raisonSociale LIKE :s',
-                'u.nom LIKE :s', 'u.prenom LIKE :s', 'f.titre LIKE :s', 'se.code LIKE :s'
+                'u.nom LIKE :s', 'u.prenom LIKE :s', 'f.titre LIKE :s', 'c.intituleFormation LIKE :s', 'se.code LIKE :s'
             );
             if (ctype_digit($searchV)) {
                 $search->add('c.id = :idExact');
@@ -111,13 +111,12 @@ final class ConventionContratController extends AbstractController
 
         $data = array_map(function (ConventionContrat $c) use ($entite) {
             $sess = $c->getSession();
-            $form = $sess?->getFormation();
 
             return [
                 'id'        => $c->getId(),
                 'numero'    => $c->getNumero() ?: '—',
                 'entreprise' => $c->getDestinataireLabel(),
-                'formation' => $form?->getTitre() ?? '—',
+                'formation' => $c->getIntituleFormationEffectif() ?: '—',
                 'session'   => $sess?->getCode() ?? '—',
                 'actions'   => $this->renderView('administrateur/convention/_actions.html.twig', [
                     'c' => $c,
@@ -229,7 +228,7 @@ final class ConventionContratController extends AbstractController
 
         return $this->render('administrateur/convention/form.html.twig', [
             'form'  => $form,
-            'title' => 'Éditer convention',
+            'title' => 'Modifier la convention',
             'c'     => $c,
             'entite' => $entite,
         ]);

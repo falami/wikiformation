@@ -270,7 +270,7 @@
         <div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-file-earmark-text me-2" style="color:var(--theme-color-secondaire)"></i>
-            Convention "{{ c.session.formation.titre }}"
+            Convention « {{ c.intituleFormationEffectif }} »
           </h2>
 
           <div class="opacity-75 mt-1">
@@ -278,7 +278,7 @@
             {% if c.session %}
               <br />- ID Session : {{ c.session.code }}
               {% if c.session.formation %}
-                <br />- {{ c.session.formation.titre }}
+                <br />- {{ c.intituleFormationEffectif }}
               {% endif %}
             {% endif %}
           </div>
@@ -436,13 +436,23 @@
           {% endif %}
 
           <div class="info">
-            <div class="k">Stagiaires couverts ({{ c.inscriptions|length }})</div>
+            <div class="k">Effectif prévu : {{ c.effectifTotal }} stagiaire{{ c.effectifTotal > 1 ? 's' : '' }}</div>
             <div class="v">
               {% for inscription in c.inscriptions %}
                 <div>{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}</div>
-              {% else %}
-                Aucune inscription rattachée
               {% endfor %}
+              {% for nomComplet in c.participantsLibresListe %}
+                <div>{{ nomComplet }} <small class="text-muted">· inscription à rattacher</small></div>
+              {% endfor %}
+              {% set participantsInconnus = max(0, c.effectifTotal - c.inscriptions|length - c.participantsLibresListe|length) %}
+              {% if participantsInconnus > 0 %}
+                <div class="text-muted mt-2">Liste nominative à compléter : {{ participantsInconnus }} stagiaire{{ participantsInconnus > 1 ? 's' : '' }} à désigner.</div>
+              {% elseif c.effectifTotal == 0 %}
+                <div class="text-muted">Liste nominative à compléter.</div>
+              {% endif %}
+              {% if not c.signed and (participantsInconnus > 0 or c.participantsLibresListe|length > 0) %}
+                <a class="btn btn-sm btn-outline-primary mt-3" href="{{ path('app_administrateur_convention_edit', {entite: entite.id, id: c.id}) }}"><i class="bi bi-person-plus me-1"></i> Compléter les participants</a>
+              {% endif %}
             </div>
           </div>
 
@@ -456,7 +466,14 @@
           {% if c.session and c.session.formation %}
             <div class="info">
               <div class="k">Formation</div>
-              <div class="v">{{ c.session and c.session.formation ? c.session.formation.titre : '-' }}</div>
+              <div class="v">{{ c.intituleFormationEffectif }}</div>
+            </div>
+          {% endif %}
+
+          {% if c.dureeFormationEffective %}
+            <div class="info">
+              <div class="k">Durée sur la convention</div>
+              <div class="v">{{ c.dureeFormationEffective }}</div>
             </div>
           {% endif %}
 

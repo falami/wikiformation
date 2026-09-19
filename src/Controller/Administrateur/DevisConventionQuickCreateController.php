@@ -101,6 +101,7 @@ final class DevisConventionQuickCreateController extends AbstractController
                                 'id' => $session->getId(),
                                 'label' => sprintf('%s — %s (%s)', $session->getCode(), $session->getFormationLabel(), $session->getDateDebut()->format('d/m/Y')),
                                 'code' => $session->getCode(), 'title' => $session->getFormationLabel(),
+                                'duration' => $session->getFormation()?->getDuree() ? $session->getFormation()->getDuree() . ' jour' . ($session->getFormation()->getDuree() > 1 ? 's' : '') : '',
                                 'startLabel' => $session->getDateDebut()->format('d/m/Y à H:i'), 'endLabel' => $session->getDateFin()->format('d/m/Y à H:i'),
                                 'site' => $session->getSite()->getNom(), 'capacity' => $session->getCapacite(), 'remaining' => $session->getCapacite(),
                             ];

@@ -28,7 +28,10 @@
     const modal = window.bootstrap?.Modal.getOrCreateInstance(modalElement);
     const metadata = new WeakMap();
     const sessionSelect = root.querySelector('select[data-entity="session"]');
+    const formationSelect = root.querySelector('select[data-entity="formation"]');
     const participantsSelect = root.querySelector('select[data-entity="client"]');
+    let defaultTitle = root.dataset.catalogueTitle || '';
+    let defaultDuration = root.dataset.catalogueDuration || '';
     const individual = root.dataset.individual === '1';
     const newSession = root.dataset.createSession === '1';
     const stack = [];
@@ -41,7 +44,7 @@
       if (!metadata.has(select)) metadata.set(select, new Map());
       const options = metadata.get(select);
       Array.from(select.options).forEach(option => {
-        if (!options.has(option.value)) options.set(option.value, { label: option.textContent, ...readJSON(option.dataset.session || option.dataset.client) });
+        if (!options.has(option.value)) options.set(option.value, { label: option.textContent, ...readJSON(option.dataset.session || option.dataset.client || option.dataset.formation) });
       });
       return options;
     }
@@ -112,14 +115,48 @@
       container.querySelectorAll('input[data-datepicker]').forEach(input => input._flatpickr?.destroy());
     }
 
+    function syncTrainingDefaults() {
+      const select = sessionSelect || formationSelect;
+      const info = select ? collectMetadata(select).get(select.value) : null;
+      if (!select?.value || !info) return;
+      const title = root.querySelector('[data-document-title]');
+      const duration = root.querySelector('[data-document-duration]');
+      if (title && (!title.value.trim() || title.value === defaultTitle)) title.value = info.title || defaultTitle;
+      if (duration && (!duration.value.trim() || duration.value === defaultDuration)) duration.value = info.duration || '';
+      defaultTitle = info.title || defaultTitle;
+      defaultDuration = info.duration || '';
+    }
+
     function update() {
       const session = sessionSelect ? collectMetadata(sessionSelect).get(sessionSelect.value) : null;
-      const sessionChosen = newSession || Boolean(sessionSelect?.value);
+      const slots = Array.from(root.querySelectorAll('[data-slot]'));
+      const sessionChosen = newSession
+        ? Boolean(root.querySelector('select[data-entity="formation"]')?.value && root.querySelector('select[data-entity="site"]')?.value && slots.length && slots.every(slot => {
+          const start = slot.querySelector('input[name$="[dateDebut]"]')?.value;
+          const end = slot.querySelector('input[name$="[dateFin]"]')?.value;
+          return start && end && end > start;
+        }))
+        : Boolean(sessionSelect?.value);
       const selected = participantsSelect ? Array.from(participantsSelect.selectedOptions).filter(option => option.value) : [];
-      const count = individual ? 1 : selected.length;
+      const freeNames = (root.querySelector('[data-free-participants]')?.value || '').split(/\r\n|[\n\r\u0085\u2028\u2029]/u).map(name => name.trim()).filter(Boolean);
+      const knownCount = individual ? 1 : selected.length + freeNames.length;
+      const plannedValue = root.querySelector('[data-planned-count]')?.value || '';
+      const count = individual ? 1 : (plannedValue === '' ? knownCount : Number(plannedValue));
+      const inconsistentCount = !Number.isInteger(count) || count < knownCount || count < 0;
       root.querySelectorAll('[data-participant-count]').forEach(el => { el.textContent = count; });
       document.getElementById('cv-summary-participants').textContent = count ? `${count} stagiaire${count > 1 ? 's' : ''}` : 'À sélectionner';
       document.getElementById('cv-summary-session').textContent = newSession ? 'Nouvelle session' : (sessionChosen ? session?.code || session?.label : 'À sélectionner');
+      const title = root.querySelector('[data-document-title]')?.value.trim();
+      const duration = root.querySelector('[data-document-duration]')?.value.trim();
+      document.getElementById('cv-summary-training-title').textContent = title || session?.title || 'Intitulé du catalogue';
+      document.getElementById('cv-summary-training-duration').textContent = duration || session?.duration || defaultDuration || 'Durée du catalogue';
+      const rosterStatus = document.getElementById('cv-roster-status');
+      if (rosterStatus) {
+        const unnamed = Math.max(0, count - knownCount);
+        rosterStatus.textContent = inconsistentCount ? `L’effectif doit inclure les ${knownCount} participants déjà renseignés.`
+          : `${selected.length} client${selected.length > 1 ? 's' : ''} sélectionné${selected.length > 1 ? 's' : ''} · ${freeNames.length} nom${freeNames.length > 1 ? 's' : ''} libre${freeNames.length > 1 ? 's' : ''} · ${unnamed} nom${unnamed > 1 ? 's' : ''} à préciser.`;
+        rosterStatus.classList.toggle('text-danger', inconsistentCount);
+      }
       if (sessionSelect) {
         document.getElementById('cv-session-detail').hidden = !sessionChosen;
         document.getElementById('cv-session-empty').hidden = sessionChosen;
@@ -158,17 +195,18 @@
         });
         document.getElementById('cv-participant-empty').hidden = count > 0;
       }
-      const newCount = individual ? (session?.enrolled?.includes(root.dataset.individualId) ? 0 : 1) : selected.filter(option => !session?.enrolled?.includes(option.value)).length;
+      const alreadyEnrolled = individual ? (session?.enrolled?.includes(root.dataset.individualId) ? 1 : 0) : selected.filter(option => session?.enrolled?.includes(option.value)).length;
+      const newCount = Math.max(0, count - alreadyEnrolled);
       const capacity = newSession ? Number(root.querySelector('input[name$="[capacite]"]')?.value) : session?.remaining;
       const exceeds = capacity !== undefined && sessionChosen && newCount > capacity;
       const warning = document.getElementById('cv-capacity-warning');
       warning.hidden = !exceeds;
-      warning.textContent = `La session ne dispose pas d’assez de places pour ${newCount} nouvelle${newCount > 1 ? 's' : ''} inscription${newCount > 1 ? 's' : ''}. Modifiez la sélection ou la capacité de la session.`;
-      const ready = sessionChosen && count > 0 && !exceeds;
+      warning.textContent = `La session ne dispose pas d’assez de places pour cet effectif (${newCount} place${newCount > 1 ? 's' : ''} en plus des inscriptions existantes). Modifiez l’effectif ou la capacité de la session.`;
+      const ready = sessionChosen && count > 0 && !exceeds && !inconsistentCount;
       const readiness = document.getElementById('cv-readiness');
       readiness.classList.toggle('is-ready', ready);
       readiness.querySelector('.bi').className = `bi ${ready ? 'bi-check-circle-fill' : 'bi-circle'}`;
-      readiness.querySelector('span').textContent = exceeds ? 'Vérifiez le nombre de places disponibles.' : (ready ? 'Votre convention est prête à être créée.' : (!sessionChosen ? 'Choisissez une session de formation.' : 'Ajoutez au moins un participant.'));
+      readiness.querySelector('span').textContent = inconsistentCount ? 'Vérifiez le nombre total de stagiaires.' : (exceeds ? 'Vérifiez le nombre de places disponibles.' : (ready ? 'Votre convention est prête à être créée.' : (!sessionChosen ? 'Complétez la session de formation.' : 'Ajoutez des participants ou un effectif prévu.')));
       root.querySelector('[data-step="session"]').classList.toggle('is-complete', sessionChosen);
       root.querySelector('[data-step="participants"]').classList.toggle('is-active', sessionChosen);
       root.querySelector('[data-step="participants"]').classList.toggle('is-complete', count > 0);
@@ -210,7 +248,9 @@
     }
 
     function focusForm() {
-      const first = modalContent.querySelector('.is-invalid input:not([type="hidden"]), input.is-invalid:not([type="hidden"]), .ts-control input, input:not([type="hidden"]):not([disabled]), textarea');
+      const usableInput = 'input:not([type="hidden"]):not(:disabled)';
+      const first = modalContent.querySelector(`.is-invalid ${usableInput}, ${usableInput}.is-invalid, textarea.is-invalid`)
+        || modalContent.querySelector(`.ts-control input:not(:disabled), ${usableInput}, textarea:not(:disabled)`);
       first?.focus({ preventScroll: true });
     }
 
@@ -351,6 +391,7 @@
           collection.append(slot);
         } else collection.append(template.content);
         initControls(collection);
+        update();
         collection.lastElementChild.querySelector('input:not([type="hidden"])')?.focus();
         return;
       }
@@ -359,11 +400,18 @@
         const slot = remove.closest('[data-slot], .js-session-slot');
         destroyControls(slot);
         slot.remove();
+        update();
       }
     }
 
     root.addEventListener('click', actions);
-    root.addEventListener('change', update);
+    root.addEventListener('change', event => {
+      if (event.target === sessionSelect || event.target === formationSelect) syncTrainingDefaults();
+      update();
+    });
+    root.addEventListener('input', event => {
+      if (event.target.matches('[data-free-participants], [data-planned-count], [data-document-title], [data-document-duration]')) update();
+    });
     modalElement.addEventListener('click', actions);
     modalElement.addEventListener('submit', save);
     back.addEventListener('click', restoreParent);
@@ -387,6 +435,7 @@
       submit.setAttribute('aria-busy', 'true');
     });
     initControls(root);
+    syncTrainingDefaults();
     update();
   }
 

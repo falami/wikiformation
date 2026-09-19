@@ -39,6 +39,21 @@ class ConventionContrat
     private ?string $conditionsFinancieres = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Length(max: 255, maxMessage: 'L’intitulé ne doit pas dépasser {{ limit }} caractères.')]
+    private ?string $intituleFormation = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Length(max: 255, maxMessage: 'La durée ne doit pas dépasser {{ limit }} caractères.')]
+    private ?string $dureeFormation = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $participantsLibres = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Assert\Positive(message: 'L’effectif prévisionnel doit être supérieur à zéro.')]
+    private ?int $effectifPrevisionnel = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $pdfPath = null;
 
     #[ORM\ManyToOne(inversedBy: 'conventionContrats')]
@@ -141,6 +156,76 @@ class ConventionContrat
     {
         $this->conditionsFinancieres = $conditionsFinancieres;
         return $this;
+    }
+
+    public function getIntituleFormation(): ?string
+    {
+        return $this->intituleFormation;
+    }
+
+    public function setIntituleFormation(?string $intituleFormation): static
+    {
+        $this->intituleFormation = trim($intituleFormation ?? '') ?: null;
+        return $this;
+    }
+
+    public function getIntituleFormationEffectif(): string
+    {
+        return $this->intituleFormation ?? $this->session?->getFormation()?->getTitre() ?? 'Formation';
+    }
+
+    public function getDureeFormation(): ?string
+    {
+        return $this->dureeFormation;
+    }
+
+    public function setDureeFormation(?string $dureeFormation): static
+    {
+        $this->dureeFormation = trim($dureeFormation ?? '') ?: null;
+        return $this;
+    }
+
+    public function getDureeFormationEffective(): ?string
+    {
+        if ($this->dureeFormation !== null) {
+            return $this->dureeFormation;
+        }
+        $jours = $this->session?->getFormation()?->getDuree();
+        return $jours ? $jours . ' jour' . ($jours > 1 ? 's' : '') : null;
+    }
+
+    public function getParticipantsLibres(): ?string
+    {
+        return $this->participantsLibres;
+    }
+
+    public function setParticipantsLibres(?string $participantsLibres): static
+    {
+        $this->participantsLibres = $participantsLibres;
+        $this->participantsLibres = implode("\n", $this->getParticipantsLibresListe()) ?: null;
+        return $this;
+    }
+
+    /** @return list<string> Noms déclaratifs, sans création de compte ni d’inscription. */
+    public function getParticipantsLibresListe(): array
+    {
+        return array_values(array_filter(array_map('trim', preg_split('/\R/u', $this->participantsLibres ?? '') ?: []), static fn(string $nom): bool => $nom !== ''));
+    }
+
+    public function getEffectifPrevisionnel(): ?int
+    {
+        return $this->effectifPrevisionnel;
+    }
+
+    public function setEffectifPrevisionnel(?int $effectifPrevisionnel): static
+    {
+        $this->effectifPrevisionnel = $effectifPrevisionnel;
+        return $this;
+    }
+
+    public function getEffectifTotal(): int
+    {
+        return $this->effectifPrevisionnel ?? $this->inscriptions->count() + count($this->getParticipantsLibresListe());
     }
 
     public function getPdfPath(): ?string
@@ -373,6 +458,30 @@ class ConventionContrat
         if ($this->entreprise && $this->entreprise->getEntite() !== $this->entite) {
             $context->buildViolation('L’entreprise doit appartenir au même organisme que la convention.')
                 ->atPath('entreprise')->addViolation();
+        }
+
+        $nomsLibres = $this->getParticipantsLibresListe();
+        $effectifNomme = $this->inscriptions->count() + count($nomsLibres);
+        if ($this->entreprise && $this->getEffectifTotal() < 1) {
+            $context->buildViolation('Sélectionnez des stagiaires, renseignez leurs noms ou indiquez un effectif prévisionnel.')
+                ->atPath('effectifPrevisionnel')->addViolation();
+        } elseif ($this->entreprise && $this->getEffectifTotal() < $effectifNomme) {
+            $context->buildViolation('L’effectif prévisionnel ne peut pas être inférieur au nombre de stagiaires renseignés ({{ count }}).')
+                ->setParameter('{{ count }}', (string) $effectifNomme)->atPath('effectifPrevisionnel')->addViolation();
+        }
+        if ($this->stagiaire) {
+            if ($this->inscriptions->count() !== 1) {
+                $context->buildViolation('Une convention individuelle doit couvrir uniquement le stagiaire destinataire.')
+                    ->atPath('inscriptions')->addViolation();
+            }
+            if ($nomsLibres) {
+                $context->buildViolation('Les noms libres sont réservés aux conventions d’entreprise.')
+                    ->atPath('participantsLibres')->addViolation();
+            }
+            if ($this->effectifPrevisionnel !== null && $this->effectifPrevisionnel !== 1) {
+                $context->buildViolation('L’effectif d’une convention individuelle est de 1 stagiaire.')
+                    ->atPath('effectifPrevisionnel')->addViolation();
+            }
         }
 
         foreach ($this->inscriptions as $inscription) {

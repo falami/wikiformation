@@ -7,14 +7,8 @@
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
-
-  {{ parent() }}
-  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
   <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
-  <link rel="stylesheet" href="{{ asset('dist/css/devis-convention.css') }}?v=1">
+  <link rel="stylesheet" href="{{ asset('dist/css/devis-convention.css') }}?v=2">
 
   <style>
     :root{
@@ -168,6 +162,7 @@
 {% set routeParams = {entite: entite.id, id: devis.id} %}
 <div class="cv-workspace" id="convention-workspace"
      style="--cv-brand: {{ entite.couleurPrincipal|default('#233342') }}; --cv-accent: {{ entite.couleurSecondaire|default('#e9bd58') }}"
+     data-catalogue-title="{{ devis.formation ? devis.formation.titre : '' }}" data-catalogue-duration="{{ devis.formation and devis.formation.duree ? devis.formation.duree ~ (devis.formation.duree > 1 ? ' jours' : ' jour') : '' }}"
      data-individual="{{ devis.destinataire ? '1' : '0' }}" data-individual-id="{{ devis.destinataire ? devis.destinataire.id : '' }}" data-create-session="{{ createSession ? '1' : '0' }}">
   <nav class="cv-breadcrumb" aria-label="Fil d’Ariane">
     <a href="{{ path('app_administrateur_devis_index', {entite: entite.id}) }}">Devis</a><i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -224,13 +219,15 @@
             <div class="cv-inline-note mb-3"><i class="bi bi-info-circle" aria-hidden="true"></i><span>La session sera créée en même temps que la convention.</span></div>
             {{ form_row(form.formation) }}
             <div class="cv-label-action"><span></span>
-              <button type="button" class="cv-text-button" data-quick-create="site" data-url="{{ path('app_administrateur_devis_convention_quick_create', routeParams|merge({kind: 'site'})) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Nouveau site</button>
+              {% if is_granted('SITE_MANAGE', entite) %}<button type="button" class="cv-text-button" data-quick-create="site" data-url="{{ path('app_administrateur_devis_convention_quick_create', routeParams|merge({kind: 'site'})) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Nouveau site</button>{% endif %}
             </div>
             {{ form_row(form.site) }}
             {{ form_row(form.capacite) }}
             <div class="cv-slots-title">Dates & horaires <span>Heure locale</span></div>
             {{ form_errors(form.jours) }}
-            <div data-collection data-prototype="{{ form_widget(form.jours.vars.prototype)|e('html_attr') }}" data-index="{{ form.jours|length }}">
+            {% set nextSlotIndex = 0 %}
+            {% for jour in form.jours %}{% set nextSlotIndex = max(nextSlotIndex, jour.vars.name + 1) %}{% endfor %}
+            <div data-collection data-prototype="{{ form_widget(form.jours.vars.prototype)|e('html_attr') }}" data-index="{{ nextSlotIndex }}">
               {% for jour in form.jours %}
                 <div class="cv-slot" data-slot>{{ form_widget(jour) }}<button type="button" class="cv-slot-remove" data-remove-slot aria-label="Retirer ce créneau"><i class="bi bi-trash3" aria-hidden="true"></i></button></div>
               {% endfor %}
@@ -254,6 +251,19 @@
         </div>
       </section>
 
+      <section class="cv-panel" aria-labelledby="cv-document-details-title">
+        <div class="cv-panel-heading">
+          <div class="cv-section-icon"><i class="bi bi-pencil-square" aria-hidden="true"></i></div>
+          <div><span class="cv-section-kicker">VOTRE DOCUMENT</span><h2 id="cv-document-details-title">Personnaliser la formation</h2></div>
+        </div>
+        <div class="cv-panel-body">
+          <p class="cv-section-description">Adaptez l’intitulé, les indices d’habilitation et la durée demandés par votre client.</p>
+          {{ form_row(form.intituleFormation) }}
+          {{ form_row(form.dureeFormation) }}
+          <p class="cv-field-hint"><i class="bi bi-info-circle" aria-hidden="true"></i> Ces mentions sont propres à cette convention. La fiche formation et le programme du catalogue restent inchangés.</p>
+        </div>
+      </section>
+
       <section class="cv-panel" aria-labelledby="cv-participants-title">
         <div class="cv-panel-heading">
           <div class="cv-section-icon"><i class="bi bi-people" aria-hidden="true"></i></div>
@@ -265,14 +275,20 @@
         </div>
         <div class="cv-panel-body">
           {% if form.stagiaires is defined %}
-            <p class="cv-section-description">Sélectionnez les stagiaires couverts par cette convention pour <strong>{{ clientLabel }}</strong>.</p>
+            <p class="cv-section-description">Pour <strong>{{ clientLabel }}</strong>, renseignez les clients connus, les noms seuls ou simplement l’effectif prévu.</p>
             {{ form_row(form.stagiaires, {label: 'Rechercher des clients', help: false}) }}
             <div id="cv-participant-list" class="cv-participant-list" aria-live="polite"></div>
-            <div class="cv-participant-empty" id="cv-participant-empty"><div class="cv-empty-avatars"><span><i class="bi bi-person" aria-hidden="true"></i></span><span><i class="bi bi-plus" aria-hidden="true"></i></span></div><strong>Qui participe à la formation ?</strong><p>Ajoutez un ou plusieurs clients à votre convention.</p></div>
+            <div class="cv-participant-empty" id="cv-participant-empty"><div class="cv-empty-avatars"><span><i class="bi bi-person" aria-hidden="true"></i></span><span><i class="bi bi-plus" aria-hidden="true"></i></span></div><strong>La liste n’est pas encore complète ?</strong><p>Vous pouvez préparer la convention avec les informations disponibles ci-dessous.</p></div>
+            <div class="cv-provisional-participants">
+              <div class="cv-provisional-heading"><i class="bi bi-person-lines-fill" aria-hidden="true"></i><strong>Compléter les participants sans e-mail</strong><span>Facultatif</span></div>
+              {{ form_row(form.participantsLibres) }}
+              {{ form_row(form.effectifPrevisionnel) }}
+              <p class="cv-field-hint" id="cv-roster-status" aria-live="polite"></p>
+            </div>
           {% else %}
             <div class="cv-person-row"><span class="cv-avatar">{{ devis.destinataire.prenom|slice(0,1) }}{{ devis.destinataire.nom|slice(0,1) }}</span><span class="cv-person-info"><strong>{{ clientLabel }}</strong><span>{{ devis.destinataire.email }}</span></span><span class="cv-person-badge">Destinataire du devis</span></div>
           {% endif %}
-          <div class="cv-inline-note mt-3"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>Les inscriptions existantes sont conservées. Les participants qui ne sont pas encore dans la session seront inscrits à la création.</span></div>
+          <div class="cv-inline-note mt-3"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>Les clients sélectionnés seront inscrits à la session si nécessaire. Les noms libres et les places sans nom figurent sur le document ; leurs fiches et inscriptions pourront être complétées ensuite.</span></div>
           <div class="cv-capacity-warning" id="cv-capacity-warning" role="alert" hidden></div>
         </div>
       </section>
@@ -294,6 +310,7 @@
       <div class="cv-document-icon"><i class="bi bi-file-earmark-richtext" aria-hidden="true"></i><span><i class="bi bi-check2" aria-hidden="true"></i></span></div>
       <h2 id="cv-summary-title">Convention de formation</h2>
       <p class="cv-summary-subtitle">{{ devis.destinataire ? 'Convention individuelle' : 'Convention entreprise' }}</p>
+      <div class="cv-summary-training"><strong id="cv-summary-training-title">{{ form.intituleFormation.vars.value ?: 'Intitulé de la formation' }}</strong><span id="cv-summary-training-duration">{{ form.dureeFormation.vars.value }}</span></div>
       <div class="cv-summary-client"><span>ÉTABLIE POUR</span><strong>{{ clientLabel }}</strong><small>À partir du devis {{ devis.numero }}</small></div>
       <div class="cv-summary-lines">
         <div><span><i class="bi bi-calendar2-week" aria-hidden="true"></i>Session</span><strong id="cv-summary-session">{{ createSession ? 'Nouvelle session' : 'À sélectionner' }}</strong></div>
@@ -325,5 +342,5 @@
   {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js" defer></script>
   <script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}" defer></script>
-  <script src="{{ asset('dist/js/devis-convention.js') }}?v=1" defer></script>
+  <script src="{{ asset('dist/js/devis-convention.js') }}?v=2" defer></script>
 {% endblock %}
