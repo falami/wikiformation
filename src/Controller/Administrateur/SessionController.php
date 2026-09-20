@@ -34,6 +34,9 @@ use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\Billing\BillingGuard;
 use App\Exception\BillingQuotaExceededException;
+use App\Service\Planning\SessionPlanningValidator;
+use Symfony\Component\Form\FormError;
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 
 
 #[Route('/administrateur/{entite}/session')]
@@ -1629,6 +1632,7 @@ final class SessionController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         SessionNumberGenerator $sessionGen,
+        SessionPlanningValidator $planningValidator,
         ?Session $session = null
     ): Response {
 
@@ -1665,6 +1669,10 @@ final class SessionController extends AbstractController
         ]);
 
         $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            foreach ($planningValidator->errors($session) as $error) $form->get('jours')->addError(new FormError($error));
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
 
@@ -1872,20 +1880,8 @@ final class SessionController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        // --- Formateurs impliqués ---
-        $formateurs = [];
-
-        if ($session->getFormateur()) {
-            $f = $session->getFormateur();
-            if ($f->getId()) $formateurs[$f->getId()] = $f;
-        }
-        foreach ($session->getJours() as $jour) {
-            if (method_exists($jour, 'getFormateur')) {
-                $jf = $jour->getFormateur();
-                if ($jf && $jf->getId()) $formateurs[$jf->getId()] = $jf;
-            }
-        }
-        $formateursSession = array_values($formateurs);
+        // Les créneaux définissent les intervenants effectifs de la session.
+        $formateursSession = $session->getFormateursEffectifs();
 
         // --- Contrats ---
         $repoContrat = $em->getRepository(ContratFormateur::class);
@@ -2479,6 +2475,10 @@ final class SessionController extends AbstractController
 
         // ===== CAS 1 : utilisateur existant =====
         if ($user) {
+            $formateur = $formateurRepo->findOneBy(['utilisateur' => $user]);
+            if ($formateur && $formateur->getEntite()?->getId() !== $entite->getId()) {
+                return new JsonResponse(['success' => false, 'message' => 'Ce compte formateur appartient déjà à un autre organisme. Son profil ne peut pas être transféré depuis cette session.'], 409);
+            }
             // ✅ (Optionnel) complète le téléphone si vide
             if ($telephone !== '' && method_exists($user, 'getTelephone') && !$user->getTelephone()) {
                 $user->setTelephone($telephone);
@@ -2488,17 +2488,11 @@ final class SessionController extends AbstractController
             $this->ensureUserEntiteRole($em, $entite, $user, $creator, UtilisateurEntite::TENANT_FORMATEUR);
 
             /** @var Formateur|null $formateur */
-            $formateur = $formateurRepo->findOneBy(['utilisateur' => $user]);
             if (!$formateur) {
                 $formateur = new Formateur();
                 $formateur->setCreateur($creator);
                 $formateur->setEntite($entite);
                 $formateur->setUtilisateur($user);
-            } else {
-                // si ton Formateur est “tenantisé”, tu peux forcer l’entité au besoin :
-                if (method_exists($formateur, 'getEntite') && $formateur->getEntite()?->getId() !== $entite->getId()) {
-                    $formateur->setEntite($entite);
-                }
             }
 
             if ($certif !== '') {
@@ -2782,12 +2776,14 @@ final class SessionController extends AbstractController
     #[Route(
         '/{id}/contrat-formateur/{formateur}',
         name: 'app_administrateur_session_contrat_formateur',
-        methods: ['GET']
+        methods: ['POST']
     )]
+    #[IsGranted(TenantPermission::CONTRAT_FORMATEUR_MANAGE, subject: 'entite')]
     public function generateContratFormateur(
-        Entite $entite,
-        Session $session,
-        Formateur $formateur,
+        #[MapEntity(id: 'entite')] Entite $entite,
+        #[MapEntity(id: 'id')] Session $session,
+        #[MapEntity(id: 'formateur')] Formateur $formateur,
+        Request $request,
         EntityManagerInterface $em
     ): Response {
 
@@ -2798,6 +2794,10 @@ final class SessionController extends AbstractController
         if ($session->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException();
         }
+        if (!$this->isCsrfTokenValid('contrat_formateur_' . $session->getId() . '_' . $formateur->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Formulaire expiré. Rechargez la session.');
+        }
+        if (!$session->hasFormateur($formateur)) throw $this->createAccessDeniedException('Affectez ce formateur à un créneau de la session.');
         if ($formateur->getEntite()?->getId() !== $entite->getId()) {
             $this->addFlash('danger', 'Ce formateur n’appartient pas à cette entité.');
             return $this->redirectToRoute('app_administrateur_session_show', [
@@ -2830,7 +2830,7 @@ final class SessionController extends AbstractController
                 $contrat->getNumero() ?: $contrat->getId()
             ));
 
-            return $this->redirectToRoute('app_administrateur_formateurs_contrats_edit', [
+            return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', [
                 'entite' => $entite->getId(),
                 'id'     => $contrat->getId(),
             ]);
@@ -2842,8 +2842,13 @@ final class SessionController extends AbstractController
         $numero = $this->contratNumberGenerator->nextForEntite($entite->getId());
 
 
-        // 2) Montant prévisionnel par défaut : tarif effectif de la session
-        $montantPrevu = $session->getTarifEffectifCents() ?? 0;
+        // La rémunération est celle du formateur sur ses créneaux, pas le prix vendu au client.
+        $mode = $formateur->getModeRemuneration();
+        $montantPrevu = match ($mode) {
+            'JOUR' => (int) round(($formateur->getTauxJournalierCents() ?? 0) * $session->getNombreJoursPourFormateur($formateur)),
+            'HEURE' => (int) round(($formateur->getTauxHoraireCents() ?? 0) * $session->getNombreHeuresPourFormateur($formateur)),
+            default => 0,
+        };
 
         $contrat = new ContratFormateur();
         $contrat

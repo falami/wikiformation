@@ -153,7 +153,7 @@ final class PlanningFormateursController extends AbstractController
       if (!$startJour || !$endJour) continue;
 
       $effectiveFo = $jour->getFormateur() ?? $session->getFormateur();
-      if (!$effectiveFo) continue;
+      if (!$effectiveFo || $effectiveFo->getEntite()?->getId() !== $entite->getId()) continue;
 
       $foId = (int)$effectiveFo->getId();
       $sid  = (int)$session->getId();
@@ -245,7 +245,7 @@ final class PlanningFormateursController extends AbstractController
   #[Route('/event-details/{formateur}/{session}/{jour}', name: 'event_details', methods: ['GET'])]
   public function eventDetails(Entite $entite, Formateur $formateur, Session $session, SessionJour $jour, EM $em): JsonResponse
   {
-    if ($session->getEntite()?->getId() !== $entite->getId()) {
+    if ($session->getEntite()?->getId() !== $entite->getId() || $formateur->getEntite()?->getId() !== $entite->getId()) {
       return $this->json(['ok' => false, 'error' => 'Accès refusé.'], 403);
     }
     if ($jour->getSession()?->getId() !== $session->getId()) {

@@ -9,6 +9,9 @@ use App\Service\Pdf\PdfManager;
 use App\Service\Sequence\DevisNumberGenerator;
 use App\Form\Administrateur\DevisType;
 use App\Form\Administrateur\EntrepriseModalType;
+use App\Form\Administrateur\DevisConventionLinkType;
+use App\Repository\ConventionContratRepository;
+use App\Service\Convention\DevisConventionLinker;
 use App\Service\Sequence\FactureNumberGenerator;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Component\Routing\Attribute\Route;
@@ -954,7 +957,7 @@ class DevisController extends AbstractController
 
 
   #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '\d+'])]
-  public function devisShow(Entite $entite, Devis $devis, EM $em): Response
+  public function devisShow(Entite $entite, Devis $devis, ConventionContratRepository $conventions): Response
   {
       // ✅ sécurité entité
       if ($devis->getEntite()?->getId() !== $entite->getId()) {
@@ -990,11 +993,39 @@ class DevisController extends AbstractController
           'entite' => $entite,
           'd' => $devis,
           'destLabel' => $label,
+          'conventions' => $conventions->findForDevis($devis),
+          'linkForm' => $this->isGranted(TenantPermission::CONVENTION_MANAGE, $entite)
+              ? $this->createForm(DevisConventionLinkType::class, null, [
+                  'devis' => $devis,
+                  'action' => $this->generateUrl('app_administrateur_devis_link_convention', ['entite' => $entite->getId(), 'id' => $devis->getId()]),
+              ])->createView() : null,
 
           // optionnel mais pratique si tu veux l'afficher en KPIs
           'htEur' => $htEur,
           'tvaEur' => $tvaEur,
           'ttcEur' => $ttcEur,
       ]);
+  }
+
+  #[Route('/{id}/rattacher-convention', name: 'link_convention', requirements: ['id' => '\d+'], methods: ['POST'])]
+  public function linkConvention(Entite $entite, Devis $devis, Request $request, DevisConventionLinker $linker): RedirectResponse
+  {
+      $this->denyAccessUnlessGranted(TenantPermission::CONVENTION_MANAGE, $entite);
+      if ($devis->getEntite()?->getId() !== $entite->getId()) {
+          throw $this->createAccessDeniedException('Devis non autorisé pour cette entité.');
+      }
+      $form = $this->createForm(DevisConventionLinkType::class, null, ['devis' => $devis])->handleRequest($request);
+      if ($form->isSubmitted() && $form->isValid()) {
+          try {
+              $linker->link($devis, $form->get('convention')->getData());
+              $this->addFlash('success', 'Convention rattachée au devis. Générez à nouveau son PDF pour reprendre la référence et les montants du devis.');
+          } catch (\DomainException $exception) {
+              $this->addFlash('warning', $exception->getMessage());
+          }
+      } else {
+          foreach ($form->getErrors(true) as $error) $this->addFlash('warning', $error->getMessage());
+          if (!$form->isSubmitted()) $this->addFlash('warning', 'Complétez le formulaire de rattachement depuis le devis.');
+      }
+      return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $devis->getId()]);
   }
 }

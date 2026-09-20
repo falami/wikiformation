@@ -513,7 +513,7 @@
 
   {% include 'flagMessage.html.twig' %}
 
-  {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate', name: 'session_administrateur' } }) }}
+  {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate' } }) }}
   {{ form_errors(form) }}
 
   <div class="row g-4">
@@ -677,11 +677,15 @@
 
       <div class="cardx mb-4">
         <div class="cardx-h">
-          <h5 class="cardx-title"><i class="bi bi-calendar-week text-warning"></i> Journées</h5>
-          <span class="chip" id="chip-jours">{{ form.jours|length }} jour{{ form.jours|length > 1 ? 's' : '' }}</span>
+          <h5 class="cardx-title"><i class="bi bi-calendar-week text-warning"></i> Planning & intervenants</h5>
+          <span class="chip" id="chip-jours">{{ form.jours|length }} créneau{{ form.jours|length > 1 ? 'x' : '' }}</span>
         </div>
         <div class="p-3 p-md-4">
-          <div id="jours-collection" data-prototype="{{ jourPrototype|e('html_attr') }}">
+          <p class="text-muted small">Affectez un formateur à chaque journée ou demi-journée. Le formateur par défaut intervient sur les créneaux sans affectation spécifique. Pour deux intervenants le même jour, ajoutez une matinée puis un après-midi.</p>
+          {{ form_errors(form.jours) }}
+          {% set nextJourIndex = 0 %}
+          {% for jour in form.jours %}{% set nextJourIndex = max(nextJourIndex, jour.vars.name + 1) %}{% endfor %}
+          <div id="jours-collection" data-next-index="{{ nextJourIndex }}" data-prototype="{{ jourPrototype|e('html_attr') }}">
             {% for jour in form.jours %}
               <div class="row g-3 mb-2 jour-item">
                 <div class="col-md-4">{{ form_row(jour.dateDebut) }}</div>
@@ -697,8 +701,12 @@
           </div>
 
           <button type="button" class="btn btn-outline-primary mt-2" id="btn-add-jour">
-            <i class="fa fa-plus"></i> Ajouter une journée
+            <i class="fa fa-plus"></i> Journée
           </button>
+          <button type="button" class="btn btn-outline-primary mt-2" data-add-session-slot="am"><i class="bi bi-sunrise me-1"></i>Matinée</button>
+          <button type="button" class="btn btn-outline-primary mt-2" data-add-session-slot="pm"><i class="bi bi-sun me-1"></i>Après-midi</button>
+          <div class="small text-muted mt-2">Horaires proposés : 9 h–12 h 30 et 13 h 30–17 h, modifiables. Le planning et les contrats reprennent les créneaux attribués.</div>
+          <div id="session-trainer-summary" class="d-flex flex-wrap gap-2 mt-3" aria-live="polite"></div>
         </div>
       </div>
 
@@ -1577,7 +1585,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const chipJours = document.getElementById('chip-jours');
   const chipIns   = document.getElementById('chip-ins');
 
-  const formMain = document.querySelector('form[name="session_administrateur"]');
+  const formMain = document.getElementById('{{ form.vars.id }}');
   const submitButtons = formMain ? [...formMain.querySelectorAll('button[type="submit"]')] : [];
 
   function selectedText(selectEl){
@@ -1666,7 +1674,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ========== Validation (ton code) ==========
   initFormValidation({
-    formName: 'session_administrateur',
+    formName: '{{ form.vars.name }}',
     tomSelectFields: [
       { id: '{{ form.formation.vars.id }}', label: '*Formation' },
       { id: '{{ form.site.vars.id }}',      label: '*Site' },
@@ -1678,19 +1686,19 @@ document.addEventListener('DOMContentLoaded', function () {
   // ================== JOURNÉES ==================
   const wrapJours = document.getElementById('jours-collection');
   const protoJours = wrapJours ? wrapJours.dataset.prototype : null;
-  let indexJour = {{ form.jours|length }};
+  let indexJour = Number(wrapJours?.dataset.nextIndex || 0);
 
   function countJours(){
     return wrapJours ? wrapJours.querySelectorAll('.jour-item').length : 0;
   }
   function updateChipJours(){
     const n = countJours();
-    if (chipJours) chipJours.textContent = `${n} jour${n>1?'s':''}`;
+    if (chipJours) chipJours.textContent = `${n} créneau${n>1?'x':''}`;
     if ($r.jours) $r.jours.textContent = String(n);
   }
 
   if (wrapJours && protoJours) {
-    document.getElementById('btn-add-jour').addEventListener('click', () => {
+    function addSessionSlot(preset = 'day') {
       const html = protoJours.replace(/__name__/g, indexJour++);
       const div  = document.createElement('div');
       div.innerHTML = html;
@@ -1702,16 +1710,64 @@ document.addEventListener('DOMContentLoaded', function () {
         if (el.tagName === 'SELECT') initTomSelectOn(el);
       });
 
+      const inputs = Array.from(item.querySelectorAll('.flatpickr-datetime'));
+      const previous = item.previousElementSibling?.querySelector('.flatpickr-datetime');
+      const base = previous?._flatpickr?.selectedDates?.[0] || new Date();
+      const start = new Date(base); const end = new Date(base);
+      if (preset === 'day' && previous?._flatpickr?.selectedDates?.[0]) {
+        start.setDate(start.getDate() + 1); end.setDate(end.getDate() + 1);
+      }
+      start.setHours(preset === 'pm' ? 13 : 9, preset === 'pm' ? 30 : 0, 0, 0);
+      end.setHours(preset === 'am' ? 12 : 17, preset === 'am' ? 30 : 0, 0, 0);
+      // Le preset contient déjà les horaires choisis : ne pas déclencher
+      // la normalisation automatique prévue pour une saisie vide.
+      inputs[0]?._flatpickr?.setDate(start, false);
+      inputs[1]?._flatpickr?.setDate(end, false);
+      inputs.forEach(input => {
+        input.dataset.userTouched = '1';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+
       updateChipJours();
       refreshResume();
-    });
+      refreshTrainerSummary();
+    }
+    document.getElementById('btn-add-jour').addEventListener('click', () => addSessionSlot());
+    document.querySelectorAll('[data-add-session-slot]').forEach(button => button.addEventListener('click', () => addSessionSlot(button.dataset.addSessionSlot)));
+
+    function refreshTrainerSummary() {
+      const summary = document.getElementById('session-trainer-summary');
+      if (!summary) return;
+      const trainers = new Map();
+      wrapJours.querySelectorAll('.jour-item').forEach(row => {
+        const select = row.querySelector('select');
+        const effective = select?.value ? select : $formateur;
+        if (!effective?.value) return;
+        const label = effective.tomselect?.options[effective.value]?.text || effective.selectedOptions[0]?.textContent || 'Formateur';
+        const data = trainers.get(effective.value) || { label, slots: 0 };
+        data.slots++; trainers.set(effective.value, data);
+      });
+      summary.replaceChildren();
+      trainers.forEach(({label, slots}) => {
+        const chip = document.createElement('span'); chip.className = 'badge bg-light text-dark border p-2';
+        chip.textContent = `${label} · ${slots} créneau${slots > 1 ? 'x' : ''}`; summary.append(chip);
+      });
+    }
+    wrapJours.querySelectorAll('select').forEach(initTomSelectOn);
+    wrapJours.addEventListener('change', refreshTrainerSummary);
+    $formateur?.addEventListener('change', refreshTrainerSummary);
+    refreshTrainerSummary();
 
     wrapJours.addEventListener('click', (e) => {
       if (e.target.closest('.btn-remove-jour')) {
         e.preventDefault();
-        e.target.closest('.jour-item').remove();
+        const row = e.target.closest('.jour-item');
+        row.querySelectorAll('select').forEach(el => el.tomselect?.destroy());
+        row.querySelectorAll('.flatpickr-datetime').forEach(el => el._flatpickr?.destroy());
+        row.remove();
         updateChipJours();
         refreshResume();
+        refreshTrainerSummary();
       }
     });
 

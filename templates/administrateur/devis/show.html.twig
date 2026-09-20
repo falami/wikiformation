@@ -1,5 +1,6 @@
 {# templates/administrateur/devis/show.html.twig #}
 {% extends 'base_admin.html.twig' %}
+{% if linkForm %}{% form_theme linkForm 'bootstrap_5_layout.html.twig' %}{% endif %}
 {% block title %}Devis {{ d.numero ?: ('#' ~ d.id) }}{% endblock %}
 
 {% block stylesheets %}
@@ -7,6 +8,7 @@
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  {% if linkForm %}<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">{% endif %}
 
   <style>
     :root{
@@ -462,20 +464,37 @@
       <div class="panel mb-3">
         <div class="panel-hd">
           <div class="panel-title"><i class="bi bi-file-earmark-text"></i> Conventions du devis</div>
-          <span class="badge-soft pill-muted">{{ d.conventions|length }}</span>
+          <span class="badge-soft pill-muted" data-convention-count>{{ conventions|length }}</span>
         </div>
         <div class="panel-bd">
-          {% for convention in d.conventions %}
-            <div class="d-flex justify-content-between align-items-center gap-3 py-2">
+          {% for convention in conventions %}
+            <div class="d-flex justify-content-between align-items-center gap-3 py-2" data-convention-id="{{ convention.id }}">
               <div>
                 <strong>{{ convention.numero ?: ('Convention #' ~ convention.id) }}</strong>
-                <div class="small text-muted">Session {{ convention.session ? convention.session.code : '—' }} · {{ convention.inscriptions|length }} stagiaire{{ convention.inscriptions|length > 1 ? 's' : '' }}</div>
+                <div class="small">{{ convention.intituleFormationEffectif }}</div>
+                {% set participantsARenseigner = max(0, convention.effectifTotal - convention.inscriptions|length - convention.participantsLibresListe|length) %}
+                <div class="small text-muted">Session {{ convention.session ? convention.session.code : '—' }} · {{ convention.effectifTotal }} participant{{ convention.effectifTotal > 1 ? 's' : '' }}{% if participantsARenseigner > 0 %}, dont {{ participantsARenseigner }} à renseigner{% endif %}</div>
               </div>
               <a class="btn btn-outline-primary btn-sm" href="{{ path('app_administrateur_convention_show', {entite: entite.id, id: convention.id}) }}">Ouvrir</a>
             </div>
           {% else %}
-            <p class="text-muted mb-0">Aucune convention. Créez-en une pour sélectionner une session et les stagiaires concernés.</p>
+            <p class="text-muted mb-0">Aucune convention rattachée à ce devis.</p>
           {% endfor %}
+          {% if linkForm %}
+            <details class="mt-3 border-top pt-3" id="rattacher-convention">
+              <summary class="fw-semibold">Retrouver une convention déjà créée</summary>
+              <p class="small text-muted mt-3">Une convention créée depuis une session peut ne pas avoir de devis source. Choisissez-la ci-dessous après vérification. Seules les conventions non signées, sans devis, du même destinataire{% if d.formation %} et de la même formation{% endif %} sont proposées.</p>
+              {% if linkForm.convention.vars.choices|length > 0 %}
+                {{ form_start(linkForm) }}
+                  {{ form_row(linkForm.convention) }}
+                  {{ form_row(linkForm.confirmation) }}
+                  <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-link-45deg me-1"></i>Rattacher la convention</button>
+                {{ form_end(linkForm) }}
+              {% else %}
+                <p class="small mb-0">Aucune convention compatible à rattacher. Vous pouvez vérifier les formations et le devis source dans <a href="{{ path('app_administrateur_convention_index', {entite: entite.id}) }}">la liste des conventions</a>.</p>
+              {% endif %}
+            </details>
+          {% endif %}
         </div>
       </div>
 
@@ -620,4 +639,19 @@
       <i class="bi bi-pencil-square"></i> Modifier
     </a>
   </div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  {% if linkForm %}
+    <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js" defer></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const select = document.getElementById('{{ linkForm.convention.vars.id }}');
+        if (select && window.TomSelect && !select.tomselect) {
+          new TomSelect(select, {create: false, maxOptions: null, placeholder: 'Rechercher une convention…'});
+        }
+      });
+    </script>
+  {% endif %}
 {% endblock %}

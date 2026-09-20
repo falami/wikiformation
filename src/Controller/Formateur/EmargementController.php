@@ -55,14 +55,14 @@ class EmargementController extends AbstractController
             ->andWhere('s.id = :sid')->setParameter('sid', $sessionId)
             ->getQuery()->getOneOrNullResult();
 
-        if (!$session) {
+        if (!$session || $session->getEntite()?->getId() !== $entite->getId()) {
             return new JsonResponse(['error' => 'Session introuvable'], 404);
         }
 
         // Accès : admin OU formateur propriétaire
         if (
             !$this->isEntiteAdmin($entite) &&
-            $session->getFormateur()?->getUtilisateur()?->getId() !== $user->getId()
+            !$session->hasFormateurUtilisateur($user)
         ) {
             return new JsonResponse(['error' => 'Accès refusé'], 403);
         }
@@ -140,7 +140,11 @@ class EmargementController extends AbstractController
         $has = static fn(array $signed, string $role, int $uid, string $per): bool
         => !empty($signed[$role][$uid][strtoupper($per)]);
 
-        $formateurUser = $session->getFormateur()?->getUtilisateur();
+        $formateurUser = $session->hasFormateurUtilisateur($user) ? $user : null;
+        if (!$formateurUser) foreach ($session->getFormateursEffectifs() as $f) {
+            $u = $f->getUtilisateur();
+            if ($u && ($session->isFormateurUtilisateurSurPeriode($u, $date, 'AM') || $session->isFormateurUtilisateurSurPeriode($u, $date, 'PM'))) { $formateurUser = $u; break; }
+        }
 
         $trainer = null;
         if ($formateurUser) {
@@ -152,6 +156,8 @@ class EmargementController extends AbstractController
                 'name'      => trim($formateurUser->getPrenom() . ' ' . $formateurUser->getNom()),
                 'signed_am' => (bool) $am['signed'],
                 'signed_pm' => (bool) $pm['signed'],
+                'scheduled_am' => $session->isFormateurUtilisateurSurPeriode($formateurUser, $date, 'AM'),
+                'scheduled_pm' => $session->isFormateurUtilisateurSurPeriode($formateurUser, $date, 'PM'),
 
                 // ✅ pour l’aperçu
                 'signature_am_url' => $am['url'],
@@ -210,40 +216,42 @@ class EmargementController extends AbstractController
 
         $today = (new \DateTimeImmutable('today'))->setTime(0, 0);
 
-        // --- calc participants attendus ---
-        $formateurUser = $id->getFormateur()?->getUtilisateur();
-        $trainerCount  = $formateurUser ? 1 : 0;
-
-        // stagiaires inscrits (on exclut le formateur si jamais il est aussi inscrit)
-        $traineeCount = 0;
+        // Une ligne par date, même avec plusieurs créneaux et intervenants.
+        $trainees = [];
         foreach ($id->getInscriptions() as $inscription) {
             $u = $inscription->getStagiaire();
-            if (!$u) continue;
-            if ($formateurUser && $u->getId() === $formateurUser->getId()) continue;
-            $traineeCount++;
+            if ($u && !$id->hasFormateurUtilisateur($u) && $inscription->getStatus() !== \App\Enum\StatusInscription::ANNULE) $trainees[$u->getId()] = true;
         }
-
-        // attendu = (stagiaires + formateur) * 2 (AM + PM)
-        $expectedPerDay = ($traineeCount + $trainerCount) * 2;
-
-        $jours = [];
+        $periodsByDay = [];
         foreach ($id->getJours() as $j) {
-            $day = (clone $j->getDateDebut())->setTime(0, 0);
-
-            $countSigned = (int) $repo->countSignedByDay($id, $day);
-
-            $isPast = $day < $today;
-
-            // manquant = jour passé + attendu défini + pas assez de signatures
-            $isMissing = $isPast && $expectedPerDay > 0 && $countSigned < $expectedPerDay;
-
-            $jours[] = [
-                'date'     => $day,
-                'count'    => $countSigned,
-                'expected' => $expectedPerDay,
-                'isPast'   => $isPast,
-                'isMissing' => $isMissing,
-            ];
+            if (!$j->getDateDebut() || !$j->getDateFin()) continue;
+            $day = $j->getDateDebut()->setTime(0, 0);
+            $key = $day->format('Y-m-d');
+            if ($j->getDateDebut() < $day->setTime(13, 0)) $periodsByDay[$key]['AM'] = true;
+            if ($j->getDateFin() > $day->setTime(13, 0)) $periodsByDay[$key]['PM'] = true;
+        }
+        ksort($periodsByDay);
+        $jours = [];
+        foreach ($periodsByDay as $key => $periods) {
+            $day = new \DateTimeImmutable($key);
+            $expected = count($trainees) * count($periods);
+            foreach ($id->getFormateursEffectifs() as $f) {
+                $u = $f->getUtilisateur();
+                if (!$u) continue;
+                foreach (array_keys($periods) as $period) {
+                    if ($id->isFormateurUtilisateurSurPeriode($u, $day, $period)) $expected++;
+                }
+            }
+            $signed = [];
+            foreach ($repo->findBy(['session' => $id, 'dateJour' => $day]) as $e) {
+                $u = $e->getUtilisateur();
+                $period = $e->getPeriode()->value;
+                if (!$u || !isset($periods[$period]) || (!$e->getSignaturePath() && !$e->getSignatureDataUrl())) continue;
+                if (isset($trainees[$u->getId()]) || $id->isFormateurUtilisateurSurPeriode($u, $day, $period)) $signed[$u->getId() . ':' . $period] = true;
+            }
+            $count = count($signed);
+            $jours[] = ['date' => $day, 'count' => $count, 'expected' => $expected,
+                'isPast' => $day < $today, 'isMissing' => $day < $today && $count < $expected];
         }
 
         return $this->render('formateur/emargements.html.twig', [
@@ -305,6 +313,9 @@ class EmargementController extends AbstractController
         $periode = DemiJournee::from($periodeStr);
 
         // Unicité (stagiaire)
+        if (!$this->isEntiteAdmin($entite) && !$id->isFormateurUtilisateurSurPeriode($this->getUser(), $day, $periodeStr)) {
+            return new JsonResponse(['success' => false, 'message' => 'Vous n’intervenez pas sur cette demi-journée.'], 403);
+        }
         $existing = $repo->findOneBy([
             'session'     => $id,
             'utilisateur' => $user,
@@ -391,6 +402,9 @@ class EmargementController extends AbstractController
         $periode = DemiJournee::from($periodeStr);
 
         // Upsert : une ligne par (session, user, jour, période, role)
+        if (!$id->isFormateurUtilisateurSurPeriode($user, $date, $periodeStr)) {
+            return new JsonResponse(['success' => false, 'message' => 'Vous n’intervenez pas sur cette demi-journée.'], 403);
+        }
         $ema = $repo->findOneBy([
             'session'     => $id,
             'utilisateur' => $user,
@@ -497,10 +511,10 @@ class EmargementController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
+        if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         if ($this->isEntiteAdmin($entite)) return;
 
-        $ownerId = $session->getFormateur()?->getUtilisateur()?->getId();
-        if (!$ownerId || $ownerId !== $user->getId()) {
+        if (!$session->hasFormateurUtilisateur($user)) {
             throw $this->createAccessDeniedException();
         }
     }

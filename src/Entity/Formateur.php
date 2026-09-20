@@ -64,7 +64,7 @@ class Formateur
     private ?Entite $entite = null;
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
-    private ?bool $assujettiTva = null;
+    private bool $assujettiTva = false;
 
     #[ORM\Column(type: 'float', nullable: true)]
     #[Assert\GreaterThanOrEqual(0)]

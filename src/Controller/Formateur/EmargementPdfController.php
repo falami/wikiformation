@@ -50,35 +50,25 @@ class EmargementPdfController extends AbstractController
             throw $this->createNotFoundException('Session introuvable.');
         }
 
-        // --- Récupérer le formateur de la session
-        $formateur     = $session->getFormateur();
-        $trainerUser   = $formateur?->getUtilisateur();
-        $trainerUserId = $trainerUser?->getId();
-        $trainerName   = $trainerUser
-            ? trim(($trainerUser->getPrenom() ?? '') . ' ' . ($trainerUser->getNom() ?? ''))
-            : null;
-
-        // Vérification d’accès (le formateur de la session ou un admin)
-        $isOwner = $trainerUserId === $user->getId();
-        if (!$isOwner && !$this->isEntiteAdmin($entite)) {
+        if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException('Session introuvable.');
+        if (!$session->hasFormateurUtilisateur($user) && !$this->isEntiteAdmin($entite)) {
             throw $this->createAccessDeniedException('Accès refusé à cette session.');
         }
-
-        // --- Liste des jours de formation
-        $joursCol  = $session->getJours(); // Collection<SessionJour>
-        $joursList = [];
-        $dateIndex = [];
-
-        foreach ($joursCol as $j) {
-            $dYmd = $j->getDateDebut()->format('Y-m-d');
-            $joursList[] = [
-                'ymd'   => $dYmd,
-                'label' => $j->getDateDebut()->format('d/m/Y'),
-                'debut' => $j->getDateDebut()->format('H:i'),
-                'fin'   => $j->getDateFin()->format('H:i'),
-            ];
-            $dateIndex[$dYmd] = end($joursList);
+        $trainerUsers = [];
+        foreach ($session->getFormateursEffectifs() as $f) {
+            if ($u = $f->getUtilisateur()) $trainerUsers[$u->getId()] = $u;
         }
+        $trainerName = implode(', ', array_map(static fn(Utilisateur $u) => trim($u->getPrenom() . ' ' . $u->getNom()), $trainerUsers));
+        $joursCol = $session->getJours();
+        $dateIndex = [];
+        foreach ($joursCol as $j) {
+            if (!$j->getDateDebut() || !$j->getDateFin()) continue;
+            $key = $j->getDateDebut()->format('Y-m-d');
+            $dateIndex[$key] ??= ['ymd' => $key, 'label' => $j->getDateDebut()->format('d/m/Y'), 'horaires' => []];
+            $dateIndex[$key]['horaires'][] = $j->getDateDebut()->format('H:i') . ' à ' . $j->getDateFin()->format('H:i');
+        }
+        ksort($dateIndex);
+        $joursList = array_values($dateIndex);
 
         // --- Bornes globales pour l’en-tête
         [$minDebut, $maxFin] = $this->computeGlobalBounds($joursCol);
@@ -112,10 +102,10 @@ class EmargementPdfController extends AbstractController
             if (!isset($linesByDate[$dYmd][$uid])) {
                 $linesByDate[$dYmd][$uid] = [
                     'id'        => $uid,
-                    // ✅ on marque le formateur via Session->formateur, pas via le rôle Emargement
-                    'isTrainer'     => $trainerUserId !== null && $uid === $trainerUserId,
+                    // Les intervenants sont déduits des affectations du planning.
+                    'isTrainer'     => isset($trainerUsers[$uid]),
                     'name'          => trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')),
-                    'raisonSociale' => $u?->getEntreprise()->getRaisonSociale() ?? '—',
+                    'raisonSociale' => $u?->getEntreprise()?->getRaisonSociale() ?? '—',
                     'naissance'     => $u->getDateNaissance()?->format('d/m/Y') ?: '—',
                     'am'            => ['signed' => false, 'img' => null, 'at' => null],
                     'pm'            => ['signed' => false, 'img' => null, 'at' => null],
@@ -182,7 +172,7 @@ class EmargementPdfController extends AbstractController
             'joursList'     => $joursList,
             // ✅ infos formateur pour affichage en clair dans le PDF
             'formateurName' => $trainerName,
-            'formateurId'   => $trainerUserId,
+            'formateurId'   => null,
         ];
 
         // --- Rendu HTML

@@ -18,6 +18,10 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\Sequence\ContratFormateurNumberGenerator;
 use App\Security\Permission\TenantPermission;
+use App\Service\Pdf\{ContratFormateurDocument, PdfManager};
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
 #[Route('/administrateur/{entite}/formateurs/contrats', name: 'app_administrateur_formateurs_contrats_', requirements: ['entite' => '\d+'])]
 #[IsGranted(TenantPermission::CONTRAT_FORMATEUR_MANAGE, subject: 'entite')]
@@ -31,7 +35,7 @@ class ContratFormateurController extends AbstractController
   ) {}
 
   #[Route('', name: 'list', methods: ['GET'])]
-  public function list(Entite $entite): Response
+  public function list(#[MapEntity(id: 'entite')] Entite $entite): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -43,7 +47,7 @@ class ContratFormateurController extends AbstractController
   }
 
   #[Route('/kpis', name: 'kpis', methods: ['GET'])]
-  public function kpis(Entite $entite, Request $request): JsonResponse
+  public function kpis(#[MapEntity(id: 'entite')] Entite $entite, Request $request): JsonResponse
   {
     $statusFilter    = (string)$request->query->get('status', 'all');
     $formateurFilter = (string)$request->query->get('formateur', 'all');
@@ -95,7 +99,7 @@ class ContratFormateurController extends AbstractController
   }
 
   #[Route('/meta', name: 'meta', methods: ['GET'])]
-  public function meta(Entite $entite): JsonResponse
+  public function meta(#[MapEntity(id: 'entite')] Entite $entite): JsonResponse
   {
     $statuses = array_map(
       fn(ContratFormateurStatus $s) => [
@@ -139,10 +143,10 @@ class ContratFormateurController extends AbstractController
   }
 
   #[Route('/ajax', name: 'ajax', methods: ['POST'])]
-  public function ajax(Entite $entite, Request $request): JsonResponse
+  public function ajax(#[MapEntity(id: 'entite')] Entite $entite, Request $request): JsonResponse
   {
-    $start   = $request->request->getInt('start', 0);
-    $length  = $request->request->getInt('length', 10);
+    $start   = max(0, $request->request->getInt('start', 0));
+    $length  = min(200, max(1, $request->request->getInt('length', 100)));
 
     $search  = $request->request->all('search');
     $searchV = trim((string)($search['value'] ?? ''));
@@ -242,7 +246,7 @@ class ContratFormateurController extends AbstractController
 
       return [
         'numero'       => '<strong>' . htmlspecialchars((string)$c->getNumero()) . '</strong>',
-        'formateur'    => $email ? $fullname . '<div class="small text-muted">' . htmlspecialchars($email) . '</div>' : $fullname,
+        'formateur'    => $email ? htmlspecialchars($fullname) . '<div class="small text-muted">' . htmlspecialchars($email) . '</div>' : htmlspecialchars($fullname),
         'session'      => htmlspecialchars($sessionLabel),
         'dateCreation' => $c->getDateCreation()?->format('d/m/Y H:i') ?? '—',
         'signatureAt'  => $c->getSignatureAt()?->format('d/m/Y H:i') ?? 'Non signé',
@@ -259,19 +263,69 @@ class ContratFormateurController extends AbstractController
     ]);
   }
 
+  #[Route('/{id}/voir', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
+  public function show(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, ContratFormateurDocument $document): Response
+  {
+    $this->assertContractTenant($entite, $contrat);
+    return $this->render('administrateur/formateur/contrat/show.html.twig', [
+      'entite' => $entite, 'contrat' => $contrat, 'frozen' => $document->isFrozen($contrat),
+      'stored_pdf_available' => $document->storedPath($contrat) !== null,
+    ]);
+  }
+
+  #[Route('/{id}/pdf', name: 'pdf', requirements: ['id' => '\d+'], methods: ['GET'])]
+  public function pdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request, ContratFormateurDocument $document, PdfManager $pdf): Response
+  {
+    $this->assertContractTenant($entite, $contrat);
+    $name = 'Contrat-' . preg_replace('/[^A-Za-z0-9_-]/', '-', $contrat->getNumero()) . '.pdf';
+    $disposition = $request->query->getBoolean('download') ? ResponseHeaderBag::DISPOSITION_ATTACHMENT : ResponseHeaderBag::DISPOSITION_INLINE;
+    if ($document->isFrozen($contrat)) {
+      $stored = $document->storedPath($contrat);
+      if (!$stored) {
+        return new Response('Le PDF conservé de ce contrat est introuvable. Restaurez le document original pour le consulter ; un contrat signé ne peut pas être régénéré.', 409);
+      }
+      return $this->file($stored, $name, $disposition);
+    }
+    $html = $this->renderView('pdf/contrat_formateur.html.twig', $document->templateData($contrat));
+    $response = $pdf->createPortrait($html, pathinfo($name, PATHINFO_FILENAME));
+    $response->headers->set('Content-Disposition', $response->headers->makeDisposition($disposition, $name));
+    return $response;
+  }
+
+  private function assertContractTenant(Entite $entite, ContratFormateur $contrat): void
+  {
+    if ($contrat->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+  }
+
+  private function validateAssignment(\Symfony\Component\Form\FormInterface $form, ContratFormateur $contrat, Entite $entite): void
+  {
+    if (!$form->isSubmitted()) return;
+    $formateur = $contrat->getFormateur();
+    $session = $contrat->getSession();
+    if (!$formateur || !$session) return;
+    if ($formateur->getEntite()?->getId() !== $entite->getId() || $session->getEntite()?->getId() !== $entite->getId()) {
+      $form->addError(new FormError('Le formateur et la session doivent appartenir à cet organisme.'));
+      return;
+    }
+    if (!in_array($formateur, $session->getFormateursEffectifs(), true)) {
+      $form->get('formateur')->addError(new FormError('Affectez d’abord ce formateur aux créneaux de la session.'));
+    }
+    $existing = $this->em->getRepository(ContratFormateur::class)->findOneBy(['entite' => $entite, 'session' => $session, 'formateur' => $formateur]);
+    if ($existing && $existing->getId() !== $contrat->getId()) {
+      $form->addError(new FormError('Un contrat existe déjà pour ce formateur et cette session : ' . $existing->getNumero() . '.'));
+    }
+  }
+
   #[Route('/nouveau', name: 'new', methods: ['GET', 'POST'])]
-  public function new(Entite $entite, Request $request): Response
+  public function new(#[MapEntity(id: 'entite')] Entite $entite, Request $request): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
-    $numero = $this->contratNumberGenerator->nextForEntite($entite->getId());
-
     $contrat = (new ContratFormateur())
       ->setEntite($entite)
       ->setCreateur($user)
-      ->setStatus(ContratFormateurStatus::BROUILLON)
-      ->setNumero($numero);
+      ->setStatus(ContratFormateurStatus::BROUILLON);
 
     $prefs = $entite->getPreferences();
     if ($prefs) {
@@ -323,6 +377,7 @@ class ContratFormateurController extends AbstractController
       'entite' => $entite,
     ]);
     $form->handleRequest($request);
+    $this->validateAssignment($form, $contrat, $entite);
 
     if ($form->isSubmitted() && $form->isValid()) {
 
@@ -357,7 +412,7 @@ class ContratFormateurController extends AbstractController
             $existing->getNumero()
           ));
 
-          return $this->redirectToRoute('app_administrateur_formateurs_contrats_edit', [
+          return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', [
             'entite' => $entite->getId(),
             'id'     => $existing->getId(),
           ]);
@@ -389,7 +444,7 @@ class ContratFormateurController extends AbstractController
   }
 
   #[Route('/{id}/modifier', name: 'edit', methods: ['GET', 'POST'])]
-  public function edit(Entite $entite, ContratFormateur $contrat, Request $request): Response
+  public function edit(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -398,13 +453,14 @@ class ContratFormateurController extends AbstractController
       throw $this->createNotFoundException();
     }
 
-    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON) {
+    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl()) {
       $this->addFlash('warning', 'Ce contrat n’est plus modifiable (statut non brouillon).');
       return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
     }
 
     $form = $this->createForm(ContratFormateurType::class, $contrat, ['entite' => $entite]);
     $form->handleRequest($request);
+    $this->validateAssignment($form, $contrat, $entite);
 
     if ($form->isSubmitted() && $form->isValid()) {
 
@@ -431,13 +487,13 @@ class ContratFormateurController extends AbstractController
   }
 
   #[Route('/{id}/supprimer', name: 'supprimer', methods: ['POST'])]
-  public function supprimer(Entite $entite, ContratFormateur $contrat, Request $request): Response
+  public function supprimer(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request): Response
   {
     if ($contrat->getEntite()->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
     }
 
-    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON) {
+    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl()) {
       $this->addFlash('warning', 'Suppression impossible : le contrat n’est plus en brouillon.');
       return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
     }
@@ -461,7 +517,7 @@ class ContratFormateurController extends AbstractController
    */
   #[Route('/calc-montant', name: 'calc_montant', methods: ['POST'])]
   public function calcMontant(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     Request $request,
     FormateurRepository $formateurRepo,
     SessionRepository $sessionRepo
@@ -510,11 +566,11 @@ class ContratFormateurController extends AbstractController
       $result['tauxCents'] = $taux;
 
       if ($taux !== null && $nbJours > 0) {
-        $montantCents = (int)($taux * $nbJours);
+        $montantCents = (int) round($taux * $nbJours);
         $result['montantPrevuCents'] = $montantCents;
         $result['montantPrevuEuros'] = number_format($montantCents / 100, 2, ',', ' ');
         $result['tauxEuros']         = number_format($taux / 100, 2, ',', ' ');
-        $result['explication']       = sprintf('%d jour(s) × %s € = %s €', $nbJours, $result['tauxEuros'], $result['montantPrevuEuros']);
+        $result['explication']       = sprintf('%s jour(s) × %s € = %s € (jusqu’à 4 h par date : demi-journée)', number_format($nbJours, 1, ',', ' '), $result['tauxEuros'], $result['montantPrevuEuros']);
       }
 
       return new JsonResponse($result);
@@ -548,7 +604,7 @@ class ContratFormateurController extends AbstractController
    */
   #[Route('/suggest-montant', name: 'suggest_montant', methods: ['POST'])]
   public function suggestMontant(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     Request $request,
     FormateurRepository $formateurRepo,
     SessionRepository $sessionRepo

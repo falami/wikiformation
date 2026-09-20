@@ -385,6 +385,9 @@ table{ border-collapse: collapse; width:100%; }
 {% set session = session ?? contrat.session %}
 {% set formation = formation ?? (session ? session.formation : null) %}
 {% set stagiaires = stagiaires ?? [] %}
+{% set interventionJours = session and contrat.formateur ? session.joursPourFormateur(contrat.formateur) : [] %}
+{% set formationLabel = formation ? formation.titre : (session ? session.formationIntituleLibre|default('Formation') : 'Formation') %}
+{% set interventionHeures = session and contrat.formateur ? session.nombreHeuresPourFormateur(contrat.formateur) : 0 %}
 
 {# Helper : récupère texte du contrat sinon défaut prefs sinon fallback (INCHANGÉ) #}
 {% set t_engagement = contrat.clauseEngagement ?: (prefs ? prefs.contratFormateurClauseEngagementDefault : null) %}
@@ -440,9 +443,7 @@ table{ border-collapse: collapse; width:100%; }
         <div class="doc-meta">
           <div class="doc-meta-item"><strong>N° :</strong> {{ contrat.numero }}</div>
           <div class="doc-meta-item"><strong>Date :</strong> {{ (contrat.dateCreation ?? "now")|date('d/m/Y') }}</div>
-          {% if formation %}
-            <div class="doc-meta-item"><strong>Formation :</strong> {{ formation.titre }}</div>
-          {% endif %}
+          <div class="doc-meta-item"><strong>Formation :</strong> {{ formationLabel }}</div>
           <div class="doc-meta-item"><strong>Exemplaires :</strong> 2</div>
         </div>
       </td>
@@ -531,7 +532,7 @@ table{ border-collapse: collapse; width:100%; }
   <table class="table">
     <tr>
       <th>Intitulé de la formation</th>
-      <td>{{ formation ? formation.titre : '-' }}</td>
+      <td>{{ formationLabel }}</td>
     </tr>
     <tr>
       <th>Client / bénéficiaire</th>
@@ -559,9 +560,9 @@ table{ border-collapse: collapse; width:100%; }
     <tr>
       <th>Dates et horaires</th>
       <td>
-        {% if session and session.jours is defined and session.jours|length > 0 %}
-          <span class="pill">Durée totale : {{ session.dureeTotaleHeures ?? (session.jours|length * 7) }} h</span><br>
-          {% for jour in session.jours %}
+        {% if interventionJours|length > 0 %}
+          <span class="pill">Durée de l’intervention : {{ interventionHeures|number_format(2, ",", " ") }} h</span><br>
+          {% for jour in interventionJours %}
             • Le {{ jour.dateDebut|date('d/m/Y') }}
             de {{ jour.dateDebut|date('H\\hi') }}
             à {{ jour.dateFin|date('H\\hi') }}<br>
@@ -648,8 +649,8 @@ table{ border-collapse: collapse; width:100%; }
       <th>Honoraires pédagogiques</th>
       <td>
         <strong>{{ honoraires|number_format(2, ',', ' ') }} €</strong> HT
-        {% if session and session.jours is defined and session.jours|length > 0 %}
-          <br><span class="text-small text-muted">({{ session.jours|length }} jour(s) d’animation)</span>
+        {% if interventionJours|length > 0 %}
+          <br><span class="text-small text-muted">({{ session.nombreJoursPourFormateur(contrat.formateur)|number_format(1, ',', ' ') }} jour(s) d’animation estimé(s) sur les créneaux attribués)</span>
         {% endif %}
       </td>
     </tr>
@@ -806,7 +807,7 @@ table{ border-collapse: collapse; width:100%; }
   <div class="section-title-accent"></div>
 
   <div class="program-title">
-    {% if formation %}{{ formation.titre|upper }}{% else %}PROGRAMME DE FORMATION{% endif %}
+    {{ formationLabel|upper }}
   </div>
 
   <div class="info-block">

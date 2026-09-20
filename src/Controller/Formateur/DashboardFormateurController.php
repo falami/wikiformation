@@ -39,17 +39,32 @@ class DashboardFormateurController extends AbstractController
     /* =========================================================
      * Helpers
      * ========================================================= */
+    /** @return SessionJour[] */
+    private function ownJours(Session $session): array
+    {
+        $formateur = $this->getUser()?->getFormateur();
+        return $formateur ? $session->getJoursPourFormateur($formateur) : [];
+    }
+
+    private function isAssignedTo(Session $session, Entite $entite): bool
+    {
+        $formateur = $this->getUser()?->getFormateur();
+        return $session->getEntite()?->getId() === $entite->getId()
+            && $formateur?->getEntite()?->getId() === $entite->getId()
+            && $session->hasFormateur($formateur);
+    }
+
     /** Retourne "12/11 09:00–17:00, 15/11 09:00–12:30" (limité) */
     private function formatSessionJoursShort(Session $s, int $max = 3): string
     {
         $items = [];
         $i = 0;
-        foreach ($s->getJours() as $j) {
+        foreach ($this->ownJours($s) as $j) {
             $items[] = $j->getDateDebut()->format('d/m H:i') . '–' . $j->getDateFin()->format('H:i');
             $i++;
             if ($i >= $max) break;
         }
-        if (\count($s->getJours()) > $max) {
+        if (\count($this->ownJours($s)) > $max) {
             $items[] = '…';
         }
         return implode(', ', $items);
@@ -59,7 +74,7 @@ class DashboardFormateurController extends AbstractController
     private function firstStart(Session $s): ?\DateTimeImmutable
     {
         $first = null;
-        foreach ($s->getJours() as $j) {
+        foreach ($this->ownJours($s) as $j) {
             $d = $j->getDateDebut();
             $first = $first ? min($first, $d) : $d;
         }
@@ -70,7 +85,7 @@ class DashboardFormateurController extends AbstractController
     private function lastEnd(Session $s): ?\DateTimeImmutable
     {
         $last = null;
-        foreach ($s->getJours() as $j) {
+        foreach ($this->ownJours($s) as $j) {
             $d = $j->getDateFin();
             $last = $last ? max($last, $d) : $d;
         }
@@ -104,9 +119,9 @@ class DashboardFormateurController extends AbstractController
                 ->select('j', 's', 'fo', 'si')
                 ->from(SessionJour::class, 'j')
                 ->join('j.session', 's')
-                ->join('s.formation', 'fo')
+                ->leftJoin('s.formation', 'fo')
                 ->leftJoin('s.site', 'si')
-                ->andWhere('s.formateur = :f')->setParameter('f', $formateur)
+                ->andWhere('(j.formateur = :f OR (j.formateur IS NULL AND s.formateur = :f))')->setParameter('f', $formateur)
                 ->andWhere('s.entite = :e')->setParameter('e', $entite)
 
                 // ✅ inclut aujourd'hui même si l'horaire est déjà passé
@@ -321,19 +336,15 @@ class DashboardFormateurController extends AbstractController
 
         // 1) Charge les sessions du formateur (avec formation + jours pour formater dates)
         /** @var Session[] $list */
-        $list = $sessions->createQueryBuilder('s')
-            ->leftJoin('s.formateur', 'f')->addSelect('f')
-            ->leftJoin('f.utilisateur', 'u')->addSelect('u')
+        $formateur = $user->getFormateur();
+        $list = $formateur ? $sessions->createForFormateurQueryBuilder($entite, $formateur)
             ->leftJoin('s.formation', 'fo')->addSelect('fo')
-            ->leftJoin('s.site', 'si')->addSelect('si')                 // ✅
-            ->leftJoin('s.organismeFormation', 'org')->addSelect('org') // ✅ (Entreprise)
+            ->leftJoin('s.site', 'si')->addSelect('si')
+            ->leftJoin('s.organismeFormation', 'org')->addSelect('org')
             ->leftJoin('s.jours', 'j')->addSelect('j')
-            ->andWhere('u = :me')->setParameter('me', $user)
-            ->addSelect('(SELECT MIN(j2.dateDebut) FROM App\Entity\SessionJour j2 WHERE j2.session = s) AS HIDDEN firstStart')
-            ->addSelect('(SELECT MAX(j3.dateFin)   FROM App\Entity\SessionJour j3 WHERE j3.session = s) AS HIDDEN lastEnd')
+            ->addSelect('(SELECT MIN(j2.dateDebut) FROM App\Entity\SessionJour j2 WHERE j2.session = s AND (j2.formateur = :assignedFormateur OR (j2.formateur IS NULL AND s.formateur = :assignedFormateur))) AS HIDDEN firstStart')
             ->addOrderBy('firstStart', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->getQuery()->getResult() : [];
 
         if (!$list) {
             return new JsonResponse([
@@ -564,19 +575,15 @@ class DashboardFormateurController extends AbstractController
         }
 
         /** @var Session[] $list */
-        $list = $sessions->createQueryBuilder('s')
+        $list = $sessions->createForFormateurQueryBuilder($entite, $formateur)
             ->leftJoin('s.jours', 'j')->addSelect('j')
             ->leftJoin('s.formation', 'fo')->addSelect('fo')
-            ->andWhere('s.entite = :e')->setParameter('e', $entite)      // ✅ tenant
-            ->andWhere('s.formateur = :f')->setParameter('f', $formateur) // ✅ ownership
-            ->andWhere('j.id IS NOT NULL')                                // ✅ évite sessions sans jours
             ->addOrderBy('j.dateDebut', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->getQuery()->getResult();
 
         $events = [];
         foreach ($list as $s) {
-            foreach ($s->getJours() as $j) {
+            foreach ($s->getJoursPourFormateur($formateur) as $j) {
                 $title = trim(sprintf(
                     '%s - %s',
                     $s->getFormation() ? $s->getFormation()->getTitre() : ($s->getFormationIntituleLibre() ?: 'Session'),
@@ -584,7 +591,7 @@ class DashboardFormateurController extends AbstractController
                 ));
 
                 $events[] = [
-                    'id'    => (string) $s->getId(),
+                    'id'    => $s->getId() . '-' . $j->getId(),
                     'title' => $title,
                     'start' => $j->getDateDebut()->format(\DateTimeInterface::ATOM),
                     'end'   => $j->getDateFin()->format(\DateTimeInterface::ATOM),
@@ -616,7 +623,8 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-        $isOwner = $id->getFormateur()?->getUtilisateur()?->getId() === $user->getId();
+        $isOwner = $this->isAssignedTo($id, $entite);
+        if ($id->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
 
 
         if (!$isOwner && !$this->isEntiteAdmin($entite)) {
@@ -697,7 +705,8 @@ class DashboardFormateurController extends AbstractController
         $user = $this->getUser();
 
         $isOwnerOfAsset   = $link->getAsset()?->getUploadedBy()?->getId() === $user->getId();
-        $isOwnerOfSession = $link->getSession()?->getFormateur()?->getUtilisateur()?->getId() === $user->getId();
+        $isOwnerOfSession = $link->getSession() && $this->isAssignedTo($link->getSession(), $entite);
+        if ($link->getSession()?->getEntite()?->getId() !== $entite->getId()) return new JsonResponse(['success' => false], 403);
 
         if (!($isOwnerOfAsset || $isOwnerOfSession) && !$this->isEntiteAdmin($entite)) {
             return new JsonResponse(['success' => false], 403);
@@ -837,34 +846,23 @@ class DashboardFormateurController extends AbstractController
 
 
         // Sessions appartenant au formateur connecté ET à l'entité courante
-        $qb = $em->createQueryBuilder()
-            ->select('s, fo')
-            ->addSelect('MIN(j.dateDebut) AS HIDDEN minStart')
-            ->addSelect('MAX(j.dateFin)   AS HIDDEN maxEnd')
-            ->from(Session::class, 's')
-            ->join('s.formateur', 'f')
-            ->join('f.utilisateur', 'u')
-            ->join('s.formation', 'fo')
-            ->leftJoin('s.jours', 'j')
-            ->andWhere('u = :me')->setParameter('me', $user)
-            ->andWhere('s.entite = :e')->setParameter('e', $entite)
-            ->groupBy('s.id, fo.id')
-            ->orderBy('minStart', 'DESC');
-
-        /** @var Session[] $list */
-        $list = $qb->getQuery()->getResult();
+        $formateur = $user->getFormateur();
+        $list = $formateur ? $em->getRepository(Session::class)->createForFormateurQueryBuilder($entite, $formateur)
+            ->leftJoin('s.formation', 'fo')->addSelect('fo')
+            ->leftJoin('s.jours', 'j')->addSelect('j')
+            ->orderBy('j.dateDebut', 'DESC')->getQuery()->getResult() : [];
 
         $rows = array_map(function (Session $s) {
             $first = $this->firstStart($s);
             $last  = $this->lastEnd($s);
 
-            $dates = $s->getJours()->isEmpty()
+            $dates = !$this->ownJours($s)
                 ? '-'
                 : sprintf(
                     '%s → %s (%d j)',
                     $first?->format('d/m/Y H:i') ?? '…',
                     $last?->format('d/m/Y H:i') ?? '…',
-                    \count($s->getJours())
+                    \count($this->ownJours($s))
                 );
 
             $label = trim(sprintf(
@@ -907,18 +905,9 @@ class DashboardFormateurController extends AbstractController
         }
 
         // Sécurité: la session doit appartenir à l'entité + au formateur connecté
-        $sessionOk = $em->createQueryBuilder()
-            ->select('COUNT(s.id)')
-            ->from(Session::class, 's')
-            ->join('s.formateur', 'f')
-            ->join('f.utilisateur', 'u')
-            ->andWhere('s.id = :sid')->setParameter('sid', $sessionId)
-            ->andWhere('s.entite = :e')->setParameter('e', $entite)
-            ->andWhere('u = :me')->setParameter('me', $user)
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        if ((int)$sessionOk === 0 && !$this->isEntiteAdmin($entite)) {
+        $session = $em->getRepository(Session::class)->find($sessionId);
+        if (!$session || $session->getEntite()?->getId() !== $entite->getId()
+            || (!$this->isAssignedTo($session, $entite) && !$this->isEntiteAdmin($entite))) {
             return new JsonResponse(['data' => []], 403);
         }
 
@@ -1030,7 +1019,8 @@ class DashboardFormateurController extends AbstractController
             $session = $em->getRepository(Session::class)->find((int)$sid);
             if (!$session) continue;
 
-            $ownerOk = $session->getFormateur()?->getUtilisateur()?->getId() === $user->getId();
+            $ownerOk = $this->isAssignedTo($session, $entite);
+            if ($session->getEntite()?->getId() !== $entite->getId()) continue;
             if (!$ownerOk && !$this->isEntiteAdmin($entite)) continue;
 
             $exists = $em->getRepository(SupportAssignSession::class)->findOneBy([
@@ -1288,6 +1278,10 @@ class DashboardFormateurController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
+        if ($contrat->getEntite()?->getId() !== $entite->getId() || $formateur->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
         $hasSavedSignature = $formateur->getSignatureDataUrl() !== null;
 
         return $this->render('formateur/contrat_sign.html.twig', [
@@ -1314,10 +1308,18 @@ class DashboardFormateurController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // (optionnel mais conseillé) : n’autoriser la signature que si le contrat est ENVOYE
+        if ($contrat->getEntite()?->getId() !== $entite->getId() || $formateur->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+        if (!$this->isCsrfTokenValid('sign_contrat_formateur_' . $contrat->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Formulaire expiré. Rechargez le contrat avant de le signer.');
+        }
+
+        // Seuls les contrats en attente de signature peuvent être signés.
         if (
-            $contrat->getStatus() !== ContratFormateurStatus::ENVOYE
-            && $contrat->getStatus() !== ContratFormateurStatus::BROUILLON
+            ($contrat->getStatus() !== ContratFormateurStatus::ENVOYE
+            && $contrat->getStatus() !== ContratFormateurStatus::BROUILLON)
+            || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl()
         ) {
             $this->addFlash('warning', 'Ce contrat n’est pas en attente de signature.');
             return $this->redirectToRoute('app_formateur_contrats', [
@@ -1439,6 +1441,14 @@ class DashboardFormateurController extends AbstractController
 
         if ($contrat->getFormateur()?->getUtilisateur()?->getId() !== $user->getId()) {
             throw $this->createAccessDeniedException();
+        }
+
+        if ($contrat->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        $document = new \App\Service\Pdf\ContratFormateurDocument($this->getParameter('kernel.project_dir'));
+        if ($document->isFrozen($contrat)) {
+            $stored = $document->storedPath($contrat);
+            if (!$stored) return new Response('Le PDF signé conservé est introuvable. Restaurez le document original.', 409);
+            return $this->file($stored, 'contrat-' . $contrat->getId() . '.pdf');
         }
 
         $session      = $contrat->getSession();

@@ -151,7 +151,8 @@ class SessionType extends AbstractType
                 'class' => Formateur::class,
                 'choice_label' => fn(Formateur $f) => $f->getUtilisateur()->getNom() . ' ' . $f->getUtilisateur()->getPrenom(),
                 'required' => false,
-                'label' => 'Formateur',
+                'label' => 'Formateur par défaut',
+                'help' => 'Utilisé sur les créneaux sans intervenant spécifique. Attribuez chaque journée ou demi-journée dans le planning ci-dessous.',
                 'attr' => ['class' => 'form-select'],
                 'query_builder' => function (\Doctrine\ORM\EntityRepository $er) use ($entite) {
                     $qb = $er->createQueryBuilder('f')
@@ -195,7 +196,7 @@ class SessionType extends AbstractType
             ])
             ->add('jours', CollectionType::class, [
                 'entry_type' => SessionJourType::class,
-                'label' => 'Journées',
+                'label' => 'Créneaux et formateurs',
                 'entry_options' => [
                     'label'  => false,
                     'entite' => $o['entite'] ?? null,

@@ -135,11 +135,12 @@
         <div class="card-body p-3 p-md-4">
           {% set session = contrat.session %}
           {% if session %}
+            {% set joursFormateur = session.joursPourFormateur(contrat.formateur) %}
             {# Formation / client / lieu #}
             <div class="mb-3">
               <div class="small text-muted text-uppercase mb-1">Formation</div>
               <div class="fw-semibold">
-                {{ session.formation.titre ?? session.formation.intitule ?? '-' }}
+                {{ session.formationLabel }}
               </div>
               {% if session.clientEntreprise is defined and session.clientEntreprise %}
                 <div class="small text-muted">
@@ -150,15 +151,15 @@
 
             <div class="row g-2 mb-3">
               <div class="col-6">
-                <div class="small text-muted text-uppercase">Début de la session</div>
+                <div class="small text-muted text-uppercase">Début de votre intervention</div>
                 <div>
-                  {{ session.dateDebut ? session.dateDebut|date('d/m/Y H\\hi') : '-' }}
+                  {{ joursFormateur|length ? (joursFormateur|first).dateDebut|date('d/m/Y H\\hi') : '-' }}
                 </div>
               </div>
               <div class="col-6">
-                <div class="small text-muted text-uppercase">Fin de la session</div>
+                <div class="small text-muted text-uppercase">Fin de votre intervention</div>
                 <div>
-                  {{ session.dateFin ? session.dateFin|date('d/m/Y H\\hi') : '-' }}
+                  {{ joursFormateur|length ? (joursFormateur|last).dateFin|date('d/m/Y H\\hi') : '-' }}
                 </div>
               </div>
             </div>
@@ -172,10 +173,10 @@
 
             {# Calendrier détaillé jour par jour #}
             <div class="mb-3">
-              <div class="small text-muted text-uppercase mb-1">Calendrier détaillé</div>
-              {% if session.jours is defined and session.jours|length > 0 %}
+              <div class="small text-muted text-uppercase mb-1">Vos créneaux d’intervention</div>
+              {% if joursFormateur|length > 0 %}
                 <ul class="list-unstyled small mb-0">
-                  {% for jour in session.jours %}
+                  {% for jour in joursFormateur %}
                     <li class="d-flex justify-content-between">
                       <span>
                         • {{ jour.dateDebut|date('d/m/Y') }}
@@ -305,6 +306,7 @@
               action="{{ path('app_formateur_contrat_sign_post', { entite: entite.id, contrat: contrat.id }) }}"
               id="form-signature"
             >
+              <input type="hidden" name="_token" value="{{ csrf_token('sign_contrat_formateur_' ~ contrat.id) }}">
               <input type="hidden" name="signature_data" id="signature_data">
               <input type="hidden" name="use_saved_signature" id="use_saved_signature" value="0">
 
@@ -449,4 +451,3 @@
     });
   </script>
 {% endblock %}
-

@@ -45,7 +45,9 @@ class FormateurEspaceController extends AbstractController
     public function sessionShow(Entite $entite, Session $session): Response
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED');
-        // (optionnel) vérifier que le formateur courant == $session->getFormateur()
+        if ($session->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($this->getUser())) {
+            throw $this->createAccessDeniedException();
+        }
 
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -226,15 +228,12 @@ class FormateurEspaceController extends AbstractController
             6 => 's.id',
         ];
 
-        $qbBase = $em->getRepository(Session::class)->createQueryBuilder('s')
-            ->join('s.formation', 'fo')->addSelect('fo')
+        $qbBase = $em->getRepository(Session::class)->createForFormateurQueryBuilder($entite, $formateur)
+            ->leftJoin('s.formation', 'fo')->addSelect('fo')
             ->leftJoin('s.site', 'si')->addSelect('si')
 
             // ⬇️ On peut laisser le join jours pour éviter N+1 en affichage
             ->leftJoin('s.jours', 'j')->addSelect('j')
-
-            ->andWhere('s.formateur = :f')->setParameter('f', $formateur)
-            ->andWhere('s.entite = :e')->setParameter('e', $entite)
 
             // ✅ Sous-requêtes corrélées : pas de GROUP BY
             ->addSelect('(SELECT MIN(j2.dateDebut) FROM App\Entity\SessionJour j2 WHERE j2.session = s) AS HIDDEN firstStart')
@@ -352,14 +351,12 @@ class FormateurEspaceController extends AbstractController
 
         $now = new \DateTimeImmutable();
 
-        $rows = $em->createQueryBuilder()
-            ->from(Session::class, 's')
+        $rows = $em->getRepository(Session::class)->createForFormateurQueryBuilder($entite, $formateur)
             ->select('s.id AS id')
             ->addSelect('MIN(j.dateDebut) AS minStart')
             ->addSelect('MAX(j.dateFin)   AS maxEnd')
             ->leftJoin('s.jours', 'j')
-            ->andWhere('s.formateur = :f')->setParameter('f', $formateur)
-            ->andWhere('s.entite = :e')->setParameter('e', $entite)
+            ->andWhere('(j.formateur = :assignedFormateur OR (j.formateur IS NULL AND s.formateur = :assignedFormateur))')
             ->groupBy('s.id')
             ->getQuery()
             ->getArrayResult();

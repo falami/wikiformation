@@ -32,17 +32,18 @@ final class SessionJourType extends AbstractType
 
         $builder
             ->add('dateDebut', TextType::class, [
-                'label' => 'Début (jour)',
+                'label' => 'Début du créneau',
                 'required' => true,
                 'attr' => $dateAttrs,
             ])
             ->add('dateFin', TextType::class, [
-                'label' => 'Fin (jour)',
+                'label' => 'Fin du créneau',
                 'required' => true,
                 'attr' => $dateAttrs,
             ])
             ->add('formateur', EntityType::class, [
                 'class' => Formateur::class,
+                'label' => 'Intervenant du créneau',
                 'required' => false,
                 'placeholder' => 'Formateur (par défaut celui de la session)',
                 'choice_label' => static function (Formateur $f): string {
@@ -60,7 +61,7 @@ final class SessionJourType extends AbstractType
                         // passe l'objet Entite, pas son id.
                         $qb->andWhere('f.entite = :entite')
                             ->setParameter('entite', $entite);
-                    }
+                    } else $qb->andWhere('1 = 0');
 
                     return $qb;
                 },

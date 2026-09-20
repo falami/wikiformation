@@ -645,67 +645,90 @@ class Session
 
 
 
-    public function getNombreJoursPourFormateur(Formateur $formateur): int
+    /** @return list<SessionJour> Créneaux réellement confiés au formateur. */
+    public function getJoursPourFormateur(Formateur $formateur): array
     {
-        $jours = 0;
-
-        foreach ($this->getJours() as $jour) {
-            // Si SessionJour gère un formateur par jour
-            if (method_exists($jour, 'getFormateur')) {
-                $jf = $jour->getFormateur();
-
-                // Jour attribué explicitement à ce formateur
-                if ($jf && $jf->getId() === $formateur->getId()) {
-                    $jours++;
-                    continue;
-                }
-
-                // Si un formateur est défini sur le jour MAIS différent => ne pas compter
-                if ($jf && $jf->getId() !== $formateur->getId()) {
-                    continue;
-                }
-            }
-
-            // Sinon, on retombe sur le formateur "référent" de la session
-            if ($this->getFormateur() && $this->getFormateur()->getId() === $formateur->getId()) {
-                $jours++;
+        $jours = [];
+        foreach ($this->jours as $jour) {
+            $effective = $jour->getFormateur() ?? $this->formateur;
+            if ($effective === $formateur || ($effective?->getId() !== null && $effective->getId() === $formateur->getId())) {
+                $jours[] = $jour;
             }
         }
-
+        usort($jours, static fn(SessionJour $a, SessionJour $b) => $a->getDateDebut() <=> $b->getDateDebut());
         return $jours;
+    }
+
+    /** @return list<Formateur> Intervenants effectifs, sans doublons. */
+    public function getFormateursEffectifs(): array
+    {
+        $formateurs = [];
+        foreach ($this->jours as $jour) {
+            $f = $jour->getFormateur() ?? $this->formateur;
+            if ($f) $formateurs[$f->getId() !== null ? 'id:' . $f->getId() : 'obj:' . spl_object_id($f)] = $f;
+        }
+        if (!$formateurs && $this->jours->isEmpty() && $this->formateur) $formateurs[] = $this->formateur;
+        return array_values($formateurs);
+    }
+
+    public function hasFormateur(Formateur $formateur): bool
+    {
+        foreach ($this->getFormateursEffectifs() as $f) {
+            if ($f === $formateur || ($f->getId() !== null && $f->getId() === $formateur->getId())) return true;
+        }
+        return false;
+    }
+
+    public function hasFormateurUtilisateur(Utilisateur $utilisateur): bool
+    {
+        foreach ($this->getFormateursEffectifs() as $f) {
+            $u = $f->getUtilisateur();
+            if ($u === $utilisateur || ($u?->getId() !== null && $u->getId() === $utilisateur->getId())) return true;
+        }
+        return false;
+    }
+
+    public function isFormateurUtilisateurSurPeriode(Utilisateur $utilisateur, \DateTimeImmutable $date, string $periode): bool
+    {
+        if (!in_array($periode, ['AM', 'PM'], true)) return false;
+        $start = $date->setTime($periode === 'AM' ? 0 : 13, 0);
+        $end = $periode === 'AM' ? $date->setTime(13, 0) : $date->modify('tomorrow')->setTime(0, 0);
+        foreach ($this->getFormateursEffectifs() as $formateur) {
+            $u = $formateur->getUtilisateur();
+            if ($u !== $utilisateur && ($u?->getId() === null || $u->getId() !== $utilisateur->getId())) continue;
+            foreach ($this->getJoursPourFormateur($formateur) as $jour) {
+                if ($jour->getDateDebut() && $jour->getDateFin() && $jour->getDateDebut() < $end && $jour->getDateFin() > $start) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Estimation par date civile : jusqu’à 4 h = demi-journée, au-delà = journée. */
+    public function getNombreJoursPourFormateur(Formateur $formateur): float
+    {
+        $hoursByDate = [];
+        foreach ($this->getJoursPourFormateur($formateur) as $jour) {
+            $start = $jour->getDateDebut();
+            $end = $jour->getDateFin();
+            if (!$start || !$end || $end <= $start) continue;
+            while ($start < $end) {
+                $next = min($start->modify('tomorrow')->setTime(0, 0), $end);
+                $date = $start->format('Y-m-d');
+                $hoursByDate[$date] = ($hoursByDate[$date] ?? 0) + ($next->getTimestamp() - $start->getTimestamp()) / 3600;
+                $start = $next;
+            }
+        }
+        return array_sum(array_map(static fn(float $hours): float => $hours <= 4 ? 0.5 : 1.0, $hoursByDate));
     }
 
     public function getNombreHeuresPourFormateur(Formateur $formateur): float
     {
         $seconds = 0;
-
-        foreach ($this->getJours() as $jour) {
-            $debut = $jour->getDateDebut();
-            $fin   = $jour->getDateFin();
-
-            if (!$debut || !$fin) {
-                continue;
-            }
-
-            // Même logique que pour les jours
-            if (method_exists($jour, 'getFormateur')) {
-                $jf = $jour->getFormateur();
-
-                if ($jf && $jf->getId() === $formateur->getId()) {
-                    $seconds += max(0, $fin->getTimestamp() - $debut->getTimestamp());
-                    continue;
-                }
-
-                if ($jf && $jf->getId() !== $formateur->getId()) {
-                    continue;
-                }
-            }
-
-            if ($this->getFormateur() && $this->getFormateur()->getId() === $formateur->getId()) {
-                $seconds += max(0, $fin->getTimestamp() - $debut->getTimestamp());
+        foreach ($this->getJoursPourFormateur($formateur) as $jour) {
+            if ($jour->getDateDebut() && $jour->getDateFin()) {
+                $seconds += max(0, $jour->getDateFin()->getTimestamp() - $jour->getDateDebut()->getTimestamp());
             }
         }
-
         return round($seconds / 3600, 2);
     }
 

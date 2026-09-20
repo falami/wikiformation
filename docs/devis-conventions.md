@@ -61,3 +61,11 @@ php bin/console doctrine:schema:validate --skip-sync
 Les tests d’intégration créent une base SQLite en mémoire, sans modifier la base de développement. Ils couvrent la persistance des relations, la réutilisation des inscriptions, les conventions multiples, le formulaire HTTP et son double envoi, le filtrage par organisme, les inscriptions individuelles, les questionnaires associés et le rendu PDF. Les tests métier vérifient aussi la capacité, les annulations, les horaires et les montants du devis.
 
 Le parcours HTTP vers une session existante dispose d’un test de régression : aucun `SessionJour` vide n’est initialisé ni validé dans ce mode. Les autres scénarios couvrent aussi les noms sans e-mail, l’effectif seul, les listes mixtes, les effectifs incohérents, la personnalisation du document et l’ajout ultérieur d’inscriptions.
+
+## Retrouver les conventions depuis un devis
+
+La fiche devis charge explicitement ses conventions enregistrées, avec leur numéro, session, intitulé personnalisé et effectif. Les créations actuelles conservent ce lien en base. Les conventions anciennes dépourvues de `devis_id` ne sont pas déduites du seul nom du client.
+
+Dans **Conventions du devis → Retrouver une convention déjà créée**, choisir la convention correspondante puis confirmer le rattachement. La recherche propose uniquement les conventions du même organisme et du même destinataire, non signées et sans devis source ; si le devis indique une formation, elle doit également correspondre. Le serveur revalide ces conditions dans une transaction. Un formulaire falsifié ou une convention devenue signée ne peut pas contourner ces contrôles.
+
+Après rattachement, régénérer le PDF de cette convention non signée pour reprendre la référence et les montants du devis. Aucun document historique n’est associé automatiquement et aucun fichier antérieur n’est supprimé. Une convention signée doit conserver son document original.

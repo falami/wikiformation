@@ -5,16 +5,28 @@ namespace App\Repository;
 
 use App\Entity\Session;
 use App\Entity\Entite;
+use App\Entity\Formateur;
 use App\Filter\FormationsFilter;
 use App\Enum\StatusSession;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\QueryBuilder;
 
 final class SessionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Session::class);
+    }
+
+    /** Sessions effectivement confiées au formateur, avec leurs créneaux complets. */
+    public function createForFormateurQueryBuilder(Entite $entite, Formateur $formateur): QueryBuilder
+    {
+        return $this->createQueryBuilder('s')
+            ->andWhere('s.entite = :trainerEntite')->setParameter('trainerEntite', $entite)
+            ->andWhere('EXISTS (SELECT assignedTrainer.id FROM App\\Entity\\Formateur assignedTrainer WHERE assignedTrainer = :assignedFormateur AND assignedTrainer.entite = :trainerEntite)')
+            ->andWhere('(EXISTS (SELECT assignedJour.id FROM App\\Entity\\SessionJour assignedJour WHERE assignedJour.session = s AND (assignedJour.formateur = :assignedFormateur OR (assignedJour.formateur IS NULL AND s.formateur = :assignedFormateur))) OR (s.formateur = :assignedFormateur AND NOT EXISTS (SELECT anyJour.id FROM App\\Entity\\SessionJour anyJour WHERE anyJour.session = s)))')
+            ->setParameter('assignedFormateur', $formateur);
     }
 
     /**

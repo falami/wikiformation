@@ -1,0 +1,185 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Contrat {{ contrat.numero }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/devis-convention.css') }}?v=2">
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#fff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke: rgba(15, 23, 42, .10);
+      --shadow: 0 18px 55px rgba(15, 23, 42, .10);
+      --radius:18px;
+    }
+
+
+
+    .hero{
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+
+      /* Ombre douce premium */
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+
+      /* Fond piloté par les couleurs de l'entité */
+      background:
+        /* halo clair (tertiaire) */
+        radial-gradient(1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        /* halo accent (secondaire) */
+        radial-gradient(900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        /* voile subtil (quaternaire) pour la profondeur */
+        radial-gradient(700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        /* dégradé principal (principal -> plus clair) */
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    /* léger glass highlight */
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
+      opacity:.85;
+    }
+
+    /* barre accent = secondaire (et glow basé sur secondaire) */
+    .hero .accent{
+      width: 12px;
+      border-radius: 999px;
+      background: var(--theme-color-secondaire);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+    }
+    /* ===== Chips HERO (comme Sessions) ===== */
+    .hero .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.32rem .7rem;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      font-size:.82rem;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    .hero .chip i{ color: var(--theme-color-secondaire); }
+
+    .hero .chip--pill{
+      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
+      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
+      color:#fff;
+    }
+
+    .hero .subtitle{ opacity:.86; }
+    .hero .btn{ border-radius:14px; font-weight:800; }
+    .btn-outline-theme{
+      border-color: rgba(255,255,255,.35);
+      color:#fff;
+    }
+    .btn-outline-theme:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    .cardx{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(15,23,42,.08);
+      overflow:visible;
+    }
+    .cardx-h{
+      padding: .95rem 1.05rem;
+      display:flex; align-items:center; justify-content:space-between; gap:1rem;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cardx-title{
+      margin:0; font-weight:800; letter-spacing:-.01em; color: var(--ink);
+      display:flex; align-items:center; gap:.6rem;
+    }
+    .chip{
+      font-size:.78rem; padding:.25rem .55rem; border-radius:999px;
+      background: color-mix(in srgb, var(--theme-color-principal) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--theme-color-principal) 18%, var(--stroke));
+      color: var(--muted);
+      white-space:nowrap;
+    }
+
+    label.form-label{ font-weight: 700; color: var(--ink); }
+    .form-text, .text-muted, .small{ color: var(--muted) !important; }
+    .form-control, .form-select{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: .65rem .85rem;
+    }
+    .form-control:focus, .form-select:focus{
+      border-color: color-mix(in srgb, var(--theme-color-principal) 55%, var(--stroke));
+      box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--theme-color-principal) 18%, transparent);
+    }
+
+
+    @media (max-width:768px){
+      .hero{ border-radius:16px; }
+    }
+  </style>
+{% endblock %}
+
+
+{% block body %}
+<div class="container-fluid py-4">
+  <a class="btn btn-outline-secondary mb-3" href="{{ path('app_administrateur_formateurs_contrats_list', {entite: entite.id}) }}"><i class="bi bi-arrow-left me-1"></i> Tous les contrats de {{ entite.nom }}</a>
+  {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+  <div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div><div class="text-uppercase text-muted small mb-2">Contrat formateur · {{ entite.nom }}</div><h1 class="h3">{{ contrat.numero }}</h1><p class="mb-2">{{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }} · {{ contrat.session.formationLabel }}</p><span class="badge text-bg-light border">{{ contrat.status.label }}</span></div>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_session_show', {entite: entite.id, id: contrat.session.id}) }}">Voir la session</a>
+        {% if contrat.status.value == 'BROUILLON' and not frozen %}<a class="btn btn-outline-primary" href="{{ path('app_administrateur_formateurs_contrats_edit', {entite: entite.id, id: contrat.id}) }}">Modifier</a>{% endif %}
+        {% if not frozen or stored_pdf_available %}<a class="btn btn-warning" href="{{ path('app_administrateur_formateurs_contrats_pdf', {entite: entite.id, id: contrat.id, download: 1}) }}"><i class="bi bi-download me-1"></i> Télécharger le PDF</a>{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="row g-4 mb-4">
+    <div class="col-md-4"><div class="card rounded-4 h-100"><div class="card-body p-4"><div class="text-muted small">Session</div><strong>{{ contrat.session.code }}</strong><div class="text-muted mt-2">{{ contrat.session.site.nom|default('Lieu à préciser') }}</div></div></div></div>
+    <div class="col-md-4"><div class="card rounded-4 h-100"><div class="card-body p-4"><div class="text-muted small">Honoraires et frais HT</div><strong>{{ ((contrat.montantPrevuCents + contrat.fraisMissionCents) / 100)|number_format(2, ',', ' ') }} €</strong><div class="text-muted mt-2">Dont frais : {{ (contrat.fraisMissionCents / 100)|number_format(2, ',', ' ') }} €</div></div></div></div>
+    <div class="col-md-4"><div class="card rounded-4 h-100"><div class="card-body p-4"><div class="text-muted small">Signature du formateur</div><strong>{{ contrat.signatureAt ? contrat.signatureAt|date('d/m/Y à H:i') : 'En attente' }}</strong><div class="text-muted mt-2">Créé le {{ contrat.dateCreation|date('d/m/Y') }}</div></div></div></div>
+  </div>
+  {% if frozen %}
+    <div class="alert {{ stored_pdf_available ? 'alert-info' : 'alert-warning' }}">{% if stored_pdf_available %}Le document conservé est affiché ci-dessous. Il reste inchangé si le planning de la session évolue.{% else %}Le PDF original de ce contrat est introuvable. Restaurez le document conservé pour le consulter ; un contrat signé ne peut pas être régénéré.{% endif %}</div>
+  {% else %}
+    <div class="card rounded-4 mb-4"><div class="card-body p-4"><h2 class="h5">Créneaux attribués à ce formateur</h2><p class="text-muted">{{ contrat.session.nombreHeuresPourFormateur(contrat.formateur)|number_format(2, ',', ' ') }} heures d’intervention. Ces horaires sont repris dans le PDF.</p><ul class="mb-0">{% for jour in contrat.session.joursPourFormateur(contrat.formateur) %}<li>{{ jour.dateDebut|date('d/m/Y') }} · {{ jour.dateDebut|date('H:i') }}–{{ jour.dateFin|date('H:i') }}</li>{% else %}<li>Aucun créneau attribué. Complétez le planning de la session.</li>{% endfor %}</ul></div></div>
+  {% endif %}
+  {% if not frozen or stored_pdf_available %}<iframe class="w-100 border rounded-4 bg-white" style="height: 80vh; min-height: 600px" title="PDF du contrat {{ contrat.numero }}" src="{{ path('app_administrateur_formateurs_contrats_pdf', {entite: entite.id, id: contrat.id}) }}"></iframe>{% endif %}
+</div>
+{% endblock %}

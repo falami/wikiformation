@@ -45,6 +45,7 @@ final class ContratFormateurType extends AbstractType
         'class' => Formateur::class,
         'label' => 'Formateur',
         'placeholder' => '- Choisir -',
+        'constraints' => [new \Symfony\Component\Validator\Constraints\NotNull()],
         'row_attr' => $rowAttr,
         'attr' => $selectAttr,
         'query_builder' => function (EntityRepository $repo) use ($entite) {
@@ -73,6 +74,7 @@ final class ContratFormateurType extends AbstractType
         'class' => Session::class,
         'label' => 'Session',
         'placeholder' => '- Choisir -',
+        'constraints' => [new \Symfony\Component\Validator\Constraints\NotNull()],
         'row_attr' => $rowAttr,
         'attr' => $selectAttr,
         'query_builder' => function (EntityRepository $repo) use ($entite) {
@@ -85,6 +87,7 @@ final class ContratFormateurType extends AbstractType
 
       ->add('status', EnumType::class, [
         'class' => ContratFormateurStatus::class,
+        'choices' => [ContratFormateurStatus::BROUILLON, ContratFormateurStatus::ENVOYE],
         'label' => 'Statut',
         'row_attr' => $rowAttr,
         'attr' => $selectAttr,
@@ -120,7 +123,7 @@ final class ContratFormateurType extends AbstractType
         'required' => false,
         'row_attr' => $rowAttr,
         'attr' => $mergeAttr($controlAttr, ['inputmode' => 'decimal', 'placeholder' => '0,00']),
-        'help' => 'Sélectionne une session et un formateur pour calculer automatiquement (heures × taux horaire).',
+        'help' => 'Sélectionne une session et un formateur pour calculer automatiquement sur ses créneaux attribués. Le montant proposé reste modifiable.',
       ])
 
       ->add('fraisMissionCents', MoneyType::class, [

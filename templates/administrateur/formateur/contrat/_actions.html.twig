@@ -1,9 +1,9 @@
 {# templates/administrateur/formateur/contrat/_actions.html.twig #}
 
-<div class="hover-actions end-0 me-2 d-flex gap-1 justify-content-end">
+<div class="contract-actions d-flex gap-1 justify-content-end">
 
   {# Modifier seulement si brouillon #}
-  {% if status == 'BROUILLON' %}
+  {% if status == 'BROUILLON' and not c.signatureAt and not c.signatureDataUrl %}
     <a href="{{ path('app_administrateur_formateurs_contrats_edit', { entite: entite.id, id: c.id }) }}"
        class="btn btn-warning btn-sm"
        data-bs-toggle="tooltip"
@@ -13,25 +13,23 @@
   {% endif %}
 
   {# Voir comme formateur #}
-  <a href="{{ path('app_formateur_contrat_sign', { entite: entite.id, contrat: c.id }) }}"
+  <a href="{{ path('app_administrateur_formateurs_contrats_show', { entite: entite.id, id: c.id }) }}"
      class="btn btn-primary btn-sm"
      data-bs-toggle="tooltip"
-     data-bs-title="Voir / Signer">
+     title="Consulter le contrat" aria-label="Consulter le contrat">
     <i class="bi bi-eye"></i>
   </a>
 
   {# PDF #}
-  {% if c.pdfPath %}
-    <a href="{{ asset(c.pdfPath) }}" target="_blank" rel="noopener"
+    <a href="{{ path('app_administrateur_formateurs_contrats_pdf', {entite: entite.id, id: c.id, download: 1}) }}" target="_blank" rel="noopener"
        class="btn btn-dark btn-sm"
        data-bs-toggle="tooltip"
-       data-bs-title="PDF">
+       title="Télécharger le PDF" aria-label="Télécharger le PDF">
       <i class="bi bi-file-earmark-pdf"></i>
     </a>
-  {% endif %}
 
   {# ✅ Supprimer (ouvre #deleteModal) #}
-  {% if status == 'BROUILLON' %}
+  {% if status == 'BROUILLON' and not c.signatureAt and not c.signatureDataUrl %}
     <button type="button"
             class="btn btn-danger btn-sm delete-btn"
             data-bs-toggle="modal"

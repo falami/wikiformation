@@ -85,7 +85,7 @@ final class PlanningSessionsController extends AbstractController
     }
 
     $qb = $em->createQueryBuilder()
-      ->select('s', 'f', 'si', 'fo', 'ufo', 'en', 'j')
+      ->select('s', 'f', 'si', 'fo', 'ufo', 'en', 'j', 'jf', 'ujf')
       ->from(Session::class, 's')
       ->leftJoin('s.formation', 'f')        // ✅ formation optionnelle
       ->innerJoin('s.site', 'si')
@@ -93,6 +93,8 @@ final class PlanningSessionsController extends AbstractController
       ->leftJoin('fo.utilisateur', 'ufo')
       ->leftJoin('s.engin', 'en')
       ->innerJoin('s.jours', 'j')
+      ->leftJoin('j.formateur', 'jf')
+      ->leftJoin('jf.utilisateur', 'ujf')
       ->andWhere('s.entite = :entite')->setParameter('entite', $entite)
       ->andWhere('j.dateDebut < :end AND j.dateFin > :start')
       ->setParameter('start', $dtStart)
@@ -107,7 +109,7 @@ final class PlanningSessionsController extends AbstractController
     }
 
     if ($siteId > 0)      $qb->andWhere('si.id = :sid')->setParameter('sid', $siteId);
-    if ($formateurId > 0) $qb->andWhere('fo.id = :foid')->setParameter('foid', $formateurId);
+    if ($formateurId > 0) $qb->andWhere('(jf.id = :foid OR (jf.id IS NULL AND fo.id = :foid))')->setParameter('foid', $formateurId);
     if ($status !== '')   $qb->andWhere('s.status = :st')->setParameter('st', $status);
 
     /** @var Session[] $sessions */
@@ -176,6 +178,9 @@ final class PlanningSessionsController extends AbstractController
         if (!$startJour || !$endJour) continue;
 
         if ($startJour >= $dtEnd || $endJour <= $dtStart) continue;
+        $effectiveFormateur = $jour->getFormateur() ?? $session->getFormateur();
+        if ($formateurId > 0 && $effectiveFormateur?->getId() !== $formateurId) continue;
+        $trainerUser = $effectiveFormateur?->getUtilisateur();
 
         $eventId = 's' . $sid . '-j' . (int)$jour->getId();
         if (isset($seenEvents[$eventId])) continue;
@@ -196,7 +201,10 @@ final class PlanningSessionsController extends AbstractController
             'jourId' => (int)$jour->getId(),
             'slot' => $slot,
             'code' => (string)($session->getCode() ?? ''),
-            'formation' => (string)($formation?->getTitre() ?? ''),
+            'formation' => (string)$session->getFormationLabel(),
+            'formateurId' => $effectiveFormateur?->getId(),
+            'formateur' => trim(($trainerUser?->getPrenom() ?? '') . ' ' . ($trainerUser?->getNom() ?? '')),
+            'isOverrideDay' => $jour->getFormateur() !== null,
             'site' => (string)($site?->getNom() ?? ''),
             'status' => $session->getStatus()?->value ?? '',
             'statusLabel' => method_exists($session->getStatus(), 'label') ? $session->getStatus()->label() : ($session->getStatus()?->value ?? ''),
@@ -253,7 +261,7 @@ final class PlanningSessionsController extends AbstractController
 
     $formation = $session->getFormation();
     $site = $session->getSite();
-    $formateur = $session->getFormateur();
+    $formateur = $jour->getFormateur() ?? $session->getFormateur();
     $engin = $session->getEngin();
 
     // ✅ nom/prenom du formateur via Utilisateur

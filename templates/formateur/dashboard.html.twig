@@ -1853,6 +1853,9 @@ $(function(){
   }
 
   function cellTrainer(info, periode){
+    if(info?.scheduled === false){
+      return `<div class="ema-actioncell"><span class="text-muted small">Pas d’intervention</span>${info.signed ? viewBtn(info.url, info.at) : ''}</div>`;
+    }
     if(!info?.signed){
       return `<div class="ema-actioncell">
         <button class="btn btn-mini btn-outline-success js-open-sign" data-periode="${periode}">
@@ -1922,8 +1925,8 @@ $(function(){
       out.push({
         isTrainer:true,
         name: payload.trainer.name || 'Moi',
-        am: { signed: !!payload.trainer.signed_am, url: payload.trainer.signature_am_url || null, at: payload.trainer.signed_at_am || null },
-        pm: { signed: !!payload.trainer.signed_pm, url: payload.trainer.signature_pm_url || null, at: payload.trainer.signed_at_pm || null }
+        am: { scheduled: payload.trainer.scheduled_am, signed: !!payload.trainer.signed_am, url: payload.trainer.signature_am_url || null, at: payload.trainer.signed_at_am || null },
+        pm: { scheduled: payload.trainer.scheduled_pm, signed: !!payload.trainer.signed_pm, url: payload.trainer.signature_pm_url || null, at: payload.trainer.signed_at_pm || null }
       });
     }
 

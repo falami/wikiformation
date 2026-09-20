@@ -373,7 +373,7 @@
             <i class="bi bi-file-earmark-text me-2" style="color:var(--theme-color-secondaire)"></i>
             Contrats formateurs
           </h2>
-          <div class="opacity-75 mt-1">Création, envoi, signature et archivage.</div>
+          <div class="opacity-75 mt-1">Tous les contrats de {{ entite.nom }}, regroupés par formateur et par session.</div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
             <span class="chip"><i class="bi bi-file-earmark-text"></i> Contrats formateurs</span>
@@ -654,7 +654,10 @@ $(function(){
     tsSession.addOption({ value:'all', text:'Toutes' });
     (json.sessions || []).forEach(x => tsSession.addOption({ value:String(x.id), text:String(x.label) }));
     tsSession.refreshOptions(false);
-    tsSession.setValue('all', true);
+    const initial = new URLSearchParams(location.search);
+    tsSession.setValue(initial.get('session') || 'all', true);
+    tsFormateur.setValue(initial.get('formateur') || 'all', true);
+    tsStatus.setValue(initial.get('status') || 'all', true);
   }
 
   async function loadKpis(){
@@ -726,9 +729,10 @@ $(function(){
     $('#activeFiltersEmpty').hide();
     updateResetUi(items.length);
 
+    const escapeText = value => $('<span>').text(value).html();
     items.forEach(it=>{
       const $b = $(`<span class="af-badge" data-key="${it.key}">
-        <strong>${it.label} :</strong> ${it.value} <i class="bi bi-x-lg ms-1"></i>
+        <strong>${it.label} :</strong> ${escapeText(it.value)} <i class="bi bi-x-lg ms-1"></i>
       </span>`);
 
       $b.on('click', ()=>{
@@ -771,7 +775,7 @@ $(function(){
       + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
 
     buttons:['copy','csv','excel','pdf','print'],
-    lengthMenu:[[10,25,50,200],[10,25,50,200]],
+    lengthMenu:[[10,25,50,100,200],[10,25,50,100,200]],
     pageLength: 100,
     order:[[3,'desc']], // date création
 
@@ -851,21 +855,9 @@ $(function(){
   initTomSelect();
 
   loadMeta().then(()=>{
-    loadKpis();
-    buildActiveFilters();
+    refreshAll(true);
   });
 
-    const defaults = {
-    cg: {{ (entite.preferences and entite.preferences.contratFormateurConditionsGeneralesDefault ? entite.preferences.contratFormateurConditionsGeneralesDefault : '')|json_encode|raw }},
-    cp: {{ (entite.preferences and entite.preferences.contratFormateurConditionsParticulieresDefault ? entite.preferences.contratFormateurConditionsParticulieresDefault : '')|json_encode|raw }},
-  };
-
-  if (btnReset) {
-    btnReset.addEventListener('click', () => {
-      if (inputCg && defaults.cg) inputCg.value = defaults.cg;
-      if (inputCp && defaults.cp) inputCp.value = defaults.cp;
-    });
-  }
 
 
 
