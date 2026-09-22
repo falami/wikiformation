@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
   <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
-  <link rel="stylesheet" href="{{ asset('dist/css/devis-convention.css') }}?v=2">
+  <link rel="stylesheet" href="{{ asset('dist/css/devis-convention.css') }}?v=3">
 
   <style>
     :root{
@@ -161,6 +161,7 @@
 {% set clientLabel = devis.entrepriseDestinataire ? devis.entrepriseDestinataire.raisonSociale : devis.destinataire.prenom ~ ' ' ~ devis.destinataire.nom %}
 {% set routeParams = {entite: entite.id, id: devis.id} %}
 <div class="cv-workspace" id="convention-workspace"
+     data-submitted="{{ form.vars.submitted ? '1' : '0' }}"
      style="--cv-brand: {{ entite.couleurPrincipal|default('#233342') }}; --cv-accent: {{ entite.couleurSecondaire|default('#e9bd58') }}"
      data-catalogue-title="{{ devis.formation ? devis.formation.titre : '' }}" data-catalogue-duration="{{ devis.formation and devis.formation.duree ? devis.formation.duree ~ (devis.formation.duree > 1 ? ' jours' : ' jour') : '' }}"
      data-individual="{{ devis.destinataire ? '1' : '0' }}" data-individual-id="{{ devis.destinataire ? devis.destinataire.id : '' }}" data-create-session="{{ createSession ? '1' : '0' }}">
@@ -179,7 +180,7 @@
     <div class="cv-hero-content">
       <div class="cv-eyebrow"><span></span> DOSSIER DE FORMATION</div>
       <h1>Préparer la convention<span class="cv-heading-dot">.</span></h1>
-      <p>Votre devis est prêt. Donnez une session et des participants à votre projet.</p>
+      <p>Rassemblez la session, les participants et les mentions du document dans un seul dossier.</p>
       <div class="cv-hero-meta">
         <span><i class="bi bi-file-earmark-text" aria-hidden="true"></i>{{ devis.numero }}</span>
         <span><i class="bi bi-building" aria-hidden="true"></i>{{ clientLabel }}</span>
@@ -192,6 +193,12 @@
     </div>
   </header>
 
+  <div class="cv-context-bar">
+    <div><i class="bi bi-book" aria-hidden="true"></i><span>Formation du devis<strong>{{ devis.formation ? devis.formation.titre : 'À définir avec la session' }}</strong></span></div>
+    <div><i class="bi bi-building-check" aria-hidden="true"></i><span>Organisme<strong>{{ entite.nom }}</strong></span></div>
+    <span class="cv-context-status"><i class="bi bi-file-earmark-check" aria-hidden="true"></i> Document à vérifier avant signature</span>
+  </div>
+
   <div class="cv-progress" aria-label="Étapes de préparation">
     <span class="is-active" data-step="session"><b>01</b> Session de formation <i class="bi bi-check2" aria-hidden="true"></i></span>
     <span data-step="participants"><b>02</b> Participants <i class="bi bi-check2" aria-hidden="true"></i></span>
@@ -202,7 +209,7 @@
   {{ form_errors(form) }}
   <div class="cv-layout">
     <main class="cv-main">
-      <section class="cv-panel" aria-labelledby="cv-session-title">
+      <section class="cv-panel" id="cv-session-section" aria-labelledby="cv-session-title">
         <div class="cv-panel-heading">
           <div class="cv-section-icon"><i class="bi bi-calendar2-week" aria-hidden="true"></i></div>
           <div><span class="cv-section-kicker">ÉTAPE 01</span><h2 id="cv-session-title">La session de formation</h2></div>
@@ -236,8 +243,13 @@
             <button type="button" class="cv-button cv-button-soft" data-add-slot><i class="bi bi-plus-lg" aria-hidden="true"></i> Ajouter un créneau</button>
             <a class="cv-text-button ms-2" href="{{ path('app_administrateur_devis_convention', routeParams) }}">Choisir une session existante</a>
           {% else %}
-            <p class="cv-section-description">Retrouvez une session existante ou créez-en une pour cette convention.</p>
-            {{ form_row(form.session, {label: 'Session', attr: {'data-placeholder': 'Rechercher une session…'}}) }}
+            <div class="cv-section-intro"><p class="cv-section-description">Recherchez par formation, numéro ou date. Toutes les sessions non annulées avec une formation du catalogue sont accessibles.</p><span class="cv-library-count" id="cv-session-count"></span></div>
+            {{ form_row(form.session, {label: 'Session de formation', attr: {'data-placeholder': 'Rechercher une formation, une session, une date…'}}) }}
+            <div class="cv-formation-confirmation" id="cv-training-confirmation">
+              <div><i class="bi bi-info-circle" aria-hidden="true"></i><strong>Une autre formation pour cette convention</strong></div>
+              <p>Le devis porte sur « {{ devis.formation ? devis.formation.titre : 'Formation à définir' }} ». Vérifiez le programme et les montants avant de poursuivre avec une autre formation. Le devis reste inchangé.</p>
+              {{ form_row(form.confirmerFormationDifferente) }}
+            </div>
             <div class="cv-session-detail" id="cv-session-detail" hidden>
               <div class="cv-selected-session"><span id="cv-session-code" class="cv-code"></span><strong id="cv-session-title-value"></strong><span class="cv-session-selected"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Sélectionnée</span></div>
               <div class="cv-session-facts">
@@ -255,6 +267,7 @@
         <div class="cv-panel-heading">
           <div class="cv-section-icon"><i class="bi bi-pencil-square" aria-hidden="true"></i></div>
           <div><span class="cv-section-kicker">VOTRE DOCUMENT</span><h2 id="cv-document-details-title">Personnaliser la formation</h2></div>
+          <button type="button" class="cv-text-button cv-heading-action" id="cv-reset-training"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reprendre la session</button>
         </div>
         <div class="cv-panel-body">
           <p class="cv-section-description">Adaptez l’intitulé, les indices d’habilitation et la durée demandés par votre client.</p>
@@ -320,6 +333,11 @@
       </div>
       <div class="cv-summary-total"><span>Total du devis <small>TTC</small></span><strong>{{ (devis.montantTtcCents / 100)|number_format(2, ',', ' ') }} <small>{{ devis.devise == 'EUR' ? '€' : devis.devise }}</small></strong></div>
       <div class="cv-readiness" id="cv-readiness"><i class="bi bi-circle" aria-hidden="true"></i><span>Complétez la session et les participants.</span></div>
+      <div class="cv-checklist" aria-label="Éléments du dossier">
+        <div data-check="session"><i class="bi bi-circle" aria-hidden="true"></i><span>Session et lieu sélectionnés</span></div>
+        <div data-check="participants"><i class="bi bi-circle" aria-hidden="true"></i><span>Participants ou effectif renseignés</span></div>
+        <div data-check="training"><i class="bi bi-circle" aria-hidden="true"></i><span>Intitulé de la convention renseigné</span></div>
+      </div>
       <button type="submit" class="cv-button cv-button-primary cv-submit" id="cv-submit"><i class="bi bi-file-earmark-plus" aria-hidden="true"></i> {{ createSession ? 'Créer la session et la convention' : 'Créer la convention' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
       <p class="cv-summary-footnote"><i class="bi bi-shield-check" aria-hidden="true"></i> Vous pourrez vérifier le document avant signature.</p>
       <a href="{{ path('app_administrateur_devis_show', routeParams) }}" class="cv-summary-back"><i class="bi bi-arrow-left" aria-hidden="true"></i> Revenir au devis</a>
@@ -342,5 +360,5 @@
   {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js" defer></script>
   <script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}" defer></script>
-  <script src="{{ asset('dist/js/devis-convention.js') }}?v=2" defer></script>
+  <script src="{{ asset('dist/js/devis-convention.js') }}?v=3" defer></script>
 {% endblock %}

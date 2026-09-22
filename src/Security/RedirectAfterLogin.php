@@ -19,6 +19,7 @@ final class RedirectAfterLogin
     private readonly RouterInterface $router,
     private readonly EntityManagerInterface $em,
     private readonly UtilisateurEntiteRepository $ueRepo,
+    private readonly MembershipHomeRoute $homeRoute,
   ) {}
 
   public function redirect(Request $request, Utilisateur $u): RedirectResponse
@@ -76,54 +77,10 @@ final class RedirectAfterLogin
           return new RedirectResponse($this->router->generate('app_onboarding'));
       }
 
-      $entiteId = $entite->getId();
-
-      if ($ue->isTenantAdmin()) {
-          return new RedirectResponse($this->router->generate('app_administrateur_dashboard_index', [
-              'entite' => $entiteId,
-          ]));
-      }
-
-      if ($ue->hasRole(UtilisateurEntite::TENANT_OF)) {
-          if ($u->getEntreprise() !== null) {
-              return new RedirectResponse($this->router->generate('app_of_dashboard', [
-                  'entite' => $entiteId,
-              ]));
-          }
-      }
-
-      if ($ue->hasRole(UtilisateurEntite::TENANT_FORMATEUR)) {
-          return new RedirectResponse($this->router->generate('app_formateur_dashboard', [
-              'entite' => $entiteId,
-          ]));
-      }
-
-      if ($ue->hasRole(UtilisateurEntite::TENANT_ENTREPRISE)) {
-          if ($u->getEntreprise() !== null) {
-              return new RedirectResponse($this->router->generate('app_entreprise_dashboard', [
-                  'entite' => $entiteId,
-              ]));
-          }
-      }
-
-      if ($ue->hasRole(UtilisateurEntite::TENANT_OPCO)) {
-          return new RedirectResponse($this->router->generate('app_opco_dashboard', [
-              'entite' => $entiteId,
-          ]));
-      }
-
-      if ($ue->hasRole(UtilisateurEntite::TENANT_COMMERCIAL)) {
-          return new RedirectResponse($this->router->generate('app_commercial_dashboard', [
-              'entite' => $entiteId,
-          ]));
-      }
-
-      if ($ue->hasRole(UtilisateurEntite::TENANT_STAGIAIRE)) {
-          return new RedirectResponse($this->router->generate('app_stagiaire_dashboard', [
-              'entite' => $entiteId,
-          ]));
-      }
-
-      return new RedirectResponse($this->router->generate('app_onboarding'));
+      $route = $this->homeRoute->forMembership($ue);
+      return new RedirectResponse($this->router->generate(
+          $route ?? 'app_workspace',
+          $route ? ['entite' => $entite->getId()] : [],
+      ));
   }
 }

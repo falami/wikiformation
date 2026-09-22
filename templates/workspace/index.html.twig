@@ -228,7 +228,7 @@
         Bonjour {{ user.prenom }}, <span style="color: var(--wf-primary);">bienvenue</span> dans votre espace.
       </h1>
       <p class="lead text-muted mx-auto" style="max-width: 600px;">
-        Gérez vos formations et vos équipes en un clic. <br />Veuillez sélectionnez un organisme.
+        Gérez vos formations et vos équipes en un clic. <br />Veuillez sélectionner un organisme.
       </p>
     </div>
 
@@ -297,6 +297,7 @@
                 {% endif %}
               </div>
 
+              {% if homeRoutes[m.id]|default(null) %}
               <form method="post" action="{{ path('app_workspace_switch', {id: e.id}) }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('switch_entite_' ~ e.id) }}">
                 <button type="submit" class="wf-btn-premium w-100">
@@ -304,6 +305,12 @@
                   <i class="fa fa-chevron-right" style="font-size: 0.8rem;"></i>
                 </button>
               </form>
+              {% else %}
+                <p class="small text-muted mt-auto mb-0" role="status">
+                  {% if not m.isActive %}Cet accès est inactif.{% else %}Aucun espace dédié n’est disponible pour vos rôles actuels.{% endif %}
+                  Contactez l’administrateur de cet organisme pour vérifier vos accès.
+                </p>
+              {% endif %}
               
             </div>
           </div>

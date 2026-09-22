@@ -12,9 +12,9 @@ final class DevisConventionLinker
 {
     public function __construct(private EntityManagerInterface $em) {}
 
-    public function link(Devis $devis, ConventionContrat $convention): void
+    public function link(Devis $devis, ConventionContrat $convention, bool $confirmerFormationDifferente = false): void
     {
-        $this->em->wrapInTransaction(function () use ($devis, $convention): void {
+        $this->em->wrapInTransaction(function () use ($devis, $convention, $confirmerFormationDifferente): void {
             // Recharge sous verrou pour refuser une signature ou un rattachement concurrent.
             $this->em->refresh($devis, LockMode::PESSIMISTIC_WRITE);
             $this->em->refresh($convention, LockMode::PESSIMISTIC_WRITE);
@@ -40,8 +40,8 @@ final class DevisConventionLinker
                 || $convention->getStagiaire()?->getId() !== $devis->getDestinataire()?->getId()) {
                 throw new \DomainException('Le destinataire de la convention doit être celui du devis.');
             }
-            if ($devis->getFormation() && $session->getFormation()?->getId() !== $devis->getFormation()->getId()) {
-                throw new \DomainException('La formation de la session doit correspondre à celle du devis.');
+            if ($devis->getFormation() && $session->getFormation()?->getId() !== $devis->getFormation()->getId() && !$confirmerFormationDifferente) {
+                throw new \DomainException('Confirmez explicitement la différence entre la formation de cette convention et celle du devis.');
             }
             foreach ($convention->getInscriptions() as $inscription) {
                 if ($inscription->getEntite()?->getId() !== $entiteId || $inscription->getSession()?->getId() !== $session->getId()) {

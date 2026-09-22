@@ -1017,7 +1017,7 @@ class DevisController extends AbstractController
       $form = $this->createForm(DevisConventionLinkType::class, null, ['devis' => $devis])->handleRequest($request);
       if ($form->isSubmitted() && $form->isValid()) {
           try {
-              $linker->link($devis, $form->get('convention')->getData());
+              $linker->link($devis, $form->get('convention')->getData(), $form->get('confirmerFormationDifferente')->getData());
               $this->addFlash('success', 'Convention rattachée au devis. Générez à nouveau son PDF pour reprendre la référence et les montants du devis.');
           } catch (\DomainException $exception) {
               $this->addFlash('warning', $exception->getMessage());

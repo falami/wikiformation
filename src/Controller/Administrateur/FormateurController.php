@@ -215,6 +215,10 @@ final class FormateurController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
         $isEdit = (bool) $formateur;
+        if ($formateur !== null && $formateur->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
         if (!$formateur) {
             $formateur = new Formateur();
             $formateur->setCreateur($user);
@@ -235,18 +239,15 @@ final class FormateurController extends AbstractController
             // 1) Photo de couverture (vignette pour la liste) — redimensionnée 360x240
             $oldPhoto = $formateur->getPhoto();
 
-            $this->photoManager->handleImageUpload(
-                form: $form,
-                fieldName: 'photo',
-                setter: fn(string $name) => $formateur->setPhoto($name),
-                fileUploader: $this->fileUploader,
-                uploadPath: $uploadPath,
-                sizeW: 500,
-                sizeH: 500,
-                oldFilename: $oldPhoto
-            );
+            $this->photoManager->handleFormImageUploads($form, [
+                'photo' => [
+                    'setter' => fn(string $name) => $formateur->setPhoto($name),
+                    'width' => 500, 'height' => 500, 'oldFilename' => $oldPhoto,
+                ],
+            ], $this->fileUploader, $uploadPath);
+        }
 
-
+        if ($form->isSubmitted() && $form->isValid()) {
             $em->persist($formateur);
             $em->flush();
 

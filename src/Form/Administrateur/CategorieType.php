@@ -41,6 +41,8 @@ final class CategorieType extends AbstractType
 
           if ($entite) {
             $qb->andWhere('c.entite = :e')->setParameter('e', $entite);
+          } else {
+            $qb->andWhere('1 = 0');
           }
           return $qb;
         },
@@ -51,9 +53,15 @@ final class CategorieType extends AbstractType
         'mapped' => false,
         'required' => false,
         'label' => 'Photo',
+        'help' => 'JPEG, PNG, WebP ou GIF · 4 Mo maximum. Taille conseillée : 2 400 pixels sur le côté le plus long.',
+        'attr' => ['accept' => 'image/jpeg,image/png,image/webp,image/gif'],
         'constraints' => [
           new Image(
-            maxSize: '4M'
+            maxSize: '4M',
+            mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+            mimeTypesMessage: 'Choisissez une image JPEG, PNG, WebP ou GIF.',
+            maxPixels: 24_000_000,
+            maxPixelsMessage: 'Cette image est trop grande. Réduisez-la à 2 400 pixels sur son côté le plus long.'
             )
         ],
       ])

@@ -6,17 +6,17 @@ use App\Entity\Entite;
 use App\Entity\Utilisateur;
 use App\Repository\UtilisateurEntiteRepository;
 use App\Service\Tenant\TenantContext;
+use App\Security\MembershipHomeRoute;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use App\Entity\UtilisateurEntite;
 use Symfony\Component\HttpFoundation\Request;
 
 final class WorkspaceController extends AbstractController
 {
   #[Route('/workspace', name: 'app_workspace', methods: ['GET'])]
-  public function index(UtilisateurEntiteRepository $ueRepo): Response
+  public function index(UtilisateurEntiteRepository $ueRepo, MembershipHomeRoute $homeRoute): Response
   {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
     /** @var Utilisateur $user */
@@ -24,10 +24,20 @@ final class WorkspaceController extends AbstractController
 
     $ues = $ueRepo->findAllForUser($user);
 
-    $isTenantDirigeant = $ueRepo->isTenantDirigeant($user);
+    $isTenantDirigeant = false;
+    $homeRoutes = [];
+    foreach ($ues as $membership) {
+      $homeRoutes[$membership->getId()] = $homeRoute->forMembership($membership);
+      if ($membership->isActive()
+          && $membership->getEntite()?->getId() === TenantContext::PLATFORM_ENTITE_ID
+          && $membership->hasRole(\App\Entity\UtilisateurEntite::TENANT_DIRIGEANT)) {
+        $isTenantDirigeant = true;
+      }
+    }
 
     return $this->render('workspace/index.html.twig', [
       'memberships' => $ues,
+      'homeRoutes' => $homeRoutes,
       'user' => $user,
       'platformEntiteId' => TenantContext::PLATFORM_ENTITE_ID,
       'isTenantDirigeant' => $isTenantDirigeant,
@@ -42,6 +52,7 @@ final class WorkspaceController extends AbstractController
     EntityManagerInterface $em,
     UtilisateurEntiteRepository $ueRepo,
     Request $request,
+    MembershipHomeRoute $homeRoute,
   ): Response {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
@@ -53,43 +64,21 @@ final class WorkspaceController extends AbstractController
       throw $this->createAccessDeniedException('CSRF invalide.');
     }
 
+    $membership = $ueRepo->findMembership($user, $entite);
+    if (!$membership || !$membership->isActive()) {
+      throw $this->createAccessDeniedException('Aucun accès actif à cette entité.');
+    }
+
+    $route = $homeRoute->forMembership($membership);
+    if (!$route) {
+      $this->addFlash('warning', 'Aucun espace dédié n’est disponible pour vos rôles dans cet organisme. Contactez son administrateur pour vérifier vos accès.');
+      return $this->redirectToRoute('app_workspace');
+    }
+
     $tenant->setCurrentEntite($user, $entite);
     $entite->touchActivity();
     $em->flush();
 
-    $membership = $ueRepo->findMembership($user, $entite);
-    if (!$membership) {
-      throw $this->createAccessDeniedException('Aucun accès à cette entité.');
-    }
-
-    $roles = $membership->getRoles();
-
-    // Priorités (du plus puissant au plus "simple")
-    if (in_array(UtilisateurEntite::TENANT_DIRIGEANT, $roles, true) || in_array(UtilisateurEntite::TENANT_ADMIN, $roles, true)) {
-      return $this->redirectToRoute('app_administrateur_dashboard_index', ['entite' => $entite->getId()]);
-    }
-
-    if (in_array(UtilisateurEntite::TENANT_OF, $roles, true)) {
-      return $this->redirectToRoute('app_of_dashboard', ['entite' => $entite->getId()]);
-    }
-
-    if (in_array(UtilisateurEntite::TENANT_COMMERCIAL, $roles, true)) {
-      return $this->redirectToRoute('app_commercial_dashboard', ['entite' => $entite->getId()]);
-    }
-
-    if (in_array(UtilisateurEntite::TENANT_FORMATEUR, $roles, true)) {
-      return $this->redirectToRoute('app_formateur_dashboard', ['entite' => $entite->getId()]);
-    }
-
-    if (in_array(UtilisateurEntite::TENANT_ENTREPRISE, $roles, true)) {
-      return $this->redirectToRoute('app_entreprise_dashboard', ['entite' => $entite->getId()]);
-    }
-
-    if (in_array(UtilisateurEntite::TENANT_OPCO, $roles, true)) {
-      return $this->redirectToRoute('app_opco_dashboard', ['entite' => $entite->getId()]);
-    }
-
-    // Fallback stagiaire (ou page “extranet”)
-    return $this->redirectToRoute('app_stagiaire_dashboard', ['entite' => $entite->getId()]);
+    return $this->redirectToRoute($route, ['entite' => $entite->getId()]);
   }
 }

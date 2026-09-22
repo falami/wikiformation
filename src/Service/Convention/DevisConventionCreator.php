@@ -28,6 +28,7 @@ final class DevisConventionCreator
         ?string $dureeFormation = null,
         ?string $participantsLibres = null,
         ?int $effectifPrevisionnel = null,
+        bool $confirmerFormationDifferente = false,
     ): ConventionContrat {
         $entite = $devis->getEntite();
         if (!$entite || !$entite->getId() || !$devis->getId()) {
@@ -51,8 +52,8 @@ final class DevisConventionCreator
             || !$this->sameEntity($session->getSite()->getEntite(), $entite)) {
             throw new \DomainException('Choisissez une session, une formation et un lieu appartenant à cet organisme.');
         }
-        if ($devis->getFormation() && $devis->getFormation()->getId() !== $session->getFormation()->getId()) {
-            throw new \DomainException('La session doit correspondre à la formation du devis.');
+        if ($devis->getFormation() && $devis->getFormation()->getId() !== $session->getFormation()->getId() && !$confirmerFormationDifferente) {
+            throw new \DomainException('La formation de la session diffère de celle du devis. Confirmez explicitement ce choix.');
         }
         if ($session->getStatus() === StatusSession::CANCELED) {
             throw new \DomainException('Cette session est annulée.');

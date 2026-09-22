@@ -407,10 +407,25 @@ body{ overflow-x:hidden; }
 }
 .trainer-meta{
   font-size:.85rem;
+  min-width:0;
+  overflow-wrap:anywhere;
 }
 .trainer-meta .badge{
   font-size:.7rem;
 }
+.trainer-avatar{
+  width:52px;height:52px;flex:0 0 52px;position:relative;overflow:hidden;
+  display:grid;place-items:center;border-radius:16px;
+  background:#e9eef3;color:#223444;font-size:1rem;font-weight:750;
+  border:1px solid #dce5ed;
+}
+.trainer-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.trainer-item{padding:1.1rem .6rem;}
+.trainer-slots{display:grid;gap:.4rem;padding:0;margin:.9rem 0;list-style:none;}
+.trainer-slots li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem .7rem;padding:.5rem .65rem;border-radius:9px;background:#f5f7fa;font-size:.78rem;color:#475569;}
+.trainer-route{margin-top:1rem;border-top:1px solid #e5ebf1;padding-top:.8rem;}
+.trainer-route summary{font-size:.8rem;font-weight:600;color:#475569;cursor:pointer;}
+.trainer-route[open] summary{margin-bottom:.75rem;}
 
 /* lieu de formation */
 .site-header-line{
@@ -741,7 +756,7 @@ body{ overflow-x:hidden; }
                 {% if min and max %}
                   {{ min|date('d/m/Y H:i') }} <br />au<br /> {{ max|date('d/m/Y H:i') }}<br>
                   <span class="text-muted small">
-                    {{ session.jours|length }} jour{{ session.jours|length > 1 ? 's' : '' }} planifié{{ session.jours|length > 1 ? 's' : '' }}
+                    {{ session.jours|length }} créneau{{ session.jours|length > 1 ? 'x' : '' }} planifié{{ session.jours|length > 1 ? 's' : '' }}
                   </span>
                 {% else %}
                   <span class="text-muted">Non planifiée</span>
@@ -880,14 +895,10 @@ body{ overflow-x:hidden; }
 
     {# FORMATEUR + LIEU #}
     <div class="col-md-4">
-      <div class="cardx mb-3">
+      <div class="cardx mb-3" id="session-trainers">
         <div class="cardx-h">
-          <span><i class="fa fa-user-tie text-theme-secondaire me-2"></i> Formateur(s)</span>
-          {% if session.formateur %}
-            <span class="badge bg-light text-dark">Référent :
-              {{ session.formateur.utilisateur ? session.formateur.utilisateur.prenom ~ ' ' ~ session.formateur.utilisateur.nom : '-' }}
-            </span>
-          {% endif %}
+          <span><i class="fa fa-user-tie text-theme-secondaire me-2"></i> Équipe pédagogique</span>
+          <span class="badge bg-light text-dark">{{ formateursSession|length }} formateur{{ formateursSession|length > 1 ? 's' : '' }}</span>
         </div>
 
         <div class="p-3 p-md-2">
@@ -897,14 +908,19 @@ body{ overflow-x:hidden; }
                 {% set u = f.utilisateur %}
                 {% set contrat = contratsByFormateur[f.id] ?? null %}
                 {% set travel = travelByFormateurId[f.id] ?? null %}
+                {% set avatarPath = avatarsByFormateurId[f.id] ?? null %}
+                {% set trainerSlots = session.getJoursPourFormateur(f) %}
 
 
-                <li class="list-group-item">
+                <li class="list-group-item trainer-item" data-trainer-id="{{ f.id }}">
                   <div class="d-flex align-items-center justify-content-between trainer-card">
-                    <div class="d-flex align-items-center">
-                      <img class="avatar me-3"
-                          src="{{ u and u.photo ? asset('uploads/photos/utilisateur/' ~ u.photo) : 'https://via.placeholder.com/96x96?text=F' }}"
-                          alt="Photo formateur">
+                    <div class="d-flex align-items-start gap-3">
+                      <span class="trainer-avatar" aria-hidden="true">
+                        <span>{{ u ? ((u.prenom|slice(0, 1)) ~ (u.nom|slice(0, 1)))|upper : 'F' }}</span>
+                        {% if avatarPath %}
+                          <img src="{{ asset(avatarPath) }}" alt="" loading="lazy" data-trainer-avatar>
+                        {% endif %}
+                      </span>
 
                       <div class="trainer-meta">
                         <h6 class="mb-1">
@@ -928,15 +944,30 @@ body{ overflow-x:hidden; }
                           </div>
                         {% endif %}
 
-                        <div class="small text-muted mt-1">
-                          {{ session.getNombreJoursPourFormateur(f) }} jour(s) d’intervention -
-                          {{ session.getNombreHeuresPourFormateur(f)|number_format(1, ',', ' ') }} h
-                        </div>
+                        {% if trainerSlots|length %}
+                          <div class="small text-muted mt-1">
+                            {{ trainerSlots|length }} créneau{{ trainerSlots|length > 1 ? 'x' : '' }} ·
+                            {{ session.getNombreHeuresPourFormateur(f)|number_format(1, ',', ' ') }} h d’intervention
+                          </div>
+                        {% else %}
+                          <div class="small text-muted mt-1">Aucun créneau affecté</div>
+                        {% endif %}
                         
 
                       </div>
                     </div>
                   </div>
+
+                  {% if trainerSlots|length %}
+                    <ul class="trainer-slots" aria-label="Créneaux de {{ u ? u.prenom ~ ' ' ~ u.nom : 'ce formateur' }}">
+                      {% for slot in trainerSlots %}
+                        <li>
+                          <span><i class="bi bi-calendar3 me-1" aria-hidden="true"></i>{{ slot.dateDebut|date('d/m/Y') }}</span>
+                          <span>{{ slot.dateDebut|date('H:i') }} – {% if slot.dateFin|date('Y-m-d') != slot.dateDebut|date('Y-m-d') %}{{ slot.dateFin|date('d/m/Y') }} {% endif %}{{ slot.dateFin|date('H:i') }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
 
                   <div class="text-center mt-2">
                     <div class="d-flex flex-wrap justify-content-center gap-1">
@@ -945,7 +976,7 @@ body{ overflow-x:hidden; }
                         {% if contrat.status.value == 'BROUILLON' and not contrat.signatureAt and not contrat.signatureDataUrl %}
                           <a href="{{ path('app_administrateur_formateurs_contrats_edit', { entite: entite.id, id: contrat.id }) }}" class="btn btn-sm btn-outline-secondary" title="Modifier le contrat"><i class="fa fa-pen"></i></a>
                         {% endif %}
-                      {% elseif is_granted('CONTRAT_FORMATEUR_MANAGE', entite) %}
+                      {% elseif trainerSlots|length and is_granted('CONTRAT_FORMATEUR_MANAGE', entite) %}
                         <form action="{{ path('app_administrateur_session_contrat_formateur', {entite: entite.id, id: session.id, formateur: f.id}) }}" method="post">
                           <input type="hidden" name="_token" value="{{ csrf_token('contrat_formateur_' ~ session.id ~ '_' ~ f.id) }}">
                           <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fa fa-file-signature me-1"></i>Préparer le contrat</button>
@@ -962,7 +993,8 @@ body{ overflow-x:hidden; }
                   </div>
 
                 {% if travel %}
-                    <div class="mt-3 p-3 rounded-4 border" style="background:#f8fafc; border-color:#e2e8f0!important;">
+                    <details class="trainer-route">
+                      <summary><i class="fa fa-route me-1" aria-hidden="true"></i>Itinéraire vers le site</summary>
                       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                         <div>
                           <div class="fw-semibold">
@@ -990,29 +1022,24 @@ body{ overflow-x:hidden; }
                             {% endif %}
                           </div>
 
-                          {% if travel.gmapsError %}
+                          {% if travel.gmapsError and travel.originAddress and travel.destAddress %}
                             <div class="small text-muted mt-2">
-                              <i class="fa fa-triangle-exclamation me-1"></i>
-                              {{ travel.gmapsError }}
+                              Le calcul de l’itinéraire n’est pas disponible pour le moment.
                             </div>
                           {% endif %}
                         </div>
                       </div>
 
-                      <div class="mt-3 map-frame">
-                        {% if travel.gmapsEmbedUrl %}
+                      {% if travel.gmapsEmbedUrl %}
+                        <div class="mt-3 map-frame">
                           <iframe src="{{ travel.gmapsEmbedUrl }}"
+                                  title="Itinéraire de {{ u ? u.prenom ~ ' ' ~ u.nom : 'ce formateur' }} vers le site"
                                   loading="lazy"
                                   referrerpolicy="no-referrer-when-downgrade"
                                   allowfullscreen></iframe>
-                        {% else %}
-                          <div class="text-muted small p-3">
-                            <i class="fa fa-info-circle me-1"></i>
-                            Carte indisponible (clé navigateur manquante ou adresses incomplètes).
-                          </div>
-                        {% endif %}
-                      </div>
-                    </div>
+                        </div>
+                      {% endif %}
+                    </details>
                   {% endif %}
                 </li>
               {% endfor %}
@@ -2680,6 +2707,11 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-trainer-avatar]').forEach(image => {
+    const showInitials = () => image.remove();
+    image.addEventListener('error', showInitials, {once: true});
+    if (image.complete && image.naturalWidth === 0) showInitials();
+  });
   function nowLabel(){
     const d = new Date();
     return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});

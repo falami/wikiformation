@@ -137,14 +137,16 @@ final class ConventionContratController extends AbstractController
     public function fromInscription(Entite $entite, Inscription $inscription, Request $request, EM $em): Response
     {
         // sécurité entité/session si besoin
-        if ($inscription->getSession()?->getEntite()?->getId() !== $entite->getId()) {
+        if ($inscription->getEntite()?->getId() !== $entite->getId()
+            || $inscription->getSession()?->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException();
         }
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
         $session    = $inscription->getSession();
-        $entreprise = $inscription->getEntreprise();
+        $entreprise = $inscription->getModeFinancement()->requiresContratStagiaire()
+            ? null : $inscription->getEntreprise();
         $stagiaire  = $inscription->getStagiaire();
 
         if (!$session) {

@@ -227,6 +227,158 @@ final class DevisConventionTest extends KernelTestCase
         self::assertSame(1, $this->em->getRepository(Inscription::class)->count([]));
     }
 
+    public function testHttpDifferentTrainingSessionRequiresConfirmationAndRemainsVisibleOnQuote(): void
+    {
+        $this->devis->getFormation()->setDuree(2);
+        $this->persistSession();
+        $different = $this->persistDifferentTrainingSession();
+        $canceled = $this->additionalSession('SES-CANCELED', $this->entite, $different->getFormation());
+        $canceled->setStatus(\App\Enum\StatusSession::CANCELED);
+        $other = (new Entite())->setNom('Organisme étranger')->setPublic(false)->setCreateur($this->user);
+        $this->em->persist($other);
+        $foreign = $this->additionalSession('SES-FOREIGN', $other, $different->getFormation());
+        $this->em->flush();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->conversionUrl());
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame('0', $crawler->filter('#convention-workspace')->attr('data-submitted'));
+        $options = $crawler->filter('select[name="devis_convention[session]"] option');
+        self::assertCount(1, $options->filter('[value="' . $this->session->getId() . '"]'));
+        $option = $options->filter('[value="' . $different->getId() . '"]');
+        self::assertCount(1, $option);
+        self::assertStringContainsString('Habilitation électrique', $option->text());
+        self::assertTrue(json_decode($option->attr('data-session'), true, flags: JSON_THROW_ON_ERROR)['differentFormation']);
+        self::assertCount(0, $options->filter('[value="' . $canceled->getId() . '"]'));
+        self::assertCount(0, $options->filter('[value="' . $foreign->getId() . '"]'));
+
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[session]' => (string) $different->getId(),
+            'devis_convention[stagiaires]' => [],
+            'devis_convention[effectifPrevisionnel]' => '3',
+            // Even values deliberately restored to the quote defaults must survive an invalid POST.
+            'devis_convention[intituleFormation]' => 'Formation test',
+            'devis_convention[dureeFormation]' => '2 jours',
+        ]);
+        $crawler = $client->submit($form);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        self::assertSame('1', $crawler->filter('#convention-workspace')->attr('data-submitted'));
+        self::assertStringContainsString('Confirmez ce choix', $crawler->filter('body')->text());
+        self::assertSame(0, $this->em->getRepository(ConventionContrat::class)->count([]));
+        self::assertSame('Formation test', $crawler->filter('input[name="devis_convention[intituleFormation]"]')->attr('value'));
+        self::assertSame('2 jours', $crawler->filter('input[name="devis_convention[dureeFormation]"]')->attr('value'));
+        self::assertSame('3', $crawler->filter('input[name="devis_convention[effectifPrevisionnel]"]')->attr('value'));
+        self::assertSame((string) $different->getId(), $crawler->filter('select[name="devis_convention[session]"] option[selected]')->attr('value'));
+        $form = $crawler->selectButton('Créer la convention')->form([
+            'devis_convention[confirmerFormationDifferente]' => '1',
+            'devis_convention[intituleFormation]' => 'H0B0 — indices adaptés',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $redirect = $client->getResponse()->headers->get('Location');
+        $client->submit($form);
+        self::assertSame($redirect, $client->getResponse()->headers->get('Location'));
+        self::assertSame(1, $this->em->getRepository(ConventionContrat::class)->count([]));
+        $this->em->clear();
+        $saved = $this->em->getRepository(ConventionContrat::class)->findOneBy(['devis' => $this->devis->getId()]);
+        self::assertSame($different->getId(), $saved->getSession()->getId());
+        self::assertSame('H0B0 — indices adaptés', $saved->getIntituleFormation());
+        self::assertSame('2 jours', $saved->getDureeFormation());
+        self::assertSame('Formation test', $saved->getDevis()->getFormation()->getTitre(), 'Le choix de session ne modifie pas la formation du devis.');
+        $crawler = $client->request('GET', $this->quoteUrl());
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString($saved->getNumero(), $crawler->filter('body')->text());
+        self::assertStringContainsString('H0B0 — indices adaptés', $crawler->filter('body')->text());
+    }
+
+    public function testCreatorRejectsDifferentTrainingWithoutExplicitConfirmation(): void
+    {
+        $different = $this->persistDifferentTrainingSession();
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Confirmez explicitement');
+        $this->creator->create($this->devis, $different, [], $this->user, null, effectifPrevisionnel: 2);
+    }
+
+    public function testHttpLegacyConventionOfDifferentTrainingNeedsSeparateConfirmation(): void
+    {
+        $different = $this->persistDifferentTrainingSession();
+        $convention = $this->legacyConvention($different, 'CONV-LEGACY-DIFFERENT');
+        $convention->setPdfPath('documents/previous-convention.pdf');
+        $signed = $this->legacyConvention($different, 'CONV-SIGNED');
+        $signed->setDateSignatureEntreprise(new \DateTimeImmutable('2026-09-01'));
+        $other = (new Entite())->setNom('Organisme étranger')->setPublic(false)->setCreateur($this->user);
+        $this->em->persist($other);
+        $foreign = $this->legacyConvention($different, 'CONV-FOREIGN');
+        $foreign->setEntite($other);
+        $this->em->flush();
+        $client = $this->createHttpClient();
+        $crawler = $client->request('GET', $this->quoteUrl());
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $options = $crawler->filter('select[name="devis_convention_link[convention]"] option');
+        self::assertSame('1', $options->filter('[value="' . $convention->getId() . '"]')->attr('data-different-formation'));
+        self::assertCount(0, $options->filter('[value="' . $signed->getId() . '"]'));
+        self::assertCount(0, $options->filter('[value="' . $foreign->getId() . '"]'));
+        self::assertNull($convention->getDevis(), 'Consulter le devis ne doit jamais rattacher automatiquement une convention.');
+        $form = $crawler->selectButton('Rattacher la convention')->form([
+            'devis_convention_link[convention]' => (string) $convention->getId(),
+            'devis_convention_link[confirmation]' => '1',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $crawler = $client->followRedirect();
+        self::assertStringContainsString('confirmez la différence de formation', $crawler->filter('body')->text());
+        self::assertNull($this->em->find(ConventionContrat::class, $convention->getId())->getDevis());
+        self::assertSame('documents/previous-convention.pdf', $convention->getPdfPath());
+        $form = $crawler->selectButton('Rattacher la convention')->form([
+            'devis_convention_link[convention]' => (string) $convention->getId(),
+            'devis_convention_link[confirmation]' => '1',
+            'devis_convention_link[confirmerFormationDifferente]' => '1',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $crawler = $client->followRedirect();
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $saved = $this->em->find(ConventionContrat::class, $convention->getId());
+        self::assertSame($this->devis->getId(), $saved->getDevis()?->getId());
+        self::assertNull($saved->getPdfPath());
+        self::assertStringContainsString('CONV-LEGACY-DIFFERENT', $crawler->filter('body')->text());
+        self::assertCount(1, $this->em->getRepository(ConventionContrat::class)->findForDevis($saved->getDevis()));
+    }
+
+    public function testLinkerRejectsDifferentTrainingWithoutExplicitConfirmation(): void
+    {
+        $convention = $this->legacyConvention($this->persistDifferentTrainingSession(), 'CONV-UNCONFIRMED');
+        $this->em->flush();
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Confirmez explicitement');
+        self::getContainer()->get(\App\Service\Convention\DevisConventionLinker::class)->link($this->devis, $convention);
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('protectedLegacyConventionCases')]
+    public function testDifferentTrainingConfirmationCannotBypassLegacyConventionGuards(string $restriction): void
+    {
+        $convention = $this->legacyConvention($this->persistDifferentTrainingSession(), 'CONV-PROTECTED');
+        if ($restriction === 'signed') {
+            $convention->setDateSignatureEntreprise(new \DateTimeImmutable('2026-09-01'));
+            $message = 'signée';
+        } else {
+            $other = (new Entite())->setNom('Autre organisme')->setPublic(false)->setCreateur($this->user);
+            $this->em->persist($other);
+            $convention->setEntite($other);
+            $message = 'même organisme';
+        }
+        $this->em->flush();
+        self::assertSame([], $this->em->getRepository(ConventionContrat::class)->findAttachableToDevis($this->devis));
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage($message);
+        self::getContainer()->get(\App\Service\Convention\DevisConventionLinker::class)->link($this->devis, $convention, true);
+    }
+
+    public static function protectedLegacyConventionCases(): array
+    {
+        return ['signed' => ['signed'], 'foreign tenant' => ['foreign']];
+    }
+
     public function testHttpCompanyConventionPersistsFreeNamesAndEditableDocumentDetails(): void
     {
         $this->persistSession();
@@ -455,6 +607,41 @@ final class DevisConventionTest extends KernelTestCase
         $this->em->flush();
     }
 
+    private function persistDifferentTrainingSession(): Session
+    {
+        $formation = (new Formation())->setEntite($this->entite)->setCreateur($this->user)
+            ->setTitre('Habilitation électrique H0B0')->setSlug('habilitation-electrique')->setDuree(1);
+        $this->em->persist($formation);
+        $session = $this->additionalSession('SES-HABILITATION', $this->entite, $formation);
+        $this->em->flush();
+        return $session;
+    }
+
+    private function additionalSession(string $code, Entite $entite, Formation $formation): Session
+    {
+        $session = (new Session())->setEntite($entite)->setCreateur($this->user)->setFormation($formation)
+            ->setSite($this->session->getSite())->setCode($code)->setCapacite(8);
+        $session->addJour((new SessionJour())->setEntite($entite)->setCreateur($this->user)
+            ->setDateDebut(new \DateTimeImmutable('2026-10-02 09:00'))->setDateFin(new \DateTimeImmutable('2026-10-02 17:00')));
+        $this->em->persist($session);
+        return $session;
+    }
+
+    private function legacyConvention(Session $session, string $numero): ConventionContrat
+    {
+        $convention = (new ConventionContrat())->setEntite($this->entite)->setCreateur($this->user)
+            ->setSession($session)->setEntreprise($this->entreprise)->setNumero($numero)->setEffectifPrevisionnel(2);
+        $this->em->persist($convention);
+        return $convention;
+    }
+
+    private function quoteUrl(): string
+    {
+        return self::getContainer()->get('router')->generate('app_administrateur_devis_show', [
+            'entite' => $this->entite->getId(), 'id' => $this->devis->getId(),
+        ]);
+    }
+
     private function conversionUrl(): string
     {
         return self::getContainer()->get('router')->generate('app_administrateur_devis_convention', [
@@ -471,6 +658,7 @@ final class DevisConventionTest extends KernelTestCase
         $this->em->persist($subscription);
         $this->em->flush();
         self::getContainer()->set(DevisConventionCreator::class, $this->creator);
+        self::getContainer()->set(\Symfony\Component\Mailer\MailerInterface::class, $this->createMock(\Symfony\Component\Mailer\MailerInterface::class));
         $client = new \Symfony\Bundle\FrameworkBundle\KernelBrowser(self::$kernel);
         $client->disableReboot();
         $client->catchExceptions(false);

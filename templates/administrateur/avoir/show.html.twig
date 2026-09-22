@@ -1,0 +1,25 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Avoir {{ avoir.numero }}{% endblock %}
+{% block body %}
+<div class="container-fluid py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="text-muted small mb-1">{{ entite.nom }} · Comptabilité</div>
+      <h1 class="h3 mb-0">Avoir {{ avoir.numero }}</h1>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_avoir_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left me-2"></i>Tous les avoirs</a>
+  </div>
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4">
+      <div class="text-muted mb-2">Montant de l’avoir TTC</div>
+      <div class="display-6 fw-bold mb-4">{{ (avoir.montantTtcCents / 100)|number_format(2, ',', ' ') }} {{ facture ? facture.devise : 'EUR' }}</div>
+      <dl class="row mb-0">
+        <dt class="col-sm-4 text-muted">Date d’émission</dt><dd class="col-sm-8">{{ avoir.dateEmission|date('d/m/Y') }}</dd>
+        <dt class="col-sm-4 text-muted">Facture d’origine</dt>
+        <dd class="col-sm-8">{% if facture %}<a href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: facture.id}) }}">{{ facture.numero }}</a>{% else %}Non renseignée{% endif %}</dd>
+        {% if facture %}<dt class="col-sm-4 text-muted">Destinataire</dt><dd class="col-sm-8">{{ facture.destinataireLabel }}</dd>{% endif %}
+      </dl>
+    </div>
+  </div>
+</div>
+{% endblock %}

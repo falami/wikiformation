@@ -47,9 +47,6 @@ final class ConventionContratRepository extends ServiceEntityRepository
         } else {
             $qb->andWhere('c.stagiaire = :destinataire AND c.entreprise IS NULL')->setParameter('destinataire', $devis->getDestinataire());
         }
-        if ($devis->getFormation()) {
-            $qb->andWhere('s.formation = :formation')->setParameter('formation', $devis->getFormation());
-        }
         return $qb->orderBy('c.id', 'DESC')->getQuery()->getResult();
     }
 

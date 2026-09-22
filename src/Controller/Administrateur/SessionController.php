@@ -1870,7 +1870,8 @@ final class SessionController extends AbstractController
         Entite $entite,
         Session $session,
         EntityManagerInterface $em,
-        HttpClientInterface $http
+        HttpClientInterface $http,
+        \App\Service\Avatar\FormateurAvatarResolver $avatarResolver,
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -1882,6 +1883,15 @@ final class SessionController extends AbstractController
 
         // Les créneaux définissent les intervenants effectifs de la session.
         $formateursSession = $session->getFormateursEffectifs();
+        // Le référent reste identifiable même si tous les créneaux ont été délégués.
+        $referent = $session->getFormateur();
+        if ($referent && !$session->hasFormateur($referent)) {
+            array_unshift($formateursSession, $referent);
+        }
+        $avatarsByFormateurId = [];
+        foreach ($formateursSession as $formateur) {
+            $avatarsByFormateurId[$formateur->getId()] = $avatarResolver->publicPath($formateur);
+        }
 
         // --- Contrats ---
         $repoContrat = $em->getRepository(ContratFormateur::class);
@@ -2186,6 +2196,7 @@ final class SessionController extends AbstractController
             'entite'  => $entite,
             'byEntreprise' => $byEntreprise,
             'formateursSession' => $formateursSession,
+            'avatarsByFormateurId' => $avatarsByFormateurId,
             'contratsByFormateur' => $contratsByFormateur,
             'travelByFormateurId' => $travelByFormateurId,
             'kmRate' => $kmRate,

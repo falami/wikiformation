@@ -84,44 +84,39 @@ final class EntitePremiumController extends AbstractController
         FileUploader $fileUploader,
         Request $request
     ): Response {
+        if ($id->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
         $form = $this->createForm(EntitePremiumType::class, $id);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $uploadPath = $this->getParameter('logo_entite');
 
-            if ($form->get('removeLogo')->getData() === '1') {
-                $this->photoManager->deleteImageIfExists($id->getLogo(), $uploadPath);
-                $id->setLogo(null);
+            $uploaded = $this->photoManager->handleFormImageUploads($form, [
+                'logo' => [
+                    'setter' => fn(string $name) => $id->setLogo($name),
+                    'width' => 800, 'height' => 800, 'oldFilename' => $id->getLogo(),
+                ],
+                'logoMenu' => [
+                    'setter' => fn(string $name) => $id->setLogoMenu($name),
+                    'width' => 200, 'height' => 80, 'oldFilename' => $id->getLogoMenu(),
+                ],
+            ], $fileUploader, $uploadPath);
+
+            if ($uploaded) {
+                if ($form->get('removeLogo')->getData() === '1' && !$form->get('logo')->getData()) {
+                    $this->photoManager->deleteImageIfExists($id->getLogo(), $uploadPath);
+                    $id->setLogo(null);
+                }
+                if ($form->get('removeLogoMenu')->getData() === '1' && !$form->get('logoMenu')->getData()) {
+                    $this->photoManager->deleteImageIfExists($id->getLogoMenu(), $uploadPath);
+                    $id->setLogoMenu(null);
+                }
             }
+        }
 
-            if ($form->get('removeLogoMenu')->getData() === '1') {
-                $this->photoManager->deleteImageIfExists($id->getLogoMenu(), $uploadPath);
-                $id->setLogoMenu(null);
-            }
-
-            $this->photoManager->handleImageUpload(
-                $form,
-                'logo',
-                fn($filename) => $id->setLogo($filename),
-                $fileUploader,
-                $uploadPath,
-                800,
-                800,
-                $id->getLogo()
-            );
-
-            $this->photoManager->handleImageUpload(
-                $form,
-                'logoMenu',
-                fn($filename) => $id->setLogoMenu($filename),
-                $fileUploader,
-                $uploadPath,
-                200,
-                80,
-                $id->getLogoMenu()
-            );
-
+        if ($form->isSubmitted() && $form->isValid()) {
             if ($this->entiteManager->create($id)) {
                 $this->addFlash('success', 'Les paramètres du club ont bien été mis à jour !');
 
@@ -154,9 +149,7 @@ final class EntitePremiumController extends AbstractController
         if ($user->getAbonnement() != 'PREMIUM') {
             $this->addFlash('danger', 'Vous devez avoir souscrit à un abonnement PREMIUM pour pouvoir créer votre club !');
 
-            return $this->redirectToRoute('app_adherent', [
-                'entite' => $entite->getId(),
-            ]);
+            return $this->redirectToRoute('app_workspace');
         }
 
         $nouvelleEntite = new Entite();
@@ -172,38 +165,30 @@ final class EntitePremiumController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $uploadPath = $this->getParameter('logo_entite');
 
-            if ($form->get('removeLogo')->getData() === '1') {
-                $this->photoManager->deleteImageIfExists($nouvelleEntite->getLogo(), $uploadPath);
-                $nouvelleEntite->setLogo(null);
+            $uploaded = $this->photoManager->handleFormImageUploads($form, [
+                'logo' => [
+                    'setter' => fn(string $name) => $nouvelleEntite->setLogo($name),
+                    'width' => 800, 'height' => 800, 'oldFilename' => $nouvelleEntite->getLogo(),
+                ],
+                'logoMenu' => [
+                    'setter' => fn(string $name) => $nouvelleEntite->setLogoMenu($name),
+                    'width' => 100, 'height' => 40, 'oldFilename' => $nouvelleEntite->getLogoMenu(),
+                ],
+            ], $fileUploader, $uploadPath);
+
+            if ($uploaded) {
+                if ($form->get('removeLogo')->getData() === '1' && !$form->get('logo')->getData()) {
+                    $this->photoManager->deleteImageIfExists($nouvelleEntite->getLogo(), $uploadPath);
+                    $nouvelleEntite->setLogo(null);
+                }
+                if ($form->get('removeLogoMenu')->getData() === '1' && !$form->get('logoMenu')->getData()) {
+                    $this->photoManager->deleteImageIfExists($nouvelleEntite->getLogoMenu(), $uploadPath);
+                    $nouvelleEntite->setLogoMenu(null);
+                }
             }
+        }
 
-            if ($form->get('removeLogoMenu')->getData() === '1') {
-                $this->photoManager->deleteImageIfExists($nouvelleEntite->getLogoMenu(), $uploadPath);
-                $nouvelleEntite->setLogoMenu(null);
-            }
-
-            $this->photoManager->handleImageUpload(
-                $form,
-                'logo',
-                fn($filename) => $nouvelleEntite->setLogo($filename),
-                $fileUploader,
-                $uploadPath,
-                800,
-                800,
-                $nouvelleEntite->getLogo()
-            );
-
-            $this->photoManager->handleImageUpload(
-                $form,
-                'logoMenu',
-                fn($filename) => $nouvelleEntite->setLogoMenu($filename),
-                $fileUploader,
-                $uploadPath,
-                100,
-                40,
-                $nouvelleEntite->getLogoMenu()
-            );
-
+        if ($form->isSubmitted() && $form->isValid()) {
             if ($this->entiteManager->create($nouvelleEntite)) {
                 $ue = new UtilisateurEntite();
                 $ue->setRoles([UtilisateurEntite::TENANT_ADMIN]);
@@ -215,14 +200,14 @@ final class EntitePremiumController extends AbstractController
 
                 $this->addFlash('success', 'La nouvelle entité a bien été créée (id n°' . $nouvelleEntite->getId() . ')');
 
-                return $this->redirectToRoute('app_adherent_carnet', [
+                return $this->redirectToRoute('app_administrateur_dashboard_index', [
                     'entite' => $nouvelleEntite->getId(),
                 ]);
             }
 
             $this->addFlash('danger', 'Erreur à la création de l\'entité !');
 
-            return $this->redirectToRoute('app_adherent_carnet', [
+            return $this->redirectToRoute('app_administrateur_dashboard_index', [
                 'entite' => $entite->getId(),
             ]);
         }
@@ -247,9 +232,7 @@ final class EntitePremiumController extends AbstractController
         if ($user->getAbonnement() != 'PREMIUM') {
             $this->addFlash('danger', 'Vous devez avoir souscrit à un abonnement PREMIUM pour pouvoir créer votre club !');
 
-            return $this->redirectToRoute('app_adherent', [
-                'entite' => $entite->getId(),
-            ]);
+            return $this->redirectToRoute('app_workspace');
         }
 
         return $this->render('premium/entite/nouvelle.html.twig', [

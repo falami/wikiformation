@@ -3,9 +3,6 @@
 namespace App\Controller\Administrateur;
 
 use App\Entity\{Engin, Entite, Utilisateur, EnginPhoto};
-use Imagine\Gd\Imagine;
-use Imagine\Image\Box;
-use Imagine\Image\ImageInterface;
 use App\Service\FileUploader;
 use App\Service\Photo\PhotoManager;
 use App\Service\Email\MailerManager;
@@ -182,51 +179,28 @@ final class EnginController extends AbstractController
 
             $uploadPath = $this->getParameter('engin_upload_dir');
 
-            $this->photoManager->handleImageUpload(
-                form: $form,
-                fieldName: 'photoCouverture',
-                setter: fn(string $name) => $engin->setPhotoCouverture($name),
-                fileUploader: $this->fileUploader,
-                uploadPath: $uploadPath,
-                sizeW: 1600,
-                sizeH: 600,
-                oldFilename: $engin->getPhotoCouverture()
-            );
+            $position = $engin->getPhotos()->count();
+            $this->photoManager->handleFormImageUploads($form, [
+                'photoCouverture' => [
+                    'setter' => fn(string $filename) => $engin->setPhotoCouverture($filename),
+                    'width' => 1600, 'height' => 600, 'oldFilename' => $engin->getPhotoCouverture(),
+                ],
+                'photoBanniere' => [
+                    'setter' => fn(string $filename) => $engin->setPhotoBanniere($filename),
+                    'width' => 360, 'height' => 240, 'oldFilename' => $engin->getPhotoBanniere(),
+                ],
+                'galleryFiles' => [
+                    'setter' => function (string $filename) use ($engin, $user, $entite, &$position): void {
+                        $engin->addPhoto((new EnginPhoto())
+                            ->setFilename($filename)->setCreateur($user)
+                            ->setPosition($position++)->setEntite($entite));
+                    },
+                    'width' => 1600, 'height' => 900,
+                ],
+            ], $this->fileUploader, $uploadPath);
+        }
 
-            $this->photoManager->handleImageUpload(
-                form: $form,
-                fieldName: 'photoBanniere',
-                setter: fn(string $name) => $engin->setPhotoBanniere($name),
-                fileUploader: $this->fileUploader,
-                uploadPath: $uploadPath,
-                sizeW: 360,
-                sizeH: 240,
-                oldFilename: $engin->getPhotoBanniere()
-            );
-
-            /** @var \Symfony\Component\HttpFoundation\File\UploadedFile[]|null $galleryFiles */
-            $galleryFiles = $form->get('galleryFiles')->getData();
-            if ($galleryFiles) {
-                $pos = $engin->getPhotos()->count();
-                $imagine = new Imagine();
-
-                foreach ($galleryFiles as $file) {
-                    $filename = $this->fileUploader->upload($file, $uploadPath);
-
-                    $imagine->open($uploadPath . '/' . $filename)
-                        ->thumbnail(new Box(1600, 900), ImageInterface::THUMBNAIL_OUTBOUND)
-                        ->save($uploadPath . '/' . $filename);
-
-                    $photo = (new EnginPhoto())
-                        ->setFilename($filename)
-                        ->setEntite($entite)
-                        ->setCreateur($user)
-                        ->setPosition($pos++);
-
-                    $engin->addPhoto($photo);
-                }
-            }
-
+        if ($form->isSubmitted() && $form->isValid()) {
             $em->persist($engin);
             $em->flush();
 

@@ -11,6 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 
 
 #[Route('/administrateur/{entite}/avoir', name: 'app_administrateur_avoir_', requirements: ['entite' => '\d+'])]
@@ -29,6 +30,27 @@ class AvoirController extends AbstractController
 
         return $this->render('administrateur/avoir/index.html.twig', [
             'entite' => $entite,
+        ]);
+    }
+
+    #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function show(
+        #[MapEntity(id: 'entite')] Entite $entite,
+        #[MapEntity(id: 'id')] Avoir $avoir,
+    ): Response {
+        if ($avoir->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        $facture = $avoir->getFactureOrigine();
+        if ($facture && $facture->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->render('administrateur/avoir/show.html.twig', [
+            'entite' => $entite,
+            'avoir' => $avoir,
+            'facture' => $facture,
         ]);
     }
 

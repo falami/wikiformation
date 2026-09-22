@@ -30,7 +30,7 @@ final class OnboardingController extends AbstractController
         /** @var Utilisateur|null $user */
         $user = $this->getUser();
         if (!$user instanceof Utilisateur) {
-            return $this->redirectToRoute('app_public_home');
+            return $this->redirectToRoute('app_login');
         }
 
         $plans = $em->getRepository(Plan::class)->findBy(

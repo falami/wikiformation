@@ -3,12 +3,11 @@
 namespace App\Controller\Administrateur;
 
 use App\Entity\{Formation, Entite, Utilisateur, FormationPhoto, Categorie};
-use Imagine\Gd\Imagine;
-use Imagine\Image\Box;
-use Imagine\Image\ImageInterface;
 use App\Service\FileUploader;
 use Doctrine\ORM\QueryBuilder;
 use App\Service\Photo\PhotoManager;
+use App\Service\Photo\ImageUploadException;
+use Symfony\Component\Form\FormError;
 use App\Form\Administrateur\FormationType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -319,6 +318,10 @@ final class FormationController extends AbstractController
         /** @var Utilisateur $user */
         $user   = $this->getUser();
         $isEdit = (bool) $formation;
+        if ($formation !== null && $formation->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
 
         // ✅ si création : on set l'entité tout de suite (important pour l’unicité par entité)
         $formation ??= (new Formation())->setEntite($entite)->setCreateur($user);
@@ -382,54 +385,28 @@ final class FormationController extends AbstractController
             // =========================
             $uploadPath = $this->getParameter('formation_upload_dir');
 
-            // Photo couverture (1600x600)
-            $this->photoManager->handleImageUpload(
-                form: $form,
-                fieldName: 'photoCouverture',
-                setter: fn(string $name) => $formation->setPhotoCouverture($name),
-                fileUploader: $this->fileUploader,
-                uploadPath: $uploadPath,
-                sizeW: 1600,
-                sizeH: 600,
-                oldFilename: $formation->getPhotoCouverture()
-            );
+            $position = $formation->getPhotos()->count();
+            $this->photoManager->handleFormImageUploads($form, [
+                'photoCouverture' => [
+                    'setter' => fn(string $filename) => $formation->setPhotoCouverture($filename),
+                    'width' => 1600, 'height' => 600, 'oldFilename' => $formation->getPhotoCouverture(),
+                ],
+                'photoBanniere' => [
+                    'setter' => fn(string $filename) => $formation->setPhotoBanniere($filename),
+                    'width' => 360, 'height' => 240, 'oldFilename' => $formation->getPhotoBanniere(),
+                ],
+                'galleryFiles' => [
+                    'setter' => function (string $filename) use ($formation, $user, $entite, &$position): void {
+                        $formation->addPhoto((new FormationPhoto())
+                            ->setFilename($filename)->setCreateur($user)
+                            ->setPosition($position++)->setEntite($entite));
+                    },
+                    'width' => 1600, 'height' => 900,
+                ],
+            ], $this->fileUploader, $uploadPath);
+        }
 
-            // Photo bannière (360x240)
-            $this->photoManager->handleImageUpload(
-                form: $form,
-                fieldName: 'photoBanniere',
-                setter: fn(string $name) => $formation->setPhotoBanniere($name),
-                fileUploader: $this->fileUploader,
-                uploadPath: $uploadPath,
-                sizeW: 360,
-                sizeH: 240,
-                oldFilename: $formation->getPhotoBanniere()
-            );
-
-        // Galerie (1600x900)
-            /** @var \Symfony\Component\HttpFoundation\File\UploadedFile[]|null $galleryFiles */
-            $galleryFiles = $form->get('galleryFiles')->getData();
-            if ($galleryFiles) {
-                $pos = $formation->getPhotos()->count();
-                $imagine = new Imagine();
-
-                foreach ($galleryFiles as $file) {
-                    $filename = $this->fileUploader->upload($file, $uploadPath);
-
-                    $imagine->open($uploadPath . '/' . $filename)
-                        ->thumbnail(new Box(1600, 900), ImageInterface::THUMBNAIL_OUTBOUND)
-                        ->save($uploadPath . '/' . $filename);
-
-                    $photo = (new FormationPhoto())
-                        ->setFilename($filename)
-                        ->setCreateur($user)
-                        ->setPosition($pos++)
-                        ->setEntite($entite);
-
-                    $formation->addPhoto($photo);
-                }
-            }
-
+        if ($form->isSubmitted() && $form->isValid()) {
             // =========================
             // 3) FLUSH robuste (anti collision)
             // =========================
@@ -500,7 +477,7 @@ final class FormationController extends AbstractController
         $em->flush();
 
         $this->addFlash('success', 'Formation #' . $id . ' supprimée.');
-        return $this->redirectToRoute('index', [
+        return $this->redirectToRoute('app_administrateur_formation_index', [
             'entite' => $entite->getId()
         ]);
     }
@@ -573,7 +550,7 @@ final class FormationController extends AbstractController
 
         $this->addFlash('success', 'Photo supprimée.');
         // Redirige vers l’édition de la formation (plus pratique)
-        return $this->redirectToRoute('modifier', [
+        return $this->redirectToRoute('app_administrateur_formation_modifier', [
             'entite' => $entite->getId(),
             'id'     => $formation?->getId(),
         ]);
@@ -602,6 +579,9 @@ final class FormationController extends AbstractController
 
 
         $modeEdition = (bool) $categorie;
+        if ($categorie !== null && $categorie->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
         $categorie ??= new Categorie();
 
         if (!$modeEdition) {
@@ -618,23 +598,28 @@ final class FormationController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
 
-            // Upload + resize (ex: 1200x600, adapte si tu veux carré 900x900)
-            $this->photoManager->handleImageUpload(
-                $form,
-                'photo',
-                fn(string $filename) => $categorie->setPhoto($filename),
-                $this->fileUploader,
-                $this->getParameter('upload_categorie_dir'),
-                1200,
-                600,
-                $oldPhoto
-            );
+            try {
+                $this->photoManager->handleImageUpload(
+                    $form,
+                    'photo',
+                    fn(string $filename) => $categorie->setPhoto($filename),
+                    $this->fileUploader,
+                    $this->getParameter('upload_categorie_dir'),
+                    1200,
+                    600,
+                    $oldPhoto
+                );
+            } catch (ImageUploadException $exception) {
+                $form->get('photo')->addError(new FormError($exception->getMessage()));
+            }
+        }
 
+        if ($form->isSubmitted() && $form->isValid()) {
             $this->em->persist($categorie);
             $this->em->flush();
 
             $this->addFlash('success', $modeEdition ? 'Catégorie modifiée.' : 'Catégorie créée.');
-            return $this->redirectToRoute('categorie_index', [
+            return $this->redirectToRoute('app_administrateur_formation_categorie', [
                 'entite' => $entite->getId(),
             ]);
         }
@@ -653,6 +638,10 @@ final class FormationController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
+        if ($categorie->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException();
+        }
+
 
         if ($this->isCsrfTokenValid('delete_categorie_' . $categorie->getId(), (string) $request->request->get('_token'))) {
             // supprime la photo physique
@@ -670,7 +659,7 @@ final class FormationController extends AbstractController
             $this->addFlash('success', 'Catégorie supprimée.');
         }
 
-        return $this->redirectToRoute('categorie_index', [
+        return $this->redirectToRoute('app_administrateur_formation_categorie', [
             'entite' => $entite->getId(),
         ]);
     }

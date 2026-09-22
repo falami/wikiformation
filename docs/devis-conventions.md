@@ -2,11 +2,13 @@
 
 Depuis la fiche ou la liste des devis, **Créer une convention** permet :
 
-1. De choisir une session existante correspondant à la formation du devis, ou de créer une session avec sa formation, son lieu, sa capacité et ses créneaux.
+1. De rechercher une session existante de l’organisme par son code ou son intitulé, ou de créer une session avec sa formation, son lieu, sa capacité et ses créneaux. Les sessions de la formation du devis sont distinguées des autres formations ; les sessions annulées ne sont pas proposées.
 2. De sélectionner un ou plusieurs stagiaires pour un devis d’entreprise. Pour un devis individuel, le destinataire est le stagiaire couvert.
 3. De créer la convention, ses inscriptions manquantes et les dossiers d’inscription dans une transaction unique.
 
 Les inscriptions existantes sont réutilisées. Une inscription déjà associée à une autre entreprise n’est pas réattribuée automatiquement. Pour une convention d’entreprise, rattacher au préalable les inscriptions existantes à cette entreprise.
+
+Si la session choisie porte sur une autre formation que celle du devis, une confirmation supplémentaire est obligatoire. Vérifier le programme et les montants avant de confirmer : ce choix ne modifie ni la formation ni les montants du devis. Cette règle est vérifiée côté serveur, y compris sans JavaScript.
 
 Une session et un devis peuvent avoir plusieurs conventions. Chaque convention contient uniquement ses inscriptions sélectionnées. Les écrans de session, d’inscription et du dossier stagiaire présentent ces liens explicites. Le renvoi du même formulaire de conversion ne crée pas un second dossier.
 
@@ -62,10 +64,12 @@ Les tests d’intégration créent une base SQLite en mémoire, sans modifier la
 
 Le parcours HTTP vers une session existante dispose d’un test de régression : aucun `SessionJour` vide n’est initialisé ni validé dans ce mode. Les autres scénarios couvrent aussi les noms sans e-mail, l’effectif seul, les listes mixtes, les effectifs incohérents, la personnalisation du document et l’ajout ultérieur d’inscriptions.
 
+Les tests couvrent également la recherche parmi les autres formations du même organisme, l’exclusion des sessions annulées et des données d’autres organismes, la confirmation obligatoire en cas de différence de formation, le rattachement explicite d’une ancienne convention et l’affichage du lien sur le devis. Les gardes métier refusent toujours un rattachement signé ou entre organismes, même si la différence de formation est confirmée.
+
 ## Retrouver les conventions depuis un devis
 
 La fiche devis charge explicitement ses conventions enregistrées, avec leur numéro, session, intitulé personnalisé et effectif. Les créations actuelles conservent ce lien en base. Les conventions anciennes dépourvues de `devis_id` ne sont pas déduites du seul nom du client.
 
-Dans **Conventions du devis → Retrouver une convention déjà créée**, choisir la convention correspondante puis confirmer le rattachement. La recherche propose uniquement les conventions du même organisme et du même destinataire, non signées et sans devis source ; si le devis indique une formation, elle doit également correspondre. Le serveur revalide ces conditions dans une transaction. Un formulaire falsifié ou une convention devenue signée ne peut pas contourner ces contrôles.
+Dans **Conventions du devis → Retrouver une convention déjà créée**, choisir la convention correspondante puis confirmer le rattachement. La recherche propose uniquement les conventions du même organisme et du même destinataire, non signées et sans devis source. Les conventions d’une autre formation sont identifiées séparément et nécessitent une confirmation supplémentaire après vérification. Le serveur revalide ces conditions dans une transaction. Un formulaire falsifié ou une convention devenue signée ne peut pas contourner ces contrôles.
 
 Après rattachement, régénérer le PDF de cette convention non signée pour reprendre la référence et les montants du devis. Aucun document historique n’est associé automatiquement et aucun fichier antérieur n’est supprimé. Une convention signée doit conserver son document original.

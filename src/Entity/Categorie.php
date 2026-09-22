@@ -7,10 +7,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: CategorieRepository::class)]
 #[ORM\Table(name: 'categorie')]
 #[ORM\UniqueConstraint(name: 'uniq_categorie_entite_slug', columns: ['entite_id', 'slug'])]
+#[UniqueEntity(fields: ['entite', 'slug'], errorPath: 'slug', message: 'Ce slug est déjà utilisé par une catégorie de cet organisme.')]
 class Categorie
 {
   #[ORM\Id]
@@ -24,10 +27,12 @@ class Categorie
 
   #[ORM\Column(length: 120)]
   #[Assert\NotBlank]
+  #[Assert\Length(max: 120)]
   private ?string $nom = null;
 
   #[ORM\Column(length: 140)]
   #[Assert\NotBlank]
+  #[Assert\Length(max: 140)]
   private ?string $slug = null;
 
   // Catégorie parente (ex: Bureautique)
@@ -70,6 +75,24 @@ class Categorie
     // utile dans les selects
     $path = $this->parent ? ($this->parent->getNom() . ' > ') : '';
     return $path . ($this->nom ?? '');
+  }
+
+  #[Assert\Callback]
+  public function validateParent(ExecutionContextInterface $context): void
+  {
+    $visited = [];
+    for ($parent = $this->parent; $parent !== null; $parent = $parent->getParent()) {
+      $key = $parent->getId() ?? ('new-' . spl_object_id($parent));
+      if ($parent === $this || ($this->id !== null && $parent->getId() === $this->id) || isset($visited[$key])) {
+        $context->buildViolation('La catégorie parente ne peut pas être cette catégorie ni une de ses sous-catégories.')->atPath('parent')->addViolation();
+        return;
+      }
+      if ($parent->getEntite() !== $this->entite && ($this->entite?->getId() === null || $parent->getEntite()?->getId() !== $this->entite->getId())) {
+        $context->buildViolation('La catégorie parente doit appartenir au même organisme.')->atPath('parent')->addViolation();
+        return;
+      }
+      $visited[$key] = true;
+    }
   }
 
   public function getId(): ?int

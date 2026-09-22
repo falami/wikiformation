@@ -99,6 +99,7 @@ final class DevisConventionController extends AbstractController
                         $devis, $session, $stagiaires, $user, $data['conditionsFinancieres'],
                         $data['intituleFormation'] ?? null, $data['dureeFormation'] ?? null,
                         $data['participantsLibres'] ?? null, $data['effectifPrevisionnel'] ?? null,
+                        $data['confirmerFormationDifferente'] ?? false,
                     );
                     $operations[$data['operation']]['convention'] = $convention->getId();
                     $request->getSession()->set('devis_convention_operations', $operations);

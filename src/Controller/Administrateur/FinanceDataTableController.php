@@ -13,6 +13,7 @@ use App\Enum\FactureStatus;
 use App\Enum\DevisStatus;
 use App\Enum\ModePaiement;
 use App\Security\Permission\TenantPermission;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 
 
@@ -32,7 +33,7 @@ final class FinanceDataTableController extends AbstractController
       ->leftJoin('d.createur', 'createur')
       ->andWhere('d.entite = :e')->setParameter('e', $entite);
 
-    $search = trim((string) ($req->get('search')['value'] ?? ''));
+    $search = trim((string) ($this->parameter($req, 'search')['value'] ?? ''));
     if ($search !== '') {
       $qb->andWhere('d.libelle LIKE :s OR c.libelle LIKE :s OR f.nom LIKE :s')
         ->setParameter('s', '%' . $search . '%');
@@ -109,7 +110,7 @@ final class FinanceDataTableController extends AbstractController
           $urlDel  = $this->generateUrl('app_administrateur_depense_delete', ['entite' => $entite->getId(), 'id' => $d->getId()]);
 
           // ⚠️ token : adapte l’intention à ton delete (ex: "delete_depense")
-          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_depense'.$d->getId())->getValue();
+          $token = $this->container->get('security.csrf.token_manager')->getToken('depense_delete_'.$d->getId())->getValue();
 
           $label = trim(($d->getLibelle() ?? ''));
 
@@ -144,7 +145,7 @@ final class FinanceDataTableController extends AbstractController
       ->andWhere('p.entite = :e')->setParameter('e', $entite);
 
     // ✅ search global (corrigé)
-    $search = trim((string) ($req->get('search')['value'] ?? ''));
+    $search = trim((string) ($this->parameter($req, 'search')['value'] ?? ''));
     if ($search !== '') {
       $qb->andWhere("
             f.numero LIKE :s
@@ -193,7 +194,7 @@ final class FinanceDataTableController extends AbstractController
           }
 
           $urlDel  = $this->generateUrl('app_administrateur_paiement_delete', ['entite' => $entite->getId(), 'id' => $p->getId()]);
-          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_paiement'.$p->getId())->getValue();
+          $token = $this->container->get('security.csrf.token_manager')->getToken('paiement_delete_'.$p->getId())->getValue();
 
           $label = $p->getStripePaymentIntentId() ?: ('Paiement #'.$p->getId());
 
@@ -227,7 +228,7 @@ final class FinanceDataTableController extends AbstractController
       ->leftJoin('fa.entrepriseDestinataire', 'entDest')
       ->andWhere('fa.entite = :e')->setParameter('e', $entite);
 
-    $search = trim((string) ($req->get('search')['value'] ?? ''));
+    $search = trim((string) ($this->parameter($req, 'search')['value'] ?? ''));
     if ($search !== '') {
       $qb->andWhere("
           fa.numero LIKE :s
@@ -278,7 +279,7 @@ final class FinanceDataTableController extends AbstractController
           $urlPdf  = $this->generateUrl('app_administrateur_facture_pdf', ['entite' => $entite->getId(), 'id' => $fa->getId()]);
 
           $urlDel  = $this->generateUrl('app_administrateur_facture_delete', ['entite' => $entite->getId(), 'id' => $fa->getId()]);
-          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_facture'.$fa->getId())->getValue();
+          $token = $this->container->get('security.csrf.token_manager')->getToken('facture_delete_'.$fa->getId())->getValue();
 
           $label = $fa->getNumero() ?: ('Facture #'.$fa->getId());
 
@@ -313,7 +314,7 @@ final class FinanceDataTableController extends AbstractController
       ->leftJoin('dv.prospect', 'p')
       ->andWhere('dv.entite = :e')->setParameter('e', $entite);
 
-    $search = trim((string) ($req->get('search')['value'] ?? ''));
+    $search = trim((string) ($this->parameter($req, 'search')['value'] ?? ''));
     if ($search !== '') {
       $qb->andWhere("
           dv.numero LIKE :s
@@ -379,7 +380,7 @@ final class FinanceDataTableController extends AbstractController
           $btnPdf = '';
           if ($dv->getPdfPath()) {
             // ⚠️ adapte selon ton stockage (route, controller download, ou public/uploads)
-            $urlPdf = '/uploads/devis/' . rawurlencode($dv->getPdfPath());
+            $urlPdf = $this->generateUrl('app_administrateur_devis_pdf', ['entite' => $entite->getId(), 'id' => $dv->getId()]);
             $btnPdf = $this->btn($urlPdf, 'bi bi-file-earmark-pdf', 'PDF', 'btn btn-light', ['target' => '_blank']);
           }
 
@@ -387,7 +388,7 @@ final class FinanceDataTableController extends AbstractController
           $urlConv = $this->generateUrl('app_administrateur_devis_to_facture', ['entite' => $entite->getId(), 'id' => $dv->getId()]);
 
           $urlDel  = $this->generateUrl('app_administrateur_devis_delete', ['entite' => $entite->getId(), 'id' => $dv->getId()]);
-          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_devis'.$dv->getId())->getValue();
+          $token = $this->container->get('security.csrf.token_manager')->getToken('devis_delete_'.$dv->getId())->getValue();
 
           $label = $dv->getNumero() ?: ('Devis #'.$dv->getId());
 
@@ -403,7 +404,7 @@ final class FinanceDataTableController extends AbstractController
             </div>',
             $this->btn($urlShow, 'bi bi-eye', 'Voir'),
             $btnPdf,
-            $this->btn($urlConv, 'bi bi-arrow-right-circle', 'Convertir en facture'),
+            $this->postButton($urlConv, 'devis_to_facture_' . $dv->getId(), 'bi bi-arrow-right-circle', 'Convertir en facture'),
             $this->esc($urlDel),
             $this->esc($token),
             $this->esc($label)
@@ -422,20 +423,11 @@ final class FinanceDataTableController extends AbstractController
       ->leftJoin('av.factureOrigine', 'f')
       ->andWhere('av.entite = :e')->setParameter('e', $entite);
 
-    $search = trim((string) ($req->get('search')['value'] ?? ''));
+    $search = trim((string) ($this->parameter($req, 'search')['value'] ?? ''));
     if ($search !== '') {
-      $qb->andWhere("
-          dv.numero LIKE :s
-          OR entDest.raisonSociale LIKE :s
-          OR dest.email LIKE :s
-          OR dest.nom LIKE :s
-          OR dest.prenom LIKE :s
-          OR p.nom LIKE :s
-          OR p.prenom LIKE :s
-      ")->setParameter('s', '%' . $search . '%');
+      $qb->andWhere('av.numero LIKE :s OR f.numero LIKE :s')
+        ->setParameter('s', '%' . $search . '%');
     }
-
-
 
     $this->applyCommonFilters($qb, $req, 'av', 'dateEmission', null);
 
@@ -456,24 +448,7 @@ final class FinanceDataTableController extends AbstractController
         'ttc' => $av->getMontantTtcCents(),
         'actions' => (function() use ($av, $entite) {
           $urlShow = $this->generateUrl('app_administrateur_avoir_show', ['entite' => $entite->getId(), 'id' => $av->getId()]);
-          $urlDel  = $this->generateUrl('app_administrateur_avoir_delete', ['entite' => $entite->getId(), 'id' => $av->getId()]);
-          $token = $this->container->get('security.csrf.token_manager')->getToken('delete_avoir'.$av->getId())->getValue();
-
-          $label = $av->getNumeroOrNull() ?: ('Avoir #'.$av->getId());
-
-          return sprintf(
-            '<div class="btn-group btn-group-sm" role="group">
-              %s
-              <button type="button" class="btn btn-danger-soft js-dt-delete"
-                data-url="%s" data-token="%s" data-label="%s" title="Supprimer">
-                <i class="bi bi-trash3"></i>
-              </button>
-            </div>',
-            $this->btn($urlShow, 'bi bi-eye', 'Voir'),
-            $this->esc($urlDel),
-            $this->esc($token),
-            $this->esc($label)
-          );
+          return $this->btn($urlShow, 'bi bi-eye', 'Voir l’avoir');
         })(),
       ];
     }, $entite);
@@ -491,12 +466,12 @@ final class FinanceDataTableController extends AbstractController
     mixed $ctx = null
 ): JsonResponse
 {
-    $draw = (int) $req->get('draw', 1);
-    $start = max(0, (int) $req->get('start', 0));
-    $length = (int) $req->get('length', 10);
+    $draw = (int) $this->parameter($req, 'draw', 1);
+    $start = max(0, (int) $this->parameter($req, 'start', 0));
+    $length = (int) $this->parameter($req, 'length', 10);
     if ($length <= 0) $length = 10;
 
-    $order = $req->get('order')[0] ?? null;
+    $order = $this->parameter($req, 'order')[0] ?? null;
     if ($order) {
         $colIdx = (int) ($order['column'] ?? 0);
         $dir = strtoupper($order['dir'] ?? 'ASC');
@@ -512,7 +487,7 @@ final class FinanceDataTableController extends AbstractController
     $countQb->resetDQLPart('select')->resetDQLPart('orderBy');
     $countQb->select('COUNT(DISTINCT ' . $this->guessRootAlias($qb) . '.id)');
     $recordsFiltered = (int) $countQb->getQuery()->getSingleScalarResult();
-    $recordsTotal = $recordsFiltered;
+    $recordsTotal = $qb->getEntityManager()->getRepository($qb->getRootEntities()[0])->count(['entite' => $ctx]);
 
     $qb->setFirstResult($start)->setMaxResults($length);
 
@@ -536,22 +511,46 @@ final class FinanceDataTableController extends AbstractController
     ]);
 }
 
+  private function parameter(Request $request, string $key, mixed $default = null): mixed
+  {
+    $values = $request->query->all() + $request->request->all();
+    return $values[$key] ?? $default;
+  }
+
   private function applyCommonFilters(QueryBuilder $qb, Request $req, string $alias, string $dateField, ?string $deviseField): void
   {
-    $start = $req->get('dateStart') ? new \DateTimeImmutable($req->get('dateStart')) : null;
-    $end   = $req->get('dateEnd')   ? new \DateTimeImmutable($req->get('dateEnd'))   : null;
+    $start = $this->dateParameter($req, 'dateStart');
+    $end = $this->dateParameter($req, 'dateEnd');
 
-    if ($start && $end) {
-      $qb->andWhere(sprintf('%s.%s BETWEEN :start AND :end', $alias, $dateField))
-        ->setParameter('start', $start->setTime(0, 0, 0))
+    if ($start && $end && $start > $end) {
+      throw new BadRequestHttpException('La date de fin doit suivre la date de début.');
+    }
+    if ($start) {
+      $qb->andWhere(sprintf('%s.%s >= :start', $alias, $dateField))
+        ->setParameter('start', $start->setTime(0, 0, 0));
+    }
+    if ($end) {
+      $qb->andWhere(sprintf('%s.%s <= :end', $alias, $dateField))
         ->setParameter('end', $end->setTime(23, 59, 59));
     }
 
-    $dev = trim((string)$req->get('devise', ''));
+    $dev = trim((string)$this->parameter($req, 'devise', ''));
     if ($deviseField && $dev !== '') {
       $qb->andWhere(sprintf('%s.%s = :dev', $alias, $deviseField))
         ->setParameter('dev', $dev);
     }
+  }
+
+  private function dateParameter(Request $request, string $name): ?\DateTimeImmutable
+  {
+    $value = $this->parameter($request, $name);
+    if ($value === null || $value === '') return null;
+    if (!is_string($value)) throw new BadRequestHttpException('Date invalide.');
+    $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    if (!$date || $date->format('Y-m-d') !== $value) {
+      throw new BadRequestHttpException('La date doit être au format AAAA-MM-JJ.');
+    }
+    return $date;
   }
 
 
@@ -574,6 +573,16 @@ final class FinanceDataTableController extends AbstractController
   private function esc(?string $v): string
   {
     return htmlspecialchars((string)($v ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+  }
+
+  private function postButton(string $url, string $tokenId, string $icon, string $title): string
+  {
+    $token = $this->container->get('security.csrf.token_manager')->getToken($tokenId)->getValue();
+
+    return sprintf(
+      '<form method="post" action="%s" class="d-inline"><input type="hidden" name="_token" value="%s"><button type="submit" class="btn btn-light" title="%s"><i class="%s"></i></button></form>',
+      $this->esc($url), $this->esc($token), $this->esc($title), $this->esc($icon)
+    );
   }
 
   private function btn(string $url, string $icon, string $title, string $class = 'btn btn-light', array $attrs = []): string

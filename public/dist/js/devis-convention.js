@@ -54,15 +54,15 @@
         const options = collectMetadata(select);
         if (select.tomselect || !window.TomSelect) return;
         const config = {
-          create: false, maxOptions: 100, hideSelected: select.multiple,
+          create: false, maxOptions: null, hideSelected: select.multiple,
           placeholder: select.dataset.placeholder || select.querySelector('option[value=""]')?.textContent || 'Rechercher…',
           plugins: select.multiple ? ['remove_button'] : [],
           render: {
-            no_results: () => '<div class="no-results">Aucun résultat. Essayez un autre terme.</div>',
+            no_results: () => `<div class="no-results">${select.dataset.entity === 'session' ? 'Aucune session ne correspond à cette recherche. Effacez le texte pour consulter la liste ou utilisez « Nouvelle session ».' : 'Aucun résultat. Essayez un autre terme.'}</div>`,
             option: (data, escape) => {
               const info = options.get(String(data.value)) || {};
               if (select.dataset.entity === 'session') {
-                return `<div><span class="cv-option-heading"><span class="cv-option-code">${escape(info.code || '')}</span>${escape(info.title || data.text)}</span><span class="cv-option-subtitle">${escape([info.startLabel, info.site].filter(Boolean).join(' · '))}</span></div>`;
+                return `<div><span class="cv-option-heading"><span class="cv-option-code">${escape(info.code || '')}</span>${escape(info.title || data.text)}</span><span class="cv-option-subtitle">${escape([info.startLabel, info.site].filter(Boolean).join(' · '))}</span>${info.differentFormation ? '<span class="cv-option-tag">Formation différente du devis</span>' : ''}</div>`;
               }
               if (select.dataset.entity === 'client' && info.firstName) {
                 return `<div><span class="cv-option-heading">${escape(`${info.firstName} ${info.lastName || ''}`)}</span><span class="cv-option-subtitle">${escape([info.email, info.company].filter(Boolean).join(' · '))}</span></div>`;
@@ -115,20 +115,31 @@
       container.querySelectorAll('input[data-datepicker]').forEach(input => input._flatpickr?.destroy());
     }
 
-    function syncTrainingDefaults() {
+    function syncTrainingDefaults(preserveValues = false) {
       const select = sessionSelect || formationSelect;
       const info = select ? collectMetadata(select).get(select.value) : null;
       if (!select?.value || !info) return;
       const title = root.querySelector('[data-document-title]');
       const duration = root.querySelector('[data-document-duration]');
-      if (title && (!title.value.trim() || title.value === defaultTitle)) title.value = info.title || defaultTitle;
-      if (duration && (!duration.value.trim() || duration.value === defaultDuration)) duration.value = info.duration || '';
+      if (!preserveValues && title && (!title.value.trim() || title.value === defaultTitle)) title.value = info.title || defaultTitle;
+      if (!preserveValues && duration && (!duration.value.trim() || duration.value === defaultDuration)) duration.value = info.duration || '';
       defaultTitle = info.title || defaultTitle;
       defaultDuration = info.duration || '';
     }
 
     function update() {
       const session = sessionSelect ? collectMetadata(sessionSelect).get(sessionSelect.value) : null;
+      const confirmation = root.querySelector('[data-confirm-training]');
+      const differentTraining = Boolean(sessionSelect?.value && session?.differentFormation);
+      const confirmationPanel = document.getElementById('cv-training-confirmation');
+      if (confirmationPanel) confirmationPanel.hidden = !differentTraining;
+      if (confirmation) confirmation.required = differentTraining;
+      const trainingConfirmed = !differentTraining || Boolean(confirmation?.checked);
+      const sessionCount = document.getElementById('cv-session-count');
+      if (sessionCount && sessionSelect) {
+        const count = Array.from(collectMetadata(sessionSelect).keys()).filter(Boolean).length;
+        sessionCount.textContent = `${count} session${count > 1 ? 's' : ''} disponible${count > 1 ? 's' : ''}`;
+      }
       const slots = Array.from(root.querySelectorAll('[data-slot]'));
       const sessionChosen = newSession
         ? Boolean(root.querySelector('select[data-entity="formation"]')?.value && root.querySelector('select[data-entity="site"]')?.value && slots.length && slots.every(slot => {
@@ -202,11 +213,16 @@
       const warning = document.getElementById('cv-capacity-warning');
       warning.hidden = !exceeds;
       warning.textContent = `La session ne dispose pas d’assez de places pour cet effectif (${newCount} place${newCount > 1 ? 's' : ''} en plus des inscriptions existantes). Modifiez l’effectif ou la capacité de la session.`;
-      const ready = sessionChosen && count > 0 && !exceeds && !inconsistentCount;
+      const ready = sessionChosen && count > 0 && !exceeds && !inconsistentCount && trainingConfirmed;
       const readiness = document.getElementById('cv-readiness');
       readiness.classList.toggle('is-ready', ready);
       readiness.querySelector('.bi').className = `bi ${ready ? 'bi-check-circle-fill' : 'bi-circle'}`;
-      readiness.querySelector('span').textContent = inconsistentCount ? 'Vérifiez le nombre total de stagiaires.' : (exceeds ? 'Vérifiez le nombre de places disponibles.' : (ready ? 'Votre convention est prête à être créée.' : (!sessionChosen ? 'Complétez la session de formation.' : 'Ajoutez des participants ou un effectif prévu.')));
+      readiness.querySelector('span').textContent = !trainingConfirmed ? 'Confirmez le choix de la formation différente.' : (inconsistentCount ? 'Vérifiez le nombre total de stagiaires.' : (exceeds ? 'Vérifiez le nombre de places disponibles.' : (ready ? 'Votre convention est prête à être créée.' : (!sessionChosen ? 'Complétez la session de formation.' : 'Ajoutez des participants ou un effectif prévu.'))));
+      const checks = {session: sessionChosen && trainingConfirmed, participants: count > 0 && !exceeds && !inconsistentCount, training: Boolean(title || session?.title)};
+      root.querySelectorAll('[data-check]').forEach(row => {
+        row.classList.toggle('is-complete', checks[row.dataset.check]);
+        row.querySelector('i').className = `bi ${checks[row.dataset.check] ? 'bi-check-circle-fill' : 'bi-circle'}`;
+      });
       root.querySelector('[data-step="session"]').classList.toggle('is-complete', sessionChosen);
       root.querySelector('[data-step="participants"]').classList.toggle('is-active', sessionChosen);
       root.querySelector('[data-step="participants"]').classList.toggle('is-complete', count > 0);
@@ -406,7 +422,19 @@
 
     root.addEventListener('click', actions);
     root.addEventListener('change', event => {
-      if (event.target === sessionSelect || event.target === formationSelect) syncTrainingDefaults();
+      if (event.target === sessionSelect || event.target === formationSelect) {
+        const confirmation = root.querySelector('[data-confirm-training]');
+        if (confirmation) confirmation.checked = false;
+        syncTrainingDefaults();
+      }
+      update();
+    });
+    document.getElementById('cv-reset-training')?.addEventListener('click', () => {
+      const title = root.querySelector('[data-document-title]');
+      const duration = root.querySelector('[data-document-duration]');
+      if (title) title.value = defaultTitle;
+      if (duration) duration.value = defaultDuration;
+      syncTrainingDefaults();
       update();
     });
     root.addEventListener('input', event => {
@@ -435,7 +463,8 @@
       submit.setAttribute('aria-busy', 'true');
     });
     initControls(root);
-    syncTrainingDefaults();
+    // A validation error must never overwrite the title or duration the user submitted.
+    syncTrainingDefaults(root.dataset.submitted === '1');
     update();
   }
 

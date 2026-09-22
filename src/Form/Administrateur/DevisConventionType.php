@@ -7,7 +7,8 @@ use App\Enum\StatusSession;
 use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\{CollectionType, HiddenType, IntegerType, TextareaType, TextType};
+use Symfony\Component\Form\Extension\Core\Type\{CheckboxType, CollectionType, HiddenType, IntegerType, TextareaType, TextType};
+use Symfony\Component\Form\{FormEvent, FormEvents, FormError};
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -63,12 +64,14 @@ final class DevisConventionType extends AbstractType
             $builder->add('session', EntityType::class, [
                 'class' => Session::class,
                 'choice_label' => static fn(Session $s) => sprintf('%s — %s (%s)', $s->getCode(), $s->getFormationLabel(), $s->getDateDebut()?->format('d/m/Y') ?? 'dates à définir'),
+                'group_by' => static fn(Session $s) => !$devis->getFormation() || $s->getFormation()?->getId() === $devis->getFormation()->getId() ? 'Formation du devis' : 'Autres formations de l’organisme',
                 'placeholder' => 'Choisir une session',
                 'attr' => ['class' => 'js-convention-select', 'data-entity' => 'session'],
-                'choice_attr' => static function (Session $session): array {
+                'choice_attr' => static function (Session $session) use ($devis): array {
                     $active = $session->getInscriptions()->filter(static fn($i) => $i->getStatus() !== \App\Enum\StatusInscription::ANNULE);
                     return ['data-session' => json_encode([
                         'code' => $session->getCode(),
+                        'differentFormation' => $devis->getFormation() !== null && $session->getFormation()?->getId() !== $devis->getFormation()->getId(),
                         'title' => $session->getFormationLabel(),
                         'duration' => $session->getFormation()?->getDuree() ? $session->getFormation()->getDuree() . ' jour' . ($session->getFormation()->getDuree() > 1 ? 's' : '') : '',
                         'startLabel' => $session->getDateDebut()?->format('d/m/Y à H:i'),
@@ -80,17 +83,28 @@ final class DevisConventionType extends AbstractType
                     ], JSON_THROW_ON_ERROR)];
                 },
                 'constraints' => [new Assert\NotNull(message: 'Choisissez une session.')],
-                'query_builder' => static function (EntityRepository $r) use ($entite, $devis) {
-                    $qb = $r->createQueryBuilder('s')->leftJoin('s.formation', 'f')->addSelect('f')
-                        ->andWhere('s.entite = :e')->setParameter('e', $entite)
+                'query_builder' => static function (EntityRepository $r) use ($entite) {
+                    return $r->createQueryBuilder('s')->innerJoin('s.formation', 'f')->addSelect('f')
+                        ->innerJoin('s.site', 'site')->addSelect('site')
+                        ->andWhere('s.entite = :e AND f.entite = :e AND site.entite = :e')->setParameter('e', $entite)
                         ->andWhere('s.status != :canceled')->setParameter('canceled', StatusSession::CANCELED)
                         ->orderBy('s.id', 'DESC');
-                    if ($devis->getFormation()) {
-                        $qb->andWhere('s.formation = :f')->setParameter('f', $devis->getFormation());
-                    }
-                    return $qb;
                 },
             ]);
+            $builder->add('confirmerFormationDifferente', CheckboxType::class, [
+                'label' => 'Je confirme le choix de cette formation différente de celle du devis.',
+                'required' => false,
+                'attr' => ['data-confirm-training' => ''],
+            ]);
+            $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use ($devis): void {
+                $data = $event->getData();
+                $session = $data['session'] ?? null;
+                if ($session instanceof Session && $devis->getFormation()
+                    && $session->getFormation()?->getId() !== $devis->getFormation()->getId()
+                    && empty($data['confirmerFormationDifferente'])) {
+                    $event->getForm()->get('confirmerFormationDifferente')->addError(new FormError('La formation de cette session diffère de celle du devis. Confirmez ce choix ou sélectionnez une autre session.'));
+                }
+            });
         }
 
         if ($devis->getEntrepriseDestinataire()) {

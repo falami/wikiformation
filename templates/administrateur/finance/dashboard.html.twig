@@ -1398,7 +1398,11 @@ document.addEventListener('click', (e) => {
 
   if (form) form.action = url;
   if (tok)  tok.value = token;
-  if (txt)  txt.innerHTML = `Tu es sur le point de supprimer <strong>${label}</strong>.<br>Cette action est irréversible.`;
+  if (txt) {
+    const name = document.createElement('strong');
+    name.textContent = label;
+    txt.replaceChildren('Vous êtes sur le point de supprimer ', name, '.', document.createElement('br'), 'Cette action est irréversible.');
+  }
 
   getDeleteModal()?.show();
 });

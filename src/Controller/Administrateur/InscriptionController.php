@@ -2,7 +2,7 @@
 
 namespace App\Controller\Administrateur;
 
-use App\Entity\{Inscription, Entite, Utilisateur, DossierInscription, Attestation, Entreprise, ConventionContrat, ContratStagiaire};
+use App\Entity\{Inscription, Entite, Utilisateur, DossierInscription, Attestation, Entreprise, ConventionContrat};
 use App\Enum\StatusInscription;
 use App\Form\Administrateur\InscriptionType;
 use App\Service\AssiduiteCalculator;
@@ -440,7 +440,6 @@ class InscriptionController extends AbstractController
     public function generateDocuments(
         Entite $entite,
         Inscription $ins,
-        EM $em
     ): RedirectResponse {
 
 
@@ -449,9 +448,6 @@ class InscriptionController extends AbstractController
         if (!$session || $ins->getEntite()?->getId() !== $entite->getId() || $session->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException();
         }
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
-
         $mode = $ins->getModeFinancement();
 
         /** ===== CONVENTION ENTREPRISE ===== */
@@ -474,26 +470,12 @@ class InscriptionController extends AbstractController
             ]);
         }
 
-        /** ===== CONTRAT STAGIAIRE ===== */
+        // Le contrat individuel utilise le même dossier contrôlé que les conventions.
+        // Le GET ouvre la confirmation ; seul son POST crée le document numéroté.
         if ($mode->requiresContratStagiaire()) {
-
-            $contrat = $em->getRepository(ContratStagiaire::class)->findOneBy([
-                'entite'       => $entite,
-                'inscription'  => $ins,
-            ]);
-
-            if (!$contrat) {
-                $contrat = (new ContratStagiaire())
-                    ->setCreateur($user)
-                    ->setEntite($entite)
-                    ->setInscription($ins);
-                $em->persist($contrat);
-                $em->flush();
-            }
-
-            return $this->redirectToRoute('app_administrateur_contrat_stagiaire_edit', [
+            return $this->redirectToRoute('app_administrateur_convention_from_inscription', [
                 'entite' => $entite->getId(),
-                'id'     => $contrat->getId(),
+                'id' => $ins->getId(),
             ]);
         }
 
