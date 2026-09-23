@@ -75,8 +75,9 @@ final class DevisConventionCreator
             ->setIntituleFormation($intituleFormation)->setDureeFormation($dureeFormation)
             ->setParticipantsLibres($participantsLibres)->setEffectifPrevisionnel($effectifPrevisionnel);
         $intituleFormation = $document->getIntituleFormation() ?? $session->getFormation()->getTitre() ?? 'Formation';
-        $jours = $session->getFormation()->getDuree();
-        $dureeFormation = $document->getDureeFormation() ?? ($jours ? $jours . ' jour' . ($jours > 1 ? 's' : '') : null);
+        // Une valeur vide reste automatique : le document utilise alors la durée
+        // pédagogique de la session, sans figer la durée du catalogue.
+        $dureeFormation = $document->getDureeFormation();
         $participantsLibres = $document->getParticipantsLibres();
         $nombreNomsLibres = count($document->getParticipantsLibresListe());
         if (mb_strlen($intituleFormation) > 255 || mb_strlen($dureeFormation ?? '') > 255) {
@@ -103,6 +104,9 @@ final class DevisConventionCreator
                 if (!$slot->getDateDebut() || !$slot->getDateFin() || $slot->getDateFin() <= $slot->getDateDebut()
                     || ($previousEnd && $slot->getDateDebut() < $previousEnd)) {
                     throw new \DomainException('Les créneaux doivent avoir une fin après le début et ne pas se chevaucher.');
+                }
+                if ($slot->getPauseMinutes() !== null && ($slot->getPauseMinutes() < 0 || $slot->getPauseMinutes() >= $slot->getDureeBruteMinutes())) {
+                    throw new \DomainException('La pause doit être positive ou nulle et inférieure à la durée du créneau.');
                 }
                 $previousEnd = $slot->getDateFin();
             }

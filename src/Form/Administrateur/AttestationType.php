@@ -8,7 +8,8 @@ use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -28,10 +29,7 @@ class AttestationType extends AbstractType
                     trim(($i->getStagiaire()?->getPrenom() ?? '') . ' ' . ($i->getStagiaire()?->getNom() ?? '')) ?: '-'
                 ),
                 'choice_attr' => function (Inscription $i) {
-                    // ===== Forcer 7h par journée, sans tenir compte des horaires
-                    $session = $i->getSession();
-                    $nbJours = $session ? $session->getJours()->count() : 0;
-                    $heures  = $nbJours * 7;
+                    $heures = $i->getSession()?->getDureeFormationHeures() ?? 0.0;
                     return ['data-heures' => (string) $heures];
                 },
                 'label' => 'Rattachée à l’inscription (optionnel)',
@@ -39,9 +37,11 @@ class AttestationType extends AbstractType
                 'attr' => ['class' => 'form-select'],
             ])
 
-            ->add('dureeHeures', IntegerType::class, [
-                'label' => 'Durée (heures)',
-                'attr'  => ['class' => 'form-control', 'min' => 0, 'placeholder' => '0'],
+            ->add('dureeHeures', NumberType::class, [
+                'label' => 'Durée de formation hors pauses (heures)',
+                'html5' => true, 'scale' => 2,
+                'constraints' => [new Assert\PositiveOrZero()],
+                'attr'  => ['class' => 'form-control', 'min' => 0, 'step' => '0.01', 'placeholder' => '0'],
             ])
             ->add('reussi', CheckboxType::class, [
                 'label'    => 'Réussite',

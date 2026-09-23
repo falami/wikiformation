@@ -31,10 +31,13 @@
 {% set dateDelivrance = (a and a.dateDelivrance) ? a.dateDelivrance : "now" %}
 {% set traineeName = ((stag.prenom ?? '') ~ ' ' ~ (stag.nom ?? ''))|trim %}
 
-{# ===== Durée totale (compatible avec tes entités) ===== #}
+{# Une durée attestée manuellement reste prioritaire sur le planning. #}
 {% set dureeLabel = null %}
 {% if a and attribute(a, 'dureeHeures') is defined and attribute(a, 'dureeHeures') %}
-  {% set dureeLabel = attribute(a, 'dureeHeures') ~ 'h' %}
+  {% set dureeLabel = attribute(a, 'dureeHeures')|number_format(2, ',', ' ') ~ ' h' %}
+{% endif %}
+{% if dureeLabel is null and sess and sess.dureeFormationMinutes > 0 %}
+  {% set dureeLabel = sess.dureeFormationHeures|number_format(2, ',', ' ') ~ ' h' %}
 {% endif %}
 {% if dureeLabel is null and form and attribute(form, 'duree') is defined and attribute(form, 'duree') %}
   {% set d = attribute(form, 'duree') %}
@@ -42,19 +45,6 @@
     {% set dureeLabel = d ~ ' jours' %}
   {% else %}
     {% set dureeLabel = d ~ ' jour' %}
-  {% endif %}
-{% endif %}
-{% if dureeLabel is null and sess and sess.jours is defined and sess.jours|length > 0 %}
-  {% set totalMinutes = 0 %}
-  {% for j in sess.jours %}
-    {% if j.dateDebut and j.dateFin %}
-      {% set diff = date(j.dateFin).timestamp - date(j.dateDebut).timestamp %}
-      {% if diff > 0 %}{% set totalMinutes = totalMinutes + (diff / 60) %}{% endif %}
-    {% endif %}
-  {% endfor %}
-  {% if totalMinutes > 0 %}
-    {% set totalHeures = (totalMinutes / 60) %}
-    {% set dureeLabel = totalHeures|number_format(2, ',', ' ') ~ ' h' %}
   {% endif %}
 {% endif %}
 
@@ -572,4 +562,3 @@
 
 </body>
 </html>
-

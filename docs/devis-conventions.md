@@ -16,7 +16,7 @@ Le PDF contient la référence et le **total du devis**, dans sa devise. Ce tota
 
 ## Intitulé, durée et liste de stagiaires à compléter
 
-La conversion permet de personnaliser l’intitulé et la durée affichés sur la convention (par exemple « H0B0 — indices adaptés » et « 7 heures »). Ces textes sont copiés dans le document ; ils ne modifient ni la formation du catalogue, ni son programme, ni les créneaux de la session. Les anciennes conventions utilisent le catalogue tant qu’aucune valeur personnalisée n’est renseignée.
+La conversion permet de personnaliser l’intitulé et la durée affichés sur la convention (par exemple « H0B0 — indices adaptés » et « 7 heures »). Ces textes ne modifient ni la formation du catalogue, ni son programme, ni les créneaux de la session. Une durée laissée vide reprend automatiquement les heures de formation hors pauses du planning ; le catalogue reste le recours lorsqu’aucun créneau n’est disponible. Les anciennes durées personnalisées sont conservées. Pour revenir au calcul automatique, vider ce champ avant signature.
 
 Pour une convention d’entreprise, il est possible de combiner :
 
@@ -67,6 +67,8 @@ Le parcours HTTP vers une session existante dispose d’un test de régression :
 Les tests couvrent également la recherche parmi les autres formations du même organisme, l’exclusion des sessions annulées et des données d’autres organismes, la confirmation obligatoire en cas de différence de formation, le rattachement explicite d’une ancienne convention et l’affichage du lien sur le devis. Les gardes métier refusent toujours un rattachement signé ou entre organismes, même si la différence de formation est confirmée.
 
 ## Retrouver les conventions depuis un devis
+
+La liste des devis affiche désormais **Formation** et **Dates de formation**. Elle utilise les sessions rattachées par convention ou inscription, regroupe les doublons et affiche chaque période lorsque plusieurs sessions sont liées. Les sessions sans dates sont signalées « À planifier » ; un devis sans session est indiqué « Non planifiée ». La recherche porte aussi sur les intitulés de formation, y compris ceux personnalisés sur les conventions.
 
 La fiche devis charge explicitement ses conventions enregistrées, avec leur numéro, session, intitulé personnalisé et effectif. Les créations actuelles conservent ce lien en base. Les conventions anciennes dépourvues de `devis_id` ne sont pas déduites du seul nom du client.
 

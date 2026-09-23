@@ -9,6 +9,7 @@ use App\Repository\FormateurRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -40,6 +41,12 @@ final class SessionJourType extends AbstractType
                 'label' => 'Fin du créneau',
                 'required' => true,
                 'attr' => $dateAttrs,
+            ])
+            ->add('pauseMinutes', IntegerType::class, [
+                'label' => 'Pause (minutes)',
+                'required' => false,
+                'help' => 'Une journée prévoit 7 h de cours et 90 min de pause déjeuner. Vide : 90 min déduites sur une journée complète, aucune sur une demi-journée. Saisissez 0 ou une autre durée pour adapter la pause.',
+                'attr' => ['min' => 0, 'step' => 1, 'placeholder' => 'Automatique', 'data-training-pause' => ''],
             ])
             ->add('formateur', EntityType::class, [
                 'class' => Formateur::class,

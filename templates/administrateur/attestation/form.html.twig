@@ -294,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const $date  = document.getElementById(dateId);
   const $duree = document.getElementById(dureeId);
   const $reussi = document.getElementById(reussiId);
+  const heuresByInscription = new Map(Array.from($insc?.options || [], option => [option.value, parseFloat(option.dataset.heures || '0')]));
 
   const $resume = {
     pill: document.getElementById('resume-valid-pill'),
@@ -324,10 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!$insc || !$duree) return;
     const v = $insc.value;
     if (!v) return;
-    const opt = $insc.querySelector(`option[value="${CSS.escape(v)}"]`);
-    if (!opt) return;
-
-    const heures = parseInt(opt.dataset.heures ?? '0', 10);
+    const heures = heuresByInscription.get(v);
     if (Number.isFinite(heures) && heures > 0) $duree.value = heures;
   }
 
@@ -382,14 +380,15 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   if ($insc?.tomselect) $insc.tomselect.on('change', () => { applyHeuresFromSelected(); refreshResume(); });
-  else bindRefresh($insc);
+  else $insc?.addEventListener('change', () => { applyHeuresFromSelected(); refreshResume(); });
 
   bindRefresh($date);
   bindRefresh($duree);
   bindRefresh($reussi);
 
   // init
-  applyHeuresFromSelected();
+  // Une attestation existante peut contenir une durée ajustée manuellement.
+  if (!$duree.value || Number($duree.value) === 0) applyHeuresFromSelected();
   refreshResume();
 
   // Validation légère (ton code)

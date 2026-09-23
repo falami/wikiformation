@@ -294,10 +294,7 @@ final class PlanningFormateursController extends AbstractController
 
     $start = $jour->getDateDebut();
     $end   = $jour->getDateFin();
-    $dureeHeures = 0.0;
-    if ($start && $end) {
-      $dureeHeures = round(max(0, $end->getTimestamp() - $start->getTimestamp()) / 3600, 2);
-    }
+    $dureeHeures = $jour->getDureeFormationHeures();
 
     return $this->json([
       'ok' => true,
@@ -308,6 +305,7 @@ final class PlanningFormateursController extends AbstractController
         'email' => (string)($ufo?->getEmail() ?? ''),
       ],
       'dureeHeures' => $dureeHeures,
+      'pauseMinutes' => $jour->getPauseEffectiveMinutes(),
       'session' => [
         'id' => (int)$session->getId(),
         'code' => (string)($session->getCode() ?? ''),

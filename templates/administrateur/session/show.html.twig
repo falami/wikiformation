@@ -757,6 +757,7 @@ body{ overflow-x:hidden; }
                   {{ min|date('d/m/Y H:i') }} <br />au<br /> {{ max|date('d/m/Y H:i') }}<br>
                   <span class="text-muted small">
                     {{ session.jours|length }} créneau{{ session.jours|length > 1 ? 'x' : '' }} planifié{{ session.jours|length > 1 ? 's' : '' }}
+                    <br>{{ session.dureeFormationHeures|number_format(2, ',', ' ') }} h de formation hors pauses
                   </span>
                 {% else %}
                   <span class="text-muted">Non planifiée</span>
@@ -865,6 +866,7 @@ body{ overflow-x:hidden; }
                     <i class="fa fa-clock me-1 text-theme-secondaire"></i>
                     {{ j.dateDebut|date('H:i') }} → {{ j.dateFin|date('H:i') }}
                   </div>
+                  <div class="small text-muted">{{ j.dureeFormationHeures|number_format(2, ',', ' ') }} h de formation{% if j.pauseEffectiveMinutes > 0 %} · {{ j.pauseEffectiveMinutes }} min de pause déduites{% endif %}</div>
                   <div class="small mt-1"><i class="bi bi-person-badge me-1"></i>{{ intervenant and intervenant.utilisateur ? intervenant.utilisateur.prenom ~ ' ' ~ intervenant.utilisateur.nom : 'Formateur à affecter' }}</div>
                   <div class="small text-muted mt-1">
                     Émargements :

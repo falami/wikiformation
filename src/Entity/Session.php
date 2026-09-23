@@ -207,7 +207,7 @@ class Session
 
 
     #[ORM\Column(enumType: TypeFinancement::class)]
-    private TypeFinancement $typeFinancement = TypeFinancement::OPCO;
+    private TypeFinancement $typeFinancement = TypeFinancement::NON;
 
 
     /**
@@ -706,30 +706,34 @@ class Session
     /** Estimation par date civile : jusqu’à 4 h = demi-journée, au-delà = journée. */
     public function getNombreJoursPourFormateur(Formateur $formateur): float
     {
-        $hoursByDate = [];
+        $minutesByDate = [];
         foreach ($this->getJoursPourFormateur($formateur) as $jour) {
-            $start = $jour->getDateDebut();
-            $end = $jour->getDateFin();
-            if (!$start || !$end || $end <= $start) continue;
-            while ($start < $end) {
-                $next = min($start->modify('tomorrow')->setTime(0, 0), $end);
-                $date = $start->format('Y-m-d');
-                $hoursByDate[$date] = ($hoursByDate[$date] ?? 0) + ($next->getTimestamp() - $start->getTimestamp()) / 3600;
-                $start = $next;
+            foreach ($jour->getDureeFormationMinutesParDate() as $date => $minutes) {
+                $minutesByDate[$date] = ($minutesByDate[$date] ?? 0) + $minutes;
             }
         }
-        return array_sum(array_map(static fn(float $hours): float => $hours <= 4 ? 0.5 : 1.0, $hoursByDate));
+        return array_sum(array_map(static fn(int $minutes): float => $minutes <= 0 ? 0 : ($minutes <= 240 ? 0.5 : 1.0), $minutesByDate));
     }
 
     public function getNombreHeuresPourFormateur(Formateur $formateur): float
     {
-        $seconds = 0;
+        $minutes = 0;
         foreach ($this->getJoursPourFormateur($formateur) as $jour) {
-            if ($jour->getDateDebut() && $jour->getDateFin()) {
-                $seconds += max(0, $jour->getDateFin()->getTimestamp() - $jour->getDateDebut()->getTimestamp());
-            }
+            $minutes += $jour->getDureeFormationMinutes();
         }
-        return round($seconds / 3600, 2);
+        return round($minutes / 60, 2);
+    }
+
+    public function getDureeFormationMinutes(): int
+    {
+        $minutes = 0;
+        foreach ($this->jours as $jour) $minutes += $jour->getDureeFormationMinutes();
+        return $minutes;
+    }
+
+    public function getDureeFormationHeures(): float
+    {
+        return round($this->getDureeFormationMinutes() / 60, 2);
     }
 
     /**
@@ -1001,7 +1005,7 @@ class Session
     public function getFormationLabel(): string
     {
         // ✅ partout dans l’app tu utilises ça pour afficher
-        if ($this->typeFinancement === TypeFinancement::OF) {
+        if ($this->typeFinancement === TypeFinancement::OUI) {
             return $this->formationIntituleLibre ?: '—';
         }
         return $this->formation?->getTitre() ?: '—';
@@ -1010,7 +1014,7 @@ class Session
     #[Assert\Callback]
     public function validateFormationAccordingToFinancement(ExecutionContextInterface $context): void
     {
-        if ($this->typeFinancement === TypeFinancement::OF) {
+        if ($this->typeFinancement === TypeFinancement::OUI) {
             // Sous-traitance OF => PAS de Formation entity, mais intitulé obligatoire
             if ($this->formation !== null) {
                 $context->buildViolation('En mode "Organisme de formation", ne rattache pas une formation interne.')

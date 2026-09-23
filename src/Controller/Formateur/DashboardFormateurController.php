@@ -1298,7 +1298,8 @@ class DashboardFormateurController extends AbstractController
         Entite $entite,
         ContratFormateur $contrat,
         Request $request,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        \App\Service\Pdf\ContratFormateurDocument $document
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -1311,7 +1312,7 @@ class DashboardFormateurController extends AbstractController
         if ($contrat->getEntite()?->getId() !== $entite->getId() || $formateur->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException();
         }
-        if (!$this->isCsrfTokenValid('sign_contrat_formateur_' . $contrat->getId(), $request->request->get('_token'))) {
+        if (!$this->isCsrfTokenValid('sign_contrat_formateur_' . $contrat->getId() . '_v' . $contrat->getVersionNumero(), $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Formulaire expiré. Rechargez le contrat avant de le signer.');
         }
 
@@ -1365,55 +1366,9 @@ class DashboardFormateurController extends AbstractController
             ->setSignatureUserAgent((string) $request->headers->get('User-Agent'))
             ->setStatus(ContratFormateurStatus::SIGNE);
 
-        // Génération / mise à jour du PDF signé
-        $session      = $contrat->getSession();
-        $formation    = $session?->getFormation();
-        $inscriptions = $session?->getInscriptions() ?? new \Doctrine\Common\Collections\ArrayCollection();
-
-        // garde uniquement les inscriptions avec un stagiaire
-        $stagiaires = $inscriptions->filter(static fn($i) => $i->getStagiaire() !== null);
-
-        // optionnel : exclure le formateur si jamais il est aussi “inscrit”
-        $formateurUser = $contrat->getFormateur()?->getUtilisateur();
-        if ($formateurUser) {
-            $stagiaires = $stagiaires->filter(static fn($i) => $i->getStagiaire()?->getId() !== $formateurUser->getId());
-        }
-
-
-        $filename = sprintf(
-            'contrat_formateur_%s.pdf',
-            $contrat->getNumero() ?: $contrat->getId()
-        );
-
-
-        $projectDir = $this->getParameter('kernel.project_dir');
-        $orgSigPath = $contrat->getSignatureOrganismePath() ?: $entite->getPreferences()?->getSignatureOrganismePath();
-
-        $orgSigDataUri = null;
-
-        if ($orgSigPath) {
-            $orgSigPath = '/' . ltrim($orgSigPath, '/'); // "/uploads/..."
-            $candidate = $projectDir . '/public' . $orgSigPath;
-
-            if (is_file($candidate)) {
-                $mime = mime_content_type($candidate) ?: 'image/png';
-                $data = base64_encode(file_get_contents($candidate));
-                $orgSigDataUri = 'data:' . $mime . ';base64,' . $data;
-            }
-        }
-
-
-
-        $absolutePath = $this->pdfManager->contratFormateur([
-            'entite'        => $entite,
-            'contrat'       => $contrat,
-            'session'       => $session,
-            'formation'     => $formation,
-            'stagiaires'    => $stagiaires,
-            'orgSigDataUri' => $orgSigDataUri, // ✅
-        ], $filename);
-
-
+        // Le PDF signé fige les mêmes données que l'aperçu administrateur.
+        $filename = sprintf('contrat_formateur_%s_v%d_%s.pdf', preg_replace('/[^A-Za-z0-9_-]/', '-', $contrat->getNumero() ?: (string) $contrat->getId()), $contrat->getVersionNumero(), bin2hex(random_bytes(8)));
+        $this->pdfManager->contratFormateur($document->templateData($contrat), $filename);
 
         // Chemin web (à adapter si ton dossier est différent)
         $publicPath = 'uploads/pdf/' . $filename;
@@ -1434,7 +1389,8 @@ class DashboardFormateurController extends AbstractController
     public function regenContratPdf(
         Entite $entite,
         ContratFormateur $contrat,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        \App\Service\Pdf\ContratFormateurDocument $document
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -1444,58 +1400,14 @@ class DashboardFormateurController extends AbstractController
         }
 
         if ($contrat->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
-        $document = new \App\Service\Pdf\ContratFormateurDocument($this->getParameter('kernel.project_dir'));
         if ($document->isFrozen($contrat)) {
             $stored = $document->storedPath($contrat);
             if (!$stored) return new Response('Le PDF signé conservé est introuvable. Restaurez le document original.', 409);
             return $this->file($stored, 'contrat-' . $contrat->getId() . '.pdf');
         }
 
-        $session      = $contrat->getSession();
-        $formation    = $session?->getFormation();
-
-        $inscriptions = $session?->getInscriptions() ?? new \Doctrine\Common\Collections\ArrayCollection();
-
-        // garde uniquement les inscriptions avec un stagiaire
-        $stagiaires = $inscriptions->filter(static fn($i) => $i->getStagiaire() !== null);
-
-        // optionnel : exclure le formateur si jamais il est aussi “inscrit”
-        $formateurUser = $contrat->getFormateur()?->getUtilisateur();
-        if ($formateurUser) {
-            $stagiaires = $stagiaires->filter(static fn($i) => $i->getStagiaire()?->getId() !== $formateurUser->getId());
-        }
-
-
-        $filename = sprintf(
-            'contrat_formateur_%s.pdf',
-            $contrat->getNumero() ?: $contrat->getId()
-        );
-
-        $projectDir = $this->getParameter('kernel.project_dir');
-        $orgSigPath = $contrat->getSignatureOrganismePath() ?: $entite->getPreferences()?->getSignatureOrganismePath();
-
-        $orgSigDataUri = null;
-
-        if ($orgSigPath) {
-            $orgSigPath = '/' . ltrim($orgSigPath, '/'); // "/uploads/..."
-            $candidate = $projectDir . '/public' . $orgSigPath;
-
-            if (is_file($candidate)) {
-                $mime = mime_content_type($candidate) ?: 'image/png';
-                $data = base64_encode(file_get_contents($candidate));
-                $orgSigDataUri = 'data:' . $mime . ';base64,' . $data;
-            }
-        }
-
-        $this->pdfManager->contratFormateur([
-            'entite'       => $entite,
-            'contrat'      => $contrat,
-            'session'      => $session,
-            'formation'    => $formation,
-            'stagiaires'    => $stagiaires,
-            'orgSigDataUri' => $orgSigDataUri,
-        ], $filename);
-
+        $filename = sprintf('contrat_formateur_%s_v%d_%s.pdf', preg_replace('/[^A-Za-z0-9_-]/', '-', $contrat->getNumero() ?: (string) $contrat->getId()), $contrat->getVersionNumero(), bin2hex(random_bytes(8)));
+        $this->pdfManager->contratFormateur($document->templateData($contrat), $filename);
 
         $publicPath = 'uploads/pdf/' . $filename;
         $contrat->setPdfPath($publicPath);

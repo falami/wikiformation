@@ -453,6 +453,7 @@
 
 {% block javascripts %}
   {{ parent() }}
+  <script src="{{ asset('dist/js/session-duration.js') }}?v=3" defer></script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
   {# Flatpickr local #}
@@ -657,7 +658,7 @@
 
       {# ===== Journées ===== #}
       {% set jourPrototype %}
-        <div class='row g-3 mb-2 jour-item'>
+        <div class='row g-3 mb-2 jour-item' data-training-slot>
           <div class='col-md-4'>
             {{ form_row(form.jours.vars.prototype.dateDebut) }}
           </div>
@@ -665,13 +666,15 @@
             {{ form_row(form.jours.vars.prototype.dateFin) }}
           </div>
           <div class='col-md-3'>
-            {{ form_row(form.jours.vars.prototype.formateur) }}
+            {{ form_row(form.jours.vars.prototype.pauseMinutes, {help: false}) }}
           </div>
           <div class='col-md-1 d-flex align-items-end justify-content-end'>
             <button type='button' class='btn btn-outline-danger btn-remove-jour'>
               <i class='fa fa-trash'></i>
             </button>
           </div>
+          <div class='col-md-6'>{{ form_row(form.jours.vars.prototype.formateur) }}</div>
+          <div class='col-md-6 d-flex align-items-center'><span class='small text-muted' data-training-duration aria-live='polite'></span></div>
         </div>
       {% endset %}
 
@@ -682,20 +685,23 @@
         </div>
         <div class="p-3 p-md-4">
           <p class="text-muted small">Affectez un formateur à chaque journée ou demi-journée. Le formateur par défaut intervient sur les créneaux sans affectation spécifique. Pour deux intervenants le même jour, ajoutez une matinée puis un après-midi.</p>
+          <p class="small text-muted">Une journée propose 7 h de formation et 1 h 30 de pause (90 minutes), par exemple 8 h 30–17 h. La fin suit votre heure de début tant que vous ne la personnalisez pas. Une journée peut dépasser 7 h : la pause automatique reste de 90 minutes. Aucune pause n’est déduite d’une demi-journée. Le champ Pause permet de saisir une autre durée en minutes, ou 0 pour ne rien déduire.</p>
           {{ form_errors(form.jours) }}
           {% set nextJourIndex = 0 %}
           {% for jour in form.jours %}{% set nextJourIndex = max(nextJourIndex, jour.vars.name + 1) %}{% endfor %}
           <div id="jours-collection" data-next-index="{{ nextJourIndex }}" data-prototype="{{ jourPrototype|e('html_attr') }}">
             {% for jour in form.jours %}
-              <div class="row g-3 mb-2 jour-item">
+              <div class="row g-3 mb-2 jour-item" data-training-slot>
                 <div class="col-md-4">{{ form_row(jour.dateDebut) }}</div>
                 <div class="col-md-4">{{ form_row(jour.dateFin) }}</div>
-                <div class="col-md-3">{{ form_row(jour.formateur) }}</div>
+                <div class="col-md-3">{{ form_row(jour.pauseMinutes, {help: false}) }}</div>
                 <div class="col-md-1 d-flex align-items-end justify-content-end">
                   <button type="button" class="btn btn-outline-danger btn-remove-jour">
                     <i class="fa fa-trash"></i>
                   </button>
                 </div>
+                <div class="col-md-6">{{ form_row(jour.formateur) }}</div>
+                <div class="col-md-6 d-flex align-items-center"><span class="small text-muted" data-training-duration aria-live="polite"></span></div>
               </div>
             {% endfor %}
           </div>
@@ -705,7 +711,7 @@
           </button>
           <button type="button" class="btn btn-outline-primary mt-2" data-add-session-slot="am"><i class="bi bi-sunrise me-1"></i>Matinée</button>
           <button type="button" class="btn btn-outline-primary mt-2" data-add-session-slot="pm"><i class="bi bi-sun me-1"></i>Après-midi</button>
-          <div class="small text-muted mt-2">Horaires proposés : 9 h–12 h 30 et 13 h 30–17 h, modifiables. Le planning et les contrats reprennent les créneaux attribués.</div>
+          <div class="small text-muted mt-2">Horaires proposés : journée 8 h 30–17 h, matinée 9 h–12 h 30, après-midi 13 h 30–17 h. Ils restent modifiables. Le planning et les contrats reprennent les créneaux attribués.</div>
           <div id="session-trainer-summary" class="d-flex flex-wrap gap-2 mt-3" aria-live="polite"></div>
         </div>
       </div>
@@ -1358,171 +1364,22 @@
 
 
 <script>
-function pad2(n){ return String(n).padStart(2,'0'); }
-
-// Parse "d/m/Y H:i" -> Date (local)
-function parseFRDateTime(str){
-  const m = (str || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
-  if (!m) return null;
-  const dd = parseInt(m[1], 10);
-  const mm = parseInt(m[2], 10) - 1;
-  const yyyy = parseInt(m[3], 10);
-  const HH = parseInt(m[4], 10);
-  const ii = parseInt(m[5], 10);
-  const d = new Date(yyyy, mm, dd, HH, ii, 0, 0);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function setTime(dateObj, hh, mm){
-  const d = new Date(dateObj);
-  d.setHours(hh, mm, 0, 0);
-  return d;
-}
-
 function bindFlatpickr(scope) {
   const root = scope || document;
   if (!window.flatpickr) return;
-
-  // Locale FR
-  if (window.flatpickr?.l10ns?.fr) {
-    flatpickr.localize(flatpickr.l10ns.fr);
-  }
-
-  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-  // Marque les champs que l'utilisateur a modifiés manuellement
-  root.querySelectorAll('.flatpickr-datetime').forEach((el) => {
-    if (!el.dataset) return;
-    if (!el.dataset.userTouched) {
-      el.dataset.userTouched = "0";
-      el.addEventListener('input', () => el.dataset.userTouched = "1");
-      el.addEventListener('change', () => el.dataset.userTouched = "1");
-    }
-  });
-
-  root.querySelectorAll('.flatpickr-datetime').forEach((el) => {
+  if (window.flatpickr?.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
+  const isDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  // Enregistrer les valeurs chargées avant toute interaction, sans les modifier.
+  window.WikiFormationDuration?.init(root);
+  root.querySelectorAll('.flatpickr-datetime').forEach(el => {
     if (el._flatpickr) return;
-
     flatpickr(el, {
-      enableTime: true,
-      time_24hr: true,
-      dateFormat: "d/m/Y H:i",
-      allowInput: true,
-      minuteIncrement: 5,
-
-      onOpen: function(selectedDates, dateStr, instance) {
+      enableTime: true, time_24hr: true, dateFormat: 'd/m/Y H:i',
+      allowInput: true, disableMobile: true, minuteIncrement: 5, defaultHour: 8, defaultMinute: 30,
+      onOpen: (_dates, _value, instance) => {
         if (isDark) instance.calendarContainer.classList.add('flatpickr-dark');
       },
-
-      onChange: function(selectedDates, dateStr, instance) {
-        if (instance.__autoApplying) return;
-
-        const current = selectedDates && selectedDates[0] ? selectedDates[0] : parseFRDateTime(el.value);
-        if (!current) return;
-
-        const row = el.closest('.jour-item') || el.closest('.row') || el.parentElement;
-        if (!row) return;
-
-        const inputs = Array.from(row.querySelectorAll('.flatpickr-datetime'));
-        if (inputs.length < 2) return;
-
-        const startInput = inputs[0];
-        const endInput   = inputs[1];
-        const isStartField = (el === startInput);
-
-        const startFp = startInput?._flatpickr || null;
-        const endFp   = endInput?._flatpickr || null;
-
-        function safeSet(fp, dateObj) {
-          if (!fp) return;
-          fp.__autoApplying = true;
-          try { fp.setDate(dateObj, false); } finally { fp.__autoApplying = false; }
-        }
-
-        // --- init flags
-        if (endInput.dataset.endLinked == null) endInput.dataset.endLinked = "1";
-
-        // Si l'utilisateur modifie la FIN -> on "délie" (endLinked=0)
-        if (!isStartField) {
-          endInput.dataset.endLinked = "0";
-        }
-
-        // ----- DEBUT
-        if (isStartField) {
-          const startTouched = startInput.dataset.userTouched === "1";
-          const hh = current.getHours(), mi = current.getMinutes();
-
-          // Début à 08:30 si pas touché OU si click date (00:00)
-          const newStart = setTime(current, 8, 30);
-          const shouldForceStartTime = (!startTouched) || (hh === 0 && mi === 0);
-
-          if (shouldForceStartTime && startFp) {
-            safeSet(startFp, newStart);
-            startInput.dataset.userTouched = "0";
-          }
-
-          // 🔥 ICI : fin suit la date de début
-          const existingEnd = parseFRDateTime(endInput.value);
-          const endTouched  = endInput.dataset.userTouched === "1";
-          const endLinked   = endInput.dataset.endLinked === "1";
-
-          // heure de fin à conserver si déjà existante, sinon 17:00
-          const endHour = existingEnd ? existingEnd.getHours() : 17;
-          const endMin  = existingEnd ? existingEnd.getMinutes() : 0;
-
-          // nouvelle fin = même jour que début (newStart), heure = conservée
-          const desiredEnd = setTime(newStart, endHour, endMin);
-
-          // On met à jour la fin si :
-          // - elle est "liée" (endLinked=1)  ✅ (cas normal)
-          // OU
-          // - elle n'a pas été touchée par l'utilisateur
-          // OU
-          // - elle est vide
-          const endEmpty = !endInput.value || !existingEnd;
-
-          if ((endLinked || !endTouched || endEmpty)) {
-            if (endFp) safeSet(endFp, desiredEnd);
-            else {
-              endInput.value =
-                `${pad2(desiredEnd.getDate())}/${pad2(desiredEnd.getMonth()+1)}/${desiredEnd.getFullYear()} ` +
-                `${pad2(desiredEnd.getHours())}:${pad2(desiredEnd.getMinutes())}`;
-            }
-            endInput.dataset.userTouched = "0";
-            endInput.dataset.endLinked = "1"; // reste lié
-          }
-
-          // Sécurité : fin >= début
-          const endVal = parseFRDateTime(endInput.value);
-          if (endVal && endVal.getTime() < newStart.getTime()) {
-            const corrected = setTime(newStart, 17, 0);
-            if (endFp) safeSet(endFp, corrected);
-            else endInput.value =
-              `${pad2(corrected.getDate())}/${pad2(corrected.getMonth()+1)}/${corrected.getFullYear()} ` +
-              `${pad2(corrected.getHours())}:${pad2(corrected.getMinutes())}`;
-            endInput.dataset.endLinked = "1";
-            endInput.dataset.userTouched = "0";
-          }
-        }
-
-        // ----- FIN : sécurité fin >= début (si l'utilisateur met une fin avant)
-        if (!isStartField) {
-          const startVal = parseFRDateTime(startInput.value);
-          const endVal   = parseFRDateTime(endInput.value);
-
-          if (startVal && endVal && endVal.getTime() < startVal.getTime()) {
-            const corrected = setTime(startVal, 17, 0);
-            if (endFp) safeSet(endFp, corrected);
-            else endInput.value =
-              `${pad2(corrected.getDate())}/${pad2(corrected.getMonth()+1)}/${corrected.getFullYear()} ` +
-              `${pad2(corrected.getHours())}:${pad2(corrected.getMinutes())}`;
-
-            // Comme on corrige automatiquement, on peut relier à nouveau
-            endInput.dataset.endLinked = "1";
-            endInput.dataset.userTouched = "0";
-          }
-        }
-      }
+      onChange: () => window.WikiFormationDuration?.handleDateChange(el),
     });
   });
 }
@@ -1710,23 +1567,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (el.tagName === 'SELECT') initTomSelectOn(el);
       });
 
-      const inputs = Array.from(item.querySelectorAll('.flatpickr-datetime'));
-      const previous = item.previousElementSibling?.querySelector('.flatpickr-datetime');
-      const base = previous?._flatpickr?.selectedDates?.[0] || new Date();
-      const start = new Date(base); const end = new Date(base);
-      if (preset === 'day' && previous?._flatpickr?.selectedDates?.[0]) {
-        start.setDate(start.getDate() + 1); end.setDate(end.getDate() + 1);
-      }
-      start.setHours(preset === 'pm' ? 13 : 9, preset === 'pm' ? 30 : 0, 0, 0);
-      end.setHours(preset === 'am' ? 12 : 17, preset === 'am' ? 30 : 0, 0, 0);
-      // Le preset contient déjà les horaires choisis : ne pas déclencher
-      // la normalisation automatique prévue pour une saisie vide.
-      inputs[0]?._flatpickr?.setDate(start, false);
-      inputs[1]?._flatpickr?.setDate(end, false);
-      inputs.forEach(input => {
-        input.dataset.userTouched = '1';
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+      const previous = item.previousElementSibling?.querySelector('input[name$="[dateDebut]"]');
+      const previousStart = window.WikiFormationDuration?.readDate(previous);
+      const base = previousStart || new Date();
+      const nextDate = new Date(base);
+      if (preset === 'day' && previousStart) nextDate.setDate(nextDate.getDate() + 1);
+      window.WikiFormationDuration?.preset(item, preset, nextDate);
 
       updateChipJours();
       refreshResume();

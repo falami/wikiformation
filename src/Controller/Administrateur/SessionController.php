@@ -1721,12 +1721,12 @@ final class SessionController extends AbstractController
             }
 
 
-            if ($session->getTypeFinancement() !== TypeFinancement::OF) {
+            if ($session->getTypeFinancement() !== TypeFinancement::OUI) {
                 $this->syncEmargementsWithInscriptions($session, $em);
             }
 
 
-            if ($session->getTypeFinancement() !== TypeFinancement::OF) {
+            if ($session->getTypeFinancement() !== TypeFinancement::OUI) {
                 $session->setOrganismeFormation(null);
                 $session->setFormationIntituleLibre(null);
             }
@@ -1738,7 +1738,7 @@ final class SessionController extends AbstractController
 
             // ✅ si on vient de passer à FULL => créer les assignments
             // ✅ si on vient de passer à FULL => créer les assignments
-            if ($session->getTypeFinancement() !== TypeFinancement::OF) {
+            if ($session->getTypeFinancement() !== TypeFinancement::OUI) {
                 if ($oldStatus !== StatusSession::FULL && $session->getStatus() === StatusSession::FULL) {
 
                     $createdStagiaires = $this->satisfactionAssigner->assignForSession($session, $user, $entite);
@@ -1825,7 +1825,10 @@ final class SessionController extends AbstractController
             $j->setEntite($entite);
             $j->setSession($copy)
                 ->setDateDebut($jour->getDateDebut())
-                ->setDateFin($jour->getDateFin());
+                ->setDateFin($jour->getDateFin())
+                ->setFormateur($jour->getFormateur())
+                ->setPauseMinutes($jour->getPauseMinutes());
+            $copy->addJour($j);
             $em->persist($j);
         }
         $copy->setCapacite($session->getCapacite());

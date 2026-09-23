@@ -1163,6 +1163,7 @@ $(function(){
   // ✅ Dropdown actions sessions : flotte le menu hors du scroll DataTables (anti-clipping)
   (function enableSessionActionsFloatingDropdown(){
     document.addEventListener('show.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.session-actions')) return;
 
@@ -1195,6 +1196,7 @@ $(function(){
     }, true);
 
     document.addEventListener('hidden.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.session-actions')) return;
 

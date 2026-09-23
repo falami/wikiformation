@@ -20,6 +20,34 @@ class ContratFormateur
     #[ORM\Column]
     private ?int $id = null;
 
+    #[ORM\Column(options: ['default' => 1])]
+    private int $versionNumero = 1;
+
+    #[ORM\Version]
+    #[ORM\Column(type: Types::INTEGER, options: ['default' => 1])]
+    private int $lockVersion = 1;
+
+    public function getVersionNumero(): int { return $this->versionNumero; }
+    public function getLockVersion(): int { return $this->lockVersion; }
+    public function incrementVersion(): void { ++$this->versionNumero; }
+
+    public function prepareNewDraft(): void
+    {
+        $this->status = ContratFormateurStatus::BROUILLON;
+        $this->pdfPath = null;
+        $this->signatureAt = null;
+        $this->signatureDataUrl = null;
+        $this->signatureIp = null;
+        $this->signatureUserAgent = null;
+        $this->signatureOrganismePath = null;
+        $this->signatureOrganismeAt = null;
+        $this->signatureOrganismeIp = null;
+        $this->signatureOrganismeNom = null;
+        $this->signatureOrganismeFonction = null;
+        $this->signatureOrganismeUserAgent = null;
+        $this->signatureOrganismePar = null;
+    }
+
 
     #[ORM\ManyToOne(inversedBy: 'contratFormateurs')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]

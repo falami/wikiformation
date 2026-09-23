@@ -4,7 +4,12 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
   <style>
+    .devis-status-select { min-width:190px; }
+    .devis-status-select .ts-control { border-radius:12px; padding:.55rem .8rem; }
+    #tableauDevis_wrapper .devis-training-column { min-width:220px; max-width:360px; white-space:pre-line; font-weight:600; }
+    #tableauDevis_wrapper .devis-dates-column { min-width:170px; white-space:pre-line; font-size:.88rem; color:#526174; }
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
@@ -435,7 +440,7 @@ body .devis-floating-dropdown{
         <span class="chip">
           <i class="bi bi-funnel"></i>
           Statut
-          <select id="devisStatusFilter" class="form-select form-select-sm ms-2" style="width:auto">
+          <select id="devisStatusFilter" class="form-select form-select-sm ms-2" aria-label="Filtrer les devis par statut">
             <option value="all">Tous</option>
             <option value="draft">Brouillons</option>
             <option value="sent">Envoyés</option>
@@ -446,7 +451,7 @@ body .devis-floating-dropdown{
         </span>
 
         <span class="hint d-none d-lg-inline">
-          Recherche : numéro, email, nom/prénom.
+          Recherche : numéro, destinataire, formation.
         </span>
       </div>
 
@@ -472,12 +477,14 @@ body .devis-floating-dropdown{
         <tr>
           <th>Numéro</th>
           <th>Destinataire</th>
+          <th>Formation</th>
+          <th>Dates de formation</th>
           <th>Montant TTC</th>
           <th>Statut</th>
           <th></th>
         </tr>
       </thead>
-      <tbody><tr><td colspan="6"></td></tr></tbody>
+      <tbody></tbody>
     </table>
   </div>
 
@@ -548,9 +555,16 @@ body .devis-floating-dropdown{
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 <script>
 $(function () {
   const $statusFilter = $('#devisStatusFilter');
+  const statusSelect = window.TomSelect ? new TomSelect($statusFilter[0], {
+    create: false, maxItems: 1, allowEmptyOption: false,
+    dropdownParent: 'body', controlInput: null,
+    wrapperClass: 'ts-wrapper devis-status-select',
+  }) : null;
+  statusSelect?.control.setAttribute('aria-label', 'Filtrer les devis par statut');
 
   function nowLabel(){
     const d = new Date();
@@ -618,7 +632,7 @@ $(function () {
   const table = $('#tableauDevis').DataTable({
     processing: true,
     serverSide: true,
-    autoWidth: false,
+    autoWidth: true,
     scrollX: true,
     scrollCollapse: true,
     responsive: false,
@@ -653,27 +667,24 @@ $(function () {
     columns: [
       { data:'numero' },
       { data:'dest' },
+      { data:'formation' },
+      { data:'dates' },
       { data:'ttc' },
       { data:'status' },
       { data:'actions' }
     ],
 
     columnDefs: [
-      { targets:2, className:'text-end', createdCell: function(td){ $(td).addClass('text-end'); } },
-      { targets:2, createdRow: function(){ } },
-      // ✅ colonnes texte (évite XSS + DT stable)
-      { targets:[0,1,2], render: $.fn.dataTable.render.text() },
-
-      // ✅ status/actions = HTML server-side (badges + boutons)
-      { targets:[3,4], orderable:false, searchable:false, render: function(data, type){
-          // type 'display' -> on affiche le HTML, sinon on renvoie une version texte minimale
+      { targets:[0,1,2,3,4], render: $.fn.dataTable.render.text() },
+      { targets:2, className:'devis-training-column' },
+      { targets:3, className:'devis-dates-column', orderable:false, searchable:false },
+      { targets:4, className:'text-end' },
+      { targets:[5,6], orderable:false, searchable:false, render: function(data, type){
           if (type === 'display') return data || '';
           return (data || '').toString().replace(/<[^>]*>/g,'').trim();
         }
       },
-
-      { targets:4, className:'action-column text-end' },
-      { targets:2, className:'text-end' },
+      { targets:6, className:'action-column text-end' },
     ],
 
     order: [[0,'desc']],
@@ -722,6 +733,7 @@ $(function () {
   // ✅ Dropdown actions devis : on "flotte" le menu hors du scroll DataTables (sinon il est clippé)
   (function enableDevisActionsFloatingDropdown(){
     document.addEventListener('show.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.devis-actions')) return;
 
@@ -763,6 +775,7 @@ $(function () {
     }, true);
 
     document.addEventListener('hidden.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.devis-actions')) return;
 
@@ -805,6 +818,7 @@ $(function () {
   });
 
   $('#btnReset').on('click', function () {
+    if (statusSelect) statusSelect.setValue('all', true);
     $statusFilter.val('all');
     table.search('');
     table.order([[0, 'desc']]);

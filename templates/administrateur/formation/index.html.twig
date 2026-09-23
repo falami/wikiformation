@@ -952,6 +952,7 @@ $(function(){
   // ✅ Dropdown actions formation : on "flotte" le menu hors du scroll DataTables (sinon il est clippé)
   (function enableFormationActionsFloatingDropdown(){
     document.addEventListener('show.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.formation-actions')) return;
 
@@ -988,6 +989,7 @@ $(function(){
     }, true);
 
     document.addEventListener('hidden.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.formation-actions')) return;
 

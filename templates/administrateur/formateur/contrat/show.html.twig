@@ -5,9 +5,6 @@
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
-  <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
-  <link rel="stylesheet" href="{{ asset('dist/css/devis-convention.css') }}?v=2">
 
   <style>
     :root{
@@ -152,34 +149,79 @@
     @media (max-width:768px){
       .hero{ border-radius:16px; }
     }
+    .contract-stat { padding:1.25rem; height:100%; }
+    .contract-stat strong { display:block; margin:.35rem 0; font-size:1.35rem; color:var(--ink); }
+    .contract-stat i { color:var(--theme-color-secondaire); margin-right:.45rem; }
+    .contract-timeline { border-left:2px solid var(--stroke); padding-left:1.35rem; margin-left:.45rem; }
+    .contract-version { position:relative; padding:1.1rem 0; }
+    .contract-version::before { content:''; position:absolute; left:-1.77rem; top:1.4rem; width:12px; height:12px; border-radius:50%; background:var(--theme-color-principal); box-shadow:0 0 0 4px #fff; }
+    .contract-version + .contract-version { border-top:1px solid var(--stroke); }
+    .contract-workspace .btn { border-radius:12px; }
+    .contract-workspace .cardx-h { flex-wrap:wrap; }
+    .contract-workspace .hero .flex-grow-1 { min-width:0; }
+    .contract-workspace section { scroll-margin-top:100px; }
+    .contract-workspace .hero h1 { overflow-wrap:anywhere; }
   </style>
 {% endblock %}
 
 
 {% block body %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 contract-workspace">
   <a class="btn btn-outline-secondary mb-3" href="{{ path('app_administrateur_formateurs_contrats_list', {entite: entite.id}) }}"><i class="bi bi-arrow-left me-1"></i> Tous les contrats de {{ entite.nom }}</a>
   {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
-  <div class="card shadow-sm border-0 rounded-4 mb-4">
-    <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
-      <div><div class="text-uppercase text-muted small mb-2">Contrat formateur · {{ entite.nom }}</div><h1 class="h3">{{ contrat.numero }}</h1><p class="mb-2">{{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }} · {{ contrat.session.formationLabel }}</p><span class="badge text-bg-light border">{{ contrat.status.label }}</span></div>
+  <div class="hero p-4 mb-4">
+    <div class="d-flex gap-3"><div class="accent flex-shrink-0"></div><div class="flex-grow-1">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div><div class="text-uppercase subtitle mb-2">Contrat formateur · {{ entite.nom }}</div><h1 class="h3 fw-bold">{{ contrat.numero }}</h1><p class="subtitle mb-3">{{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }} · {{ contrat.session.formationLabel }}</p><div class="d-flex flex-wrap gap-2"><span class="chip"><i class="bi bi-layers"></i> Version {{ contrat.versionNumero }}</span><span class="chip chip--pill">{{ contrat.status.label }}</span><a class="chip text-decoration-none" href="#historique-versions"><i class="bi bi-clock-history"></i> {{ revisions|length }} version(s) conservée(s)</a></div></div>
       <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_session_show', {entite: entite.id, id: contrat.session.id}) }}">Voir la session</a>
-        {% if contrat.status.value == 'BROUILLON' and not frozen %}<a class="btn btn-outline-primary" href="{{ path('app_administrateur_formateurs_contrats_edit', {entite: entite.id, id: contrat.id}) }}">Modifier</a>{% endif %}
+        <a class="btn btn-outline-theme" href="{{ path('app_administrateur_session_show', {entite: entite.id, id: contrat.session.id}) }}">Voir la session</a>
+        {% if contrat.status.value == 'BROUILLON' and not frozen %}<a class="btn btn-light" href="{{ path('app_administrateur_formateurs_contrats_edit', {entite: entite.id, id: contrat.id}) }}"><i class="bi bi-pencil-square me-1"></i> Modifier</a>{% endif %}
+        {% if contrat.status.value != 'BROUILLON' or frozen %}<a class="btn btn-light" href="#nouvelle-version"><i class="bi bi-pencil-square me-1"></i> Créer une nouvelle version</a>{% endif %}
         {% if not frozen or stored_pdf_available %}<a class="btn btn-warning" href="{{ path('app_administrateur_formateurs_contrats_pdf', {entite: entite.id, id: contrat.id, download: 1}) }}"><i class="bi bi-download me-1"></i> Télécharger le PDF</a>{% endif %}
       </div>
     </div>
+    </div></div>
   </div>
   <div class="row g-4 mb-4">
-    <div class="col-md-4"><div class="card rounded-4 h-100"><div class="card-body p-4"><div class="text-muted small">Session</div><strong>{{ contrat.session.code }}</strong><div class="text-muted mt-2">{{ contrat.session.site.nom|default('Lieu à préciser') }}</div></div></div></div>
-    <div class="col-md-4"><div class="card rounded-4 h-100"><div class="card-body p-4"><div class="text-muted small">Honoraires et frais HT</div><strong>{{ ((contrat.montantPrevuCents + contrat.fraisMissionCents) / 100)|number_format(2, ',', ' ') }} €</strong><div class="text-muted mt-2">Dont frais : {{ (contrat.fraisMissionCents / 100)|number_format(2, ',', ' ') }} €</div></div></div></div>
-    <div class="col-md-4"><div class="card rounded-4 h-100"><div class="card-body p-4"><div class="text-muted small">Signature du formateur</div><strong>{{ contrat.signatureAt ? contrat.signatureAt|date('d/m/Y à H:i') : 'En attente' }}</strong><div class="text-muted mt-2">Créé le {{ contrat.dateCreation|date('d/m/Y') }}</div></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-calendar-week"></i> Session</div><strong>{{ contrat.session.code }}</strong><div class="small">{{ contrat.session.site.nom|default('Lieu à préciser') }}</div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-cash-stack"></i> Honoraires et frais HT</div><strong>{{ ((contrat.montantPrevuCents + contrat.fraisMissionCents) / 100)|number_format(2, ',', ' ') }} €</strong><div class="small">Dont frais : {{ (contrat.fraisMissionCents / 100)|number_format(2, ',', ' ') }} €</div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-people"></i> Effectif prévu de la session</div><strong>{{ effectif }} stagiaire(s)</strong><div class="small">Effectif des conventions prioritaire</div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-pen"></i> Signature du formateur</div><strong>{{ contrat.signatureAt ? contrat.signatureAt|date('d/m/Y') : 'En attente' }}</strong><div class="small">Créé le {{ contrat.dateCreation|date('d/m/Y') }}</div></div></div>
   </div>
   {% if frozen %}
     <div class="alert {{ stored_pdf_available ? 'alert-info' : 'alert-warning' }}">{% if stored_pdf_available %}Le document conservé est affiché ci-dessous. Il reste inchangé si le planning de la session évolue.{% else %}Le PDF original de ce contrat est introuvable. Restaurez le document conservé pour le consulter ; un contrat signé ne peut pas être régénéré.{% endif %}</div>
   {% else %}
-    <div class="card rounded-4 mb-4"><div class="card-body p-4"><h2 class="h5">Créneaux attribués à ce formateur</h2><p class="text-muted">{{ contrat.session.nombreHeuresPourFormateur(contrat.formateur)|number_format(2, ',', ' ') }} heures d’intervention. Ces horaires sont repris dans le PDF.</p><ul class="mb-0">{% for jour in contrat.session.joursPourFormateur(contrat.formateur) %}<li>{{ jour.dateDebut|date('d/m/Y') }} · {{ jour.dateDebut|date('H:i') }}–{{ jour.dateFin|date('H:i') }}</li>{% else %}<li>Aucun créneau attribué. Complétez le planning de la session.</li>{% endfor %}</ul></div></div>
+    <div class="card rounded-4 mb-4"><div class="card-body p-4"><h2 class="h5">Créneaux attribués à ce formateur</h2><p class="text-muted">{{ contrat.session.nombreHeuresPourFormateur(contrat.formateur)|number_format(2, ',', ' ') }} heures de formation hors pauses. Ces horaires sont repris dans le PDF.</p><ul class="mb-0">{% for jour in contrat.session.joursPourFormateur(contrat.formateur) %}<li>{{ jour.dateDebut|date('d/m/Y') }} · {{ jour.dateDebut|date('H:i') }}–{{ jour.dateFin|date('H:i') }} · {{ jour.dureeFormationHeures|number_format(2, ',', ' ') }} h{% if jour.pauseEffectiveMinutes > 0 %} (pause de {{ jour.pauseEffectiveMinutes }} min déduite){% endif %}</li>{% else %}<li>Aucun créneau attribué. Complétez le planning de la session.</li>{% endfor %}</ul></div></div>
   {% endif %}
+  {% if contrat.status.value != 'BROUILLON' or frozen %}
+    <section id="nouvelle-version" class="cardx mb-4"><div class="card-body p-4">
+      <h2 class="h5">Créer une nouvelle version</h2>
+      <p class="text-muted">Le document actuel sera conservé avec son statut et ses signatures. La nouvelle version sera un brouillon à faire signer de nouveau.</p>
+      <form method="post" action="{{ path('app_administrateur_formateurs_contrats_revise', {entite: entite.id, id: contrat.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('revise_contrat_' ~ contrat.id) }}">
+        <input type="hidden" name="versionAttendue" value="{{ contrat.lockVersion }}">
+        <label class="form-label" for="revision-motif">Motif de la révision</label>
+        <textarea name="motif" id="revision-motif" class="form-control mb-3" required maxlength="1000" rows="2" placeholder="Ex. : ajustement des honoraires ou des conditions de mission"></textarea>
+        <button class="btn btn-warning fw-semibold" type="submit"><i class="bi bi-plus-lg me-1"></i> Conserver la version {{ contrat.versionNumero }} et préparer la suivante</button>
+      </form>
+    </div></section>
+  {% endif %}
+  <section id="historique-versions" class="cardx mb-4"><div class="cardx-h"><h2 class="h5 cardx-title"><i class="bi bi-clock-history text-warning"></i> Historique des versions</h2><span class="chip">Traçabilité du document</span></div><div class="card-body p-4">
+    <p class="small text-muted">Version actuelle : {{ contrat.versionNumero }} · {{ contrat.status.label }}. Chaque modification conserve le document précédent.</p>
+    {% set statusLabels = {'BROUILLON': 'Brouillon', 'ENVOYE': 'Envoyé', 'SIGNE': 'Signé', 'ARCHIVE': 'Archivé', 'RESILIE': 'Résilié'} %}
+    <div class="contract-timeline">
+    {% for revision in revisions %}
+      <article class="contract-version">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div><strong>Version {{ revision.numero }}</strong> <span class="badge text-bg-light border">{{ statusLabels[revision.donnees.status]|default(revision.donnees.status) }}</span><div class="small text-muted">Remplacée le {{ revision.archiveLe|date('d/m/Y à H:i') }} par {{ revision.auteurNom }}</div></div>
+          <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="{{ path('app_administrateur_formateurs_contrats_revision_pdf', {entite: entite.id, id: contrat.id, revision: revision.id}) }}">Consulter le PDF conservé</a>
+        </div>
+        <p class="mt-2 mb-1">{{ revision.motif }}</p>
+        <div class="small text-muted">{{ revision.donnees.formateur }} · {{ revision.donnees.sessionCode }} · {{ revision.donnees.heures|number_format(2, ',', ' ') }} h · {{ revision.donnees.effectif }} stagiaire(s) · {{ ((revision.donnees.montantPrevuCents + revision.donnees.fraisMissionCents) / 100)|number_format(2, ',', ' ') }} € HT{% if revision.donnees.signatureAt %} · Signée le {{ revision.donnees.signatureAt|date('d/m/Y à H:i') }}{% endif %}</div>
+      </article>
+    {% else %}<div class="contract-version text-muted">Aucune version antérieure. L’historique sera alimenté à la prochaine modification.</div>{% endfor %}
+    </div>
+  </div></section>
   {% if not frozen or stored_pdf_available %}<iframe class="w-100 border rounded-4 bg-white" style="height: 80vh; min-height: 600px" title="PDF du contrat {{ contrat.numero }}" src="{{ path('app_administrateur_formateurs_contrats_pdf', {entite: entite.id, id: contrat.id}) }}"></iframe>{% endif %}
 </div>
 {% endblock %}

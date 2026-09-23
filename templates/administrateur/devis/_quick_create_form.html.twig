@@ -21,8 +21,10 @@
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3"><h3 class="h6 mb-0">Créneaux de formation</h3><button type="button" class="btn btn-sm btn-outline-primary" data-add-slot><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Ajouter un créneau</button></div>
     {{ form_errors(form.jours) }}
     {% set slotPrototype %}
-      <div class="js-session-slot qc-slot border rounded-3 p-3 mb-3">
+      <div class="js-session-slot qc-slot border rounded-3 p-3 mb-3" data-training-slot>
         <div class="row g-3"><div class="col-sm-6">{{ form_row(form.jours.vars.prototype.dateDebut, {attr: {'data-datepicker': 'datetime'}}) }}</div><div class="col-sm-6">{{ form_row(form.jours.vars.prototype.dateFin, {attr: {'data-datepicker': 'datetime'}}) }}</div></div>
+        {{ form_row(form.jours.vars.prototype.pauseMinutes) }}
+        <p class="small text-muted" data-training-duration aria-live="polite"></p>
         <button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-slot><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Retirer ce créneau</button>
       </div>
     {% endset %}
@@ -30,9 +32,11 @@
     {% for jour in form.jours %}{% set nextSlotIndex = max(nextSlotIndex, jour.vars.name + 1) %}{% endfor %}
     <div data-collection data-index="{{ nextSlotIndex }}" data-prototype="{{ slotPrototype|e('html_attr') }}">
       {% for jour in form.jours %}
-        <div class="js-session-slot qc-slot border rounded-3 p-3 mb-3">
+        <div class="js-session-slot qc-slot border rounded-3 p-3 mb-3" data-training-slot>
           {{ form_errors(jour) }}
           <div class="row g-3"><div class="col-sm-6">{{ form_row(jour.dateDebut, {attr: {'data-datepicker': 'datetime'}}) }}</div><div class="col-sm-6">{{ form_row(jour.dateFin, {attr: {'data-datepicker': 'datetime'}}) }}</div></div>
+          {{ form_row(jour.pauseMinutes) }}
+          <p class="small text-muted" data-training-duration aria-live="polite"></p>
           <button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-slot><i class="bi bi-trash3 me-1" aria-hidden="true"></i>Retirer ce créneau</button>
         </div>
       {% endfor %}

@@ -668,6 +668,7 @@ $(function(){
   // ✅ Dropdown actions prospects : on "flotte" le menu hors du scroll DataTables (sinon il est clippé)
   (function enableProspectActionsFloatingDropdown(){
     document.addEventListener('show.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.prospect-actions')) return;
 
@@ -704,6 +705,7 @@ $(function(){
     }, true);
 
     document.addEventListener('hidden.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
       if (!toggle.closest('.prospect-actions')) return;
 

@@ -4,16 +4,20 @@ namespace App\Service\Pdf;
 
 use App\Entity\ContratFormateur;
 use App\Enum\ContratFormateurStatus;
+use App\Service\Session\SessionParticipantCount;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /** Resolves the retained document without ever rewriting a signed contract. */
 final class ContratFormateurDocument
 {
-    public function __construct(#[Autowire('%kernel.project_dir%')] private string $projectDir) {}
+    public function __construct(
+        #[Autowire('%kernel.project_dir%')] private string $projectDir,
+        private SessionParticipantCount $participantCount,
+    ) {}
 
     public function isFrozen(ContratFormateur $contrat): bool
     {
-        return $contrat->getSignatureAt() !== null || $contrat->getSignatureDataUrl() !== null
+        return $contrat->getSignatureAt() !== null || $contrat->getSignatureDataUrl() !== null || $contrat->getSignatureOrganismeAt() !== null
             || in_array($contrat->getStatus(), [ContratFormateurStatus::SIGNE, ContratFormateurStatus::ARCHIVE, ContratFormateurStatus::RESILIE], true);
     }
 
@@ -34,10 +38,7 @@ final class ContratFormateurDocument
     {
         $session = $contrat->getSession();
         $formateurUser = $contrat->getFormateur()?->getUtilisateur();
-        $stagiaires = $session?->getInscriptions()->filter(static fn ($i) =>
-            $i->getStagiaire() !== null && $i->getStagiaire() !== $formateurUser
-            && $i->getStatus() !== \App\Enum\StatusInscription::ANNULE
-        ) ?? [];
+        $stagiaires = $session ? $this->participantCount->participants($session, $formateurUser) : [];
         $orgSigDataUri = null;
         $signature = $this->publicUploadPath($contrat->getSignatureOrganismePath() ?: $contrat->getEntite()?->getPreferences()?->getSignatureOrganismePath());
         if ($signature) {
@@ -47,6 +48,9 @@ final class ContratFormateurDocument
             }
         }
         return ['entite' => $contrat->getEntite(), 'contrat' => $contrat, 'session' => $session,
-            'formation' => $session?->getFormation(), 'stagiaires' => $stagiaires, 'orgSigDataUri' => $orgSigDataUri];
+            'formation' => $session?->getFormation(), 'stagiaires' => $stagiaires, 'orgSigDataUri' => $orgSigDataUri,
+            'effectifStage' => $session ? $this->participantCount->count($session, $formateurUser) : 0,
+            'participantsLibres' => $session ? $this->participantCount->freeParticipantNames($session) : [],
+        ];
     }
 }

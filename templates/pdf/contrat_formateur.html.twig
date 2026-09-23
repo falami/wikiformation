@@ -441,7 +441,7 @@ table{ border-collapse: collapse; width:100%; }
       <td class="header-right">
         <div class="doc-badge">LETTRE DE MISSION</div>
         <div class="doc-meta">
-          <div class="doc-meta-item"><strong>N° :</strong> {{ contrat.numero }}</div>
+          <div class="doc-meta-item"><strong>N° :</strong> {{ contrat.numero }} · Version {{ contrat.versionNumero }}</div>
           <div class="doc-meta-item"><strong>Date :</strong> {{ (contrat.dateCreation ?? "now")|date('d/m/Y') }}</div>
           <div class="doc-meta-item"><strong>Formation :</strong> {{ formationLabel }}</div>
           <div class="doc-meta-item"><strong>Exemplaires :</strong> 2</div>
@@ -561,7 +561,7 @@ table{ border-collapse: collapse; width:100%; }
       <th>Dates et horaires</th>
       <td>
         {% if interventionJours|length > 0 %}
-          <span class="pill">Durée de l’intervention : {{ interventionHeures|number_format(2, ",", " ") }} h</span><br>
+          <span class="pill">Durée de l’intervention hors pauses : {{ interventionHeures|number_format(2, ",", " ") }} h</span><br>
           {% for jour in interventionJours %}
             • Le {{ jour.dateDebut|date('d/m/Y') }}
             de {{ jour.dateDebut|date('H\\hi') }}
@@ -574,17 +574,21 @@ table{ border-collapse: collapse; width:100%; }
     </tr>
     <tr>
       <th>Effectif du stage</th>
-      <td>{{ stagiaires|length }} stagiaire(s)</td>
+      <td>{% if effectifStage > 0 %}{{ effectifStage }} stagiaire(s){% else %}À préciser{% endif %}</td>
     </tr>
     <tr>
       <th>Nom des stagiaires</th>
       <td>
-        {% if stagiaires|length > 0 %}
+        {% if stagiaires|length > 0 or participantsLibres|length > 0 %}
           {% for ins in stagiaires %}
-            {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}{% if not loop.last %}, {% endif %}
+            {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}{% if not loop.last or participantsLibres|length > 0 %}, {% endif %}
           {% endfor %}
+          {{ participantsLibres|join(', ') }}
+          {% if effectifStage > stagiaires|length + participantsLibres|length %}
+            <br>Liste nominative à compléter.
+          {% endif %}
         {% else %}
-          Liste jointe en annexe.
+          Liste nominative à communiquer.
         {% endif %}
       </td>
     </tr>

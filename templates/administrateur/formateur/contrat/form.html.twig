@@ -245,6 +245,15 @@
 
   {{ form_start(form, { attr: { id: 'contratForm', novalidate: 'novalidate' } }) }}
   {{ form_errors(form) }}
+  {% if form.motifModification is defined %}
+    <div class="cardx mb-4 p-4">
+      <h2 class="h5"><i class="bi bi-clock-history text-warning me-2"></i> Modification de la version {{ contrat.versionNumero }}</h2>
+      <p class="text-muted">La version précédente et son PDF seront conservés dans l’historique après enregistrement.</p>
+      {{ form_row(form.motifModification) }}
+      {{ form_widget(form.versionAttendue) }}
+      <a class="small" href="{{ path('app_administrateur_formateurs_contrats_show', {entite: entite.id, id: contrat.id}) }}#historique-versions">Consulter l’historique et les documents conservés</a>
+    </div>
+  {% endif %}
 
   <div class="row g-4">
     {# ====================== COL LEFT ====================== #}

@@ -95,7 +95,7 @@ class ConventionSignatureStagiaireController extends AbstractController
 
 
   #[Route('/inscription/{id}/convention/view', name: 'convention_view', methods: ['GET'])]
-  public function view(Entite $entite, Inscription $inscription, Request $request): Response
+  public function view(Entite $entite, Inscription $inscription, Request $request, \App\Service\Convention\ConventionDocument $document): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -114,12 +114,7 @@ class ConventionSignatureStagiaireController extends AbstractController
       return new Response('PDF introuvable', 404);
     }
 
-    $abs = $this->getParameter('kernel.project_dir') . '/public/' . ltrim($convention->getPdfPath(), '/');
-    if (!is_file($abs)) {
-      return new Response('PDF introuvable sur le serveur', 404);
-    }
-
-    return new \Symfony\Component\HttpFoundation\BinaryFileResponse($abs);
+    return $document->response($convention);
   }
 
   #[Route('/inscription/{id}/convention/esign', name: 'convention_esign', methods: ['POST'])]

@@ -3,8 +3,12 @@
 
 namespace App\Controller\Administrateur;
 
-use App\Entity\{ContratFormateur, Entite, Utilisateur, Session, Formateur};
+use App\Entity\{ContratFormateur, ContratFormateurRevision, Entite, Utilisateur, Session, Formateur};
 use App\Enum\ContratFormateurStatus;
+use App\Service\Contrat\ContratFormateurVersioning;
+use Doctrine\ORM\OptimisticLockException;
+use Symfony\Component\Form\Extension\Core\Type\{HiddenType, TextareaType};
+use Symfony\Component\Validator\Constraints as Assert;
 use App\Form\Administrateur\ContratFormateurType;
 use App\Repository\FormateurRepository;
 use App\Repository\SessionRepository;
@@ -270,6 +274,8 @@ class ContratFormateurController extends AbstractController
     return $this->render('administrateur/formateur/contrat/show.html.twig', [
       'entite' => $entite, 'contrat' => $contrat, 'frozen' => $document->isFrozen($contrat),
       'stored_pdf_available' => $document->storedPath($contrat) !== null,
+      'effectif' => $document->templateData($contrat)['effectifStage'],
+      'revisions' => $this->em->getRepository(ContratFormateurRevision::class)->findBy(['contrat' => $contrat], ['numero' => 'DESC']),
     ]);
   }
 
@@ -444,46 +450,77 @@ class ContratFormateurController extends AbstractController
   }
 
   #[Route('/{id}/modifier', name: 'edit', methods: ['GET', 'POST'])]
-  public function edit(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request): Response
+  public function edit(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request, ContratFormateurVersioning $versions): Response
   {
-    /** @var Utilisateur $user */
-    $user = $this->getUser();
-
-    if ($contrat->getEntite()->getId() !== $entite->getId()) {
-      throw $this->createNotFoundException();
+    $this->assertContractTenant($entite, $contrat);
+    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl() || $contrat->getSignatureOrganismeAt()) {
+      $this->addFlash('warning', 'Utilisez « Créer une nouvelle version » pour modifier ce contrat et conserver son document original.');
+      return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
     }
-
-    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl()) {
-      $this->addFlash('warning', 'Ce contrat n’est plus modifiable (statut non brouillon).');
-      return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
-    }
-
+    // Preserve the original state before Symfony writes submitted values into the entity.
+    $before = clone $contrat;
     $form = $this->createForm(ContratFormateurType::class, $contrat, ['entite' => $entite]);
+    $form->add('versionAttendue', HiddenType::class, ['mapped' => false, 'data' => (string) $contrat->getLockVersion()]);
+    $form->add('motifModification', TextareaType::class, ['mapped' => false, 'label' => 'Motif de la modification', 'attr' => [ 'class' => 'form-control rounded-3 shadow-sm with-icon pref-textarea', 'rows' => 2, 'maxlength' => 1000], 'constraints' => [new Assert\NotBlank(), new Assert\Length(max: 1000)]]);
     $form->handleRequest($request);
     $this->validateAssignment($form, $contrat, $entite);
-
     if ($form->isSubmitted() && $form->isValid()) {
-
-      $formateur = $contrat->getFormateur();
-      if ($formateur) {
-        $contrat
-          ->setAssujettiTva($formateur->isAssujettiTva())
-          ->setTauxTva($formateur->getTauxTvaParDefaut())
-          ->setNumeroTvaIntra($formateur->getNumeroTvaIntra());
+      $revision = null;
+      try {
+        $versions->assertCurrent($contrat, (int) $form->get('versionAttendue')->getData());
+        $revision = $versions->archive($before, $contrat, $this->getUser(), (string) $form->get('motifModification')->getData());
+        $this->em->flush();
+      } catch (\DomainException $e) {
+        $form->addError(new FormError($e->getMessage()));
+      } catch (OptimisticLockException|UniqueConstraintViolationException $e) {
+        if ($revision) $versions->discardFile($revision);
+        return new Response('Ce contrat a été modifié entre-temps. Rechargez sa page avant de réessayer.', 409);
+      } catch (\Throwable $e) {
+        if ($revision) $versions->discardFile($revision);
+        throw $e;
       }
-
-      $this->em->flush();
-
-      $this->addFlash('success', 'Contrat formateur mis à jour avec succès.');
-      return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
+      if ($form->isValid()) {
+        $this->addFlash('success', sprintf('Version %d enregistrée. La version précédente reste accessible dans l’historique.', $contrat->getVersionNumero()));
+        return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
+      }
     }
+    return $this->render('administrateur/formateur/contrat/form.html.twig', ['entite' => $entite, 'form' => $form->createView(), 'contrat' => $contrat, 'is_edit' => true], new Response(status: $form->isSubmitted() ? 422 : 200));
+  }
 
-    return $this->render('administrateur/formateur/contrat/form.html.twig', [
-      'entite' => $entite,
-      'form'   => $form->createView(),
-      'contrat' => $contrat,
-      'is_edit' => true,
-    ]);
+  #[Route('/{id}/nouvelle-version', name: 'revise', requirements: ['id' => '\d+'], methods: ['POST'])]
+  public function revise(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request, ContratFormateurVersioning $versions): Response
+  {
+    $this->assertContractTenant($entite, $contrat);
+    if (!$this->isCsrfTokenValid('revise_contrat_' . $contrat->getId(), $request->request->get('_token'))) throw $this->createAccessDeniedException('Formulaire expiré.');
+    $revision = null;
+    try {
+      $versions->assertCurrent($contrat, $request->request->getInt('versionAttendue'));
+      if ($contrat->getStatus() === ContratFormateurStatus::BROUILLON && !$contrat->getSignatureAt() && !$contrat->getSignatureDataUrl() && !$contrat->getSignatureOrganismeAt()) throw new \DomainException('Ce contrat possède déjà une version brouillon. Modifiez cette version.');
+      $revision = $versions->archive(clone $contrat, $contrat, $this->getUser(), (string) $request->request->get('motif', ''));
+      $contrat->prepareNewDraft();
+      $this->em->flush();
+    } catch (\DomainException $e) {
+      $this->addFlash('warning', $e->getMessage());
+      return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
+    } catch (OptimisticLockException|UniqueConstraintViolationException $e) {
+      if ($revision) $versions->discardFile($revision);
+      return new Response('Ce contrat a été modifié entre-temps. Rechargez sa page avant de réessayer.', 409);
+    } catch (\Throwable $e) {
+      if ($revision) $versions->discardFile($revision);
+      throw $e;
+    }
+    $this->addFlash('success', 'La version précédente a été conservée. Complétez le nouveau brouillon ; ses signatures devront être recueillies à nouveau.');
+    return $this->redirectToRoute('app_administrateur_formateurs_contrats_edit', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
+  }
+
+  #[Route('/{id}/versions/{revision}/pdf', name: 'revision_pdf', requirements: ['id' => '\d+', 'revision' => '\d+'], methods: ['GET'])]
+  public function revisionPdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, #[MapEntity(id: 'revision')] ContratFormateurRevision $revision, ContratFormateurVersioning $versions): Response
+  {
+    $this->assertContractTenant($entite, $contrat);
+    if ($revision->getContrat()->getId() !== $contrat->getId()) throw $this->createNotFoundException();
+    $path = $versions->path($revision);
+    if (!$path) return new Response('Le document archivé est manquant ou a été altéré. Restaurez le PDF original depuis une sauvegarde.', 409);
+    return $this->file($path, 'Contrat-' . preg_replace('/[^A-Za-z0-9_-]/', '-', $revision->getDonnees()['numero']) . '-v' . $revision->getNumero() . '.pdf', ResponseHeaderBag::DISPOSITION_INLINE);
   }
 
   #[Route('/{id}/supprimer', name: 'supprimer', methods: ['POST'])]
@@ -493,7 +530,7 @@ class ContratFormateurController extends AbstractController
       throw $this->createNotFoundException();
     }
 
-    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl()) {
+    if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl() || $contrat->getSignatureOrganismeAt()) {
       $this->addFlash('warning', 'Suppression impossible : le contrat n’est plus en brouillon.');
       return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
     }
@@ -502,6 +539,11 @@ class ContratFormateurController extends AbstractController
     if (!$this->isCsrfTokenValid('delete_contrat_formateur_' . $contrat->getId(), $token)) {
       $this->addFlash('danger', 'Jeton CSRF invalide.');
       return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
+    }
+
+    if ($this->em->getRepository(ContratFormateurRevision::class)->count(['contrat' => $contrat]) > 0) {
+      $this->addFlash('warning', 'Ce contrat possède un historique de versions et ne peut pas être supprimé.');
+      return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
     }
 
     $this->em->remove($contrat);

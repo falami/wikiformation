@@ -1,0 +1,70 @@
+/* Convention commune : menus compacts, actions visibles à toute largeur. */
+.content, .dt-container, .dataTables_wrapper { min-width: 0; }
+.dt-container, .dataTables_wrapper { max-width: 100%; }
+.wf-table-scroll { max-width: 100%; overflow-x: auto; isolation: isolate; }
+.dt-scroll-body, .dataTables_scrollBody { isolation: isolate; }
+/* La spécificité couvre les anciens styles de chaque liste. Fond opaque :
+   les autres colonnes ne doivent pas apparaître sous les actions fixes. */
+body .content table.dataTable :is(th, td).wf-table-actions,
+body .content table :is(th, td).wf-table-actions {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 6;
+  min-width: 82px !important;
+  width: 82px;
+  padding: .7rem .65rem !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  background: #fff !important;
+  box-shadow: -8px 0 12px -10px rgba(24, 42, 60, .4) !important;
+  border-left: 1px solid #e7ebf0;
+}
+body .content table thead th.wf-table-actions { background: #f6f7fa !important; z-index: 7; }
+body .content table tbody tr:nth-child(even) > td.wf-table-actions { background: #f7f8fa !important; }
+body .content table tbody tr:hover > td.wf-table-actions { background: #fff9e9 !important; }
+body .content table .wf-table-actions .hover-actions {
+  position: static !important; opacity: 1 !important; visibility: visible !important;
+  transform: none !important; margin: 0 !important;
+}
+body .wf-table-actions .wf-row-actions {
+  display: inline-flex !important; gap: 0 !important; flex-wrap: nowrap !important;
+  align-items: stretch; vertical-align: middle; border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(35, 51, 66, .06);
+}
+body .wf-table-actions .wf-row-actions > .btn {
+  min-height: 36px; min-width: 36px; padding: .4rem .6rem !important;
+  border: 1px solid #dce2e9 !important; background: #fff !important;
+  color: #233342 !important; box-shadow: none !important; margin: 0 !important;
+}
+body .wf-table-actions .wf-row-actions > .btn:hover { background: #fff7dc !important; }
+body .wf-table-actions .wf-row-actions > .btn:focus-visible { outline: 3px solid #ffc107; outline-offset: 2px; }
+body .wf-table-actions .wf-row-actions > .dropdown-toggle-split {
+  min-width: 26px; padding-inline: .4rem !important; border-left: 0 !important;
+}
+body .wf-table-actions .wf-row-actions > .btn:first-child { border-radius: 10px 0 0 10px; }
+body .wf-table-actions .wf-row-actions > .btn:last-of-type { border-radius: 0 10px 10px 0; }
+body .wf-table-actions .wf-row-actions > .btn:only-child { border-radius: 10px; }
+body .wf-action-menu {
+  border: 1px solid #dce2e9 !important; border-radius: 14px !important;
+  background: #fff !important; box-shadow: 0 16px 48px rgba(24, 42, 60, .2) !important;
+  padding: .4rem !important; min-width: 210px;
+  max-width: calc(100vw - 24px); max-height: min(420px, calc(100dvh - 24px));
+  overflow-y: auto !important; overscroll-behavior: contain;
+  color: #233342; text-align: left;
+}
+body .wf-action-menu .dropdown-item {
+  display: flex; align-items: center; gap: .55rem; min-height: 40px;
+  padding: .55rem .75rem !important; border-radius: 8px; border: 0;
+  font-size: .9rem; font-weight: 500; white-space: normal;
+}
+body .wf-action-menu .dropdown-item:hover,
+body .wf-action-menu .dropdown-item:focus { background: #fff6d7; color: #233342; }
+body .wf-action-menu .dropdown-item.text-danger:hover { background: #fff0ef; color: #b42318; }
+body .wf-action-menu .dropdown-divider { margin: .3rem .4rem; border-color: #dce2e9; }
+body .wf-action-menu[popover]:popover-open,
+body .wf-action-menu.wf-menu-open {
+  position: fixed !important; inset: auto !important; margin: 0 !important;
+  top: var(--wf-menu-top) !important; left: var(--wf-menu-left) !important;
+  transform: none !important; z-index: 20000 !important; display: block !important;
+}

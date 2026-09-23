@@ -74,6 +74,24 @@ final class TrainerWorkflowTest extends KernelTestCase
         self::assertSame(1.0, $this->session->getNombreJoursPourFormateur($this->morning));
     }
 
+    public function testDuplicatingSessionPreservesTrainerAndExplicitPause(): void
+    {
+        $this->session->getJours()->last()->setPauseMinutes(15);
+        $this->em->flush();
+        $client = $this->client();
+        $client->request('GET', $this->url('app_administrateur_session_duplicate', ['id' => $this->session->getId()]));
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $copy = $this->em->getRepository(Session::class)->findOneBy([], ['id' => 'DESC']);
+        self::assertNotSame($this->session->getId(), $copy->getId());
+        self::assertCount(2, $copy->getJours());
+        $copiedSlots = $copy->getJours()->toArray();
+        usort($copiedSlots, static fn($a, $b) => $a->getDateDebut() <=> $b->getDateDebut());
+        self::assertNull($copiedSlots[0]->getPauseMinutes());
+        self::assertSame(15, $copiedSlots[1]->getPauseMinutes());
+        self::assertSame($this->afternoon->getId(), $copiedSlots[1]->getFormateur()->getId());
+        self::assertSame(3.25, $copy->getNombreHeuresPourFormateur($this->afternoon));
+    }
+
     public function testSessionPlanningRejectsOverlapsAndAcceptsAdjacentSlots(): void
     {
         $validator = self::getContainer()->get(SessionPlanningValidator::class);

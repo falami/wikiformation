@@ -465,9 +465,10 @@
               <div class="info-block">
                 <span class="info-label">Durée</span>
                 <div class="info-content">
-                  {% set days = session.formation.duree|default(null) %}
-                  {% if days is not null %}
-                    {{ days }} jour(s) · {{ days * 7 }} heures
+                  {% if session.dureeFormationMinutes > 0 %}
+                    {{ session.dureeFormationHeures|number_format(2, ',', ' ') }} heures de formation, hors pauses
+                  {% elseif session.formation.duree %}
+                    {{ session.formation.duree }} jour(s) · Horaires à préciser
                   {% else %}
                     <span class="text-muted">Non renseignée</span>
                   {% endif %}

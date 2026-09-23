@@ -73,7 +73,7 @@ final class DevisConventionType extends AbstractType
                         'code' => $session->getCode(),
                         'differentFormation' => $devis->getFormation() !== null && $session->getFormation()?->getId() !== $devis->getFormation()->getId(),
                         'title' => $session->getFormationLabel(),
-                        'duration' => $session->getFormation()?->getDuree() ? $session->getFormation()->getDuree() . ' jour' . ($session->getFormation()->getDuree() > 1 ? 's' : '') : '',
+                        'duration' => $session->getDureeFormationMinutes() > 0 ? rtrim(rtrim(number_format($session->getDureeFormationHeures(), 2, ',', ' '), '0'), ',') . ' heures' : '',
                         'startLabel' => $session->getDateDebut()?->format('d/m/Y à H:i'),
                         'endLabel' => $session->getDateFin()?->format('d/m/Y à H:i'),
                         'site' => $session->getSite()?->getNom(),
@@ -152,8 +152,9 @@ final class DevisConventionType extends AbstractType
             ->add('dureeFormation', TextType::class, [
                 'label' => 'Durée indiquée sur la convention',
                 'required' => false,
+                'help' => 'Laissez vide pour reprendre la durée de formation hors pauses calculée à partir du planning. Renseignez ce champ uniquement pour un libellé personnalisé.',
                 'constraints' => [new Assert\Length(max: 255)],
-                'attr' => ['maxlength' => 255, 'data-document-duration' => '', 'placeholder' => 'Ex. : 1 jour (7 heures)'],
+                'attr' => ['maxlength' => 255, 'data-document-duration' => '', 'placeholder' => 'Calculée automatiquement à partir des créneaux'],
             ])
             ->add('conditionsFinancieres', TextareaType::class, [
                 'label' => 'Conditions financières',

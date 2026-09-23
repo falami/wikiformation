@@ -6,16 +6,15 @@ declare(strict_types=1);
 namespace App\Service\Bpf;
 
 use App\Entity\Entite;
+use App\Entity\SessionJour;
 use App\Enum\ModeFinancement;
 use App\Enum\StatusInscription;
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class BpfCalculator
 {
   public function __construct(
     private readonly EntityManagerInterface $em,
-    private readonly Connection $db,
   ) {}
 
   /**
@@ -26,38 +25,38 @@ final class BpfCalculator
     $start = new \DateTimeImmutable(sprintf('%d-01-01 00:00:00', $year));
     $end   = new \DateTimeImmutable(sprintf('%d-12-31 23:59:59', $year));
 
-    // 1) Heures par session (SQL natif => TIMESTAMPDIFF OK)
-    $sql = <<<SQL
-SELECT
-  s.id AS session_id,
-  f.id AS formation_id,
-  f.titre AS formation_titre,
-  SUM(TIMESTAMPDIFF(SECOND, sj.date_debut, sj.date_fin)) AS seconds_total
-FROM session_jour sj
-INNER JOIN session s ON s.id = sj.session_id
-INNER JOIN formation f ON f.id = s.formation_id
-WHERE s.entite_id = :entiteId
-  AND sj.date_debut BETWEEN :start AND :end
-GROUP BY s.id, f.id, f.titre
-SQL;
-
-    $rows = $this->db->fetchAllAssociative($sql, [
-      'entiteId' => (int)$entite->getId(),
-      'start'    => $start->format('Y-m-d H:i:s'),
-      'end'      => $end->format('Y-m-d H:i:s'),
-    ]);
+    // Même durée pédagogique que les documents, avec les pauses retirées.
+    // On conserve le périmètre annuel par créneau, y compris pour une session
+    // répartie sur deux années ; aucune formule SQL indépendante du planning.
+    $jours = $this->em->createQueryBuilder()
+      ->select('j', 's', 'f')->from(SessionJour::class, 'j')
+      ->join('j.session', 's')->join('s.formation', 'f')
+      ->where('s.entite = :entite')
+      ->andWhere('j.dateDebut <= :end AND j.dateFin >= :start')
+      ->setParameter('entite', $entite)->setParameter('start', $start)->setParameter('end', $end)
+      ->getQuery()->toIterable();
+    $rows = [];
+    foreach ($jours as $jour) {
+      $session = $jour->getSession();
+      $sid = (int) $session->getId();
+      $rows[$sid] ??= ['session_id' => $sid, 'formation_id' => $session->getFormation()->getId(),
+        'formation_titre' => $session->getFormation()->getTitre(), 'minutes_total' => 0];
+      foreach ($jour->getDureeFormationMinutesParDate() as $date => $minutes) {
+        if (substr($date, 0, 4) === (string) $year) $rows[$sid]['minutes_total'] += $minutes;
+      }
+    }
 
     $sessionHours = []; // sessionId => hours
     $formations   = []; // formationId => aggregate
     $totalHours   = 0.0;
 
     foreach ($rows as $r) {
-      $seconds = (int)($r['seconds_total'] ?? 0);
-      if ($seconds <= 0) {
+      $minutes = (int)($r['minutes_total'] ?? 0);
+      if ($minutes <= 0) {
         continue;
       }
 
-      $hours = round($seconds / 3600, 2);
+      $hours = round($minutes / 60, 2);
       $sid   = (int)$r['session_id'];
       $fid   = (int)$r['formation_id'];
 

@@ -24,8 +24,9 @@ class Attestation
     #[ORM\Column(length: 50, nullable: false)]
     private ?string $numero = null;
 
-    #[ORM\Column(type: 'integer', options: ['default' => 0])]
-    private int $dureeHeures = 0;
+    #[ORM\Column(type: 'float', options: ['default' => 0])]
+    #[\Symfony\Component\Validator\Constraints\PositiveOrZero]
+    private float $dureeHeures = 0.0;
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $reussi;
@@ -97,12 +98,12 @@ class Attestation
     }
 
 
-    public function getDureeHeures(): int
+    public function getDureeHeures(): float
     {
         return $this->dureeHeures;
     }
 
-    public function setDureeHeures(int $dureeHeures): static
+    public function setDureeHeures(float $dureeHeures): static
     {
         $this->dureeHeures = $dureeHeures;
 

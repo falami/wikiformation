@@ -1120,6 +1120,7 @@ $(function () {
     function enableDtDropdownOutsideScroll(){
       // quand un dropdown s'ouvre
       document.addEventListener('show.bs.dropdown', function (e) {
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
         const toggle = e.target;
         const dd = toggle.closest('.dropdown, .btn-group');
         if (!dd) return;
@@ -1153,6 +1154,7 @@ $(function () {
 
       // quand un dropdown se ferme -> on remet le menu dans son parent
       document.addEventListener('hidden.bs.dropdown', function (e) {
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
         const toggle = e.target;
         const dd = toggle.closest('.dropdown, .btn-group');
         if (!dd) return;
@@ -1298,6 +1300,7 @@ $(function () {
     // ✅ Dropdown actions factures : on "flotte" le menu hors du scroll DataTables (sinon il est clippé)
     (function enableFactureActionsFloatingDropdown(){
       document.addEventListener('show.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
         const toggle = e.target;
         if (!toggle.closest('.facture-actions')) return;
 
@@ -1335,6 +1338,7 @@ $(function () {
       }, true);
 
       document.addEventListener('hidden.bs.dropdown', function(e){
+      if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
         const toggle = e.target;
         if (!toggle.closest('.facture-actions')) return;
 

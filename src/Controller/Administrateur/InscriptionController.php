@@ -385,11 +385,8 @@ class InscriptionController extends AbstractController
             $attestation->setInscription($ins);
             $attestation->setDateDelivrance(new \DateTimeImmutable());
 
-            // Durée : on peut la déduire de la formation si tu as ce champ
-            $formation = $ins->getSession()?->getFormation();
-            $dureeJours = $formation?->getDuree() ?? 0;
-            $dureeHeures = $dureeJours * 7;
-            $attestation->setDureeHeures($dureeHeures);
+            // Les horaires du planning comprennent parfois la pause du midi.
+            $attestation->setDureeHeures($ins->getSession()?->getDureeFormationHeures() ?? 0.0);
             $attestation->setReussi($ins->isReussi());
             $em->persist($attestation);
             $em->flush(); // ⚠ pour que le numéro soit généré (attestation_sequence)

@@ -31,7 +31,7 @@ final class TrainerContractSignatureTest extends KernelTestCase
         $trainer = (new Formateur())->setUtilisateur($this->user)->setEntite($this->entite)->setCreateur($this->user);
         $this->user->setFormateur($trainer);
         $site = (new Site())->setNom('Salle test')->setSlug('signature-test')->setEntite($this->entite)->setCreateur($this->user);
-        $session = (new Session())->setEntite($this->entite)->setCreateur($this->user)->setCode('SIGN-TEST')->setSite($site)->setTypeFinancement(\App\Enum\TypeFinancement::OF)->setFormationIntituleLibre('Mission sur mesure');
+        $session = (new Session())->setEntite($this->entite)->setCreateur($this->user)->setCode('SIGN-TEST')->setSite($site)->setTypeFinancement(\App\Enum\TypeFinancement::OUI)->setFormationIntituleLibre('Mission sur mesure');
         foreach ([['09:00', '12:30', null], ['13:30', '17:00', $trainer]] as [$start, $end, $assigned]) {
             $session->addJour((new SessionJour())->setEntite($this->entite)->setCreateur($this->user)->setDateDebut(new \DateTimeImmutable('2026-10-05 ' . $start))->setDateFin(new \DateTimeImmutable('2026-10-05 ' . $end))->setFormateur($assigned));
         }
@@ -90,6 +90,48 @@ final class TrainerContractSignatureTest extends KernelTestCase
         self::assertStringContainsString('Mission sur mesure', $html);
         self::assertStringContainsString('13h30', $html);
         self::assertStringNotContainsString('09h00', $html);
+    }
+
+    public function testMissionPdfUsesTheDeclaredConventionCountWithoutStudentAccounts(): void
+    {
+        $this->addConventionWithExpectedCount(12);
+        $this->em->refresh($this->contract->getSession());
+        $document = self::getContainer()->get(\App\Service\Pdf\ContratFormateurDocument::class);
+        $data = $document->templateData($this->contract);
+        self::assertSame(12, $data['effectifStage']);
+        self::assertCount(0, $data['stagiaires']);
+        $html = self::getContainer()->get('twig')->render('pdf/contrat_formateur.html.twig', $data);
+        self::assertStringContainsString('12 stagiaire(s)', $html);
+        self::assertStringContainsString('Liste nominative à communiquer.', $html);
+    }
+
+    public function testSigningUsesTheSameExpectedCountAndDoesNotRegenerateASignedDocument(): void
+    {
+        $this->addConventionWithExpectedCount(8);
+        $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
+        $pdf->expects(self::once())->method('contratFormateur')->with(
+            self::callback(static fn (array $data): bool => $data['effectifStage'] === 8 && $data['contrat']->getStatus() === ContratFormateurStatus::SIGNE),
+            self::callback(static fn (string $name): bool => preg_match('/^contrat_formateur_CF-SIGN-TEST_v1_[a-f0-9]{16}\.pdf$/', $name) === 1),
+        )->willReturn('/tmp/unused-mocked-contract.pdf');
+        self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
+        $client = $this->client();
+        $url = $this->url('app_formateur_contrat_sign');
+        $crawler = $client->request('GET', $url);
+        $token = $crawler->filter('form#form-signature input[name="_token"]')->attr('value');
+        $client->request('POST', $url, ['_token' => $token, 'signature_data' => 'data:image/png;base64,test-signature']);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertSame(ContratFormateurStatus::SIGNE, $this->em->find(ContratFormateur::class, $this->contract->getId())->getStatus(), (string) $client->getResponse()->headers->get('Location'));
+        // Le PDF mocké n'existe pas : le chemin protégé ne doit pas en recréer un après signature.
+        $client->request('GET', $this->url('app_formateur_contrat_regen_pdf'));
+        self::assertSame(409, $client->getResponse()->getStatusCode());
+    }
+
+    private function addConventionWithExpectedCount(int $count): void
+    {
+        $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->user)->setRaisonSociale('Entreprise effectif');
+        $convention = (new \App\Entity\ConventionContrat())->setEntite($this->entite)->setCreateur($this->user)
+            ->setSession($this->contract->getSession())->setEntreprise($company)->setNumero('CONV-EFFECTIF')->setEffectifPrevisionnel($count);
+        $this->em->persist($company); $this->em->persist($convention); $this->em->flush();
     }
 
     private function client(): KernelBrowser

@@ -294,7 +294,7 @@
     {% set preferences = entite.preferences ?? null %}
     {% set devis = convention ? convention.devis : null %}
     {% set intituleDocument = convention ? convention.intituleFormationEffectif : (formation ? formation.titre : '') %}
-    {% set dureeDocument = convention ? convention.dureeFormationEffective : (formation and formation.duree ? formation.duree ~ (formation.duree > 1 ? ' jours' : ' jour') : null) %}
+    {% set dureeDocument = convention ? convention.dureeFormationEffective : (session and session.dureeFormationMinutes > 0 ? session.dureeFormationHeures|number_format(2, ',', ' ') ~ ' heures' : (formation and formation.duree ? formation.duree ~ (formation.duree > 1 ? ' jours' : ' jour') : null)) %}
 
     {# Programme détaillé #}
     {% set nodes = (formation and formation.contentNodes is defined) ? formation.contentNodes : [] %}
@@ -580,8 +580,9 @@
           <table class="table">
             <thead>
               <tr>
-                <th style="width:35%;">Date</th>
+                <th style="width:30%;">Date</th>
                 <th style="width:35%;">Horaires</th>
+                <th style="width:35%;">Formation hors pauses</th>
               </tr>
             </thead>
             <tbody>
@@ -595,6 +596,7 @@
                       -
                     {% endif %}
                   </td>
+                  <td>{{ j.dureeFormationHeures|number_format(2, ',', ' ') }} h{% if j.pauseEffectiveMinutes > 0 %}<br><span class="text-muted">Pause : {{ j.pauseEffectiveMinutes }} min</span>{% endif %}</td>
                 </tr>
               {% endfor %}
             </tbody>

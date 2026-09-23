@@ -43,17 +43,14 @@ class SessionType extends AbstractType
         $b
             ->add('typeFinancement', EnumType::class, [
                 'class' => TypeFinancement::class,
-                'label' => 'Type de financement',
+                'label' => 'Sous traitance',
                 'attr'  => [
                     'class' => 'form-select',
-                    'data-of-value' => TypeFinancement::OF->value, // ✅ la vraie value
+                    'data-of-value' => TypeFinancement::OUI->value, // ✅ la vraie value
                 ],
                 'choice_label' => fn($e) => match ($e) {
-                    TypeFinancement::INDIVIDUEL => 'Individuel',
-                    TypeFinancement::CPF => 'CPF',
-                    TypeFinancement::ENTREPRISE => 'Entreprise',
-                    TypeFinancement::OPCO => 'OPCO',
-                    TypeFinancement::OF => 'Organisme de formation',
+                    TypeFinancement::NON => 'Non',
+                    TypeFinancement::OUI => 'Oui',
                     default => $e->name,
                 },
             ])

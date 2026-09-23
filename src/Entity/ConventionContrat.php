@@ -190,6 +190,9 @@ class ConventionContrat
         if ($this->dureeFormation !== null) {
             return $this->dureeFormation;
         }
+        if (($minutes = $this->session?->getDureeFormationMinutes() ?? 0) > 0) {
+            return rtrim(rtrim(number_format($minutes / 60, 2, ',', ''), '0'), ',') . ' heures';
+        }
         $jours = $this->session?->getFormation()?->getDuree();
         return $jours ? $jours . ' jour' . ($jours > 1 ? 's' : '') : null;
     }

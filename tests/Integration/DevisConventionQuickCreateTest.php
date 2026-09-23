@@ -102,6 +102,7 @@ final class DevisConventionQuickCreateTest extends KernelTestCase
         self::assertSame(201, $this->client->getResponse()->getStatusCode(), $this->client->getResponse()->getContent());
         $result = $this->response();
         self::assertSame(12, $result['remaining']);
+        self::assertSame('6,5 heures', $result['duration']);
         self::assertSame('03/10/2026 à 09:00', $result['startLabel']);
         $session = $this->em->find(Session::class, $result['id']);
         self::assertSame($this->devis->getFormation()->getId(), $session->getFormation()->getId());
@@ -111,6 +112,55 @@ final class DevisConventionQuickCreateTest extends KernelTestCase
         $this->client->submit($form);
         self::assertSame($result['id'], $this->response()['id']);
         self::assertSame(1, $this->em->getRepository(Session::class)->count([]));
+    }
+
+    public function testSessionPausesKeepThreeFullDaysAtTwentyOneHoursAndAllowAnOverride(): void
+    {
+        $form = $this->openForm('session');
+        self::assertArrayHasKey('pauseMinutes', $form->getPhpValues()['devis_convention_session']['jours'][0]);
+        $values = $form->getPhpValues();
+        $values['devis_convention_session']['site'] = (string) $this->site->getId();
+        $values['devis_convention_session']['jours'] = [];
+        foreach ([7, 8, 9] as $day) {
+            $date = sprintf('2026-10-%02d', $day);
+            $values['devis_convention_session']['jours'][] = ['dateDebut' => $date . 'T08:30', 'dateFin' => $date . 'T17:00', 'pauseMinutes' => ''];
+        }
+        $this->client->request('POST', $form->getUri(), $values);
+        self::assertSame(201, $this->client->getResponse()->getStatusCode(), $this->client->getResponse()->getContent());
+        self::assertSame('21 heures', $this->response()['duration']);
+        $session = $this->em->find(Session::class, $this->response()['id']);
+        self::assertSame(21.0, $session->getDureeFormationHeures());
+        self::assertNull($session->getJours()->first()->getPauseMinutes());
+
+        $form = $this->openForm('session');
+        $form->setValues([
+            'devis_convention_session[site]' => (string) $this->site->getId(),
+            'devis_convention_session[jours][0][dateDebut]' => '2026-10-12T08:30',
+            'devis_convention_session[jours][0][dateFin]' => '2026-10-12T17:00',
+            'devis_convention_session[jours][0][pauseMinutes]' => '0',
+        ]);
+        $this->client->submit($form);
+        self::assertSame(201, $this->client->getResponse()->getStatusCode(), $this->client->getResponse()->getContent());
+        self::assertSame('8,5 heures', $this->response()['duration']);
+        $session = $this->em->find(Session::class, $this->response()['id']);
+        self::assertSame(0, $session->getJours()->first()->getPauseMinutes());
+    }
+
+    public function testSessionRejectsAPauseLongerThanTheSlotAndRetainsItsValue(): void
+    {
+        $form = $this->openForm('session');
+        $form->setValues([
+            'devis_convention_session[site]' => (string) $this->site->getId(),
+            'devis_convention_session[jours][0][dateDebut]' => '2026-10-12T09:00',
+            'devis_convention_session[jours][0][dateFin]' => '2026-10-12T12:30',
+            'devis_convention_session[jours][0][pauseMinutes]' => '240',
+        ]);
+        $this->client->submit($form);
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('La pause doit être plus courte', $this->response()['html']);
+        $crawler = new Crawler($this->response()['html']);
+        self::assertSame('240', $crawler->filter('input[name$="[pauseMinutes]"]')->attr('value'));
+        self::assertSame(0, $this->em->getRepository(Session::class)->count([]));
     }
 
     public function testSessionRejectsForeignSiteAndOverlappingDates(): void

@@ -24,6 +24,9 @@ final class SessionPlanningValidator
                 $errors[] = 'Chaque créneau doit avoir une date de fin postérieure à sa date de début.';
                 continue;
             }
+            if ($slot->getPauseMinutes() !== null && ($slot->getPauseMinutes() < 0 || $slot->getPauseMinutes() >= $slot->getDureeBruteMinutes())) {
+                $errors[] = 'La pause doit être positive ou nulle et plus courte que son créneau de formation.';
+            }
             if ($previousEnd && $start < $previousEnd) $errors[] = 'Les créneaux de la session se chevauchent. Séparez la matinée et l’après-midi avec leurs horaires respectifs.';
             $previousEnd = max($previousEnd ?? $end, $end);
             $trainer = $slot->getFormateur() ?? $session->getFormateur();

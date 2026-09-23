@@ -1095,7 +1095,7 @@ final class EntrepriseDocumentsController extends AbstractController
   // PDF Convention/Contrat sécurisé (proxy)
   // ==========================================================
   #[Route('/convention/{id}/pdf', name: 'convention_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
-  public function conventionPdf(Entite $entite, ConventionContrat $cc, EM $em): Response
+  public function conventionPdf(Entite $entite, ConventionContrat $cc, EM $em, \App\Service\Convention\ConventionDocument $document): Response
   {
     $entreprise = $this->getEntrepriseUserOrFail();
 
@@ -1116,15 +1116,7 @@ final class EntrepriseDocumentsController extends AbstractController
     }
     if (!$allowed) throw $this->createAccessDeniedException();
 
-    $html = $this->renderView('pdf/convention_contrat.html.twig', [
-      'entite' => $entite,
-      'convention' => $cc,
-      'conventionContrat' => $cc, // au cas où ton template attend l’un ou l’autre
-      'session' => $cc->getSession(),
-    ]);
-
-    $fileName = sprintf('Convention-%s', $cc->getNumero() ?: $cc->getId());
-    return $this->pdf->createPortrait($html, $fileName);
+    return $document->response($cc);
   }
 
   // ==========================================================

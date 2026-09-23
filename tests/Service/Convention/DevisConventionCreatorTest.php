@@ -57,6 +57,15 @@ final class DevisConventionCreatorTest extends TestCase
         }
     }
 
+    public function testNewSessionRejectsAnImpossiblePauseBeforeWrites(): void
+    {
+        $this->session->getJours()->first()->setPauseMinutes(480);
+        $this->em->expects(self::never())->method('persist');
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('La pause');
+        $this->creator->create($this->devis, $this->session, [$this->participant(11)], $this->user, null);
+    }
+
     public function testExistingInscriptionAndOtherConventionsArePreserved(): void
     {
         $participant = $this->participant(11);
@@ -249,13 +258,16 @@ final class DevisConventionCreatorTest extends TestCase
         self::assertSame(1, $formation->getDuree());
     }
 
-    public function testDefaultDocumentTitleAndDurationAreSnapshots(): void
+    public function testDefaultTitleIsSnapshotAndAutomaticDurationFollowsPlanning(): void
     {
         $formation = $this->session->getFormation()->setTitre('H0B0 - 1 jour')->setDuree(1);
         $convention = $this->creator->create($this->devis, $this->session, [], $this->user, null, effectifPrevisionnel: 1);
         $formation->setTitre('Autre titre du catalogue')->setDuree(3);
         self::assertSame('H0B0 - 1 jour', $convention->getIntituleFormationEffectif());
-        self::assertSame('1 jour', $convention->getDureeFormationEffective());
+        self::assertNull($convention->getDureeFormation());
+        self::assertSame('6,5 heures', $convention->getDureeFormationEffective());
+        $this->session->getJours()->first()->setDateFin(new \DateTimeImmutable('2026-10-01 12:30'));
+        self::assertSame('3,5 heures', $convention->getDureeFormationEffective());
     }
 
     private function existingSession(array $inscriptions): void

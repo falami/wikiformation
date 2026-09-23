@@ -263,28 +263,10 @@ final class ConventionContratController extends AbstractController
 
 
     #[Route('/{id}/pdf', name: 'pdf', methods: ['GET'])]
-    public function pdf(Entite $entite, ConventionContrat $c): Response
+    public function pdf(Entite $entite, ConventionContrat $c, \App\Service\Convention\ConventionDocument $document): Response
     {
         $this->assertConventionTenant($entite, $c);
-        $rel = $c->getPdfPath();
-        if (!$rel) {
-            $this->addFlash('warning', 'Aucun PDF généré.');
-            return $this->redirectToRoute('app_administrateur_convention_show', [
-                'entite' => $entite->getId(),
-                'id'     => $c->getId(),
-            ]);
-        }
-
-        $abs = $this->projectDir . '/public/' . ltrim($rel, '/');
-        if (!is_file($abs)) {
-            $this->addFlash('warning', 'PDF introuvable sur le serveur.');
-            return $this->redirectToRoute('app_administrateur_convention_show', [
-                'entite' => $entite->getId(),
-                'id'     => $c->getId(),
-            ]);
-        }
-
-        return new BinaryFileResponse($abs);
+        return $document->response($c);
     }
 
     #[Route('/{id}/supprimer', name: 'delete', methods: ['POST'])]

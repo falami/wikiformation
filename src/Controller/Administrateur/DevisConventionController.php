@@ -44,7 +44,7 @@ final class DevisConventionController extends AbstractController
         $initial = [
             'conditionsFinancieres' => null,
             'intituleFormation' => $formation?->getTitre(),
-            'dureeFormation' => $formation?->getDuree() ? $formation->getDuree() . ' jour' . ($formation->getDuree() > 1 ? 's' : '') : null,
+            'dureeFormation' => null,
         ];
         if ($devis->getEntrepriseDestinataire()) {
             $initial += ['stagiaires' => [], 'participantsLibres' => null, 'effectifPrevisionnel' => null];

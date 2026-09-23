@@ -31,7 +31,17 @@ Un document signé, archivé ou résilié est lu depuis le PDF conservé, sans r
 
 ## Installation et vérification
 
-Aucune migration supplémentaire n’est nécessaire pour ces changements : l’intervenant par créneau et le lien devis/convention existaient déjà dans le modèle courant. Les installations plus anciennes doivent avoir appliqué les migrations listées dans `devis-conventions.md`.
+Les durées nettes et les versions de contrats nécessitent les trois migrations décrites dans [Durées, effectifs et versions](durees-effectifs-versions.md). Les installations plus anciennes doivent aussi avoir appliqué les migrations listées dans `devis-conventions.md`.
+
+## Modifier un contrat et conserver ses versions
+
+Depuis la fiche d’un contrat, **Modifier** ouvre son brouillon avec les sélecteurs TomSelect existants. Renseigner le motif du changement puis enregistrer. La version précédente reste consultable dans **Historique des versions**, avec son auteur, sa date, son motif, ses montants et son PDF conservé.
+
+Pour un document envoyé ou signé, choisir **Créer une nouvelle version**. Cette action archive le document précédent et ouvre un nouveau brouillon. Les signatures antérieures restent dans l’archive ; la nouvelle version doit être signée à nouveau. Une page de signature ouverte avant la révision est refusée. Un contrat comportant un historique ne peut plus être supprimé depuis l’interface.
+
+Les horaires restent gérés dans le planning de la session avec les sélecteurs de dates. Les nouvelles versions utilisent ces horaires et les heures de formation hors pauses. Un PDF signé ne peut pas être reconstitué s’il est manquant : il faut restaurer son original avant de préparer la nouvelle version.
+
+Les PDF des anciennes versions sont stockés hors du dossier public, dans `var/storage/contrat-formateur-versions`. Sauvegarder ce dossier avec la base de données et les fichiers habituels de l’application. Ne pas le supprimer lors d’un déploiement ou d’un nettoyage du cache. Les archives antérieures à cette fonctionnalité ne peuvent pas être reconstituées automatiquement.
 
 ```sh
 php -d memory_limit=512M bin/phpunit

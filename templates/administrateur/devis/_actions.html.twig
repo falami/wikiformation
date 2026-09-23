@@ -2,7 +2,7 @@
 {% set st = (d.status.value ?? d.status) %}
 {% set canSend = d.prospect and (d.prospect.email ?? false) %}
 {% set hasInvoice = d.factureCreee is not empty %}
-{% set hasConventions = d.conventions is not empty %}
+{% set hasConventions = hasConventions is defined ? hasConventions : d.conventions is not empty %}
 {% set canToInvoice = (not hasInvoice) and (st in ['sent','accepted']) and not d.prospect %}
 
 <div class="btn-group btn-group-sm devis-actions" role="group">

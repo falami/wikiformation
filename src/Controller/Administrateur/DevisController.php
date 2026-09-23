@@ -272,15 +272,17 @@ class DevisController extends AbstractController
       $length = 10;
     }
 
-    $searchV = (string)($request->request->all('search')['value'] ?? '');
+    $length = min(500, $length);
+    $searchV = trim((string)($request->request->all('search')['value'] ?? ''));
     $order   = $request->request->all('order') ?? [];
     $statusFilter = (string)$request->request->get('statusFilter', 'all');
 
     $map = [
       0 => 'd.numero',
       1 => 'COALESCE(e.raisonSociale, u.nom, p.nom)',
-      2 => 'd.montantTtcCents',
-      3 => 'd.status',
+      2 => 'formation.titre',
+      4 => 'd.montantTtcCents',
+      5 => 'd.status',
     ];
 
     $qb = $em->getRepository(Devis::class)->createQueryBuilder('d')
@@ -288,6 +290,7 @@ class DevisController extends AbstractController
       ->leftJoin('d.entrepriseDestinataire', 'e')->addSelect('e')
       ->leftJoin('d.prospect', 'p')->addSelect('p')
       ->leftJoin('d.factureCreee', 'f')->addSelect('f')
+      ->leftJoin('d.formation', 'formation', 'WITH', 'formation.entite = :entite')->addSelect('formation')
       ->andWhere('d.entite = :entite')
       ->setParameter('entite', $entite);
 
@@ -310,6 +313,22 @@ class DevisController extends AbstractController
             OR p.prenom LIKE :s
             OR p.email LIKE :s
             OR p.societe LIKE :s
+            OR formation.titre LIKE :s
+            OR EXISTS (
+              SELECT searchedConvention.id FROM App\Entity\ConventionContrat searchedConvention
+              JOIN searchedConvention.session searchedSession
+              LEFT JOIN searchedSession.formation searchedFormation WITH searchedFormation.entite = :entite
+              WHERE searchedConvention.devis = d AND searchedConvention.entite = :entite AND searchedSession.entite = :entite
+              AND (searchedConvention.intituleFormation LIKE :s OR searchedFormation.titre LIKE :s OR searchedSession.formationIntituleLibre LIKE :s)
+            )
+            OR EXISTS (
+              SELECT searchedInscription.id FROM App\Entity\Inscription searchedInscription
+              JOIN searchedInscription.devis searchedDevis
+              JOIN searchedInscription.session inscriptionSession
+              LEFT JOIN inscriptionSession.formation inscriptionFormation WITH inscriptionFormation.entite = :entite
+              WHERE searchedDevis = d AND searchedInscription.entite = :entite AND inscriptionSession.entite = :entite
+              AND (inscriptionFormation.titre LIKE :s OR inscriptionSession.formationIntituleLibre LIKE :s)
+            )
         ')->setParameter('s', '%' . $searchV . '%');
     }
 
@@ -346,12 +365,13 @@ class DevisController extends AbstractController
     $orderDir    = (isset($order[0]['dir']) && strtolower($order[0]['dir']) === 'asc') ? 'ASC' : 'DESC';
     $orderBy     = $map[$orderColIdx] ?? 'd.id';
 
-    $rows = $qb->orderBy($orderBy, $orderDir)
+    $rows = $qb->orderBy($orderBy, $orderDir)->addOrderBy('d.id', 'DESC')
       ->setFirstResult($start)
       ->setMaxResults($length)
       ->getQuery()->getResult();
 
-    $data = array_map(function (Devis $d) use ($entite) {
+    $trainingDetails = $this->devisTrainingDetails($em, $entite, $rows);
+    $data = array_map(function (Devis $d) use ($entite, $trainingDetails) {
       $label = '—';
 
       if ($d->getProspect()) {
@@ -376,6 +396,8 @@ class DevisController extends AbstractController
       return [
         'numero' => $d->getNumero() ?: '—',
         'dest' => $label,
+        'formation' => $trainingDetails[$d->getId()]['formation'],
+        'dates' => $trainingDetails[$d->getId()]['dates'],
         'ttc'    => number_format(($d->getMontantTtcCents() ?? 0) / 100, 2, ',', ' ') . ' €',
 
         // si tu utilises déjà un badge twig
@@ -385,7 +407,8 @@ class DevisController extends AbstractController
 
         'actions' => $this->renderView('administrateur/devis/_actions.html.twig', [
           'd' => $d,
-          'entite' => $entite
+          'entite' => $entite,
+          'hasConventions' => $trainingDetails[$d->getId()]['hasConventions'],
         ]),
       ];
     }, $rows);
@@ -396,6 +419,67 @@ class DevisController extends AbstractController
       'recordsFiltered' => $recordsFiltered,
       'data'            => $data,
     ]);
+  }
+
+
+  /**
+   * Read associations in batches after pagination: joining collections in the
+   * paginated query would duplicate quotes or truncate their sessions.
+   *
+   * @param list<Devis> $devis
+   * @return array<int, array{formation: string, dates: string, hasConventions: bool}>
+   */
+  private function devisTrainingDetails(EM $em, Entite $entite, array $devis): array
+  {
+    if (!$devis) return [];
+    $ids = array_map(static fn(Devis $d): int => $d->getId(), $devis);
+    $details = [];
+    foreach ($devis as $d) {
+      $title = $d->getFormation()?->getEntite()?->getId() === $entite->getId() ? trim($d->getFormation()->getTitre()) : '';
+      $details[$d->getId()] = ['titles' => $title ? [$title => true] : [], 'sessions' => [], 'hasConventions' => false];
+    }
+
+    $conventions = $em->createQueryBuilder()
+      ->select('IDENTITY(c.devis) AS devisId, c.intituleFormation AS customTitle, s.id AS sessionId, s.code AS code, COALESCE(f.titre, s.formationIntituleLibre) AS title, MIN(j.dateDebut) AS dateDebut, MAX(j.dateFin) AS dateFin')
+      ->from(\App\Entity\ConventionContrat::class, 'c')
+      ->leftJoin('c.session', 's', 'WITH', 's.entite = :entite AND c.entite = :entite')
+      ->leftJoin('s.formation', 'f', 'WITH', 'f.entite = :entite')
+      ->leftJoin('s.jours', 'j', 'WITH', 'j.entite = :entite')
+      ->where('c.devis IN (:ids)')->setParameter('ids', $ids)->setParameter('entite', $entite)
+      ->groupBy('c.id, c.devis, c.intituleFormation, s.id, s.code, f.titre, s.formationIntituleLibre')
+      ->getQuery()->getArrayResult();
+    $inscriptions = $em->createQueryBuilder()
+      ->select('d.id AS devisId, s.id AS sessionId, s.code AS code, COALESCE(f.titre, s.formationIntituleLibre) AS title, MIN(j.dateDebut) AS dateDebut, MAX(j.dateFin) AS dateFin')
+      ->from(Devis::class, 'd')->join('d.inscriptions', 'i', 'WITH', 'i.entite = :entite')
+      ->join('i.session', 's', 'WITH', 's.entite = :entite')
+      ->leftJoin('s.formation', 'f', 'WITH', 'f.entite = :entite')
+      ->leftJoin('s.jours', 'j', 'WITH', 'j.entite = :entite')
+      ->where('d.id IN (:ids)')->andWhere('d.entite = :entite')->setParameter('ids', $ids)->setParameter('entite', $entite)
+      ->groupBy('d.id, s.id, s.code, f.titre, s.formationIntituleLibre')
+      ->getQuery()->getArrayResult();
+    foreach ($conventions as $row) $details[(int) $row['devisId']]['hasConventions'] = true;
+    foreach (array_merge($conventions, $inscriptions) as $row) {
+      if (!$row['sessionId']) continue;
+      $detail = &$details[(int) $row['devisId']];
+      $title = trim($row['customTitle'] ?? $row['title'] ?? '');
+      if ($title !== '') $detail['titles'][$title] = true;
+      $detail['sessions'][(int) $row['sessionId']] = $row;
+      unset($detail);
+    }
+    foreach ($details as &$detail) {
+      uasort($detail['sessions'], static fn(array $a, array $b): int => ($a['dateDebut'] ?? '9999') <=> ($b['dateDebut'] ?? '9999'));
+      $dates = [];
+      foreach ($detail['sessions'] as $session) {
+        $start = $session['dateDebut'] ? new \DateTimeImmutable($session['dateDebut']) : null;
+        $end = $session['dateFin'] ? new \DateTimeImmutable($session['dateFin']) : null;
+        $period = $start ? $start->format('d/m/Y') : 'À planifier';
+        if ($end && (!$start || $end->format('Y-m-d') !== $start->format('Y-m-d'))) $period .= ' → ' . $end->format('d/m/Y');
+        $dates[] = count($detail['sessions']) > 1 ? ($session['code'] ?: 'Session #' . $session['sessionId']) . ' · ' . $period : $period;
+      }
+      $detail = ['formation' => implode("\n", array_keys($detail['titles'])) ?: '—', 'dates' => implode("\n", $dates) ?: 'Non planifiée', 'hasConventions' => $detail['hasConventions']];
+    }
+    unset($detail);
+    return $details;
   }
 
 

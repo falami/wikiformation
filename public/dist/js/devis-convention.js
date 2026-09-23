@@ -31,7 +31,6 @@
     const formationSelect = root.querySelector('select[data-entity="formation"]');
     const participantsSelect = root.querySelector('select[data-entity="client"]');
     let defaultTitle = root.dataset.catalogueTitle || '';
-    let defaultDuration = root.dataset.catalogueDuration || '';
     const individual = root.dataset.individual === '1';
     const newSession = root.dataset.createSession === '1';
     const stack = [];
@@ -50,6 +49,7 @@
     }
 
     function initControls(container) {
+      window.WikiFormationDuration?.init(container);
       container.querySelectorAll('select.js-convention-select').forEach(select => {
         const options = collectMetadata(select);
         if (select.tomselect || !window.TomSelect) return;
@@ -78,7 +78,8 @@
         const calendar = window.flatpickr(input, {
           enableTime: true, time_24hr: true, dateFormat: 'Y-m-d\\TH:i', altInput: true,
           altFormat: 'd/m/Y à H:i', allowInput: true, disableMobile: true,
-          locale: frenchCalendar, minuteIncrement: 15,
+          locale: frenchCalendar, minuteIncrement: 5, defaultHour: 8, defaultMinute: 30,
+          onChange: () => { window.WikiFormationDuration?.handleDateChange(input); update(); },
           // Keep calendar controls inside Bootstrap's accessible focus trap.
           appendTo: input.closest('.modal') || document.body,
           position: (instance) => {
@@ -120,11 +121,8 @@
       const info = select ? collectMetadata(select).get(select.value) : null;
       if (!select?.value || !info) return;
       const title = root.querySelector('[data-document-title]');
-      const duration = root.querySelector('[data-document-duration]');
       if (!preserveValues && title && (!title.value.trim() || title.value === defaultTitle)) title.value = info.title || defaultTitle;
-      if (!preserveValues && duration && (!duration.value.trim() || duration.value === defaultDuration)) duration.value = info.duration || '';
       defaultTitle = info.title || defaultTitle;
-      defaultDuration = info.duration || '';
     }
 
     function update() {
@@ -158,9 +156,14 @@
       document.getElementById('cv-summary-participants').textContent = count ? `${count} stagiaire${count > 1 ? 's' : ''}` : 'À sélectionner';
       document.getElementById('cv-summary-session').textContent = newSession ? 'Nouvelle session' : (sessionChosen ? session?.code || session?.label : 'À sélectionner');
       const title = root.querySelector('[data-document-title]')?.value.trim();
-      const duration = root.querySelector('[data-document-duration]')?.value.trim();
+      const durationField = root.querySelector('[data-document-duration]');
+      const duration = durationField?.value.trim();
+      const slotMinutes = slots.map(slot => window.WikiFormationDuration?.getMinutes(slot));
+      const plannedMinutes = slotMinutes.length && slotMinutes.every(value => Number.isFinite(value)) ? slotMinutes.reduce((total, value) => total + value, 0) : null;
+      const automaticDuration = newSession ? (plannedMinutes ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(plannedMinutes / 60)} heures` : '') : (session?.duration || '');
+      if (durationField) durationField.placeholder = automaticDuration ? `Automatique : ${automaticDuration} hors pause` : 'Calculée automatiquement à partir des créneaux';
       document.getElementById('cv-summary-training-title').textContent = title || session?.title || 'Intitulé du catalogue';
-      document.getElementById('cv-summary-training-duration').textContent = duration || session?.duration || defaultDuration || 'Durée du catalogue';
+      document.getElementById('cv-summary-training-duration').textContent = duration || (automaticDuration ? `${automaticDuration} hors pause` : 'Durée calculée à partir du planning');
       const rosterStatus = document.getElementById('cv-roster-status');
       if (rosterStatus) {
         const unnamed = Math.max(0, count - knownCount);
@@ -407,6 +410,13 @@
           collection.append(slot);
         } else collection.append(template.content);
         initControls(collection);
+        const added = collection.lastElementChild;
+        const slot = added.matches('[data-training-slot]') ? added : added.querySelector('[data-training-slot]');
+        const previousInput = added.previousElementSibling?.querySelector('input[name$="[dateDebut]"]');
+        const previousStart = window.WikiFormationDuration?.readDate(previousInput);
+        const nextDate = previousStart ? new Date(previousStart) : new Date();
+        if (previousStart) nextDate.setDate(nextDate.getDate() + 1);
+        if (slot) window.WikiFormationDuration?.preset(slot, 'day', nextDate);
         update();
         collection.lastElementChild.querySelector('input:not([type="hidden"])')?.focus();
         return;
@@ -433,12 +443,12 @@
       const title = root.querySelector('[data-document-title]');
       const duration = root.querySelector('[data-document-duration]');
       if (title) title.value = defaultTitle;
-      if (duration) duration.value = defaultDuration;
+      if (duration) duration.value = '';
       syncTrainingDefaults();
       update();
     });
     root.addEventListener('input', event => {
-      if (event.target.matches('[data-free-participants], [data-planned-count], [data-document-title], [data-document-duration]')) update();
+      if (event.target.matches('[data-free-participants], [data-planned-count], [data-document-title], [data-document-duration], [data-training-pause]') || event.target.closest('[data-training-slot]')) update();
     });
     modalElement.addEventListener('click', actions);
     modalElement.addEventListener('submit', save);
