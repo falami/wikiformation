@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Devis, Entite, Utilisateur, Facture, Entreprise, LigneFacture, LigneDevis};
 use App\Enum\DevisStatus;
 use App\Enum\FactureStatus;
@@ -333,26 +335,7 @@ class DevisController extends AbstractController
     }
 
     // ✅ Filtre custom statut
-    switch ($statusFilter) {
-      case 'draft':
-        $qb->andWhere('d.status = :st')->setParameter('st', DevisStatus::DRAFT);
-        break;
-      case 'sent':
-        $qb->andWhere('d.status = :st')->setParameter('st', DevisStatus::SENT);
-        break;
-      case 'accepted':
-        $qb->andWhere('d.status = :st')->setParameter('st', DevisStatus::ACCEPTED);
-        break;
-      case 'invoiced':
-        $qb->andWhere('d.status = :st')->setParameter('st', DevisStatus::INVOICED);
-        break;
-      case 'canceled':
-        $qb->andWhere('d.status = :st')->setParameter('st', DevisStatus::CANCELED);
-        break;
-      default:
-        // all
-        break;
-    }
+    ChoiceFilter::equals($qb, $statusFilter, 'd.status', 'selected_status');
 
     // ✅ recordsFiltered (avec search + filtre)
     $recordsFiltered = (int)(clone $qb)
@@ -553,14 +536,8 @@ class DevisController extends AbstractController
 
     // petit helper pour appliquer le même filtre à plusieurs QB
     $applyStatus = function (\Doctrine\ORM\QueryBuilder $qb, string $alias) use ($statusFilter) {
-      return match ($statusFilter) {
-        'draft'    => $qb->andWhere("$alias.status = :st")->setParameter('st', DevisStatus::DRAFT),
-        'sent'     => $qb->andWhere("$alias.status = :st")->setParameter('st', DevisStatus::SENT),
-        'accepted' => $qb->andWhere("$alias.status = :st")->setParameter('st', DevisStatus::ACCEPTED),
-        'invoiced' => $qb->andWhere("$alias.status = :st")->setParameter('st', DevisStatus::INVOICED),
-        'canceled' => $qb->andWhere("$alias.status = :st")->setParameter('st', DevisStatus::CANCELED),
-        default    => $qb, // all
-      };
+      ChoiceFilter::equals($qb, $statusFilter, "$alias.status", 'selected_status');
+      return $qb;
     };
 
     // Nb devis (global, filtré)

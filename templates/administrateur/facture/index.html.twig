@@ -856,18 +856,18 @@ body .facture-floating-dropdown{
               Particuliers <span class="badge bg-secondary-subtle text-secondary ms-1" id="badgePayeurUsers">0</span>
             </button>
 
-            <div class="dropdown-menu p-2 shadow" style="min-width: 320px;">
-              <div class="px-2 pb-2">
-                <input type="text" class="form-control form-control-sm" placeholder="Rechercher un particulier…"
+            <div class="dropdown-menu wf-filter-menu">
+              <div>
+                <input type="text" class="form-control wf-filter-search" placeholder="Rechercher un particulier…"
                       id="searchPayeurUsers">
               </div>
 
-              <div class="px-2 d-flex gap-2 pb-2">
+              <div class="wf-filter-tools">
                 <button type="button" class="btn btn-sm btn-light" id="usersSelectAll">Tout</button>
                 <button type="button" class="btn btn-sm btn-light" id="usersSelectNone">Aucun</button>
               </div>
 
-              <div class="px-2" style="max-height: 280px; overflow:auto;" id="listPayeurUsers">
+              <div class="wf-filter-options" id="listPayeurUsers">
                 {% for u in payeurUsers %}
                   <label class="dropdown-item d-flex align-items-center gap-2 user-item" data-text="{{ (u.nom ~ ' ' ~ u.prenom ~ ' ' ~ u.email)|lower }}">
                     <input class="form-check-input m-0 payeur-user-check" type="checkbox" value="{{ u.id }}">
@@ -894,18 +894,18 @@ body .facture-floating-dropdown{
               Entreprises <span class="badge bg-secondary-subtle text-secondary ms-1" id="badgePayeurEnt">0</span>
             </button>
 
-            <div class="dropdown-menu p-2 shadow" style="min-width: 320px;">
-              <div class="px-2 pb-2">
-                <input type="text" class="form-control form-control-sm" placeholder="Rechercher une entreprise…"
+            <div class="dropdown-menu wf-filter-menu">
+              <div>
+                <input type="text" class="form-control wf-filter-search" placeholder="Rechercher une entreprise…"
                       id="searchPayeurEnt">
               </div>
 
-              <div class="px-2 d-flex gap-2 pb-2">
+              <div class="wf-filter-tools">
                 <button type="button" class="btn btn-sm btn-light" id="entSelectAll">Tout</button>
                 <button type="button" class="btn btn-sm btn-light" id="entSelectNone">Aucun</button>
               </div>
 
-              <div class="px-2" style="max-height: 280px; overflow:auto;" id="listPayeurEnt">
+              <div class="wf-filter-options" id="listPayeurEnt">
                 {% for e in payeurEntreprises %}
                   <label class="dropdown-item d-flex align-items-center gap-2 ent-item" data-text="{{ (e.raisonSociale ~ ' ' ~ (e.email ?? ''))|lower }}">
                     <input class="form-check-input m-0 payeur-ent-check" type="checkbox" value="{{ e.id }}">
@@ -925,7 +925,7 @@ body .facture-floating-dropdown{
 
       <div class="d-flex gap-2 align-items-center">
         <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset
+          <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser
         </button>
 
         {# menu export (plus clean) #}
@@ -981,6 +981,8 @@ $(function () {
     const $monthFilter = $('#monthFilter');
     const $quarterFilter = $('#quarterFilter');
 
+  let payeurUserMode = 'all';
+  let payeurEntrepriseMode = 'all';
     function getSelectedPayeurUserIds(){
       return $('.payeur-user-check:checked').map(function(){ return $(this).val(); }).get();
     }
@@ -1000,6 +1002,7 @@ $(function () {
     }
 
     function selectAllOnLoad(){
+      payeurUserMode = payeurEntrepriseMode = 'all';
       $('.payeur-user-check').prop('checked', true);
       $('.payeur-ent-check').prop('checked', true);
       $('#searchPayeurUsers').val('');
@@ -1122,6 +1125,7 @@ $(function () {
       document.addEventListener('show.bs.dropdown', function (e) {
       if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
         const toggle = e.target;
+        if (!toggle.closest('#tableauFactures')) return;
         const dd = toggle.closest('.dropdown, .btn-group');
         if (!dd) return;
 
@@ -1156,6 +1160,7 @@ $(function () {
       document.addEventListener('hidden.bs.dropdown', function (e) {
       if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
         const toggle = e.target;
+        if (!toggle.closest('#tableauFactures')) return;
         const dd = toggle.closest('.dropdown, .btn-group');
         if (!dd) return;
 
@@ -1174,7 +1179,7 @@ $(function () {
 
 
       window.addEventListener('resize', () => {
-        document.querySelectorAll('[aria-expanded="true"][data-bs-toggle="dropdown"]').forEach(btn => btn.click());
+        document.querySelectorAll('#tableauFactures [aria-expanded="true"][data-bs-toggle="dropdown"]').forEach(btn => btn.click());
       });
     }
 
@@ -1200,6 +1205,8 @@ $(function () {
           d.monthFilter = $monthFilter.val() || 'all';
           d.quarterFilter = $quarterFilter.val() || 'all';
 
+          d.payeurUserMode = payeurUserMode;
+          d.payeurEntrepriseMode = payeurEntrepriseMode;
           d.payeurUserIds = getSelectedPayeurUserIds();
           d.payeurEntrepriseIds = getSelectedPayeurEntrepriseIds();
 
@@ -1391,6 +1398,8 @@ $(function () {
     $quarterFilter.off('change.fact').on('change.fact', reloadAll);
 
     $(document).on('change', '.payeur-user-check, .payeur-ent-check', function(){
+    if (this.matches('.payeur-user-check')) payeurUserMode = getSelectedPayeurUserIds().length ? 'selected' : 'none';
+    else payeurEntrepriseMode = getSelectedPayeurEntrepriseIds().length ? 'selected' : 'none';
       refreshPayeurBadges();
       reloadAll();
     });
@@ -1410,22 +1419,26 @@ $(function () {
     });
 
     $('#usersSelectAll').on('click', function(){
+      payeurUserMode = 'all';
       $('.payeur-user-check').prop('checked', true);
       refreshPayeurBadges();
       reloadAll();
     });
     $('#usersSelectNone').on('click', function(){
+      payeurUserMode = 'none';
       $('.payeur-user-check').prop('checked', false);
       refreshPayeurBadges();
       reloadAll();
     });
 
     $('#entSelectAll').on('click', function(){
+      payeurEntrepriseMode = 'all';
       $('.payeur-ent-check').prop('checked', true);
       refreshPayeurBadges();
       reloadAll();
     });
     $('#entSelectNone').on('click', function(){
+      payeurEntrepriseMode = 'none';
       $('.payeur-ent-check').prop('checked', false);
       refreshPayeurBadges();
       reloadAll();

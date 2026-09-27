@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Form\Administrateur\ReservationType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -77,12 +79,7 @@ final class ReservationController extends AbstractController
                     ->setParameter('q', '%' . $searchV . '%');
             }
 
-            if ($statusFilter !== 'all') {
-                $st = StatusReservation::tryFrom($statusFilter);
-                if ($st) {
-                    $filteredQb->andWhere('r.status = :st')->setParameter('st', $st);
-                }
-            }
+            ChoiceFilter::equals($filteredQb, $statusFilter, 'r.status', 'st');
 
             $recordsFiltered = (int) (clone $filteredQb)
                 ->select('COUNT(r.id)')
@@ -196,13 +193,7 @@ final class ReservationController extends AbstractController
         $qb->andWhere('r.entite = :entite')
             ->setParameter('entite', $entite);
 
-        if ($status !== 'all') {
-            try {
-                $st = StatusReservation::from($status);
-                $qb->andWhere('r.status = :st')->setParameter('st', $st);
-            } catch (\ValueError $e) {
-            }
-        }
+        ChoiceFilter::equals($qb, $status, 'r.status', 'st');
 
         $count = (int)(clone $qb)->select('COUNT(r.id)')->getQuery()->getSingleScalarResult();
         $amountCents = (int)(clone $qb)->select('COALESCE(SUM(r.montantCents),0)')->getQuery()->getSingleScalarResult();

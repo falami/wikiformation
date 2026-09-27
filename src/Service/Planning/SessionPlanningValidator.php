@@ -15,6 +15,9 @@ final class SessionPlanningValidator
     {
         $errors = [];
         $slots = $session->getJours()->toArray();
+        if (!$slots) {
+            return ['Ajoutez au moins une journée à la session.'];
+        }
         usort($slots, static fn(SessionJour $a, SessionJour $b) => $a->getDateDebut() <=> $b->getDateDebut());
         $previousEnd = null;
         foreach ($slots as $slot) {

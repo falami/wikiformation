@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Session, Entite, Utilisateur, FormateurSatisfactionAssignment};
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Service\FormateurSatisfaction\FormateurSatisfactionAssigner;
@@ -85,20 +87,18 @@ final class FormateurSatisfactionAssignmentController extends AbstractController
       ->leftJoin('s.formation', 'fo')
       ->andWhere('s.entite = :e')->setParameter('e', $entite);
 
-    if ($requiredFilter === 'yes') $qb->andWhere('a.isRequired = true');
-    elseif ($requiredFilter === 'no') $qb->andWhere('a.isRequired = false');
+    ChoiceFilter::any($qb, $requiredFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('a.isRequired = true');
+      elseif ($value === 'no') $branch->andWhere('a.isRequired = false');
+    });
 
-    if ($statusFilter === 'submitted') {
-      $qb->andWhere('t.submittedAt IS NOT NULL');
-    } elseif ($statusFilter === 'started') {
-      $qb->andWhere('t.startedAt IS NOT NULL')->andWhere('t.submittedAt IS NULL');
-    } elseif ($statusFilter === 'not_started') {
-      $qb->andWhere('t.id IS NULL OR t.startedAt IS NULL');
-    }
+    ChoiceFilter::any($qb, $statusFilter, static function ($branch, string $value): void {
+      if ($value === 'submitted') $branch->andWhere('t.submittedAt IS NOT NULL');
+      elseif ($value === 'started') $branch->andWhere('t.startedAt IS NOT NULL')->andWhere('t.submittedAt IS NULL');
+      elseif ($value === 'not_started') $branch->andWhere('t.id IS NULL OR t.startedAt IS NULL');
+    });
 
-    if ($sessionFilter !== 'all' && ctype_digit($sessionFilter)) {
-      $qb->andWhere('s.id = :sid')->setParameter('sid', (int) $sessionFilter);
-    }
+    ChoiceFilter::equals($qb, $sessionFilter, 's.id', 'sid');
 
     if ($formateurText !== '') {
       $qb->andWhere('LOWER(u.nom) LIKE :f OR LOWER(u.prenom) LIKE :f OR LOWER(u.email) LIKE :f')

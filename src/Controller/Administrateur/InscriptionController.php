@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Inscription, Entite, Utilisateur, DossierInscription, Attestation, Entreprise, ConventionContrat};
 use App\Enum\StatusInscription;
 use App\Form\Administrateur\InscriptionType;
@@ -112,13 +114,7 @@ class InscriptionController extends AbstractController
 
         // Filtre statut (optionnel)
         $statusFilter = (string) $request->request->get('statusFilter', 'all');
-        if ($statusFilter !== 'all') {
-            // on sécurise : on n'accepte que les valeurs enum connues
-            $enum = StatusInscription::tryFrom($statusFilter);
-            if ($enum) {
-                $qb->andWhere('i.status = :stFilter')->setParameter('stFilter', $enum);
-            }
-        }
+        ChoiceFilter::equals($qb, $statusFilter, 'i.status', 'stFilter');
 
 
         // Total filtré
@@ -204,12 +200,7 @@ class InscriptionController extends AbstractController
         }
 
         // statusFilter (même logique que ajax)
-        if ($statusFilter !== 'all') {
-            $enum = StatusInscription::tryFrom($statusFilter);
-            if ($enum) {
-                $qb->andWhere('i.status = :stFilter')->setParameter('stFilter', $enum);
-            }
-        }
+        ChoiceFilter::equals($qb, $statusFilter, 'i.status', 'stFilter');
 
         // KPI aggregations
         // NB: i.status est un enumType -> on compare avec des paramètres enum

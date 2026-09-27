@@ -706,32 +706,12 @@ $(function(){
     return c;
   }
 
-  function computeKpisFromCurrentRows(api){
-    const data = api.rows({ search: 'applied' }).data().toArray();
-    const total = data.length;
-
-    let sumSessions = 0;
-    let sumQualifs = 0;
-    let sumSites = 0;
-
-    data.forEach(r => {
-      const ns = parseInt(String(r.nbSessions ?? '').replace(/[^\d]/g,''), 10);
-      if(!Number.isNaN(ns)) sumSessions += ns;
-
-      const qual = String(r.enginsQualifies ?? '').trim();
-      if(qual && qual !== '—') sumQualifs += qual.split(',').map(x=>x.trim()).filter(Boolean).length;
-
-      const sites = String(r.sitesPreferes ?? '').trim();
-      if(sites && sites !== '—') sumSites += sites.split(',').map(x=>x.trim()).filter(Boolean).length;
-    });
-
-    const avgQual = total ? (sumQualifs / total) : 0;
-    const avgSites = total ? (sumSites / total) : 0;
-
-    $('#kpi-total').text(total);
-    $('#kpi-sessions').text(sumSessions);
-    $('#kpi-qualifs').text(total ? (Math.round(avgQual*10)/10).toString().replace('.', ',') : '—');
-    $('#kpi-sites').text(total ? (Math.round(avgSites*10)/10).toString().replace('.', ',') : '—');
+  function updateKpis(kpis){
+    if (!kpis) return;
+    $('#kpi-total').text(kpis.total);
+    $('#kpi-sessions').text(kpis.sessions);
+    $('#kpi-qualifs').text(kpis.averageQualifications === null ? '—' : Number(kpis.averageQualifications).toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
+    $('#kpi-sites').text(kpis.averageSites === null ? '—' : Number(kpis.averageSites).toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
     $('#hero-last-refresh').text('Maj : ' + nowLabel());
   }
 
@@ -751,7 +731,6 @@ $(function(){
       url:"{{ path('app_administrateur_formateur_ajax', { entite: entite.id }) }}",
       type:"POST",
       data: function(d){
-        // ⚠️ Ces champs seront ignorés tant que ton contrôleur n’applique pas les filtres.
         d.enginFilter = $engin.val() || 'all';
         d.siteFilter  = $site.val() || 'all';
       }
@@ -874,7 +853,7 @@ $(function(){
 
   table.on('draw.dt', function(){
     dtAdjust();
-    computeKpisFromCurrentRows(table);
+    updateKpis(table.ajax.json()?.kpis);
     updateResetUi(countActiveFilters());
   });
 

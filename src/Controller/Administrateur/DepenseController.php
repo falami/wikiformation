@@ -3,6 +3,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\{AccountingPeriodFilter, ChoiceFilter};
+
 use App\Entity\{Depense, Entite, Utilisateur};
 use App\Form\Administrateur\DepenseType;
 use App\Service\Depense\DepenseUploader;
@@ -101,11 +103,10 @@ final class DepenseController extends AbstractController
     $periodQuarter = $request->request->get('periodQuarter');
     $periodMonth   = $request->request->get('periodMonth');
 
-    $periodYear    = ($periodYear !== null && $periodYear !== '') ? (int)$periodYear : null;
-    $periodQuarter = ($periodQuarter !== null && $periodQuarter !== '') ? (int)$periodQuarter : null;
-    $periodMonth   = ($periodMonth !== null && $periodMonth !== '') ? (int)$periodMonth : null;
-
-    $range = $this->buildPeriodRange($periodType, $periodYear, $periodQuarter, $periodMonth);
+    $periodYear ??= (string) (new \DateTimeImmutable())->format('Y');
+    $periodQuarter ??= 'all';
+    $periodMonth ??= 'all';
+    $period = [$periodType, $periodYear, $periodMonth, $periodQuarter];
 
 
 
@@ -118,7 +119,7 @@ final class DepenseController extends AbstractController
       ->leftJoin('d.fournisseur', 'f')->addSelect('f')
       ->andWhere('d.entite = :e')->setParameter('e', $entite);
 
-    $this->applyPeriodFilter($qb, 'd', $range);
+    AccountingPeriodFilter::apply($qb, 'd.dateDepense', ...$period);
 
 
     if ($searchV !== '') {
@@ -131,11 +132,10 @@ final class DepenseController extends AbstractController
 
 
 
-    if ($tvaOnly === 'deductible') {
-      $qb->andWhere('d.tvaDeductible = 1');
-    } elseif ($tvaOnly === 'nodeductible') {
-      $qb->andWhere('d.tvaDeductible = 0');
-    }
+    ChoiceFilter::any($qb, $tvaOnly, static function (QueryBuilder $branch, string $value): void {
+      if ($value === 'deductible') $branch->andWhere('d.tvaDeductible = 1');
+      elseif ($value === 'nodeductible') $branch->andWhere('d.tvaDeductible = 0');
+    });
 
 
 
@@ -166,7 +166,7 @@ final class DepenseController extends AbstractController
       ->select('COUNT(d2.id)')
       ->andWhere('d2.entite = :e')->setParameter('e', $entite);
 
-    $this->applyPeriodFilter($qbTotal, 'd2', $range);
+    AccountingPeriodFilter::apply($qbTotal, 'd2.dateDepense', ...$period);
 
     $recordsTotal = (int) $qbTotal->getQuery()->getSingleScalarResult();
 
@@ -265,7 +265,7 @@ final class DepenseController extends AbstractController
       ->andWhere('d.entite = :e')
       ->setParameter('e', $entite);
 
-    $this->applyPeriodFilter($qbAll, 'd', $range);
+    AccountingPeriodFilter::apply($qbAll, 'd.dateDepense', ...$period);
 
 
 
@@ -284,7 +284,7 @@ final class DepenseController extends AbstractController
 
 
     // 2) QB "FILTRÉ" = tu reprends ton QB DataTables (celui qui sert à data/recordsFiltered)
-    $qbFiltered = $qb; // <- ton QB actuel avant pagination
+    $qbFiltered = $qbFilteredKpi; // Agrégats sur tous les résultats filtrés, avant pagination.
 
     $kpisAll = $this->computeKpis($qbAll);
     $kpis = $this->computeKpis($qbFiltered);
@@ -1220,54 +1220,6 @@ final class DepenseController extends AbstractController
       'tvaCents' => (int) ($k['tva'] ?? 0),
       'tvaDeductibleCents' => $tvaDed,
     ];
-  }
-
-
-  private function buildPeriodRange(
-    string $type,
-    ?int $year,
-    ?int $quarter,
-    ?int $month
-  ): ?array {
-    $type = strtolower(trim($type));
-
-    if ($type === 'all') return null;
-
-    $y = $year ?: (int) (new \DateTimeImmutable('now'))->format('Y');
-
-    if ($type === 'year') {
-      $from = (new \DateTimeImmutable("$y-01-01"))->setTime(0, 0, 0);
-      $to   = (new \DateTimeImmutable("$y-12-31"))->setTime(23, 59, 59);
-      return [$from, $to];
-    }
-
-    if ($type === 'quarter') {
-      $q = max(1, min(4, (int)($quarter ?: 1)));
-      $startMonth = (($q - 1) * 3) + 1;
-      $from = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $y, $startMonth)))->setTime(0, 0, 0);
-      $to   = $from->modify('+3 months')->modify('-1 second'); // fin du trimestre
-      return [$from, $to];
-    }
-
-    if ($type === 'month') {
-      $m = max(1, min(12, (int)($month ?: 1)));
-      $from = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $y, $m)))->setTime(0, 0, 0);
-      $to   = $from->modify('+1 month')->modify('-1 second'); // fin du mois
-      return [$from, $to];
-    }
-
-    return null;
-  }
-
-  private function applyPeriodFilter(QueryBuilder $qb, string $alias, ?array $range): void
-  {
-    if (!$range) return;
-    [$from, $to] = $range;
-
-    // dateDepense est un datetime => between inclusif
-    $qb->andWhere(sprintf('%s.dateDepense BETWEEN :pFrom AND :pTo', $alias))
-      ->setParameter('pFrom', $from)
-      ->setParameter('pTo', $to);
   }
 
 

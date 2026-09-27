@@ -2,6 +2,8 @@
 // src/Controller/Administrateur/SatisfactionTemplateController.php
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{SatisfactionTemplate, Entite, Utilisateur, SatisfactionAttempt};
 use App\Enum\NiveauFormation;
 use App\Enum\SatisfactionQuestionType;
@@ -242,11 +244,11 @@ class SatisfactionTemplateController extends AbstractController
     }
 
     // Filtre actif
-    if ($activeFilter === 'yes') {
-      $qb->andWhere('t.isActive = 1');
-    } elseif ($activeFilter === 'no') {
-      $qb->andWhere('t.isActive = 0');
-    }
+    ChoiceFilter::any($qb, $activeFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('t.isActive = true');
+      elseif ($value === 'no') $branch->andWhere('t.isActive = false');
+    });
+
 
     // Recherche (titre template + titre formations)
     if ($search !== '') {
@@ -262,11 +264,11 @@ class SatisfactionTemplateController extends AbstractController
     if ($search !== '') {
       $countFilteredQb->leftJoin('t.formations', 'f_search');
     }
-    if ($activeFilter === 'yes') {
-      $countFilteredQb->andWhere('t.isActive = 1');
-    } elseif ($activeFilter === 'no') {
-      $countFilteredQb->andWhere('t.isActive = 0');
-    }
+    ChoiceFilter::any($countFilteredQb, $activeFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('t.isActive = true');
+      elseif ($value === 'no') $branch->andWhere('t.isActive = false');
+    });
+
     if ($search !== '') {
       $countFilteredQb->andWhere('LOWER(t.titre) LIKE :q OR LOWER(f_search.titre) LIKE :q')
         ->setParameter('q', '%' . mb_strtolower($search) . '%');

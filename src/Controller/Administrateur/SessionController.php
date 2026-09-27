@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Enum\StatusSession;
 use App\Service\Pdf\PdfManager;
 use App\Entity\{UtilisateurEntite, Entite, Utilisateur, ContratFormateur, SessionJour, Formateur, Emargement, Site, Session, Inscription, ConventionContrat, SessionPiece};
@@ -172,19 +174,8 @@ final class SessionController extends AbstractController
             }
 
             // ===== Filtres =====
-            if ($statusFilter !== 'all') {
-                $st = StatusSession::tryFrom($statusFilter);
-                if ($st) {
-                    $filteredQb->andWhere('s.status = :st')->setParameter('st', $st);
-                }
-            }
-
-            if ($formationFilter !== 'all') {
-                $fid = (int)$formationFilter;
-                if ($fid > 0) {
-                    $filteredQb->andWhere('f.id = :fid')->setParameter('fid', $fid);
-                }
-            }
+            ChoiceFilter::equals($filteredQb, $statusFilter, 's.status', 'selected_status');
+            ChoiceFilter::equals($filteredQb, $formationFilter, 'f.id', 'selected_formation');
 
             // ===== Période (chevauchement via SessionJour) =====
             if ($dateFrom !== '' || $dateTo !== '') {
@@ -219,7 +210,11 @@ final class SessionController extends AbstractController
 
             // ===== Filtre dossier (EXISTS) =====
             // ===== Filtre dossier (EXISTS) =====
-            if ($dossierFilter !== 'all') {
+            $dossierChoices = ChoiceFilter::values($dossierFilter);
+            if ($dossierChoices !== null && count(array_intersect($dossierChoices, ['complete', 'missing'])) === 2) {
+                $dossierFilter = 'registered';
+            }
+            ChoiceFilter::any($filteredQb, $dossierFilter, function ($filteredQb, string $dossierFilter) use ($em): void {
 
                 // 0) au moins une inscription
                 $subHasIns = $em->createQueryBuilder()
@@ -319,7 +314,9 @@ final class SessionController extends AbstractController
                     . ' OR (((EXISTS(' . $subEntrepriseSansConvention . ') OR EXISTS(' . $subEntrepriseConventionNonSignee . ')) AND NOT EXISTS(' . $subConvUploaded . ')))'
                     . ' OR (EXISTS(' . $subEmargNotSigned . ') AND NOT EXISTS(' . $subEmargUploaded . '))';
 
-                if ($dossierFilter === 'missing') {
+                if ($dossierFilter === 'registered') {
+                    $filteredQb->andWhere('EXISTS(' . $subHasIns . ')');
+                } elseif ($dossierFilter === 'missing') {
                     $filteredQb
                         ->andWhere('EXISTS(' . $subHasIns . ')')
                         ->andWhere('(' . $incompleteDql . ')');
@@ -335,7 +332,7 @@ final class SessionController extends AbstractController
                     ->setParameter('emarg_type', SessionPieceType::EMARGEMENT_SIGNE)
                     ->setParameter('conv_type', SessionPieceType::CONVENTION_SIGNEE)
                     ->setParameter('cf_type', SessionPieceType::CONTRAT_FORMATEUR_SIGNE);
-            }
+            });
 
 
             $recordsFiltered = (int)(clone $filteredQb)

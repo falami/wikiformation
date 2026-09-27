@@ -18,6 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Doctrine\DBAL\ParameterType;
 use App\Security\Permission\TenantPermission;
 use App\Service\Billing\InscriptionBillingSync;
+use App\Service\Filter\{AccountingPeriodFilter, ChoiceFilter};
 
 
 
@@ -132,7 +133,7 @@ final class PaiementController extends AbstractController
         // filtre mode
         $this->applyModeFilter($qb, 'p', $modeFilter);
         $this->applyPeriodFilter($qb, 'p', $periodType, $yearFilter, $monthFilter, $quarterFilter);
-        $this->applyPayeurIdsFilter($qb, 'p', $payeurUserIds, $payeurEntrepriseIds);
+        $this->applyPayeurIdsFilter($qb, 'p', $request->request);
 
 
 
@@ -231,28 +232,12 @@ final class PaiementController extends AbstractController
     }
 
 
-    private function applyPayeurIdsFilter(QueryBuilder $qb, string $alias, array $userIds, array $entrepriseIds): void
+    private function applyPayeurIdsFilter(QueryBuilder $qb, string $alias, \Symfony\Component\HttpFoundation\InputBag $input): void
     {
-        if (empty($userIds) && empty($entrepriseIds)) {
-            return;
-        }
-
-        $orX = $qb->expr()->orX();
-
-        if (!empty($userIds)) {
-            $orX->add($qb->expr()->in("$alias.payeurUtilisateur", ':pUsers'));
-            $qb->setParameter('pUsers', $userIds);
-        }
-
-        if (!empty($entrepriseIds)) {
-            $orX->add($qb->expr()->in("$alias.payeurEntreprise", ':pEnts'));
-            $qb->setParameter('pEnts', $entrepriseIds);
-        }
-
-        $qb->andWhere($orX);
+        $filter = \App\Service\Filter\RecipientFilter::condition($input, "$alias.payeurUtilisateur", "$alias.payeurEntreprise");
+        $qb->andWhere($filter['sql']);
+        foreach ($filter['parameters'] as $key => $ids) $qb->setParameter($key, $ids);
     }
-
-
 
     private function applyPayeurSplitFilter(QueryBuilder $qb, string $alias, array $userSel, array $entrepriseSel): void
     {
@@ -290,49 +275,7 @@ final class PaiementController extends AbstractController
         string $monthFilter,
         string $quarterFilter
     ): void {
-        $periodType = $periodType ?: 'all';
-
-        if ($periodType === 'all') {
-            return;
-        }
-
-        // si month/quarter mais year=all => fallback année courante
-        $now = new \DateTimeImmutable('now');
-        $year = ($yearFilter !== '' && $yearFilter !== 'all') ? (int) $yearFilter : (int) $now->format('Y');
-
-        $start = null;
-        $end = null;
-
-        if ($periodType === 'year') {
-            $start = new \DateTimeImmutable(sprintf('%04d-01-01 00:00:00', $year));
-            $end   = $start->modify('+1 year');
-        }
-
-        if ($periodType === 'month') {
-            $m = ($monthFilter !== '' && $monthFilter !== 'all') ? (int) $monthFilter : (int) $now->format('n');
-            $m = max(1, min(12, $m));
-
-            $start = new \DateTimeImmutable(sprintf('%04d-%02d-01 00:00:00', $year, $m));
-            $end   = $start->modify('+1 month');
-        }
-
-        if ($periodType === 'quarter') {
-            $q = ($quarterFilter !== '' && $quarterFilter !== 'all') ? (int) $quarterFilter : 1;
-            $q = max(1, min(4, $q));
-
-            $firstMonth = 1 + (($q - 1) * 3);
-            $start = new \DateTimeImmutable(sprintf('%04d-%02d-01 00:00:00', $year, $firstMonth));
-            $end   = $start->modify('+3 months');
-        }
-
-        if (!$start || !$end) return;
-
-        $startParam = $alias . '_pStart';
-        $endParam   = $alias . '_pEnd';
-
-        $qb->andWhere("$alias.datePaiement >= :$startParam AND $alias.datePaiement < :$endParam")
-            ->setParameter($startParam, $start)
-            ->setParameter($endParam, $end);
+        AccountingPeriodFilter::apply($qb, "$alias.datePaiement", $periodType, $yearFilter, $monthFilter, $quarterFilter);
     }
 
 
@@ -631,8 +574,7 @@ final class PaiementController extends AbstractController
         $this->applyPayeurIdsFilter(
             $baseQb,
             'p',
-            $payeurUserIds,
-            $payeurEntrepriseIds
+            $request->query
         );
 
         /** @var Paiement[] $paiements */
@@ -685,33 +627,16 @@ final class PaiementController extends AbstractController
     // -------------------------
     private function applyModeFilter(QueryBuilder $qb, string $alias, string $modeFilter): void
     {
-        if ($modeFilter === '' || $modeFilter === 'all') return;
-
-        $enum = match ($modeFilter) {
-            'virement' => ModePaiement::VIREMENT,
-            'cb'       => ModePaiement::CB,
-            'cheque'   => ModePaiement::CHEQUE,
-            'especes'  => ModePaiement::ESPECES,
-            'opco'     => ModePaiement::OPCO,
-            default    => null,
-        };
-
-        if ($enum) {
-            $qb->andWhere("$alias.mode = :mode")->setParameter('mode', $enum);
-            return;
-        }
-
-        if ($modeFilter === 'autre') {
-            $qb->andWhere("$alias.mode NOT IN (:modes)")
-                ->setParameter('modes', [
-                    ModePaiement::VIREMENT,
-                    ModePaiement::CB,
-                    ModePaiement::CHEQUE,
-                    ModePaiement::ESPECES,
-                    ModePaiement::OPCO,
-                ]);
-        }
+        ChoiceFilter::any($qb, $modeFilter, static function (QueryBuilder $branch, string $mode) use ($alias): void {
+            if ($enum = ModePaiement::tryFrom($mode)) {
+                $branch->andWhere("$alias.mode = :selectedMode")->setParameter('selectedMode', $enum->value);
+            } elseif ($mode === 'autre') {
+                $branch->andWhere("$alias.mode NOT IN (:knownModes)")
+                    ->setParameter('knownModes', array_column(ModePaiement::cases(), 'value'));
+            }
+        });
     }
+
 
     private function enforceExclusivePayeur(Paiement $p): void
     {

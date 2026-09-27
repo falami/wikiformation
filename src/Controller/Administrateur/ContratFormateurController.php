@@ -3,6 +3,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{ContratFormateur, ContratFormateurRevision, Entite, Utilisateur, Session, Formateur};
 use App\Enum\ContratFormateurStatus;
 use App\Service\Contrat\ContratFormateurVersioning;
@@ -63,18 +65,9 @@ class ContratFormateurController extends AbstractController
       ->andWhere('c.entite = :entite')
       ->setParameter('entite', $entite);
 
-    if ($statusFilter !== 'all') {
-      try {
-        $qb->andWhere('c.status = :st')->setParameter('st', ContratFormateurStatus::from($statusFilter));
-      } catch (\ValueError $e) {
-      }
-    }
-    if ($formateurFilter !== 'all' && ctype_digit($formateurFilter)) {
-      $qb->andWhere('f.id = :fid')->setParameter('fid', (int)$formateurFilter);
-    }
-    if ($sessionFilter !== 'all' && ctype_digit($sessionFilter)) {
-      $qb->andWhere('se.id = :sid')->setParameter('sid', (int)$sessionFilter);
-    }
+    ChoiceFilter::equals($qb, $statusFilter, 'c.status', 'st');
+    ChoiceFilter::equals($qb, $formateurFilter, 'f.id', 'fid');
+    ChoiceFilter::equals($qb, $sessionFilter, 'se.id', 'sid');
 
     $total = (int)(clone $qb)
       ->select('COUNT(DISTINCT c.id)')
@@ -183,18 +176,9 @@ class ContratFormateurController extends AbstractController
       ->andWhere('c.entite = :entite')->setParameter('entite', $entite)
       ->getQuery()->getSingleScalarResult();
 
-    if ($statusFilter !== 'all') {
-      try {
-        $qb->andWhere('c.status = :st')->setParameter('st', ContratFormateurStatus::from($statusFilter));
-      } catch (\ValueError $e) {
-      }
-    }
-    if ($formateurFilter !== 'all' && ctype_digit($formateurFilter)) {
-      $qb->andWhere('f.id = :fid')->setParameter('fid', (int)$formateurFilter);
-    }
-    if ($sessionFilter !== 'all' && ctype_digit($sessionFilter)) {
-      $qb->andWhere('se.id = :sid')->setParameter('sid', (int)$sessionFilter);
-    }
+    ChoiceFilter::equals($qb, $statusFilter, 'c.status', 'st');
+    ChoiceFilter::equals($qb, $formateurFilter, 'f.id', 'fid');
+    ChoiceFilter::equals($qb, $sessionFilter, 'se.id', 'sid');
 
     if ($searchV !== '') {
       $qb->andWhere('

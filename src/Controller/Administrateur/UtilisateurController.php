@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Devis, Entite, Facture, Prospect, Entreprise, Inscription, Utilisateur, UtilisateurEntite, ProspectInteraction};
 use App\Enum\{DevisStatus, FactureStatus, StatusSession, StatusInscription};
 use Doctrine\ORM\QueryBuilder;
@@ -110,23 +112,18 @@ final class UtilisateurController extends AbstractController
           ->setParameter('fb_q', '%' . $searchName . '%');
       }
 
-      if ($verifiedFilter === '1' || $verifiedFilter === '0') {
-        $qb->andWhere("$uAlias.isVerified = :fb_verified")
-          ->setParameter('fb_verified', $verifiedFilter === '1');
-      }
+      ChoiceFilter::equals($qb, $verifiedFilter, "$uAlias.isVerified", 'fb_verified');
 
       // Locked: verified OU inscriptions > 0
-      if ($lockedFilter === '1') {
-        $qb->andWhere("($uAlias.isVerified = true OR SIZE($uAlias.inscriptions) > 0)");
-      } elseif ($lockedFilter === '0') {
-        $qb->andWhere("($uAlias.isVerified = false AND SIZE($uAlias.inscriptions) = 0)");
-      }
+      ChoiceFilter::any($qb, $lockedFilter, static function ($branch, string $value) use ($uAlias): void {
+        if ($value === '1') $branch->andWhere("($uAlias.isVerified = true OR SIZE($uAlias.inscriptions) > 0)");
+        elseif ($value === '0') $branch->andWhere("($uAlias.isVerified = false AND SIZE($uAlias.inscriptions) = 0)");
+      });
 
-      if ($rolesFilter !== '' && $rolesFilter !== 'all') {
-        // rolesFilter doit valoir ex: "TENANT_FORMATEUR"
-        $qb->andWhere("JSON_CONTAINS($ueAlias.roles, :roleJson) = 1")
-          ->setParameter('roleJson', json_encode($rolesFilter));
-      }
+      ChoiceFilter::any($qb, $rolesFilter, static function ($branch, string $value) use ($ueAlias): void {
+        $branch->andWhere("JSON_CONTAINS($ueAlias.roles, :roleJson) = 1")
+          ->setParameter('roleJson', json_encode($value));
+      });
     };
 
     // 1) Query principale (data)

@@ -596,7 +596,7 @@
             <div class="flex-grow-1">
               <div class="kpi-label">Prix moyen</div>
               <div class="kpi-value" id="kpi-prix-moyen">—</div>
-              <div class="kpi-sub">Sur le listing</div>
+              <div class="kpi-sub">Catalogue filtré</div>
             </div>
           </div>
         </div>
@@ -790,8 +790,9 @@ $(function(){
   }
 
   function rebuildSousCategories(){
-    const catId = $categorie.val() || 'all';
-    const items = (catId !== 'all' && subcatsByParent[String(catId)]) ? subcatsByParent[String(catId)] : [];
+    const raw = $categorie.val() || 'all';
+    const selected = raw === 'all' ? Object.keys(subcatsByParent) : (raw.startsWith('[') ? JSON.parse(raw) : [raw]);
+    const items = [...new Map(selected.flatMap(id => subcatsByParent[String(id)] || []).map(item => [item.id, item])).values()];
 
     const ts = document.querySelector('#sousCategorieFilter')?.tomselect;
     if(!ts) return;
@@ -831,34 +832,12 @@ $(function(){
     }
   }
 
-  function computeKpisFromCurrentRows(api){
-    const data = api.rows({ search: 'applied' }).data().toArray();
-
-    const total = data.length;
-    let sumSessions = 0;
-    let sumPrix = 0, countPrix = 0;
-    let sumDuree = 0, countDuree = 0;
-
-    data.forEach(r => {
-      const ns = parseInt(String(r.nbSessions ?? r.sessions ?? '').replace(/[^\d]/g,''), 10);
-      if(!Number.isNaN(ns)) sumSessions += ns;
-
-      const prixStr = String(r.prixBase ?? '').replace(/\s/g,'').replace('€','').replace(',', '.');
-      const prix = parseFloat(prixStr);
-      if(!Number.isNaN(prix) && prix > 0){ sumPrix += prix; countPrix++; }
-
-      const dureeStr = String(r.duree ?? '').replace(/[^\d]/g,'');
-      const duree = parseInt(dureeStr, 10);
-      if(!Number.isNaN(duree) && duree > 0){ sumDuree += duree; countDuree++; }
-    });
-
-    const prixMoyen = countPrix ? (sumPrix / countPrix) : 0;
-    const dureeMoy = countDuree ? (sumDuree / countDuree) : 0;
-
-    $('#kpi-total').text(total);
-    $('#kpi-sessions').text(sumSessions);
-    $('#kpi-prix-moyen').text(prixMoyen ? prixMoyen.toFixed(2).replace('.', ',') + ' €' : '—');
-    $('#kpi-duree-moyenne').text(dureeMoy ? (Math.round(dureeMoy*10)/10).toString().replace('.', ',') + ' j' : '—');
+  function updateKpis(kpis){
+    if (!kpis) return;
+    $('#kpi-total').text(kpis.total);
+    $('#kpi-sessions').text(kpis.sessions);
+    $('#kpi-prix-moyen').text(kpis.averagePrice === null ? '—' : Number(kpis.averagePrice).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }));
+    $('#kpi-duree-moyenne').text(kpis.averageDuration === null ? '—' : Number(kpis.averageDuration).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' j');
     $('#hero-last-refresh').text('Maj : ' + nowLabel());
   }
 
@@ -1026,8 +1005,7 @@ $(function(){
   table.on('draw.dt', function(){
     dtAdjust();
 
-    const api = table;
-    computeKpisFromCurrentRows(api);
+    updateKpis(table.ajax.json()?.kpis);
 
     const n = countActiveFilters();
     updateResetUi(n);

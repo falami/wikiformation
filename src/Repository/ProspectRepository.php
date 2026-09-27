@@ -2,6 +2,8 @@
 
 namespace App\Repository;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\Entite;
 use App\Enum\ProspectSource;
 use App\Entity\Prospect;
@@ -30,9 +32,7 @@ final class ProspectRepository extends ServiceEntityRepository
             ->setParameter('hot', [ProspectStatus::QUALIFIED, ProspectStatus::PROPOSAL_SENT, ProspectStatus::NEGOTIATION])
             ->setParameter('won', ProspectStatus::WON);
 
-        if ($status && $status !== 'all') {
-            $qb->andWhere('p.status = :st')->setParameter('st', ProspectStatus::from($status));
-        }
+        ChoiceFilter::equals($qb, $status, 'p.status', 'st');
 
         $r = $qb->getQuery()->getSingleResult();
 
@@ -63,18 +63,12 @@ final class ProspectRepository extends ServiceEntityRepository
         $recordsTotal = (int)(clone $base)->select('COUNT(p.id)')->getQuery()->getSingleScalarResult();
 
         // filtres
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
-            $base->andWhere('p.status = :st')->setParameter('st', ProspectStatus::from($filters['status']));
-        }
-        if (!empty($filters['source']) && $filters['source'] !== 'all') {
-            $base->andWhere('p.source = :so')->setParameter('so', ProspectSource::from($filters['source']));
-        }
-        if (!empty($filters['active']) && in_array($filters['active'], ['0', '1'], true)) {
-            $base->andWhere('p.isActive = :a')->setParameter('a', $filters['active'] === '1');
-        }
-        if (!empty($filters['next']) && $filters['next'] === 'due') {
-            $base->andWhere('p.nextActionAt IS NOT NULL AND p.nextActionAt <= :now')->setParameter('now', new \DateTimeImmutable());
-        }
+        ChoiceFilter::equals($base, $filters['status'] ?? null, 'p.status', 'st');
+        ChoiceFilter::equals($base, $filters['source'] ?? null, 'p.source', 'so');
+        ChoiceFilter::equals($base, $filters['active'] ?? null, 'p.isActive', 'a');
+        ChoiceFilter::any($base, $filters['next'] ?? null, static function ($branch, string $value): void {
+            if ($value === 'due') $branch->andWhere('p.nextActionAt IS NOT NULL AND p.nextActionAt <= :now')->setParameter('now', new \DateTimeImmutable());
+        });
 
         if ($searchValue !== '') {
             $base->andWhere('LOWER(p.nom) LIKE :q OR LOWER(p.prenom) LIKE :q OR LOWER(p.email) LIKE :q')

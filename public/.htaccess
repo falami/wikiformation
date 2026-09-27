@@ -8,52 +8,41 @@ DirectoryIndex index.php
 </IfModule>
 
 <IfModule mod_rewrite.c>
+
     RewriteEngine On
 
     # ---------------------------------------------------------
-    # 1) Redirection unique -> https + non-www (301)
-    #    Exemple: http://www.wikiformation.fr/xxx  -> https://wikiformation.fr/xxx
+    # 1) Redirections du domaine de production uniquement
     # ---------------------------------------------------------
-    RewriteCond %{HTTPS} !=on [OR]
+
+    # www.wikiformation.fr -> https://wikiformation.fr
     RewriteCond %{HTTP_HOST} ^www\.wikiformation\.fr$ [NC]
     RewriteRule ^ https://wikiformation.fr%{REQUEST_URI} [R=301,L]
 
+    # http://wikiformation.fr -> https://wikiformation.fr
+    RewriteCond %{HTTP_HOST} ^wikiformation\.fr$ [NC]
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^ https://wikiformation.fr%{REQUEST_URI} [R=301,L]
+
     # ---------------------------------------------------------
-    # 2) Bloquer totalement le profiler en prod
-    #    (renvoie 404 et empêche l’indexation)
+    # 2) Profiler
     # ---------------------------------------------------------
+
     RewriteRule ^_profiler/ - [R=404,L]
 
-    # ---------------------------------------------------------
-    # 3) Aides Symfony usuelles
-    # ---------------------------------------------------------
-
-    # Conserve l'en-tête Authorization (API, etc.)
+    # Conserve Authorization
     RewriteCond %{HTTP:Authorization} .
     RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Canonicalisation interne: /index.php/... -> /...
+    # /index.php/... -> /...
     RewriteCond %{ENV:REDIRECT_STATUS} ^$
     RewriteRule ^index\.php(?:/(.*)|$) /$1 [R=301,L]
 
-    # Si le fichier/asset existe, le servir tel quel
+    # Assets existants
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
 
-    # Front controller Symfony
+    # Symfony
     RewriteRule ^ /index.php [L]
-</IfModule>
 
-# ---------------------------------------------------------
-# 4) En-têtes utiles
-# ---------------------------------------------------------
-<IfModule mod_headers.c>
-    # Interdit l’indexation du profiler (au cas où)
-    <FilesMatch "^_profiler/">
-        Header always set X-Robots-Tag "noindex, nofollow"
-    </FilesMatch>
-
-    # HSTS (après vérif que TOUT marche en HTTPS)
-    # -> commente la ligne ci-dessous la toute première fois si besoin
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 </IfModule>

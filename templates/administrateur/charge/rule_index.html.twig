@@ -409,6 +409,7 @@ $(function () {
     document.addEventListener('show.bs.dropdown', function (e) {
       if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
+      if (!toggle.closest('#tableauRules, .dt-actions')) return;
       const dd = toggle.closest('.dropdown, .btn-group');
       if (!dd) return;
 
@@ -436,6 +437,7 @@ $(function () {
     document.addEventListener('hidden.bs.dropdown', function (e) {
       if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
       const toggle = e.target;
+      if (!toggle.closest('#tableauRules, .dt-actions')) return;
       const dd = toggle.closest('.dropdown, .btn-group');
       if (!dd) return;
 
@@ -451,11 +453,11 @@ $(function () {
     });
 
     window.addEventListener('scroll', () => {
-      document.querySelectorAll('[aria-expanded="true"][data-bs-toggle="dropdown"]').forEach(btn => btn.click());
+      document.querySelectorAll('#tableauRules [aria-expanded="true"][data-bs-toggle="dropdown"], .dt-actions [aria-expanded="true"][data-bs-toggle="dropdown"]').forEach(btn => btn.click());
     }, true);
 
     window.addEventListener('resize', () => {
-      document.querySelectorAll('[aria-expanded="true"][data-bs-toggle="dropdown"]').forEach(btn => btn.click());
+      document.querySelectorAll('#tableauRules [aria-expanded="true"][data-bs-toggle="dropdown"], .dt-actions [aria-expanded="true"][data-bs-toggle="dropdown"]').forEach(btn => btn.click());
     });
   }
 

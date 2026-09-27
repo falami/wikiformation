@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Qcm, Entite, Utilisateur, QcmAssignment, QcmQuestion, QcmOption};
 use App\Form\Administrateur\QcmType;
 use Doctrine\ORM\EntityManagerInterface as EM;
@@ -320,9 +322,16 @@ final class QcmController extends AbstractController
     $params = ['entite' => $entite->getId()];
     $where = "q.entite_id = :entite";
 
-    if ($activeFilter === '1' || $activeFilter === '0') {
-      $where .= " AND q.is_active = :active";
-      $params['active'] = (int)$activeFilter;
+    $activeValues = ChoiceFilter::values($activeFilter);
+    if ($activeValues !== null) {
+      $activeValues = array_values(array_intersect($activeValues, ['0', '1']));
+      $placeholders = [];
+      foreach ($activeValues as $index => $value) {
+        $name = 'active_' . $index;
+        $placeholders[] = ':' . $name;
+        $params[$name] = (int) $value;
+      }
+      $where .= $placeholders ? ' AND q.is_active IN (' . implode(', ', $placeholders) . ')' : ' AND 1 = 0';
     }
 
     if ($search !== '') {
@@ -428,9 +437,16 @@ final class QcmController extends AbstractController
     $params = ['entite' => $entite->getId()];
     $where = "q.entite_id = :entite";
 
-    if ($activeFilter === '1' || $activeFilter === '0') {
-      $where .= " AND q.is_active = :active";
-      $params['active'] = (int)$activeFilter;
+    $activeValues = ChoiceFilter::values($activeFilter);
+    if ($activeValues !== null) {
+      $activeValues = array_values(array_intersect($activeValues, ['0', '1']));
+      $placeholders = [];
+      foreach ($activeValues as $index => $value) {
+        $name = 'active_' . $index;
+        $placeholders[] = ':' . $name;
+        $params[$name] = (int) $value;
+      }
+      $where .= $placeholders ? ' AND q.is_active IN (' . implode(', ', $placeholders) . ')' : ' AND 1 = 0';
     }
     if ($search !== '') {
       $where .= " AND (CAST(q.id AS CHAR) LIKE :s OR q.titre LIKE :s)";

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{PositioningChapter, Entite, Utilisateur, PositioningQuestionnaire};
 use App\Form\Administrateur\PositioningQuestionnaireType;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
@@ -68,11 +70,11 @@ final class PositioningQuestionnaireController extends AbstractController
       ->getSingleScalarResult();
 
     // Filtre published
-    if ($publishedFilter === 'yes') {
-      $qb->andWhere('q.published = true');
-    } elseif ($publishedFilter === 'no') {
-      $qb->andWhere('q.published = false');
-    }
+    ChoiceFilter::any($qb, $publishedFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('q.isPublished = true');
+      elseif ($value === 'no') $branch->andWhere('q.isPublished = false');
+    });
+
 
     // Recherche
     if ($searchValue !== '') {
@@ -98,7 +100,7 @@ final class PositioningQuestionnaireController extends AbstractController
     $orderMap = [
       0 => 'q.title',
       1 => 'q.software',
-      2 => 'q.published',
+      2 => 'q.isPublished',
       3 => 'q.createdAt',
       4 => 'q.id',
     ];

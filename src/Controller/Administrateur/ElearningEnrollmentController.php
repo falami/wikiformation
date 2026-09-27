@@ -54,7 +54,7 @@ final class ElearningEnrollmentController extends AbstractController
     $len    = (int) $request->request->get('length', 10);
 
     $search = trim((string) ($request->request->all('search')['value'] ?? ''));
-    $stateFilter = trim((string) $request->request->get('state', ''));
+    $stateFilter = \App\Service\Filter\ChoiceFilter::values($request->request->get('state', ''));
 
 
     $orderReq = $request->request->all('order')[0] ?? null;
@@ -93,6 +93,20 @@ final class ElearningEnrollmentController extends AbstractController
         ->setParameter('q', '%' . mb_strtolower($search) . '%');
     }
 
+    $now = new \DateTimeImmutable('now', new \DateTimeZone(self::TZ));
+    \App\Service\Filter\ChoiceFilter::any($qb, $stateFilter, static function ($branch, string $state) use ($now): void {
+      $predicate = match ($state) {
+        'active' => "e.status = 'ACTIVE' AND (e.startsAt IS NULL OR e.startsAt <= :stateNow) AND (e.endsAt IS NULL OR e.endsAt >= :stateNow)",
+        'upcoming' => "e.status = 'UPCOMING' OR (e.status = 'ACTIVE' AND e.startsAt > :stateNow)",
+        'expired' => "e.status = 'EXPIRED' OR (e.status = 'ACTIVE' AND (e.startsAt IS NULL OR e.startsAt <= :stateNow) AND e.endsAt < :stateNow)",
+        'suspended' => "e.status = 'SUSPENDED'",
+        'completed' => "e.status = 'COMPLETED'",
+        default => '1 = 0',
+      };
+      $branch->andWhere($predicate);
+      if (str_contains($predicate, ':stateNow')) $branch->setParameter('stateNow', $now);
+    });
+
     // filtered
     $qbFiltered = clone $qb;
     $qbFiltered->select('COUNT(e.id)');
@@ -111,9 +125,6 @@ final class ElearningEnrollmentController extends AbstractController
     foreach ($paginator as $enroll) {
       $state = $enroll->getComputedState($now);
 
-      if ($stateFilter !== '' && $state !== $stateFilter) {
-        continue;
-      }
       /** @var ElearningEnrollment $enroll */
       $u = $enroll->getStagiaire();
 

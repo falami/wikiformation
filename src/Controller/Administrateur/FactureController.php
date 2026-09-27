@@ -24,6 +24,7 @@ use Doctrine\DBAL\Connection;
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\Billing\InscriptionBillingSync;
+use App\Service\Filter\{AccountingPeriodFilter, ChoiceFilter};
 
 
 
@@ -164,79 +165,19 @@ class FactureController extends AbstractController
 
     
 
-    // ===== Filtres destinataires =====
-    $payeurUserIds = array_values(array_filter(array_map('intval', (array)$payeurUserIds)));
-    $payeurEntrepriseIds = array_values(array_filter(array_map('intval', (array)$payeurEntrepriseIds)));
-    
-    
-    $payeurUserTotal = $request->request->getInt('payeurUserTotal', 0);
-    $payeurEntrepriseTotal = $request->request->getInt('payeurEntrepriseTotal', 0);
-
-    if (
-        $payeurUserTotal > 0
-        && $payeurEntrepriseTotal > 0
-        && empty($payeurUserIds)
-        && empty($payeurEntrepriseIds)
-    ) {
-        $where[] = '1 = 0';
+    $recipients = \App\Service\Filter\RecipientFilter::condition($request->request, 'f.destinataire_id', 'f.entreprise_destinataire_id');
+    $where[] = $recipients['sql'];
+    foreach ($recipients['parameters'] as $key => $ids) {
+      $params[$key] = $ids;
+      $types[$key] = ArrayParameterType::INTEGER;
     }
 
-
-    if (!empty($payeurUserIds) || !empty($payeurEntrepriseIds)) {
-      $or = [];
-      if (!empty($payeurUserIds)) {
-        $or[] = 'f.destinataire_id IN (:payeurUserIds)';
-        $params['payeurUserIds'] = $payeurUserIds;
-        $types['payeurUserIds'] = class_exists(ArrayParameterType::class)
-          ? ArrayParameterType::INTEGER
-          : (defined(Connection::class . '::PARAM_INT_ARRAY') ? constant(Connection::class . '::PARAM_INT_ARRAY') : null);
-      }
-      if (!empty($payeurEntrepriseIds)) {
-        $or[] = 'f.entreprise_destinataire_id IN (:payeurEntrepriseIds)';
-        $params['payeurEntrepriseIds'] = $payeurEntrepriseIds;
-
-        $types['payeurEntrepriseIds'] = class_exists(ArrayParameterType::class)
-          ? ArrayParameterType::INTEGER
-          : (defined(Connection::class . '::PARAM_INT_ARRAY') ? constant(Connection::class . '::PARAM_INT_ARRAY') : null);
-      }
-      $where[] = '(' . implode(' OR ', $or) . ')';
+    $period = AccountingPeriodFilter::condition('f.date_emission', $periodType, $yearFilter, $monthFilter, $quarterFilter);
+    $where[] = $period['sql'];
+    foreach ($period['parameters'] as $key => $values) {
+      $params[$key] = $values;
+      $types[$key] = ArrayParameterType::STRING;
     }
-
-    // ===== Filtre période sur f.date_emission =====
-    if ($periodType !== 'all') {
-      if ($periodType === 'year' && $yearFilter !== 'all') {
-        $where[] = 'YEAR(f.date_emission) = :yf';
-        $params['yf'] = (int)$yearFilter;
-        $types['yf'] = ParameterType::INTEGER;
-      }
-
-      if ($periodType === 'month') {
-        if ($yearFilter !== 'all') {
-          $where[] = 'YEAR(f.date_emission) = :yf';
-          $params['yf'] = (int)$yearFilter;
-          $types['yf'] = ParameterType::INTEGER;
-        }
-        if ($monthFilter !== 'all') {
-          $where[] = 'MONTH(f.date_emission) = :mf';
-          $params['mf'] = (int)$monthFilter;
-          $types['mf'] = ParameterType::INTEGER;
-        }
-      }
-
-      if ($periodType === 'quarter') {
-        if ($yearFilter !== 'all') {
-          $where[] = 'YEAR(f.date_emission) = :yf';
-          $params['yf'] = (int)$yearFilter;
-          $types['yf'] = ParameterType::INTEGER;
-        }
-        if ($quarterFilter !== 'all') {
-          $where[] = 'QUARTER(f.date_emission) = :qf';
-          $params['qf'] = (int)$quarterFilter;
-          $types['qf'] = ParameterType::INTEGER;
-        }
-      }
-    }
-
 
     if ($searchV !== '') {
       $where[] = '(
@@ -249,30 +190,11 @@ class FactureController extends AbstractController
       $types['s']  = ParameterType::STRING;
     }
 
-    $stCanceled = FactureStatus::CANCELED->value;
-
-    if ($statusFilter === 'canceled') {
-      $where[] = 'f.status = :stCanceled';
-      $params['stCanceled'] = $stCanceled;
-      $types['stCanceled']  = ParameterType::STRING;
-    } elseif (in_array($statusFilter, ['paid', 'partial', 'due'], true)) {
-      $where[] = 'f.status != :stCanceled';
-      $params['stCanceled'] = $stCanceled;
-      $types['stCanceled']  = ParameterType::STRING;
-
-      if ($statusFilter === 'paid') {
-        $where[] = $remainingExpr . ' = 0';
-      } elseif ($statusFilter === 'partial') {
-        $where[] = $paidExpr . ' > 0 AND ' . $remainingExpr . ' > 0';
-      } elseif ($statusFilter === 'due') {
-        $where[] = $paidExpr . ' = 0 AND ' . $remainingExpr . ' > 0';
-      }
-    } elseif ($statusFilter === 'overpaid') {
-      $where[] = 'f.status != :stCanceled';
-      $params['stCanceled'] = $stCanceled;
-      $types['stCanceled']  = ParameterType::STRING;
-
-      $where[] = $overpaidExpr . ' > 0';
+    $status = $this->statusCondition($statusFilter, $paidExpr, $remainingExpr, $overpaidExpr);
+    $where[] = $status['sql'];
+    foreach ($status['parameters'] as $key => $value) {
+      $params[$key] = $value;
+      $types[$key] = ParameterType::STRING;
     }
 
     $whereSql = 'WHERE ' . implode(' AND ', $where);
@@ -573,7 +495,7 @@ class FactureController extends AbstractController
 
 
   #[Route('/kpis', name: 'kpis', methods: ['GET'])]
-  public function facturesKpis(Entite $entite, EM $em): JsonResponse
+  public function facturesKpis(Entite $entite, EM $em, Request $request): JsonResponse
   {
     $conn = $em->getConnection();
 
@@ -649,24 +571,49 @@ class FactureController extends AbstractController
     GROUP BY facture_id
   ";
 
+    $paidExpr = 'COALESCE(p.paid_cents,0)';
+    $ttcExpr = '(COALESCE(hd.ht_hd_cents,0) + COALESCE(hd.tva_hd_cents,0) + COALESCE(deb.debours_ttc_cents,0))';
+    $remainingExpr = 'GREATEST(0, ' . $ttcExpr . ' - ' . $paidExpr . ')';
+    $where = ['f.entite_id = :entiteId'];
+    $params = ['entiteId' => $entite->getId()];
+    $types = ['entiteId' => ParameterType::INTEGER];
+    $period = AccountingPeriodFilter::condition('f.date_emission', $request->query->get('periodType', 'all'),
+      $request->query->get('yearFilter', 'all'), $request->query->get('monthFilter', 'all'), $request->query->get('quarterFilter', 'all'));
+    $recipients = \App\Service\Filter\RecipientFilter::condition($request->query, 'f.destinataire_id', 'f.entreprise_destinataire_id');
+    foreach ([$period, $recipients] as $filter) {
+      $where[] = $filter['sql'];
+      foreach ($filter['parameters'] as $key => $values) {
+        $params[$key] = $values;
+        $types[$key] = ArrayParameterType::STRING;
+      }
+    }
+    $status = $this->statusCondition($request->query->get('statusFilter', 'all'), $paidExpr, $remainingExpr, '(' . $paidExpr . ' - ' . $ttcExpr . ')');
+    $where[] = $status['sql'];
+    foreach ($status['parameters'] as $key => $value) {
+      $params[$key] = $value;
+      $types[$key] = ParameterType::STRING;
+    }
+    $whereSql = 'WHERE ' . implode(' AND ', $where);
+
     $sql = "
     SELECT
       COUNT(DISTINCT f.id) AS count,
       COALESCE(SUM(COALESCE(hd.ht_hd_cents,0) + COALESCE(hd.tva_hd_cents,0) + COALESCE(deb.debours_ttc_cents,0)),0) AS ttc_cents,
-      COALESCE(SUM(COALESCE(p.paid_cents,0)),0) AS paid_cents
+      COALESCE(SUM($paidExpr),0) AS paid_cents,
+      COALESCE(SUM($remainingExpr),0) AS remaining_cents
     FROM facture f
     LEFT JOIN ($paidSub) p ON p.facture_id = f.id
     LEFT JOIN ($deboursSub) deb ON deb.facture_id = f.id
     LEFT JOIN ($horsDeboursSub) hd ON hd.facture_id = f.id
-    WHERE f.entite_id = :entiteId
+    $whereSql
   ";
 
-    $row = $conn->fetchAssociative($sql, ['entiteId' => $entite->getId()], ['entiteId' => ParameterType::INTEGER]) ?: [];
+    $row = $conn->fetchAssociative($sql, $params, $types) ?: [];
 
     $count = (int)($row['count'] ?? 0);
     $ttc   = (int)($row['ttc_cents'] ?? 0);
     $paid  = (int)($row['paid_cents'] ?? 0);
-    $remaining = max(0, $ttc - $paid);
+    $remaining = (int)($row['remaining_cents'] ?? 0);
 
     return new JsonResponse([
       'count' => $count,
@@ -681,6 +628,28 @@ class FactureController extends AbstractController
    * ✅ Petit helper pour la mise en forme des montants (HTML)
    * (utilisé par DataTables, donc on renvoie une string HTML)
    */
+  /** @return array{sql:string, parameters:array<string,string>} */
+  private function statusCondition(mixed $raw, string $paid, string $remaining, string $overpaid): array
+  {
+    $values = ChoiceFilter::values($raw);
+    if ($values === null) return ['sql' => '1 = 1', 'parameters' => []];
+    $clauses = [];
+    foreach ($values as $value) {
+      $clause = match ($value) {
+        'canceled' => 'f.status = :stCanceled',
+        'paid' => 'f.status != :stCanceled AND ' . $remaining . ' = 0',
+        'partial' => 'f.status != :stCanceled AND ' . $paid . ' > 0 AND ' . $remaining . ' > 0',
+        'due' => 'f.status != :stCanceled AND ' . $paid . ' = 0 AND ' . $remaining . ' > 0',
+        'overpaid' => 'f.status != :stCanceled AND ' . $overpaid . ' > 0',
+        default => null,
+      };
+      if ($clause !== null) $clauses[] = '(' . $clause . ')';
+    }
+    return $clauses
+      ? ['sql' => '(' . implode(' OR ', $clauses) . ')', 'parameters' => ['stCanceled' => FactureStatus::CANCELED->value]]
+      : ['sql' => '1 = 0', 'parameters' => []];
+  }
+
   private function moneyCell(int $cents, string $type): string
   {
     $val = number_format($cents / 100, 2, ',', ' ') . ' €';

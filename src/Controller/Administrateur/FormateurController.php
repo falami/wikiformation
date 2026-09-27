@@ -2,11 +2,14 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Formateur, Entite, Utilisateur, Site, Engin};
 use App\Service\FileUploader;
 use App\Service\Photo\PhotoManager;
 use App\Form\Administrateur\FormateurType;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse, RedirectResponse};
 use Symfony\Component\Routing\Attribute\Route;
@@ -111,20 +114,12 @@ final class FormateurController extends AbstractController
             ->setParameter('entite', $entite);
 
         // Filtres Engin / Site (vrais filtres)
-        if ($enginFilter !== 'all' && ctype_digit($enginFilter)) {
-            $enginEntity = $em->getRepository(Engin::class)->find((int)$enginFilter);
-            if ($enginEntity) {
-                $qb->andWhere(':engin MEMBER OF sk.qualificationEngins')
-                    ->setParameter('engin', $enginEntity);
-            }
-        }
-        if ($siteFilter !== 'all' && ctype_digit($siteFilter)) {
-            $siteEntity = $em->getRepository(Site::class)->find((int)$siteFilter);
-            if ($siteEntity) {
-                $qb->andWhere(':site MEMBER OF sk.sitePreferes')
-                    ->setParameter('site', $siteEntity);
-            }
-        }
+        ChoiceFilter::any($qb, $enginFilter, static function ($branch, string $value): void {
+            if (ctype_digit($value)) $branch->andWhere(':engin MEMBER OF sk.qualificationEngins')->setParameter('engin', (int) $value);
+        });
+        ChoiceFilter::any($qb, $siteFilter, static function ($branch, string $value): void {
+            if (ctype_digit($value)) $branch->andWhere(':site MEMBER OF sk.sitePreferes')->setParameter('site', (int) $value);
+        });
 
         // Total non filtré (après filtre entité uniquement)
         $qbTotal = $em->getRepository(Formateur::class)->createQueryBuilder('sk')
@@ -152,14 +147,32 @@ final class FormateurController extends AbstractController
             ->getQuery()
             ->getSingleScalarResult();
 
+        // Use the filtered trainer IDs, not the joined rows: a trainer may have
+        // several qualifications and preferred sites, which multiply SQL rows.
+        $filteredIds = (clone $qb)->select('sk.id')->resetDQLPart('orderBy');
+        $totals = $em->getRepository(Formateur::class)->createQueryBuilder('kpiTrainer')
+            ->select('SUM(SIZE(kpiTrainer.sessions)) AS sessions')
+            ->addSelect('AVG(SIZE(kpiTrainer.qualificationEngins)) AS qualifications')
+            ->addSelect('AVG(SIZE(kpiTrainer.sitePreferes)) AS sites')
+            ->where('kpiTrainer.id IN (' . $filteredIds->getDQL() . ')')
+            ->setParameters($filteredIds->getParameters())
+            ->getQuery()->getSingleResult();
+        $kpis = [
+            'total' => $recordsFiltered,
+            'sessions' => (int) ($totals['sessions'] ?? 0),
+            'averageQualifications' => $totals['qualifications'] === null ? null : (float) $totals['qualifications'],
+            'averageSites' => $totals['sites'] === null ? null : (float) $totals['sites'],
+        ];
+
         /** @var Formateur[] $rows */
-        $rows = $qb
+        $query = $qb
             ->orderBy($orderBy, $orderDir)
             ->addOrderBy('sk.id', 'DESC')
             ->setFirstResult($start)
             ->setMaxResults($length)
-            ->getQuery()
-            ->getResult();
+            ->getQuery();
+        // Page trainers rather than the rows produced by their two collection joins.
+        $rows = iterator_to_array(new Paginator($query, fetchJoinCollection: true));
 
         $data = array_map(function (Formateur $sk) use ($entite) {
             $u = $sk->getUtilisateur();
@@ -200,6 +213,7 @@ final class FormateurController extends AbstractController
             'draw'            => (int)$request->request->get('draw'),
             'recordsTotal'    => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
+            'kpis'            => $kpis,
             'data'            => $data,
         ]);
     }

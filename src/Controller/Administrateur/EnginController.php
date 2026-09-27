@@ -83,6 +83,8 @@ final class EnginController extends AbstractController
             ->setParameter('entite', $entite)
             ->getQuery()->getSingleScalarResult();
 
+        $tableFilters = \App\Service\Filter\TableFilters::prepare($qb, $request, ['site' => ['field'=>'s.id','display'=>'s.nom','label'=>'Site'], 'type'=>['field'=>'b.type','label'=>'Type']]);
+
         // search
         if ($searchV !== '') {
             $qb->andWhere('b.nom LIKE :q OR s.nom LIKE :q')
@@ -126,6 +128,7 @@ final class EnginController extends AbstractController
         return new JsonResponse([
             'draw'            => (int)$request->request->get('draw'),
             'recordsTotal'    => $recordsTotal,
+            'filters' => $tableFilters,
             'recordsFiltered' => $recordsFiltered,
             'data'            => $data,
         ]);

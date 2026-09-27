@@ -1,21 +1,39 @@
-{# templates/administrateur/session/form.html.twig #}
-{% extends 'base_admin.html.twig' %}
-{% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d'une session{% endblock %}
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="UTF-8">
+        
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <title>Modification d'une session</title>
+                <link rel="icon" type="image/x-icon" href="/uploads/photos/entite/favicon/favicon-wikiformation.png">
+        <!-- à mettre en haut du head -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-{% block stylesheets %}
-  {{ parent() }}
-  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+
+        <link rel="alternate" hreflang="fr" href="/fr/administrateur/1/session/modifier/1">
+        <link rel="alternate" hreflang="en" href="/en/administrateur/1/session/modifier/1">
+        <link rel="alternate" hreflang="x-default" href="/en/administrateur/1/session/modifier/1">
+        <meta property="og:locale" content="fr_FR">
+            
+        <script src="/dist/js/cookie-consent.js"></script>
+        <script defer src="/dist/js/datatables-actions.js?v=1"></script>
+
+          
+        
+  <link rel="stylesheet" href="/dist/css/style.css">
+  <link rel="stylesheet" href="/dist/css/formulaire.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 
   <style>
     :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+      --theme-color-principal: #233342;
+      --theme-color-secondaire: #ffc107;
+      --theme-color-tertiaire: #F0F0F0;
+      --theme-color-quaternaire: #000000;
 
       --bg: #f5f7fb;
       --panel: #ffffff;
@@ -449,15 +467,35 @@
     }
 
   </style>
-{% endblock %}
 
-{% block javascripts %}
-  {{ parent() }}
-  <script src="{{ asset('dist/js/session-duration.js') }}?v=3" defer></script>
+        <link rel="stylesheet" href="/dist/css/datatables-actions.css?v=1">
+
+        <style>
+        /* Offcanvas menu compact */
+        #mobileMenu .list-group-item{
+            border: 0;
+            border-radius: .65rem;
+            margin-bottom: .25rem;
+        }
+        #mobileMenu .list-group-item.active{
+            font-weight: 700;
+        }
+        #mobileMenu .accordion-button{
+            border-radius: .75rem !important;
+        }
+        #mobileMenu .accordion-item{
+            border: 0;
+            margin-bottom: .35rem;
+        }
+        </style>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+                  
+  <script src="/dist/js/session-duration.js?v=3" defer></script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-  {# Flatpickr local #}
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
   <script src="https://npmcdn.com/flatpickr/dist/l10n/fr.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
@@ -467,18 +505,1275 @@
 </script>
 
 <script
-  src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&language=fr&region=FR&loading=async&callback=initGmpPlaces"
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAjVyvDsaz42lEnRjWkbYM-dnWS-JMMO-s&libraries=places&language=fr&region=FR&loading=async&callback=initGmpPlaces"
   async>
 </script>
 
 
 
-{% endblock %}
 
-{% block body %}
+        
+        
+    </head>
+    <body >
 
-  {# ===== HERO (même style que session/index) ===== #}
-  <div class="hero p-3 mb-4 d-flex gap-3">
+        <div id="cookie-banner" 
+     class="cookie-banner position-fixed bottom-0 start-0 end-0 bg-light shadow-lg p-3" 
+     style="z-index: 1050; display: none;">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+    <div class="mb-2 mb-md-0 text-dark">
+      🍪 Ce site utilise des cookies pour améliorer votre expérience et réaliser des statistiques.
+      <a href="/fr/cookies">En savoir plus</a>.
+    </div>
+    <div>
+      <button id="accept-cookies" class="btn btn-success btn-sm me-2">Accepter</button>
+      <button id="reject-cookies" class="btn btn-secondary btn-sm">Refuser</button>
+    </div>
+  </div>
+</div>
+
+
+        <nav class="navbar navbar-expand-lg bg-body-tertiary adminTopNav">
+  <div class="container-fluid">
+
+    <div class="d-flex w-100 d-lg-none">
+      <a class="navbar-brand text-warning flex-grow-1 text-lg-start" href="/fr/administrateur/1/site">
+                  <strong>Organisme A</strong>
+              </a>
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+              aria-controls="navbarSupportedContent" aria-expanded="false"
+              aria-label="Ouvrir/fermer la navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+    </div>
+
+    <div class="d-none d-lg-flex">
+      <a class="navbar-brand text-warning flex-grow-1 text-lg-start" href="/fr/administrateur/1/site">
+        <strong>Organisme A</strong>
+      </a>
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+              aria-controls="navbarSupportedContent" aria-expanded="false"
+              aria-label="Ouvrir/fermer la navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+    </div>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        
+        
+                <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-people"></i> Comptes
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/fr/administrateur/1/prospection"><i class="bi bi-person-add me-2"></i>Prospect</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/prospection/new"><i class="bi bi-person-add me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/utilisateur"><i class="bi bi-person-workspace me-2"></i>Client</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/utilisateur/ajouter"><i class="bi bi-person-add me-2"></i>Ajouter</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/planning/stagiaires"><i class="bi bi-calendar3 me-2"></i>Planning</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/formateur"><i class="fa-regular fa-user me-2"></i>Formateur</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/formateur/ajouter"><i class="bi bi-person-add me-2"></i>Ajouter</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/planning/formateurs"><i class="bi bi-calendar3 me-2"></i>Planning</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/entreprise"><i class="bi bi-building me-2"></i>Entreprise</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/entreprise/ajouter"><i class="bi bi-building-add me-2"></i>Ajouter</a></li>
+          </ul>
+        </li>
+
+
+
+
+
+                <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-kanban"></i> Gestion
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/fr/administrateur/1/formation"><i class="bi bi-mortarboard me-2"></i>Formation</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/formation/ajouter"><i class="bi bi-journal-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/session"><i class="bi bi-calendar4-week me-2"></i>Session</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/conventions/liste"><i class="fa-regular fa-file me-2"></i>Convention</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/attestation"><i class="bi bi-person-vcard me-2"></i>Attestation</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/session/ajouter"><i class="bi bi-calendar-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li> <a class="dropdown-item" href="/fr/administrateur/1/reservation"><i class="bi bi-calendar-check me-2"></i>Reservation</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/reservation/ajouter"><i class="bi bi-bag-plus me-2"></i>Ajouter</a></li>
+            
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/inscription/liste"><i class="bi bi-journal-check me-2"></i>Inscription</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/inscription/nouveau"><i class="bi bi-journal-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/engin"><i class="bi bi-car-front me-2"></i>Engin</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/engin/ajouter"><i class="bi bi-send-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/site"><i class="bi bi-geo-alt me-2"></i>Site</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/site/ajouter"><i class="bi bi-house-add me-2"></i>Ajouter</a></li>
+
+          </ul>
+        </li>
+
+
+                <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-clipboard2-check"></i> Questionnaire
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/fr/administrateur/1/positionnements/questionnaires"><i class="bi bi-clipboard2-check me-2"></i>Positionnement</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/positionnements/questionnaires/new"><i class="bi bi-clipboard2-plus me-2"></i>Ajouter</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/positionnements/assignments"><i class="bi bi-journal-text me-2"></i>Affectation</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/satisfaction/templates/"><i class="bi bi-clipboard2-check me-2"></i>Satisfaction Stagiaire</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/satisfaction/templates/new"><i class="bi bi-clipboard2-plus me-2"></i>Ajouter</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/satisfaction/assignments"><i class="bi bi-journal-text me-2"></i>Affectation</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/formateur-satisfaction/templates/"><i class="bi bi-clipboard2-check me-2"></i>Satisfaction Formateur</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/formateur-satisfaction/templates/new"><i class="bi bi-clipboard2-plus me-2"></i>Ajouter</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/formateur-satisfaction/assignments"><i class="bi bi-journal-text me-2"></i>Affectation</a></li>
+          </ul>
+        </li>
+
+                <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-cash-coin"></i> Comptabilité
+          </a>
+          <ul class="dropdown-menu">
+
+
+
+
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/finance"><i class="bi bi-clipboard-data me-2"></i></i>Analyse financière</a></li>
+            
+            <li><hr class="dropdown-divider"></li>
+            
+            <li><a class="dropdown-item" href="/fr/administrateur/1/devis"><i class="bi bi-file-earmark-text me-2"></i>Devis</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/devis/nouveau"><i class="bi bi-file-earmark-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/facture"><i class="bi bi-journal-bookmark me-2"></i>Facture</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/facture/new"><i class="bi bi-file-earmark-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/paiement"><i class="bi bi-cash-coin me-2"></i>Paiement</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/paiement/nouveau"><i class="bi bi-file-earmark-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/avoir/avoirs"><i class="bi bi-arrow-clockwise me-2"></i>Avoir</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/avoir/nouveau"><i class="bi bi-file-earmark-plus me-2"></i>Ajouter</a></li>
+            
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/depense"><i class="bi bi-cash-coin me-2"></i>Dépense</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/depense/new"><i class="bi bi-file-earmark-plus me-2"></i>Ajouter</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/charge"><i class="bi bi-cash-coin me-2"></i>Charge</a></li>
+            <li><a class="dropdown-item" href="/fr/administrateur/1/charge/rules/new"><i class="bi bi-file-earmark-plus me-2"></i>Ajouter</a></li>
+
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><a class="dropdown-item" href="/fr/administrateur/1/tva"><i class="bi bi-clipboard2-data me-2"></i>TVA</a></li>
+          </ul>
+        </li>
+
+        
+
+
+		                    <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-workspace"></i> Formateur
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/fr/formateur/1/dashboard"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+            <li><a class="dropdown-item" href="/fr/formateur/1/contrats"><i class="bi bi-pencil-square me-2"></i>Contrats</a></li>
+            <li><a class="dropdown-item" href="/fr/formateur/1/sessions"><i class="bi bi-calendar3 me-2"></i>Mes Sessions</a></li>
+            <li><a class="dropdown-item" href="/fr/formateur/1/supports/library"><i class="bi bi-file-earmark-pdf me-2"></i>Supports</a></li>
+            <li><a class="dropdown-item" href="/fr/formateur/1/rapport/liste"><i class="bi bi-file-medical me-2"></i>Rapport</a></li>
+            <li><a class="dropdown-item" href="/fr/formateur/1/positionnements"><i class="bi bi-clipboard2-check me-2"></i>Questionnaire</a></li>
+          </ul>
+        </li>
+
+        
+
+        
+                <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-mortarboard"></i> Stagiaire
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/fr/stagiaire/1/dashboard"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+            <li><a class="dropdown-item" href="/fr/stagiaire/1/sessions"><i class="bi bi-calendar3 me-2"></i>Mes Sessions</a></li>
+            <li><a class="dropdown-item" href="/fr/stagiaire/1/positionnements"><i class="bi bi-clipboard2-check me-2"></i>Questionnaire</a></li>
+          </ul>
+        </li>
+
+        
+
+
+        
+
+
+
+
+
+      </ul>
+
+    </div>
+
+    <div class="d-flex">
+
+      <li class="dropdown d-flex align-items-center">
+        
+
+
+<a class="nav-link dropdown-toggle d-flex align-items-center gap-1 py-0 lh-1"
+   href="#"
+   id="langDrop"
+   role="button"
+   data-bs-toggle="dropdown"
+   data-bs-display="static"
+   aria-expanded="false"
+   aria-label="Language selector">
+  <span class="lh-1" style="font-size:1.1rem">🇫🇷</span>
+</a>
+
+<ul class="dropdown-menu dropdown-menu-dark shadow" aria-labelledby="langDrop">
+              <li>
+      <a class="dropdown-item d-flex align-items-center gap-2 active"
+         hreflang="fr"
+         rel="alternate"
+         aria-current="true"
+         href="/fr/administrateur/1/session/modifier/1">
+        <span style="font-size:1.05rem">🇫🇷</span>
+        <span>Français</span>
+                  <i class="bi bi-check2 ms-auto" aria-hidden="true"></i>
+              </a>
+    </li>
+              <li>
+      <a class="dropdown-item d-flex align-items-center gap-2 "
+         hreflang="en"
+         rel="alternate"
+         aria-current="false"
+         href="/en/administrateur/1/session/modifier/1">
+        <span style="font-size:1.05rem">🇬🇧</span>
+        <span>English</span>
+              </a>
+    </li>
+  </ul>
+      </li>
+
+                    <div class="dropdown dropstart d-none d-lg-block mx-1">
+        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser3" data-bs-toggle="dropdown" aria-expanded="false">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+              <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+              <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+            </svg>
+        </a>
+
+
+        
+        <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
+          <li><a class="dropdown-item" href="/fr/administrateur/1/preferences/formateurs/contrat">Préférences</a></li>
+                    <li><a class="dropdown-item" href="/fr/super/public-host">Public Host</a></li>
+                              <li><a class="dropdown-item" href="/fr/premium/1/entite/1">Paramètres</a></li>
+                  </ul>
+      </div>
+
+      <div class="dropdown dropend d-lg-none mx-1">
+        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser4" data-bs-toggle="dropdown" aria-expanded="false">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
+              <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+              <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+            </svg>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
+          <li><a class="dropdown-item" href="/fr/administrateur/1/preferences/formateurs/contrat">Préférences</a></li>
+                    <li><a class="dropdown-item" href="/fr/super/public-host">Public Host</a></li>
+                              <li><a class="dropdown-item" href="/fr/premium/1/entite/1">Paramètres</a></li>
+                  </ul>
+      </div>
+      
+      <div class="dropdown dropstart d-none d-lg-block mx-1">
+        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser5" data-bs-toggle="dropdown" aria-expanded="false">
+                                  <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:30px;height:30px;font-size:.9rem;font-weight:600;">
+              AT
+            </div>
+                  </a>
+        <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
+                    <li><a class="dropdown-item" href="/fr/workspace">Switch</a></li>
+          <li><a class="dropdown-item" href="/fr/administrateur/1/billing">Abonnement</a></li>
+          <li><hr class="dropdown-divider border-white"></li>
+          <li><a class="dropdown-item" href="/fr/logout?entite=1">Déconnexion</a></li>
+        </ul>
+      </div>
+
+      <div class="dropdown dropend d-lg-none mx-1">
+        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser6" data-bs-toggle="dropdown" aria-expanded="false" data-bs-popper-placement="left">
+                                  <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:30px;height:30px;font-size:.9rem;font-weight:600;">
+              AT
+            </div>
+                  </a>
+        <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
+                    <li><a class="dropdown-item" href="/fr/workspace">Switch</a></li>
+          <li><a class="dropdown-item" href="/fr/administrateur/1/billing">Abonnement</a></li>
+          <li><hr class="dropdown-divider border-white"></li>
+          <li><a class="dropdown-item" href="/fr/logout">Déconnexion</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</nav>
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalLabel">Confirmation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to switch to club <strong id="clubName"></strong>?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <a href="#" id="confirmChange" class="btn btn-primary">Confirm</a>
+      </div>
+    </div>
+  </div>
+</div>
+        <button class="btn text-theme-secondaire toggle-btn btn-masquer">☰</button>
+
+<nav class="sidebar d-flex flex-column p-3 border-end">
+	<button class="close-btn">&times;</button>
+
+	<div class="row text-center mb-1">
+		<div class="col-lg-12">
+					</div>
+	</div>
+
+						
+	<ul class="nav flex-column">
+
+
+				<li class="nav-item">
+			<a href="/fr/administrateur/1/dashboard">
+				<span class="text-white">
+					<i class="bi bi-speedometer2"></i>
+					Dashboard
+				</span>
+			</a>
+		</li>
+
+		<hr class="mt-3 mb-1">
+		<center>COMPTES</center>
+		<hr class="mt-1 mb-1">
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuProspect" aria-expanded="false">
+				<i class="bi bi-person-add"></i>
+				Prospect
+			</button>
+
+			<div class="collapse " id="submenuProspect">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/prospection">
+							<span class="">Lister</span>
+						</a>
+					</li>
+										<li>
+						<a href="/fr/administrateur/1/prospection/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuUtilisateur" aria-expanded="false">
+				<i class="fa-regular fa-user"></i>
+
+				Client
+			</button>
+
+			<div class="collapse " id="submenuUtilisateur">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/utilisateur">
+							<span class="">Lister</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/utilisateur/ajouter">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/planning/stagiaires">
+							<span class="">Planning</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuFormateur" aria-expanded="false">
+				<i class="bi bi-person-workspace"></i>
+
+				Formateur
+			</button>
+
+			<div class="collapse " id="submenuFormateur">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/formateur">
+							<span class="">Lister</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/formateurs/contrats">
+							<span class="">Contrats</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/formateur/ajouter">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+
+					<li>
+						<a href="/fr/administrateur/1/planning/formateurs">
+							<span class="">Planning</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuEntreprise" aria-expanded="false">
+				<i class="bi bi-building"></i>
+
+				Entreprise
+			</button>
+
+			<div class="collapse " id="submenuEntreprise">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/entreprise">
+							<span class="">Lister</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/entreprise/ajouter">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		<hr class="mt-3 mb-1">
+		<center>GESTION</center>
+		<hr class="mt-1 mb-1">
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuFormation" aria-expanded="false">
+				<i class="bi bi-mortarboard"></i>
+
+				Formation
+			</button>
+
+			<div class="collapse " id="submenuFormation">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/formation">
+							<span class="">Lister</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/formation/ajouter">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+
+					<li>
+						<a href="/fr/administrateur/1/formation/categorie">
+							<span class="">Categorie</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-theme-secondaire" data-bs-toggle="collapse" data-bs-target="#submenuSession" aria-expanded="true">
+				<i class="bi bi-calendar4-week"></i>
+
+				Session
+			</button>
+
+
+
+			<div class="collapse show" id="submenuSession">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/session">
+							<span class="">Lister</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/session/ajouter">
+							<span class="text-theme-secondaire">Ajouter</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/inscription/liste">
+							<span class="">Inscription</span>
+						</a>
+					</li>
+
+					<li>
+						<a href="/fr/administrateur/1/attestation">
+							<span class="">Attestation</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/planning/sessions">
+							<span class="">Planning</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuConvention" aria-expanded="false">
+				<i class="bi bi-calendar-check"></i>
+				Convention
+			</button>
+
+			<div class="collapse " id="submenuConvention">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/conventions/liste">
+							<span class="">Lister</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/devis">
+							<span>Créer depuis un devis</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuBoat" aria-expanded="false">
+				<i class="bi bi-car-front"></i>
+				Engin
+			</button>
+
+			<div class="collapse " id="submenuBoat">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/engin">
+							<span class="">Lister</span>
+						</a>
+					</li>
+										<li>
+						<a href="/fr/administrateur/1/engin/ajouter">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuSite" aria-expanded="false">
+				<i class="bi bi-geo-alt"></i>
+				Site
+			</button>
+
+			<div class="collapse " id="submenuSite">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/site">
+							<span class="">Lister</span>
+						</a>
+					</li>
+										<li>
+						<a href="/fr/administrateur/1/site/ajouter">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+		<li class="nav-item">
+			<a href="/fr/administrateur/1/bpf">
+				<span class="text-white">
+					<i class="bi bi-clipboard2-data"></i>
+					BPF
+				</span>
+			</a>
+		</li>
+
+
+
+
+
+
+
+
+
+		<hr class="mt-3 mb-1">
+		<center>COMPTABILITE</center>
+		<hr class="mt-1 mb-1">
+
+
+
+
+
+
+		<li class="nav-item">
+			<a href="/fr/administrateur/1/finance">
+				<span class="text-white">
+					<i class="bi bi-speedometer2"></i>
+					Analyse financière
+				</span>
+			</a>
+		</li>
+
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuDevis" aria-expanded="false">
+				<i class="bi bi-file-earmark-text"></i>
+				Devis
+			</button>
+
+			<div class="collapse " id="submenuDevis">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/devis">
+							<span class="">Lister</span>
+						</a>
+					</li>
+
+                    <li>
+						<a href="/fr/administrateur/1/devis/nouveau">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/reservation">
+							<span class="">Lister</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuFacture" aria-expanded="false">
+				<i class="bi bi-journal-bookmark"></i>
+
+				Facture
+			</button>
+
+			<div class="collapse " id="submenuFacture">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/facture">
+							<span class="">Lister</span>
+						</a>
+					</li>
+                    <li>
+						<a href="/fr/administrateur/1/facture/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuPaiement" aria-expanded="false">
+				<i class="bi bi-cash-coin"></i>
+				Paiement
+			</button>
+
+			<div class="collapse " id="submenuPaiement">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/paiement">
+							<span class="">Lister</span>
+						</a>
+					</li>
+                    <li>
+						<a href="/fr/administrateur/1/paiement/nouveau">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuCredit" aria-expanded="false">
+				<i class="bi bi-arrow-clockwise"></i>
+				Avoir
+			</button>
+
+			<div class="collapse " id="submenuCredit">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/avoir/avoirs">
+							<span class="">Lister</span>
+						</a>
+					</li>
+                    <li>
+						<a href="/fr/administrateur/1/avoir/nouveau">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuDepense" aria-expanded="false">
+				<i class="bi bi-cash-coin"></i>
+				Dépense
+			</button>
+
+			<div class="collapse " id="submenuDepense">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/depense">
+							<span class="">Lister</span>
+						</a>
+					</li>
+                    <li>
+						<a href="/fr/administrateur/1/depense/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuCharge" aria-expanded="false">
+				<i class="bi bi-cash-coin"></i>
+				Charge
+			</button>
+
+			<div class="collapse " id="submenuCharge">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/charge">
+							<span class="">Dashboard</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/charge/preview">
+							<span class="">Lister</span>
+						</a>
+					</li>
+          <li>
+						<a href="/fr/administrateur/1/charge/rules/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="/fr/administrateur/1/tva">
+				<span class="text-white">
+					<i class="bi bi-clipboard2-data"></i>
+					TVA
+				</span>
+			</a>
+		</li>
+
+
+		<hr class="mt-3 mb-1">
+		<center>QUESTIONNAIRE</center>
+		<hr class="mt-1 mb-1">
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuPositioning" aria-expanded="false">
+				<i class="bi bi-clipboard2-check"></i>
+				Positionnement
+			</button>
+
+			<div class="collapse " id="submenuPositioning">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/positionnements/questionnaires">
+							<span class="">Lister</span>
+						</a>
+					</li>
+          <li>
+						<a href="/fr/administrateur/1/positionnements/questionnaires/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/positionnements/assignments">
+							<span class="">Affectation</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuSatisfaction" aria-expanded="false">
+				<i class="bi bi-clipboard2-check"></i>
+				Satisfaction Stagiaire
+			</button>
+
+			<div class="collapse " id="submenuSatisfaction">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/satisfaction/templates/">
+							<span class="">Lister</span>
+						</a>
+					</li>
+          <li>
+						<a href="/fr/administrateur/1/satisfaction/templates/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/satisfaction/assignments">
+							<span class="">Affectation</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuSatisfactionFormateur" aria-expanded="false">
+				<i class="bi bi-clipboard2-check"></i>
+				Satisfaction Formateur
+			</button>
+
+			<div class="collapse " id="submenuSatisfactionFormateur">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/formateur-satisfaction/templates/">
+							<span class="">Lister</span>
+						</a>
+					</li>
+          <li>
+						<a href="/fr/administrateur/1/formateur-satisfaction/templates/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/formateur-satisfaction/assignments">
+							<span class="">Affectation</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuNiveau" aria-expanded="false">
+				<i class="bi bi-clipboard2-check"></i>
+				Niveau
+			</button>
+
+			<div class="collapse " id="submenuNiveau">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/qcm">
+							<span class="">Lister</span>
+						</a>
+					</li>
+          <li>
+						<a href="/fr/administrateur/1/qcm/new">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/administrateur/1/qcm/assignments">
+							<span class="">Affectation</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+
+
+		<hr class="mt-3 mb-1">
+		<center>ELEARNING</center>
+		<hr class="mt-1 mb-1">
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuElearning" aria-expanded="false">
+				<i class="bi bi-clipboard2-check"></i>
+				Cours
+			</button>
+
+			<div class="collapse " id="submenuElearning">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/administrateur/1/elearning">
+							<span class="">Lister</span>
+						</a>
+					</li>
+          <li>
+						<a href="/fr/administrateur/1/elearning/ajouter">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+		
+
+
+				<hr class="mt-3 mb-1">
+		<center>FORMATEUR</center>
+		<hr class="mt-1 mb-1">
+
+
+
+		<li class="nav-item">
+			<a href="/fr/formateur/1/dashboard">
+				<span class="text-white">
+					<i class="bi bi-speedometer2"></i>
+					Dashboard
+				</span>
+			</a>
+		</li>
+
+		<li class="nav-item">
+			<a href="/fr/formateur/1/contrats">
+				<span class="text-white">
+					<i class="bi bi-pencil-square"></i>
+					Contrats
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="/fr/formateur/1/sessions">
+				<span class="text-white">
+					<i class="bi bi-calendar3"></i>
+					Mes Sessions
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="/fr/formateur/1/supports/library">
+				<span class="text-white">
+					<i class="bi bi-file-earmark-pdf"></i>
+					Supports
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuRapportFormateur" aria-expanded="false">
+				<i class="bi bi-file-medical"></i>
+				Rapport
+			</button>
+
+			<div class="collapse " id="submenuRapportFormateur">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/formateur/1/rapport/liste">
+							<span class="">Lister</span>
+						</a>
+					</li>
+                    <li>
+						<a href="/fr/formateur/1/rapport/nouveau">
+							<span class="">Ajouter</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuQuizPositioningTrainer" aria-expanded="false">
+				<i class="bi bi-clipboard2-check"></i>
+
+				Questionnaire
+			</button>
+
+			<div class="collapse " id="submenuQuizPositioningTrainer">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/formateur/1/positionnements">
+							<span class="">Positionnement</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+		
+				<hr class="mt-3 mb-1">
+		<center>STAGIAIRE</center>
+		<hr class="mt-1 mb-1">
+
+
+
+		<li class="nav-item">
+			<a href="/fr/stagiaire/1/dashboard">
+				<span class="text-white">
+					<i class="bi bi-speedometer2"></i>
+					Dashboard
+				</span>
+			</a>
+		</li>
+
+		<li class="nav-item">
+			<a href="/fr/stagiaire/1/sessions">
+				<span class="text-white">
+					<i class="bi bi-calendar3"></i>
+					Mes Sessions
+				</span>
+			</a>
+		</li>
+
+
+
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuQuizPositioningTrainee" aria-expanded="false">
+				<i class="bi bi-clipboard2-check"></i>
+				Questionnaire
+			</button>
+
+			<div class="collapse " id="submenuQuizPositioningTrainee">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+					<li>
+						<a href="/fr/stagiaire/1/positionnements">
+							<span class="">Positionnement</span>
+						</a>
+					</li>
+					<li>
+						<a href="/fr/stagiaire/1/qcm">
+							<span class="">Niveau</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+
+
+
+		<li class="nav-item">
+			<button class="nav-link dropdown-toggle text-white" data-bs-toggle="collapse" data-bs-target="#submenuCourseTrainee" aria-expanded="false">
+				<i class="fa-solid fa-person-chalkboard"></i>
+				Cours
+			</button>
+
+
+
+			<div class="collapse " id="submenuCourseTrainee">
+				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
+          <li>
+						<a href="/fr/stagiaire/1/elearning">
+							<span class="">Elearning</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</li>
+		
+		
+
+
+				<hr class="mt-3 mb-1">
+		<center>OF</center>
+		<hr class="mt-1 mb-1">
+
+
+
+		<li class="nav-item">
+			<a href="/fr/of/1/dashboard">
+				<span class="text-white">
+					<i class="bi bi-speedometer2"></i>
+					Dashboard
+				</span>
+			</a>
+		</li>
+
+
+
+		<li class="nav-item">
+			<a href="/fr/of/1/documents">
+				<span class="text-white">
+					<i class="bi bi-file-earmark-pdf"></i>
+					Documents
+				</span>
+			</a>
+		</li>
+
+
+		
+
+				<hr class="mt-3 mb-1">
+		<center>SUPER</center>
+		<hr class="mt-1 mb-1">
+
+
+
+		<li class="nav-item">
+			<a href="/fr/super/public-host?entite=1">
+				<span class="text-white">
+					<i class="bi bi-globe2"></i>
+					Public Host
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="/fr/super/1/console">
+				<span class="text-white">
+					<i class="bi bi-file-earmark-pdf"></i>
+					Console
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="/fr/super/entites/1/users">
+				<span class="text-white">
+					<i class="bi bi-file-earmark-pdf"></i>
+					Utilisateurs
+				</span>
+			</a>
+		</li>
+
+
+		<li class="nav-item">
+			<a href="/fr/super/1/entites/subscription">
+				<span class="text-white">
+					<i class="bi bi-file-earmark-pdf"></i>
+					Utilisateurs
+				</span>
+			</a>
+		</li>
+
+
+
+
+
+
+			</ul>
+</nav>
+
+        <div class="content">
+            
+    <div class="hero p-3 mb-4 d-flex gap-3">
     <div class="accent"></div>
 
     <div class="flex-grow-1">
@@ -486,25 +1781,23 @@
         <div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-calendar-event me-2" style="color:var(--theme-color-secondaire)"></i>
-            {{ modeEdition ? 'Modifier une session' : 'Ajouter une session' }}
+            Modifier une session
           </h2>
           <div class="opacity-75 mt-1">Références, journées, stagiaires, pièces et logistique.</div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
             <span class="chip"><i class="bi bi-calendar-event"></i> Session</span>
-            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
-            <span class="chip chip--pill"><i class="bi bi-pencil-square"></i> {{ modeEdition ? 'Modification' : 'Création' }}</span>
-            {% if form.vars.value and form.vars.value.id %}
-              <span class="chip"><i class="bi bi-hash"></i> #{{ form.vars.value.id }}</span>
-            {% endif %}
-          </div>
+            <span class="chip"><i class="bi bi-building"></i> Organisme A</span>
+            <span class="chip chip--pill"><i class="bi bi-pencil-square"></i> Modification</span>
+                          <span class="chip"><i class="bi bi-hash"></i> #1</span>
+                      </div>
         </div>
 
         <div class="d-flex gap-2 flex-wrap">
           <a class="btn btn-outline-theme btn-sm fw-semibold" href="javascript:history.back()">
             <i class="bi bi-arrow-left"></i> Retour
           </a>
-          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+          <button form="session" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
             <i class="bi bi-check2"></i> Enregistrer
           </button>
         </div>
@@ -512,34 +1805,30 @@
     </div>
   </div>
 
-  {% include 'flagMessage.html.twig' %}
-
-  {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate' } }) }}
-  {{ form_errors(form) }}
+  
+  <form name="session" method="post" id="session" novalidate="novalidate">
+  
 
   <div class="row g-4">
-    {# ====================== COL LEFT ====================== #}
-    <div class="col-lg-8">
+        <div class="col-lg-8">
 
-      {# ===== Liens & Références ===== #}
-      <div class="cardx mb-4">
+            <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-link-45deg text-warning"></i> Liens & Références</h5>
           <span class="chip">Étape 1</span>
         </div>
         <div class="p-3 p-md-4">
           <div class="row g-3">
-            {# Formation (interne) + Intitulé (OF) #}
-            <div class="col-md-12">{{ form_row(form.typeFinancement) }}</div>
+                        <div class="col-md-12"><div><label for="session_typeFinancement" class="required">Sous traitance</label><select id="session_typeFinancement" name="session[typeFinancement]" class="form-select" data-of-value="oui"><option value="non" selected="selected">Non</option><option value="oui">Oui</option></select></div></div>
             <div class="col-md-6">
               
               
               <div id="wrap-formation">
-                {{ form_row(form.formation) }}
+                <div><label for="session_formation">*Formation</label><select id="session_formation" name="session[formation]" class="form-select"><option value="">- Sélectionner une formation -</option><option value="1" selected="selected">Formation test - Initial - 0j</option></select></div>
               </div>
 
               <div id="wrap-formation-libre" class="d-none mt-2">
-                {{ form_row(form.formationIntituleLibre) }}
+                <div><label for="session_formationIntituleLibre">Intitulé de la formation (sous-traitance OF)</label><input type="text" id="session_formationIntituleLibre" name="session[formationIntituleLibre]" class="form-control" placeholder="Ex : SST initial - 14h - Inter" autocomplete="off" /></div>
               </div>
 
 
@@ -550,7 +1839,7 @@
               
 
               <div id="wrap-organisme-formation" class="d-none mt-2">
-                {{ form_row(form.organismeFormation) }}
+                <div><label for="session_organismeFormation">Organisme de formation</label><select id="session_organismeFormation" name="session[organismeFormation]" class="form-select"><option value="">- Sélectionner une entreprise -</option></select></div>
               </div>
 
             </div>
@@ -558,7 +1847,7 @@
 
             <div class="col-md-6">
               <div class="d-flex align-items-end gap-2">
-                <div class="flex-grow-1">{{ form_row(form.site) }}</div>
+                <div class="flex-grow-1"><div><label for="session_site" class="required">*Site</label><select id="session_site" name="session[site]" class="form-select"><option value="1" selected="selected">Salle test - </option></select></div></div>
                 <button type="button" class="btn btn-outline-secondary"
                         data-bs-toggle="modal" data-bs-target="#modal-new-site" title="Créer un site">
                   <i class="fa fa-plus"></i>
@@ -570,7 +1859,7 @@
 
             <div class="col-md-6">
               <div class="d-flex align-items-end gap-2">
-                <div class="flex-grow-1">{{ form_row(form.formateur) }}</div>
+                <div class="flex-grow-1"><div><label for="session_formateur">Formateur par défaut</label><select id="session_formateur" name="session[formateur]" class="form-select" aria-describedby="session_formateur_help"><option value=""></option><option value="2">Formateur Après-midi</option><option value="1" selected="selected">Formateur Matin</option></select><div id="session_formateur_help" class="help-text">Utilisé sur les créneaux sans intervenant spécifique. Attribuez chaque journée ou demi-journée dans le planning ci-dessous.</div></div></div>
                 <button type="button" class="btn btn-outline-secondary"
                         data-bs-toggle="modal" data-bs-target="#modal-new-formateur" title="Créer un formateur">
                   <i class="fa fa-user-plus"></i>
@@ -578,9 +1867,9 @@
               </div>
             </div>
 
-            <div class="col-md-6">{{ form_row(form.status) }}</div>
-            <div class="col-md-6">{{ form_row(form.engin) }}</div>
-            <div class="col-md-6">{{ form_row(form.code) }}</div>
+            <div class="col-md-6"><div><label for="session_status" class="required">Statut</label><select id="session_status" name="session[status]" class="form-select"><option value="canceled">Annulée</option><option value="draft" selected="selected">Brouillon</option><option value="full">Complète</option><option value="published">Publiée</option><option value="done">Terminée</option></select></div></div>
+            <div class="col-md-6"><div><label for="session_engin">Engin</label><select id="session_engin" name="session[engin]" class="form-select"><option value=""></option></select></div></div>
+            <div class="col-md-6"><input type="hidden" id="session_code" name="session[code]" value="SES-TEST" /></div>
           </div>
 
           <div class="form-text mt-2">
@@ -589,16 +1878,15 @@
         </div>
       </div>
 
-      {# ===== Capacité ===== #}
-      <div class="cardx mb-4">
+            <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-people text-warning"></i> Capacité & Tarif</h5>
           <span class="chip">Paramètres</span>
         </div>
         <div class="p-3 p-md-4">
           <div class="row g-3">
-            <div class="col-md-6">{{ form_row(form.capacite) }}</div>
-            <div class="col-md-6">{{ form_row(form.montantCents) }}</div>
+            <div class="col-md-6"><div><label for="session_capacite" class="required">Capacité</label><input type="number" id="session_capacite" name="session[capacite]" required="required" class="form-control" min="1" value="8" /></div></div>
+            <div class="col-md-6"><div><label for="session_montantCents">Tarif spécifique (€)</label><input type="text" id="session_montantCents" name="session[montantCents]" class="form-control" inputmode="decimal" placeholder="1 390,00" aria-describedby="session_montantCents_help" /><div id="session_montantCents_help" class="help-text">Laisse vide pour utiliser le prix de la formation.</div></div></div>
           </div>
           <div class="form-text mt-2">
             Le tarif effectif = montant personnalisé, sinon le prix de base de la formation.
@@ -606,9 +1894,7 @@
         </div>
       </div>
 
-      {# ===== Pièces obligatoires ===== #}
-      {% if form.piecesObligatoires is defined %}
-        <div class="cardx mb-4">
+                    <div class="cardx mb-4">
           <div class="cardx-h">
             <h5 class="cardx-title"><i class="bi bi-file-earmark-check text-warning"></i> Pièces obligatoires</h5>
             <span class="chip">Dossier</span>
@@ -620,91 +1906,114 @@
             </p>
 
             <div class="pieces-obligatoires-group">
-              {{ form_label(form.piecesObligatoires, null, { label_attr: {'class': 'form-label fw-semibold'} }) }}
-              {{ form_errors(form.piecesObligatoires) }}
+              <label class="form-label fw-semibold">Pièces obligatoires pour valider un dossier</label>
+              
 
               <div class="pieces-obligatoires-grid">
-                {% for child in form.piecesObligatoires %}
-                  <div class="form-check piece-check-card">
-                    {{ form_widget(child, {'attr': {'class': 'form-check-input'}}) }}
-                    <label class="form-check-label" for="{{ child.vars.id }}">
-                      <span class="piece-check-card-title">{{ child.vars.label }}</span>
-                      {% set val = child.vars.value %}
-                      <span class="piece-check-card-sub">
-                        {% if val == 'cni_recto' %}
-                          Carte nationale d’identité (recto) ou passeport en cours de validité.
-                        {% elseif val == 'cni_verso' %}
-                          Carte nationale d’identité (verso) ou passeport en cours de validité.
-                        {% elseif val == 'convocation_signee' %}
-                          Convocation signée par le stagiaire.
-                        {% elseif val == 'reglement_interieur_signee' %}
-                          Règlement intérieur daté et signé.
-                        {% elseif val == 'opco_prise_en_charge' %}
-                          Justificatif de prise en charge OPCO.
-                        {% elseif val == 'justificatif_domicile' %}
-                          Justificatif de domicile de moins de 3 mois.
-                        {% else %}
-                          Pièce justificative obligatoire pour ce dossier.
-                        {% endif %}
-                      </span>
+                                  <div class="form-check piece-check-card">
+                    <input type="checkbox" id="session_piecesObligatoires_0" name="session[piecesObligatoires][]" class="form-check-input" value="cni_recto" />
+                    <label class="form-check-label" for="session_piecesObligatoires_0">
+                      <span class="piece-check-card-title">Carte nationale d&#039;identité (recto)</span>
+                                            <span class="piece-check-card-sub">
+                                                  Carte nationale d’identité (recto) ou passeport en cours de validité.
+                                              </span>
                     </label>
                   </div>
-                {% endfor %}
-              </div>
+                                  <div class="form-check piece-check-card">
+                    <input type="checkbox" id="session_piecesObligatoires_1" name="session[piecesObligatoires][]" class="form-check-input" value="cni_verso" />
+                    <label class="form-check-label" for="session_piecesObligatoires_1">
+                      <span class="piece-check-card-title">Carte nationale d&#039;identité (verso)</span>
+                                            <span class="piece-check-card-sub">
+                                                  Carte nationale d’identité (verso) ou passeport en cours de validité.
+                                              </span>
+                    </label>
+                  </div>
+                                  <div class="form-check piece-check-card">
+                    <input type="checkbox" id="session_piecesObligatoires_2" name="session[piecesObligatoires][]" class="form-check-input" value="convocation_signee" />
+                    <label class="form-check-label" for="session_piecesObligatoires_2">
+                      <span class="piece-check-card-title">Convocation signée</span>
+                                            <span class="piece-check-card-sub">
+                                                  Convocation signée par le stagiaire.
+                                              </span>
+                    </label>
+                  </div>
+                                  <div class="form-check piece-check-card">
+                    <input type="checkbox" id="session_piecesObligatoires_3" name="session[piecesObligatoires][]" class="form-check-input" value="reglement_interieur_signee" />
+                    <label class="form-check-label" for="session_piecesObligatoires_3">
+                      <span class="piece-check-card-title">Règlement intérieur signé</span>
+                                            <span class="piece-check-card-sub">
+                                                  Règlement intérieur daté et signé.
+                                              </span>
+                    </label>
+                  </div>
+                                  <div class="form-check piece-check-card">
+                    <input type="checkbox" id="session_piecesObligatoires_4" name="session[piecesObligatoires][]" class="form-check-input" value="opco_prise_en_charge" />
+                    <label class="form-check-label" for="session_piecesObligatoires_4">
+                      <span class="piece-check-card-title">Prise en charge OPCO</span>
+                                            <span class="piece-check-card-sub">
+                                                  Justificatif de prise en charge OPCO.
+                                              </span>
+                    </label>
+                  </div>
+                                  <div class="form-check piece-check-card">
+                    <input type="checkbox" id="session_piecesObligatoires_5" name="session[piecesObligatoires][]" class="form-check-input" value="justificatif_domicile" />
+                    <label class="form-check-label" for="session_piecesObligatoires_5">
+                      <span class="piece-check-card-title">Justificatif de domicile</span>
+                                            <span class="piece-check-card-sub">
+                                                  Justificatif de domicile de moins de 3 mois.
+                                              </span>
+                    </label>
+                  </div>
+                                  <div class="form-check piece-check-card">
+                    <input type="checkbox" id="session_piecesObligatoires_6" name="session[piecesObligatoires][]" class="form-check-input" value="certificat_medical" />
+                    <label class="form-check-label" for="session_piecesObligatoires_6">
+                      <span class="piece-check-card-title">Certificat médical</span>
+                                            <span class="piece-check-card-sub">
+                                                  Pièce justificative obligatoire pour ce dossier.
+                                              </span>
+                    </label>
+                  </div>
+                              </div>
             </div>
           </div>
         </div>
-      {% endif %}
-
-      {# ===== Journées ===== #}
-      {% set jourPrototype %}
-        <div class='row g-3 mb-2 jour-item' data-training-slot>
-          <div class='col-md-4'>
-            {{ form_row(form.jours.vars.prototype.dateDebut) }}
-          </div>
-          <div class='col-md-4'>
-            {{ form_row(form.jours.vars.prototype.dateFin) }}
-          </div>
-          <div class='col-md-3'>
-            {{ form_row(form.jours.vars.prototype.pauseMinutes, {help: false}) }}
-          </div>
-          <div class='col-md-1 d-flex align-items-end justify-content-end'>
-            <button type='button' class='btn btn-outline-danger btn-remove-jour'>
-              <i class='fa fa-trash'></i>
-            </button>
-          </div>
-          <div class='col-md-6'>{{ form_row(form.jours.vars.prototype.formateur) }}</div>
-          <div class='col-md-6 d-flex align-items-center'><span class='small text-muted' data-training-duration aria-live='polite'></span></div>
-        </div>
-      {% endset %}
-
+      
+            
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-calendar-week text-warning"></i> Planning & intervenants</h5>
-          <span class="chip" id="chip-jours">{{ form.jours|length }} créneau{{ form.jours|length > 1 ? 'x' : '' }}</span>
+          <span class="chip" id="chip-jours">2 créneaux</span>
         </div>
         <div class="p-3 p-md-4">
           <p class="text-muted small">Affectez un formateur à chaque journée ou demi-journée. Le formateur par défaut intervient sur les créneaux sans affectation spécifique. Pour deux intervenants le même jour, ajoutez une matinée puis un après-midi.</p>
           <p class="small text-muted">Une journée propose 7 h de formation et 1 h 30 de pause (90 minutes), par exemple 8 h 30–17 h. La fin suit votre heure de début tant que vous ne la personnalisez pas. Une journée peut dépasser 7 h : la pause automatique reste de 90 minutes. Aucune pause n’est déduite d’une demi-journée. Le champ Pause permet de saisir une autre durée en minutes, ou 0 pour ne rien déduire.</p>
-          {{ form_errors(form.jours) }}
-          {% set nextJourIndex = 0 %}
-          {% for jour in form.jours %}{% set nextJourIndex = max(nextJourIndex, jour.vars.name + 1) %}{% endfor %}
-          <div id="jours-collection" data-next-index="{{ nextJourIndex }}" data-prototype="{{ jourPrototype|e('html_attr') }}">
-            {% for jour in form.jours %}
-              <div class="row g-3 mb-2 jour-item" data-training-slot>
-                <div class="col-md-4">{{ form_row(jour.dateDebut) }}</div>
-                <div class="col-md-4">{{ form_row(jour.dateFin) }}</div>
-                <div class="col-md-3">{{ form_row(jour.pauseMinutes, {help: false}) }}</div>
+          
+                              <div id="jours-collection" data-next-index="2" data-prototype="&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;row&#x20;g-3&#x20;mb-2&#x20;jour-item&#x27;&#x20;data-training-slot&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-4&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&gt;&lt;label&#x20;for&#x3D;&quot;session_jours___name___dateDebut&quot;&#x20;class&#x3D;&quot;required&quot;&gt;D&#x00E9;but&#x20;du&#x20;cr&#x00E9;neau&lt;&#x2F;label&gt;&lt;input&#x20;type&#x3D;&quot;text&quot;&#x20;id&#x3D;&quot;session_jours___name___dateDebut&quot;&#x20;name&#x3D;&quot;session&#x5B;jours&#x5D;&#x5B;__name__&#x5D;&#x5B;dateDebut&#x5D;&quot;&#x20;required&#x3D;&quot;required&quot;&#x20;class&#x3D;&quot;form-control&#x20;flatpickr-datetime&quot;&#x20;placeholder&#x3D;&quot;JJ&#x2F;MM&#x2F;AAAA&#x20;HH&#x3A;mm&quot;&#x20;autocomplete&#x3D;&quot;off&quot;&#x20;inputmode&#x3D;&quot;numeric&quot;&#x20;&#x2F;&gt;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-4&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&gt;&lt;label&#x20;for&#x3D;&quot;session_jours___name___dateFin&quot;&#x20;class&#x3D;&quot;required&quot;&gt;Fin&#x20;du&#x20;cr&#x00E9;neau&lt;&#x2F;label&gt;&lt;input&#x20;type&#x3D;&quot;text&quot;&#x20;id&#x3D;&quot;session_jours___name___dateFin&quot;&#x20;name&#x3D;&quot;session&#x5B;jours&#x5D;&#x5B;__name__&#x5D;&#x5B;dateFin&#x5D;&quot;&#x20;required&#x3D;&quot;required&quot;&#x20;class&#x3D;&quot;form-control&#x20;flatpickr-datetime&quot;&#x20;placeholder&#x3D;&quot;JJ&#x2F;MM&#x2F;AAAA&#x20;HH&#x3A;mm&quot;&#x20;autocomplete&#x3D;&quot;off&quot;&#x20;inputmode&#x3D;&quot;numeric&quot;&#x20;&#x2F;&gt;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-3&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&gt;&lt;label&#x20;for&#x3D;&quot;session_jours___name___pauseMinutes&quot;&gt;Pause&#x20;&#x28;minutes&#x29;&lt;&#x2F;label&gt;&lt;input&#x20;type&#x3D;&quot;number&quot;&#x20;id&#x3D;&quot;session_jours___name___pauseMinutes&quot;&#x20;name&#x3D;&quot;session&#x5B;jours&#x5D;&#x5B;__name__&#x5D;&#x5B;pauseMinutes&#x5D;&quot;&#x20;min&#x3D;&quot;0&quot;&#x20;step&#x3D;&quot;1&quot;&#x20;placeholder&#x3D;&quot;Automatique&quot;&#x20;data-training-pause&#x3D;&quot;&quot;&#x20;&#x2F;&gt;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-1&#x20;d-flex&#x20;align-items-end&#x20;justify-content-end&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;button&#x20;type&#x3D;&#x27;button&#x27;&#x20;class&#x3D;&#x27;btn&#x20;btn-outline-danger&#x20;btn-remove-jour&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;i&#x20;class&#x3D;&#x27;fa&#x20;fa-trash&#x27;&gt;&lt;&#x2F;i&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;button&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-6&#x27;&gt;&lt;div&gt;&lt;label&#x20;for&#x3D;&quot;session_jours___name___formateur&quot;&gt;Intervenant&#x20;du&#x20;cr&#x00E9;neau&lt;&#x2F;label&gt;&lt;select&#x20;id&#x3D;&quot;session_jours___name___formateur&quot;&#x20;name&#x3D;&quot;session&#x5B;jours&#x5D;&#x5B;__name__&#x5D;&#x5B;formateur&#x5D;&quot;&#x20;class&#x3D;&quot;form-select&#x20;formateur-jour-select&quot;&gt;&lt;option&#x20;value&#x3D;&quot;&quot;&gt;Formateur&#x20;&#x28;par&#x20;d&#x00E9;faut&#x20;celui&#x20;de&#x20;la&#x20;session&#x29;&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;2&quot;&gt;Apr&#x00E8;s-midi&#x20;Formateur&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;1&quot;&gt;Matin&#x20;Formateur&lt;&#x2F;option&gt;&lt;&#x2F;select&gt;&lt;&#x2F;div&gt;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-6&#x20;d-flex&#x20;align-items-center&#x27;&gt;&lt;span&#x20;class&#x3D;&#x27;small&#x20;text-muted&#x27;&#x20;data-training-duration&#x20;aria-live&#x3D;&#x27;polite&#x27;&gt;&lt;&#x2F;span&gt;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;">
+                          <div class="row g-3 mb-2 jour-item" data-training-slot>
+                <div class="col-md-4"><div><label for="session_jours_0_dateDebut" class="required">Début du créneau</label><input type="text" id="session_jours_0_dateDebut" name="session[jours][0][dateDebut]" required="required" class="form-control flatpickr-datetime" placeholder="JJ/MM/AAAA HH:mm" autocomplete="off" inputmode="numeric" value="05/10/2026 09:00" /></div></div>
+                <div class="col-md-4"><div><label for="session_jours_0_dateFin" class="required">Fin du créneau</label><input type="text" id="session_jours_0_dateFin" name="session[jours][0][dateFin]" required="required" class="form-control flatpickr-datetime" placeholder="JJ/MM/AAAA HH:mm" autocomplete="off" inputmode="numeric" value="05/10/2026 12:30" /></div></div>
+                <div class="col-md-3"><div><label for="session_jours_0_pauseMinutes">Pause (minutes)</label><input type="number" id="session_jours_0_pauseMinutes" name="session[jours][0][pauseMinutes]" min="0" step="1" placeholder="Automatique" data-training-pause="" /></div></div>
                 <div class="col-md-1 d-flex align-items-end justify-content-end">
                   <button type="button" class="btn btn-outline-danger btn-remove-jour">
                     <i class="fa fa-trash"></i>
                   </button>
                 </div>
-                <div class="col-md-6">{{ form_row(jour.formateur) }}</div>
+                <div class="col-md-6"><div><label for="session_jours_0_formateur">Intervenant du créneau</label><select id="session_jours_0_formateur" name="session[jours][0][formateur]" class="form-select formateur-jour-select"><option value="">Formateur (par défaut celui de la session)</option><option value="2">Après-midi Formateur</option><option value="1">Matin Formateur</option></select></div></div>
                 <div class="col-md-6 d-flex align-items-center"><span class="small text-muted" data-training-duration aria-live="polite"></span></div>
               </div>
-            {% endfor %}
-          </div>
+                          <div class="row g-3 mb-2 jour-item" data-training-slot>
+                <div class="col-md-4"><div><label for="session_jours_1_dateDebut" class="required">Début du créneau</label><input type="text" id="session_jours_1_dateDebut" name="session[jours][1][dateDebut]" required="required" class="form-control flatpickr-datetime" placeholder="JJ/MM/AAAA HH:mm" autocomplete="off" inputmode="numeric" value="05/10/2026 13:30" /></div></div>
+                <div class="col-md-4"><div><label for="session_jours_1_dateFin" class="required">Fin du créneau</label><input type="text" id="session_jours_1_dateFin" name="session[jours][1][dateFin]" required="required" class="form-control flatpickr-datetime" placeholder="JJ/MM/AAAA HH:mm" autocomplete="off" inputmode="numeric" value="05/10/2026 17:00" /></div></div>
+                <div class="col-md-3"><div><label for="session_jours_1_pauseMinutes">Pause (minutes)</label><input type="number" id="session_jours_1_pauseMinutes" name="session[jours][1][pauseMinutes]" min="0" step="1" placeholder="Automatique" data-training-pause="" /></div></div>
+                <div class="col-md-1 d-flex align-items-end justify-content-end">
+                  <button type="button" class="btn btn-outline-danger btn-remove-jour">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </div>
+                <div class="col-md-6"><div><label for="session_jours_1_formateur">Intervenant du créneau</label><select id="session_jours_1_formateur" name="session[jours][1][formateur]" class="form-select formateur-jour-select"><option value="">Formateur (par défaut celui de la session)</option><option value="2" selected="selected">Après-midi Formateur</option><option value="1">Matin Formateur</option></select></div></div>
+                <div class="col-md-6 d-flex align-items-center"><span class="small text-muted" data-training-duration aria-live="polite"></span></div>
+              </div>
+                      </div>
 
           <button type="button" class="btn btn-outline-primary mt-2" id="btn-add-jour">
             <i class="fa fa-plus"></i> Journée
@@ -716,42 +2025,15 @@
         </div>
       </div>
 
-      {# ===== Stagiaires ===== #}
-      {% set insPrototype %}
-        <div class='row g-3 mb-4 inscription-item align-items-end'>
-          <div class='col-md-5'>
-            {{ form_row(form.inscriptions.vars.prototype.stagiaire) }}
-          </div>
-          <div class='col-md-5'>
-            {{ form_row(form.inscriptions.vars.prototype.status) }}
-          </div>
-          <div class='col-md-2 d-flex align-items-end justify-content-end'>
-            <button type='button' class='btn btn-outline-danger btn-remove-inscription'>
-              <i class='fa fa-trash'></i>
-            </button>
-          </div>
-        </div>
-      {% endset %}
-
+            
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-people-fill text-warning"></i> Stagiaires</h5>
-          <span class="chip" id="chip-ins">{{ form.inscriptions|length }} inscrit{{ form.inscriptions|length > 1 ? 's' : '' }}</span>
+          <span class="chip" id="chip-ins">0 inscrit</span>
         </div>
         <div class="p-3 p-md-4">
-          <div id="inscriptions-collection" data-prototype="{{ insPrototype|e('html_attr') }}">
-            {% for ins in form.inscriptions %}
-              <div class="row g-3 mb-4 inscription-item align-items-end">
-                <div class="col-md-5">{{ form_row(ins.stagiaire) }}</div>
-                <div class="col-md-5">{{ form_row(ins.status) }}</div>
-                <div class="col-md-2 d-flex align-items-end justify-content-end">
-                  <button type="button" class="btn btn-outline-danger btn-remove-inscription">
-                    <i class="fa fa-trash"></i>
-                  </button>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
+          <div id="inscriptions-collection" data-prototype="&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;row&#x20;g-3&#x20;mb-4&#x20;inscription-item&#x20;align-items-end&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-5&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&gt;&lt;label&#x20;for&#x3D;&quot;session_inscriptions___name___stagiaire&quot;&gt;Stagiaire&lt;&#x2F;label&gt;&lt;select&#x20;id&#x3D;&quot;session_inscriptions___name___stagiaire&quot;&#x20;name&#x3D;&quot;session&#x5B;inscriptions&#x5D;&#x5B;__name__&#x5D;&#x5B;stagiaire&#x5D;&quot;&#x20;class&#x3D;&quot;form-select&#x20;tom-select-inscription&quot;&gt;&lt;option&#x20;value&#x3D;&quot;&quot;&gt;S&#x00E9;lectionner&#x20;un&#x20;stagiaire&#x2026;&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;3&quot;&gt;Apr&#x00E8;s-midi&#x20;Formateur&#x20;&#x28;69d87cf7&#x40;example.test&#x29;&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;2&quot;&gt;Matin&#x20;Formateur&#x20;&#x28;38e94c84&#x40;example.test&#x29;&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;1&quot;&gt;Admin&#x20;Test&#x20;&#x28;admin&#x40;example.test&#x29;&lt;&#x2F;option&gt;&lt;&#x2F;select&gt;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-5&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&gt;&lt;label&#x20;for&#x3D;&quot;session_inscriptions___name___status&quot;&gt;Statut&lt;&#x2F;label&gt;&lt;select&#x20;id&#x3D;&quot;session_inscriptions___name___status&quot;&#x20;name&#x3D;&quot;session&#x5B;inscriptions&#x5D;&#x5B;__name__&#x5D;&#x5B;status&#x5D;&quot;&#x20;class&#x3D;&quot;form-select&quot;&gt;&lt;option&#x20;value&#x3D;&quot;preinscrit&quot;&gt;Pr&#x00E9;inscrit&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;confirme&quot;&gt;Confirm&#x00E9;&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;en_cours&quot;&gt;En&#x20;cours&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;termine&quot;&gt;Termin&#x00E9;&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;annule&quot;&gt;Annul&#x00E9;&lt;&#x2F;option&gt;&lt;option&#x20;value&#x3D;&quot;absent&quot;&gt;Absent&lt;&#x2F;option&gt;&lt;&#x2F;select&gt;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;div&#x20;class&#x3D;&#x27;col-md-2&#x20;d-flex&#x20;align-items-end&#x20;justify-content-end&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;button&#x20;type&#x3D;&#x27;button&#x27;&#x20;class&#x3D;&#x27;btn&#x20;btn-outline-danger&#x20;btn-remove-inscription&#x27;&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;i&#x20;class&#x3D;&#x27;fa&#x20;fa-trash&#x27;&gt;&lt;&#x2F;i&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;button&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;&lt;&#x2F;div&gt;&#x0A;&#x20;&#x20;&#x20;&#x20;&#x20;&#x20;">
+                      </div>
 
           <div class="d-flex flex-wrap gap-2 mt-2">
             <button type="button" class="btn btn-outline-primary" id="btn-add-inscription">
@@ -766,8 +2048,7 @@
         </div>
       </div>
 
-      {# ===== Logistique (switches) ===== #}
-      <div class="cardx mb-4">
+            <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-tools text-warning"></i> Logistique - animation</h5>
           <div class="d-flex gap-2">
@@ -794,10 +2075,10 @@
                     <div class="desc">Le formateur dispose d’un ordinateur opérationnel.</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.equipOrdinateurFormateur, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_equipOrdinateurFormateur" name="session[equipOrdinateurFormateur]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.equipOrdinateurFormateur) }}
+                
 
                 <div class="switch-row">
                   <div class="flex-grow-1">
@@ -805,10 +2086,10 @@
                     <div class="desc">Projection possible (écran ou mur adapté).</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.equipVideoprojecteurEcran, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_equipVideoprojecteurEcran" name="session[equipVideoprojecteurEcran]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.equipVideoprojecteurEcran) }}
+                
 
                 <div class="switch-row">
                   <div class="flex-grow-1">
@@ -816,10 +2097,10 @@
                     <div class="desc">Wi-Fi / réseau fiable pour démos et outils.</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.equipInternetStable, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_equipInternetStable" name="session[equipInternetStable]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.equipInternetStable) }}
+                
 
                 <div class="switch-row">
                   <div class="flex-grow-1">
@@ -827,10 +2108,10 @@
                     <div class="desc">Pour les explications et ateliers.</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.equipTableauPaperboard, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_equipTableauPaperboard" name="session[equipTableauPaperboard]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.equipTableauPaperboard) }}
+                
 
                 <div class="switch-row">
                   <div class="flex-grow-1">
@@ -838,10 +2119,10 @@
                     <div class="desc">Matériel d’animation prêt (atelier, exercices…).</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.equipMarqueursSupportsImprimes, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_equipMarqueursSupportsImprimes" name="session[equipMarqueursSupportsImprimes]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.equipMarqueursSupportsImprimes) }}
+                
               </div>
             </div>
 
@@ -856,10 +2137,10 @@
                     <div class="desc">Espace suffisant + disposition possible (U, îlots…).</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.salleAdapteeTailleGroupe, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_salleAdapteeTailleGroupe" name="session[salleAdapteeTailleGroupe]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.salleAdapteeTailleGroupe) }}
+                
 
                 <div class="switch-row">
                   <div class="flex-grow-1">
@@ -867,10 +2148,10 @@
                     <div class="desc">Confort OK pour une journée complète.</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.salleTablesChaisesErgo, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_salleTablesChaisesErgo" name="session[salleTablesChaisesErgo]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.salleTablesChaisesErgo) }}
+                
 
                 <div class="switch-row">
                   <div class="flex-grow-1">
@@ -878,10 +2159,10 @@
                     <div class="desc">Conditions agréables (luminosité/temp.).</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.salleLumiereChauffageClim, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_salleLumiereChauffageClim" name="session[salleLumiereChauffageClim]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.salleLumiereChauffageClim) }}
+                
 
                 <div class="switch-row">
                   <div class="flex-grow-1">
@@ -889,10 +2170,10 @@
                     <div class="desc">Petit confort qui change tout 😄</div>
                   </div>
                   <div class="form-check form-switch">
-                    {{ form_widget(form.salleEauCafe, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
+                    <input type="checkbox" id="session_salleEauCafe" name="session[salleEauCafe]" class="form-check-input" data-logistique-switch="1" value="1" checked="checked" />
                   </div>
                 </div>
-                {{ form_errors(form.salleEauCafe) }}
+                
               </div>
             </div>
 
@@ -904,20 +2185,18 @@
         </div>
       </div>
 
-      {# ===== Actions bas (mobile friendly) ===== #}
-      <div class="d-flex justify-content-end gap-2 mt-3 mb-4">
+            <div class="d-flex justify-content-end gap-2 mt-3 mb-4">
         <a href="javascript:history.back()" class="btn btn-secondary">
           <i class="fa fa-arrow-left"></i> Retour
         </a>
         <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
-          <i class="fa fa-check"></i> {{ modeEdition ? 'Modifier' : 'Ajouter & Terminer' }}
+          <i class="fa fa-check"></i> Modifier
         </button>
       </div>
 
     </div>
 
-    {# ====================== COL RIGHT ====================== #}
-    <div class="col-lg-4">
+        <div class="col-lg-4">
 
       <div class="cardx mb-4">
         <div class="cardx-h">
@@ -984,11 +2263,11 @@
 
               <div class="d-flex justify-content-between gap-3 py-1">
                 <span class="text-muted">Journées</span>
-                <span class="fw-semibold text-end" id="resume-jours">{{ form.jours|length }}</span>
+                <span class="fw-semibold text-end" id="resume-jours">2</span>
               </div>
               <div class="d-flex justify-content-between gap-3 py-1">
                 <span class="text-muted">Stagiaires</span>
-                <span class="fw-semibold text-end" id="resume-stagiaires">{{ form.inscriptions|length }}</span>
+                <span class="fw-semibold text-end" id="resume-stagiaires">0</span>
               </div>
             </div>
           </div>
@@ -1005,7 +2284,7 @@
       <div class="sticky-actions d-none d-lg-block">
         <div class="d-flex align-items-center justify-content-between gap-2">
           <div class="small text-muted">
-            <strong class="text-dark">Astuce :</strong> ajoute au moins une journée. Les stagiaires peuvent être inscrits plus tard.
+            <strong class="text-dark">Astuce :</strong> ajoute au moins 1 journée + 1 stagiaire.
           </div>
           <button type="submit" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-check2"></i>
@@ -1016,19 +2295,10 @@
     </div>
   </div>
 
-  {# ✅ Empêche Symfony de re-rendre les collections via form_rest #}
-{% do form.jours.setRendered %}
-{% do form.inscriptions.setRendered %}
+  
+  
+<input type="hidden" id="session__token" name="session[_token]" data-controller="csrf-protection" value="csrf-token" /></form>
 
-{# si tu as d'autres champs custom rendus, idem : #}
-{% if form.piecesObligatoires is defined %}
-  {% do form.piecesObligatoires.setRendered %}
-{% endif %}
-
-{{ form_end(form) }}
-
-{# ================== MODALES (identiques à ta version) ================== #}
-{# ===== NOUVEAU STAGIAIRE (ULTRA) ===== #}
 <div class="modal fade modal-ultra" id="modal-new-stagiaire" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -1117,7 +2387,6 @@
     </div>
   </div>
 </div>
-{# ===== NOUVEAU FORMATEUR (ULTRA) ===== #}
 <div class="modal fade modal-ultra" id="modal-new-formateur" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -1202,7 +2471,6 @@
   </div>
 </div>
 
-{# ===== NOUVEAU SITE ===== #}
 <div class="modal fade" id="modal-new-site" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -1264,8 +2532,7 @@
             </div>
           </div>
 
-          {# Hidden geo fields envoyés au serveur #}
-          <input type="hidden" name="latitude" id="new-site-lat">
+                    <input type="hidden" name="latitude" id="new-site-lat">
           <input type="hidden" name="longitude" id="new-site-lng">
           <input type="hidden" name="googlePlaceId" id="new-site-placeId">
           <input type="hidden" name="formattedAddress" id="new-site-formatted">
@@ -1313,7 +2580,6 @@
 
 
 
-{# ===== PRECHECK FULL MODAL (identique) ===== #}
 <div class="modal fade" id="precheckFullModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -1360,7 +2626,6 @@
   </div>
 </div>
 
-{# ================== JS (reprend ton existant + dropdownParent body + résumé live) ================== #}
 
 
 <script>
@@ -1386,15 +2651,15 @@ function bindFlatpickr(scope) {
 
 document.addEventListener('DOMContentLoaded', function () {
 
-  const idFormation = '#{{ form.formation.vars.id }}';
-  const idSite      = '#{{ form.site.vars.id }}';
-  const idEngin     = '#{{ form.engin.vars.id }}';
-  const idTypeFinancement = '#{{ form.typeFinancement.vars.id }}';
-  const idFormateur = '#{{ form.formateur.vars.id }}';
-  const idStatus    = '#{{ form.status.vars.id }}';
-  const idCode      = '#{{ form.code.vars.id }}';
-  const idCapacite  = '#{{ form.capacite.vars.id }}';
-  const idMontant   = '#{{ form.montantCents.vars.id }}';
+  const idFormation = '#session_formation';
+  const idSite      = '#session_site';
+  const idEngin     = '#session_engin';
+  const idTypeFinancement = '#session_typeFinancement';
+  const idFormateur = '#session_formateur';
+  const idStatus    = '#session_status';
+  const idCode      = '#session_code';
+  const idCapacite  = '#session_capacite';
+  const idMontant   = '#session_montantCents';
 
   const $formation = document.querySelector(idFormation);
   const $site      = document.querySelector(idSite);
@@ -1406,10 +2671,10 @@ document.addEventListener('DOMContentLoaded', function () {
   const $capacite  = document.querySelector(idCapacite);
   const $montant   = document.querySelector(idMontant);
 
-  const idFormationLibre = '#{{ form.formationIntituleLibre.vars.id }}';
+  const idFormationLibre = '#session_formationIntituleLibre';
   const $formationLibre = document.querySelector(idFormationLibre);
 
-  const idOrganisme = '#{{ form.organismeFormation.vars.id }}';
+  const idOrganisme = '#session_organismeFormation';
   const $organisme = document.querySelector(idOrganisme);
   const wrapOrganisme = document.getElementById('wrap-organisme-formation');
 
@@ -1442,7 +2707,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const chipJours = document.getElementById('chip-jours');
   const chipIns   = document.getElementById('chip-ins');
 
-  const formMain = document.getElementById('{{ form.vars.id }}');
+  const formMain = document.getElementById('session');
 
   function selectedText(selectEl){
     if (!selectEl || !selectEl.value) return '';
@@ -1530,11 +2795,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ========== Validation (ton code) ==========
   initFormValidation({
-    formName: '{{ form.vars.name }}',
+    formName: 'session',
     tomSelectFields: [
-      { id: '{{ form.formation.vars.id }}', label: '*Formation' },
-      { id: '{{ form.site.vars.id }}',      label: '*Site' },
-      { id: '{{ form.organismeFormation.vars.id }}', label: '*Organisme de formation' },
+      { id: 'session_formation', label: '*Formation' },
+      { id: 'session_site',      label: '*Site' },
+      { id: 'session_organismeFormation', label: '*Organisme de formation' },
     ]
   });
 
@@ -1623,7 +2888,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // ================== INSCRIPTIONS ==================
   const wrapIns = document.getElementById('inscriptions-collection');
   const protoIns = wrapIns ? wrapIns.dataset.prototype : null;
-  let indexIns = {{ form.inscriptions|length }};
+  let indexIns = 0;
 
   function countIns(){
     return wrapIns ? wrapIns.querySelectorAll('.inscription-item').length : 0;
@@ -1747,7 +3012,6 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 
-{# ========== Validation formulaire principal (ton code, inchangé) ========== #}
 <script>
 function initFormValidation({ formName, tomSelectFields=[] }){
   const form = document.querySelector(`form[name="${formName}"]`);
@@ -1823,7 +3087,6 @@ function initFormValidation({ formName, tomSelectFields=[] }){
 </script>
 
 
-{# ========== Boutons "Tout cocher/décocher" logistique (inchangé) ========== #}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   function getLogistiqueSwitches() {
@@ -1861,11 +3124,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ================== MODALE : NOUVEAU SITE ==================
   const formNewSite = document.getElementById('form-new-site');
-  const siteSelect  = document.getElementById('{{ form.site.vars.id }}');
+  const siteSelect  = document.getElementById('session_site');
   const siteError   = document.getElementById('new-site-error');
 
   // URL Symfony (POST)
-  const newSiteUrl = "{{ path('app_administrateur_session_site_new', { entite: entite.id }) }}";
+  const newSiteUrl = "/fr/administrateur/1/session/ajax/site/new";
 
   if (formNewSite && siteSelect) {
     formNewSite.addEventListener('submit', async (e) => {
@@ -1940,7 +3203,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const formNewStagiaire = document.getElementById('form-new-stagiaire');
   const errEl = document.getElementById('new-stagiaire-error');
 
-  const newStagiaireUrl = "{{ path('app_administrateur_session_stagiaire_new', { entite: entite.id }) }}";
+  const newStagiaireUrl = "/fr/administrateur/1/session/ajax/stagiaire/new";
 
   // Collection inscriptions (déjà utilisée dans ton code)
   const wrapIns = document.getElementById('inscriptions-collection');
@@ -2325,4 +3588,103 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
-{% endblock %}
+        </div>
+
+        <footer class="footer">
+            &copy; 2025 - Wiki Formation - <a href="#" id="manage-cookies" class="text-body text-decoration-none">Gérer les cookies</a>
+        </footer>
+
+        <button id="scrollToTopBtn" class="btn btn-warning rounded-circle shadow" title="Remonter">
+            ↑
+        </button>
+        <script>
+            const scrollBtn = document.getElementById("scrollToTopBtn");
+
+            window.addEventListener("scroll", () => {
+                if (window.scrollY > 200) {
+                    scrollBtn.style.display = "block";
+                } else {
+                    scrollBtn.style.display = "none";
+                }
+            });
+
+            scrollBtn.addEventListener("click", () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth"
+                });
+            });
+            
+            document.addEventListener("DOMContentLoaded", function() {
+                const sidebar  = document.querySelector('.sidebar');
+                const content  = document.querySelector('.content');
+                const toggleBtn= document.querySelector('.toggle-btn');
+                const closeBtn = document.querySelector('.close-btn');
+                const footer   = document.querySelector('.footer');
+                const navbar   = document.querySelector('.navbar');
+
+                if(!sidebar || !content) return;
+
+                function applyState(isOpen){
+                    // Sidebar
+                    sidebar.classList.toggle('active', isOpen);
+
+                    // Content
+                    content.classList.toggle('full-width', !isOpen);
+
+                    // Navbar / Footer (si présents)
+                    if (navbar) navbar.classList.toggle('full-width', !isOpen);
+                    if (footer) footer.classList.toggle('full-width', !isOpen);
+
+                    // Bouton toggle (si présent)
+                    if (toggleBtn) toggleBtn.classList.toggle('hidden', isOpen);
+
+                    localStorage.setItem('menuOpen', isOpen ? 'true' : 'false');
+                }
+
+                // Etat initial
+                const isMenuOpen = localStorage.getItem('menuOpen') === 'true';
+                applyState(isMenuOpen);
+
+                // Events
+                toggleBtn?.addEventListener('click', () => applyState(true));
+                closeBtn?.addEventListener('click', () => applyState(false));
+
+
+
+                document.querySelectorAll('.dropdown-submenu > a').forEach(function (element) {
+                    element.addEventListener("click", function (e) {
+                        if (window.innerWidth < 992) { // Seulement pour mobile
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            let submenu = this.parentElement;
+                            submenu.classList.toggle("show");
+
+                            // Fermer les autres sous-menus ouverts
+                            submenu.parentElement.querySelectorAll('.dropdown-submenu.show').forEach(function (openSubmenu) {
+                                if (openSubmenu !== submenu) {
+                                    openSubmenu.classList.remove("show");
+                                }
+                            });
+                        }
+                    });
+                });
+
+                // Fermer les menus ouverts si on clique ailleurs
+                document.addEventListener("click", function () {
+                    if (window.innerWidth < 992) { // Seulement sur mobile
+                        document.querySelectorAll('.dropdown-submenu.show').forEach(function (submenu) {
+                            submenu.classList.remove("show");
+                        });
+                    }
+                });
+            });
+            
+
+        </script>
+        <link rel="stylesheet" href="/dist/css/list-filters.css?v=1">
+        <script defer src="/dist/js/list-filters.js?v=1"></script>
+                
+    <script>document.addEventListener("submit", function(e){const status=document.getElementById("qa-submit-status");status.textContent=e.defaultPrevented?"Validation : champs à corriger":"Validation réussie sans inscription";e.preventDefault();});</script><p id="qa-submit-status" role="status" style="position:fixed;bottom:0;left:25%;background:white;z-index:30000"></p></body>
+</html>

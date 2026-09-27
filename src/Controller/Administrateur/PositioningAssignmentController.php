@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{PositioningAssignment, Entite, Utilisateur, Session, PositioningAttempt, PositioningAnswer, UtilisateurEntite};
 use App\Form\Administrateur\PositioningAssignmentType;
 use App\Service\Positioning\PositioningAssigner;
@@ -124,15 +126,17 @@ final class PositioningAssignmentController extends AbstractController
       ->andWhere('q.entite = :e')->setParameter('e', $entite);
 
     // filtres
-    if ($requiredFilter === 'yes') $qb->andWhere('a.isRequired = true');
-    elseif ($requiredFilter === 'no') $qb->andWhere('a.isRequired = false');
+    ChoiceFilter::any($qb, $requiredFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('a.isRequired = true');
+      elseif ($value === 'no') $branch->andWhere('a.isRequired = false');
+    });
 
-    if ($submittedFilter === 'yes') $qb->andWhere('t.submittedAt IS NOT NULL');
-    elseif ($submittedFilter === 'no') $qb->andWhere('t.submittedAt IS NULL');
+    ChoiceFilter::any($qb, $submittedFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('t.submittedAt IS NOT NULL');
+      elseif ($value === 'no') $branch->andWhere('t.submittedAt IS NULL');
+    });
 
-    if ($questionnaireId !== 'all' && ctype_digit($questionnaireId)) {
-      $qb->andWhere('q.id = :qid')->setParameter('qid', (int) $questionnaireId);
-    }
+    ChoiceFilter::equals($qb, $questionnaireId, 'q.id', 'qid');
 
     if ($stagiaireText !== '') {
       $qb->andWhere('LOWER(u.nom) LIKE :st OR LOWER(u.prenom) LIKE :st OR LOWER(u.email) LIKE :st')

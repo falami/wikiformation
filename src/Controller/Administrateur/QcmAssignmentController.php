@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 
 use App\Entity\{QcmAssignment, Entite, Utilisateur, Session, Qcm};
 use App\Service\Qcm\QcmAssigner;
@@ -71,19 +73,17 @@ final class QcmAssignmentController extends AbstractController
     $params = ['entite' => $entite->getId()];
     $where = "s.entite_id = :entite";
 
-    if ($sessionFilter !== 'all') {
-      $where .= " AND s.id = :sid";
-      $params['sid'] = (int)$sessionFilter;
-    }
-
-    if ($phaseFilter === 'pre' || $phaseFilter === 'post') {
-      $where .= " AND a.phase = :phase";
-      $params['phase'] = $phaseFilter;
-    }
-
-    if ($statusFilter !== 'all') {
-      $where .= " AND a.status = :st";
-      $params['st'] = $statusFilter;
+    foreach ([[$sessionFilter, 's.id', 'sid'], [$phaseFilter, 'a.phase', 'phase'], [$statusFilter, 'a.status', 'st']] as [$raw, $field, $prefix]) {
+      $values = ChoiceFilter::values($raw);
+      if ($values === null) continue;
+      if (!$values) { $where .= ' AND 1 = 0'; continue; }
+      $placeholders = [];
+      foreach ($values as $index => $value) {
+        $name = $prefix . '_' . $index;
+        $placeholders[] = ':' . $name;
+        $params[$name] = $value;
+      }
+      $where .= ' AND ' . $field . ' IN (' . implode(', ', $placeholders) . ')';
     }
 
     if ($stagiaireFilter !== '') {

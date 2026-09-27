@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Formation, Entite, Utilisateur, FormationPhoto, Categorie};
 use App\Service\FileUploader;
 use Doctrine\ORM\QueryBuilder;
@@ -106,16 +108,11 @@ final class FormationController extends AbstractController
                     ->setParameter('s', '%' . $searchV . '%');
             }
 
-            if ($sousCategorieFilter !== 'all' && ctype_digit($sousCategorieFilter)) {
-                $qb->andWhere('c.id = :subId')->setParameter('subId', (int)$sousCategorieFilter);
-            } elseif ($categorieFilter !== 'all' && ctype_digit($categorieFilter)) {
-                $qb->andWhere('(c.id = :catId OR p.id = :catId)')
-                    ->setParameter('catId', (int)$categorieFilter);
-            }
-
-            if ($niveauFilter !== 'all') {
-                $qb->andWhere('f.niveau = :niv')->setParameter('niv', $niveauFilter);
-            }
+            ChoiceFilter::any($qb, $categorieFilter, static function ($query, string $category): void {
+                $query->andWhere('(c.id = :catId OR p.id = :catId)')->setParameter('catId', $category);
+            });
+            ChoiceFilter::equals($qb, $sousCategorieFilter, 'c.id', 'selected_subcategory');
+            ChoiceFilter::equals($qb, $niveauFilter, 'f.niveau', 'selected_level');
             if ($prixMinCents !== null) {
                 $qb->andWhere('f.prixBaseCents >= :pmin')->setParameter('pmin', $prixMinCents);
             }
@@ -144,6 +141,23 @@ final class FormationController extends AbstractController
         $recordsFiltered = (int) $qbCount
             ->select('COUNT(DISTINCT f.id)')
             ->getQuery()->getSingleScalarResult();
+
+        // Aggregate the complete filtered catalogue before paginating its rows.
+        // Keep sessions in a separate query so courses with several sessions do
+        // not receive extra weight in the price and duration averages.
+        $averages = (clone $qbCount)
+            ->select('AVG(f.prixBaseCents) AS price, AVG(f.duree) AS duration')
+            ->getQuery()->getSingleResult();
+        $sessionCount = (int) (clone $qbCount)
+            ->leftJoin('f.sessions', 'kpiSession')
+            ->select('COUNT(DISTINCT kpiSession.id)')
+            ->getQuery()->getSingleScalarResult();
+        $kpis = [
+            'total' => $recordsFiltered,
+            'sessions' => $sessionCount,
+            'averagePrice' => $averages['price'] === null ? null : (float) $averages['price'] / 100,
+            'averageDuration' => $averages['duration'] === null ? null : (float) $averages['duration'],
+        ];
 
 
         // ---------
@@ -252,6 +266,7 @@ final class FormationController extends AbstractController
             'draw'            => $request->request->getInt('draw', 0),
             'recordsTotal'    => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
+            'kpis'            => $kpis,
             'data'            => $data,
             
         ]);

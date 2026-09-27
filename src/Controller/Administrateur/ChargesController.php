@@ -160,6 +160,8 @@ final class ChargesController extends AbstractController
             ->select('COUNT(r.id)')
             ->getQuery()->getSingleScalarResult();
 
+        $tableFilters = \App\Service\Filter\TableFilters::prepare($qb, $req, ['kind'=>['field'=>'r.kind','label'=>'Type'], 'base'=>['field'=>'r.base','label'=>'Base de calcul']]);
+
         // Search (code/label/kind/base)
         if ($search !== '') {
             $qb->andWhere('(
@@ -207,6 +209,7 @@ final class ChargesController extends AbstractController
         return $this->json([
             'draw'            => $draw,
             'recordsTotal'    => $total,
+            'filters' => $tableFilters,
             'recordsFiltered' => $filtered,
             'data'            => $data,
         ]);

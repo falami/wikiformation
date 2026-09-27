@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Entreprise, Entite, Utilisateur};
 use App\Form\Administrateur\EntrepriseType;
 use App\Security\Permission\TenantPermission;
@@ -92,21 +94,13 @@ final class EntrepriseController extends AbstractController
               ->setParameter('fb_q', '%' . $searchName . '%');
           }
 
-          if ($lockedFilter === '1') {
-              $qb->andWhere(
-                  "(SIZE($eAlias.inscriptions) > 0
-                  OR SIZE($eAlias.conventionContrats) > 0
-                  OR SIZE($eAlias.factures) > 0
-                  OR SIZE($eAlias.utilisateurs) > 0)"
-              );
-          } elseif ($lockedFilter === '0') {
-              $qb->andWhere(
-                  "(SIZE($eAlias.inscriptions) = 0
-                  AND SIZE($eAlias.conventionContrats) = 0
-                  AND SIZE($eAlias.factures) = 0
-                  AND SIZE($eAlias.utilisateurs) = 0)"
-              );
-          }
+          ChoiceFilter::any($qb, $lockedFilter, static function ($branch, string $value) use ($eAlias): void {
+              if ($value === '1') {
+                  $branch->andWhere("(SIZE($eAlias.inscriptions) > 0 OR SIZE($eAlias.conventionContrats) > 0 OR SIZE($eAlias.factures) > 0 OR SIZE($eAlias.utilisateurs) > 0)");
+              } elseif ($value === '0') {
+                  $branch->andWhere("(SIZE($eAlias.inscriptions) = 0 AND SIZE($eAlias.conventionContrats) = 0 AND SIZE($eAlias.factures) = 0 AND SIZE($eAlias.utilisateurs) = 0)");
+              }
+          });
       };
 
       $qb = $em->getRepository(Entreprise::class)->createQueryBuilder('e')

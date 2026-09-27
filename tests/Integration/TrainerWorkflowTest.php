@@ -213,6 +213,25 @@ final class TrainerWorkflowTest extends KernelTestCase
         $this->em->clear();
         $session = $this->em->find(Session::class, $this->session->getId());
         self::assertSame($this->afternoon->getId(), $session->getJours()->last()->getFormateur()->getId());
+        self::assertCount(0, $session->getInscriptions(), 'Une session doit pouvoir être planifiée avant les inscriptions.');
+    }
+
+    public function testSessionEditorRejectsRemovingEverySlotWithoutDeletingTheSavedPlanning(): void
+    {
+        $client = $this->client();
+        $sessionId = $this->session->getId();
+        $url = $this->url('app_administrateur_session_modifier', ['id' => $sessionId]);
+        $crawler = $client->request('GET', $url);
+        $values = $crawler->filter('form#session')->form()->getPhpValues();
+        $values['session']['jours'] = [];
+
+        $crawler = $client->request('POST', $url, $values);
+
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Ajoutez au moins une journée à la session.', $crawler->text());
+        self::assertSame(0, $crawler->filter('#jours-collection .jour-item')->count());
+        $this->em->clear();
+        self::assertCount(2, $this->em->find(Session::class, $sessionId)->getJours(), 'Un formulaire invalide ne doit pas supprimer les créneaux enregistrés.');
     }
 
     public function testContractDocumentsRejectAnEntityFromAnotherOrganism(): void

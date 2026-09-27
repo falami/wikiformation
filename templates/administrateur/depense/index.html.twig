@@ -938,8 +938,8 @@
     $('.dep-filter-four').prop('checked', true);
 
     // si "tout coché" doit filtrer (IN sur tout), mets some :
-    window.__catMode = 'some';
-    window.__fourMode = 'some';
+    window.__catMode = 'all';
+    window.__fourMode = 'all';
 
     updateSelectedCounts();
 
@@ -997,14 +997,14 @@
 
     function updatePeriodLabel(){
       const t = $periodType.val();
-      const y = $periodYear.val();
-      const q = $periodQuarter.val();
-      const m = $periodMonth.val();
+      const y = $periodYear.find('option:selected').text();
+      const q = $periodQuarter.find('option:selected').text();
+      const m = $periodMonth.find('option:selected').text();
 
       let label = 'Tout';
       if (t === 'year') label = `Année ${y}`;
-      if (t === 'quarter') label = `T${q} ${y}`;
-      if (t === 'month') label = `${pad2(m)}/${y}`;
+      if (t === 'quarter') label = `${q} · ${y}`;
+      if (t === 'month') label = `${m} · ${y}`;
 
       $('#kpi-range').text(label);
     }
@@ -1141,9 +1141,9 @@
         data: function (d) {
           d.tvaOnly = $tvaOnly.val() || 'all';
           d.periodType = $periodType.val() || 'year';
-          d.periodYear = parseInt($periodYear.val() || '0', 10) || null;
-          d.periodQuarter = parseInt($periodQuarter.val() || '0', 10) || null;
-          d.periodMonth = parseInt($periodMonth.val() || '0', 10) || null;
+          d.periodYear = $periodYear.val() || 'all';
+          d.periodQuarter = $periodQuarter.val() || 'all';
+          d.periodMonth = $periodMonth.val() || 'all';
 
 
           const catIds  = getCheckedValues('.dep-filter-cat');
@@ -1601,7 +1601,7 @@
 
     $tvaOnly.on('change', function(){
       table.ajax.reload(null, true);
-      loadDepenseKpis();
+      // Les indicateurs filtrés sont actualisés par la réponse Ajax du tableau.
     });
 
     $('#btnReset').on('click', function(){
@@ -1615,7 +1615,9 @@
       updatePeriodLabel();
 
       $tvaOnly.val('all');
-      $('.dep-filter-cat, .dep-filter-four').prop('checked', false);
+      $('.dep-filter-cat, .dep-filter-four').prop('checked', true);
+      window.__catMode = 'all';
+      window.__fourMode = 'all';
       $('input[data-filter="cat"], input[data-filter="four"]').val('').trigger('input');
 
       updateSelectedCounts();
@@ -1654,6 +1656,7 @@
 document.addEventListener('hidden.bs.dropdown', function (e) {
       if (e.target.closest?.('.wf-table-actions')) return; // Gestion commune des tableaux
   const toggle = e.target;
+  if (!toggle.closest('#tableauDepenses')) return;
   const menu = document.querySelector('.dropdown-menu[style][data-bs-popper]');
   if (!menu || !menu.__fromToggle) return;
 

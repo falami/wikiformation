@@ -212,6 +212,8 @@ class AttestationController extends AbstractController
             ->resetDQLPart('orderBy')
             ->getQuery()->getSingleScalarResult();
 
+        $tableFilters = \App\Service\Filter\TableFilters::prepare($qb, $request, ['resultat'=>['field'=>'a.reussi','label'=>'Résultat','labels'=>['1'=>'Réussi','0'=>'Non réussi']], 'session'=>['field'=>'se.id','display'=>'se.code','label'=>'Session']]);
+
         // search (large)
         if ($searchV) {
             $qb->andWhere('
@@ -279,6 +281,7 @@ class AttestationController extends AbstractController
         return new JsonResponse([
             'draw'            => $request->request->getInt('draw', 0),
             'recordsTotal'    => $recordsTotal,
+            'filters' => $tableFilters,
             'recordsFiltered' => $recordsFiltered,
             'data'            => $data,
         ]);

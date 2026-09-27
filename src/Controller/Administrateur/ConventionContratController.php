@@ -80,6 +80,8 @@ final class ConventionContratController extends AbstractController
             ->resetDQLPart('orderBy')
             ->getQuery()->getSingleScalarResult();
 
+        $tableFilters = \App\Service\Filter\TableFilters::prepare($qb, $request, ['formation'=>['field'=>'f.id','display'=>'f.titre','label'=>'Formation'], 'session'=>['field'=>'se.id','display'=>'se.code','label'=>'Session'], 'entreprise'=>['field'=>'e.id','display'=>'e.raisonSociale','label'=>'Entreprise']]);
+
         if ($searchV !== '') {
             $search = $qb->expr()->orX(
                 'c.numero LIKE :s', 'e.raisonSociale LIKE :s',
@@ -128,6 +130,7 @@ final class ConventionContratController extends AbstractController
         return new JsonResponse([
             'draw'            => $request->request->getInt('draw', 0),
             'recordsTotal'    => $recordsTotal,
+            'filters' => $tableFilters,
             'recordsFiltered' => $recordsFiltered,
             'data'            => $data,
         ]);

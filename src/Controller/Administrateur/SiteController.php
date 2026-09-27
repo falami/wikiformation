@@ -59,7 +59,9 @@ final class SiteController extends AbstractController
             ->getQuery()->getSingleScalarResult();
 
         // --- Filtre texte ---
-        $qbFiltered = $repo->createQueryBuilder('s');
+        $qbFiltered = $repo->createQueryBuilder('s')->andWhere('s.entite = :entite')->setParameter('entite', $entite);
+        $filterFields = ['ville'=>['field'=>'s.ville','label'=>'Ville'], 'region'=>['field'=>'s.region','label'=>'Région'], 'pays'=>['field'=>'s.pays','label'=>'Pays']];
+        $tableFilters = \App\Service\Filter\TableFilters::prepare($qbFiltered, $request, $filterFields);
         if ($searchV) {
             $qbFiltered->andWhere('s.nom LIKE :s OR s.slug LIKE :s OR s.ville LIKE :s OR s.region LIKE :s OR s.pays LIKE :s')
                 ->setParameter('s', '%' . $searchV . '%');
@@ -86,6 +88,7 @@ final class SiteController extends AbstractController
                 ->setParameter('s', '%' . $searchV . '%');
         }
 
+        \App\Service\Filter\TableFilters::apply($qbRows, $request, $filterFields);
         $rows = $qbRows
             ->groupBy('s.id')
             ->orderBy('s.id', 'DESC')
@@ -125,6 +128,7 @@ final class SiteController extends AbstractController
             'draw'            => $request->request->getInt('draw', 0),
             'recordsTotal'    => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
+            'filters' => $tableFilters,
             'data'            => $data,
         ]);
     }

@@ -965,8 +965,8 @@ $(function(){
       allowInput: true,
       disableMobile: true,
       onClose: function(selectedDates){
-        const from = selectedDates[0] ? selectedDates[0].toISOString().slice(0,10) : '';
-        const to   = selectedDates[1] ? selectedDates[1].toISOString().slice(0,10) : '';
+        const from = selectedDates[0] ? flatpickr.formatDate(selectedDates[0], 'Y-m-d') : '';
+        const to   = selectedDates[1] ? flatpickr.formatDate(selectedDates[1], 'Y-m-d') : '';
         $dateFrom.val(from);
         $dateTo.val(to);
         refreshAll(true);
@@ -1055,9 +1055,11 @@ $(function(){
     updateResetUi(items.length);
 
     items.forEach(it=>{
-      const $b = $(`<span class="af-badge" data-key="${it.key}">
-        <strong>${it.label} :</strong> ${it.value} <i class="bi bi-x-lg ms-1"></i>
-      </span>`);
+      const $b = $('<button type="button" class="af-badge">').attr('data-key', it.key)
+        .append($('<strong>').text(it.label + ' :'))
+        .append(document.createTextNode(' ' + it.value + ' '))
+        .append('<i class="bi bi-x-lg ms-1" aria-hidden="true"></i>')
+        .attr('aria-label', 'Retirer le filtre ' + it.label);
 
       $b.on('click', ()=>{
         switch(it.key){

@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{FormateurSatisfactionTemplate, Entite, Utilisateur};
 use App\Enum\SatisfactionQuestionType;
 use App\Form\FormateurSatisfaction\Admin\FormateurSatisfactionTemplateType;
@@ -175,9 +177,10 @@ final class FormateurSatisfactionTemplateController extends AbstractController
       $qb->leftJoin('t.formations', 'f_search');
     }
 
-    if ($activeFilter === 'yes') $qb->andWhere('t.isActive = 1');
-    elseif ($activeFilter === 'no') $qb->andWhere('t.isActive = 0');
-
+    ChoiceFilter::any($qb, $activeFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('t.isActive = true');
+      elseif ($value === 'no') $branch->andWhere('t.isActive = false');
+    });
     if ($search !== '') {
       $qb->andWhere('LOWER(t.titre) LIKE :q OR LOWER(f_search.titre) LIKE :q')
         ->setParameter('q', '%' . mb_strtolower($search) . '%');
@@ -194,8 +197,10 @@ final class FormateurSatisfactionTemplateController extends AbstractController
       ->andWhere('t.entite = :e')->setParameter('e', $entite);
 
     if ($search !== '') $countFilteredQb->leftJoin('t.formations', 'f_search');
-    if ($activeFilter === 'yes') $countFilteredQb->andWhere('t.isActive = 1');
-    elseif ($activeFilter === 'no') $countFilteredQb->andWhere('t.isActive = 0');
+    ChoiceFilter::any($countFilteredQb, $activeFilter, static function ($branch, string $value): void {
+      if ($value === 'yes') $branch->andWhere('t.isActive = true');
+      elseif ($value === 'no') $branch->andWhere('t.isActive = false');
+    });
     if ($search !== '') {
       $countFilteredQb->andWhere('LOWER(t.titre) LIKE :q OR LOWER(f_search.titre) LIKE :q')
         ->setParameter('q', '%' . mb_strtolower($search) . '%');

@@ -82,6 +82,8 @@ final class ElearningCourseController extends AbstractController
       ->getQuery()
       ->getSingleScalarResult();
 
+        $tableFilters = \App\Service\Filter\TableFilters::prepare($qb, $request, ['public'=>['field'=>'c.isPublic','label'=>'Visibilité','labels'=>['1'=>'Public','0'=>'Privé']], 'published'=>['field'=>'c.isPublished','label'=>'Publication','labels'=>['1'=>'Publié','0'=>'Brouillon']]]);
+
     // Filtre global (search)
     $search = trim($search);
     if ($search !== '') {
@@ -140,6 +142,7 @@ final class ElearningCourseController extends AbstractController
     return $this->json([
       'draw' => $draw,
       'recordsTotal' => $recordsTotal,
+            'filters' => $tableFilters,
       'recordsFiltered' => $recordsFiltered,
       'data' => $data,
     ]);
