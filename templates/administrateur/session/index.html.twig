@@ -987,16 +987,29 @@ $(function(){
     tsFormation.setValue('all', true);
   }
 
+  function listingFilters(){
+    return {
+      statusFilter: $status.val() || 'all',
+      formationFilter: $formation.val() || 'all',
+      dossierFilter: $dossier.val() || 'all',
+      dateFrom: $dateFrom.val() || '',
+      dateTo: $dateTo.val() || '',
+      formateurFilter: $formateur.val() || ''
+    };
+  }
+
+  let kpiRequest = 0;
   async function loadKpis(){
-    const params = new URLSearchParams();
-    params.set('status', $status.val() || 'all');
-    params.set('formation', $formation.val() || 'all');
+    const requestId = ++kpiRequest;
+    const params = new URLSearchParams(listingFilters());
+    params.set('search[value]', table.search());
 
     const url = "{{ path('app_administrateur_session_kpis', { entite: entite.id }) }}?" + params.toString();
     const res = await fetch(url, { headers: { 'Accept':'application/json' }});
     if(!res.ok) return;
 
     const k = await res.json();
+    if(requestId !== kpiRequest) return;
     $('#kpi-count').text(k.count ?? '—');
     $('#kpi-upcoming').text(k.upcoming ?? '—');
     $('#kpi-running').text(k.running ?? '—');
@@ -1094,12 +1107,7 @@ $(function(){
       url:"{{ path('app_administrateur_session_ajax', { entite: entite.id }) }}",
       type:"POST",
       data: d => {
-        d.statusFilter    = $status.val() || 'all';
-        d.formationFilter = $formation.val() || 'all';
-        d.dossierFilter   = $dossier.val() || 'all';
-        d.dateFrom        = $dateFrom.val() || '';
-        d.dateTo          = $dateTo.val() || '';
-        d.formateurFilter = $formateur.val() || '';
+        Object.assign(d, listingFilters());
       }
     },
 
@@ -1243,6 +1251,7 @@ $(function(){
   function dtAdjust(){ table.columns.adjust(); }
   table.on('init.dt', () => setTimeout(dtAdjust, 60));
   table.on('draw.dt', () => dtAdjust());
+  table.on('search.dt', () => loadKpis());
   window.addEventListener('resize', () => setTimeout(dtAdjust, 150));
 
   // formateur debounce

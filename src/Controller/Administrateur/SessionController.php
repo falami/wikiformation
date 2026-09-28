@@ -14,6 +14,7 @@ use App\Enum\StatusInscription;
 use App\Service\Email\MailerManager;
 use App\Form\Administrateur\SessionType;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use App\Service\Geocoding\NominatimGeocoder;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\Satisfaction\SatisfactionAssigner;
@@ -131,33 +132,13 @@ final class SessionController extends AbstractController
             $length = $request->request->getInt('length', 10);
 
 
-            $dossierFilter   = (string)$request->request->get('dossierFilter', 'all'); // all|complete|missing
-            $dateFrom        = (string)$request->request->get('dateFrom', '');
-            $dateTo          = (string)$request->request->get('dateTo', '');
-            $formateurFilter = trim((string)$request->request->get('formateurFilter', ''));
-
             $order = $request->request->all('order');
             $columns = $request->request->all('columns');
             $orderColIdx = (int)($order[0]['column'] ?? 0);
             $orderDir = strtolower((string)($order[0]['dir'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC';
             $orderName = (string)($columns[$orderColIdx]['name'] ?? '');
 
-            $search  = $request->request->all('search');
-            $searchV = trim((string)($search['value'] ?? ''));
-
-            $statusFilter    = (string)$request->request->get('statusFilter', 'all');
-            $formationFilter = (string)$request->request->get('formationFilter', 'all');
-
-            $repo = $em->getRepository(Session::class);
-
-            $baseQb = $repo->createQueryBuilder('s')
-                ->leftJoin('s.formation', 'f')->addSelect('f')
-                ->leftJoin('s.site', 'site')->addSelect('site')
-                ->leftJoin('s.engin', 'b')->addSelect('b')
-                ->leftJoin('s.formateur', 'sk')->addSelect('sk')
-                ->leftJoin('sk.utilisateur', 'u')->addSelect('u')
-                ->andWhere('s.entite = :entite')
-                ->setParameter('entite', $entite);
+            $baseQb = $this->sessionListingQuery($entite, $em);
 
             $recordsTotal = (int)(clone $baseQb)
                 ->select('COUNT(DISTINCT s.id)')
@@ -166,174 +147,7 @@ final class SessionController extends AbstractController
 
             $filteredQb = clone $baseQb;
 
-            // ===== Search global =====
-            if ($searchV !== '') {
-                $filteredQb
-                    ->andWhere('(s.code LIKE :q OR f.titre LIKE :q OR s.formationIntituleLibre LIKE :q OR site.nom LIKE :q OR b.nom LIKE :q OR u.nom LIKE :q OR u.prenom LIKE :q)')
-                    ->setParameter('q', '%' . $searchV . '%');
-            }
-
-            // ===== Filtres =====
-            ChoiceFilter::equals($filteredQb, $statusFilter, 's.status', 'selected_status');
-            ChoiceFilter::equals($filteredQb, $formationFilter, 'f.id', 'selected_formation');
-
-            // ===== Période (chevauchement via SessionJour) =====
-            if ($dateFrom !== '' || $dateTo !== '') {
-                $from = $dateFrom !== '' ? new \DateTimeImmutable($dateFrom . ' 00:00:00') : null;
-                $to   = $dateTo   !== '' ? new \DateTimeImmutable($dateTo   . ' 23:59:59') : null;
-
-                $subQb = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(SessionJour::class, 'sjf')
-                    ->where('sjf.session = s');
-
-                if ($from && $to) {
-                    $subQb->andWhere('sjf.dateDebut <= :to AND sjf.dateFin >= :from');
-                    $filteredQb->setParameter('from', $from)->setParameter('to', $to);
-                } elseif ($from) {
-                    $subQb->andWhere('sjf.dateFin >= :from');
-                    $filteredQb->setParameter('from', $from);
-                } elseif ($to) {
-                    $subQb->andWhere('sjf.dateDebut <= :to');
-                    $filteredQb->setParameter('to', $to);
-                }
-
-                $filteredQb->andWhere('EXISTS(' . $subQb->getDQL() . ')');
-            }
-
-            // ===== Formateur (nom/prénom) =====
-            if ($formateurFilter !== '') {
-                $filteredQb
-                    ->andWhere('(LOWER(u.nom) LIKE :fu OR LOWER(u.prenom) LIKE :fu)')
-                    ->setParameter('fu', '%' . mb_strtolower($formateurFilter) . '%');
-            }
-
-            // ===== Filtre dossier (EXISTS) =====
-            // ===== Filtre dossier (EXISTS) =====
-            $dossierChoices = ChoiceFilter::values($dossierFilter);
-            if ($dossierChoices !== null && count(array_intersect($dossierChoices, ['complete', 'missing'])) === 2) {
-                $dossierFilter = 'registered';
-            }
-            ChoiceFilter::any($filteredQb, $dossierFilter, function ($filteredQb, string $dossierFilter) use ($em): void {
-
-                // 0) au moins une inscription
-                $subHasIns = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(Inscription::class, 'i0')
-                    ->where('i0.session = s')
-                    ->getDQL();
-
-                // 1) dossier inscription manquant
-                $subMissingDossier = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(Inscription::class, 'i1')
-                    // ⚠️ ICI : mets le BON nom d’association !
-                    ->leftJoin('i1.dossier', 'd1') // <- adapte si besoin
-                    ->where('i1.session = s')
-                    ->andWhere('d1.id IS NULL')
-                    ->getDQL();
-
-                // 2) contrat formateur : absent OU brouillon (avec entite)
-                $subHasContrat = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(ContratFormateur::class, 'c0')
-                    ->where('c0.session = s')
-                    ->andWhere('c0.entite = :entite')
-                    ->getDQL();
-
-                $subContratNotSigned = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(ContratFormateur::class, 'c1')
-                    ->where('c1.session = s')
-                    ->andWhere('c1.entite = :entite')
-                    ->andWhere('c1.status = :cf_brouillon')
-                    ->getDQL();
-
-                // Une convention couvre ses inscriptions explicites, jamais toute l'entreprise.
-                $subExistsConv = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(ConventionContrat::class, 'cc2')
-                    ->innerJoin('cc2.inscriptions', 'ci2')
-                    ->where('cc2.session = s AND cc2.entite = :entite AND ci2 = i2')
-                    ->getDQL();
-
-                $subEntrepriseSansConvention = $em->createQueryBuilder()
-                    ->select('1')->from(Inscription::class, 'i2')
-                    ->where('i2.session = s')->andWhere('i2.status != :ins_annule')
-                    ->andWhere('NOT EXISTS(' . $subExistsConv . ')')->getDQL();
-
-                $subEntrepriseConventionNonSignee = $em->createQueryBuilder()
-                    ->select('1')->from(Inscription::class, 'i3')
-                    ->innerJoin('i3.conventionContrats', 'cc3')
-                    ->where('i3.session = s AND cc3.session = s AND cc3.entite = :entite')
-                    ->andWhere('i3.status != :ins_annule')
-                    ->andWhere('cc3.dateSignatureStagiaire IS NULL')
-                    ->andWhere('cc3.dateSignatureEntreprise IS NULL')
-                    ->andWhere('cc3.dateSignatureOf IS NULL')->getDQL();
-                $filteredQb->setParameter('ins_annule', StatusInscription::ANNULE);
-
-                // 4) émargement non signé (approx) + override “scan déposé”
-                $subEmargNotSigned = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(Emargement::class, 'em2')
-                    ->where('em2.session = s')
-                    ->andWhere('em2.signedAt IS NULL')
-                    ->andWhere('(em2.signatureDataUrl IS NULL OR em2.signatureDataUrl = \'\')')
-                    ->andWhere('(em2.signaturePath IS NULL OR em2.signaturePath = \'\')')
-                    ->getDQL();
-
-                $subEmargUploaded = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(SessionPiece::class, 'spem')
-                    ->where('spem.session = s')
-                    ->andWhere('spem.entite = :entite')
-                    ->andWhere('spem.type = :emarg_type')
-                    ->getDQL();
-
-
-                // overrides upload convention / contrat formateur signé
-                $subConvUploaded = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(SessionPiece::class, 'spcv')
-                    ->where('spcv.session = s')
-                    ->andWhere('spcv.entite = :entite')
-                    ->andWhere('spcv.type = :conv_type')
-                    ->getDQL();
-
-                $subCfUploaded = $em->createQueryBuilder()
-                    ->select('1')
-                    ->from(SessionPiece::class, 'spcf')
-                    ->where('spcf.session = s')
-                    ->andWhere('spcf.entite = :entite')
-                    ->andWhere('spcf.type = :cf_type')
-                    ->getDQL();
-
-                $incompleteDql =
-                    'EXISTS(' . $subMissingDossier . ')'
-                    . ' OR (s.formateur IS NOT NULL AND NOT EXISTS(' . $subCfUploaded . ') AND (NOT EXISTS(' . $subHasContrat . ') OR EXISTS(' . $subContratNotSigned . ')))'
-                    . ' OR (((EXISTS(' . $subEntrepriseSansConvention . ') OR EXISTS(' . $subEntrepriseConventionNonSignee . ')) AND NOT EXISTS(' . $subConvUploaded . ')))'
-                    . ' OR (EXISTS(' . $subEmargNotSigned . ') AND NOT EXISTS(' . $subEmargUploaded . '))';
-
-                if ($dossierFilter === 'registered') {
-                    $filteredQb->andWhere('EXISTS(' . $subHasIns . ')');
-                } elseif ($dossierFilter === 'missing') {
-                    $filteredQb
-                        ->andWhere('EXISTS(' . $subHasIns . ')')
-                        ->andWhere('(' . $incompleteDql . ')');
-                } elseif ($dossierFilter === 'complete') {
-                    $filteredQb
-                        ->andWhere('EXISTS(' . $subHasIns . ')')
-                        ->andWhere('NOT (' . $incompleteDql . ')');
-                }
-
-                // Paramètres du filtre dossier
-                $filteredQb
-                    ->setParameter('cf_brouillon', ContratFormateurStatus::BROUILLON)
-                    ->setParameter('emarg_type', SessionPieceType::EMARGEMENT_SIGNE)
-                    ->setParameter('conv_type', SessionPieceType::CONVENTION_SIGNEE)
-                    ->setParameter('cf_type', SessionPieceType::CONTRAT_FORMATEUR_SIGNE);
-            });
-
+            $this->applySessionListingFilters($filteredQb, $request->request->all(), $em);
 
             $recordsFiltered = (int)(clone $filteredQb)
                 ->select('COUNT(DISTINCT s.id)')
@@ -1523,33 +1337,205 @@ final class SessionController extends AbstractController
 
 
 
+    /** The listing and its counters share the same tenant scope and filters. */
+    private function sessionListingQuery(Entite $entite, EntityManagerInterface $em): QueryBuilder
+    {
+        return $em->getRepository(Session::class)->createQueryBuilder('s')
+            ->leftJoin('s.formation', 'f')->addSelect('f')
+            ->leftJoin('s.site', 'site')->addSelect('site')
+            ->leftJoin('s.engin', 'b')->addSelect('b')
+            ->leftJoin('s.formateur', 'sk')->addSelect('sk')
+            ->leftJoin('sk.utilisateur', 'u')->addSelect('u')
+            ->andWhere('s.entite = :entite')
+            ->setParameter('entite', $entite);
+    }
+
+    private function applySessionListingFilters(QueryBuilder $filteredQb, array $filters, EntityManagerInterface $em): void
+    {
+        $statusFilter = $filters['statusFilter'] ?? $filters['status'] ?? 'all';
+        $formationFilter = $filters['formationFilter'] ?? $filters['formation'] ?? 'all';
+        $dossierFilter = $filters['dossierFilter'] ?? 'all';
+        $dateFrom = trim((string) ($filters['dateFrom'] ?? ''));
+        $dateTo = trim((string) ($filters['dateTo'] ?? ''));
+        $formateurFilter = trim((string) ($filters['formateurFilter'] ?? ''));
+        $searchV = trim((string) ($filters['search']['value'] ?? ''));
+
+        // ===== Search global =====
+        if ($searchV !== '') {
+            $filteredQb
+                ->andWhere('(s.code LIKE :q OR f.titre LIKE :q OR s.formationIntituleLibre LIKE :q OR site.nom LIKE :q OR b.nom LIKE :q OR u.nom LIKE :q OR u.prenom LIKE :q)')
+                ->setParameter('q', '%' . $searchV . '%');
+        }
+
+        // ===== Filtres =====
+        ChoiceFilter::equals($filteredQb, $statusFilter, 's.status', 'selected_status');
+        ChoiceFilter::equals($filteredQb, $formationFilter, 'f.id', 'selected_formation');
+
+        // ===== Période (chevauchement via SessionJour) =====
+        if ($dateFrom !== '' || $dateTo !== '') {
+            $from = $dateFrom !== '' ? new \DateTimeImmutable($dateFrom . ' 00:00:00') : null;
+            $to   = $dateTo   !== '' ? new \DateTimeImmutable($dateTo   . ' 23:59:59') : null;
+
+            $subQb = $em->createQueryBuilder()
+                ->select('1')
+                ->from(SessionJour::class, 'sjf')
+                ->where('sjf.session = s');
+
+            if ($from && $to) {
+                $subQb->andWhere('sjf.dateDebut <= :to AND sjf.dateFin >= :from');
+                $filteredQb->setParameter('from', $from)->setParameter('to', $to);
+            } elseif ($from) {
+                $subQb->andWhere('sjf.dateFin >= :from');
+                $filteredQb->setParameter('from', $from);
+            } elseif ($to) {
+                $subQb->andWhere('sjf.dateDebut <= :to');
+                $filteredQb->setParameter('to', $to);
+            }
+
+            $filteredQb->andWhere('EXISTS(' . $subQb->getDQL() . ')');
+        }
+
+        // ===== Formateur (nom/prénom) =====
+        if ($formateurFilter !== '') {
+            $filteredQb
+                ->andWhere('(LOWER(u.nom) LIKE :fu OR LOWER(u.prenom) LIKE :fu)')
+                ->setParameter('fu', '%' . mb_strtolower($formateurFilter) . '%');
+        }
+
+        // ===== Filtre dossier (EXISTS) =====
+        $dossierChoices = ChoiceFilter::values($dossierFilter);
+        if ($dossierChoices !== null && count(array_intersect($dossierChoices, ['complete', 'missing'])) === 2) {
+            $dossierFilter = 'registered';
+        }
+        ChoiceFilter::any($filteredQb, $dossierFilter, function ($filteredQb, string $dossierFilter) use ($em): void {
+
+            // 0) au moins une inscription
+            $subHasIns = $em->createQueryBuilder()
+                ->select('1')
+                ->from(Inscription::class, 'i0')
+                ->where('i0.session = s')
+                ->getDQL();
+
+            // 1) dossier inscription manquant
+            $subMissingDossier = $em->createQueryBuilder()
+                ->select('1')
+                ->from(Inscription::class, 'i1')
+                // ⚠️ ICI : mets le BON nom d’association !
+                ->leftJoin('i1.dossier', 'd1')
+                ->where('i1.session = s')
+                ->andWhere('d1.id IS NULL')
+                ->getDQL();
+
+            // 2) contrat formateur : absent OU brouillon (avec entite)
+            $subHasContrat = $em->createQueryBuilder()
+                ->select('1')
+                ->from(ContratFormateur::class, 'c0')
+                ->where('c0.session = s')
+                ->andWhere('c0.entite = :entite')
+                ->getDQL();
+
+            $subContratNotSigned = $em->createQueryBuilder()
+                ->select('1')
+                ->from(ContratFormateur::class, 'c1')
+                ->where('c1.session = s')
+                ->andWhere('c1.entite = :entite')
+                ->andWhere('c1.status = :cf_brouillon')
+                ->getDQL();
+
+            // Une convention couvre ses inscriptions explicites, jamais toute l'entreprise.
+            $subExistsConv = $em->createQueryBuilder()
+                ->select('1')
+                ->from(ConventionContrat::class, 'cc2')
+                ->innerJoin('cc2.inscriptions', 'ci2')
+                ->where('cc2.session = s AND cc2.entite = :entite AND ci2 = i2')
+                ->getDQL();
+
+            $subEntrepriseSansConvention = $em->createQueryBuilder()
+                ->select('1')->from(Inscription::class, 'i2')
+                ->where('i2.session = s')->andWhere('i2.status != :ins_annule')
+                ->andWhere('NOT EXISTS(' . $subExistsConv . ')')->getDQL();
+
+            $subEntrepriseConventionNonSignee = $em->createQueryBuilder()
+                ->select('1')->from(Inscription::class, 'i3')
+                ->innerJoin('i3.conventionContrats', 'cc3')
+                ->where('i3.session = s AND cc3.session = s AND cc3.entite = :entite')
+                ->andWhere('i3.status != :ins_annule')
+                ->andWhere('cc3.dateSignatureStagiaire IS NULL')
+                ->andWhere('cc3.dateSignatureEntreprise IS NULL')
+                ->andWhere('cc3.dateSignatureOf IS NULL')->getDQL();
+            $filteredQb->setParameter('ins_annule', StatusInscription::ANNULE);
+
+            // 4) émargement non signé (approx) + override “scan déposé”
+            $subEmargNotSigned = $em->createQueryBuilder()
+                ->select('1')
+                ->from(Emargement::class, 'em2')
+                ->where('em2.session = s')
+                ->andWhere('em2.signedAt IS NULL')
+                ->andWhere('(em2.signatureDataUrl IS NULL OR em2.signatureDataUrl = \'\')')
+                ->andWhere('(em2.signaturePath IS NULL OR em2.signaturePath = \'\')')
+                ->getDQL();
+
+            $subEmargUploaded = $em->createQueryBuilder()
+                ->select('1')
+                ->from(SessionPiece::class, 'spem')
+                ->where('spem.session = s')
+                ->andWhere('spem.entite = :entite')
+                ->andWhere('spem.type = :emarg_type')
+                ->getDQL();
+
+
+            // overrides upload convention / contrat formateur signé
+            $subConvUploaded = $em->createQueryBuilder()
+                ->select('1')
+                ->from(SessionPiece::class, 'spcv')
+                ->where('spcv.session = s')
+                ->andWhere('spcv.entite = :entite')
+                ->andWhere('spcv.type = :conv_type')
+                ->getDQL();
+
+            $subCfUploaded = $em->createQueryBuilder()
+                ->select('1')
+                ->from(SessionPiece::class, 'spcf')
+                ->where('spcf.session = s')
+                ->andWhere('spcf.entite = :entite')
+                ->andWhere('spcf.type = :cf_type')
+                ->getDQL();
+
+            $incompleteDql =
+                'EXISTS(' . $subMissingDossier . ')'
+                . ' OR (s.formateur IS NOT NULL AND NOT EXISTS(' . $subCfUploaded . ') AND (NOT EXISTS(' . $subHasContrat . ') OR EXISTS(' . $subContratNotSigned . ')))'
+                . ' OR (((EXISTS(' . $subEntrepriseSansConvention . ') OR EXISTS(' . $subEntrepriseConventionNonSignee . ')) AND NOT EXISTS(' . $subConvUploaded . ')))'
+                . ' OR (EXISTS(' . $subEmargNotSigned . ') AND NOT EXISTS(' . $subEmargUploaded . '))';
+
+            if ($dossierFilter === 'registered') {
+                $filteredQb->andWhere('EXISTS(' . $subHasIns . ')');
+            } elseif ($dossierFilter === 'missing') {
+                $filteredQb
+                    ->andWhere('EXISTS(' . $subHasIns . ')')
+                    ->andWhere('(' . $incompleteDql . ')');
+            } elseif ($dossierFilter === 'complete') {
+                $filteredQb
+                    ->andWhere('EXISTS(' . $subHasIns . ')')
+                    ->andWhere('NOT (' . $incompleteDql . ')');
+            }
+
+            // Paramètres du filtre dossier
+            $filteredQb
+                ->setParameter('cf_brouillon', ContratFormateurStatus::BROUILLON)
+                ->setParameter('emarg_type', SessionPieceType::EMARGEMENT_SIGNE)
+                ->setParameter('conv_type', SessionPieceType::CONVENTION_SIGNEE)
+                ->setParameter('cf_type', SessionPieceType::CONTRAT_FORMATEUR_SIGNE);
+        });
+
+    }
+
     #[Route('/kpis', name: 'app_administrateur_session_kpis', methods: ['GET'])]
     public function kpis(Entite $entite, Request $request, EntityManagerInterface $em): JsonResponse
     {
 
 
-        $status = (string)$request->query->get('status', 'all');
-        $formation = (string)$request->query->get('formation', 'all');
-
-        $qb = $em->getRepository(Session::class)->createQueryBuilder('s')
-            ->leftJoin('s.formation', 'f')
-            ->leftJoin('s.jours', 'j')
-            ->andWhere('s.entite = :entite')
-            ->setParameter('entite', $entite);
-
-        if ($status !== 'all') {
-            $st = StatusSession::tryFrom($status);
-            if ($st) {
-                $qb->andWhere('s.status = :st')->setParameter('st', $st);
-            }
-        }
-
-        if ($formation !== 'all') {
-            $fid = (int)$formation;
-            if ($fid > 0) {
-                $qb->andWhere('f.id = :fid')->setParameter('fid', $fid);
-            }
-        }
+        $qb = $this->sessionListingQuery($entite, $em)->leftJoin('s.jours', 'j');
+        $this->applySessionListingFilters($qb, $request->query->all(), $em);
 
         // On calcule min(dateDebut) et max(dateFin) via les jours
         // (MySQL ok : on utilise MIN/MAX)
