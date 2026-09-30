@@ -1,10 +1,10 @@
 {# templates/administrateur/dashboard/index.html.twig #}
 {% extends 'base_admin.html.twig' %}
+
 {% block title %}{{ title }}{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
-
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
@@ -16,375 +16,790 @@
       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --dash-bg:#f5f7fa;
+      --dash-panel:#ffffff;
+      --dash-ink:#101828;
+      --dash-muted:#667085;
+      --dash-line:#eaecf0;
+      --dash-soft:#f8fafc;
+      --dash-success:#067647;
+      --dash-success-bg:#ecfdf3;
+      --dash-warning:#b54708;
+      --dash-warning-bg:#fffaeb;
+      --dash-danger:#b42318;
+      --dash-danger-bg:#fef3f2;
+      --dash-blue:#175cd3;
+      --dash-blue-bg:#eff8ff;
+      --dash-shadow:0 16px 44px rgba(16,24,40,.07);
+      --dash-shadow-hover:0 20px 52px rgba(16,24,40,.11);
+      --dash-radius:22px;
     }
 
-    /* ===== HERO ===== */
-    .hero{
-      border-radius: 22px;
-      position: relative;
-      overflow: hidden;
-      color: #fff;
+    /* =========================
+       BASE / TYPOGRAPHIE
+       ========================= */
+    .of-dashboard{
+      color:var(--dash-ink);
+      padding-bottom:2rem;
+    }
+    .of-dashboard *{box-sizing:border-box;}
+    .of-dashboard .text-muted{color:var(--dash-muted)!important;}
+    .section-eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      font-size:.68rem;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.09em;
+      color:var(--dash-muted);
+      margin-bottom:.3rem;
+    }
+    .section-title{
+      margin:0;
+      font-size:1.12rem;
+      font-weight:850;
+      letter-spacing:-.02em;
+      color:var(--dash-ink);
+    }
+    .section-subtitle{
+      margin-top:.2rem;
+      color:var(--dash-muted);
+      font-size:.82rem;
+      line-height:1.5;
+    }
 
-      /* Ombre douce premium */
-      box-shadow: 0 18px 50px rgba(0,0,0,.14);
-
-      /* Fond piloté par les couleurs de l'entité */
+    /* =========================
+       HERO DIRECTION
+       ========================= */
+    .of-hero{
+      position:relative;
+      overflow:hidden;
+      border-radius:28px;
+      padding:1.55rem 1.65rem;
+      color:#fff;
+      box-shadow:0 24px 60px rgba(15,23,42,.18);
       background:
-        /* halo clair (tertiaire) */
-        radial-gradient(1200px 420px at 12% -10%,
-          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
-          transparent 58%
-        ),
-        /* halo accent (secondaire) */
-        radial-gradient(900px 380px at 92% 0%,
-          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
-          transparent 60%
-        ),
-        /* voile subtil (quaternaire) pour la profondeur */
-        radial-gradient(700px 260px at 55% 115%,
-          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
-          transparent 62%
-        ),
-        /* dégradé principal (principal -> plus clair) */
+        radial-gradient(900px 380px at 85% -20%,
+          color-mix(in srgb,var(--theme-color-secondaire) 34%,transparent),
+          transparent 62%),
+        radial-gradient(700px 320px at -10% 110%,
+          rgba(255,255,255,.12),
+          transparent 62%),
         linear-gradient(135deg,
-          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
-          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
-        );
+          color-mix(in srgb,var(--theme-color-principal) 94%,#000 6%),
+          color-mix(in srgb,var(--theme-color-principal) 72%,#fff 28%));
     }
-
-    /* léger glass highlight */
-    .hero::after{
+    .of-hero::after{
       content:"";
       position:absolute;
       inset:0;
       pointer-events:none;
-      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%);
-      opacity:.85;
+      background:linear-gradient(180deg,rgba(255,255,255,.09),transparent 42%);
     }
-
-    /* barre accent = secondaire (et glow basé sur secondaire) */
-    .hero .accent{
-      width: 12px;
-      border-radius: 999px;
-      background: var(--theme-color-secondaire);
-      box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
-    }
-    /* ===== Chips HERO (comme facture) ===== */
-    .hero .chip{
+    .of-hero__content{position:relative;z-index:1;}
+    .of-hero__eyebrow{
       display:inline-flex;
       align-items:center;
       gap:.5rem;
-      padding:.32rem .7rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.14);
-      font-size:.82rem;
-      color: rgba(255,255,255,.92);
-      backdrop-filter: blur(6px);
-      white-space: nowrap;
+      padding:.34rem .7rem;
+      border-radius:999px;
+      background:rgba(255,255,255,.11);
+      border:1px solid rgba(255,255,255,.16);
+      backdrop-filter:blur(8px);
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      font-weight:800;
+      color:rgba(255,255,255,.9);
     }
-    .hero .chip i{
-      color: var(--theme-color-secondaire);
+    .of-hero__eyebrow i{color:var(--theme-color-secondaire);}
+    .of-hero h1{
+      margin:.8rem 0 .35rem;
+      font-size:clamp(1.65rem,2vw,2.25rem);
+      line-height:1.08;
+      font-weight:900;
+      letter-spacing:-.04em;
     }
-
-    /* chip highlight (optionnel) */
-    .hero .chip--pill{
-      background: color-mix(in srgb, var(--theme-color-secondaire) 18%, transparent);
-      border-color: color-mix(in srgb, var(--theme-color-secondaire) 28%, rgba(255,255,255,.14));
-      color:#fff;
+    .of-hero__lead{
+      max-width:760px;
+      font-size:.92rem;
+      line-height:1.6;
+      color:rgba(255,255,255,.76);
     }
-
-    .hero .btn{
-      border-radius: 14px;
-      font-weight: 800;
+    .of-hero__meta{
+      margin-top:1.15rem;
+      display:flex;
+      flex-wrap:wrap;
+      gap:.55rem;
     }
-    .hero .btn-outline-theme{
-      border-color: rgba(255,255,255,.35);
-      color:#fff;
+    .of-hero__chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.42rem .72rem;
+      border-radius:999px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.13);
+      color:rgba(255,255,255,.9);
+      font-size:.76rem;
+      font-weight:700;
     }
-    .hero .btn-outline-theme:hover{
-      background: rgba(255,255,255,.10);
-      border-color: rgba(255,255,255,.55);
-      color:#fff;
-    }
-
-    
-
-    /* ===== KPI ===== */
-    .kpi-card{
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 10px 26px rgba(0,0,0,.06);
-      border-radius:18px;
+    .of-hero__chip i{color:var(--theme-color-secondaire);}
+    .of-hero__refresh{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.5rem;
+      min-height:42px;
+      padding:.58rem .95rem;
+      border:0;
+      border-radius:13px;
       background:#fff;
-      overflow:hidden;
+      color:var(--theme-color-principal);
+      font-size:.8rem;
+      font-weight:850;
+      box-shadow:0 10px 24px rgba(0,0,0,.14);
     }
-    .kpi-ico{
-      width:46px;height:46px;border-radius:16px;
+    .of-hero__refresh:hover{transform:translateY(-1px);background:#f8fafc;}
+
+    /* =========================
+       FILTRES
+       ========================= */
+    .filterbar{
+      position:relative;
+      z-index:5;
+      margin-top:1rem;
+      background:rgba(255,255,255,.97);
+      border:1px solid var(--dash-line);
+      border-radius:20px;
+      box-shadow:var(--dash-shadow);
+      overflow:visible;
+    }
+    .filterbar__top{
+      padding:.9rem 1rem;
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+      border-bottom:1px solid var(--dash-line);
+    }
+    .filterbar__title{font-size:.9rem;font-weight:850;}
+    .filterbar__hint{font-size:.73rem;color:var(--dash-muted);margin-top:.08rem;}
+    .filterbar__body{padding:.9rem 1rem 1rem;}
+    .filtergrid{
+      display:grid;
+      grid-template-columns:repeat(12,minmax(0,1fr));
+      gap:.75rem;
+      align-items:end;
+    }
+    .fcol-formation{grid-column:span 3;}
+    .fcol-formateur{grid-column:span 3;}
+    .fcol-sessionstatus{grid-column:span 2;}
+    .fcol-insstatus{grid-column:span 2;}
+    .fcol-period{grid-column:span 2;}
+    .filter-control .form-label{
+      margin:0 0 .3rem;
+      font-size:.66rem;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.075em;
+      color:var(--dash-muted);
+    }
+    .filterbox{
+      min-height:44px;
+      padding:.32rem .52rem;
+      border:1px solid #dfe3e8;
+      border-radius:13px;
+      background:#fff;
+      transition:.16s ease;
+    }
+    .filterbox:focus-within{
+      border-color:color-mix(in srgb,var(--theme-color-principal) 45%,#dfe3e8);
+      box-shadow:0 0 0 3px color-mix(in srgb,var(--theme-color-principal) 9%,transparent);
+    }
+    .filterrow{display:flex;align-items:center;gap:.5rem;}
+    .filter-icon{
+      width:31px;height:31px;
       display:grid;place-items:center;
-      background:rgba(0,0,0,.03);
-      border:1px solid rgba(0,0,0,.06);
+      flex:0 0 auto;
+      border-radius:9px;
+      background:#f2f4f7;
+      color:#475467;
+      font-size:.78rem;
     }
-    .kpi-label{ color:rgba(0,0,0,.55); font-size:.85rem }
-    .kpi-value{ font-weight:900; font-size:1.55rem; letter-spacing:-.02em }
-    .kpi-sub{ color:rgba(0,0,0,.50); font-size:.82rem }
+    .filterbox .form-select,.filterbox .form-control{
+      min-width:0;
+      border:0!important;
+      box-shadow:none!important;
+      background:transparent!important;
+      padding:.15rem 0!important;
+      font-size:.78rem!important;
+    }
+    .ts-dropdown{z-index:3000!important;}
+    .ts-control{border:0!important;box-shadow:none!important;padding:.2rem 0!important;min-height:auto!important;}
 
-    /* ===== PANELS ===== */
-    .panel{
-      background:#fff;
-      border-radius:18px;
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 12px 30px rgba(0,0,0,.06);
+    /* =========================
+       STRUCTURE PANELS
+       ========================= */
+    .of-section{margin-top:1.15rem;}
+    .of-section-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:1rem;
+      margin-bottom:.7rem;
+    }
+    .of-panel{
+      height:100%;
+      background:var(--dash-panel);
+      border:1px solid var(--dash-line);
+      border-radius:var(--dash-radius);
+      box-shadow:var(--dash-shadow);
       overflow:hidden;
     }
-    .panel .head{
-      padding:.85rem 1rem;
-      border-bottom:1px solid rgba(0,0,0,.06);
+    .of-panel__head{
+      min-height:64px;
+      padding:.95rem 1.05rem;
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:.75rem;
+      gap:.8rem;
+      border-bottom:1px solid var(--dash-line);
+      background:linear-gradient(180deg,#fff,#fdfdfd);
     }
-    .panel .title{ font-weight:900; margin:0; }
-    .panel .body{ padding:1rem; }
+    .of-panel__title{
+      display:flex;
+      align-items:center;
+      gap:.7rem;
+      margin:0;
+      font-size:.9rem;
+      font-weight:850;
+      color:var(--dash-ink);
+    }
+    .of-panel__icon{
+      width:34px;height:34px;
+      display:grid;place-items:center;
+      border-radius:10px;
+      background:#f2f4f7;
+      border:1px solid #e4e7ec;
+      color:#475467;
+    }
+    .of-panel__body{padding:1rem;}
+    .of-panel__count{
+      display:inline-flex;
+      align-items:center;
+      min-height:28px;
+      padding:.25rem .55rem;
+      border-radius:999px;
+      border:1px solid var(--dash-line);
+      background:#fff;
+      color:var(--dash-muted);
+      font-size:.7rem;
+      font-weight:800;
+    }
 
-    /* ===== MINI LISTS ===== */
+    /* =========================
+       KPI DIRECTION
+       ========================= */
+    .direction-grid{
+      display:grid;
+      grid-template-columns:repeat(12,minmax(0,1fr));
+      gap:.8rem;
+    }
+    .metric{
+      grid-column:span 3;
+      position:relative;
+      min-height:145px;
+      padding:1rem;
+      overflow:hidden;
+      background:#fff;
+      border:1px solid var(--dash-line);
+      border-radius:18px;
+      box-shadow:0 10px 30px rgba(16,24,40,.05);
+      transition:.16s ease;
+    }
+    .metric:hover{transform:translateY(-2px);box-shadow:var(--dash-shadow-hover);}
+    .metric::after{
+      content:"";
+      position:absolute;
+      width:120px;height:120px;
+      right:-50px;top:-55px;
+      border-radius:50%;
+      background:var(--metric-soft,#f2f4f7);
+      opacity:.75;
+    }
+    .metric__top{display:flex;justify-content:space-between;align-items:flex-start;gap:.7rem;position:relative;z-index:1;}
+    .metric__icon{
+      width:40px;height:40px;
+      display:grid;place-items:center;
+      border-radius:12px;
+      background:var(--metric-soft,#f2f4f7);
+      color:var(--metric-color,#475467);
+      font-size:.95rem;
+    }
+    .metric__badge{
+      padding:.24rem .5rem;
+      border-radius:999px;
+      background:#f8fafc;
+      border:1px solid var(--dash-line);
+      color:var(--dash-muted);
+      font-size:.65rem;
+      font-weight:800;
+    }
+    .metric__label{
+      margin-top:.9rem;
+      color:var(--dash-muted);
+      font-size:.69rem;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.065em;
+    }
+    .metric__value{
+      margin-top:.22rem;
+      font-size:1.72rem;
+      line-height:1.05;
+      font-weight:900;
+      letter-spacing:-.035em;
+      color:var(--dash-ink);
+      font-variant-numeric:tabular-nums;
+    }
+    .metric__sub{margin-top:.36rem;font-size:.73rem;line-height:1.4;color:var(--dash-muted);}
+    .metric--blue{--metric-color:#175cd3;--metric-soft:#eff8ff;}
+    .metric--green{--metric-color:#067647;--metric-soft:#ecfdf3;}
+    .metric--gold{--metric-color:#b54708;--metric-soft:#fffaeb;}
+    .metric--violet{--metric-color:#6941c6;--metric-soft:#f4f3ff;}
+
+    /* =========================
+       ACTIONS PRIORITAIRES
+       ========================= */
+    .action-card{
+      height:100%;
+      min-height:144px;
+      padding:1rem;
+      border-radius:18px;
+      border:1px solid var(--dash-line);
+      background:#fff;
+      box-shadow:0 10px 28px rgba(16,24,40,.05);
+    }
+    .action-card__row{display:flex;align-items:flex-start;justify-content:space-between;gap:.8rem;}
+    .action-card__icon{
+      width:38px;height:38px;
+      display:grid;place-items:center;
+      border-radius:11px;
+      flex:0 0 auto;
+    }
+    .action-card--warn .action-card__icon{background:var(--dash-warning-bg);color:var(--dash-warning);}
+    .action-card--danger .action-card__icon{background:var(--dash-danger-bg);color:var(--dash-danger);}
+    .action-card--blue .action-card__icon{background:var(--dash-blue-bg);color:var(--dash-blue);}
+    .action-card__count{
+      font-size:1.5rem;
+      line-height:1;
+      font-weight:900;
+      letter-spacing:-.03em;
+      color:var(--dash-ink);
+    }
+    .action-card__label{margin-top:.72rem;font-size:.78rem;font-weight:850;color:var(--dash-ink);}
+    .action-card__hint{margin-top:.25rem;font-size:.7rem;color:var(--dash-muted);line-height:1.45;}
+
+    /* =========================
+       FINANCE
+       ========================= */
+    .finance-card{
+      position:relative;
+      overflow:hidden;
+      padding:1.15rem;
+      border-radius:20px;
+      border:1px solid var(--dash-line);
+      background:
+        radial-gradient(500px 180px at 100% 0%,color-mix(in srgb,var(--theme-color-secondaire) 9%,transparent),transparent 70%),
+        #fff;
+      box-shadow:var(--dash-shadow);
+    }
+    .finance-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:.75rem;
+      margin-top:1rem;
+    }
+    .finance-stat{
+      padding:.8rem .9rem;
+      border-radius:14px;
+      background:#f8fafc;
+      border:1px solid #eef1f4;
+    }
+    .finance-stat__label{
+      font-size:.64rem;
+      text-transform:uppercase;
+      letter-spacing:.075em;
+      font-weight:800;
+      color:var(--dash-muted);
+    }
+    .finance-stat__value{
+      margin-top:.22rem;
+      font-size:1.22rem;
+      font-weight:900;
+      letter-spacing:-.03em;
+      font-variant-numeric:tabular-nums;
+    }
+    .finance-progress{
+      height:8px;
+      margin-top:.95rem;
+      border-radius:999px;
+      background:#eaecf0;
+      overflow:hidden;
+    }
+    .finance-progress>span{
+      display:block;
+      height:100%;
+      width:0;
+      border-radius:inherit;
+      background:linear-gradient(90deg,var(--theme-color-principal),color-mix(in srgb,var(--theme-color-principal) 55%,var(--theme-color-secondaire)));
+      transition:width .35s ease;
+    }
+
+    /* =========================
+       LISTES ALERTES
+       ========================= */
     .mini-list{
       list-style:none;
       padding:0;
       margin:0;
       display:flex;
       flex-direction:column;
-      gap:.5rem;
+      gap:.55rem;
     }
     .mini-item{
-      padding:.65rem .75rem;
-      border:1px solid rgba(0,0,0,.06);
-      border-radius:14px;
+      padding:.72rem;
       display:flex;
-      gap:.75rem;
       align-items:flex-start;
-      background:linear-gradient(180deg, rgba(0,0,0,.012), transparent);
-    }
-    .mini-item .badge{ border-radius:999px; }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-
-    /* ===== FILTERBAR ===== */
-    .filterbar{
+      gap:.65rem;
+      border:1px solid var(--dash-line);
+      border-radius:13px;
       background:#fff;
-      border-radius:18px;
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 10px 24px rgba(0,0,0,.05);
-      overflow-y:visible;
     }
-    .filterbar__top{
-      padding:.9rem 1rem;
-      border-bottom:1px solid rgba(0,0,0,.06);
-      background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);
-      display:flex;align-items:center;gap:.75rem;
+    .mini-item:hover{background:#fcfcfd;}
+    .badge-pro{
+      display:inline-flex;
+      align-items:center;
+      gap:.3rem;
+      padding:.24rem .48rem;
+      border-radius:999px;
+      border:1px solid var(--dash-line);
+      font-size:.67rem;
+      line-height:1.2;
+      font-weight:800;
     }
-    .filterbar__title{ font-weight:900; margin:0; font-size:1rem }
-    .filterbar__hint{ color:rgba(0,0,0,.55); font-size:.85rem }
-    .filterbar__body{ padding:1rem; }
-    .filtergrid{
-      display:grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap:.75rem;
-      align-items:end;
-    }
-    .fcol-formation{ grid-column: span 3; }
-    .fcol-formateur{ grid-column: span 3; }
-    .fcol-sessionstatus{ grid-column: span 2; }
-    .fcol-insstatus{ grid-column: span 2; }
-    .fcol-period{ grid-column: span 2; }
-    @media (max-width: 1200px){
-      .fcol-formation{ grid-column: span 6; }
-      .fcol-formateur{ grid-column: span 6; }
-      .fcol-sessionstatus{ grid-column: span 6; }
-      .fcol-insstatus{ grid-column: span 6; }
-      .fcol-period{ grid-column: span 12; }
-    }
-    .filter-control .form-label{
-      font-size:.78rem;font-weight:800;color:rgba(0,0,0,.55);
-      text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;
-    }
-    .filterbox{
-      border:1px solid rgba(0,0,0,.08);
-      border-radius:14px;
-      padding:.55rem .6rem;
-      background:#fff;
-      box-shadow:0 8px 18px rgba(0,0,0,.04);
-    }
-    .filterbox:focus-within{
-      border-color: rgba(255,193,7,.55);
-      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
-    }
-    .filterbox .form-select,.filterbox .form-control{
-      border:0!important;
-      box-shadow:none!important;
-      padding-left:0!important;
-      padding-right:0!important;
-      background:transparent!important;
-    }
-    .filterrow{ display:flex; gap:.6rem; align-items:center; }
-    .filter-icon{
-      width:34px;height:34px;border-radius:12px;
-      display:grid;place-items:center;
-      background:rgba(0,0,0,.04);
-      border:1px solid rgba(0,0,0,.06);
-      color:rgba(0,0,0,.55);
-      flex:0 0 auto;
-    }
+    .badge-pro--warn{background:var(--dash-warning-bg);border-color:#fedf89;color:var(--dash-warning);}
+    .badge-pro--danger{background:var(--dash-danger-bg);border-color:#fecdca;color:var(--dash-danger);}
+    .badge-pro--ok{background:var(--dash-success-bg);border-color:#abefc6;color:var(--dash-success);}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
 
-    /* ===== TABLE PRO (premium for all tables) ===== */
+    .em-acc .accordion-item{border:1px solid var(--dash-line);border-radius:13px!important;overflow:hidden;}
+    .em-acc .accordion-button{padding:.7rem .8rem;font-size:.76rem;font-weight:800;background:#fff;}
+    .em-acc .accordion-button:not(.collapsed){box-shadow:none;background:#f8fafc;color:var(--dash-ink);}
+    .em-acc .accordion-body{padding:.7rem;background:#f8fafc;}
+    .em-row{display:flex;gap:.55rem;align-items:flex-start;padding:.55rem .6rem;border-radius:10px;}
+    .em-row+.em-row{margin-top:.4rem;}
+    .em-meta{font-size:.68rem;color:var(--dash-muted);}
+
+    /* =========================
+       TABLES
+       ========================= */
     .table-pro{
       background:#fff;
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 14px 36px rgba(0,0,0,.06);
-      border-radius:18px;
+      border:1px solid var(--dash-line);
+      border-radius:20px;
+      box-shadow:var(--dash-shadow);
       overflow:hidden;
     }
     .table-pro__head{
+      min-height:64px;
       padding:.85rem 1rem;
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:.75rem;
-      border-bottom:1px solid rgba(0,0,0,.06);
-      background:
-        radial-gradient(900px 220px at 20% 0%, rgba(255,193,7,.10), transparent 60%),
-        linear-gradient(180deg, rgba(0,0,0,.015), transparent);
+      gap:.8rem;
+      border-bottom:1px solid var(--dash-line);
+      background:#fff;
     }
     .table-pro__title{
-      font-weight:900;
+      margin:0;
       display:flex;
       align-items:center;
-      gap:.5rem;
+      gap:.55rem;
       flex-wrap:wrap;
-      margin:0;
+      font-size:.88rem;
+      font-weight:850;
+      color:var(--dash-ink);
     }
     .table-pro__count{
-      font-weight:900;
-      font-size:.78rem;
-      padding:.2rem .55rem;
+      padding:.22rem .48rem;
       border-radius:999px;
-      border:1px solid rgba(0,0,0,.08);
-      background:rgba(0,0,0,.03);
-      color:rgba(0,0,0,.65);
+      background:#f8fafc;
+      border:1px solid var(--dash-line);
+      color:var(--dash-muted);
+      font-size:.65rem;
+      font-weight:800;
     }
-    .table-pro__tools{ display:flex; gap:.5rem; align-items:center; }
-    .table-pro__search{ position:relative; min-width:240px; }
+    .table-pro__tools{display:flex;align-items:center;gap:.45rem;}
+    .table-pro__search{position:relative;min-width:220px;}
     .table-pro__search i{
-      position:absolute; top:50%; left:.6rem; transform:translateY(-50%);
-      color:rgba(0,0,0,.45);
+      position:absolute;left:.65rem;top:50%;transform:translateY(-50%);
+      color:#98a2b3;font-size:.75rem;
     }
     .table-pro__search input{
-      padding-left:2rem;
-      border-radius:999px;
-      border:1px solid rgba(0,0,0,.10);
-      box-shadow:0 10px 18px rgba(0,0,0,.04);
+      min-height:36px;
+      padding-left:1.95rem;
+      border-radius:10px;
+      border-color:#dfe3e8;
+      font-size:.75rem;
     }
-    .table-pro__search input:focus{
-      border-color:rgba(255,193,7,.55);
-      box-shadow:0 0 0 .2rem rgba(255,193,7,.18), 0 12px 22px rgba(0,0,0,.05);
-    }
-    .table-pro__body{ padding:0; }
-    .table-pro__table{ margin:0; border-collapse:separate; border-spacing:0; }
+    .table-pro__body{padding:0;}
+    .table-pro__table{margin:0!important;}
     .table-pro__table thead th{
-      position:sticky; top:0; z-index:2;
-      font-size:.78rem;
+      padding:.68rem .72rem!important;
+      background:#f8fafc!important;
+      color:#475467!important;
+      border-bottom:1px solid var(--dash-line)!important;
+      font-size:.64rem!important;
       text-transform:uppercase;
-      letter-spacing:.06em;
-      font-weight:900;
-      color:rgba(0,0,0,.58);
-      background:rgba(0,0,0,.02);
-      border-bottom:1px solid rgba(0,0,0,.06);
-      padding:.75rem .75rem;
+      letter-spacing:.07em;
+      font-weight:850!important;
       white-space:nowrap;
     }
     .table-pro__table tbody td{
-      padding:.72rem .75rem;
-      border-top:1px solid rgba(0,0,0,.04);
+      padding:.72rem!important;
+      border-color:#f0f2f5!important;
+      font-size:.75rem;
+      color:#344054;
       vertical-align:middle;
     }
-    .table-pro__table tbody tr{ transition:background .12s ease; }
-    .table-pro__table tbody tr:hover{ background:rgba(255,193,7,.06); }
+    .table-pro__table tbody tr:hover>*{background:#fcfcfd!important;}
     .table-pro__foot{
-      padding:.65rem 1rem;
+      min-height:50px;
+      padding:.7rem 1rem;
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:.75rem;
-      border-top:1px solid rgba(0,0,0,.06);
-      background:linear-gradient(180deg, transparent, rgba(0,0,0,.015));
-    }
-    @media (max-width: 768px){
-      .table-pro__head{ flex-direction:column; align-items:stretch; }
-      .table-pro__search{ min-width:100%; }
+      gap:.8rem;
+      border-top:1px solid var(--dash-line);
+      background:#fff;
     }
 
-    /* badges premium */
-    .badge-pro{
-      border-radius:999px;
-      padding:.25rem .55rem;
-      font-weight:900;
-      font-size:.76rem;
-      border:1px solid rgba(0,0,0,.08);
-      background:rgba(0,0,0,.03);
-      display:inline-flex;
-      align-items:center;
-      gap:.35rem;
-    }
-    .badge-pro--danger{ background:rgba(220,53,69,.10); border-color:rgba(220,53,69,.20); color:#b02a37; }
-    .badge-pro--warn{ background:rgba(255,193,7,.14); border-color:rgba(255,193,7,.25); color:#7a5b00; }
-    .badge-pro--ok{ background:rgba(25,135,84,.10); border-color:rgba(25,135,84,.20); color:#0f5132; }
-
-    /* DataTables integration */
+    /* DataTables 1/2 */
     .dataTables_wrapper .dataTables_filter,
-    .dataTables_wrapper .dataTables_length{ display:none !important; }
-    .dataTables_wrapper .dataTables_paginate{
-      display:flex;
-      gap:.35rem;
-      align-items:center;
+    .dataTables_wrapper .dataTables_length,
+    .dt-container .dt-search,
+    .dt-container .dt-length{display:none!important;}
+    .dataTables_wrapper .dataTables_paginate .paginate_button,
+    .dt-container .dt-paging .dt-paging-button{
+      min-width:32px;
+      height:32px;
+      border:1px solid var(--dash-line)!important;
+      border-radius:9px!important;
+      background:#fff!important;
+      color:#475467!important;
+      font-size:.7rem!important;
+      padding:0 .45rem!important;
+      margin:0 .12rem!important;
     }
-    .dataTables_wrapper .dataTables_paginate .paginate_button{
-      border:1px solid rgba(0,0,0,.10) !important;
-      border-radius:999px !important;
-      padding:.25rem .55rem !important;
-      background:rgba(0,0,0,.02) !important;
-      color:rgba(0,0,0,.70) !important;
-      margin:0 !important;
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+    .dt-container .dt-paging .dt-paging-button.current{
+      background:#f2f4f7!important;
+      color:var(--dash-ink)!important;
+      font-weight:850!important;
     }
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current{
-      background:rgba(255,193,7,.20) !important;
-      border-color:rgba(255,193,7,.35) !important;
-      font-weight:900 !important;
+    .dt-container .dt-info,.dataTables_info{font-size:.7rem;color:var(--dash-muted)!important;}
+    div.dt-processing{display:none!important;}
+
+    /* =========================
+       CHARTS
+       ========================= */
+    .chart-wrap{height:300px;position:relative;}
+    .chart-wrap--wide{height:320px;}
+    canvas{max-height:none!important;}
+
+    /* =========================
+       MODAL PIECE
+       ========================= */
+    #pieceModal .modal-dialog{max-width:980px;}
+    #pieceModal .preview-wrap{height:52vh;max-height:520px;min-height:260px;}
+
+    /* =========================
+       LOADING
+       ========================= */
+    #btnRefresh:disabled{opacity:.65;cursor:wait;}
+    .dashboard-loading .metric__value,
+    .dashboard-loading .finance-stat__value{
+      color:transparent!important;
+      position:relative;
+      overflow:hidden;
+      border-radius:7px;
     }
-    .dataTables_wrapper .dataTables_paginate .paginate_button:hover{
-      background:rgba(0,0,0,.04) !important;
+    .dashboard-loading .metric__value::after,
+    .dashboard-loading .finance-stat__value::after{
+      content:"";position:absolute;inset:0;
+      background:linear-gradient(90deg,#f2f4f7 20%,#e4e7ec 36%,#f2f4f7 52%);
+      background-size:220% 100%;
+      animation:ofShimmer 1.2s linear infinite;
+    }
+    @keyframes ofShimmer{to{background-position:-220% 0}}
+
+    /* =========================
+       RESPONSIVE
+       ========================= */
+    @media(max-width:1199px){
+      .fcol-formation,.fcol-formateur{grid-column:span 6;}
+      .fcol-sessionstatus,.fcol-insstatus{grid-column:span 3;}
+      .fcol-period{grid-column:span 6;}
+      .metric{grid-column:span 6;}
+      .finance-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+    @media(max-width:767.98px){
+      .of-hero{padding:1.15rem;border-radius:20px;}
+      .of-hero__lead{font-size:.82rem;}
+      .of-hero__refresh{width:100%;}
+      .filtergrid{gap:.6rem;}
+      .fcol-formation,.fcol-formateur,.fcol-sessionstatus,.fcol-insstatus,.fcol-period{grid-column:1/-1;}
+      .metric{grid-column:1/-1;min-height:128px;}
+      .finance-grid{grid-template-columns:1fr;}
+      .of-section-head{align-items:flex-start;flex-direction:column;}
+      .table-pro__head{align-items:stretch;flex-direction:column;}
+      .table-pro__tools{width:100%;}
+      .table-pro__search{min-width:0;flex:1;}
+      .table-pro__foot{align-items:flex-start;flex-direction:column;}
+      .chart-wrap,.chart-wrap--wide{height:280px;}
+      #pieceModal .modal-dialog{max-width:95vw;margin:.75rem auto;}
+      #pieceModal .preview-wrap{height:42vh;max-height:420px;min-height:220px;}
     }
 
-    /* ===== CHARTS / TOMSELECT ===== */
-    canvas{ max-height:320px; }
-    .ts-dropdown{ z-index: 2000 !important; }
-
-    /* ===== MODAL PIECE : aperçu plus petit ===== */
-    #pieceModal .modal-dialog{ max-width: 980px; }
-    #pieceModal .preview-wrap{
-      height: 52vh; max-height: 520px; min-height: 260px;
-    }
-    @media (max-width: 768px){
-      #pieceModal .modal-dialog{ max-width: 95vw; margin: .75rem auto; }
-      #pieceModal .preview-wrap{ height: 42vh; max-height: 420px; min-height: 220px; }
+    /* =========================
+       V3 — POLISH PREMIUM
+       ========================= */
+    .of-dashboard{
+      max-width:1600px;
+      margin:0 auto;
     }
 
-    /* accordion emargements */
-    .em-acc .accordion-item { border-radius: 14px; overflow: hidden; border:1px solid rgba(0,0,0,.06); }
-    .em-acc .accordion-button { padding:.65rem .85rem; font-weight:800; }
-    .em-acc .accordion-body { padding:.65rem .85rem; background: rgba(0,0,0,.015); }
-    .em-row { display:flex; gap:.6rem; align-items:flex-start; padding:.45rem .5rem; border-radius:12px; }
-    .em-row + .em-row { margin-top:.35rem; }
-    .em-meta { color: rgba(0,0,0,.55); font-size:.82rem; }
-    .em-badges .badge { border-radius:999px; }
+    .of-section{
+      position:relative;
+      isolation:isolate;
+      clear:both;
+    }
+
+    .of-panel,
+    .table-pro,
+    .finance-card,
+    .action-card,
+    .metric{
+      backdrop-filter:saturate(120%);
+    }
+
+    .of-panel{
+      min-width:0;
+    }
+
+    .of-panel__body,
+    .table-pro__body{
+      min-width:0;
+      overflow:hidden;
+    }
+
+    .chart-wrap{
+      width:100%;
+      min-width:0;
+      overflow:hidden;
+      border-radius:16px;
+      background:
+        linear-gradient(180deg,#fff,#fcfcfd);
+    }
+
+    .chart-wrap canvas{
+      display:block!important;
+      width:100%!important;
+      max-width:100%!important;
+    }
+
+    .table-pro{
+      border-color:#e6e9ee;
+      box-shadow:
+        0 1px 2px rgba(16,24,40,.02),
+        0 14px 42px rgba(16,24,40,.055);
+    }
+
+    .table-pro__head{
+      background:
+        radial-gradient(420px 120px at 100% 0%,
+          color-mix(in srgb,var(--theme-color-principal) 5%,transparent),
+          transparent 72%),
+        #fff;
+    }
+
+    .table-pro__table tbody td:first-child{
+      font-weight:750;
+      color:#1d2939;
+    }
+
+    .table-pro__table tbody tr{
+      transition:background .14s ease;
+    }
+
+    .table-pro__table tbody tr:hover td{
+      background:#f9fafb!important;
+    }
+
+    .metric{
+      border-color:#e7eaf0;
+      box-shadow:
+        0 1px 2px rgba(16,24,40,.02),
+        0 12px 34px rgba(16,24,40,.045);
+    }
+
+    .metric__value{
+      font-size:1.82rem;
+    }
+
+    .action-card{
+      border-color:#e7eaf0;
+      box-shadow:
+        0 1px 2px rgba(16,24,40,.02),
+        0 12px 30px rgba(16,24,40,.045);
+    }
+
+    .finance-card{
+      border-color:#e5e9ef;
+      box-shadow:
+        0 1px 2px rgba(16,24,40,.025),
+        0 16px 44px rgba(16,24,40,.06);
+    }
+
+    .finance-stat{
+      background:#fff;
+      border-color:#e8ebf0;
+      box-shadow:0 4px 14px rgba(16,24,40,.025);
+    }
+
+    .section-title{
+      font-size:1.18rem;
+    }
+
+    .section-subtitle{
+      max-width:760px;
+    }
+
+    /* La conformité détaillée reste dans son propre flux et ne peut plus recouvrir l'analyse */
+    #tblDocsMissing,
+    #tblUnsigned{
+      width:100%!important;
+      table-layout:auto;
+    }
+
+    @media (min-width:1200px){
+      .chart-wrap{height:320px;}
+      .chart-wrap--wide{height:340px;}
+    }
+
   </style>
 {% endblock %}
 
@@ -399,56 +814,50 @@
 {% endblock %}
 
 {% block body %}
+<div class="of-dashboard">
 
+  {# ================= HERO ================= #}
+  <section class="of-hero">
+    <div class="of-hero__content">
+      <div class="d-flex align-items-start justify-content-between gap-4 flex-wrap">
+        <div class="flex-grow-1">
+          <span class="of-hero__eyebrow">
+            <i class="bi bi-mortarboard-fill"></i>
+            Pilotage organisme de formation
+          </span>
 
-
-
-
-  {# ===== HERO (comme session) ===== #}
-  <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
-
-    <div class="flex-grow-1">
-      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-        <div>
-          <h2 class="m-0 fw-bold">
-            <i class="bi bi-speedometer2"></i> Tableau de bord
-          </h2>
-
-          <div class="opacity-75 mt-1">
-            Tout ce qui manque : documents, émargements, finances, sessions à venir.
+          <h1>Votre activité formation, en un coup d'œil</h1>
+          <div class="of-hero__lead">
+            Suivez l'activité pédagogique, les dossiers stagiaires, les émargements et les encaissements
+            depuis une seule vue de pilotage.
           </div>
 
-          <div class="d-flex flex-wrap gap-2 mt-3">
-            <span class="chip"><i class="bi bi-speedometer2"></i> Tableau de bord</span>
-            <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
-            <span class="chip chip--pill"><i class="bi bi-clock-history"></i> <span id="hero-last-refresh">—</span></span>
+          <div class="of-hero__meta">
+            <span class="of-hero__chip"><i class="bi bi-building"></i>{{ entite.nom }}</span>
+            <span class="of-hero__chip"><i class="bi bi-shield-check"></i>Suivi conformité</span>
+            <span class="of-hero__chip"><i class="bi bi-clock-history"></i><span id="hero-last-refresh">—</span></span>
           </div>
         </div>
 
-        <div class="d-flex gap-2 flex-wrap">
-
-          <button class="btn btn-light btn-sm fw-semibold" id="btnRefresh">
-            <i class="bi bi-arrow-repeat"></i> Actualiser
-          </button>
-        </div>
+        <button class="of-hero__refresh" id="btnRefresh" type="button">
+          <i class="bi bi-arrow-repeat"></i>
+          Actualiser les données
+        </button>
       </div>
     </div>
-  </div>
+  </section>
 
-  {# Filterbar #}
-  <div class="filterbar mb-3">
+  {# ================= FILTRES ================= #}
+  <div class="filterbar">
     <div class="filterbar__top">
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <div class="filter-icon"><i class="bi bi-funnel"></i></div>
-        <div>
-          <div class="filterbar__title">Filtres</div>
-          <div class="filterbar__hint">Formation • Formateur • Statuts • Période</div>
-        </div>
+      <div class="filter-icon"><i class="bi bi-sliders2"></i></div>
+      <div>
+        <div class="filterbar__title">Périmètre d'analyse</div>
+        <div class="filterbar__hint">Filtrez l'activité par formation, formateur, statut ou période.</div>
       </div>
-      <div class="ms-auto d-flex gap-2 align-items-center">
-        <button class="btn btn-outline-secondary btn-sm fw-semibold" id="btnReset">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset
+      <div class="ms-auto">
+        <button class="btn btn-sm btn-outline-secondary fw-semibold" id="btnReset" type="button">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> Réinitialiser
         </button>
       </div>
     </div>
@@ -457,231 +866,229 @@
       <div class="filtergrid">
         <div class="filter-control fcol-formation">
           <div class="form-label">Formation</div>
-          <div class="filterbox">
-            <div class="filterrow">
-              <div class="filter-icon"><i class="bi bi-mortarboard"></i></div>
-              <select id="formationFilter" class="form-select form-select-sm">
-                <option value="all">Toutes</option>
-              </select>
-            </div>
-          </div>
+          <div class="filterbox"><div class="filterrow">
+            <div class="filter-icon"><i class="bi bi-journal-bookmark"></i></div>
+            <select id="formationFilter" class="form-select form-select-sm">
+              <option value="all">Toutes</option>
+            </select>
+          </div></div>
         </div>
 
         <div class="filter-control fcol-formateur">
           <div class="form-label">Formateur</div>
-          <div class="filterbox">
-            <div class="filterrow">
-              <div class="filter-icon"><i class="bi bi-person-badge"></i></div>
-              <select id="formateurFilter" class="form-select form-select-sm">
-                <option value="all">Tous</option>
-              </select>
-            </div>
-          </div>
+          <div class="filterbox"><div class="filterrow">
+            <div class="filter-icon"><i class="bi bi-person-badge"></i></div>
+            <select id="formateurFilter" class="form-select form-select-sm">
+              <option value="all">Tous</option>
+            </select>
+          </div></div>
         </div>
 
         <div class="filter-control fcol-sessionstatus">
           <div class="form-label">Statut session</div>
-          <div class="filterbox">
-            <div class="filterrow">
-              <div class="filter-icon"><i class="bi bi-flag"></i></div>
-              <select id="sessionStatusFilter" class="form-select form-select-sm">
-                <option value="all">Tous</option>
-                <option value="draft">Brouillon</option>
-                <option value="published">Publié</option>
-                <option value="full">Complet</option>
-                <option value="canceled">Annulé</option>
-                <option value="done">Terminée</option>
-              </select>
-            </div>
-          </div>
+          <div class="filterbox"><div class="filterrow">
+            <div class="filter-icon"><i class="bi bi-flag"></i></div>
+            <select id="sessionStatusFilter" class="form-select form-select-sm">
+              <option value="all">Tous</option>
+              <option value="draft">Brouillon</option>
+              <option value="published">Publié</option>
+              <option value="full">Complet</option>
+              <option value="canceled">Annulé</option>
+              <option value="done">Terminée</option>
+            </select>
+          </div></div>
         </div>
 
         <div class="filter-control fcol-insstatus">
           <div class="form-label">Statut inscription</div>
-          <div class="filterbox">
-            <div class="filterrow">
-              <div class="filter-icon"><i class="bi bi-person-check"></i></div>
-              <select id="inscriptionStatusFilter" class="form-select form-select-sm">
-                <option value="all">Tous</option>
-                <option value="preinscrit">Préinscrit</option>
-                <option value="confirme">Confirmé</option>
-                <option value="en_cours">En cours</option>
-                <option value="termine">Terminé</option>
-                <option value="annule">Annulé</option>
-                <option value="absent">Absent</option>
-              </select>
-            </div>
-          </div>
+          <div class="filterbox"><div class="filterrow">
+            <div class="filter-icon"><i class="bi bi-person-check"></i></div>
+            <select id="inscriptionStatusFilter" class="form-select form-select-sm">
+              <option value="all">Tous</option>
+              <option value="preinscrit">Préinscrit</option>
+              <option value="confirme">Confirmé</option>
+              <option value="en_cours">En cours</option>
+              <option value="termine">Terminé</option>
+              <option value="annule">Annulé</option>
+              <option value="absent">Absent</option>
+            </select>
+          </div></div>
         </div>
 
         <div class="filter-control fcol-period">
           <div class="form-label">Période</div>
-          <div class="filterbox">
-            <div class="filterrow">
-              <div class="filter-icon"><i class="bi bi-calendar-range"></i></div>
-              <input type="text" id="dateRange" class="form-control form-control-sm" placeholder="Période" />
-              <input type="hidden" id="dateFrom" />
-              <input type="hidden" id="dateTo" />
-            </div>
-          </div>
+          <div class="filterbox"><div class="filterrow">
+            <div class="filter-icon"><i class="bi bi-calendar3"></i></div>
+            <input type="text" id="dateRange" class="form-control form-control-sm" placeholder="Choisir une période">
+            <input type="hidden" id="dateFrom">
+            <input type="hidden" id="dateTo">
+          </div></div>
         </div>
       </div>
     </div>
   </div>
 
-  {# KPIs #}
-  <div class="row g-3 mb-3">
-    {% set cards = [
-      ['Sessions', 'bi-collection', 'kpi-sessions', 'Selon filtres'],
-      ['Inscriptions', 'bi-people', 'kpi-inscriptions', 'Stagiaires engagés'],
-      ['Taux de réussite', 'bi-award', 'kpi-reussite', '<span id="kpi-reussis">—</span> réussites'],
-      ['Encaissements', 'bi-currency-euro', 'kpi-encaisse', 'Facturé <span id="kpi-facture">—</span> • Reste <span id="kpi-reste">—</span>'],
-      ['Factures dues', 'bi-receipt', 'kpi-factures-due', '<span class="mono" id="kpi-factures-due-count">—</span> factures'],
-      ['Docs manquants', 'bi-folder-x', 'kpi-docs-missing', 'Dossiers incomplets'],
-      ['Émargements manquants', 'bi-pen', 'kpi-em-missing', 'Signatures / lignes absentes'],
-      ['Sessions à venir', 'bi-calendar-event', 'kpi-upcoming', 'Planification'],
-      ['Sessions passées', 'bi-calendar-check', 'kpi-past', 'Historique'],
-      ['Jours / demi-journées', 'bi-calendar-range', 'kpi-days', '<span id="kpi-halfdays">—</span> demi-journées'],
-      ['Devis', 'bi-file-earmark-text', 'kpi-devis', 'Sur la période'],
-      ['Attestations', 'bi-file-earmark-check', 'kpi-attestations', 'Délivrées'],
-    ] %}
-    {% for c in cards %}
-      <div class="col-12 col-md-6 col-xl-3">
-        <div class="kpi-card h-100">
-          <div class="p-3 d-flex align-items-center gap-3">
-            <div class="kpi-ico"><i class="bi {{ c[1] }} fs-4"></i></div>
-            <div class="flex-grow-1">
-              <div class="kpi-label">{{ c[0] }}</div>
-              <div class="kpi-value" id="{{ c[2] }}">—</div>
-              <div class="kpi-sub">{{ c[3]|raw }}</div>
+  {# ================= VUE DIRECTION ================= #}
+  <section class="of-section">
+    <div class="of-section-head">
+      <div>
+        <div class="section-eyebrow"><i class="bi bi-grid-1x2-fill"></i> Vue direction</div>
+        <h2 class="section-title">Les indicateurs essentiels de votre activité</h2>
+        <div class="section-subtitle">Une lecture rapide de l'activité pédagogique et de la performance des formations.</div>
+      </div>
+    </div>
+
+    <div class="direction-grid">
+      <article class="metric metric--blue">
+        <div class="metric__top">
+          <span class="metric__icon"><i class="bi bi-calendar-event"></i></span>
+          <span class="metric__badge">Planification</span>
+        </div>
+        <div class="metric__label">Sessions à venir</div>
+        <div class="metric__value" id="kpi-upcoming">—</div>
+        <div class="metric__sub">Sessions programmées à partir d'aujourd'hui.</div>
+      </article>
+
+      <article class="metric metric--violet">
+        <div class="metric__top">
+          <span class="metric__icon"><i class="bi bi-people"></i></span>
+          <span class="metric__badge">Stagiaires</span>
+        </div>
+        <div class="metric__label">Inscriptions</div>
+        <div class="metric__value" id="kpi-inscriptions">—</div>
+        <div class="metric__sub">Inscriptions correspondant au périmètre sélectionné.</div>
+      </article>
+
+      <article class="metric metric--green">
+        <div class="metric__top">
+          <span class="metric__icon"><i class="bi bi-award"></i></span>
+          <span class="metric__badge">Pédagogie</span>
+        </div>
+        <div class="metric__label">Taux de réussite</div>
+        <div class="metric__value" id="kpi-reussite">—</div>
+        <div class="metric__sub"><strong id="kpi-reussis">—</strong> réussite(s) enregistrée(s).</div>
+      </article>
+
+      <article class="metric metric--gold">
+        <div class="metric__top">
+          <span class="metric__icon"><i class="bi bi-calendar-range"></i></span>
+          <span class="metric__badge">Production</span>
+        </div>
+        <div class="metric__label">Jours de formation</div>
+        <div class="metric__value" id="kpi-days">—</div>
+        <div class="metric__sub"><strong id="kpi-halfdays">—</strong> demi-journée(s) planifiée(s).</div>
+      </article>
+    </div>
+
+    <div class="row g-3 mt-1">
+      <div class="col-12 col-lg-4">
+        <div class="action-card action-card--warn">
+          <div class="action-card__row">
+            <div>
+              <div class="action-card__count" id="kpi-docs-missing">—</div>
+              <div class="action-card__label">Dossiers stagiaires incomplets</div>
+              <div class="action-card__hint">À régulariser avant clôture de session ou contrôle qualité.</div>
             </div>
+            <span class="action-card__icon"><i class="bi bi-folder-x"></i></span>
           </div>
         </div>
       </div>
-    {% endfor %}
-  </div>
 
-  {# Alertes (listes) #}
-  <div class="row g-3 mb-4 mt-1">
-    <div class="col-12 col-xl-6">
-      <div class="panel">
-        <div class="head">
-          <h6 class="title mb-0"><i class="bi bi-folder-x me-2"></i>Documents manquants (Top)</h6>
-          <span class="text-muted small" id="docs-count">—</span>
-        </div>
-        <div class="body">
-          <ul class="mini-list" id="docs-list"></ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-xl-6">
-      <div class="panel">
-        <div class="head">
-          <h6 class="title mb-0"><i class="bi bi-pen me-2"></i>Émargements non signés</h6>
-          <span class="text-muted small" id="em-unsigned-count">—</span>
-        </div>
-        <div class="body">
-          <div id="em-unsigned-list"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# Tables TOP 20 – premium #}
-  <div class="row g-3 mt-1">
-
-    <div class="col-12 col-xl-6 mb-3">
-      <div class="table-pro p-3">
-        <div class="table-pro__head">
-          <h6 class="table-pro__title mb-0">
-            <i class="bi bi-folder-x me-1"></i> Dossiers incomplets (Top 20)
-            <span class="table-pro__count" id="tblDocsMissingCount">—</span>
-          </h6>
-          <div class="table-pro__tools">
-            <div class="table-pro__search">
-              <i class="bi bi-search"></i>
-              <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblDocsMissing">
+      <div class="col-12 col-lg-4">
+        <div class="action-card action-card--danger">
+          <div class="action-card__row">
+            <div>
+              <div class="action-card__count" id="kpi-em-missing">—</div>
+              <div class="action-card__label">Émargements à régulariser</div>
+              <div class="action-card__hint">Signatures absentes ou lignes d'émargement manquantes.</div>
             </div>
+            <span class="action-card__icon"><i class="bi bi-pen"></i></span>
           </div>
-        </div>
-        <div class="table-pro__body">
-          <div class="table-responsive">
-            <table class="table table-sm table-pro__table w-100" id="tblDocsMissing">
-              <thead>
-                <tr>
-                  <th>Session</th>
-                  <th>Stagiaire</th>
-                  <th>Manquants</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="table-pro__foot">
-          <div class="text-muted small" id="tblDocsMissingInfo">—</div>
-          <div class="text-muted small">Top 20</div>
         </div>
       </div>
-    </div>
 
-    <div class="col-12 col-xl-6 mb-3">
-      <div class="table-pro">
-        <div class="table-pro__head">
-          <h6 class="table-pro__title mb-0">
-            <i class="bi bi-pen me-1"></i> Émargements non signés (Top 20)
-            <span class="table-pro__count" id="tblUnsignedCount">—</span>
-          </h6>
-          <div class="table-pro__tools">
-            <div class="table-pro__search">
-              <i class="bi bi-search"></i>
-              <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblUnsigned">
+      <div class="col-12 col-lg-4">
+        <div class="action-card action-card--blue">
+          <div class="action-card__row">
+            <div>
+              <div class="action-card__count" id="kpi-factures-due-count">—</div>
+              <div class="action-card__label">Factures en attente</div>
+              <div class="action-card__hint">Factures restant à suivre côté encaissement.</div>
             </div>
+            <span class="action-card__icon"><i class="bi bi-receipt"></i></span>
           </div>
-        </div>
-        <div class="table-pro__body">
-          <div class="table-responsive">
-            <table class="table table-sm table-pro__table w-100" id="tblUnsigned">
-              <thead>
-                <tr>
-                  <th>Session</th>
-                  <th>Personne</th>
-                  <th>Date</th>
-                  <th>Période</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="table-pro__foot">
-          <div class="text-muted small" id="tblUnsignedInfo">—</div>
-          <div class="text-muted small">Top 20</div>
         </div>
       </div>
     </div>
+  </section>
 
-  </div>
+  {# ================= FINANCE ================= #}
+  <section class="of-section">
+    <div class="finance-card">
+      <div class="of-section-head mb-0">
+        <div>
+          <div class="section-eyebrow"><i class="bi bi-cash-stack"></i> Pilotage financier</div>
+          <h2 class="section-title">Facturation et encaissements liés aux formations</h2>
+          <div class="section-subtitle">Suivez ce qui est facturé, encaissé et ce qu'il reste à recouvrer.</div>
+        </div>
+      </div>
 
-  {# DataTables – premium #}
-  <div class="col-12 mb-3">
+      <div class="finance-grid">
+        <div class="finance-stat">
+          <div class="finance-stat__label">Chiffre d'affaires facturé</div>
+          <div class="finance-stat__value" id="kpi-facture">—</div>
+        </div>
+        <div class="finance-stat">
+          <div class="finance-stat__label">Encaissements</div>
+          <div class="finance-stat__value" id="kpi-encaisse">—</div>
+        </div>
+        <div class="finance-stat">
+          <div class="finance-stat__label">Reste à encaisser</div>
+          <div class="finance-stat__value" id="kpi-reste">—</div>
+        </div>
+        <div class="finance-stat">
+          <div class="finance-stat__label">Taux d'encaissement</div>
+          <div class="finance-stat__value" id="kpi-encaisse-rate">—</div>
+        </div>
+      </div>
+      <div class="finance-progress" aria-hidden="true"><span id="finance-progress-bar"></span></div>
+    </div>
+  </section>
+
+  {# ================= ACTIVITE ================= #}
+  <section class="of-section">
+    <div class="of-section-head">
+      <div>
+        <div class="section-eyebrow"><i class="bi bi-calendar-check"></i> Pilotage opérationnel</div>
+        <h2 class="section-title">Prochaines sessions à préparer</h2>
+        <div class="section-subtitle">Votre planning opérationnel immédiat, sans surcharge d'information.</div>
+      </div>
+      <span class="of-panel__count">Planning à venir</span>
+    </div>
+
     <div class="table-pro">
       <div class="table-pro__head">
-        <h6 class="table-pro__title mb-0">
-          <i class="bi bi-calendar-event me-1"></i> Sessions à venir
-          <span class="table-pro__count" id="dtAvenirCount">—</span>
-        </h6>
+        <div>
+          <h3 class="table-pro__title">
+            <span class="of-panel__icon"><i class="bi bi-calendar-week"></i></span>
+            Sessions à venir
+            <span class="table-pro__count" id="dtAvenirCount">—</span>
+          </h3>
+          <div class="section-subtitle">Les prochaines sessions à préparer et à suivre.</div>
+        </div>
 
         <div class="table-pro__tools">
           <div class="table-pro__search">
             <i class="bi bi-search"></i>
-            <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-dt-search="#dtSessionsAvenir">
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Rechercher une session..."
+                   data-dt-search="#dtSessionsAvenir">
           </div>
 
           <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-              <i class="bi bi-sliders"></i>
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    data-bs-toggle="dropdown" type="button">
+              <i class="bi bi-list-ul"></i>
             </button>
             <div class="dropdown-menu dropdown-menu-end p-2">
               <button class="dropdown-item" data-dt-length="10" data-dt="#dtSessionsAvenir">10 lignes</button>
@@ -713,271 +1120,666 @@
         <div data-dt-pager="#dtSessionsAvenir"></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  {# Charts #}
-  <div class="row g-3">
-    <div class="col-12 col-xl-6">
-      <div class="panel">
-        <div class="head">
-          <h6 class="title mb-0">Inscriptions par statut</h6>
-          <span class="text-muted small">Répartition</span>
-        </div>
-        <div class="body">
-          <canvas id="chartInscriptions"></canvas>
-        </div>
+  {# ================= ANALYSES ================= #}
+  <section class="of-section">
+    <div class="of-section-head">
+      <div>
+        <div class="section-eyebrow"><i class="bi bi-graph-up"></i> Analyse</div>
+        <h2 class="section-title">Tendances de l'activité</h2>
+        <div class="section-subtitle">Répartition des inscriptions, encaissements mensuels et formations les plus actives.</div>
       </div>
     </div>
 
-    <div class="col-12 col-xl-6">
-      <div class="panel">
-        <div class="head">
-          <h6 class="title mb-0">Encaissements par mois</h6>
-          <span class="text-muted small">€</span>
+    <div class="row g-3">
+      <div class="col-12 col-xl-5">
+        <div class="of-panel">
+          <div class="of-panel__head">
+            <h3 class="of-panel__title">
+              <span class="of-panel__icon"><i class="bi bi-people"></i></span>
+              Inscriptions par statut
+            </h3>
+            <span class="of-panel__count">Répartition</span>
+          </div>
+          <div class="of-panel__body"><div class="chart-wrap"><canvas id="chartInscriptions"></canvas></div></div>
         </div>
-        <div class="body">
-          <canvas id="chartCash"></canvas>
+      </div>
+
+      <div class="col-12 col-xl-7">
+        <div class="of-panel">
+          <div class="of-panel__head">
+            <h3 class="of-panel__title">
+              <span class="of-panel__icon"><i class="bi bi-currency-euro"></i></span>
+              Encaissements par mois
+            </h3>
+            <span class="of-panel__count">Trésorerie</span>
+          </div>
+          <div class="of-panel__body"><div class="chart-wrap"><canvas id="chartCash"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="of-panel">
+          <div class="of-panel__head">
+            <h3 class="of-panel__title">
+              <span class="of-panel__icon"><i class="bi bi-bar-chart"></i></span>
+              Sessions par formation
+            </h3>
+            <span class="of-panel__count">Top formations</span>
+          </div>
+          <div class="of-panel__body"><div class="chart-wrap chart-wrap--wide"><canvas id="chartSessionsFormation"></canvas></div></div>
         </div>
       </div>
     </div>
+  </section>
 
-    <div class="col-12">
-      <div class="panel">
-        <div class="head">
-          <h6 class="title mb-0">Sessions par formation (Top)</h6>
-          <span class="text-muted small">volume</span>
-        </div>
-        <div class="body">
-          <canvas id="chartSessionsFormation"></canvas>
-        </div>
+  {# ================= CONFORMITE DETAILLEE ================= #}
+  <section class="of-section">
+    <div class="of-section-head">
+      <div>
+        <div class="section-eyebrow"><i class="bi bi-shield-check"></i> Conformité opérationnelle</div>
+        <h2 class="section-title">Détails à régulariser</h2>
+        <div class="section-subtitle">Les dossiers et émargements qui nécessitent une intervention.</div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <span class="of-panel__count">Sessions total : <strong class="ms-1" id="kpi-sessions">—</strong></span>
+        <span class="of-panel__count">Terminées : <strong class="ms-1" id="kpi-past">—</strong></span>
       </div>
     </div>
-  </div>
 
-
-<script>
-  window.CSRF_VALIDATE_PIECE = "{{ csrf_token('validate_piece') }}";
-</script>
-
-{# Modal pièce dossier #}
-<div class="modal fade" id="pieceModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div>
-          <h5 class="modal-title mb-0" id="pieceModalTitle">Pièce</h5>
-          <div class="text-muted small" id="pieceModalMeta">—</div>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="d-flex gap-2 mb-3">
-          <a class="btn btn-outline-secondary btn-sm" id="pieceModalOpen" href="#" target="_blank" rel="noopener">
-            <i class="bi bi-box-arrow-up-right"></i> Ouvrir dans un onglet
-          </a>
-
-          <a class="btn btn-outline-primary btn-sm" id="pieceModalDownload" href="#" download>
-            <i class="bi bi-download"></i> Télécharger
-          </a>
-
-          <div class="ms-auto">
-            <button class="btn btn-success btn-sm fw-semibold" id="pieceModalValidate" type="button">
-              <i class="bi bi-check2-circle"></i> Valider
-            </button>
+    <div class="row g-3">
+      <div class="col-12 col-xl-6">
+        <div class="table-pro h-100">
+          <div class="table-pro__head">
+            <h3 class="table-pro__title">
+              <i class="bi bi-folder-x"></i> Dossiers incomplets
+              <span class="table-pro__count" id="tblDocsMissingCount">—</span>
+            </h3>
+            <div class="table-pro__tools">
+              <div class="table-pro__search">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblDocsMissing">
+              </div>
+            </div>
+          </div>
+          <div class="table-pro__body">
+            <div class="table-responsive">
+              <table class="table table-sm table-pro__table w-100" id="tblDocsMissing">
+                <thead><tr><th>Session</th><th>Stagiaire</th><th>Manquants</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="table-pro__foot">
+            <div class="text-muted small" id="tblDocsMissingInfo">—</div>
+            <div class="text-muted small">Top 20</div>
           </div>
         </div>
+      </div>
 
-        <div class="preview-wrap border rounded-3 overflow-hidden bg-light d-flex align-items-center justify-content-center">
-          <img id="pieceModalImg" alt="Aperçu" style="display:none; width:100%; height:100%; object-fit:contain;" />
-          <iframe id="pieceModalFrame" src="about:blank" style="display:none; width:100%; height:100%; border:0"></iframe>
-        </div>
-
-        <div class="text-muted small mt-2" id="pieceModalHint">
-          Si la prévisualisation ne s’affiche pas (selon le type de fichier), utilise “Ouvrir” ou “Télécharger”.
+      <div class="col-12 col-xl-6">
+        <div class="table-pro h-100">
+          <div class="table-pro__head">
+            <h3 class="table-pro__title">
+              <i class="bi bi-pen"></i> Émargements à régulariser
+              <span class="table-pro__count" id="tblUnsignedCount">—</span>
+            </h3>
+            <div class="table-pro__tools">
+              <div class="table-pro__search">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblUnsigned">
+              </div>
+            </div>
+          </div>
+          <div class="table-pro__body">
+            <div class="table-responsive">
+              <table class="table table-sm table-pro__table w-100" id="tblUnsigned">
+                <thead><tr><th>Session</th><th>Personne</th><th>Date</th><th>Période</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="table-pro__foot">
+            <div class="text-muted small" id="tblUnsignedInfo">—</div>
+            <div class="text-muted small">Top 20</div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
+
 </div>
 
 <script>
+
+  window.CSRF_VALIDATE_PIECE = "{{ csrf_token('validate_piece') }}";
+
+</script>
+
+
+
+{# Modal pièce dossier #}
+
+<div class="modal fade" id="pieceModal" tabindex="-1" aria-hidden="true">
+
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+
+    <div class="modal-content">
+
+      <div class="modal-header">
+
+        <div>
+
+          <h5 class="modal-title mb-0" id="pieceModalTitle">Pièce</h5>
+
+          <div class="text-muted small" id="pieceModalMeta">—</div>
+
+        </div>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+
+      </div>
+
+
+
+      <div class="modal-body">
+
+        <div class="d-flex gap-2 mb-3">
+
+          <a class="btn btn-outline-secondary btn-sm" id="pieceModalOpen" href="#" target="\_blank" rel="noopener">
+
+            <i class="bi bi-box-arrow-up-right"></i> Ouvrir dans un onglet
+
+          </a>
+
+
+
+          <a class="btn btn-outline-primary btn-sm" id="pieceModalDownload" href="#" download>
+
+            <i class="bi bi-download"></i> Télécharger
+
+          </a>
+
+
+
+          <div class="ms-auto">
+
+            <button class="btn btn-success btn-sm fw-semibold" id="pieceModalValidate" type="button">
+
+              <i class="bi bi-check2-circle"></i> Valider
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="preview-wrap border rounded-3 overflow-hidden bg-light d-flex align-items-center justify-content-center">
+
+          <img id="pieceModalImg" alt="Aperçu" style="display:none; width:100%; height:100%; object-fit:contain;" />
+
+          <iframe id="pieceModalFrame" src="about:blank" style="display:none; width:100%; height:100%; border:0"></iframe>
+
+        </div>
+
+
+
+        <div class="text-muted small mt-2" id="pieceModalHint">
+
+          Si la prévisualisation ne s’affiche pas (selon le type de fichier), utilise “Ouvrir” ou “Télécharger”.
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<script>
+
 (function(){
+
   /* =========================
+
      Helpers (robustes)
+
   ========================= */
+
   const fmtMoney = (cents) => (Number(cents||0)/100).toLocaleString('fr-FR', {style:'currency', currency:'EUR'});
+
   const safeText = (v, fallback='—') => (v === null || v === undefined || v === '') ? fallback : String(v);
-  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+  const escapeHtml = (s) => String(s ?? '').replace(
+    /[&<>"']/g,
+    m => ({
+      '&':'&amp;',
+      '<':'&lt;',
+      '>':'&gt;',
+      '"':'&quot;',
+      "'":'&#039;'
+    }[m])
+  );
   const nowLabel = () => {
+
     const d = new Date();
+
     return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
   };
 
+
+
   /* =========================
+
      DOM
+
   ========================= */
+
   const $formation     = document.getElementById('formationFilter');
+
   const $formateur     = document.getElementById('formateurFilter');
+
   const $sessionStatus = document.getElementById('sessionStatusFilter');
+
   const $insStatus     = document.getElementById('inscriptionStatusFilter');
 
+
+
   let tsFormation=null, tsFormateur=null, tsSessStatus=null, tsInsStatus=null;
+
   let fpRange=null;
 
+
+
   function buildParams(){
+
     const p = new URLSearchParams();
+
     p.set('formation', $formation?.value || 'all');
+
     p.set('formateur', $formateur?.value || 'all');
+
     p.set('sessionStatus', $sessionStatus?.value || 'all');
+
     p.set('inscriptionStatus', $insStatus?.value || 'all');
+
     p.set('from', (document.getElementById('dateFrom')?.value || '').trim());
+
     p.set('to', (document.getElementById('dateTo')?.value || '').trim());
+
     return p;
+
   }
 
+
+
   /* =========================
+
      TomSelect / Flatpickr
+
   ========================= */
+
   function initTomSelect(){
+
     const common = { create:false, maxItems:1, allowEmptyOption:true, plugins:['clear_button'] };
+
+
 
     tsFormation?.destroy(); tsFormateur?.destroy(); tsSessStatus?.destroy(); tsInsStatus?.destroy();
 
+
+
     if (document.querySelector('#formationFilter'))         tsFormation = new TomSelect('#formationFilter', {...common});
+
     if (document.querySelector('#formateurFilter'))         tsFormateur = new TomSelect('#formateurFilter', {...common});
+
     if (document.querySelector('#sessionStatusFilter'))     tsSessStatus = new TomSelect('#sessionStatusFilter', {...common});
+
     if (document.querySelector('#inscriptionStatusFilter')) tsInsStatus  = new TomSelect('#inscriptionStatusFilter', {...common});
 
+
+
     [tsFormation, tsFormateur, tsSessStatus, tsInsStatus].filter(Boolean).forEach(ts=>{
+
       ts.on('change', ()=> refreshAll());
+
     });
+
   }
+
+
 
   function initFlatpickr(){
+
     fpRange?.destroy?.();
+
     if (!document.querySelector('#dateRange')) return;
 
+
+
     fpRange = flatpickr("#dateRange", {
+
       locale: "fr",
+
       mode: "range",
+
       dateFormat: "d/m/Y",
+
       allowInput: true,
+
       disableMobile: true,
+
       onClose: function(selectedDates){
+
         const from = selectedDates[0] ? selectedDates[0].toISOString().slice(0,10) : '';
+
         const to   = selectedDates[1] ? selectedDates[1].toISOString().slice(0,10) : '';
+
         document.getElementById('dateFrom').value = from;
+
         document.getElementById('dateTo').value = to;
+
         refreshAll();
+
       }
+
     });
+
   }
 
+
+
   /* =========================
+
      Load META
+
   ========================= */
+
   async function loadMeta(){
+
     const url = "{{ path('app_administrateur_dashboard_meta', { entite: entite.id }) }}";
+
     const res = await fetch(url, {headers:{'Accept':'application/json'}});
+
     if(!res.ok) return;
+
     const json = await res.json().catch(()=>null);
+
     if (!json) return;
 
+
+
     if (tsFormation){
+
       tsFormation.clearOptions();
+
       tsFormation.addOption({value:'all', text:'Toutes'});
+
       (json.formations||[]).forEach(f=> tsFormation.addOption({value:String(f.id), text:f.label}));
+
       tsFormation.refreshOptions(false);
+
       tsFormation.setValue('all', true);
+
     }
+
     if (tsFormateur){
+
       tsFormateur.clearOptions();
+
       tsFormateur.addOption({value:'all', text:'Tous'});
+
       (json.formateurs||[]).forEach(f=> tsFormateur.addOption({value:String(f.id), text:f.label}));
+
       tsFormateur.refreshOptions(false);
+
       tsFormateur.setValue('all', true);
+
     }
+
   }
 
+
+
   /* =========================
+
      KPI
+
   ========================= */
+
   async function loadKpis(){
+
     const url = "{{ path('app_administrateur_dashboard_kpis', { entite: entite.id }) }}?" + buildParams().toString();
+
     const res = await fetch(url, {headers:{'Accept':'application/json'}});
+
     if(!res.ok) return;
+
     const k = await res.json().catch(()=>null);
+
     if (!k) return;
+
+
 
     const setTxt = (id, v) => { const el=document.getElementById(id); if(el) el.textContent = safeText(v); };
 
+
+
     setTxt('kpi-sessions', k.sessions);
+
     setTxt('kpi-inscriptions', k.inscriptions);
+
     setTxt('kpi-reussite', (k.tauxReussite ?? 0) + '%');
+
     setTxt('kpi-reussis', k.reussis);
 
+
+
     document.getElementById('kpi-facture')?.replaceChildren(document.createTextNode(fmtMoney(k.caFactureCents)));
+
     document.getElementById('kpi-encaisse')?.replaceChildren(document.createTextNode(fmtMoney(k.encaisseCents)));
+
     document.getElementById('kpi-reste')?.replaceChildren(document.createTextNode(fmtMoney(k.resteCents)));
 
+    const caFacture = Number(k.caFactureCents || 0);
+    const encaisse  = Number(k.encaisseCents || 0);
+    const encaisseRate = caFacture > 0 ? Math.min(100, Math.max(0, (encaisse / caFacture) * 100)) : 0;
+    setTxt('kpi-encaisse-rate', encaisseRate.toFixed(1).replace('.', ',') + '%');
+
+    const financeBar = document.getElementById('finance-progress-bar');
+    if (financeBar) financeBar.style.width = encaisseRate.toFixed(2) + '%';
+
+
+
     setTxt('kpi-factures-due', fmtMoney(k.facturesDueCents));
+
     setTxt('kpi-factures-due-count', k.facturesEnAttente);
 
+
+
     setTxt('kpi-docs-missing', k.dossiersSansDossier);
+
     setTxt('kpi-em-missing', k.unsignedEmargements);
 
+
+
     setTxt('kpi-upcoming', k.sessionsAVenir);
+
     setTxt('kpi-past', k.sessionsPassees);
 
+
+
     const kpiDays = document.getElementById('kpi-days');
+
     if (kpiDays) kpiDays.textContent = (k.jours ?? '—') + ' j';
+
     setTxt('kpi-halfdays', k.demiJournees);
 
+
+
     setTxt('kpi-devis', k.devis);
+
     setTxt('kpi-attestations', k.attestations);
 
+
+
     document.getElementById('hero-last-refresh')?.replaceChildren(document.createTextNode('Maj : ' + nowLabel()));
+
   }
+
+
 
   /* =========================
+
      Charts
+
   ========================= */
+
   let chartInscriptions=null, chartCash=null, chartSessionsFormation=null;
 
+
+
   function baseChartOptions(){
+
     return { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } } };
+
   }
 
+
+
   async function loadCharts(){
+
     const url = "{{ path('app_administrateur_dashboard_charts', { entite: entite.id }) }}?" + buildParams().toString();
     const res = await fetch(url, {headers:{'Accept':'application/json'}});
     if(!res.ok) return;
+
     const d = await res.json().catch(()=>null);
     if (!d) return;
+
+    const css = getComputedStyle(document.documentElement);
+    const primary = css.getPropertyValue('--theme-color-principal').trim() || '#233342';
+    const secondary = css.getPropertyValue('--theme-color-secondaire').trim() || '#ffc107';
+
+    const gridColor = 'rgba(16,24,40,.07)';
+    const tickColor = '#667085';
+
+    const commonPlugins = {
+      legend:{
+        position:'bottom',
+        labels:{
+          usePointStyle:true,
+          pointStyle:'circle',
+          boxWidth:7,
+          boxHeight:7,
+          padding:18,
+          color:'#475467',
+          font:{size:11, weight:'600'}
+        }
+      },
+      tooltip:{
+        backgroundColor:'rgba(16,24,40,.96)',
+        titleColor:'#fff',
+        bodyColor:'#fff',
+        padding:11,
+        cornerRadius:10,
+        displayColors:true
+      }
+    };
 
     const elIns = document.getElementById('chartInscriptions');
     if (elIns){
       chartInscriptions?.destroy();
-      chartInscriptions = new Chart(elIns, {
+
+      const palette = [
+        '#2563eb',
+        '#7c3aed',
+        '#0f9f6e',
+        '#f59e0b',
+        '#e11d48',
+        '#64748b'
+      ];
+
+      chartInscriptions = new Chart(elIns,{
         type:'doughnut',
-        data:{ labels: d.inscriptionsByStatus?.labels || [], datasets:[{ data: d.inscriptionsByStatus?.data || [] }]},
-        options: baseChartOptions()
+        data:{
+          labels:d.inscriptionsByStatus?.labels || [],
+          datasets:[{
+            data:d.inscriptionsByStatus?.data || [],
+            backgroundColor:palette,
+            borderColor:'#fff',
+            borderWidth:3,
+            hoverOffset:6,
+            spacing:1
+          }]
+        },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          cutout:'70%',
+          layout:{padding:{top:6,bottom:4,left:8,right:8}},
+          plugins:commonPlugins
+        }
       });
     }
 
     const elCash = document.getElementById('chartCash');
     if (elCash){
       chartCash?.destroy();
-      chartCash = new Chart(elCash, {
+
+      const ctx = elCash.getContext('2d');
+      const gradient = ctx.createLinearGradient(0,0,0,300);
+      gradient.addColorStop(0,'rgba(37,99,235,.20)');
+      gradient.addColorStop(1,'rgba(37,99,235,0)');
+
+      chartCash = new Chart(elCash,{
         type:'line',
         data:{
-          labels: d.cashByMonth?.labels || [],
-          datasets:[{ label:'€ encaissés', data: d.cashByMonth?.data || [], tension: 0.25 }]
+          labels:d.cashByMonth?.labels || [],
+          datasets:[{
+            label:'€ encaissés',
+            data:d.cashByMonth?.data || [],
+            tension:.36,
+            borderColor:'#2563eb',
+            backgroundColor:gradient,
+            fill:true,
+            borderWidth:2.5,
+            pointRadius:3,
+            pointHoverRadius:5,
+            pointBackgroundColor:'#fff',
+            pointBorderColor:'#2563eb',
+            pointBorderWidth:2
+          }]
         },
         options:{
-          ...baseChartOptions(),
-          scales:{ y:{ ticks:{ callback:(v)=> (Number(v)).toLocaleString('fr-FR') + ' €' } } }
+          responsive:true,
+          maintainAspectRatio:false,
+          interaction:{mode:'index',intersect:false},
+          plugins:commonPlugins,
+          scales:{
+            x:{
+              grid:{display:false},
+              border:{display:false},
+              ticks:{color:tickColor,font:{size:11}}
+            },
+            y:{
+              beginAtZero:false,
+              grid:{color:gridColor,drawBorder:false},
+              border:{display:false},
+              ticks:{
+                color:tickColor,
+                font:{size:11},
+                callback:(v)=> Number(v).toLocaleString('fr-FR') + ' €'
+              }
+            }
+          }
         }
       });
     }
@@ -985,528 +1787,1080 @@
     const elSF = document.getElementById('chartSessionsFormation');
     if (elSF){
       chartSessionsFormation?.destroy();
-      chartSessionsFormation = new Chart(elSF, {
+
+      chartSessionsFormation = new Chart(elSF,{
         type:'bar',
-        data:{ labels: d.sessionsByFormation?.labels || [], datasets:[{ label:'Sessions', data: d.sessionsByFormation?.data || [] }]},
-        options:{ ...baseChartOptions(), scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } }
+        data:{
+          labels:d.sessionsByFormation?.labels || [],
+          datasets:[{
+            label:'Sessions',
+            data:d.sessionsByFormation?.data || [],
+            backgroundColor:'rgba(35,51,66,.82)',
+            borderRadius:8,
+            borderSkipped:false,
+            maxBarThickness:42
+          }]
+        },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          plugins:commonPlugins,
+          scales:{
+            x:{
+              grid:{display:false},
+              border:{display:false},
+              ticks:{color:tickColor,font:{size:11}}
+            },
+            y:{
+              beginAtZero:true,
+              grid:{color:gridColor},
+              border:{display:false},
+              ticks:{precision:0,color:tickColor,font:{size:11}}
+            }
+          }
+        }
       });
     }
+
   }
+
+
 
   /* =========================
+
      Plain tables search (Top 20)
+
   ========================= */
+
   function bindPlainSearch(){
+
     document.querySelectorAll('[data-plain-search]').forEach(input=>{
+
       const sel = input.getAttribute('data-plain-search');
+
       const table = sel ? document.querySelector(sel) : null;
+
       if (!table) return;
 
+
+
       input.addEventListener('input', ()=>{
+
         const q = (input.value || '').toLowerCase();
+
         const rows = table.querySelectorAll('tbody tr');
+
         rows.forEach(tr=>{
+
           const txt = (tr.innerText || '').toLowerCase();
+
           tr.style.display = txt.includes(q) ? '' : 'none';
+
         });
+
       });
+
     });
+
   }
+
+
 
   /* =========================
      DataTables tools (premium wrapper)
   ========================= */
+
+  function getDataTableApi(table){
+    if (!table) return null;
+
+    // Notre dashboard ne possède actuellement qu'une DataTable.
+    // On renvoie directement l'instance créée par initDataTables().
+    if (table.id === 'dtSessionsAvenir' && dtAvenir) {
+      return dtAvenir;
+    }
+
+    // Fallback robuste si d'autres DataTables sont ajoutées plus tard.
+    if (
+      window.jQuery &&
+      window.jQuery.fn &&
+      window.jQuery.fn.dataTable &&
+      window.jQuery.fn.dataTable.isDataTable(table)
+    ) {
+      return window.jQuery(table).DataTable();
+    }
+
+    return null;
+  }
+
+
   function bindTableProTools(){
-    // Search
+
+    // Recherche personnalisée
     document.querySelectorAll('[data-dt-search]').forEach(input=>{
       const sel = input.getAttribute('data-dt-search');
       const table = sel ? document.querySelector(sel) : null;
       if (!table) return;
 
       input.addEventListener('input', ()=>{
-        const dt = DataTable.getInstance(table);
+        const dt = getDataTableApi(table);
         if (!dt) return;
-        dt.search(input.value).draw();
+
+        dt.search(input.value || '').draw();
       });
     });
 
-    // Length
+
+    // Nombre de lignes
     document.querySelectorAll('[data-dt-length]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        const len = Number(btn.getAttribute('data-dt-length')||10);
+        const len = Number(btn.getAttribute('data-dt-length') || 10);
         const sel = btn.getAttribute('data-dt') || '';
         const table = sel ? document.querySelector(sel) : null;
         if (!table) return;
 
-        const dt = DataTable.getInstance(table);
+        const dt = getDataTableApi(table);
         if (!dt) return;
+
         dt.page.len(len).draw();
       });
     });
 
-    // Info
+
+    // Compteur / informations de pagination
     document.querySelectorAll('[data-dt-info]').forEach(el=>{
       const sel = el.getAttribute('data-dt-info');
       const table = sel ? document.querySelector(sel) : null;
       if (!table) return;
 
-      const dt = DataTable.getInstance(table);
+      const dt = getDataTableApi(table);
       if (!dt) return;
 
-      const refresh = ()=>{
+      const refreshInfo = ()=>{
         const info = dt.page.info();
-        el.textContent = `Affichage ${info.start + 1} → ${info.end} sur ${info.recordsDisplay} (total ${info.recordsTotal})`;
+
+        if (!info) return;
+
+        if (info.recordsDisplay === 0) {
+          el.textContent = 'Aucun résultat';
+        } else {
+          el.textContent =
+            `Affichage ${info.start + 1} → ${info.end} sur ${info.recordsDisplay}`;
+        }
+
         const countEl = document.getElementById('dtAvenirCount');
-        if (countEl) countEl.textContent = `${info.recordsDisplay} résultats`;
+        if (countEl) {
+          countEl.textContent = `${info.recordsDisplay} résultat(s)`;
+        }
       };
 
-      table.addEventListener('draw.dt', refresh);
-      refresh();
+      // DataTables 2 : on utilise l'API DataTables et non un event DOM "draw.dt"
+      dt.on('draw', refreshInfo);
+
+      // Le premier draw peut être asynchrone (langue + AJAX)
+      dt.on('init', refreshInfo);
+
+      refreshInfo();
     });
 
-    // Pager injection
+
+    // Déplace la pagination DataTables dans notre footer premium.
     document.querySelectorAll('[data-dt-pager]').forEach(el=>{
       const sel = el.getAttribute('data-dt-pager');
       const table = sel ? document.querySelector(sel) : null;
       if (!table) return;
 
-      const wrapper = table.closest('.dataTables_wrapper');
-      if (!wrapper) return;
+      const dt = getDataTableApi(table);
+      if (!dt) return;
 
-      const paginate = wrapper.querySelector('.dataTables_paginate');
-      if (paginate){
+      const movePager = ()=>{
+        // DataTables 2
+        const container =
+          table.closest('.dt-container') ||
+          table.closest('.dataTables_wrapper');
+
+        if (!container) return;
+
+        const paginate =
+          container.querySelector('.dt-paging') ||
+          container.querySelector('.dataTables_paginate');
+
+        if (!paginate || paginate.parentElement === el) return;
+
         el.innerHTML = '';
         el.appendChild(paginate);
-      }
+      };
+
+      dt.on('draw', movePager);
+      dt.on('init', movePager);
+
+      // Laisse DataTables terminer la construction de son DOM.
+      setTimeout(movePager, 0);
     });
   }
 
+
+
   /* =========================
      TODO lists + Top tables
+
   ========================= */
+
   async function loadTodo(){
+
     const url = "{{ path('app_administrateur_dashboard_todo', { entite: entite.id }) }}?" + buildParams().toString();
+
     const res = await fetch(url, {headers:{'Accept':'application/json'}});
+
     if(!res.ok) return;
+
     const t = await res.json().catch(()=>null);
+
     if (!t) return;
 
+
+
     const docs = t.docsMissing || [];
+
     const em   = t.unsignedEmargements || [];
 
+
+
     // counts top tables
+
     document.getElementById('tblDocsMissingCount')?.replaceChildren(document.createTextNode(`${docs.length} lignes`));
+
     document.getElementById('tblUnsignedCount')?.replaceChildren(document.createTextNode(`${em.length} lignes`));
+
     document.getElementById('tblDocsMissingInfo')?.replaceChildren(document.createTextNode(`${docs.length} résultat(s)`));
+
     document.getElementById('tblUnsignedInfo')?.replaceChildren(document.createTextNode(`${em.length} résultat(s)`));
 
+
+
     // docs list
+
     const docsCount = document.getElementById('docs-count');
+
     if (docsCount) docsCount.textContent = docs.length ? (docs.length + ' alertes') : 'Aucune alerte';
 
+
+
     const docsList = document.getElementById('docs-list');
+
     if (docsList){
+
       docsList.innerHTML = docs.length ? '' : '<div class="text-muted small">Rien à signaler ✅</div>';
+
       docs.forEach(x=>{
+
         const li = document.createElement('li');
+
         li.className = 'mini-item';
+
         li.innerHTML = `
+
           <span class="badge-pro badge-pro--warn"><i class="bi bi-exclamation-triangle"></i>${escapeHtml(x.missingCount ?? 0)}</span>
+
           <div class="flex-grow-1">
+
             <div class="fw-semibold">${escapeHtml(x.userLabel ?? '—')}</div>
+
             <div class="text-muted small">Session: <span class="mono">${escapeHtml(x.sessionLabel ?? '—')}</span></div>
 
+
+
             ${(x.missingLabels && x.missingLabels.length) ? `
+
               <div class="small mt-2">
+
                 ${x.missingLabels.map(l=>`
+
                   <span class="badge-pro badge-pro--danger me-1 mb-1"><i class="bi bi-x-circle"></i>${escapeHtml(l)}</span>
+
                 `).join('')}
+
               </div>
+
             ` : ''}
+
+
 
             ${(x.pendingPieces && x.pendingPieces.length) ? `
+
               <div class="small mt-2">
+
                 ${x.pendingPieces.map(p=>`
+
                   <button type="button"
+
                           class="btn btn-sm btn-outline-warning me-1 mb-1 js-open-piece"
+
                           data-piece-id="${escapeHtml(p.pieceId)}"
+
                           style="border-radius:999px">
+
                     <i class="bi bi-hourglass-split me-1"></i>${escapeHtml(p.label)}
+
                     ${p.uploadedAt ? `<span class="opacity-75 ms-1">(${escapeHtml(p.uploadedAt)})</span>` : ''}
+
                     <i class="bi bi-chevron-right ms-1"></i>
+
                   </button>
+
                 `).join('')}
+
               </div>
+
             ` : ''}
 
+
+
           </div>
+
         `;
+
         docsList.appendChild(li);
+
       });
+
     }
 
+
+
     // emargements accordion
+
     const emCount = document.getElementById('em-unsigned-count');
+
     if (emCount) emCount.textContent = em.length ? (em.length + ' signatures manquantes') : 'Aucune';
 
+
+
     const emList = document.getElementById('em-unsigned-list');
+
     if (emList){
+
       if (!em.length){
+
         emList.innerHTML = '<div class="text-muted small">Rien à signer ✅</div>';
+
       } else {
+
         const groups = new Map();
+
         for (const x of em){
+
           const key = String(x.sessionId ?? x.sessionLabel ?? 'unknown');
+
           if (!groups.has(key)){
+
             groups.set(key, { sessionId: x.sessionId ?? null, sessionLabel: x.sessionLabel ?? '—', items: [] });
+
           }
+
           groups.get(key).items.push(x);
+
         }
+
+
 
         const sortedGroups = Array.from(groups.values()).sort((a,b)=> (b.items.length - a.items.length));
 
+
+
         const accId = 'emAcc';
+
         emList.innerHTML = `
+
           <div class="accordion em-acc" id="${accId}">
+
             ${sortedGroups.map((g, idx)=>{
+
               const items = (g.items||[]).slice().sort((a,b)=>{
+
                 const da = a.date || ''; const db = b.date || '';
+
                 if (da !== db) return da.localeCompare(db);
+
                 const pa = (a.periode||''); const pb = (b.periode||'');
+
                 return pa.localeCompare(pb);
+
               });
 
+
+
               const headId = `emHead${idx}`;
+
               const bodyId = `emBody${idx}`;
+
               const previewMax = 4;
+
               const preview = items.slice(0, previewMax);
+
               const rest = items.slice(previewMax);
+
               const badgeDanger = items.filter(i=>i.type==='unsigned').length;
+
               const badgeWarn   = items.filter(i=>i.type==='missing').length;
 
+
+
               return `
+
                 <div class="accordion-item mb-2">
+
                   <h2 class="accordion-header" id="${headId}">
+
                     <button class="accordion-button ${idx===0?'':'collapsed'}" type="button"
+
                             data-bs-toggle="collapse" data-bs-target="#${bodyId}"
+
                             aria-expanded="${idx===0?'true':'false'}" aria-controls="${bodyId}">
+
                       <div class="d-flex w-100 align-items-center gap-2">
+
                         <span class="mono">${escapeHtml(g.sessionLabel)}</span>
+
                         <div class="ms-auto em-badges d-flex gap-1">
+
                           ${badgeWarn ? `<span class="badge text-bg-warning">Manquants ${badgeWarn}</span>` : ``}
+
                           ${badgeDanger ? `<span class="badge text-bg-danger">Non signés ${badgeDanger}</span>` : ``}
+
                           <span class="badge text-bg-secondary">Total ${items.length}</span>
+
                         </div>
+
                       </div>
+
                     </button>
+
                   </h2>
 
+
+
                   <div id="${bodyId}" class="accordion-collapse collapse ${idx===0?'show':''}"
+
                       aria-labelledby="${headId}" data-bs-parent="#${accId}">
+
                     <div class="accordion-body">
 
+
+
                       ${preview.map(x=>{
+
                         const isMissing = (x.type === 'missing');
+
                         const badgeCls = isMissing ? 'text-bg-warning' : 'text-bg-danger';
+
                         const badgeTxt = x.badge ?? (isMissing ? 'Manquant' : 'Non signé');
 
+
+
                         return `
+
                           <div class="em-row bg-white border">
+
                             <span class="badge ${badgeCls}">${escapeHtml(badgeTxt)}</span>
+
                             <div class="flex-grow-1">
+
                               <div class="fw-semibold">${escapeHtml(x.userLabel ?? '—')}</div>
+
                               <div class="em-meta">${escapeHtml(x.date ?? '—')} • ${escapeHtml(x.periode ?? '—')}</div>
+
                             </div>
+
                           </div>
+
                         `;
+
                       }).join('')}
 
+
+
                       ${rest.length ? `
+
                         <div class="mt-2">
+
                           <button class="btn btn-sm btn-outline-secondary w-100 js-em-showmore"
+
                                   data-target="#emMore${idx}">
+
                             Voir +${rest.length} lignes
+
                           </button>
+
                           <div id="emMore${idx}" class="collapse mt-2">
+
                             ${rest.map(x=>{
+
                               const isMissing = (x.type === 'missing');
+
                               const badgeCls = isMissing ? 'text-bg-warning' : 'text-bg-danger';
+
                               const badgeTxt = x.badge ?? (isMissing ? 'Manquant' : 'Non signé');
 
+
+
                               return `
+
                                 <div class="em-row bg-white border">
+
                                   <span class="badge ${badgeCls}">${escapeHtml(badgeTxt)}</span>
+
                                   <div class="flex-grow-1">
+
                                     <div class="fw-semibold">${escapeHtml(x.userLabel ?? '—')}</div>
+
                                     <div class="em-meta">${escapeHtml(x.date ?? '—')} • ${escapeHtml(x.periode ?? '—')}</div>
+
                                   </div>
+
                                 </div>
+
                               `;
+
                             }).join('')}
+
                           </div>
+
                         </div>
+
                       ` : ''}
 
+
+
                     </div>
+
                   </div>
+
                 </div>
+
               `;
+
             }).join('')}
+
           </div>
+
         `;
+
+
 
         emList.querySelectorAll('.js-em-showmore').forEach(btn=>{
+
           btn.addEventListener('click', ()=>{
+
             const target = btn.getAttribute('data-target');
+
             const el = emList.querySelector(target);
+
             if (!el) return;
+
             const c = bootstrap.Collapse.getOrCreateInstance(el, {toggle:false});
+
             const isShown = el.classList.contains('show');
+
             if (isShown) c.hide(); else c.show();
+
             btn.textContent = isShown ? 'Voir plus' : 'Masquer';
+
           });
+
         });
+
       }
+
     }
+
+
 
     // TOP tables fill
+
     const tbody1 = document.querySelector('#tblDocsMissing tbody');
+
     if (tbody1){
+
       tbody1.innerHTML = '';
+
       docs.forEach(r=>{
+
         const tr = document.createElement('tr');
+
         tr.innerHTML = `
+
           <td>${escapeHtml(r.sessionLabel ?? '—')}</td>
+
           <td>${escapeHtml(r.userLabel ?? '—')}</td>
+
           <td><span class="badge-pro badge-pro--warn">${escapeHtml(r.missingCount ?? 0)}</span></td>
+
         `;
+
         tbody1.appendChild(tr);
+
       });
+
     }
+
+
 
     const tbody2 = document.querySelector('#tblUnsigned tbody');
+
     if (tbody2){
+
       tbody2.innerHTML = '';
+
       em.forEach(r=>{
+
         const tr = document.createElement('tr');
+
         const isMissing = (r.type === 'missing');
+
         const badgeTxt = r.badge ?? (isMissing ? 'Manquant' : 'Non signé');
+
         const cls = isMissing ? 'badge-pro--warn' : 'badge-pro--danger';
 
+
+
         tr.innerHTML = `
+
           <td>${escapeHtml(r.sessionLabel ?? '—')}</td>
+
           <td>${escapeHtml(r.userLabel ?? '—')}</td>
+
           <td>${escapeHtml(r.date ?? '—')}</td>
+
           <td><span class="badge-pro ${cls}">${escapeHtml(badgeTxt)}</span> ${escapeHtml(r.periode ?? '—')}</td>
+
         `;
+
         tbody2.appendChild(tr);
+
       });
+
     }
+
+
 
     // bind search for top tables (once)
+
     bindPlainSearch();
+
   }
 
+
+
   /* =========================
+
      Modal Piece
+
   ========================= */
+
   let currentPieceId = null;
+
   const modalEl = document.getElementById('pieceModal');
+
   const pieceModal = modalEl ? new bootstrap.Modal(modalEl) : null;
 
+
+
   async function openPieceModal(pieceId){
+
     currentPieceId = pieceId;
 
+
+
     const infoUrl = "{{ path('app_administrateur_dashboard_piece_info', { entite: entite.id, id: 0 }) }}"
+
       .replace('/0/info', `/${pieceId}/info`);
 
+
+
     const res = await fetch(infoUrl, { headers:{'Accept':'application/json'} });
+
     const json = await res.json().catch(()=>null);
 
+
+
     if (!res.ok || !json?.ok) {
+
       alert(json?.error || "Impossible d’ouvrir la pièce.");
+
       return;
+
     }
+
+
 
     document.getElementById('pieceModalTitle').textContent = json.label || 'Pièce';
+
     document.getElementById('pieceModalMeta').textContent  = json.meta || '—';
 
+
+
     const fileUrl = json.fileUrl;
+
     const dlUrl   = json.downloadUrl || fileUrl;
 
+
+
     const $open = document.getElementById('pieceModalOpen');
+
     const $dl   = document.getElementById('pieceModalDownload');
+
     const $frm  = document.getElementById('pieceModalFrame');
+
     const $img  = document.getElementById('pieceModalImg');
+
     const $val  = document.getElementById('pieceModalValidate');
 
+
+
     if ($open) $open.href = fileUrl;
+
     if ($dl)   $dl.href = dlUrl;
 
+
+
     // reset
+
     if ($img) { $img.style.display = 'none'; $img.removeAttribute('src'); }
+
     if ($frm) { $frm.style.display = 'none'; $frm.src = 'about:blank'; }
 
+
+
     if (json.isImage) {
+
       $img.src = fileUrl;
+
       $img.style.display = 'block';
+
     } else {
+
       $frm.src = fileUrl;
+
       $frm.style.display = 'block';
+
     }
+
+
 
     if ($val) $val.disabled = !!json.isValide;
+
     pieceModal?.show();
+
   }
 
+
+
   // listener global unique
+
   document.addEventListener('click', (e) => {
+
     const btn = e.target.closest('.js-open-piece');
+
     if (!btn) return;
+
     const pieceId = btn.dataset.pieceId;
+
     if (!pieceId) return;
+
     openPieceModal(pieceId);
+
   });
+
+
 
   // validation depuis le modal
+
   document.getElementById('pieceModalValidate')?.addEventListener('click', async () => {
+
     if (!currentPieceId) return;
 
+
+
     const btn = document.getElementById('pieceModalValidate');
+
     btn.disabled = true;
 
+
+
     try {
+
       const url = "{{ path('app_administrateur_dashboard_piece_validate', { entite: entite.id, id: 0 }) }}"
+
         .replace('/0/validate', `/${currentPieceId}/validate`);
 
+
+
       const res = await fetch(url, {
+
         method: 'POST',
+
         headers: {
+
           'Accept': 'application/json',
+
           'X-CSRF-TOKEN': window.CSRF_VALIDATE_PIECE || ''
+
         }
+
       });
 
+
+
       const json = await res.json().catch(()=>null);
+
       if (!res.ok || !json?.ok) {
+
         alert(json?.error || "Impossible de valider la pièce.");
+
         btn.disabled = false;
+
         return;
+
       }
 
+
+
       pieceModal?.hide();
+
       await refreshAll();
+
     } catch (err) {
+
       btn.disabled = false;
+
       alert("Erreur réseau.");
+
     }
+
   });
+
+
 
   // clean preview on close
+
   modalEl?.addEventListener('hidden.bs.modal', () => {
+
     currentPieceId = null;
+
     const $frm = document.getElementById('pieceModalFrame');
+
     const $img = document.getElementById('pieceModalImg');
+
     if ($frm) { $frm.src = 'about:blank'; $frm.style.display = 'none'; }
+
     if ($img) { $img.removeAttribute('src'); $img.style.display = 'none'; }
+
   });
 
+
+
   /* =========================
+
      DataTables
+
   ========================= */
+
   let dtAvenir = null;
+
   let dtReady = false;
+
   let toolsBound = false;
 
+
+
   function initDataTables(){
+
     if (dtReady) return;
+
     dtReady = true;
+
+
 
     const baseParams = () => Object.fromEntries(buildParams().entries());
 
+
+
     if (document.querySelector('#dtSessionsAvenir')) {
+
       dtAvenir = new DataTable('#dtSessionsAvenir', {
+
         ajax: {
+
           url: "{{ path('app_administrateur_dashboard_sessions_avenir', { entite: entite.id }) }}",
+
           data: baseParams,
+
           dataSrc: 'data'
+
         },
+
         columns: [
+
           { data: 'code' },
+
           { data: 'formation' },
+
           { data: 'dates' },
+
           { data: 'status' },
+
         ],
+
         pageLength: 10,
+
         order: [[2,'asc']],
+
         language: { url: "https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json" }
+
       });
 
+
+
       // bind tools after DT created (once)
+
       if (!toolsBound){
+
         toolsBound = true;
+
         bindTableProTools();
+
       }
+
     }
+
   }
 
+
+
   /* =========================
+
      Refresh global (robuste)
+
   ========================= */
+
   let isRefreshing = false;
 
+
+
   async function refreshAll(){
+
     if (isRefreshing) return;
+
     isRefreshing = true;
+    document.body.classList.add('dashboard-loading');
+
+
 
     try {
+
       await Promise.all([loadKpis(), loadCharts(), loadTodo()]);
+
+      const tableWasReady = dtReady;
+
       initDataTables();
-      dtAvenir?.ajax?.reload?.();
+
+      // Au premier affichage, new DataTable() déclenche déjà son propre chargement AJAX.
+      // On ne recharge que lors des actualisations suivantes.
+      if (tableWasReady) {
+        dtAvenir?.ajax?.reload?.(null, false);
+      }
+
     } finally {
+
       isRefreshing = false;
+      document.body.classList.remove('dashboard-loading');
+
     }
+
   }
 
+
+
   /* =========================
+
      UI actions
+
   ========================= */
+
   document.getElementById('btnRefresh')?.addEventListener('click', refreshAll);
 
+
+
   document.getElementById('btnReset')?.addEventListener('click', ()=>{
+
     tsFormation?.setValue('all', true);
+
     tsFormateur?.setValue('all', true);
+
     tsSessStatus?.setValue('all', true);
+
     tsInsStatus?.setValue('all', true);
 
+
+
     fpRange?.clear();
+
     document.getElementById('dateRange')?.setAttribute('value','');
+
     const df = document.getElementById('dateFrom');
+
     const dt = document.getElementById('dateTo');
+
     if (df) df.value = '';
+
     if (dt) dt.value = '';
+
     refreshAll();
+
   });
 
+
+
   /* =========================
+
      INIT
+
   ========================= */
+
   initTomSelect();
+
   initFlatpickr();
+
   loadMeta().then(refreshAll);
 
+
+
 })();
+
 </script>
+
+
+
 
 
 <script>
+
   (function(){
+
     function nowLabel(){
+
       const d = new Date();
+
       return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
     }
+
     const el = document.getElementById('hero-last-refresh');
+
     if(el) el.textContent = 'Maj : ' + nowLabel();
+
   })();
+
 </script>
+
 {% endblock %}

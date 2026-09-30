@@ -60,6 +60,17 @@
     return null;
   }
 
+  function filterHost(panel) {
+    let host = panel.querySelector('.filtergrid, .filters-grid, .toolbarLeft, .me-auto, [data-list-filter-controls], .wf-filter-body')
+      || panel.querySelector('.filterbar__body');
+    if (!host) {
+      host = el('div', 'wf-list-filter-controls wf-filter-body');
+      panel.append(host);
+    }
+    host.classList.add('wf-search-host');
+    return host;
+  }
+
   function placeSearch(state) {
     const container = state.api.table().container();
     const panel = state.bar || state.panel || nearbyPanel(state);
@@ -103,11 +114,8 @@
     }
     let host;
     if (state.bar) host = state.controls;
-    else if (panel) {
-      host = panel.querySelector('.filtergrid, .filters-grid, .toolbarLeft, .me-auto.d-flex, [data-list-filter-controls]')
-        || panel.querySelector('.filterbar__body') || panel;
-      host.classList.add('wf-search-host');
-    } else {
+    else if (panel) host = filterHost(panel);
+    else {
       toolbar(state); host = state.controls;
     }
     if (state.searchHost && state.searchHost !== host) state.searchHost.classList.remove('wf-search-host');
@@ -297,19 +305,24 @@
 
   function toolbar(state) {
     if (state.bar) return state.bar;
-    const bar = el('section', 'wf-list-filterbar');
+    const bar = state.panel || el('section', 'wf-list-filterbar');
     bar.setAttribute('aria-label', 'Filtres de la liste');
-    const heading = el('span', 'wf-filters-heading', 'Filtres');
-    const controls = el('div', 'wf-list-filter-controls');
-    const reset = el('button', 'btn btn-outline-secondary wf-filters-reset', 'Réinitialiser'); reset.type = 'button';
+    const controls = state.panel ? filterHost(bar) : el('div', 'wf-list-filter-controls');
+    const existingReset = bar.querySelector('button.wf-reset-icon');
+    const reset = existingReset || el('button', 'btn btn-outline-secondary wf-filters-reset', 'Réinitialiser'); reset.type = 'button';
     resetIcon(reset);
     reset.addEventListener('click', () => {
       state.values = {}; state.api.search('');
-      state.widgets.forEach(widget => widget.sync()); state.api.draw();
-    });
-    bar.append(heading, controls, reset);
-    const container = state.api.table().container(); container.before(bar);
-    state.bar = bar; state.controls = controls;
+      state.widgets.forEach(widget => widget.sync());
+      if (!existingReset) state.api.draw();
+    }, {capture:!!existingReset}); // Clear facets before the page's reset reloads the table.
+    if (state.panel) {
+      if (!existingReset) controls.append(reset);
+    } else {
+      bar.append(el('span', 'wf-filters-heading', 'Filtres'), controls, reset);
+      state.api.table().container().before(bar);
+    }
+    state.bar = bar; state.controls = controls; state.reset = reset;
     return bar;
   }
 
@@ -323,7 +336,8 @@
           state.values[spec.key] = value;
           state.api.draw();
         });
-        state.controls.append(widget.shell); state.widgets.set(spec.key, widget);
+        state.controls.insertBefore(widget.shell, state.reset?.parentElement === state.controls ? state.reset : null);
+        state.widgets.set(spec.key, widget);
       } else state.widgets.get(spec.key).sync();
     }
     placeSearch(state);
@@ -338,12 +352,14 @@
       const state = tables.get(node); placeSearch(state); return state;
     }
     const state = {api, node, values:{}, widgets:new Map(), specs:new Map(), bar:null};
+    state.panel = nearbyPanel(state);
+    const nativeFilters = !!state.panel?.querySelector('select, input:not([type="hidden"])');
     tables.set(node, state);
     const settings = api.settings()[0];
     if (settings.oFeatures.bServerSide) {
       facets(state, api.ajax.json()?.filters || []);
       // Every list retains a full-dataset text filter even without facet metadata.
-      if (![...document.querySelectorAll(selectFilters)].some(select => multiIds.has(select.id)) && !state.bar) toolbar(state);
+      if (!state.panel && !state.bar && ![...document.querySelectorAll(selectFilters)].some(select => multiIds.has(select.id))) toolbar(state);
     } else {
       // Client-side lists already contain ALL rows: derive complete choices.
       const build = () => {
@@ -355,7 +371,7 @@
           if (!values.length || values.length > 100) return;
           specs.push({key:String(index),label:header,options:values.sort((a,b)=>a.localeCompare(b,'fr')).map(v=>({value:v,label:v}))});
         });
-        const existingFilters = [...document.querySelectorAll(selectFilters)].some(select => multiIds.has(select.id));
+        const existingFilters = nativeFilters || [...document.querySelectorAll(selectFilters)].some(select => multiIds.has(select.id));
         if (!existingFilters) facets(state, specs.slice(0,4));
       };
       build(); api.on('xhr.dt.wfFilters', () => setTimeout(build, 0));
