@@ -47,6 +47,20 @@ utilisent ce protocole. Les tableaux chargés entièrement dans le navigateur et
 filtres existants reçoivent des filtres de colonnes dérivés de l'ensemble des lignes.
 La recherche reste disponible sur les listes sans valeurs catégorielles.
 
+## Recherche et réinitialisation
+
+La recherche globale DataTables est déplacée dans la barre de filtres de sa liste,
+avec une loupe et un champ « Rechercher… », sans libellé visible au-dessus.
+Le champ original est conservé avec ses événements, sa temporisation et sa valeur.
+Les recherches personnalisées déjà présentes (formateurs, QCM…) restent en place,
+sans afficher le champ natif masqué en double. Chaque bouton de réinitialisation
+affiche seulement une icône, avec un nom accessible et une infobulle.
+
+Pour une disposition particulière, associer explicitement le panneau au tableau
+avec `data-list-filters="idDuTableau"` et, si nécessaire, désigner le conteneur
+des champs avec `data-list-filter-controls`. Le composant respecte les panneaux
+indépendants des onglets et ne réutilise pas les filtres d'un tableau voisin.
+
 ## Sessions
 
 La complétude du résumé est informative : elle ne désactive pas Enregistrer.

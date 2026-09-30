@@ -9,6 +9,8 @@
   const multiIds = new Set(('statusFilter sourceFilter activeFilter nextFilter enginFilter siteFilter categorieFilter sousCategorieFilter niveauFilter rolesFilter verifiedFilter lockedFilter sessionFilter formateurFilter stagiaireFilter requiredFilter phaseFilter submittedFilter publishedFilter questionnaireFilter dossierFilter sessionFormationFilter sessionStatusFilter yearFilter monthFilter quarterFilter factureStatusFilter devisStatusFilter payModeFilter reservationStatusFilter inscriptionStatusFilter qcmActiveFilter periodYear periodMonth periodQuarter tvaOnly filter-state').split(' '));
   const bridges = new Map();
   const tables = new Map();
+  const panelOwners = new WeakMap();
+  const listingPanels = `${roots}, .toolbarX, [data-list-filters]`;
   const clean = value => {
     const doc = new DOMParser().parseFromString(String(value ?? ''), 'text/html');
     return doc.body.textContent.trim();
@@ -19,6 +21,99 @@
     if (text !== undefined) node.textContent = text;
     return node;
   };
+
+  function resetIcon(button) {
+    if (button.classList.contains('wf-reset-icon')) return;
+    // Keep existing children (notably resetCount) and handlers for page scripts.
+    const label = el('span', 'wf-reset-content');
+    label.hidden = true; label.setAttribute('aria-hidden', 'true');
+    while (button.firstChild) label.append(button.firstChild);
+    const icon = el('i', 'bi bi-arrow-counterclockwise wf-reset-glyph');
+    icon.setAttribute('aria-hidden', 'true');
+    button.append(label, icon);
+    button.classList.add('wf-reset-icon');
+    button.setAttribute('aria-label', 'Réinitialiser les filtres');
+    button.title = 'Réinitialiser les filtres';
+  }
+
+  function normalizeResets() {
+    document.querySelectorAll(`button.resetbox, button.wf-filters-reset, button[id*="Reset"], button[id*="reset"], :is(${listingPanels}) button`).forEach(button => {
+      if (/^(?:reset|réinitialiser(?: les filtres)?)(?:\s*\d+)?$/i.test(button.textContent.trim())) resetIcon(button);
+    });
+  }
+
+  function nearbyPanel(state) {
+    const container = state.api.table().container();
+    const boundary = container.closest('.modal, .tab-pane') || document.body;
+    const available = panel => panel && (!panelOwners.has(panel) || panelOwners.get(panel) === state);
+    // An explicit target also supports layouts with multiple tables in one card.
+    const explicit = boundary.querySelector(`[data-list-filters="${CSS.escape(state.node.id)}"]`);
+    if (available(explicit)) return explicit;
+    for (let current = container; current && current !== boundary; current = current.parentElement) {
+      for (let previous = current.previousElementSibling; previous; previous = previous.previousElementSibling) {
+        // Never borrow filters from the preceding table/card or another tab.
+        if (previous.matches('table, .dt-container, .dataTables_wrapper, .tab-pane') || previous.querySelector('table')) return null;
+        const panel = previous.matches(listingPanels) ? previous : previous.querySelector(listingPanels);
+        if (available(panel)) return panel;
+      }
+    }
+    return null;
+  }
+
+  function placeSearch(state) {
+    const container = state.api.table().container();
+    const panel = state.bar || state.panel || nearbyPanel(state);
+    if (panel) {
+      state.panel = panel; panelOwners.set(panel, state);
+      panel.querySelectorAll('button.wf-reset-icon').forEach(button => {
+        if (button.dataset.wfSearchReset) return;
+        button.dataset.wfSearchReset = 'true';
+        // Legacy reset counters do not all include the global search.
+        const enableForSearch = () => { if (state.api.search() && button.disabled) button.disabled = false; };
+        state.api.on('search.dt.wfSearch', enableForSearch);
+        new MutationObserver(enableForSearch).observe(button, {attributes:true, attributeFilter:['disabled']});
+        enableForSearch();
+      });
+    }
+    const input = state.search?.querySelector('input') || container.querySelector('.dt-search input[type="search"], .dataTables_filter input')
+      || panel?.querySelector('#dt-search-slot input[type="search"]');
+    if (!input) return; // Tables without a search feature keep their layout.
+    const search = state.search || input.closest('.dt-search, .dataTables_filter');
+    if (!search || search.closest('.d-none, [hidden]')) return; // Existing custom search, e.g. trainers/QCM.
+    const custom = panel?.querySelector('#quickSearch, #qcmSearch, [data-list-search]')
+      || document.querySelector(`[data-dt-search="#${CSS.escape(state.node.id)}"]`);
+    if (custom) {
+      if (!custom.hasAttribute('aria-label')) custom.setAttribute('aria-label', 'Rechercher dans la liste');
+      search.hidden = true;
+      return;
+    }
+    // Some older pages hide the native field with CSS rather than a class.
+    for (let parent = search; parent && parent !== container; parent = parent.parentElement) {
+      if (getComputedStyle(parent).display === 'none') return;
+    }
+    if (!state.search) {
+      const icon = el('i', 'bi bi-search wf-search-glyph'); icon.setAttribute('aria-hidden', 'true');
+      // Move the real input: DataTables retains its events, debounce and state.
+      // Works with both DT1's wrapping label and DT2's separate label.
+      search.replaceChildren(icon, input);
+      search.classList.add('wf-list-search');
+      input.setAttribute('aria-label', 'Rechercher dans la liste');
+      if (!input.placeholder) input.placeholder = 'Rechercher…';
+      state.search = search;
+    }
+    let host;
+    if (state.bar) host = state.controls;
+    else if (panel) {
+      host = panel.querySelector('.filtergrid, .filters-grid, .toolbarLeft, .me-auto.d-flex, [data-list-filter-controls]')
+        || panel.querySelector('.filterbar__body') || panel;
+      host.classList.add('wf-search-host');
+    } else {
+      toolbar(state); host = state.controls;
+    }
+    if (state.searchHost && state.searchHost !== host) state.searchHost.classList.remove('wf-search-host');
+    state.searchHost = host;
+    if (search.parentElement !== host) host.prepend(search);
+  }
 
   function filterMenu(label, multiple, getOptions, getSelection, setSelection) {
     const shell = el('div', 'dropdown wf-filter');
@@ -173,7 +268,11 @@
         const exportMenu = top.querySelector('#exportMenu');
         if (exportMenu) {
           const actions = el('div', 'wf-filter-exports');
-          actions.append(exportMenu.closest('.dropdown')); grid.append(actions);
+          actions.append(exportMenu.closest('.dropdown'));
+          const resetSlot = grid.querySelector('.fcol-actions, .fcol-reset');
+          if (resetSlot) {
+            resetSlot.classList.add('wf-filter-actions'); resetSlot.append(actions);
+          } else grid.append(actions);
         }
         top.hidden = true;
         root.querySelector('.collapse')?.classList.add('show');
@@ -184,7 +283,6 @@
           });
         });
       }
-      root.querySelectorAll('.resetbox__text').forEach(label => { label.textContent = 'Réinitialiser'; });
       root.querySelectorAll('.dropdown-toggle').forEach(trigger => {
         if (!trigger.parentElement.querySelector('.form-check-input, [id^="list"]')) return;
         window.bootstrap?.Dropdown.getOrCreateInstance(trigger, {
@@ -204,6 +302,7 @@
     const heading = el('span', 'wf-filters-heading', 'Filtres');
     const controls = el('div', 'wf-list-filter-controls');
     const reset = el('button', 'btn btn-outline-secondary wf-filters-reset', 'Réinitialiser'); reset.type = 'button';
+    resetIcon(reset);
     reset.addEventListener('click', () => {
       state.values = {}; state.api.search('');
       state.widgets.forEach(widget => widget.sync()); state.api.draw();
@@ -227,11 +326,17 @@
         state.controls.append(widget.shell); state.widgets.set(spec.key, widget);
       } else state.widgets.get(spec.key).sync();
     }
+    placeSearch(state);
   }
 
   function register(api) {
     const node = api.table().node();
-    if (tables.has(node)) return tables.get(node);
+    // Loading a DataTables language file is asynchronous. The table can already
+    // be registered in its API while its wrapper and search field do not exist.
+    if (!node || !api.table().container()) return null;
+    if (tables.has(node)) {
+      const state = tables.get(node); placeSearch(state); return state;
+    }
     const state = {api, node, values:{}, widgets:new Map(), specs:new Map(), bar:null};
     tables.set(node, state);
     const settings = api.settings()[0];
@@ -256,14 +361,12 @@
       build(); api.on('xhr.dt.wfFilters', () => setTimeout(build, 0));
       window.jQuery.fn.dataTable.ext.search.push((config, data) => config.nTable !== node || Object.entries(state.values).every(([key, value]) => value === '*' || value.includes(clean(data[Number(key)]))));
     }
-    if (state.bar) {
-      const search = api.table().container().querySelector('.dt-search, .dataTables_filter');
-      if (search) { search.classList.add('wf-list-search'); state.controls.prepend(search); }
-    }
+    placeSearch(state);
     return state;
   }
 
   function boot() {
+    normalizeResets();
     const $ = window.jQuery;
     if (!$?.fn.dataTable) return;
     $(document).on('preXhr.dt.wfFilters', (_event, settings, data) => {
@@ -273,11 +376,12 @@
     $(document).on('xhr.dt.wfFilters', (_event, settings, json) => {
       if (!json?.filters) return;
       const state = register(new $.fn.dataTable.Api(settings));
-      facets(state, json.filters);
+      if (state) facets(state, json.filters);
     });
     let queued = false;
     const scan = () => {
       queued = false;
+      normalizeResets();
       if (!document.querySelector('table.dataTable')) return;
       // IDs also occur on dashboards, calendars and learner/OF/super-admin pages.
       // Only these list endpoints accept the JSON selection transport. Unknown
