@@ -1,25 +1,482 @@
 {% extends 'pdf/modeles/base.html.twig' %}
+
+{% block body_class %}compact-one-page{% endblock %}
+
+{% block extra_styles %}
+
+  @page{
+    margin:7mm 8mm 8mm;
+  }
+
+  .document-title{
+    font-size:16pt;
+    margin-bottom:2pt;
+    line-height:1.12;
+  }
+
+  .document-intro{
+    font-size:7.5pt;
+    margin-bottom:5pt;
+    line-height:1.3;
+  }
+
+  .intro-card{
+    padding:5pt 7pt;
+    margin-bottom:5pt;
+  }
+
+  .intro-card .intro-main{
+    font-size:7.8pt;
+    margin-bottom:1pt;
+  }
+
+  .intro-card .intro-sub{
+    font-size:6.6pt;
+    line-height:1.25;
+  }
+
+  .field-table{
+    margin-bottom:5pt;
+  }
+
+  .field-table td{
+    padding:4pt 6pt;
+  }
+
+  .field-label{
+    font-size:6.5pt;
+    margin-bottom:1pt;
+  }
+
+  .field-hint{
+    font-size:6pt;
+  }
+
+  .write-line{
+    height:10pt;
+  }
+
+  .section-title{
+    margin:6pt 0 3pt;
+    padding-bottom:3pt;
+    font-size:7.8pt;
+  }
+
+  .section-number{
+    min-width:17pt;
+  }
+
+  .section-accent{
+    width:26pt;
+    height:1.5pt;
+  }
+
+  .satisfaction-help{
+    margin:4pt 0;
+    font-size:6.2pt;
+    line-height:1.25;
+  }
+
+  .satisfaction-grid th,
+  .satisfaction-grid td{
+    padding:2.8pt 3.5pt;
+    font-size:6.45pt;
+    line-height:1.2;
+  }
+
+  .satisfaction-grid th{
+    font-size:6pt;
+  }
+
+  .satisfaction-grid td:first-child{
+    padding-left:5pt;
+  }
+
+  .check{
+    width:7.5pt;
+    height:7.5pt;
+    border-width:.9pt;
+  }
+
+  .score-box{
+    margin-top:4pt;
+    padding:4pt 6pt;
+    font-size:6.5pt;
+  }
+
+  .score{
+    font-size:7pt;
+  }
+
+  .response{
+    min-height:0;
+    margin-top:4pt;
+    padding:6pt 7pt;
+  }
+
+  .response-title{
+    font-size:7pt;
+    margin-bottom:1.5pt;
+    line-height:1.2;
+  }
+
+  .response-sub{
+    font-size:6.2pt;
+    margin-bottom:2pt;
+    line-height:1.25;
+  }
+
+  .two-cols td:first-child{
+    padding-right:3pt;
+  }
+
+  .two-cols td:last-child{
+    padding-left:3pt;
+  }
+
+  /* plus grands blocs */
+  .comment-small{
+    min-height:68pt;
+  }
+
+  .comment-wide{
+    min-height:62pt;
+  }
+
+  .comment-extra{
+    min-height:55pt;
+  }
+
+  .final-fields{
+    margin-top:6pt !important;
+    margin-bottom:0 !important;
+  }
+
+  .final-fields td{
+    padding-top:6pt;
+    padding-bottom:6pt;
+  }
+
+  .thanks{
+    margin-top:5pt !important;
+    font-size:6.5pt !important;
+  }
+
+{% endblock %}
+
+
 {% block document %}
-  <h1>Votre appréciation de la formation</h1>
-  <p class="intro">Votre retour nous aide à améliorer nos formations. Merci de compléter ce questionnaire en fin de stage.</p>
-  <table class="fields">
-    <tr><td colspan="2"><div class="label">Intitulé de la formation</div><div class="write-line"></div></td></tr>
-    <tr><td><div class="label">Dates / nom du formateur</div><div class="write-line"></div></td><td><div class="label">Nom et prénom du stagiaire (facultatif)</div><div class="write-line"></div></td></tr>
+
+  <h1 class="document-title">
+    Votre appréciation de la formation
+  </h1>
+
+  <p class="document-intro">
+    Votre retour contribue à l’amélioration de la qualité de nos formations.
+    Merci de compléter ce questionnaire à l’issue de votre stage.
+  </p>
+
+
+  <div class="intro-card">
+
+    <div class="intro-main">
+      Questionnaire de satisfaction
+    </div>
+
+    <div class="intro-sub">
+      Vos réponses sont utilisées dans le cadre du suivi qualité
+      et de l’amélioration continue.
+    </div>
+
+  </div>
+
+
+  <table class="field-table">
+
+    <tr>
+
+      <td colspan="2">
+
+        <span class="field-label">
+          Intitulé de la formation
+        </span>
+
+        <div class="write-line"></div>
+
+      </td>
+
+    </tr>
+
+
+    <tr>
+
+      <td>
+
+        <span class="field-label">
+          Dates / nom du formateur
+        </span>
+
+        <div class="write-line"></div>
+
+      </td>
+
+
+      <td>
+
+        <span class="field-label">
+          Nom et prénom du stagiaire
+        </span>
+
+        <span class="field-hint">
+          Facultatif
+        </span>
+
+        <div class="write-line"></div>
+
+      </td>
+
+    </tr>
+
   </table>
-  <h2>01 · Votre satisfaction</h2>
-  <p class="muted">Cochez une réponse par ligne : 1 = très insatisfait, 2 = insatisfait, 3 = satisfait, 4 = très satisfait.<br>N/A = non concerné.</p>
-  <table class="grid">
-    <thead><tr><th style="width: 62%">Comment évaluez-vous...</th>{% for note in ['1', '2', '3', '4', 'N/A'] %}<th class="center">{{ note }}</th>{% endfor %}</tr></thead>
-    <tbody>{% for label in ['La clarté des objectifs de la formation', 'Le contenu au regard de vos attentes', 'L’utilité des exercices et mises en pratique', 'La durée et le rythme de la formation', 'La maîtrise du sujet par le formateur', 'La clarté des explications et des méthodes', 'L’écoute et les réponses à vos questions', 'Les supports et le matériel mis à disposition', 'Les conditions d’accueil et les locaux', 'L’utilité de la formation dans votre activité'] %}
-      <tr><td>{{ label }}</td>{% for i in 1..5 %}<td class="center"><span class="check"></span></td>{% endfor %}</tr>
-    {% endfor %}</tbody>
+
+
+  <div class="section-title">
+    <span class="section-number">01</span>
+    Votre satisfaction
+  </div>
+
+  <div class="section-accent"></div>
+
+
+  <p class="muted satisfaction-help">
+    Cochez une réponse par ligne :
+    <strong>1</strong> très insatisfait ·
+    <strong>2</strong> insatisfait ·
+    <strong>3</strong> satisfait ·
+    <strong>4</strong> très satisfait ·
+    <strong>N/A</strong> non concerné.
+  </p>
+
+
+  <table class="grid satisfaction-grid">
+
+    <thead>
+
+      <tr>
+
+        <th style="width:60%">
+          Comment évaluez-vous…
+        </th>
+
+        {% for note in ['1','2','3','4','N/A'] %}
+
+          <th class="center" style="width:8%">
+            {{ note }}
+          </th>
+
+        {% endfor %}
+
+      </tr>
+
+    </thead>
+
+
+    <tbody>
+
+      {% for label in [
+        'La clarté des objectifs annoncés',
+        'Le contenu au regard de vos attentes',
+        'L’utilité des exercices et mises en pratique',
+        'La durée et le rythme de la formation',
+        'La maîtrise du sujet par le formateur',
+        'La clarté des explications',
+        'L’écoute et les réponses à vos questions',
+        'Les supports et le matériel',
+        'Les conditions d’accueil et les locaux',
+        'L’utilité dans votre activité professionnelle'
+      ] %}
+
+        <tr>
+
+          <td>
+            {{ label }}
+          </td>
+
+          {% for i in 1..5 %}
+
+            <td class="center">
+              <span class="check"></span>
+            </td>
+
+          {% endfor %}
+
+        </tr>
+
+      {% endfor %}
+
+    </tbody>
+
   </table>
-  <p style="margin: 12px 0"><strong>Votre appréciation globale : ........ / 10</strong> &nbsp; &nbsp; Recommanderiez-vous cette formation ? &nbsp; <span class="check"></span> Oui &nbsp; <span class="check"></span> Non</p>
-  <h2>02 · Vos commentaires</h2>
-  <table class="two-cols"><tr>
-    <td><div class="response"><div class="label">Ce que vous avez le plus apprécié</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div></td>
-    <td><div class="response"><div class="label">Ce qui pourrait être amélioré</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div></td>
-  </tr></table>
-  <div class="response"><div class="label">Ce que vous pourrez mettre en pratique / sujets à approfondir</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div>
-  <p style="margin-top: 17px">Date : ........ / ........ / ................ <span style="float: right" class="muted">Merci pour votre retour.</span></p>
+
+
+  <div class="score-box">
+
+    <table>
+
+      <tr>
+
+        <td style="width:38%">
+
+          <span class="score">
+            Appréciation globale :
+          </span>
+
+          &nbsp;
+          ........ / 10
+
+        </td>
+
+
+        <td style="width:62%; text-align:right">
+
+          <strong>
+            Recommanderiez-vous cette formation ?
+          </strong>
+
+          &nbsp;
+
+          <span class="check"></span>
+          Oui
+
+          &nbsp;&nbsp;
+
+          <span class="check"></span>
+          Non
+
+        </td>
+
+      </tr>
+
+    </table>
+
+  </div>
+
+
+  <div class="section-title">
+    <span class="section-number">02</span>
+    Vos commentaires
+  </div>
+
+  <div class="section-accent"></div>
+
+
+  <table class="two-cols">
+
+    <tr>
+
+      <td>
+        <div class="response comment-small">
+
+          <div class="response-title">
+            Ce que vous avez le plus apprécié
+          </div>
+
+          <div class="response-sub">
+            Contenus, méthodes, exercices, organisation…
+          </div>
+
+          {% for i in 1..4 %}
+            <div class="write-line"></div>
+          {% endfor %}
+
+        </div>
+      </td>
+
+      <td>
+        <div class="response comment-small">
+
+          <div class="response-title">
+            Ce qui pourrait être amélioré
+          </div>
+
+          <div class="response-sub">
+            Contenu, durée, rythme, supports, accueil…
+          </div>
+
+          {% for i in 1..4 %}
+            <div class="write-line"></div>
+          {% endfor %}
+
+        </div>
+      </td>
+
+    </tr>
+
+  </table>
+
+
+  <div class="response comment-wide">
+
+    <div class="response-title">
+      Ce que vous pourrez mettre en pratique
+    </div>
+
+    <div class="response-sub">
+      Connaissances, méthodes ou compétences que vous pensez utiliser.
+    </div>
+
+    {% for i in 1..4 %}
+      <div class="write-line"></div>
+    {% endfor %}
+
+  </div>
+
+
+  <div class="response comment-extra">
+
+    <div class="response-title">
+      Besoins complémentaires / sujets à approfondir
+    </div>
+
+    {% for i in 1..3 %}
+      <div class="write-line"></div>
+    {% endfor %}
+
+  </div>
+
+
+  <table class="field-table avoid-break final-fields">
+
+    <tr>
+
+      <td style="width:30%">
+
+        <span class="field-label">
+          Date
+        </span>
+
+        <div class="write-line"></div>
+
+      </td>
+
+
+      <td>
+
+        <span class="field-label">
+          Commentaire complémentaire
+        </span>
+
+        <div class="write-line"></div>
+
+      </td>
+
+    </tr>
+
+  </table>
+
+
+  <div class="text-right muted thanks">
+    Merci pour votre participation et pour le temps consacré à ce questionnaire.
+  </div>
+
 {% endblock %}

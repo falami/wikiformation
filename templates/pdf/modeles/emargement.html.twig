@@ -1,28 +1,305 @@
 {% extends 'pdf/modeles/base.html.twig' %}
+
+{% block body_class %}compact-header emargement-document{% endblock %}
+
 {% block extra_styles %}
-  .attendance td { height: 22px; padding: 2px 8px; }
-  .attendance .number { color: #87939e; text-align: center; }
-  .fields td { padding: 6px 8px; }
-  .write-line { height: 12px; }
-  .signature { height: 26px; }
+
+  @page{
+    margin:7mm 8mm 8mm;
+  }
+
+  .emargement-document .document-header{
+    margin-bottom:5pt;
+  }
+
+  .emargement-document .document-title{
+    font-size:15pt;
+    margin-bottom:2pt;
+  }
+
+  .emargement-document .document-intro{
+    font-size:7.5pt;
+    margin-bottom:5pt;
+  }
+
+  .emargement-document .field-table{
+    margin-bottom:4pt;
+  }
+
+  .emargement-document .field-table td{
+    padding:4pt 6pt;
+  }
+
+  .emargement-document .field-label{
+    font-size:6.5pt;
+    margin-bottom:2pt;
+  }
+
+  .emargement-document .field-hint{
+    font-size:6pt;
+  }
+
+  .emargement-document .write-line{
+    height:8pt;
+  }
+
+  .emargement-document .section-title{
+    margin:5pt 0 3pt;
+    padding-bottom:3pt;
+    font-size:8pt;
+  }
+
+  .emargement-document .section-accent{
+    width:28pt;
+  }
+
+  .attendance th{
+    height:19pt;
+    padding:2pt 4pt;
+    font-size:6.3pt;
+  }
+
+  .attendance td{
+    height:18pt;
+    padding:1pt 4pt;
+    font-size:7pt;
+  }
+
+  .attendance .number{
+    width:4%;
+    text-align:center;
+    color:#7d8a96;
+  }
+
+  .attendance .participant{
+    width:25%;
+  }
+
+  .attendance .company{
+    width:21%;
+  }
+
+  .attendance .signature-col{
+    width:25%;
+  }
+
+  .schedule{
+    margin:4pt 0;
+  }
+
+  .schedule td{
+    border:1pt solid {{ brand.line }};
+    background:{{ brand.soft }};
+    padding:4pt 6pt;
+    font-size:7pt;
+    font-weight:700;
+  }
+
+  .trainer-table{
+    margin-top:3pt;
+  }
+
+  .trainer-table td{
+    height:37pt;
+    padding:4pt 6pt;
+  }
+
+  .trainer-table .field-label{
+    font-size:6.3pt;
+  }
+
+  .legal-note{
+    margin-top:4pt;
+    padding:4pt 6pt;
+    background:{{ brand.soft }};
+    border:1pt solid {{ brand.line }};
+    border-radius:4pt;
+    font-size:6.5pt;
+    color:{{ brand.muted }};
+  }
+
 {% endblock %}
+
+
 {% block document %}
-  <h1>Feuille d’émargement</h1>
-  <p class="intro">Une feuille par journée. Chaque participant signe pour chaque demi-journée effectivement suivie.</p>
-  <table class="fields">
-    <tr><td colspan="3"><div class="label">Intitulé de la formation</div><div class="write-line"></div></td><td><div class="label">Référence de la session</div><div class="write-line"></div></td></tr>
-    <tr><td colspan="2"><div class="label">Lieu de la formation</div><div class="write-line"></div></td><td><div class="label">Date du jour</div><div class="write-line"></div></td><td><div class="label">Durée de formation du jour (hors pauses)</div><div class="write-line"></div></td></tr>
-    <tr><td colspan="2">Matin : de ........ h ........ à ........ h ........</td><td colspan="2">Après-midi : de ........ h ........ à ........ h ........</td></tr>
+
+  <h1 class="document-title">
+    Feuille d’émargement
+  </h1>
+
+  <p class="document-intro">
+    Une feuille par journée. Chaque participant signe
+    pour chaque demi-journée effectivement suivie.
+  </p>
+
+
+  <table class="field-table">
+
+    <tr>
+
+      <td colspan="3">
+        <span class="field-label">
+          Intitulé de la formation
+        </span>
+        <div class="write-line"></div>
+      </td>
+
+      <td>
+        <span class="field-label">
+          Référence session
+        </span>
+        <div class="write-line"></div>
+      </td>
+
+    </tr>
+
+    <tr>
+
+      <td colspan="2">
+        <span class="field-label">
+          Lieu
+        </span>
+        <div class="write-line"></div>
+      </td>
+
+      <td>
+        <span class="field-label">
+          Date
+        </span>
+        <div class="write-line"></div>
+      </td>
+
+      <td>
+        <span class="field-label">
+          Durée du jour
+        </span>
+        <span class="field-hint">Hors pauses</span>
+        <div class="write-line"></div>
+      </td>
+
+    </tr>
+
   </table>
-  <h2>Participants</h2>
+
+
+  <table class="schedule">
+
+    <tr>
+
+      <td style="width:50%">
+        Matin :
+        de ........ h ........
+        à ........ h ........
+      </td>
+
+      <td style="width:50%">
+        Après-midi :
+        de ........ h ........
+        à ........ h ........
+      </td>
+
+    </tr>
+
+  </table>
+
+
+  <div class="section-title">
+    <span class="section-number">01</span>
+    Participants
+  </div>
+
+  <div class="section-accent"></div>
+
+
   <table class="grid attendance">
-    <thead><tr><th class="number" style="width: 4%">N°</th><th style="width: 28%">Nom et prénom</th><th style="width: 22%">Entreprise</th><th class="center" style="width: 23%">Signature du matin</th><th class="center" style="width: 23%">Signature de l’après-midi</th></tr></thead>
-    <tbody>{% for i in 1..10 %}<tr><td class="number">{{ i }}</td><td></td><td></td><td></td><td></td></tr>{% endfor %}</tbody>
+
+    <thead>
+
+      <tr>
+
+        <th class="number">
+          N°
+        </th>
+
+        <th class="participant">
+          Nom et prénom
+        </th>
+
+        <th class="company">
+          Entreprise
+        </th>
+
+        <th class="center signature-col">
+          Signature matin
+        </th>
+
+        <th class="center signature-col">
+          Signature après-midi
+        </th>
+
+      </tr>
+
+    </thead>
+
+    <tbody>
+
+      {% for i in 1..8 %}
+
+        <tr>
+          <td class="number">{{ i }}</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+
+      {% endfor %}
+
+    </tbody>
+
   </table>
-  <h2>Validation de l’intervention</h2>
-  <table class="fields"><tr>
-    <td><div class="label">Nom et prénom du formateur</div><div class="write-line"></div></td>
-    <td><div class="label">Signature du formateur - matin</div><div class="signature"></div></td>
-    <td><div class="label">Signature du formateur - après-midi</div><div class="signature"></div></td>
-  </tr></table>
+
+
+  <div class="section-title">
+    <span class="section-number">02</span>
+    Validation du formateur
+  </div>
+
+  <div class="section-accent"></div>
+
+
+  <table class="field-table trainer-table">
+
+    <tr>
+
+      <td style="width:34%">
+        <span class="field-label">
+          Nom et prénom du formateur
+        </span>
+        <div class="write-line"></div>
+      </td>
+
+      <td style="width:33%">
+        <span class="field-label">
+          Signature matin
+        </span>
+      </td>
+
+      <td style="width:33%">
+        <span class="field-label">
+          Signature après-midi
+        </span>
+      </td>
+
+    </tr>
+
+  </table>
+
+
+  <div class="legal-note">
+    <strong>Traçabilité :</strong>
+    les signatures doivent correspondre aux périodes
+    de formation réellement suivies.
+  </div>
+
 {% endblock %}

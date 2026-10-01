@@ -1,49 +1,912 @@
+{% set brand = {
+  primary:   entite.couleurPrincipal|default('#1e3a5f'),
+  secondary: entite.couleurSecondaire|default('#4ba3ff'),
+  accent:    entite.couleurSecondaire|default('#d4a574'),
+
+  ink:       '#0f2336',
+  text:      '#1e2d3d',
+  muted:     '#647486',
+  line:      '#dce4ed',
+  soft:      '#f7f9fc',
+  softer:    '#fbfcfe',
+  paper:     '#ffffff',
+
+  success:   '#198754',
+  warning:   '#b7791f',
+  danger:    '#b42318'
+} %}
+
 <!doctype html>
+
 <html lang="fr">
+
 <head>
+
   <meta charset="utf-8">
-  <title>{{ documentTitle }} - {{ entite.nom }}</title>
+
+  <title>
+    {{ documentTitle }} - {{ entite.nom }}
+  </title>
+
   <style>
-    @page { margin: 30px 35px 35px; }
-    * { box-sizing: border-box; }
-    body { font-family: 'DejaVu Sans', sans-serif; color: #223242; font-size: 9px; line-height: 1.4; }
-    table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-    .brand { margin-bottom: 13px; border-bottom: 3px solid #e2b749; }
-    .brand td { vertical-align: middle; padding-bottom: 10px; }
-    .logo-cell { width: 130px; }
-    .logo { max-width: 118px; max-height: 48px; }
-    .organisation { font-size: 12px; font-weight: bold; }
-    .eyebrow { font-size: 8px; color: #6c7884; letter-spacing: 1px; text-transform: uppercase; }
-    .edition { text-align: right; color: #6c7884; font-size: 8px; width: 120px; }
-    h1 { font-size: 20px; line-height: 1.15; margin: 0 0 5px; }
-    .intro { color: #607181; margin: 0 0 13px; font-size: 9px; }
-    h2 { font-size: 10px; margin: 14px 0 6px; font-weight: bold; }
-    .fields td { border: 1px solid #cdd5dd; padding: 8px 10px; vertical-align: top; }
-    .label { font-size: 8px; color: #526271; margin-bottom: 6px; }
-    .write-line { height: 15px; border-bottom: 1px dotted #bac4cd; }
-    .grid th { background: #eef2f5; color: #223242; font-weight: bold; text-align: left; font-size: 8px; }
-    .grid th, .grid td { border: 1px solid #cdd5dd; padding: 6px 8px; vertical-align: middle; }
-    .grid .center { text-align: center; padding-left: 4px; padding-right: 4px; }
-    .check { display: inline-block; width: 9px; height: 9px; border: 1px solid #758493; vertical-align: -1px; margin-right: 3px; }
-    .response { padding: 8px 10px; border: 1px solid #cdd5dd; margin-top: 7px; }
-    .response .label { margin-bottom: 2px; color: #223242; font-size: 9px; }
-    .two-cols td { vertical-align: top; width: 50%; padding: 0; }
-    .two-cols td:first-child { padding-right: 5px; }
-    .two-cols td:last-child { padding-left: 5px; }
-    .muted { color: #6c7884; font-size: 8px; }
-    .signature { height: 35px; }
-    .footer { position: fixed; bottom: -18px; left: 0; right: 0; border-top: 1px solid #dce2e7; padding-top: 6px; font-size: 7px; color: #72808c; }
-    .footer .right { float: right; }
+
+    @page{
+      margin: 10mm 10mm 11mm;
+    }
+
+    *{
+      box-sizing:border-box;
+    }
+
+    html,
+    body{
+      margin:0;
+      padding:10;
+    }
+
+    body{
+      font-family:
+        DejaVu Sans,
+        Helvetica,
+        Arial,
+        sans-serif;
+
+      color:{{ brand.text }};
+
+      font-size:9pt;
+
+      line-height:1.42;
+
+      background:#fff;
+    }
+
+
+    /* ======================================================
+       HELPERS
+       ====================================================== */
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    p{
+      margin:0 0 7pt;
+    }
+
+    strong{
+      color:{{ brand.ink }};
+      font-weight:700;
+    }
+
+    .muted{
+      color:{{ brand.muted }};
+    }
+
+    .text-small{
+      font-size:7.8pt;
+    }
+
+    .text-center{
+      text-align:center;
+    }
+
+    .text-right{
+      text-align:right;
+    }
+
+    .mb-0{
+      margin-bottom:0 !important;
+    }
+
+    .mt-6{
+      margin-top:6pt !important;
+    }
+
+    .mt-10{
+      margin-top:10pt !important;
+    }
+
+    .avoid-break{
+      page-break-inside:avoid;
+    }
+
+
+    /* ======================================================
+       PAGE
+       ====================================================== */
+
+    .page{
+      padding:0 1mm;
+    }
+
+
+    /* ======================================================
+       HEADER
+       ====================================================== */
+
+    .document-header{
+      width:100%;
+
+      padding-bottom:9pt;
+
+      margin-bottom:10pt;
+
+      border-bottom:
+        1.4pt solid {{ brand.primary }};
+
+      page-break-inside:avoid;
+    }
+
+    .header-table{
+      width:100%;
+    }
+
+    .header-left{
+      width:64%;
+
+      vertical-align:top;
+
+      padding-right:12pt;
+    }
+
+    .header-right{
+      width:36%;
+
+      vertical-align:top;
+
+      text-align:right;
+
+      padding-top:5pt;
+    }
+
+    .logo{
+      max-width:115pt;
+      max-height:52pt;
+
+      margin-bottom:4pt;
+    }
+
+    .brand-name{
+      font-size:16pt;
+
+      font-weight:800;
+
+      letter-spacing:-.2pt;
+
+      color:{{ brand.primary }};
+
+      margin-bottom:3pt;
+    }
+
+    .brand-meta{
+      font-size:8pt;
+
+      color:{{ brand.muted }};
+
+      line-height:1.45;
+    }
+
+    .brand-meta p{
+      margin:0 0 1pt;
+    }
+
+    .doc-badge{
+      display:inline-block;
+
+      min-width:150pt;
+
+      padding:7pt 10pt;
+
+      border-radius:5pt;
+
+      background:{{ brand.primary }};
+
+      color:#fff;
+
+      text-transform:uppercase;
+
+      letter-spacing:.75pt;
+
+      font-size:10pt;
+
+      line-height:1.2;
+
+      font-weight:900;
+
+      text-align:center;
+    }
+
+    .doc-badge-accent{
+      width:72pt;
+
+      height:2pt;
+
+      margin:
+        5pt 0 0 auto;
+
+      background:{{ brand.accent }};
+    }
+
+    .doc-meta{
+      margin-top:7pt;
+
+      font-size:7.8pt;
+
+      color:{{ brand.muted }};
+
+      line-height:1.5;
+    }
+
+
+    /* ======================================================
+       TITLE / INTRO
+       ====================================================== */
+
+    .document-title{
+      margin:
+        0 0 4pt;
+
+      font-size:19pt;
+
+      line-height:1.18;
+
+      font-weight:900;
+
+      letter-spacing:-.35pt;
+
+      color:{{ brand.ink }};
+    }
+
+    .document-intro{
+      margin:
+        0 0 10pt;
+
+      font-size:8.7pt;
+
+      color:{{ brand.muted }};
+
+      line-height:1.5;
+    }
+
+
+    /* ======================================================
+       HERO INFO / CARDS
+       ====================================================== */
+
+    .intro-card{
+      padding:9pt 11pt;
+
+      margin-bottom:10pt;
+
+      border-radius:6pt;
+
+      border-left:
+        3pt solid {{ brand.accent }};
+
+      background:{{ brand.primary }};
+
+      color:#fff;
+
+      page-break-inside:avoid;
+    }
+
+    .intro-card strong{
+      color:#fff;
+    }
+
+    .intro-card .intro-main{
+      font-size:9.2pt;
+
+      font-weight:700;
+
+      margin-bottom:2pt;
+    }
+
+    .intro-card .intro-sub{
+      font-size:8pt;
+
+      opacity:.9;
+    }
+
+    .card{
+      padding:10pt 11pt;
+
+      margin-bottom:9pt;
+
+      border:
+        1pt solid {{ brand.line }};
+
+      border-left:
+        3pt solid {{ brand.primary }};
+
+      border-radius:6pt;
+
+      background:{{ brand.paper }};
+
+      page-break-inside:avoid;
+    }
+
+    .card-soft{
+      background:{{ brand.soft }};
+
+      border-left-color:
+        {{ brand.accent }};
+    }
+
+
+    /* ======================================================
+       SECTION TITLES
+       ====================================================== */
+
+    .section-title{
+      position:relative;
+
+      margin:
+        13pt 0 6pt;
+
+      padding-bottom:5pt;
+
+      border-bottom:
+        1pt solid #edf1f5;
+
+      color:{{ brand.primary }};
+
+      font-size:9.6pt;
+
+      line-height:1.2;
+
+      font-weight:900;
+
+      text-transform:uppercase;
+
+      letter-spacing:.55pt;
+    }
+
+    .section-number{
+      display:inline-block;
+
+      min-width:21pt;
+
+      color:{{ brand.accent }};
+
+      font-weight:900;
+    }
+
+    .section-accent{
+      width:34pt;
+
+      height:2pt;
+
+      background:{{ brand.accent }};
+
+      margin-top:-2pt;
+    }
+
+
+    /* ======================================================
+       LABELS / FIELDS
+       ====================================================== */
+
+    .field-table{
+      table-layout:fixed;
+
+      margin-bottom:8pt;
+    }
+
+    .field-table td{
+      border:
+        1pt solid {{ brand.line }};
+
+      padding:7pt 8pt;
+
+      vertical-align:top;
+
+      background:#fff;
+    }
+
+    .field-label{
+      display:block;
+
+      margin-bottom:4pt;
+
+      color:{{ brand.ink }};
+
+      font-size:7.4pt;
+
+      line-height:1.3;
+
+      font-weight:800;
+
+      text-transform:uppercase;
+
+      letter-spacing:.35pt;
+    }
+
+    .field-hint{
+      font-size:7.3pt;
+
+      color:{{ brand.muted }};
+    }
+
+    .write-line{
+      height:13pt;
+
+      border-bottom:
+        .75pt dotted #aebbc7;
+    }
+
+    .write-lines .write-line{
+      margin-top:1pt;
+    }
+
+
+    /* ======================================================
+       TABLES
+       ====================================================== */
+
+    .grid{
+      table-layout:fixed;
+
+      width:100%;
+    }
+
+    .grid th,
+    .grid td{
+      border:
+        1pt solid {{ brand.line }};
+
+      padding:5.5pt 6pt;
+
+      vertical-align:middle;
+    }
+
+    .grid th{
+      background:{{ brand.soft }};
+
+      color:{{ brand.ink }};
+
+      font-size:7.5pt;
+
+      line-height:1.25;
+
+      font-weight:800;
+
+      text-transform:uppercase;
+
+      letter-spacing:.25pt;
+    }
+
+    .grid tbody tr:nth-child(even) td{
+      background:{{ brand.softer }};
+    }
+
+    .grid .center{
+      text-align:center;
+
+      padding-left:3pt;
+
+      padding-right:3pt;
+    }
+
+
+    /* ======================================================
+       CHECKBOX
+       ====================================================== */
+
+    .check{
+      display:inline-block;
+
+      width:9.5pt;
+      height:9.5pt;
+
+      border:
+        1.1pt solid #718293;
+
+      border-radius:2pt;
+
+      background:#fff;
+
+      vertical-align:-1.5pt;
+    }
+
+
+    /* ======================================================
+       ANSWERS
+       ====================================================== */
+
+    .response{
+      min-height:55pt;
+
+      margin-top:6pt;
+
+      padding:8pt 9pt;
+
+      border:
+        1pt solid {{ brand.line }};
+
+      border-left:
+        2.5pt solid {{ brand.accent }};
+
+      border-radius:5pt;
+
+      background:#fff;
+
+      page-break-inside:avoid;
+    }
+
+    .response-title{
+      margin-bottom:3pt;
+
+      color:{{ brand.ink }};
+
+      font-size:8pt;
+
+      line-height:1.35;
+
+      font-weight:800;
+    }
+
+    .response-sub{
+      color:{{ brand.muted }};
+
+      font-size:7.2pt;
+
+      margin-bottom:2pt;
+    }
+
+    .two-cols{
+      table-layout:fixed;
+    }
+
+    .two-cols td{
+      width:50%;
+
+      vertical-align:top;
+    }
+
+    .two-cols td:first-child{
+      padding-right:4pt;
+    }
+
+    .two-cols td:last-child{
+      padding-left:4pt;
+    }
+
+
+    /* ======================================================
+       SCORE / HIGHLIGHT
+       ====================================================== */
+
+    .score-box{
+      padding:7pt 9pt;
+
+      margin-top:8pt;
+
+      border:
+        1pt solid {{ brand.line }};
+
+      border-radius:5pt;
+
+      background:{{ brand.soft }};
+
+      font-size:8pt;
+
+      page-break-inside:avoid;
+    }
+
+    .score{
+      color:{{ brand.primary }};
+
+      font-weight:900;
+
+      font-size:9pt;
+    }
+
+
+    /* ======================================================
+       SIGNATURE
+       ====================================================== */
+
+    .signature{
+      height:32pt;
+    }
+
+    .signature-box{
+      height:50pt;
+
+      border:
+        1pt dashed #bdc7d0;
+
+      border-radius:5pt;
+
+      background:#fff;
+    }
+
+
+    /* ======================================================
+       FOOTER
+       ====================================================== */
+
+    .footer{
+      position:fixed;
+
+      bottom:-7mm;
+
+      left:1mm;
+      right:1mm;
+
+      padding-top:4pt;
+
+      border-top:
+        .7pt solid {{ brand.line }};
+
+      color:{{ brand.muted }};
+
+      font-size:6.7pt;
+    }
+
+    .footer-right{
+      float:right;
+    }
+
+
+    /* ======================================================
+      PDF LAYOUT HELPERS
+      ====================================================== */
+
+    .compact-header .document-header{
+      padding-bottom:6pt;
+      margin-bottom:6pt;
+    }
+
+    .compact-header .logo{
+      max-width:90pt;
+      max-height:38pt;
+      margin-bottom:2pt;
+    }
+
+    .compact-header .brand-name{
+      font-size:13pt;
+      margin-bottom:2pt;
+    }
+
+    .compact-header .brand-meta{
+      font-size:6.8pt;
+      line-height:1.32;
+    }
+
+    .compact-header .doc-badge{
+      min-width:130pt;
+      padding:5pt 8pt;
+      font-size:8.5pt;
+    }
+
+    .compact-header .doc-meta{
+      margin-top:4pt;
+      font-size:6.8pt;
+    }
+
+    .page-break{
+      page-break-before:always;
+    }
+
+    .keep-together{
+      page-break-inside:avoid;
+    }
+
+    .no-break-after{
+      page-break-after:avoid;
+    }
+
+    .compact-title{
+      font-size:16pt;
+      margin-bottom:3pt;
+    }
+
+    .compact-intro{
+      margin-bottom:6pt;
+    }
+
+    .compact-card{
+      padding:6pt 8pt;
+      margin-bottom:6pt;
+    }
+
+    .compact-section{
+      margin-top:8pt;
+      margin-bottom:4pt;
+    }
+
+
+
+    /* ======================================================
+   HEADER COMPACT POUR LES DOCUMENTS 1 PAGE
+   ====================================================== */
+
+body.compact-one-page .document-header{
+  padding-bottom:4pt;
+  margin-bottom:5pt;
+}
+
+body.compact-one-page .header-left{
+  padding-right:8pt;
+}
+
+body.compact-one-page .header-right{
+  padding-top:0;
+}
+
+body.compact-one-page .logo{
+  max-width:72pt;
+  max-height:32pt;
+  margin-bottom:1pt;
+}
+
+body.compact-one-page .brand-name{
+  font-size:11pt;
+  margin-bottom:1pt;
+  line-height:1.1;
+}
+
+body.compact-one-page .brand-meta{
+  font-size:6.2pt;
+  line-height:1.22;
+}
+
+body.compact-one-page .brand-meta p{
+  margin:0 0 .5pt;
+}
+
+body.compact-one-page .doc-badge{
+  min-width:115pt;
+  padding:4pt 7pt;
+  font-size:7.5pt;
+  border-radius:4pt;
+}
+
+body.compact-one-page .doc-badge-accent{
+  width:55pt;
+  height:1.5pt;
+  margin-top:3pt;
+}
+
+body.compact-one-page .doc-meta{
+  margin-top:3pt;
+  font-size:6.1pt;
+  line-height:1.25;
+}
+
+
     {% block extra_styles %}{% endblock %}
+
   </style>
+
 </head>
-<body>
-  <div class="footer"><span class="right">Modèle vierge · Version 1</span>{{ entite.nom }}</div>
-  <table class="brand"><tr>
-    {% if logoDataUri %}<td class="logo-cell"><img class="logo" src="{{ logoDataUri }}" alt=""></td>{% endif %}
-    <td><div class="organisation">{{ entite.nom }}</div><div class="eyebrow">Documents de formation</div></td>
-    <td class="edition">À compléter sur papier<br>À remettre à l’organisme</td>
-  </tr></table>
-  {% block document %}{% endblock %}
+
+
+<body class="{% block body_class %}{% endblock %}">
+
+  <div class="footer">
+
+    <span class="footer-right">
+      Modèle vierge · Version 1
+    </span>
+
+    {{ entite.nom }}
+
+  </div>
+
+
+  <div class="page">
+
+    <div class="document-header">
+
+      <table class="header-table">
+
+        <tr>
+
+          <td class="header-left">
+
+            {% if logoDataUri %}
+
+              <img
+                class="logo"
+                src="{{ logoDataUri }}"
+                alt=""
+              >
+
+            {% endif %}
+
+
+            <div class="brand-name">
+              {{ entite.nom }}
+            </div>
+
+
+            <div class="brand-meta">
+
+              {% if entite.adresse %}
+                <p>
+                  {{ entite.adresse }}
+                </p>
+              {% endif %}
+
+
+              {% if entite.codePostal or entite.ville %}
+
+                <p>
+                  {{ entite.codePostal|default('') }}
+                  {{ entite.ville|default('') }}
+                </p>
+
+              {% endif %}
+
+
+              {% if entite.telephone or entite.email %}
+
+                <p>
+
+                  {% if entite.telephone %}
+                    {{ entite.telephone }}
+                  {% endif %}
+
+                  {% if entite.telephone and entite.email %}
+                    ·
+                  {% endif %}
+
+                  {% if entite.email %}
+                    {{ entite.email }}
+                  {% endif %}
+
+                </p>
+
+              {% endif %}
+
+
+              {% if entite.siret %}
+
+                <p>
+                  SIRET : {{ entite.siret }}
+                </p>
+
+              {% endif %}
+
+            </div>
+
+          </td>
+
+
+          <td class="header-right">
+
+            <div class="doc-badge">
+              {{ documentTitle }}
+            </div>
+
+            <div class="doc-badge-accent"></div>
+
+            <div class="doc-meta">
+
+              Document à compléter sur papier<br>
+
+              Édition :
+              {{ "now"|date('d/m/Y') }}
+
+            </div>
+
+          </td>
+
+        </tr>
+
+      </table>
+
+    </div>
+
+
+    {% block document %}{% endblock %}
+
+  </div>
+
 </body>
+
 </html>
