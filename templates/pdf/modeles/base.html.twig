@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>{{ documentTitle }} - {{ entite.nom }}</title>
+  <style>
+    @page { margin: 30px 35px 35px; }
+    * { box-sizing: border-box; }
+    body { font-family: 'DejaVu Sans', sans-serif; color: #223242; font-size: 9px; line-height: 1.4; }
+    table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+    .brand { margin-bottom: 13px; border-bottom: 3px solid #e2b749; }
+    .brand td { vertical-align: middle; padding-bottom: 10px; }
+    .logo-cell { width: 130px; }
+    .logo { max-width: 118px; max-height: 48px; }
+    .organisation { font-size: 12px; font-weight: bold; }
+    .eyebrow { font-size: 8px; color: #6c7884; letter-spacing: 1px; text-transform: uppercase; }
+    .edition { text-align: right; color: #6c7884; font-size: 8px; width: 120px; }
+    h1 { font-size: 20px; line-height: 1.15; margin: 0 0 5px; }
+    .intro { color: #607181; margin: 0 0 13px; font-size: 9px; }
+    h2 { font-size: 10px; margin: 14px 0 6px; font-weight: bold; }
+    .fields td { border: 1px solid #cdd5dd; padding: 8px 10px; vertical-align: top; }
+    .label { font-size: 8px; color: #526271; margin-bottom: 6px; }
+    .write-line { height: 15px; border-bottom: 1px dotted #bac4cd; }
+    .grid th { background: #eef2f5; color: #223242; font-weight: bold; text-align: left; font-size: 8px; }
+    .grid th, .grid td { border: 1px solid #cdd5dd; padding: 6px 8px; vertical-align: middle; }
+    .grid .center { text-align: center; padding-left: 4px; padding-right: 4px; }
+    .check { display: inline-block; width: 9px; height: 9px; border: 1px solid #758493; vertical-align: -1px; margin-right: 3px; }
+    .response { padding: 8px 10px; border: 1px solid #cdd5dd; margin-top: 7px; }
+    .response .label { margin-bottom: 2px; color: #223242; font-size: 9px; }
+    .two-cols td { vertical-align: top; width: 50%; padding: 0; }
+    .two-cols td:first-child { padding-right: 5px; }
+    .two-cols td:last-child { padding-left: 5px; }
+    .muted { color: #6c7884; font-size: 8px; }
+    .signature { height: 35px; }
+    .footer { position: fixed; bottom: -18px; left: 0; right: 0; border-top: 1px solid #dce2e7; padding-top: 6px; font-size: 7px; color: #72808c; }
+    .footer .right { float: right; }
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+  <div class="footer"><span class="right">Modèle vierge · Version 1</span>{{ entite.nom }}</div>
+  <table class="brand"><tr>
+    {% if logoDataUri %}<td class="logo-cell"><img class="logo" src="{{ logoDataUri }}" alt=""></td>{% endif %}
+    <td><div class="organisation">{{ entite.nom }}</div><div class="eyebrow">Documents de formation</div></td>
+    <td class="edition">À compléter sur papier<br>À remettre à l’organisme</td>
+  </tr></table>
+  {% block document %}{% endblock %}
+</body>
+</html>

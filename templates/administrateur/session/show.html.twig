@@ -870,7 +870,9 @@ body{ overflow-x:hidden; }
                   <div class="small mt-1"><i class="bi bi-person-badge me-1"></i>{{ intervenant and intervenant.utilisateur ? intervenant.utilisateur.prenom ~ ' ' ~ intervenant.utilisateur.nom : 'Formateur à affecter' }}</div>
                   <div class="small text-muted mt-1">
                     Émargements :
-                    {% if totalEmarg > 0 %}
+                    {% if not session.emargementRequis %}
+                      <span>gérés par l’organisme donneur d’ordre</span>
+                    {% elseif totalEmarg > 0 %}
                       {% if signedEmarg == totalEmarg %}
                         <span class="text-success">
                           <i class="fa fa-check-circle me-1"></i>{{ signedEmarg }}/{{ totalEmarg }} signé(s)

@@ -1,0 +1,30 @@
+{% extends 'document_formateur/base.html.twig' %}
+{% block title %}{{ new ? 'Ajouter un document' : 'Gérer le document' }}{% endblock %}
+{% block body %}
+<div class="doc-library">
+  <a class="doc-back" href="{{ path('app_administrateur_documents_formateurs_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Documents formateurs</a>
+  <header class="doc-hero"><div><div class="doc-eyebrow">{{ entite.nom }}</div><h1>{{ new ? 'Partager un document' : document.titre }}</h1><p>{{ new ? 'Un intitulé clair, un fichier à jour, accessible à votre équipe.' : 'Mettez à jour le fichier ou ses consignes. Les versions précédentes sont conservées.' }}</p></div><i class="bi bi-file-earmark-arrow-up doc-hero-icon" aria-hidden="true"></i></header>
+  <div class="doc-edit-grid">
+    <section class="doc-panel" aria-labelledby="document-settings">
+      <h2 id="document-settings">{{ new ? 'Nouveau document' : 'Informations et publication' }}</h2>
+      {{ form_start(form, {attr: {class: 'doc-form'}}) }}
+      {{ form_errors(form) }}
+      {{ form_row(form.titre) }}
+      {{ form_row(form.categorie) }}
+      {{ form_row(form.description) }}
+      <div class="doc-upload">{{ form_row(form.file) }}{% if not new %}<small>Sans nouveau fichier, la version actuelle reste disponible.</small>{% endif %}</div>
+      {{ form_row(form.noteVersion) }}
+      <div class="doc-publication">{{ form_row(form.publie) }}</div>
+      <div class="doc-form-actions"><a class="btn btn-outline-secondary" href="{{ path('app_administrateur_documents_formateurs_index', {entite: entite.id}) }}">Annuler</a><button type="submit" class="btn btn-warning"><i class="bi bi-check2 me-2" aria-hidden="true"></i>Enregistrer le document</button></div>
+      {{ form_end(form) }}
+    </section>
+    <aside class="doc-panel doc-history" aria-labelledby="version-history">
+      <h2 id="version-history"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Historique des fichiers</h2>
+      {% if new %}<p>Chaque remplacement créera une nouvelle version. Les formateurs téléchargeront toujours la version actuelle.</p><div class="doc-offline"><i class="bi bi-lightbulb" aria-hidden="true"></i><p>Déposez un modèle vierge avec votre logo, prêt à être imprimé et rempli sur le terrain.</p></div>
+      {% else %}{% for version in document.versions %}
+      <article class="doc-version"><div class="d-flex justify-content-between align-items-center gap-2"><h3>Version {{ version.numero }}</h3>{% if version == document.currentVersion %}<span class="doc-badge">Actuelle</span>{% endif %}</div><p>{{ version.createdAt|date('d/m/Y à H:i') }}{% if version.uploadedBy %}<br>Par {{ version.uploadedBy.prenom }} {{ version.uploadedBy.nom }}{% endif %}</p><p class="doc-version-name">{{ version.originalName }}</p>{% if version.note %}<p>{{ version.note }}</p>{% endif %}<a href="{{ path('app_administrateur_documents_formateurs_version', {entite: entite.id, id: document.id, version: version.numero}) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download me-1" aria-hidden="true"></i>Télécharger cette version</a></article>
+      {% endfor %}{% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

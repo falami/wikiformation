@@ -1,0 +1,28 @@
+{% extends 'pdf/modeles/base.html.twig' %}
+{% block extra_styles %}
+  .attendance td { height: 22px; padding: 2px 8px; }
+  .attendance .number { color: #87939e; text-align: center; }
+  .fields td { padding: 6px 8px; }
+  .write-line { height: 12px; }
+  .signature { height: 26px; }
+{% endblock %}
+{% block document %}
+  <h1>Feuille d’émargement</h1>
+  <p class="intro">Une feuille par journée. Chaque participant signe pour chaque demi-journée effectivement suivie.</p>
+  <table class="fields">
+    <tr><td colspan="3"><div class="label">Intitulé de la formation</div><div class="write-line"></div></td><td><div class="label">Référence de la session</div><div class="write-line"></div></td></tr>
+    <tr><td colspan="2"><div class="label">Lieu de la formation</div><div class="write-line"></div></td><td><div class="label">Date du jour</div><div class="write-line"></div></td><td><div class="label">Durée de formation du jour (hors pauses)</div><div class="write-line"></div></td></tr>
+    <tr><td colspan="2">Matin : de ........ h ........ à ........ h ........</td><td colspan="2">Après-midi : de ........ h ........ à ........ h ........</td></tr>
+  </table>
+  <h2>Participants</h2>
+  <table class="grid attendance">
+    <thead><tr><th class="number" style="width: 4%">N°</th><th style="width: 28%">Nom et prénom</th><th style="width: 22%">Entreprise</th><th class="center" style="width: 23%">Signature du matin</th><th class="center" style="width: 23%">Signature de l’après-midi</th></tr></thead>
+    <tbody>{% for i in 1..10 %}<tr><td class="number">{{ i }}</td><td></td><td></td><td></td><td></td></tr>{% endfor %}</tbody>
+  </table>
+  <h2>Validation de l’intervention</h2>
+  <table class="fields"><tr>
+    <td><div class="label">Nom et prénom du formateur</div><div class="write-line"></div></td>
+    <td><div class="label">Signature du formateur - matin</div><div class="signature"></div></td>
+    <td><div class="label">Signature du formateur - après-midi</div><div class="signature"></div></td>
+  </tr></table>
+{% endblock %}

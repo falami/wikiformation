@@ -43,7 +43,8 @@ class SessionType extends AbstractType
         $b
             ->add('typeFinancement', EnumType::class, [
                 'class' => TypeFinancement::class,
-                'label' => 'Sous traitance',
+                'label' => 'Sous-traitance',
+                'help' => 'En sous-traitance, les émargements sont gérés par l’organisme donneur d’ordre et ne déclenchent pas d’alerte de signature manquante.',
                 'attr'  => [
                     'class' => 'form-select',
                     'data-of-value' => TypeFinancement::OUI->value, // ✅ la vraie value

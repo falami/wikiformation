@@ -1,0 +1,26 @@
+{% extends 'pdf/modeles/base.html.twig' %}
+{% block document %}
+  <h1>Compte rendu du formateur</h1>
+  <p class="intro">Bilan de l’intervention et observations utiles au suivi de la formation.</p>
+  <table class="fields">
+    <tr><td colspan="2"><div class="label">Intitulé de la formation / référence de la session</div><div class="write-line"></div></td></tr>
+    <tr><td><div class="label">Nom et prénom du formateur</div><div class="write-line"></div></td><td><div class="label">Dates de formation / lieu</div><div class="write-line"></div></td></tr>
+  </table>
+  <h2>01 · Déroulement de la formation</h2>
+  <table class="grid">
+    <thead><tr><th style="width: 66%">Point évalué</th><th class="center">Oui</th><th class="center">En partie</th><th class="center">Non</th></tr></thead>
+    <tbody>{% for label in ['Le programme annoncé a pu être réalisé.', 'Les objectifs pédagogiques ont été atteints.', 'Le matériel et les locaux étaient adaptés.', 'Le rythme était adapté au groupe.'] %}
+      <tr><td>{{ label }}</td><td class="center"><span class="check"></span></td><td class="center"><span class="check"></span></td><td class="center"><span class="check"></span></td></tr>
+    {% endfor %}</tbody>
+  </table>
+  <h2>02 · Suivi des participants</h2>
+  <table class="two-cols"><tr>
+    <td><div class="response"><div class="label">Absences / retards (nom, date et période)</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div></td>
+    <td><div class="response"><div class="label">Participation et progression du groupe</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div></td>
+  </tr></table>
+  <div class="response"><div class="label">Objectifs restant à travailler / accompagnement proposé</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div>
+  <h2>03 · Amélioration et suites à donner</h2>
+  <div class="response"><div class="label">Difficultés rencontrées, incidents ou adaptations réalisés</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div>
+  <div class="response"><div class="label">Suggestions d’amélioration et informations à transmettre à l’organisme</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div>
+  <table class="fields" style="margin-top: 13px"><tr><td><div class="label">Date du compte rendu</div><div class="write-line"></div></td><td><div class="label">Signature du formateur</div><div class="signature"></div></td></tr></table>
+{% endblock %}

@@ -1,175 +1,2036 @@
 {% extends 'base_admin.html.twig' %}
-{% block title %}Super — Console plateforme{% endblock %}
+
+{% block title %}
+  Super — Console plateforme
+{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
+
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+
+  <link
+    rel="stylesheet"
+    href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"
+  >
+
   <style>
     :root{
       --theme-color-principal:#233342;
       --theme-color-secondaire:#ffc107;
+      --theme-color-tertiaire:#f4f7fa;
+      --theme-color-quaternaire:#111827;
+
+      --bg:#f5f7fb;
+      --panel:#ffffff;
       --ink:#0f2336;
+      --muted:#64748b;
+      --stroke:rgba(15,23,42,.09);
+      --radius:18px;
+      --shadow:0 18px 50px rgba(15,23,42,.08);
     }
+
+    body{
+      background:var(--bg);
+    }
+
+    /* =====================================================
+       HERO
+       ===================================================== */
+
     .hero{
-      position:relative;border-radius:22px;overflow:hidden;color:#fff;
-      background:
-        radial-gradient(1200px 420px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
-        radial-gradient(950px 380px at 88% 10%, rgba(255,193,7,.20), transparent 55%),
-        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
+      border-radius:22px;
+      position:relative;
+      overflow:hidden;
+      color:#fff;
       box-shadow:0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(
+          1200px 420px at 12% -10%,
+          rgba(255,255,255,.12),
+          transparent 58%
+        ),
+        radial-gradient(
+          900px 380px at 92% 0%,
+          rgba(255,193,7,.26),
+          transparent 60%
+        ),
+        radial-gradient(
+          700px 260px at 55% 115%,
+          rgba(0,0,0,.16),
+          transparent 62%
+        ),
+        linear-gradient(
+          135deg,
+          #1b2a37,
+          #344b5f
+        );
     }
-    .hero .accent{ width:12px;border-radius:999px;background:var(--theme-color-secondaire);box-shadow:0 0 0 6px rgba(255,193,7,.10); }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255,255,255,.10),
+          rgba(255,255,255,0) 55%
+        );
+      opacity:.85;
+    }
+
+    .hero > *{
+      position:relative;
+      z-index:1;
+    }
+
+    .hero .accent{
+      width:12px;
+      border-radius:999px;
+      background:var(--theme-color-secondaire);
+      box-shadow:0 0 0 6px rgba(255,193,7,.14);
+      flex:0 0 auto;
+    }
+
     .meta-chip{
-      display:inline-flex;align-items:center;gap:.5rem;
-      padding:.35rem .65rem;border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
       background:rgba(255,255,255,.10);
       border:1px solid rgba(255,255,255,.14);
-      backdrop-filter: blur(6px);
-      font-size:.825rem;
+      color:rgba(255,255,255,.94);
+      font-size:.82rem;
+      white-space:nowrap;
+      backdrop-filter:blur(8px);
     }
-    .toolbar{
-      border-radius:18px;background:#fff;border:1px solid rgba(0,0,0,.06);
+
+    .meta-chip i{
+      color:var(--theme-color-secondaire);
+    }
+
+    .hero .btn{
+      border-radius:14px;
+      font-weight:800;
+    }
+
+    /* =====================================================
+       KPI
+       ===================================================== */
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:1rem;
+      margin-bottom:1rem;
+    }
+
+    .kpi-card{
+      background:#fff;
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      box-shadow:0 10px 28px rgba(15,23,42,.05);
+      padding:1rem 1.1rem;
+      display:flex;
+      align-items:center;
+      gap:.9rem;
+    }
+
+    .kpi-icon{
+      width:48px;
+      height:48px;
+      border-radius:15px;
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+      background:rgba(255,193,7,.10);
+      border:1px solid rgba(255,193,7,.22);
+      color:var(--ink);
+      font-size:1.15rem;
+    }
+
+    .kpi-value{
+      font-size:1.3rem;
+      font-weight:900;
+      color:var(--ink);
+      line-height:1;
+    }
+
+    .kpi-label{
+      margin-top:.25rem;
+      color:var(--muted);
+      font-size:.82rem;
+    }
+
+    /* =====================================================
+       TAB NAV
+       ===================================================== */
+
+    .console-tabs{
+      background:#fff;
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      box-shadow:0 10px 28px rgba(15,23,42,.05);
+      padding:.5rem;
+      margin-bottom:1rem;
+    }
+
+    .console-tabs .nav{
+      gap:.5rem;
+    }
+
+    .console-tabs .nav-link{
+      border-radius:14px;
+      font-weight:800;
+      color:#52606d;
+      display:flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.65rem 1rem;
+      transition:.2s ease;
+    }
+
+    .console-tabs .nav-link:hover{
+      background:#f8fafc;
+      color:var(--ink);
+    }
+
+    .console-tabs .nav-link.active{
+      background:
+        linear-gradient(
+          135deg,
+          var(--theme-color-principal),
+          #3b5368
+        );
+      color:#fff;
+      box-shadow:0 8px 22px rgba(35,51,66,.18);
+    }
+
+    /* =====================================================
+       FILTER BAR
+       ===================================================== */
+
+    .filterbar{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid var(--stroke);
       box-shadow:0 10px 24px rgba(0,0,0,.05);
-      padding:.9rem;
+      overflow:visible;
+      margin-bottom:1rem;
     }
-    .cardx{
-      border-radius:18px;background:#fff;border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 12px 30px rgba(0,0,0,.06);overflow:hidden;
+
+    .filterbar__top{
+      padding:.9rem 1rem;
+      border-bottom:1px solid var(--stroke);
+      background:linear-gradient(180deg,rgba(0,0,0,.015),transparent);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+      flex-wrap:wrap;
     }
-    .rowitem{ display:flex; gap:.9rem; align-items:center; padding:.85rem 1rem; border-top:1px solid rgba(0,0,0,.06); }
-    .rowitem:first-child{ border-top:0; }
-    .muted{ color: rgba(0,0,0,.58); }
-    .pill{ display:inline-flex;align-items:center;gap:.45rem;padding:.32rem .66rem;border-radius:999px;border:1px solid rgba(0,0,0,.08);background:rgba(0,0,0,.03);font-weight:800;font-size:.85rem; }
+
+    .filterbar__title{
+      font-weight:900;
+      color:var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+    }
+
+    .filterbar__hint{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-top:.15rem;
+    }
+
+    .filterbar__body{
+      padding:1rem;
+    }
+
+    .search-box{
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      gap:.6rem;
+      padding:.45rem .7rem;
+      box-shadow:0 8px 18px rgba(15,23,42,.04);
+      transition:.2s ease;
+    }
+
+    .search-box:focus-within{
+      border-color:rgba(255,193,7,.55);
+      box-shadow:
+        0 0 0 .2rem rgba(255,193,7,.14),
+        0 10px 20px rgba(15,23,42,.05);
+    }
+
+    .search-box .search-icon{
+      width:38px;
+      height:38px;
+      border-radius:12px;
+      display:grid;
+      place-items:center;
+      background:rgba(35,51,66,.06);
+      color:var(--theme-color-principal);
+      flex:0 0 auto;
+    }
+
+    .search-box input{
+      border:0 !important;
+      box-shadow:none !important;
+      background:transparent !important;
+      padding-left:0 !important;
+    }
+
+    /* =====================================================
+       TABLE
+       ===================================================== */
+
+    .table-card{
+      background:#fff;
+      border-radius:18px;
+      border:1px solid var(--stroke);
+      box-shadow:0 12px 30px rgba(0,0,0,.06);
+      overflow:visible;
+    }
+
+    table.dataTable{
+      margin:0 !important;
+    }
+
+    table.dataTable thead th{
+      background:#f7f8fa !important;
+      border-bottom:1px solid rgba(0,0,0,.08) !important;
+      font-size:.76rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:rgba(0,0,0,.52);
+      text-align:center !important;
+      vertical-align:middle;
+      white-space:nowrap;
+    }
+
+    .platform-table tbody td{
+      padding-top:.72rem !important;
+      padding-bottom:.72rem !important;
+      vertical-align:middle;
+      text-align:center !important;
+    }
+
+    .platform-table tbody tr:nth-child(even) > *{
+      background:rgba(35,51,66,.03) !important;
+    }
+
+    .platform-table tbody tr:hover > *{
+      background:rgba(255,193,7,.07) !important;
+    }
+
+    /* =====================================================
+       ENTITY CELL
+       ===================================================== */
+
+    .entity-cell,
+    .user-cell{
+      display:flex;
+      align-items:center;
+      gap:.7rem;
+      text-align:left;
+    }
+
+    .entity-icon,
+    .avatar{
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+      font-weight:900;
+      border:1px solid var(--stroke);
+      background:linear-gradient(145deg,#fff,#f8fafc);
+      color:var(--ink);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .entity-icon::after,
+    .avatar::after{
+      content:"";
+      position:absolute;
+      inset:-30px;
+      background:
+        radial-gradient(
+          circle at 25% 25%,
+          rgba(255,193,7,.25),
+          transparent 48%
+        );
+      pointer-events:none;
+    }
+
+    .entity-icon i,
+    .avatar span{
+      position:relative;
+      z-index:1;
+    }
+
+    .primary-label{
+      font-weight:900;
+      color:var(--ink);
+      line-height:1.15;
+    }
+
+    .secondary-label{
+      margin-top:.2rem;
+      color:var(--muted);
+      font-size:.78rem;
+    }
+
+    /* =====================================================
+       BADGES
+       ===================================================== */
+
+    .premium-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      border-radius:999px;
+      padding:.3rem .58rem;
+      font-size:.77rem;
+      font-weight:800;
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(0,0,0,.035);
+      color:var(--ink);
+      white-space:nowrap;
+    }
+
+    .premium-pill.yellow{
+      background:rgba(255,193,7,.13);
+      border-color:rgba(255,193,7,.28);
+      color:#6a4a00;
+    }
+
+    .premium-pill.blue{
+      background:rgba(13,110,253,.09);
+      border-color:rgba(13,110,253,.18);
+      color:#0b3b8a;
+    }
+
+    .premium-pill.green{
+      background:rgba(25,135,84,.10);
+      border-color:rgba(25,135,84,.20);
+      color:#0a4b2e;
+    }
+
+    /* =====================================================
+       ACTIONS
+       ===================================================== */
+
+    .actions-cell{
+      text-align:right !important;
+      white-space:nowrap !important;
+      width:1%;
+    }
+
+    .table-actions{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+    }
+
+    .table-actions .btn{
+      min-height:36px;
+      border-radius:11px;
+      font-weight:700;
+    }
+
+    .icon-action{
+      width:36px;
+      height:36px;
+      padding:0 !important;
+      display:grid !important;
+      place-items:center;
+    }
+
+    .btn-soft{
+      border:1px solid rgba(15,23,42,.12);
+      background:#fff;
+      color:var(--ink);
+    }
+
+    .btn-soft:hover{
+      background:#f8fafc;
+      color:var(--ink);
+      border-color:rgba(15,23,42,.18);
+    }
+
+    /* =====================================================
+       DATATABLE POLISH
+       ===================================================== */
+
+    .dt-top,
+    .dt-bottom-internal{
+      padding:.85rem .2rem;
+    }
+
+    .dt-search input{
+      border:1px solid var(--stroke) !important;
+      border-radius:999px !important;
+      padding:.48rem .8rem !important;
+      min-width:250px;
+    }
+
+    .dt-length select{
+      border-radius:10px !important;
+    }
+
+    .dt-info{
+      color:var(--muted) !important;
+      font-size:.82rem;
+    }
+
+    /* =====================================================
+       EMPTY STATE
+       ===================================================== */
+
+    .empty-state{
+      text-align:center;
+      padding:3.5rem 1rem;
+    }
+
+    .empty-state-icon{
+      width:68px;
+      height:68px;
+      border-radius:20px;
+      margin:0 auto 1rem;
+      display:grid;
+      place-items:center;
+      background:rgba(255,193,7,.10);
+      border:1px solid rgba(255,193,7,.20);
+      font-size:1.5rem;
+      color:var(--ink);
+    }
+
+    /* =====================================================
+       RESPONSIVE
+       ===================================================== */
+
+    @media (max-width:1200px){
+      .kpi-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+
+    @media (max-width:768px){
+      .hero{
+        border-radius:16px;
+      }
+
+      .kpi-grid{
+        grid-template-columns:1fr;
+      }
+
+      .console-tabs .nav{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+      }
+
+      .console-tabs .nav-link{
+        justify-content:center;
+      }
+
+      .dt-search input{
+        min-width:0;
+        width:100% !important;
+      }
+    }
+
+
+    /* =========================================================
+      ACTIONS PREMIUM — MÊME STYLE QUE LA PAGE PRÉCÉDENTE
+      ========================================================= */
+
+    .platform-actions{
+      display:inline-flex !important;
+      align-items:stretch;
+      vertical-align:middle;
+      white-space:nowrap;
+
+      border-radius:14px;
+
+      /* IMPORTANT : sinon le dropdown est coupé */
+      overflow:visible !important;
+
+      box-shadow:0 8px 18px rgba(15,23,42,.05);
+    }
+
+    .platform-actions .action-main{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.45rem;
+
+      min-height:38px;
+
+      padding:.42rem .75rem !important;
+
+      border:1px solid rgba(15,23,42,.12) !important;
+      border-right:0 !important;
+
+      border-radius:14px 0 0 14px !important;
+
+      background:#fff !important;
+
+      color:#243447 !important;
+
+      font-weight:700;
+
+      line-height:1;
+
+      box-shadow:none !important;
+    }
+
+    .platform-actions .action-split{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+
+      width:42px;
+      min-width:42px;
+
+      min-height:38px;
+
+      padding:0 !important;
+
+      border:1px solid rgba(15,23,42,.12) !important;
+
+      border-radius:0 14px 14px 0 !important;
+
+      background:#fff !important;
+
+      color:#243447 !important;
+
+      box-shadow:none !important;
+    }
+
+    .platform-actions .action-main:hover,
+    .platform-actions .action-split:hover{
+      background:rgba(255,193,7,.08) !important;
+
+      border-color:rgba(255,193,7,.35) !important;
+
+      color:#243447 !important;
+    }
+
+    .platform-actions.btn-group .action-main{
+      margin-right:-1px;
+    }
+
+    .platform-actions.btn-group .action-split::before{
+      display:none !important;
+    }
+
+    .platform-actions .dropdown-toggle::after{
+      margin-left:0 !important;
+      vertical-align:middle !important;
+    }
+
+    /* menu */
+    .platform-actions .action-menu{
+      min-width:220px;
+
+      border-radius:16px;
+
+      border:1px solid rgba(0,0,0,.10);
+
+      box-shadow:0 18px 46px rgba(0,0,0,.18);
+
+      padding:.55rem;
+
+      background:
+        radial-gradient(
+          900px 220px at 10% 0%,
+          rgba(255,193,7,.10),
+          transparent 55%
+        ),
+        #fff;
+
+      overflow:hidden;
+    }
+
+    .platform-actions .action-menu .dropdown-item{
+      border-radius:12px;
+
+      padding:.55rem .65rem;
+
+      margin:.1rem 0;
+
+      border:1px solid transparent;
+
+      font-weight:600;
+    }
+
+    .platform-actions .action-menu .dropdown-item:hover{
+      background:rgba(255,193,7,.10);
+
+      border-color:rgba(255,193,7,.22);
+    }
+
+    .platform-actions .dropdown-item i{
+      width:18px;
+    }
+
+    /* colonne actions */
+    .platform-table td.actions-cell{
+      text-align:right !important;
+      white-space:nowrap !important;
+
+      padding:.45rem .55rem !important;
+
+      vertical-align:middle !important;
+
+      width:1% !important;
+    }
+
+
+    /* =========================================================
+      DROPDOWN ACTIONS FLOTTANT
+      ========================================================= */
+
+    body .platform-floating-dropdown{
+      position:absolute !important;
+      z-index:20000 !important;
+
+      min-width:220px;
+
+      border-radius:16px;
+
+      border:1px solid rgba(0,0,0,.10);
+
+      box-shadow:
+        0 18px 46px rgba(0,0,0,.18);
+
+      padding:.55rem;
+
+      background:
+        radial-gradient(
+          900px 220px at 10% 0%,
+          rgba(255,193,7,.10),
+          transparent 55%
+        ),
+        #fff;
+    }
+
+    /*
+    * Le menu est déplacé dans body,
+    * donc .platform-actions .action-menu
+    * ne s'applique plus.
+    */
+    body .platform-floating-dropdown .dropdown-item{
+      display:flex;
+      align-items:center;
+
+      border-radius:12px;
+
+      padding:.55rem .65rem;
+
+      margin:.1rem 0;
+
+      border:1px solid transparent;
+
+      font-weight:600;
+
+      color:#243447;
+
+      transition:
+        background .15s ease,
+        border-color .15s ease;
+    }
+
+    body .platform-floating-dropdown .dropdown-item:hover{
+      background:rgba(255,193,7,.10);
+
+      border-color:rgba(255,193,7,.22);
+
+      color:#243447;
+    }
+
+    body .platform-floating-dropdown .dropdown-item i{
+      width:20px;
+    }
+
+    body .platform-floating-dropdown .dropdown-divider{
+      margin:.4rem 0;
+
+      border-color:rgba(0,0,0,.08);
+    }
   </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
 {% endblock %}
 
 {% block body %}
 
+  {# =====================================================
+     HERO
+     ===================================================== #}
 
-  <div class="hero p-4 mb-3 d-flex gap-3">
+  <div class="hero p-4 mb-4 d-flex gap-3">
+
     <div class="accent"></div>
+
     <div class="flex-grow-1">
-      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-        <span class="meta-chip"><i class="bi bi-shield-lock"></i> SUPER</span>
-        <span class="meta-chip"><i class="bi bi-boxes"></i> Console plateforme</span>
-        <span class="meta-chip"><i class="bi bi-people"></i> Users + Entités</span>
-      </div>
 
-      <div class="d-flex flex-wrap align-items-end gap-3">
-        <div class="me-auto">
-          <h2 class="fw-bold mb-1">Administration globale</h2>
-          <div class="opacity-75">Attribuer des rôles (user ↔ entité) et offrir des essais aux entités.</div>
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+
+          <div class="d-flex flex-wrap gap-2 mb-2">
+
+            <span class="meta-chip">
+              <i class="bi bi-shield-lock"></i>
+              SUPER
+            </span>
+
+            <span class="meta-chip">
+              <i class="bi bi-boxes"></i>
+              Console plateforme
+            </span>
+
+            <span class="meta-chip">
+              <i class="bi bi-diagram-3"></i>
+              Administration globale
+            </span>
+
+          </div>
+
+          <h2 class="m-0 fw-bold">
+            <i
+              class="bi bi-grid-1x2-fill me-2"
+              style="color:var(--theme-color-secondaire)"
+            ></i>
+            Console plateforme
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            Piloter les entités, les utilisateurs, les abonnements et les rattachements depuis un espace unique.
+          </div>
+
         </div>
 
-        <div class="d-flex gap-2">
-          <a class="btn btn-light btn-sm fw-semibold" href="{{ path('app_super_admin_assign', {entite: entite.id}) }}">
-            <i class="bi bi-person-gear"></i> Assigner un rôle
+
+        <div class="d-flex gap-2 flex-wrap">
+
+          <a
+            class="btn btn-light btn-sm fw-semibold"
+            href="{{ path('app_super_admin_assign', { entite: entite.id }) }}"
+          >
+            <i class="bi bi-person-gear me-1"></i>
+            Assigner un rôle
           </a>
+
         </div>
+
       </div>
+
     </div>
+
   </div>
+
 
   {% include 'flagMessage.html.twig' %}
 
-  <div class="toolbar mb-3">
-    <ul class="nav nav-pills gap-2">
-      <li class="nav-item">
-        <a class="nav-link {{ tab == 'entites' ? 'active' : '' }}"
-           href="{{ path('app_super_admin_console', { tab:'entites', qEnt:qEnt, qUser:qUser, entite: entite.id }) }}">
-          <i class="bi bi-building"></i> Entités
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {{ tab == 'users' ? 'active' : '' }}"
-           href="{{ path('app_super_admin_console', { tab:'users', qEnt:qEnt, qUser:qUser, entite: entite.id }) }}">
-          <i class="bi bi-person"></i> Utilisateurs
-        </a>
-      </li>
-    </ul>
+
+  {# =====================================================
+     KPI
+     ===================================================== #}
+
+  <div class="kpi-grid">
+
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <i class="bi bi-building"></i>
+      </div>
+      <div>
+        <div class="kpi-value">
+          {{ entites|length }}
+        </div>
+        <div class="kpi-label">
+          Entités référencées
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <i class="bi bi-people"></i>
+      </div>
+      <div>
+        <div class="kpi-value">
+          {{ users|length }}
+        </div>
+        <div class="kpi-label">
+          Utilisateurs
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <i class="bi bi-person-badge"></i>
+      </div>
+      <div>
+        <div class="kpi-value">
+          {{ tab == 'entites' ? entites|length : users|length }}
+        </div>
+        <div class="kpi-label">
+          Résultats affichés
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <i class="bi bi-lightning-charge"></i>
+      </div>
+      <div>
+        <div class="kpi-value">
+          Super
+        </div>
+        <div class="kpi-label">
+          Niveau d’accès
+        </div>
+      </div>
+    </div>
+
   </div>
 
+
+  {# =====================================================
+     TABS
+     ===================================================== #}
+
+  <div class="console-tabs">
+
+    <ul class="nav nav-pills">
+
+      <li class="nav-item">
+
+        <a
+          class="nav-link {{ tab == 'entites' ? 'active' : '' }}"
+          href="{{ path(
+            'app_super_admin_console',
+            {
+              tab:'entites',
+              qEnt:qEnt,
+              qUser:qUser,
+              entite:entite.id
+            }
+          ) }}"
+        >
+          <i class="bi bi-building"></i>
+          Entités
+          <span class="badge rounded-pill text-bg-light ms-1">
+            {{ entites|length }}
+          </span>
+        </a>
+
+      </li>
+
+
+      <li class="nav-item">
+
+        <a
+          class="nav-link {{ tab == 'users' ? 'active' : '' }}"
+          href="{{ path(
+            'app_super_admin_console',
+            {
+              tab:'users',
+              qEnt:qEnt,
+              qUser:qUser,
+              entite:entite.id
+            }
+          ) }}"
+        >
+          <i class="bi bi-people"></i>
+          Utilisateurs
+          <span class="badge rounded-pill text-bg-light ms-1">
+            {{ users|length }}
+          </span>
+        </a>
+
+      </li>
+
+    </ul>
+
+  </div>
+
+
+  {# =====================================================
+     ENTITES
+     ===================================================== #}
+
   {% if tab == 'entites' %}
-    <div class="toolbar mb-3">
-      <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
-        <input type="hidden" name="tab" value="entites">
-        <div class="me-auto d-flex gap-2 align-items-center">
-          <span class="pill">{{ entites|length }} entité(s)</span>
-          <span class="muted small d-none d-lg-inline">Recherche : nom, email, ville, siret</span>
+
+    <div class="filterbar">
+
+      <div class="filterbar__top">
+
+        <div>
+
+          <div class="filterbar__title">
+            <i class="bi bi-funnel text-warning"></i>
+            Recherche d’entités
+          </div>
+
+          <div class="filterbar__hint">
+            Nom, email, ville ou numéro SIRET.
+          </div>
+
         </div>
-        <input class="form-control" style="max-width:360px;border-radius:999px;" name="qEnt" value="{{ qEnt }}" placeholder="Rechercher une entité…">
-        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
-      </form>
+
+
+        <div class="dropdown">
+
+          <button
+            class="btn btn-warning btn-sm fw-semibold dropdown-toggle"
+            data-bs-toggle="dropdown"
+          >
+            <i class="bi bi-download me-1"></i>
+            Export
+          </button>
+
+          <ul
+            class="dropdown-menu dropdown-menu-end"
+            id="exportEntitesMenu"
+          ></ul>
+
+        </div>
+
+      </div>
+
+
+      <div class="filterbar__body">
+
+        <div class="search-box">
+
+          <div class="search-icon">
+            <i class="bi bi-search"></i>
+          </div>
+
+          <input
+            type="text"
+            class="form-control"
+            id="searchEntites"
+            value="{{ qEnt }}"
+            placeholder="Rechercher une entité…"
+          >
+
+        </div>
+
+      </div>
+
     </div>
 
-    <div class="cardx">
-      {% for e in entites %}
-        <div class="rowitem">
-          <div class="flex-grow-1">
-            <div class="fw-bold" style="color:var(--ink);">
-              {{ e.nom }}
-              {% if e.siret %}<span class="ms-2 pill"><i class="bi bi-hash"></i> {{ e.siret }}</span>{% endif %}
-            </div>
-            <div class="muted small">
-              {% if e.email %}<i class="bi bi-envelope"></i> {{ e.email }}{% endif %}
-              {% if e.ville %}<span class="mx-2">•</span><i class="bi bi-geo-alt"></i> {{ e.ville }}{% endif %}
-            </div>
+
+    <div class="table-card p-3">
+
+      {% if entites is empty %}
+
+        <div class="empty-state">
+
+          <div class="empty-state-icon">
+            <i class="bi bi-building-x"></i>
           </div>
 
-          <div class="d-flex gap-2">
-            <a class="btn btn-warning btn-sm fw-semibold"
-               href="{{ path('app_super_admin_entite_trial', { e: e.id, entite: entite.id }) }}">
-              <i class="bi bi-gift"></i> Offrir essai
-            </a>
-            <a class="btn btn-outline-primary btn-sm"
-               href="{{ path('app_super_billing_subscription_show', { e: e.id, entite: entite.id }) }}">
-              <i class="bi bi-credit-card"></i>
-            </a>
-            <a class="btn btn-outline-secondary btn-sm"
-               href="{{ path('app_super_entite_users_index', { e: e.id, entite: entite.id }) }}">
-              <i class="bi bi-people"></i>
-            </a>
+          <h5 class="fw-bold">
+            Aucune entité
+          </h5>
+
+          <div class="text-muted">
+            Aucune entité ne correspond à ta recherche.
           </div>
+
         </div>
+
       {% else %}
-        <div class="p-3 text-muted">Aucune entité trouvée.</div>
-      {% endfor %}
+
+        <table
+          id="tableEntites"
+          class="table table-hover align-middle mb-0 w-100 platform-table"
+        >
+
+          <thead>
+
+            <tr>
+              <th>#</th>
+              <th>Entité</th>
+              <th>SIRET</th>
+              <th>Ville</th>
+              <th>Email</th>
+              <th class="actions-cell"></th>
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            {% for e in entites %}
+
+              <tr>
+
+                <td>
+                  {{ e.id }}
+                </td>
+
+                <td data-order="{{ e.nom }}">
+
+                  <div class="entity-cell">
+
+                    <div class="entity-icon">
+                      <i class="bi bi-building"></i>
+                    </div>
+
+                    <div>
+
+                      <div class="primary-label">
+                        {{ e.nom }}
+                      </div>
+
+                      <div class="secondary-label">
+                        Entité plateforme
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </td>
+
+                <td>
+
+                  {% if e.siret %}
+
+                    <span class="premium-pill">
+                      <i class="bi bi-hash"></i>
+                      {{ e.siret }}
+                    </span>
+
+                  {% else %}
+
+                    <span class="text-muted">
+                      —
+                    </span>
+
+                  {% endif %}
+
+                </td>
+
+                <td>
+
+                  {% if e.ville %}
+
+                    <span class="premium-pill blue">
+                      <i class="bi bi-geo-alt"></i>
+                      {{ e.ville }}
+                    </span>
+
+                  {% else %}
+
+                    <span class="text-muted">
+                      —
+                    </span>
+
+                  {% endif %}
+
+                </td>
+
+                <td>
+
+                  {% if e.email %}
+
+                    <a
+                      href="mailto:{{ e.email }}"
+                      class="text-decoration-none text-dark"
+                    >
+                      <i class="bi bi-envelope me-1 text-muted"></i>
+                      {{ e.email }}
+                    </a>
+
+                  {% else %}
+
+                    <span class="text-muted">
+                      —
+                    </span>
+
+                  {% endif %}
+
+                </td>
+
+                <td class="actions-cell">
+
+                  <div class="btn-group platform-actions">
+
+                    <a
+                      class="btn btn-sm action-main"
+                      href="{{ path(
+                        'app_super_entite_users_index',
+                        {
+                          e:e.id,
+                          entite:entite.id
+                        }
+                      ) }}"
+                    >
+                      <i class="bi bi-building-gear"></i>
+                      <span>Gérer</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      class="
+                        btn
+                        btn-sm
+                        dropdown-toggle
+                        dropdown-toggle-split
+                        action-split
+                      "
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                      title="Plus d’actions"
+                    >
+                      <span class="visually-hidden">
+                        Actions
+                      </span>
+                    </button>
+
+                    <ul
+                      class="
+                        dropdown-menu
+                        dropdown-menu-end
+                        action-menu
+                      "
+                    >
+
+                      <li>
+
+                        <a
+                          class="dropdown-item"
+                          href="{{ path(
+                            'app_super_entite_users_index',
+                            {
+                              e:e.id,
+                              entite:entite.id
+                            }
+                          ) }}"
+                        >
+                          <i class="bi bi-people me-2"></i>
+                          Utilisateurs
+                        </a>
+
+                      </li>
+
+                      <li>
+
+                        <a
+                          class="dropdown-item"
+                          href="{{ path(
+                            'app_super_billing_subscription_show',
+                            {
+                              e:e.id,
+                              entite:entite.id
+                            }
+                          ) }}"
+                        >
+                          <i class="bi bi-credit-card me-2"></i>
+                          Abonnement
+                        </a>
+
+                      </li>
+
+                      <li>
+                        <hr class="dropdown-divider">
+                      </li>
+
+                      <li>
+
+                        <a
+                          class="dropdown-item"
+                          href="{{ path(
+                            'app_super_admin_entite_trial',
+                            {
+                              e:e.id,
+                              entite:entite.id
+                            }
+                          ) }}"
+                        >
+                          <i class="bi bi-gift me-2 text-warning"></i>
+                          Offrir un essai
+                        </a>
+
+                      </li>
+
+                    </ul>
+
+                  </div>
+
+                </td>
+
+              </tr>
+
+            {% endfor %}
+
+          </tbody>
+
+        </table>
+
+      {% endif %}
+
     </div>
+
+
+  {# =====================================================
+     USERS
+     ===================================================== #}
+
   {% else %}
-    <div class="toolbar mb-3">
-      <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
-        <input type="hidden" name="tab" value="users">
-        <div class="me-auto d-flex gap-2 align-items-center">
-          <span class="pill">{{ users|length }} user(s)</span>
-          <span class="muted small d-none d-lg-inline">Recherche : email, nom, prénom, société</span>
+
+    <div class="filterbar">
+
+      <div class="filterbar__top">
+
+        <div>
+
+          <div class="filterbar__title">
+            <i class="bi bi-funnel text-warning"></i>
+            Recherche d’utilisateurs
+          </div>
+
+          <div class="filterbar__hint">
+            Nom, prénom, email ou société.
+          </div>
+
         </div>
-        <input class="form-control" style="max-width:360px;border-radius:999px;" name="qUser" value="{{ qUser }}" placeholder="Rechercher un utilisateur…">
-        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
-      </form>
+
+
+        <div class="dropdown">
+
+          <button
+            class="btn btn-warning btn-sm fw-semibold dropdown-toggle"
+            data-bs-toggle="dropdown"
+          >
+            <i class="bi bi-download me-1"></i>
+            Export
+          </button>
+
+          <ul
+            class="dropdown-menu dropdown-menu-end"
+            id="exportUsersMenu"
+          ></ul>
+
+        </div>
+
+      </div>
+
+
+      <div class="filterbar__body">
+
+        <div class="search-box">
+
+          <div class="search-icon">
+            <i class="bi bi-search"></i>
+          </div>
+
+          <input
+            type="text"
+            class="form-control"
+            id="searchUsers"
+            value="{{ qUser }}"
+            placeholder="Rechercher un utilisateur…"
+          >
+
+        </div>
+
+      </div>
+
     </div>
 
-    <div class="cardx">
-      {% for u in users %}
-        <div class="rowitem">
-          <div class="flex-grow-1">
-            <div class="fw-bold" style="color:var(--ink);">
-              {{ u.prenom }} {{ u.nom }}
-              <span class="ms-2 pill"><i class="bi bi-envelope"></i> {{ u.email }}</span>
-            </div>
-            <div class="muted small">
-              {% if u.entreprise %}<i class="bi bi-building"></i> {{ u.entreprise.raisonSociale }}{% endif %}
-            </div>
+
+    <div class="table-card p-3">
+
+      {% if users is empty %}
+
+        <div class="empty-state">
+
+          <div class="empty-state-icon">
+            <i class="bi bi-person-x"></i>
           </div>
-          <div class="d-flex gap-2">
-            <a class="btn btn-outline-primary btn-sm" href="{{ path('app_super_admin_assign', {entite: entite.id}) }}">
-              <i class="bi bi-person-gear"></i> Assigner rôle
-            </a>
+
+          <h5 class="fw-bold">
+            Aucun utilisateur
+          </h5>
+
+          <div class="text-muted">
+            Aucun utilisateur ne correspond à ta recherche.
           </div>
+
         </div>
+
       {% else %}
-        <div class="p-3 text-muted">Aucun utilisateur trouvé.</div>
-      {% endfor %}
+
+        <table
+          id="tableUsers"
+          class="table table-hover align-middle mb-0 w-100 platform-table"
+        >
+
+          <thead>
+
+            <tr>
+              <th>#</th>
+              <th>Utilisateur</th>
+              <th>Email</th>
+              <th>Société</th>
+              <th class="actions-cell"></th>
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            {% for u in users %}
+
+              {% set initials =
+                (
+                  u.prenom|default('')|slice(0,1)
+                  ~
+                  u.nom|default('')|slice(0,1)
+                )|upper
+              %}
+
+              <tr>
+
+                <td>
+                  {{ u.id }}
+                </td>
+
+                <td
+                  data-order="{{ u.nom }} {{ u.prenom }}"
+                  data-search="{{ u.prenom }} {{ u.nom }} {{ u.email }}"
+                >
+
+                  <div class="user-cell">
+
+                    <div class="avatar">
+                      <span>
+                        {{ initials ?: 'U' }}
+                      </span>
+                    </div>
+
+                    <div>
+
+                      <div class="primary-label">
+                        {{ u.prenom }} {{ u.nom }}
+                      </div>
+
+                      <div class="secondary-label">
+                        Compte utilisateur
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </td>
+
+                <td>
+
+                  <a
+                    href="mailto:{{ u.email }}"
+                    class="text-decoration-none text-dark"
+                  >
+                    <i class="bi bi-envelope me-1 text-muted"></i>
+                    {{ u.email }}
+                  </a>
+
+                </td>
+
+                <td>
+
+                  {% if u.entreprise %}
+
+                    <span class="premium-pill green">
+                      <i class="bi bi-building"></i>
+                      {{ u.entreprise.raisonSociale }}
+                    </span>
+
+                  {% else %}
+
+                    <span class="text-muted">
+                      —
+                    </span>
+
+                  {% endif %}
+
+                </td>
+
+                <td class="actions-cell">
+
+                  <div class="btn-group platform-actions">
+
+                    <a
+                      class="btn btn-sm action-main"
+                      href="{{ path(
+                        'app_super_admin_assign',
+                        {
+                          entite:entite.id
+                        }
+                      ) }}"
+                    >
+                      <i class="bi bi-person-gear"></i>
+                      <span>Assigner rôle</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      class="
+                        btn
+                        btn-sm
+                        dropdown-toggle
+                        dropdown-toggle-split
+                        action-split
+                      "
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                      title="Plus d’actions"
+                    >
+                      <span class="visually-hidden">
+                        Actions
+                      </span>
+                    </button>
+
+                    <ul
+                      class="
+                        dropdown-menu
+                        dropdown-menu-end
+                        action-menu
+                      "
+                    >
+
+                      <li>
+
+                        <a
+                          class="dropdown-item"
+                          href="{{ path(
+                            'app_super_admin_assign',
+                            {
+                              entite:entite.id
+                            }
+                          ) }}"
+                        >
+                          <i class="bi bi-person-gear me-2"></i>
+                          Assigner un rôle
+                        </a>
+
+                      </li>
+
+                      <li>
+
+                        <a
+                          class="dropdown-item"
+                          href="mailto:{{ u.email }}"
+                        >
+                          <i class="bi bi-envelope me-2"></i>
+                          Envoyer un email
+                        </a>
+
+                      </li>
+
+                    </ul>
+
+                  </div>
+
+                </td>
+
+              </tr>
+
+            {% endfor %}
+
+          </tbody>
+
+        </table>
+
+      {% endif %}
+
     </div>
+
   {% endif %}
+
+
+  <script>
+    $(function(){
+
+      function createDataTable(
+        selector,
+        searchSelector,
+        exportMenuSelector,
+        actionColumn
+      ){
+
+        const $table =
+          $(selector);
+
+        if(!$table.length){
+          return null;
+        }
+
+
+        const table =
+          $table.DataTable({
+
+            processing:true,
+
+            autoWidth:false,
+
+            scrollX:true,
+
+            scrollCollapse:true,
+
+            responsive:false,
+
+            dom:
+              '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
+                +
+                '<"dt-actions d-flex gap-2 align-items-center"B>'
+                +
+                '<"dt-search"f>'
+              +
+              '>'
+              +
+              'rt'
+              +
+              '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+
+            buttons:[
+              'copy',
+              'csv',
+              'excel',
+              'pdf',
+              'print'
+            ],
+
+            lengthMenu:[
+              [10,25,50,100,500],
+              [10,25,50,100,500]
+            ],
+
+            pageLength:25,
+
+            order:[
+              [0,'desc']
+            ],
+
+            columnDefs:[
+              {
+                targets:actionColumn,
+                orderable:false,
+                searchable:false,
+                className:'actions-cell text-end'
+              }
+            ],
+
+            language:{
+              url:
+                'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json'
+            },
+
+            initComplete:function(){
+
+              const api =
+                this.api();
+
+              const $btns =
+                $(api.buttons().container())
+                  .find('button');
+
+              $(exportMenuSelector)
+                .empty();
+
+              $btns.each(
+                function(){
+
+                  const $button =
+                    $(this);
+
+                  $('<li><a class="dropdown-item" href="#">'
+                    +
+                    $button.text()
+                    +
+                    '</a></li>')
+                    .on(
+                      'click',
+                      function(e){
+
+                        e.preventDefault();
+
+                        $button.click();
+                      }
+                    )
+                    .appendTo(
+                      exportMenuSelector
+                    );
+                }
+              );
+
+              $(api.buttons().container())
+                .hide();
+
+              api
+                .columns
+                .adjust();
+            }
+
+          });
+
+
+
+          /* =========================================================
+            DROPDOWN ACTIONS HORS DU SCROLL DATATABLE
+            ========================================================= */
+
+          (function enablePlatformFloatingDropdown(){
+
+            /*
+            * OUVERTURE
+            */
+            document.addEventListener(
+              'show.bs.dropdown',
+              function(event){
+
+                const toggle =
+                  event.relatedTarget
+                  ||
+                  event.target;
+
+                if (!toggle) {
+                  return;
+                }
+
+                const group =
+                  toggle.closest?.(
+                    '.platform-actions'
+                  );
+
+                if (!group) {
+                  return;
+                }
+
+                const menu =
+                  group.querySelector(
+                    '.dropdown-menu'
+                  );
+
+                if (!menu) {
+                  return;
+                }
+
+
+                /*
+                * On mémorise le parent original.
+                */
+                menu.__originalParent =
+                  group;
+
+
+                /*
+                * Position du bouton AVANT déplacement.
+                */
+                const buttonRect =
+                  toggle.getBoundingClientRect();
+
+
+                /*
+                * Déplace le menu dans body :
+                * il ne peut plus être coupé par DataTables.
+                */
+                document.body.appendChild(
+                  menu
+                );
+
+
+                menu.classList.add(
+                  'platform-floating-dropdown'
+                );
+
+
+                /*
+                * On le rend temporairement visible
+                * pour connaître sa largeur.
+                */
+                menu.style.display =
+                  'block';
+
+                menu.style.position =
+                  'absolute';
+
+                menu.style.top =
+                  '0px';
+
+                menu.style.left =
+                  '0px';
+
+
+                const menuRect =
+                  menu.getBoundingClientRect();
+
+
+                /*
+                * Alignement à droite du bouton.
+                */
+                let left =
+                  buttonRect.right
+                  +
+                  window.scrollX
+                  -
+                  menuRect.width;
+
+
+                /*
+                * Empêche le dropdown de sortir
+                * de l'écran.
+                */
+                left =
+                  Math.max(
+                    8,
+                    Math.min(
+                      left,
+                      window.scrollX
+                      +
+                      window.innerWidth
+                      -
+                      menuRect.width
+                      -
+                      8
+                    )
+                  );
+
+
+                const top =
+                  buttonRect.bottom
+                  +
+                  window.scrollY
+                  +
+                  6;
+
+
+                menu.style.left =
+                  `${left}px`;
+
+                menu.style.top =
+                  `${top}px`;
+
+              },
+              true
+            );
+
+
+            /*
+            * FERMETURE
+            */
+            document.addEventListener(
+              'hidden.bs.dropdown',
+              function(event){
+
+                document
+                  .querySelectorAll(
+                    'body .platform-floating-dropdown'
+                  )
+                  .forEach(
+                    menu => {
+
+                      const originalParent =
+                        menu.__originalParent;
+
+                      if (!originalParent) {
+                        return;
+                      }
+
+
+                      /*
+                      * Remet le menu à son emplacement initial.
+                      */
+                      originalParent.appendChild(
+                        menu
+                      );
+
+
+                      menu.classList.remove(
+                        'platform-floating-dropdown'
+                      );
+
+
+                      menu.style.position =
+                        '';
+
+                      menu.style.top =
+                        '';
+
+                      menu.style.left =
+                        '';
+
+                      menu.style.display =
+                        '';
+
+
+                      menu.__originalParent =
+                        null;
+                    }
+                  );
+
+              },
+              true
+            );
+
+
+            /*
+            * Si on scroll pendant qu'un menu
+            * est ouvert, on le ferme.
+            */
+            window.addEventListener(
+              'scroll',
+              function(){
+
+                document
+                  .querySelectorAll(
+                    '.platform-actions [data-bs-toggle="dropdown"][aria-expanded="true"]'
+                  )
+                  .forEach(
+                    button => {
+
+                      if (
+                        window.bootstrap
+                        &&
+                        bootstrap.Dropdown
+                      ){
+                        bootstrap
+                          .Dropdown
+                          .getOrCreateInstance(
+                            button
+                          )
+                          .hide();
+                      }
+
+                    }
+                  );
+
+              },
+              true
+            );
+
+
+            /*
+            * Même comportement lors d'un resize.
+            */
+            window.addEventListener(
+              'resize',
+              function(){
+
+                document
+                  .querySelectorAll(
+                    '.platform-actions [data-bs-toggle="dropdown"][aria-expanded="true"]'
+                  )
+                  .forEach(
+                    button => {
+
+                      if (
+                        window.bootstrap
+                        &&
+                        bootstrap.Dropdown
+                      ){
+                        bootstrap
+                          .Dropdown
+                          .getOrCreateInstance(
+                            button
+                          )
+                          .hide();
+                      }
+
+                    }
+                  );
+
+              }
+            );
+
+          })();
+
+
+        $(searchSelector)
+          .on(
+            'input',
+            function(){
+
+              table
+                .search(
+                  this.value
+                )
+                .draw();
+            }
+          );
+
+
+        const initialSearch =
+          $(searchSelector).val();
+
+        if(initialSearch){
+
+          table
+            .search(initialSearch)
+            .draw();
+        }
+
+
+        return table;
+      }
+
+
+      {% if tab == 'entites' %}
+
+        createDataTable(
+          '#tableEntites',
+          '#searchEntites',
+          '#exportEntitesMenu',
+          5
+        );
+
+      {% else %}
+
+        createDataTable(
+          '#tableUsers',
+          '#searchUsers',
+          '#exportUsersMenu',
+          4
+        );
+
+      {% endif %}
+
+    });
+  </script>
 
 {% endblock %}

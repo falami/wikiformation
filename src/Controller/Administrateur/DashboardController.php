@@ -12,7 +12,7 @@ namespace App\Controller\Administrateur;
 
 use App\Entity\{Session, Entite, Utilisateur, Facture, Paiement, Inscription, Emargement, PieceDossier};
 
-use App\Enum\{LabelledEnum, PieceType, StatusSession, StatusInscription, FactureStatus, DemiJournee};
+use App\Enum\{LabelledEnum, PieceType, StatusSession, StatusInscription, FactureStatus, DemiJournee, TypeFinancement};
 
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 
@@ -704,7 +704,15 @@ final class DashboardController extends AbstractController
 
       ->where('s.entite = :e')
 
+      ->andWhere('s.typeFinancement != :sousTraitance')
+
       ->andWhere('e.signedAt IS NULL')
+
+      ->andWhere("(e.signatureDataUrl IS NULL OR e.signatureDataUrl = '')")
+
+      ->andWhere("(e.signaturePath IS NULL OR e.signaturePath = '')")
+
+      ->setParameter('sousTraitance', TypeFinancement::OUI)
 
       ->setParameter('e', $entite);
 
@@ -1192,6 +1200,8 @@ final class DashboardController extends AbstractController
 
         WHERE s.entite_id = :eid
 
+          AND s.type_financement <> :sousTraitance
+
           AND sj.dmax < :today
 
           AND e.id IS NULL
@@ -1203,6 +1213,8 @@ final class DashboardController extends AbstractController
     $params = [
 
       'eid'   => $entite->getId(),
+
+      'sousTraitance' => TypeFinancement::OUI->value,
 
       'today' => $today->format('Y-m-d 00:00:00'),
 
@@ -1294,7 +1306,15 @@ final class DashboardController extends AbstractController
 
       ->where('s.entite = :e')
 
+      ->andWhere('s.typeFinancement != :sousTraitance')
+
       ->andWhere('e.signedAt IS NULL')
+
+      ->andWhere("(e.signatureDataUrl IS NULL OR e.signatureDataUrl = '')")
+
+      ->andWhere("(e.signaturePath IS NULL OR e.signaturePath = '')")
+
+      ->setParameter('sousTraitance', TypeFinancement::OUI)
 
       ->setParameter('e', $entite)
 

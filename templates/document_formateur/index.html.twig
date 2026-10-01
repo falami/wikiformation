@@ -1,0 +1,58 @@
+{% extends 'document_formateur/base.html.twig' %}
+{% block body %}
+<div class="doc-library">
+  <header class="doc-hero">
+    <div>
+      <div class="doc-eyebrow"><i class="bi bi-folder2-open" aria-hidden="true"></i> ESPACE DOCUMENTAIRE</div>
+      <h1>Documents formateurs</h1>
+      <p>{{ manage ? 'Centralisez vos modèles et partagez leur dernière version avec votre équipe.' : 'Les documents de votre organisme, prêts à télécharger et à imprimer.' }}</p>
+      <span class="doc-meta"><i class="bi bi-building" aria-hidden="true"></i> {{ entite.nom }}</span>
+    </div>
+    {% if manage %}<a class="btn btn-warning" href="{{ path('app_administrateur_documents_formateurs_new', {entite: entite.id}) }}"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Ajouter un document</a>{% endif %}
+  </header>
+  {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+
+  <div class="doc-offline"><i class="bi bi-download" aria-hidden="true"></i><div><strong>Prêts pour le terrain</strong><p>Téléchargez vos documents avant la formation pour les conserver sur votre appareil et les utiliser sans connexion.</p></div></div>
+
+  <section aria-labelledby="shared-documents-title">
+    <div class="doc-section-heading"><div><h2 id="shared-documents-title">Documents de l’organisme</h2><p>{{ manage ? 'Les fichiers publiés sont accessibles à tous les formateurs de cet organisme.' : 'Les modèles et consignes partagés par votre organisme de formation.' }}</p></div><span class="doc-count">{{ documents|length }} document{{ documents|length > 1 ? 's' : '' }}</span></div>
+    {% if documents|length %}
+    <div class="doc-filters" role="search" aria-label="Filtrer les documents">
+      <label class="doc-search"><i class="bi bi-search" aria-hidden="true"></i><input type="search" data-document-search placeholder="Rechercher un document…" aria-label="Rechercher un document"></label>
+      <div class="doc-category"><label class="visually-hidden" for="documentCategory">Catégorie</label><select id="documentCategory" data-document-category-filter><option value="">Toutes les catégories</option>{% for label, value in categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <button type="button" class="btn btn-outline-secondary doc-reset" data-document-reset aria-label="Réinitialiser les filtres" title="Réinitialiser les filtres"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
+    </div>
+    <div class="doc-grid" data-document-list>
+    {% for document in documents %}{% set version = document.currentVersion %}
+      <article class="doc-card" data-document-card data-category="{{ document.categorie }}" data-search="{{ document.titre }} {{ document.description }} {{ document.categorieLabel }}">
+        <div class="doc-card-top"><span class="doc-file-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span><span class="doc-badge {{ document.publie ? '' : 'doc-badge-muted' }}">{{ manage ? (document.publie ? 'Publié' : 'Masqué') : document.categorieLabel }}</span></div>
+        <div class="doc-eyebrow">{{ document.categorieLabel }}</div>
+        <h3>{{ document.titre }}</h3>
+        <p class="doc-description">{{ document.description ?: 'Document à télécharger et à compléter selon les besoins de votre session.' }}</p>
+        {% if version %}<div class="doc-file-meta"><span>{{ version.extension }} · {{ (version.sizeBytes / 1024)|number_format(0, ',', ' ') }} Ko</span><span>Version {{ version.numero }} · {{ version.createdAt|date('d/m/Y') }}</span></div>{% endif %}
+        <div class="doc-card-actions">
+          {% if version %}<a class="btn btn-dark" href="{{ path('app_formateur_documents_download', {entite: entite.id, id: document.id}) }}"><i class="bi bi-download me-2" aria-hidden="true"></i>Télécharger</a>{% endif %}
+          {% if manage %}<a class="btn btn-outline-secondary" href="{{ path('app_administrateur_documents_formateurs_edit', {entite: entite.id, id: document.id}) }}" aria-label="Gérer {{ document.titre }}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Gérer</a>{% endif %}
+        </div>
+      </article>
+    {% endfor %}
+    </div>
+    <div class="doc-empty" data-document-empty hidden>Aucun document ne correspond à votre recherche.</div>
+    <p class="doc-results" data-document-results aria-live="polite"></p>
+    {% else %}<div class="doc-empty"><i class="bi bi-folder2-open" aria-hidden="true"></i><h3>{{ manage ? 'Partagez votre premier document' : 'Aucun document partagé pour le moment' }}</h3><p>{{ manage ? 'Déposez vos feuilles, questionnaires et consignes avec votre logo. Vous pourrez ensuite remplacer chaque fichier en conservant ses versions précédentes.' : 'Les modèles vierges ci-dessous restent disponibles. Votre organisme peut aussi ajouter ses propres documents.' }}</p>{% if manage %}<a class="btn btn-warning" href="{{ path('app_administrateur_documents_formateurs_new', {entite: entite.id}) }}">Ajouter un document</a>{% endif %}</div>{% endif %}
+  </section>
+
+  <section aria-labelledby="blank-documents-title">
+    <div class="doc-section-heading"><div><h2 id="blank-documents-title">Modèles vierges prêts à imprimer</h2><p>Trois PDF avec le logo et le nom de {{ entite.nom }}. Les champs de la session restent à compléter.</p></div><span class="doc-count">PDF</span></div>
+    <div class="doc-grid">
+      {% for type, modele in {
+        'emargement': {titre: 'Feuille d’émargement', icon: 'bi-pen', description: 'Présence des participants et du formateur, par demi-journée.'},
+        'appreciation-formateur': {titre: 'Appréciation formateur', icon: 'bi-person-workspace', description: 'Bilan de l’intervention, conditions de réalisation et pistes d’amélioration.'},
+        'appreciation-stagiaire': {titre: 'Appréciation stagiaire', icon: 'bi-chat-square-heart', description: 'Évaluation de la formation et commentaires du participant.'}
+      } %}
+      <article class="doc-card doc-model"><span class="doc-file-icon"><i class="bi {{ modele.icon }}" aria-hidden="true"></i></span><h3>{{ modele.titre }}</h3><p class="doc-description">{{ modele.description }}</p><a class="btn btn-outline-dark" href="{{ path('app_formateur_documents_modele', {entite: entite.id, type: type}) }}"><i class="bi bi-download me-2" aria-hidden="true"></i>Télécharger le modèle</a></article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -116,10 +116,14 @@
 					app.request.attributes.get('_route') == 'app_administrateur_formateur_index' or
 					app.request.attributes.get('_route') == 'app_administrateur_formateur_ajouter' or
 					app.request.attributes.get('_route') == 'app_administrateur_formateurs_contrats_list' or
+					app.request.attributes.get('_route') starts with 'app_administrateur_documents_formateurs_' or
 					app.request.attributes.get('_route') == 'app_administrateur_formateur_modifier' or
 					app.request.attributes.get('_route') == 'app_administrateur_planning_formateurs_index' %}text-theme-secondaire{% else %}text-white{% endif %}" data-bs-toggle="collapse" data-bs-target="#submenuFormateur" aria-expanded="{% if app.request.attributes.get('_route') in [
 										'app_administrateur_formateur_index',
 										'app_administrateur_formateurs_contrats_list',
+                                        'app_administrateur_documents_formateurs_index',
+                                        'app_administrateur_documents_formateurs_new',
+                                        'app_administrateur_documents_formateurs_edit',
 										'app_administrateur_formateur_ajouter', 
 										'app_administrateur_formateur_modifier',
 										'app_administrateur_planning_formateurs_index'
@@ -133,6 +137,7 @@
 					app.request.attributes.get('_route') == 'app_administrateur_formateur_index' or
 					app.request.attributes.get('_route') == 'app_administrateur_formateur_ajouter' or
 					app.request.attributes.get('_route') == 'app_administrateur_formateurs_contrats_list' or
+					app.request.attributes.get('_route') starts with 'app_administrateur_documents_formateurs_' or
 					app.request.attributes.get('_route') == 'app_administrateur_formateur_modifier' or
 					app.request.attributes.get('_route') == 'app_administrateur_planning_formateurs_index' %}show{% endif %}" id="submenuFormateur">
 				<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
@@ -147,6 +152,11 @@
 						</a>
 					</li>
 					<li>
+                        <a href="{{ path('app_administrateur_documents_formateurs_index', {entite: entite.id}) }}">
+                            <span class="{% if app.request.attributes.get('_route') starts with 'app_administrateur_documents_formateurs_' %}text-theme-secondaire{% endif %}">Documents formateurs</span>
+                        </a>
+                    </li>
+                    <li>
 						<a href="{{ path('app_administrateur_formateur_ajouter', {'entite' : entite.id}) }}">
 							<span class="{% if app.request.attributes.get('_route') == 'app_administrateur_formateur_ajouter' %}text-theme-secondaire{% endif %}">{{ 'navbar.formateur.add'|trans }}</span>
 						</a>
@@ -933,6 +943,13 @@
 
 
 		<li class="nav-item">
+            <a href="{{ path('app_formateur_documents_index', {entite: entite.id}) }}">
+                <span class="{% if app.request.attributes.get('_route') == 'app_formateur_documents_index' %}text-theme-secondaire{% else %}text-white{% endif %}">
+                    <i class="bi bi-folder2-open"></i> Documents de l’organisme
+                </span>
+            </a>
+        </li>
+        <li class="nav-item">
 			<a href="{{ path('app_formateur_supports_library', {'entite' : entite.id}) }}">
 				<span class="{% if app.request.attributes.get('_route') == 'app_formateur_supports_library' %}text-theme-secondaire{% else %}text-white{% endif %}">
 					<i class="bi bi-file-earmark-pdf"></i>

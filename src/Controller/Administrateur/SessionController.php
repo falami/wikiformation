@@ -608,7 +608,7 @@ final class SessionController extends AbstractController
                 $ctDraft  = $stats['contrats'][$sid]['draft'] ?? 0;
 
                 $emSigned   = $stats['emarg'][$sid]['signed'] ?? 0;
-                $emExpected = $stats['emarg_expected'][$sid] ?? 0;
+                $emExpected = $s->isEmargementRequis() ? ($stats['emarg_expected'][$sid] ?? 0) : 0;
 
                 $fTotal = $stats['fact'][$sid]['total'] ?? 0;
                 $fDue   = $stats['fact'][$sid]['due'] ?? 0;
@@ -898,7 +898,12 @@ final class SessionController extends AbstractController
                 $emargValid    = $hasValidPiece($stats, $sid, SessionPieceType::EMARGEMENT_SIGNE);
                 $emargLast     = $getLastPieceUpload($stats, $sid, SessionPieceType::EMARGEMENT_SIGNE);
 
-                if ($emExpected <= 0) {
+                if (!$s->isEmargementRequis()) {
+                    $emargLine = $line(
+                        '<i class="bi bi-building me-1"></i> Émargements',
+                        $badge('bg-light text-muted', 'Gérés par l’organisme donneur d’ordre')
+                    );
+                } elseif ($emExpected <= 0) {
                     $emargLine = $line(
                         '<i class="bi bi-pencil-square me-1"></i> Émargements',
                         $badge('bg-light text-muted', '-')
@@ -1470,6 +1475,7 @@ final class SessionController extends AbstractController
                 ->select('1')
                 ->from(Emargement::class, 'em2')
                 ->where('em2.session = s')
+                ->andWhere('s.typeFinancement != :emarg_sous_traitance')
                 ->andWhere('em2.signedAt IS NULL')
                 ->andWhere('(em2.signatureDataUrl IS NULL OR em2.signatureDataUrl = \'\')')
                 ->andWhere('(em2.signaturePath IS NULL OR em2.signaturePath = \'\')')
@@ -1523,6 +1529,7 @@ final class SessionController extends AbstractController
             $filteredQb
                 ->setParameter('cf_brouillon', ContratFormateurStatus::BROUILLON)
                 ->setParameter('emarg_type', SessionPieceType::EMARGEMENT_SIGNE)
+                ->setParameter('emarg_sous_traitance', TypeFinancement::OUI)
                 ->setParameter('conv_type', SessionPieceType::CONVENTION_SIGNEE)
                 ->setParameter('cf_type', SessionPieceType::CONTRAT_FORMATEUR_SIGNE);
         });
@@ -1704,7 +1711,7 @@ final class SessionController extends AbstractController
             }
 
 
-            if ($session->getTypeFinancement() !== TypeFinancement::OUI) {
+            if ($session->isEmargementRequis()) {
                 $this->syncEmargementsWithInscriptions($session, $em);
             }
 

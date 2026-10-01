@@ -966,6 +966,12 @@ class Session
         return $this;
     }
 
+    /** Les sessions sous-traitées sont suivies par l'organisme donneur d'ordre. */
+    public function isEmargementRequis(): bool
+    {
+        return $this->typeFinancement !== TypeFinancement::OUI;
+    }
+
     /** @return Collection<int, SessionPiece> */
     public function getPieces(): Collection
     {

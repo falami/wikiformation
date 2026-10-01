@@ -315,7 +315,7 @@ class FormateurEspaceController extends AbstractController
             $data[] = [
                 'sessionId' => $s->getId(),
                 'code'      => '<span class="badge bg-secondary">' . htmlspecialchars($s->getCode() ?: '—') . '</span>',
-                'formation' => $s->getFormation()?->getTitre() ?: '—',
+                'formation' => $s->getFormation()?->getTitre() ?: $s->getFormationIntituleLibre(), 
                 'dates'     => $dates,
                 'site'      => $s->getSite()?->getNom() ?: '—',
                 'capacite'  => (string)($s->getCapacite() ?? '—'),

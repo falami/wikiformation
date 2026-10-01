@@ -1,66 +1,1224 @@
 {% extends 'base_admin.html.twig' %}
-{% block title %}Super — {{ isNew ? 'Ajouter' : 'Éditer' }} compte — {{ entite.nom }}{% endblock %}
+
+{% block title %}
+  Super — {{ isNew ? 'Ajouter' : 'Modifier' }} un rattachement — {{ entite.nom }}
+{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
+
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+
   <style>
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --ink:#0f2336;
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+
+      --bg:#f5f7fb;
+      --panel:#fff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --stroke:rgba(15,23,42,.10);
+      --shadow:0 18px 55px rgba(15,23,42,.10);
+      --radius:18px;
     }
-    .wrap{ max-width: 980px; margin:0 auto; }
-    .panel{
-      border-radius:18px; background:#fff;
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow: 0 12px 30px rgba(0,0,0,.06);
+
+    body{
+      background:var(--bg);
+    }
+
+    /* ================= HERO ================= */
+
+    .hero{
+      border-radius:22px;
+      padding:1.2rem;
+      position:relative;
+      overflow:hidden;
+      color:#fff;
+      box-shadow:0 18px 50px rgba(0,0,0,.14);
+
+      background:
+        radial-gradient(
+          1200px 420px at 12% -10%,
+          color-mix(in srgb, var(--theme-color-tertiaire) 35%, transparent),
+          transparent 58%
+        ),
+        radial-gradient(
+          900px 380px at 92% 0%,
+          color-mix(in srgb, var(--theme-color-secondaire) 32%, transparent),
+          transparent 60%
+        ),
+        radial-gradient(
+          700px 260px at 55% 115%,
+          color-mix(in srgb, var(--theme-color-quaternaire) 18%, transparent),
+          transparent 62%
+        ),
+        linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--theme-color-principal) 92%, #000 8%),
+          color-mix(in srgb, var(--theme-color-principal) 70%, #fff 30%)
+        );
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:linear-gradient(
+        180deg,
+        rgba(255,255,255,.10),
+        rgba(255,255,255,0) 55%
+      );
+      opacity:.85;
+    }
+
+    .hero > *{
+      position:relative;
+      z-index:1;
+    }
+
+    .hero .accent{
+      width:12px;
+      border-radius:999px;
+      background:var(--theme-color-secondaire);
+      box-shadow:
+        0 0 0 6px
+        color-mix(
+          in srgb,
+          var(--theme-color-secondaire) 18%,
+          transparent
+        );
+      flex:0 0 auto;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      padding:.28rem .65rem;
+      border-radius:999px;
+      font-size:.82rem;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      color:rgba(255,255,255,.92);
+      white-space:nowrap;
+    }
+
+    .chip i{
+      color:var(--theme-color-secondaire);
+    }
+
+    .hero .btn{
+      border-radius:14px;
+      font-weight:800;
+    }
+
+    .btn-outline-theme{
+      border-color:rgba(255,255,255,.35);
+      color:#fff;
+    }
+
+    .btn-outline-theme:hover{
+      background:rgba(255,255,255,.10);
+      border-color:rgba(255,255,255,.55);
+      color:#fff;
+    }
+
+    /* ================= CARDS ================= */
+
+    .cardx{
+      background:var(--panel);
+      border:1px solid var(--stroke);
+      border-radius:var(--radius);
+      box-shadow:0 10px 28px rgba(15,23,42,.08);
       overflow:hidden;
     }
-    .panel .head{
-      padding:1rem 1rem;
-      border-bottom:1px solid rgba(0,0,0,.06);
-      background: radial-gradient(900px 180px at 15% 0%, rgba(255,193,7,.10), transparent 55%), #fff;
+
+    .cardx-h{
+      padding:.95rem 1.05rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:1rem;
+      background:linear-gradient(
+        180deg,
+        rgba(0,0,0,.015),
+        transparent
+      );
+      border-bottom:1px solid var(--stroke);
+    }
+
+    .cardx-title{
+      margin:0;
+      font-weight:800;
+      letter-spacing:-.01em;
+      color:var(--ink);
+      display:flex;
+      align-items:center;
+      gap:.6rem;
+    }
+
+    /* ================= FORM ================= */
+
+    label.form-label{
+      font-weight:700;
+      color:var(--ink);
+    }
+
+    .form-text,
+    .text-muted,
+    .small{
+      color:var(--muted) !important;
+    }
+
+    .form-control,
+    .form-select{
+      border-radius:14px;
+      border:1px solid var(--stroke);
+      padding:.65rem .85rem;
+      min-height:44px;
+    }
+
+    .form-control:focus,
+    .form-select:focus{
+      border-color:
+        color-mix(
+          in srgb,
+          var(--theme-color-principal) 55%,
+          var(--stroke)
+        );
+
+      box-shadow:
+        0 0 0 .2rem
+        color-mix(
+          in srgb,
+          var(--theme-color-principal) 18%,
+          transparent
+        );
+    }
+
+    /* ================= SOFT BOX ================= */
+
+    .soft-box{
+      border-radius:16px;
+      border:1px dashed rgba(15,35,54,.18);
+      background:rgba(248,251,254,.75);
+      padding:1rem;
+    }
+
+    /* ================= TOM SELECT ================= */
+
+    .ts-wrapper{
+      position:relative;
+      width:100%;
+    }
+
+    .ts-wrapper .ts-control{
+      border-radius:14px !important;
+      min-height:44px !important;
+      padding:.55rem .75rem !important;
+      border-color:var(--stroke) !important;
+      box-shadow:none !important;
+    }
+
+    .ts-wrapper.focus .ts-control{
+      border-color:
+        color-mix(
+          in srgb,
+          var(--theme-color-principal) 55%,
+          var(--stroke)
+        ) !important;
+
+      box-shadow:
+        0 0 0 .2rem
+        color-mix(
+          in srgb,
+          var(--theme-color-principal) 18%,
+          transparent
+        ) !important;
+    }
+
+    .ts-dropdown{
+      z-index:10000 !important;
+      border-radius:14px !important;
+      border:1px solid var(--stroke) !important;
+      box-shadow:0 16px 35px rgba(15,23,42,.14);
+      overflow:hidden;
+    }
+
+    .ts-dropdown .option{
+      padding:.7rem .85rem;
+    }
+
+    .ts-dropdown .active{
+      background:
+        color-mix(
+          in srgb,
+          var(--theme-color-secondaire) 13%,
+          transparent
+        );
+      color:var(--ink);
+    }
+
+    .roles-select + .ts-wrapper .item{
+      border-radius:999px !important;
+      padding:.28rem .65rem !important;
+      font-weight:700;
+      background:
+        color-mix(
+          in srgb,
+          var(--theme-color-secondaire) 16%,
+          #fff
+        ) !important;
+      border:
+        1px solid
+        color-mix(
+          in srgb,
+          var(--theme-color-secondaire) 45%,
+          transparent
+        ) !important;
+      color:var(--ink) !important;
+    }
+
+    /* ================= COLOR ================= */
+
+    .color-preview{
+      width:42px;
+      height:42px;
+      border-radius:12px;
+      border:1px solid var(--stroke);
+      flex:0 0 auto;
+      background:#e5e7eb;
+      box-shadow:inset 0 0 0 3px rgba(255,255,255,.65);
+    }
+
+    /* ================= SUMMARY ================= */
+
+    .summary-box{
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:1rem;
+      background:
+        linear-gradient(
+          180deg,
+          color-mix(
+            in srgb,
+            var(--theme-color-principal) 8%,
+            transparent
+          ),
+          transparent
+        );
+    }
+
+    .summary-line{
+      display:flex;
+      justify-content:space-between;
+      gap:1rem;
+      padding:.45rem 0;
+      font-size:.92rem;
+    }
+
+    .summary-line + .summary-line{
+      border-top:1px solid rgba(15,23,42,.06);
+    }
+
+    .summary-value{
+      font-weight:700;
+      text-align:right;
+      word-break:break-word;
+    }
+
+    /* ================= ACTIONS ================= */
+
+    .sticky-actions{
+      position:sticky;
+      bottom:14px;
+      z-index:5;
+      background:
+        color-mix(
+          in srgb,
+          var(--panel) 82%,
+          transparent
+        );
+      backdrop-filter:blur(10px);
+      border:1px solid var(--stroke);
+      border-radius:var(--radius);
+      padding:.75rem;
+      box-shadow:var(--shadow);
+    }
+
+    .btn-gradient{
+      border:0;
+      color:#fff;
+      font-weight:800;
+      border-radius:12px;
+
+      background:
+        linear-gradient(
+          135deg,
+          var(--theme-color-principal),
+          color-mix(
+            in srgb,
+            var(--theme-color-principal) 70%,
+            #fff
+          )
+        );
+    }
+
+    .btn-gradient:hover{
+      color:#fff;
+      filter:brightness(.96);
+    }
+
+    @media (max-width:768px){
+      .hero{
+        border-radius:16px;
+      }
     }
   </style>
 {% endblock %}
 
-{% block body %}
-<div class="wrap py-4">
+{% block javascripts %}
+  {{ parent() }}
 
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <div>
-      <div class="text-muted small">SUPER / {{ entite.nom }}</div>
-      <h1 class="h4 mb-0">{{ isNew ? 'Ajouter un utilisateur à l’entité' : 'Éditer le rattachement' }}</h1>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+  {# ================= HERO ================= #}
+  <div class="hero mb-4 d-flex gap-3">
+
+    <div class="accent"></div>
+
+    <div class="flex-grow-1">
+
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+
+        <div>
+
+          <h2 class="m-0 fw-bold">
+            <i
+              class="bi {{ isNew ? 'bi-person-plus' : 'bi-person-gear' }} me-2"
+              style="color:var(--theme-color-secondaire)"
+            ></i>
+
+            {{ isNew
+              ? 'Ajouter un utilisateur à l’entité'
+              : 'Modifier le rattachement'
+            }}
+          </h2>
+
+          <div class="opacity-75 mt-1">
+            {{ isNew
+              ? 'Sélectionner un utilisateur existant puis définir ses droits dans cette entité.'
+              : 'Modifier les rôles, la fonction et les paramètres du rattachement.'
+            }}
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+
+            <span class="chip">
+              <i class="bi bi-shield-lock"></i>
+              Super
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-building"></i>
+              {{ entite.nom }}
+            </span>
+
+            <span class="chip">
+              <i class="bi bi-clock"></i>
+              {{ isNew ? 'Mode création' : 'Mode édition' }}
+            </span>
+
+          </div>
+
+        </div>
+
+        <div class="d-flex gap-2">
+
+          <a
+            href="{{ path('app_super_entite_users_index', {
+              entite: entite.id
+            }) }}"
+            class="btn btn-outline-theme btn-sm"
+          >
+            <i class="bi bi-arrow-left me-1"></i>
+            Retour
+          </a>
+
+          <button
+            type="button"
+            class="btn btn-light btn-sm fw-semibold"
+            onclick="window.scrollTo({
+              top: document.body.scrollHeight,
+              behavior: 'smooth'
+            })"
+          >
+            <i class="bi bi-arrow-down me-1"></i>
+            Actions
+          </button>
+
+        </div>
+
+      </div>
+
     </div>
-    <a class="btn btn-outline-secondary" href="{{ path('app_super_entite_users_index', { entite: entite.id }) }}">
-      <i class="bi bi-arrow-left"></i> Retour
-    </a>
+
   </div>
 
   {% include 'flagMessage.html.twig' %}
 
-  <div class="panel">
-    <div class="head d-flex justify-content-between align-items-center">
-      <div class="fw-bold">Paramètres</div>
-      <span class="badge text-bg-warning">Super</span>
-    </div>
+  {{ form_start(form, {
+    attr: {
+      novalidate: 'novalidate',
+      id: 'entiteUserForm'
+    }
+  }) }}
 
-    <div class="p-3">
-      {{ form_start(form) }}
-        {{ form_widget(form) }}
+  {{ form_errors(form) }}
 
-        <div class="d-flex flex-wrap gap-2 mt-3">
-          <button class="btn btn-warning fw-semibold" type="submit">
-            <i class="bi bi-check2-circle"></i> Enregistrer
-          </button>
-          <a class="btn btn-outline-secondary" href="{{ path('app_super_entite_users_index', { entite: entite.id }) }}">
-            Annuler
-          </a>
+  <div class="row g-4">
+
+    {# ========================================================= #}
+    {# COLONNE GAUCHE                                            #}
+    {# ========================================================= #}
+
+    <div class="col-lg-8">
+
+      {% if form.utilisateur is defined %}
+        <div class="cardx mb-4">
+
+          <div class="cardx-h">
+            <h5 class="cardx-title">
+              <i class="bi bi-person-search text-warning"></i>
+              Utilisateur
+            </h5>
+
+            <span class="badge rounded-pill text-bg-light">
+              Étape 1
+            </span>
+          </div>
+
+          <div class="p-3 p-md-4">
+
+            <div class="soft-box">
+
+              {{ form_label(form.utilisateur) }}
+
+              {{ form_widget(form.utilisateur, {
+                attr: {
+                  class: 'user-select',
+                  'data-placeholder': 'Rechercher par nom, prénom ou email…'
+                }
+              }) }}
+
+              {{ form_errors(form.utilisateur) }}
+
+              <div class="form-text mt-2">
+                Sélectionne le compte utilisateur à rattacher à
+                <strong>{{ entite.nom }}</strong>.
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
-      {{ form_end(form) }}
+      {% endif %}
+
+      {# ================= ROLES ================= #}
+
+      <div class="cardx mb-4">
+
+        <div class="cardx-h">
+
+          <h5 class="cardx-title">
+            <i class="bi bi-shield-lock text-warning"></i>
+            Rôles dans l’entité
+          </h5>
+
+          <span class="badge rounded-pill text-bg-light">
+            {{ isNew ? 'Étape 2' : 'Permissions' }}
+          </span>
+
+        </div>
+
+        <div class="p-3 p-md-4">
+
+          <div class="soft-box">
+
+            {{ form_label(form.roles) }}
+
+            {{ form_widget(form.roles, {
+              attr: {
+                class: 'roles-select',
+                'data-placeholder': 'Sélectionner un ou plusieurs rôles…'
+              }
+            }) }}
+
+            {{ form_errors(form.roles) }}
+
+            <div class="form-text mt-2">
+              Plusieurs rôles peuvent être cumulés pour un même utilisateur.
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {# ================= INFORMATIONS ================= #}
+
+      <div class="cardx mb-4">
+
+        <div class="cardx-h">
+
+          <h5 class="cardx-title">
+            <i class="bi bi-person-vcard text-warning"></i>
+            Informations du rattachement
+          </h5>
+
+          <span class="badge rounded-pill text-bg-light">
+            {{ isNew ? 'Étape 3' : 'Informations' }}
+          </span>
+
+        </div>
+
+        <div class="p-3 p-md-4">
+
+          <div class="row g-3">
+
+            <div class="col-12">
+
+              {{ form_label(form.fonction) }}
+
+              {{ form_widget(form.fonction, {
+                attr: {
+                  class: 'form-control',
+                  placeholder: 'Ex. Responsable pédagogique'
+                }
+              }) }}
+
+              {{ form_errors(form.fonction) }}
+
+              <div class="form-text">
+                Fonction spécifique de l’utilisateur dans cette entité.
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {# ================= COULEUR ================= #}
+
+      <div class="cardx mb-4">
+
+        <div class="cardx-h">
+
+          <h5 class="cardx-title">
+            <i class="bi bi-palette text-warning"></i>
+            Couleur utilisateur
+          </h5>
+
+          <span class="badge rounded-pill text-bg-light">
+            Optionnel
+          </span>
+
+        </div>
+
+        <div class="p-3 p-md-4">
+
+          <div class="soft-box">
+
+            <div class="d-flex align-items-end gap-3">
+
+              <div class="flex-grow-1">
+
+                {{ form_label(form.couleur) }}
+
+                {{ form_widget(form.couleur, {
+                  attr: {
+                    class: 'form-control',
+                    placeholder: '#0d6efd',
+                    autocomplete: 'off'
+                  }
+                }) }}
+
+              </div>
+
+              <div
+                class="color-preview"
+                id="colorPreview"
+                title="Aperçu de la couleur"
+              ></div>
+
+            </div>
+
+            {{ form_help(form.couleur) }}
+            {{ form_errors(form.couleur) }}
+
+            <div class="form-text">
+              Laisse le champ vide pour utiliser une couleur automatique.
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {# ================= ACTIONS BAS ================= #}
+
+      <div class="d-flex justify-content-end gap-2 mt-3">
+
+        <a
+          href="{{ path('app_super_entite_users_index', {
+            entite: entite.id
+          }) }}"
+          class="btn btn-secondary"
+        >
+          <i class="bi bi-arrow-left"></i>
+          Retour
+        </a>
+
+        <button
+          type="submit"
+          class="btn btn-gradient"
+          id="btnBottomSubmit"
+        >
+          <i class="bi bi-check2-circle"></i>
+
+          {{ isNew
+            ? 'Ajouter à l’entité'
+            : 'Enregistrer les modifications'
+          }}
+        </button>
+
+      </div>
+
     </div>
+
+    {# ========================================================= #}
+    {# COLONNE DROITE                                            #}
+    {# ========================================================= #}
+
+    <div class="col-lg-4">
+
+      <div class="cardx mb-4">
+
+        <div class="cardx-h">
+
+          <h5 class="cardx-title">
+            <i class="bi bi-clipboard2-check text-warning"></i>
+            Résumé
+          </h5>
+
+          <span class="badge rounded-pill text-bg-light">
+            Contrôle
+          </span>
+
+        </div>
+
+        <div class="p-3 p-md-4">
+
+          <div class="small text-muted mb-3">
+            Vérifie le rattachement avant l’enregistrement.
+          </div>
+
+          <div class="summary-box">
+
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+
+              <div class="fw-bold">
+                Rattachement
+              </div>
+
+              <span
+                id="resumeValidPill"
+                class="badge rounded-pill px-3 py-2"
+                style="
+                  border:1px solid var(--stroke);
+                  background:rgba(255,193,7,.15);
+                  color:var(--ink);
+                "
+              >
+                ⚠️ Incomplet
+              </span>
+
+            </div>
+
+            {% if form.utilisateur is defined %}
+              <div class="summary-line">
+                <span class="text-muted">
+                  Utilisateur
+                </span>
+
+                <span
+                  class="summary-value"
+                  id="resumeUtilisateur"
+                >
+                  -
+                </span>
+              </div>
+            {% else %}
+              <div class="summary-line">
+                <span class="text-muted">
+                  Utilisateur
+                </span>
+
+                <span class="summary-value">
+                  {{ item.utilisateur
+                    ? item.utilisateur.prenom ~ ' ' ~ item.utilisateur.nom
+                    : '-'
+                  }}
+                </span>
+              </div>
+            {% endif %}
+
+            <div class="summary-line">
+
+              <span class="text-muted">
+                Rôle(s)
+              </span>
+
+              <span
+                class="summary-value"
+                id="resumeRoles"
+              >
+                -
+              </span>
+
+            </div>
+
+            <div class="summary-line">
+
+              <span class="text-muted">
+                Fonction
+              </span>
+
+              <span
+                class="summary-value"
+                id="resumeFonction"
+              >
+                -
+              </span>
+
+            </div>
+
+            <div class="summary-line">
+
+              <span class="text-muted">
+                Couleur
+              </span>
+
+              <span
+                class="summary-value d-inline-flex align-items-center gap-2"
+              >
+                <span
+                  id="resumeColorDot"
+                  style="
+                    display:inline-block;
+                    width:13px;
+                    height:13px;
+                    border-radius:50%;
+                    background:#e5e7eb;
+                    border:1px solid var(--stroke);
+                  "
+                ></span>
+
+                <span id="resumeCouleur">
+                  Auto
+                </span>
+              </span>
+
+            </div>
+
+          </div>
+
+          <div class="d-flex gap-2 mt-3">
+
+            <a
+              class="btn btn-light w-50"
+              href="{{ path('app_super_entite_users_index', {
+                entite: entite.id
+              }) }}"
+            >
+              Annuler
+            </a>
+
+            <button
+              type="submit"
+              class="btn btn-gradient w-50"
+              id="btnRightSubmit"
+            >
+              <i class="bi bi-check"></i>
+              Enregistrer
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="sticky-actions d-none d-lg-block">
+
+        <div class="d-flex align-items-center justify-content-between gap-2">
+
+          <div class="small text-muted">
+
+            <strong class="text-dark">
+              Astuce :
+            </strong>
+
+            au moins un rôle doit être sélectionné.
+
+          </div>
+
+          <button
+            type="submit"
+            class="btn btn-sm btn-outline-secondary"
+            title="Enregistrer"
+          >
+            <i class="bi bi-check2"></i>
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
   </div>
 
-</div>
+  {{ form_widget(form._token) }}
+
+  {{ form_end(form, {
+    render_rest: false
+  }) }}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+      /* =========================
+       * TomSelect helper
+       * ========================= */
+
+      function initTomSelectOn(el, opts) {
+
+        if (!el) {
+          return null;
+        }
+
+        if (el.tomselect) {
+          return el.tomselect;
+        }
+
+        return new TomSelect(
+          el,
+          Object.assign(
+            {
+              dropdownParent: 'body',
+              create: false,
+              allowEmptyOption: true
+            },
+            opts || {}
+          )
+        );
+      }
+
+
+      /* =========================
+       * DOM
+       * ========================= */
+
+      const userEl =
+        document.querySelector('.user-select');
+
+      const rolesEl =
+        document.querySelector('.roles-select');
+
+      const fonctionEl =
+        document.getElementById('{{ form.fonction.vars.id }}');
+
+      const couleurEl =
+        document.getElementById('{{ form.couleur.vars.id }}');
+
+      const colorPreview =
+        document.getElementById('colorPreview');
+
+      const resumeUtilisateur =
+        document.getElementById('resumeUtilisateur');
+
+      const resumeRoles =
+        document.getElementById('resumeRoles');
+
+      const resumeFonction =
+        document.getElementById('resumeFonction');
+
+      const resumeCouleur =
+        document.getElementById('resumeCouleur');
+
+      const resumeColorDot =
+        document.getElementById('resumeColorDot');
+
+      const resumeValidPill =
+        document.getElementById('resumeValidPill');
+
+
+      /* =========================
+       * TomSelect utilisateur
+       * ========================= */
+
+      const userTS = initTomSelectOn(userEl, {
+
+        placeholder:
+          'Rechercher par nom, prénom ou email…',
+
+        plugins: ['clear_button'],
+
+        searchField: ['text'],
+
+        sortField: {
+          field: 'text',
+          direction: 'asc'
+        },
+
+        maxOptions: 500
+      });
+
+
+      /* =========================
+       * TomSelect rôles
+       * ========================= */
+
+      const rolesTS = initTomSelectOn(rolesEl, {
+
+        placeholder:
+          'Sélectionner un ou plusieurs rôles…',
+
+        plugins: ['remove_button'],
+
+        maxItems: null,
+
+        closeAfterSelect: false,
+
+        hideSelected: true
+      });
+
+
+      /* =========================
+       * Helpers
+       * ========================= */
+
+      function selectedTexts(el) {
+
+        if (!el) {
+          return [];
+        }
+
+        if (el.tomselect) {
+
+          return (el.tomselect.items || [])
+            .map(value =>
+              el.tomselect.options[value]?.text || ''
+            )
+            .filter(Boolean);
+        }
+
+        return Array
+          .from(el.selectedOptions || [])
+          .map(option =>
+            option.textContent.trim()
+          );
+      }
+
+
+      function getSelectedUserText() {
+
+        if (!userEl) {
+          return '';
+        }
+
+        if (userEl.tomselect) {
+
+          const selected =
+            userEl.tomselect.items?.[0];
+
+          if (!selected) {
+            return '';
+          }
+
+          return (
+            userEl.tomselect.options[selected]?.text || ''
+          );
+        }
+
+        const option =
+          userEl.selectedOptions?.[0];
+
+        return option
+          ? option.textContent.trim()
+          : '';
+      }
+
+
+      function isValidHex(value) {
+
+        return /^#[0-9a-fA-F]{6}$/.test(value);
+      }
+
+
+      /* =========================
+       * Color preview
+       * ========================= */
+
+      function refreshColor() {
+
+        const value =
+          (couleurEl?.value || '').trim();
+
+        const valid =
+          isValidHex(value);
+
+        const displayColor =
+          valid ? value : '#e5e7eb';
+
+        if (colorPreview) {
+          colorPreview.style.background =
+            displayColor;
+        }
+
+        if (resumeColorDot) {
+          resumeColorDot.style.background =
+            displayColor;
+        }
+
+        if (resumeCouleur) {
+          resumeCouleur.textContent =
+            valid ? value : 'Auto';
+        }
+      }
+
+
+      /* =========================
+       * Resume
+       * ========================= */
+
+      function refreshResume() {
+
+        const roles =
+          selectedTexts(rolesEl);
+
+        const fonction =
+          (fonctionEl?.value || '').trim();
+
+        if (resumeUtilisateur && userEl) {
+
+          resumeUtilisateur.textContent =
+            getSelectedUserText() || '-';
+        }
+
+        if (resumeRoles) {
+
+          resumeRoles.textContent =
+            roles.length
+              ? roles.join(', ')
+              : '-';
+        }
+
+        if (resumeFonction) {
+
+          resumeFonction.textContent =
+            fonction || 'Non renseignée';
+        }
+
+        refreshColor();
+
+
+        /* Validation visuelle */
+
+        const hasRoles =
+          roles.length > 0;
+
+        const hasUser =
+          userEl
+            ? !!getSelectedUserText()
+            : true;
+
+        const ok =
+          hasRoles && hasUser;
+
+        if (resumeValidPill) {
+
+          resumeValidPill.textContent =
+            ok
+              ? '✅ Complet'
+              : '⚠️ Incomplet';
+
+          resumeValidPill.style.background =
+            ok
+              ? 'rgba(25,135,84,.15)'
+              : 'rgba(255,193,7,.15)';
+
+          resumeValidPill.style.borderColor =
+            ok
+              ? 'rgba(25,135,84,.35)'
+              : 'rgba(255,193,7,.35)';
+        }
+      }
+
+
+      /* =========================
+       * Events
+       * ========================= */
+
+      userTS?.on(
+        'change',
+        refreshResume
+      );
+
+      rolesTS?.on(
+        'change',
+        refreshResume
+      );
+
+      fonctionEl?.addEventListener(
+        'input',
+        refreshResume
+      );
+
+      couleurEl?.addEventListener(
+        'input',
+        refreshResume
+      );
+
+      couleurEl?.addEventListener(
+        'change',
+        refreshResume
+      );
+
+
+      /* =========================
+       * Init
+       * ========================= */
+
+      refreshResume();
+
+    });
+  </script>
+
 {% endblock %}

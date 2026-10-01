@@ -1,0 +1,25 @@
+{% extends 'pdf/modeles/base.html.twig' %}
+{% block document %}
+  <h1>Votre appréciation de la formation</h1>
+  <p class="intro">Votre retour nous aide à améliorer nos formations. Merci de compléter ce questionnaire en fin de stage.</p>
+  <table class="fields">
+    <tr><td colspan="2"><div class="label">Intitulé de la formation</div><div class="write-line"></div></td></tr>
+    <tr><td><div class="label">Dates / nom du formateur</div><div class="write-line"></div></td><td><div class="label">Nom et prénom du stagiaire (facultatif)</div><div class="write-line"></div></td></tr>
+  </table>
+  <h2>01 · Votre satisfaction</h2>
+  <p class="muted">Cochez une réponse par ligne : 1 = très insatisfait, 2 = insatisfait, 3 = satisfait, 4 = très satisfait.<br>N/A = non concerné.</p>
+  <table class="grid">
+    <thead><tr><th style="width: 62%">Comment évaluez-vous...</th>{% for note in ['1', '2', '3', '4', 'N/A'] %}<th class="center">{{ note }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for label in ['La clarté des objectifs de la formation', 'Le contenu au regard de vos attentes', 'L’utilité des exercices et mises en pratique', 'La durée et le rythme de la formation', 'La maîtrise du sujet par le formateur', 'La clarté des explications et des méthodes', 'L’écoute et les réponses à vos questions', 'Les supports et le matériel mis à disposition', 'Les conditions d’accueil et les locaux', 'L’utilité de la formation dans votre activité'] %}
+      <tr><td>{{ label }}</td>{% for i in 1..5 %}<td class="center"><span class="check"></span></td>{% endfor %}</tr>
+    {% endfor %}</tbody>
+  </table>
+  <p style="margin: 12px 0"><strong>Votre appréciation globale : ........ / 10</strong> &nbsp; &nbsp; Recommanderiez-vous cette formation ? &nbsp; <span class="check"></span> Oui &nbsp; <span class="check"></span> Non</p>
+  <h2>02 · Vos commentaires</h2>
+  <table class="two-cols"><tr>
+    <td><div class="response"><div class="label">Ce que vous avez le plus apprécié</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div></td>
+    <td><div class="response"><div class="label">Ce qui pourrait être amélioré</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div></td>
+  </tr></table>
+  <div class="response"><div class="label">Ce que vous pourrez mettre en pratique / sujets à approfondir</div>{% for i in 1..3 %}<div class="write-line"></div>{% endfor %}</div>
+  <p style="margin-top: 17px">Date : ........ / ........ / ................ <span style="float: right" class="muted">Merci pour votre retour.</span></p>
+{% endblock %}
