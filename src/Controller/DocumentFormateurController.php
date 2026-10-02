@@ -6,6 +6,7 @@ use App\Entity\{DocumentFormateur, DocumentFormateurVersion, Entite, Utilisateur
 use App\Form\Administrateur\DocumentFormateurType;
 use App\Security\Permission\TenantPermission;
 use App\Service\Document\DocumentFormateurStorage;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\{EntityManagerInterface, OptimisticLockException};
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -86,7 +87,7 @@ class DocumentFormateurController extends AbstractController
                     return $this->redirectToRoute('app_administrateur_documents_formateurs_index', ['entite' => $entite->getId()]);
                 } catch (FileException) {
                     $form->get('file')->addError(new FormError('Le fichier n’a pas pu être enregistré. Réessayez ou contactez votre administrateur.'));
-                } catch (OptimisticLockException) {
+                } catch (OptimisticLockException|UniqueConstraintViolationException) {
                     if ($version) $this->storage->discard($version);
                     $form->addError(new FormError('Une autre mise à jour vient d’être enregistrée. Rechargez la page avant de réessayer.'));
                 } catch (\Throwable $error) {

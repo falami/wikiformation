@@ -220,6 +220,47 @@ final class DocumentFormateurLibraryTest extends KernelTestCase
         self::assertCount(1, glob($this->directory . '/private/*'));
     }
 
+    public function testConcurrentUploadDisplaysAConflictAndDiscardsOnlyTheLosingFile(): void
+    {
+        $document = $this->document('Version initiale');
+        $originalPath = $this->storage->path($document->getCurrentVersion());
+        $winningPath = $this->directory . '/private/concurrent.pdf';
+        file_put_contents($winningPath, "%PDF-1.4\n% version concurrente conservée\n%%EOF\n");
+        $connection = $this->em->getConnection();
+
+        // Simulate another request committing between our revision check and flush.
+        // Doctrine inserts versions before checking the document's optimistic lock.
+        $this->em->getEventManager()->addEventListener(['prePersist'], new class($connection, $document->getId()) {
+            public function __construct(private \Doctrine\DBAL\Connection $connection, private int $documentId) {}
+
+            public function prePersist(\Doctrine\ORM\Event\PrePersistEventArgs $event): void
+            {
+                $version = $event->getObject();
+                if (!$version instanceof \App\Entity\DocumentFormateurVersion || $version->getNumero() !== 2) return;
+                $this->connection->insert('document_formateur_version', [
+                    'document_id' => $this->documentId, 'numero' => 2, 'filename' => 'concurrent.pdf',
+                    'original_name' => 'version-concurrente.pdf', 'mime_type' => 'application/pdf', 'size_bytes' => 55,
+                    'created_at' => '2026-10-02 08:00:00',
+                ]);
+                $this->connection->executeStatement('UPDATE document_formateur SET titre = ?, lock_version = lock_version + 1 WHERE id = ?', ['Publication gagnante', $this->documentId]);
+            }
+        });
+
+        $client = $this->client();
+        $form = $this->editForm($client, 'edit', $document->getId());
+        $form['document_formateur[file]']->upload($this->pdf('losing-upload'));
+        $client->submit($form, ['document_formateur[titre]' => 'Publication perdante']);
+
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Une autre mise à jour vient d’être enregistrée.', $client->getResponse()->getContent());
+        self::assertSame('Publication gagnante', $connection->fetchOne('SELECT titre FROM document_formateur WHERE id = ?', [$document->getId()]));
+        self::assertSame('concurrent.pdf', $connection->fetchOne('SELECT filename FROM document_formateur_version WHERE document_id = ? AND numero = 2', [$document->getId()]));
+        self::assertSame(2, (int) $connection->fetchOne('SELECT COUNT(*) FROM document_formateur_version WHERE document_id = ?', [$document->getId()]));
+        self::assertFileExists($originalPath);
+        self::assertFileExists($winningPath);
+        self::assertCount(2, glob($this->directory . '/private/*'), 'Only the failed upload must be removed; both committed versions remain.');
+    }
+
     public function testBlankTitleAndVersionNoteWithoutAFileDoNotChangeTheSavedDocument(): void
     {
         $document = $this->document('Intitulé conservé');
