@@ -75,17 +75,20 @@ final class ConventionContratType extends AbstractType
             ->add('intituleFormation', TextType::class, [
                 'label' => 'Intitulé sur la convention',
                 'required' => false,
+                'disabled' => $options['link_signed'],
                 'attr' => ['class' => 'form-control', 'maxlength' => 255, 'placeholder' => $convention?->getSession()?->getFormation()?->getTitre() ?? 'Intitulé de la formation'],
                 'help' => 'Personnalisez le titre pour ce document. Vide : l’intitulé du catalogue est utilisé.',
             ])
             ->add('dureeFormation', TextType::class, [
                 'label' => 'Durée sur la convention',
                 'required' => false,
+                'disabled' => $options['link_signed'],
                 'attr' => ['class' => 'form-control', 'maxlength' => 255, 'placeholder' => $convention?->getDureeFormationEffective() ?? 'Ex. : 1 jour / 7 heures'],
                 'help' => 'Ex. : 1 jour / 7 heures. Vide : la durée pédagogique de la session est utilisée.',
             ])
             ->add('conditionsFinancieres', TextareaType::class, [
                 'label' => 'Conditions financières',
+                'disabled' => $options['link_signed'],
                 'required' => false,
                 'attr' => ['class' => 'form-control', 'rows' => 6],
                 'help' => 'Modalités de règlement et échéancier figurant sur la convention.',
@@ -95,12 +98,14 @@ final class ConventionContratType extends AbstractType
             $builder
                 ->add('participantsLibres', TextareaType::class, [
                     'label' => 'Stagiaires sans compte ou sans e-mail',
+                    'disabled' => $options['link_signed'],
                     'required' => false,
                     'attr' => ['class' => 'form-control', 'rows' => 4, 'placeholder' => "Camille Durand\nAlex Martin"],
                     'help' => 'Un nom complet par ligne. Ces participants disposent de QR codes personnels pour émarger et donner leur appréciation, sans créer de compte ni renseigner d’e-mail. L’option ci-dessous permet de remplacer un nom libre identique par sa fiche stagiaire.',
                 ])
                 ->add('effectifPrevisionnel', IntegerType::class, [
                     'label' => 'Nombre total de stagiaires prévu',
+                    'disabled' => $options['link_signed'],
                     'required' => false,
                     'attr' => ['class' => 'form-control', 'min' => 1, 'placeholder' => 'Calculé à partir des stagiaires renseignés'],
                     'help' => 'Ce total inclut les inscriptions, les noms saisis et les stagiaires encore inconnus. Vous pouvez renseigner uniquement ce nombre. Vide : calcul automatique.',
@@ -133,14 +138,14 @@ final class ConventionContratType extends AbstractType
                     'help' => 'Évite de compter deux fois une même personne. Les autres noms restent inchangés.',
                 ]);
             }
-            $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event): void {
+            $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event) use ($options): void {
                 $form = $event->getForm();
                 if (!$form->get('stagiaires')->isSynchronized() || count($form->get('stagiaires')->getErrors(true)) > 0) {
                     return;
                 }
                 try {
                     $this->participants->prepare($event->getData(), $form->get('stagiaires')->getData() ?? [],
-                        $form->has('remplacerNomsLibres') && $form->get('remplacerNomsLibres')->getData());
+                        $form->has('remplacerNomsLibres') && $form->get('remplacerNomsLibres')->getData(), $options['link_signed']);
                 } catch (\DomainException $error) {
                     $form->get('stagiaires')->addError(new FormError($error->getMessage()));
                 }
@@ -214,6 +219,7 @@ final class ConventionContratType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => ConventionContrat::class,
+            'link_signed' => false,
             'entite' => null,
             'lock_session' => false,
             'lock_entreprise' => false,

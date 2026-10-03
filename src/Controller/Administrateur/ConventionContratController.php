@@ -180,7 +180,7 @@ final class ConventionContratController extends AbstractController
 
 
     #[Route('/{id}', name: 'show', methods: ['GET'])]
-    public function show(Entite $entite, ConventionContrat $c): Response
+    public function show(Entite $entite, ConventionContrat $c, \App\Service\Convention\ConventionHistory $history): Response
     {
         $this->assertConventionTenant($entite, $c);
         /** @var Utilisateur $user */
@@ -189,11 +189,13 @@ final class ConventionContratController extends AbstractController
         return $this->render('administrateur/convention/show.html.twig', [
             'c' => $c,
             'entite' => $entite,
+            'revisions' => $history->list($c),
+            'historyToken' => $history->token($c),
         ]);
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
-    public function edit(Entite $entite, ConventionContrat $c, Request $req, EM $em, ConventionParticipants $participants): Response
+    public function edit(Entite $entite, ConventionContrat $c, Request $req, EM $em, ConventionParticipants $participants, \App\Service\Convention\ConventionHistory $history): Response
     {
         $this->assertConventionTenant($entite, $c);
         $connection = $em->getConnection();
@@ -206,9 +208,16 @@ final class ConventionContratController extends AbstractController
                     $em->refresh($c->getSession(), LockMode::PESSIMISTIC_WRITE);
                 }
             }
-            if ($c->isSigned()) {
-                $this->addFlash('warning', 'Une convention signée ne peut plus être modifiée.');
-                return $this->redirectToRoute('app_administrateur_convention_show', ['entite' => $entite->getId(), 'id' => $c->getId()]);
+            $linkSigned = $c->isSigned();
+            $expectedToken = $history->token($c);
+            $revision = null;
+            if ($req->isMethod('POST')) {
+                $posted = $req->request->all('convention_contrat');
+                if (!hash_equals($expectedToken, (string) ($posted['historyToken'] ?? ''))) {
+                    $this->addFlash('warning', 'La convention a changé. Rechargez le formulaire avant de reprendre vos modifications.');
+                    return $this->redirectToRoute('app_administrateur_convention_edit', ['entite' => $entite->getId(), 'id' => $c->getId()]);
+                }
+                $revision = $history->capture($c, $this->getUser(), $linkSigned ? 'Rattachement des comptes aux participants déjà signés' : 'Modification de la convention');
             }
             /** @var Utilisateur $user */
             $user = $this->getUser();
@@ -222,19 +231,23 @@ final class ConventionContratController extends AbstractController
             $form = $this->createForm(ConventionContratType::class, $c, [
                 'entite'         => $entite,
                 'lock_session'   => $lockSession,
-                'lock_entreprise' => $lockEntreprise,
-                'lock_stagiaire' => $lockStagiaire,
+                'lock_entreprise' => $linkSigned || $lockEntreprise,
+                'lock_stagiaire' => $linkSigned || $lockStagiaire,
                 'allow_new_participants' => true,
-            ])->handleRequest($req);
+                'link_signed' => $linkSigned,
+            ]);
+            $form->add('historyToken', \Symfony\Component\Form\Extension\Core\Type\HiddenType::class, ['mapped' => false, 'data' => $expectedToken]);
+            $form->handleRequest($req);
 
             if ($form->isSubmitted() && $form->isValid()) {
                 try {
-                    $participants->persist($c, $user);
+                    $participants->persist($c, $user, $linkSigned);
                     if (!$c->hasNumero()) {
                         $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
                     }
                     // Toute modification rend le précédent document obsolète.
-                    $c->setPdfPath(null);
+                    if (!$linkSigned) $c->setPdfPath(null);
+                    if ($revision) $em->persist($revision);
                     $em->flush();
                     $connection->commit();
                     $this->addFlash('success', 'Convention mise à jour.');
@@ -261,6 +274,31 @@ final class ConventionContratController extends AbstractController
         }
     }
 
+
+    #[Route('/{id}/nouvelle-version', name: 'revise', methods: ['POST'])]
+    public function revise(Entite $entite, ConventionContrat $c, Request $req, EM $em, \App\Service\Convention\ConventionHistory $history): Response
+    {
+        $this->assertConventionTenant($entite, $c);
+        if (!$this->isCsrfTokenValid('revise_convention_'.$c->getId(), $req->request->get('_token'))) throw $this->createAccessDeniedException();
+        $em->wrapInTransaction(function () use ($c, $req, $em, $history) {
+            $em->refresh($c, LockMode::PESSIMISTIC_WRITE);
+            if (!$c->isSigned() || !hash_equals($history->token($c), (string) $req->request->get('version'))) throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('La convention a changé. Rechargez sa page.');
+            $em->persist($history->capture($c, $this->getUser(), 'Nouvelle version nécessitant de nouvelles signatures'));
+            $c->setDateSignatureStagiaire(null)->setDateSignatureEntreprise(null)->setDateSignatureOf(null)
+                ->setSignatureDataUrlStagiaire(null)->setSignatureDataUrlEntreprise(null)->setPdfPath(null);
+        });
+        $this->addFlash('success', 'L’original signé est conservé dans l’historique. Cette nouvelle version devra être signée à nouveau.');
+        return $this->redirectToRoute('app_administrateur_convention_edit', ['entite' => $entite->getId(), 'id' => $c->getId()]);
+    }
+
+    #[Route('/{id}/historique/{revision}/pdf', name: 'revision_pdf', methods: ['GET'])]
+    public function revisionPdf(Entite $entite, ConventionContrat $c, int $revision, EM $em): Response
+    {
+        $this->assertConventionTenant($entite, $c);
+        $saved = $em->getRepository(\App\Entity\ConventionRevision::class)->find($revision);
+        if (!$saved || $saved->getConvention()->getId() !== $c->getId()) throw $this->createNotFoundException();
+        return new Response($saved->getPdf(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="Convention-version-'.$revision.'.pdf"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
+    }
 
     #[Route('/{id}/generer-pdf', name: 'generate_pdf', methods: ['POST'])]
     public function generatePdf(Entite $entite, ConventionContrat $c, Request $req, EM $em): RedirectResponse
@@ -298,8 +336,8 @@ final class ConventionContratController extends AbstractController
     public function delete(Entite $entite, ConventionContrat $c, Request $req, EM $em): RedirectResponse
     {
         $this->assertConventionTenant($entite, $c);
-        if ($c->isSigned()) {
-            throw $this->createAccessDeniedException('Une convention signée ne peut pas être supprimée.');
+        if ($c->isSigned() || $em->getRepository(\App\Entity\ConventionRevision::class)->count(['convention' => $c]) > 0) {
+            throw $this->createAccessDeniedException('Une convention signée ou possédant un historique ne peut pas être supprimée.');
         }
         if ($this->isCsrfTokenValid('del' . $c->getId(), (string)$req->request->get('_token'))) {
             $em->remove($c);

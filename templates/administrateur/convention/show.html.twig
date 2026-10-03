@@ -309,11 +309,13 @@
             <i class="bi bi-arrow-left me-1"></i> Retour
           </a>
 
-          {% if not c.signed %}
-          <a class="btn btn-outline-theme btn-sm fw-semibold"
-            href="{{ path('app_administrateur_convention_edit', { entite: entite.id, id: c.id }) }}">
-            <i class="bi bi-pencil-square me-1"></i> Éditer
-          </a>
+          <a class="btn btn-outline-theme btn-sm fw-semibold" href="{{ path('app_administrateur_convention_edit', {entite:entite.id,id:c.id}) }}">{{ c.signed ? 'Rattacher les comptes stagiaires' : 'Éditer' }}</a>
+          {% if c.signed %}
+          <form method="post" action="{{ path('app_administrateur_convention_revise',{entite:entite.id,id:c.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('revise_convention_' ~ c.id) }}">
+            <input type="hidden" name="version" value="{{ historyToken }}">
+            <button class="btn btn-warning btn-sm" type="submit">Créer une nouvelle version à signer</button>
+          </form>
           {% endif %}
 
           {% if not c.signed or not c.pdfPath %}
@@ -350,6 +352,17 @@
 
     {# ===== MAIN ===== #}
     <div class="col-lg-8">
+      <section class="panel mb-3 p-3">
+        <h5>Historique des conventions</h5>
+        <p class="text-muted">Les PDF conservés reproduisent chaque version avant modification. Une nouvelle version contractuelle nécessite de nouvelles signatures.</p>
+        {% for revision in revisions %}
+          <div class="border-top py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div><strong>{{ revision.motif }}</strong><div class="small text-muted">{{ revision.date|date('d/m/Y H:i') }} · {{ revision.auteur }} · {{ revision.donnees.signed ? 'Version signée conservée' : 'Version non signée' }}</div></div>
+            <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="{{ path('app_administrateur_convention_revision_pdf',{entite:entite.id,id:c.id,revision:revision.id}) }}">Consulter le PDF conservé</a>
+          </div>
+        {% else %}<p class="small text-muted mb-0">Les prochaines modifications seront conservées ici.</p>{% endfor %}
+      </section>
+
 
       
         <div class="panel mb-3">
@@ -530,7 +543,7 @@
         </div>
       </div>
 
-      {% if not c.signed %}
+      {% if not c.signed and revisions is empty %}
       <div class="panel border-danger">
         <div class="panel-hd" style="background:rgba(220,53,69,.08)">
           <div class="panel-title text-danger">

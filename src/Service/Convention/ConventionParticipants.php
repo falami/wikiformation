@@ -39,15 +39,29 @@ final class ConventionParticipants
     }
 
     /** @param iterable<Utilisateur> $learners */
-    public function prepare(ConventionContrat $convention, iterable $learners, bool $replaceFreeNames): void
+    public function prepare(ConventionContrat $convention, iterable $learners, bool $replaceFreeNames, bool $linkSigned = false): void
     {
-        $this->assertContext($convention);
+        $this->assertContext($convention, $linkSigned);
         $selection = [];
         foreach ($learners as $learner) {
             if (!$learner instanceof Utilisateur || !$learner->getId()) {
                 throw new \DomainException('Sélectionnez des stagiaires enregistrés dans cet organisme.');
             }
             $selection[$learner->getId()] = $learner;
+        }
+        if ($convention->isSigned()) {
+            $remaining = $convention->getParticipantsLibresListe();
+            $existing = [];
+            foreach ($convention->getInscriptions() as $i) {
+                $existing[] = $i->getStagiaire()->getId();
+                if (!isset($selection[$i->getStagiaire()->getId()])) throw new \DomainException('Un participant signé ne peut pas être retiré. Créez une nouvelle version.');
+            }
+            foreach ($selection as $id => $u) {
+                if (in_array($id, $existing, true)) continue;
+                $matches = array_keys(array_filter($remaining, fn($name) => in_array(self::nameKey($name), [self::nameKey($u->getPrenom().' '.$u->getNom()), self::nameKey($u->getNom().' '.$u->getPrenom())], true)));
+                if (!$replaceFreeNames || count($matches) !== 1) throw new \DomainException('Le compte doit correspondre exactement à un participant déjà nommé dans la convention signée. Sinon, créez une nouvelle version à signer.');
+                unset($remaining[$matches[0]]);
+            }
         }
         if ($selection) {
             $eligible = $this->eligibleQuery($convention)->select('u.id')->andWhere('u.id IN (:ids)')
@@ -103,9 +117,9 @@ final class ConventionParticipants
     }
 
     /** Le contrôleur détient déjà le verrou sur la convention dans la transaction. */
-    public function persist(ConventionContrat $convention, Utilisateur $actor): void
+    public function persist(ConventionContrat $convention, Utilisateur $actor, bool $linkSigned = false): void
     {
-        $this->assertContext($convention);
+        $this->assertContext($convention, $linkSigned);
         if (!$this->em->getConnection()->isTransactionActive()) {
             throw new \LogicException('La mise à jour des participants nécessite une transaction.');
         }
@@ -134,9 +148,9 @@ final class ConventionParticipants
         }
     }
 
-    private function assertContext(ConventionContrat $convention): void
+    private function assertContext(ConventionContrat $convention, bool $linkSigned = false): void
     {
-        if ($convention->isSigned()) {
+        if ($convention->isSigned() && !$linkSigned) {
             throw new \DomainException('Une convention signée ne peut plus être modifiée.');
         }
         $entity = $convention->getEntite();

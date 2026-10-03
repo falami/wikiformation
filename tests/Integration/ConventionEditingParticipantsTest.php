@@ -32,6 +32,9 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::never())->method('send');
         self::getContainer()->set(MailerInterface::class, $mailer);
+        $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
+        $pdf->method('streamPdfFromHtml')->willReturn(new \Symfony\Component\HttpFoundation\Response('%PDF-1.4 test document'));
+        self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
         $this->admin = (new Utilisateur())->setEmail('admin-convention@example.test')->setPassword('unused')->setPrenom('Admin')->setNom('Test');
         $this->entity = (new Entite())->setNom('Organisme test')->setEmail('of@example.test')->setPublic(false)->setCreateur($this->admin);
         foreach ([$this->admin, $this->entity] as $row) $this->em->persist($row);
@@ -113,7 +116,7 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         $crawler = $this->client->request('GET', $this->url());
         foreach ([$foreign, $wrongClient] as $u) self::assertSame(0, $crawler->filter('#convention_contrat_stagiaires option[value="'.$u->getId().'"]')->count());
         $token = $crawler->filter('input[name="convention_contrat[_token]"]')->attr('value');
-        $this->client->request('POST', $this->url(), ['convention_contrat' => ['_token'=>$token, 'stagiaires'=>[$foreign->getId()], 'participantsLibres'=>'Nom maintenu', 'effectifPrevisionnel'=>2]]);
+        $this->client->request('POST', $this->url(), ['convention_contrat' => ['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'stagiaires'=>[$foreign->getId()], 'participantsLibres'=>'Nom maintenu', 'effectifPrevisionnel'=>2]]);
         self::assertNotSame(302, $this->client->getResponse()->getStatusCode());
         $id = $this->convention->getId(); $this->em->clear(); $saved = $this->em->find(ConventionContrat::class, $id);
         self::assertCount(0, $saved->getInscriptions()); self::assertSame("BRABANT Hugo\nBERNARD Ilian", $saved->getParticipantsLibres());
@@ -165,7 +168,7 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         $hugo = $this->learner('Hugo', 'BRABANT'); $crawler = $this->client->request('GET', $this->url());
         $token = $crawler->filter('input[name="convention_contrat[_token]"]')->attr('value');
         $this->current()->setDateSignatureEntreprise(new \DateTimeImmutable()); $this->em->flush();
-        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'stagiaires'=>[$hugo->getId()], 'effectifPrevisionnel'=>1]]);
+        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'stagiaires'=>[$hugo->getId()], 'effectifPrevisionnel'=>1]]);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertSame('uploads/old-convention.pdf', $this->current()->getPdfPath());
         self::assertCount(0, $this->current()->getInscriptions()); self::assertSame(2, $this->current()->getEffectifTotal());
@@ -187,6 +190,60 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         self::assertSame(2, $this->em->getRepository(Inscription::class)->count([]));
     }
 
+    public function testSignedNamesCanBeLinkedWithoutChangingOriginalAndMaterialRevisionResetsSignatures(): void
+    {
+        $hugo = $this->learner('Hugo', 'BRABANT');
+        $root = dirname(__DIR__, 2).'/var/storage/conventions';
+        if (!is_dir($root)) mkdir($root, 0775, true);
+        $name = 'history-test-'.bin2hex(random_bytes(8)).'.pdf';
+        $original = '%PDF-1.4 signed original';
+        file_put_contents($root.'/'.$name, $original);
+        try {
+            $this->convention->setPdfPath('private:'.$name)->setDateSignatureEntreprise(new \DateTimeImmutable('2026-10-01'));
+            $this->em->flush();
+            $this->submit([$hugo->getId()]);
+            self::assertSame(302, $this->client->getResponse()->getStatusCode());
+            $c = $this->current();
+            self::assertTrue($c->isSigned());
+            self::assertSame('private:'.$name, $c->getPdfPath());
+            self::assertNull($c->getIntituleFormation()); // forged changes to disabled fields are ignored
+            self::assertCount(1, $c->getInscriptions());
+            self::assertSame(['BERNARD Ilian'], $c->getParticipantsLibresListe());
+            $revision = $this->em->getRepository(\App\Entity\ConventionRevision::class)->findOneBy(['convention'=>$c]);
+            self::assertSame($original, $revision->getPdf());
+            $url = str_replace('/edit', '', $this->url());
+            $page = $this->client->request('GET', $url);
+            self::assertSame(200, $this->client->getResponse()->getStatusCode());
+            $form = $page->selectButton('Créer une nouvelle version à signer')->form();
+            $this->client->submit($form);
+            self::assertSame(302, $this->client->getResponse()->getStatusCode());
+            self::assertFalse($this->current()->isSigned());
+            self::assertNull($this->current()->getPdfPath());
+            self::assertCount(2, $this->em->getRepository(\App\Entity\ConventionRevision::class)->findBy(['convention'=>$c]));
+            $this->client->request('GET', $url.'/historique/'.$revision->getId().'/pdf');
+            self::assertSame($original, $this->client->getResponse()->getContent());
+        } finally { unlink($root.'/'.$name); }
+    }
+
+    public function testSignedConventionRejectsANewPersonAndKeepsItsOriginal(): void
+    {
+        $unknown = $this->learner('Autre', 'Personne');
+        $root = dirname(__DIR__, 2).'/var/storage/conventions';
+        if (!is_dir($root)) mkdir($root, 0775, true);
+        $name = 'history-test-'.bin2hex(random_bytes(8)).'.pdf';
+        file_put_contents($root.'/'.$name, '%PDF-1.4 signed original');
+        try {
+            $this->convention->setPdfPath('private:'.$name)->setDateSignatureEntreprise(new \DateTimeImmutable());
+            $this->em->flush();
+            $this->submit([$unknown->getId()]);
+            self::assertNotSame(302, $this->client->getResponse()->getStatusCode());
+            self::assertStringContainsString('déjà nommé', $this->client->getResponse()->getContent());
+            self::assertCount(0, $this->em->getRepository(\App\Entity\ConventionRevision::class)->findAll());
+            self::assertCount(0, $this->em->getRepository(Inscription::class)->findAll());
+            self::assertTrue($this->current()->isSigned());
+        } finally { unlink($root.'/'.$name); }
+    }
+
     private function learner(string $first, string $last, ?Entite $entity = null): Utilisateur
     {
         $u = (new Utilisateur())->setEmail(strtolower($first).'@example.test')->setPassword('unused')->setPrenom($first)->setNom($last)->setEntite($entity ?? $this->entity)->setEntreprise($this->company);
@@ -199,6 +256,6 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
     {
         $crawler = $this->client->request('GET', $this->url());
         $token = $crawler->filter('input[name="convention_contrat[_token]"]')->attr('value');
-        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'stagiaires'=>$ids, 'participantsLibres'=>$free, 'remplacerNomsLibres'=>'1', 'effectifPrevisionnel'=>'2', 'intituleFormation'=>'Titre personnalisé', 'conditionsFinancieres'=>'Paiement à 30 jours']]);
+        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'stagiaires'=>$ids, 'participantsLibres'=>$free, 'remplacerNomsLibres'=>'1', 'effectifPrevisionnel'=>'2', 'intituleFormation'=>'Titre personnalisé', 'conditionsFinancieres'=>'Paiement à 30 jours']]);
     }
 }
