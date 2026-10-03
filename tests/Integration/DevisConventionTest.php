@@ -561,7 +561,7 @@ final class DevisConventionTest extends KernelTestCase
         }
         $this->em->flush();
         $conventionId = $convention->getId();
-        $inscriptionIds = array_map(static fn(Inscription $i) => (string) $i->getId(), $ids);
+        $learnerIds = array_map(static fn(Inscription $i) => (string) $i->getStagiaire()->getId(), $ids);
         $client = $this->createHttpClient();
         $url = self::getContainer()->get('router')->generate('app_administrateur_convention_edit', [
             'entite' => $this->entite->getId(), 'id' => $conventionId,
@@ -569,7 +569,7 @@ final class DevisConventionTest extends KernelTestCase
         $crawler = $client->request('GET', $url);
         self::assertSame(200, $client->getResponse()->getStatusCode());
         $form = $crawler->filter('form[name="convention_contrat"]')->form([
-            'convention_contrat[inscriptions]' => $inscriptionIds,
+            'convention_contrat[stagiaires]' => $learnerIds,
             'convention_contrat[participantsLibres]' => '',
             'convention_contrat[effectifPrevisionnel]' => '2',
             'convention_contrat[intituleFormation]' => 'H0B0 adapté après confirmation',

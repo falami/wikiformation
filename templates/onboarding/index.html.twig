@@ -130,12 +130,22 @@
   }
 
   .wk-plan.is-selected{
-    border-color: color-mix(in srgb, var(--accent) 75%, rgba(15,35,54,.14));
+    border-color: #233342;
     box-shadow:
-      0 20px 46px rgba(15,35,54,.12),
-      0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-    background: rgba(255,255,255,.97);
+      0 16px 36px rgba(15,35,54,.14),
+      0 0 0 2px #233342;
+    background: #fff9e6;
   }
+  .wk-plan-choice{
+    display:flex; align-items:center; justify-content:center; gap:.5rem;
+    margin-top:16px; padding:10px 12px; border-radius:10px;
+    background:#f1f4f7; color:#34475a; font-weight:800; font-size:.85rem;
+  }
+  .wk-plan-choice-selected{ display:none; }
+  .wk-plan.is-selected .wk-plan-choice{ background:#233342; color:#fff; }
+  .wk-plan.is-selected .wk-plan-choice-default{ display:none; }
+  .wk-plan.is-selected .wk-plan-choice-selected{ display:inline; }
+  .wk-plan.is-selected:focus-visible{ outline:3px solid #b58100; outline-offset:5px; }
 
   /* badge */
   .wk-badge{
@@ -206,7 +216,7 @@
   /* Meta */
   .wk-meta{
     margin-top: .8rem;
-    display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem;
   }
   .wk-pill{
     display:inline-flex; align-items:center; gap:.42rem;
@@ -710,16 +720,11 @@
                 <div>
                   <div class="wk-section-title">Choisissez votre plan</div>
                   <div class="text-muted" style="max-width: 62ch;">
-                    Prix affiché selon la périodicité. Vous pourrez changer plus tard depuis la facturation.
+                    Toutes les offres sont mensuelles. Vous pourrez changer d’offre depuis votre espace facturation.
                   </div>
                 </div>
 
-                <div class="text-end">
-                  <div class="wk-toggle" role="group" aria-label="Périodicité">
-                    <button type="button" class="is-active" data-interval="year">Annuel</button>
-                    <button type="button" data-interval="month">Mensuel</button>
-                  </div>
-                </div>
+                <span class="wk-pill"><i class="bi bi-calendar3"></i> Abonnement mensuel</span>
               </div>
 
               <div class="mt-3 wk-plan-grid" id="planGrid">
@@ -728,11 +733,11 @@
                   {% set accent = plan.accentColor ?: fallback[loop.index0 % 4] %}
 
                   <button type="button"
-                          class="wk-plan"
+                          class="wk-plan{{ form.planCode.vars.value == plan.code ? ' is-selected' : '' }}"
+                          aria-pressed="{{ form.planCode.vars.value == plan.code ? 'true' : 'false' }}"
                           style="--accent: {{ accent }};"
                           data-plan="{{ plan.code }}"
-                          data-month="{{ plan.priceMonthlyCents ?? '' }}"
-                          data-year="{{ plan.priceYearlyCents ?? '' }}">
+                          data-month="{{ plan.priceMonthlyCents ?? '' }}">
                     {% if plan.badge %}
                       <div class="wk-badge-slot">
                         {% if plan.badge %}
@@ -751,10 +756,8 @@
                         <div class="wk-price-stack">
                           <div class="wk-amount" data-price>—</div>
                           <div class="wk-per" data-per>HT/mois</div>
-                          <div class="wk-per-note d-none" data-per-note>(abonnement annuel)</div>
                         </div>
 
-                        <div class="wk-save d-none" data-save>—</div>
                       </div>
                     </div>
 
@@ -764,6 +767,8 @@
                       <div class="wk-feature"><i class="bi bi-people"></i> {{ plan.maxUtilisateursLabel }}</div>
                       <div class="wk-feature"><i class="bi bi-mortarboard"></i> {{ plan.maxApprenantsLabel }}</div>
                       <div class="wk-feature"><i class="bi bi-person-badge"></i> {{ plan.maxFormateursLabel }}</div>
+                      <div class="wk-feature"><i class="bi bi-building"></i><span>{{ plan.maxEntreprisesLabel }}</span></div>
+                      <div class="wk-feature"><i class="bi bi-person"></i><span>{{ plan.maxProspectsLabel }}</span></div>
                       {% if plan.supportPrioritaire %}
                         <div class="wk-feature"><i class="bi bi-lightning-charge"></i> Support prioritaire</div>
                       {% endif %}
@@ -773,6 +778,10 @@
                       <span class="wk-pill"><i class="bi bi-calendar3"></i> Essai {{ trialDays }} j</span>
                       <span class="wk-pill"><i class="bi bi-stars"></i> Sans CB</span>
                     </div>
+                    <span class="wk-plan-choice">
+                      <span class="wk-plan-choice-default">Choisir cette offre</span>
+                      <span class="wk-plan-choice-selected"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Offre sélectionnée</span>
+                    </span>
                   </button>
                 {% else %}
                   <div class="alert alert-warning mb-0">
@@ -1046,13 +1055,12 @@
 <script>
 (function () {
   // ============================================================
-  // 1) Plans (pricing) + interval toggle
+  // 1) Monthly plans
   // ============================================================
   const form = document.getElementById('onboardingForm');
   const planInput = document.getElementById('{{ form.planCode.vars.id }}');
   const intervalInput = document.getElementById('{{ form.interval.vars.id }}');
   const planButtons = Array.from(document.querySelectorAll('#planGrid .wk-plan'));
-  const toggleButtons = Array.from(document.querySelectorAll('.wk-toggle button'));
   const submitBtn = document.getElementById('submitBtn');
 
   function parseIntSafe(v){
@@ -1071,101 +1079,30 @@
     });
   }
 
-  function computeSavingsPercent(monthCents, yearCents){
-    const m = parseIntSafe(monthCents);
-    const y = parseIntSafe(yearCents);
-    if (!m || !y) return null;
-
-    const yearlyFromMonthly = m * 12;
-    if (yearlyFromMonthly <= 0) return null;
-
-    const pct = Math.round((1 - (y / yearlyFromMonthly)) * 100);
-    if (!Number.isFinite(pct) || pct <= 0) return null;
-    if (pct > 80) return null;
-
-    return pct;
-  }
-
   function refreshPrices() {
-    const interval = intervalInput?.value || 'year';
-
     planButtons.forEach(btn => {
-      const month = btn.dataset.month;
-      const year  = btn.dataset.year;
-
       const amount = btn.querySelector('[data-price]');
-      const per    = btn.querySelector('[data-per]');
-      const save   = btn.querySelector('[data-save]');
-      const perNote = btn.querySelector('[data-per-note]');
-
-      const monthCents = parseIntSafe(month);
-      const yearCents  = parseIntSafe(year);
-
-      if (interval === 'month') {
-        if (amount) amount.textContent = formatEURFromCents(monthCents);
-        if (per) per.textContent = 'HT/mois';
-        if (perNote) perNote.classList.add('d-none');
-      } else {
-        if (!yearCents) {
-          if (amount) amount.textContent = 'Sur devis';
-          if (per) per.textContent = '';
-          if (perNote) perNote.classList.add('d-none');
-        } else {
-          const monthlyEqCents = Math.round(yearCents / 12);
-          if (amount) amount.textContent = formatEURFromCents(monthlyEqCents);
-          if (per) per.textContent = 'HT/mois';
-          if (perNote) perNote.classList.remove('d-none');
-        }
-      }
-
-      if (save) {
-        if (interval === 'year') {
-          const pct = computeSavingsPercent(monthCents, yearCents);
-
-          if (pct) {
-            save.textContent = `Économisez ${pct}%`;
-            save.classList.remove('d-none');
-          } else if (yearCents) {
-            save.textContent = `Facturé ${formatEURFromCents(yearCents)} HT/an`;
-            save.classList.remove('d-none');
-          } else {
-            save.classList.add('d-none');
-          }
-        } else {
-          save.classList.add('d-none');
-        }
-      }
+      if (amount) amount.textContent = formatEURFromCents(btn.dataset.month);
     });
   }
 
-  function selectPlan(btn, {scrollToForm = true} = {}) {
-    planButtons.forEach(b => b.classList.remove('is-selected'));
-    btn.classList.add('is-selected');
+  function selectPlan(btn) {
+    planButtons.forEach(b => {
+      const selected = b === btn;
+      b.classList.toggle('is-selected', selected);
+      b.setAttribute('aria-pressed', String(selected));
+    });
     if (planInput) planInput.value = btn.dataset.plan || '';
-
-    if (scrollToForm) {
-      const target = document.querySelector('.wk-divider') || document.getElementById('submitBtn');
-      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
   }
 
-  if (intervalInput && !intervalInput.value) intervalInput.value = 'year';
-
-  toggleButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      toggleButtons.forEach(b => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      if (intervalInput) intervalInput.value = btn.dataset.interval || 'year';
-      refreshPrices();
-    });
-  });
+  if (intervalInput) intervalInput.value = 'month';
 
   planButtons.forEach(btn => {
     btn.addEventListener('click', () => selectPlan(btn));
     btn.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        selectPlan(btn, {scrollToForm: false});
+        selectPlan(btn);
       }
     });
   });
@@ -1174,7 +1111,7 @@
 
   if (planInput?.value) {
     const found = planButtons.find(b => (b.dataset.plan || '') === planInput.value);
-    if (found) selectPlan(found, {scrollToForm: false});
+    if (found) selectPlan(found);
   }
 
   // ============================================================

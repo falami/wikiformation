@@ -6,7 +6,7 @@ use App\Service\Filter\ChoiceFilter;
 
 use App\Enum\StatusSession;
 use App\Service\Pdf\PdfManager;
-use App\Entity\{UtilisateurEntite, Entite, Utilisateur, ContratFormateur, SessionJour, Formateur, Emargement, Site, Session, Inscription, ConventionContrat, SessionPiece};
+use App\Entity\{UtilisateurEntite, Entite, Utilisateur, ContratFormateur, SessionJour, Formateur, Emargement, Site, Session, Inscription, ConventionContrat, SessionPiece, Entreprise};
 use App\Enum\SessionPieceType;
 use App\Enum\ContratFormateurStatus;
 use App\Enum\TypeFinancement;
@@ -317,7 +317,8 @@ final class SessionController extends AbstractController
                               ELSE 0
                             END) AS signed
                  FROM emargement e
-                 WHERE e.session_id IN (?)
+                 LEFT JOIN session_participant_access pa ON pa.id = e.participant_access_id
+                 WHERE e.session_id IN (?) AND (e.utilisateur_id IS NOT NULL OR pa.active = 1)
                  GROUP BY e.session_id",
                     [$ids],
                     [\Doctrine\DBAL\ArrayParameterType::INTEGER]
@@ -327,26 +328,39 @@ final class SessionController extends AbstractController
                     $stats['emarg'][(int)$r['sid']] = ['signed' => (int)$r['signed']];
                 }
 
-                // 4B) Émargements attendus = (nb jours * 2) * (stagiaires + formateur)
-                $rowsExpected = $conn->executeQuery(
-                    "SELECT s.id AS sid,
-                        (COUNT(DISTINCT sj.id) * 2) AS slots,
-                        COUNT(DISTINCT i.stagiaire_id) AS stagiaires,
-                        CASE WHEN s.formateur_id IS NULL THEN 0 ELSE 1 END AS formateur_count
-                 FROM session s
-                 LEFT JOIN session_jour sj ON sj.session_id = s.id
-                 LEFT JOIN inscription i   ON i.session_id = s.id
-                 WHERE s.id IN (?)
-                 GROUP BY s.id, s.formateur_id",
-                    [$ids],
-                    [\Doctrine\DBAL\ArrayParameterType::INTEGER]
-                )->fetchAllAssociative();
-
-                foreach ($rowsExpected as $r) {
-                    $sid = (int)$r['sid'];
-                    $slots = (int)$r['slots'];
-                    $people = (int)$r['stagiaires'] + (int)$r['formateur_count'];
-                    $stats['emarg_expected'][$sid] = max(0, $slots * $people);
+                // Une signature par participant et demi-journée réelle, même avec plusieurs créneaux.
+                $peopleBySession = [];
+                foreach ($conn->executeQuery(
+                    "SELECT s.id AS sid, COUNT(DISTINCT i.stagiaire_id) AS stagiaires, COUNT(DISTINCT pa.id) AS guests
+                     FROM session s
+                     LEFT JOIN inscription i ON i.session_id = s.id AND i.status <> ?
+                     LEFT JOIN session_participant_access pa ON pa.session_id = s.id AND pa.entite_id = s.entite_id AND pa.active = 1 AND pa.source_key LIKE 'guest:%'
+                     WHERE s.id IN (?) GROUP BY s.id",
+                    [StatusInscription::ANNULE->value, $ids],
+                    [\Doctrine\DBAL\ParameterType::STRING, \Doctrine\DBAL\ArrayParameterType::INTEGER]
+                )->fetchAllAssociative() as $people) {
+                    $peopleBySession[(int) $people['sid']] = (int) $people['stagiaires'] + (int) $people['guests'];
+                }
+                foreach ($rows as $session) {
+                    $periods = [];
+                    foreach ($session->getJours() as $jour) {
+                        if (!$jour->getDateDebut() || !$jour->getDateFin()) continue;
+                        $day = $jour->getDateDebut()->setTime(0, 0);
+                        $key = $day->format('Y-m-d');
+                        if ($jour->getDateDebut() < $day->setTime(13, 0)) $periods[$key]['AM'] = true;
+                        if ($jour->getDateFin() > $day->setTime(13, 0)) $periods[$key]['PM'] = true;
+                    }
+                    $expected = 0;
+                    foreach ($periods as $date => $dayPeriods) {
+                        $expected += count($dayPeriods) * ($peopleBySession[$session->getId()] ?? 0);
+                        foreach ($session->getFormateursEffectifs() as $trainer) {
+                            if (!$trainer->getUtilisateur()) continue;
+                            foreach (array_keys($dayPeriods) as $period) {
+                                if ($session->isFormateurUtilisateurSurPeriode($trainer->getUtilisateur(), new \DateTimeImmutable($date), $period)) ++$expected;
+                            }
+                        }
+                    }
+                    $stats['emarg_expected'][$session->getId()] = $expected;
                 }
 
                 // 5) Factures (via inscription)
@@ -608,7 +622,7 @@ final class SessionController extends AbstractController
                 $ctDraft  = $stats['contrats'][$sid]['draft'] ?? 0;
 
                 $emSigned   = $stats['emarg'][$sid]['signed'] ?? 0;
-                $emExpected = $s->isEmargementRequis() ? ($stats['emarg_expected'][$sid] ?? 0) : 0;
+                $emExpected = $s->isEmargementEnAttenteRequis() ? ($stats['emarg_expected'][$sid] ?? 0) : 0;
 
                 $fTotal = $stats['fact'][$sid]['total'] ?? 0;
                 $fDue   = $stats['fact'][$sid]['due'] ?? 0;
@@ -635,7 +649,15 @@ final class SessionController extends AbstractController
                 $timeIcon  = 'bi-question-circle';
                 $timeLabel = '-';
 
-                if ($min && $max) {
+                if ($s->getStatus() === StatusSession::CANCELED) {
+                    $timeClass = 'bg-secondary-subtle text-secondary';
+                    $timeIcon = 'bi-x-circle';
+                    $timeLabel = 'Annulée';
+                } elseif ($s->getStatus() === StatusSession::DONE) {
+                    $timeClass = 'bg-secondary-subtle text-secondary';
+                    $timeIcon = 'bi-check2-circle';
+                    $timeLabel = 'Terminé';
+                } elseif ($min && $max) {
                     if ($min > $now) {
                         $timeClass = 'bg-info-subtle text-info';
                         $timeIcon  = 'bi-hourglass-split';
@@ -819,7 +841,7 @@ final class SessionController extends AbstractController
 
 
                 // Contrat formateur
-                if (!$s->getFormateur()) {
+                if (!$s->getFormateur() && !$cfUploaded && $ctTotal === 0) {
                     $contratLine = $line(
                         '<i class="bi bi-person-badge me-1"></i> Contrat formateur',
                         $badge('bg-warning-subtle text-warning', 'Formateur manquant')
@@ -903,6 +925,8 @@ final class SessionController extends AbstractController
                         '<i class="bi bi-building me-1"></i> Émargements',
                         $badge('bg-light text-muted', 'Gérés par l’organisme donneur d’ordre')
                     );
+                } elseif (!$s->isEmargementEnAttenteRequis()) {
+                    $emargLine = $line('Émargements', $badge('bg-light text-muted', 'Suivi clôturé'));
                 } elseif ($emExpected <= 0) {
                     $emargLine = $line(
                         '<i class="bi bi-pencil-square me-1"></i> Émargements',
@@ -999,12 +1023,46 @@ final class SessionController extends AbstractController
 
                 if ($fTotal > 0 && $fDue > 0) $missing[] = "Factures dues: $fDue";
 
+                // En sous-traitance, seuls ces quatre justificatifs composent le dossier.
+                $reportLines = '';
+                if ($s->isSousTraitance()) {
+                    $missing = [];
+                    if (!$cfUploaded && ($ctTotal === 0 || $ctSigned < $ctTotal)) {
+                        $missing[] = 'Contrat formateur signé';
+                    }
+                    $piecesLine = $conventionsLine = $factLine = '';
+                    $documentLine = static function (string $label, array $types) use ($stats, $sid, $line, $badge, &$missing): string {
+                        $total = $validated = 0;
+                        foreach ($types as $type) {
+                            $total += $stats['pieces'][$sid][$type->value]['total'] ?? 0;
+                            $validated += $stats['pieces'][$sid][$type->value]['validated'] ?? 0;
+                        }
+                        if ($total === 0) $missing[] = $label;
+                        $state = $total === 0 ? 'À déposer' : ($validated === $total ? 'Déposé (validé)' : 'Déposé');
+                        return $line('<i class="bi bi-file-earmark-check me-1"></i> ' . $label,
+                            $badge($total === 0 ? 'bg-warning-subtle text-warning' : ($validated === $total ? 'bg-success-subtle text-success' : 'bg-info-subtle text-info'), $state));
+                    };
+                    $emargLine = $documentLine('Émargements signés', [SessionPieceType::EMARGEMENT_SIGNE]);
+                    $reportLines = $documentLine('Compte rendu formateur', [SessionPieceType::COMPTE_RENDU_FORMATEUR])
+                        . $documentLine('Compte(s) rendu(s) stagiaires', [SessionPieceType::COMPTE_RENDU_STAGIAIRE, SessionPieceType::SATISFACTION_STAGIAIRE]);
+                }
+                $cancelled = $s->getStatus() === StatusSession::CANCELED;
+                if ($cancelled) {
+                    $missing = [];
+                    $piecesLine = $contratLine = $conventionsLine = $emargLine = $factLine = $reportLines = '';
+                }
+
                 $isComplete = empty($missing);
                 $tooltip = $isComplete ? '' : htmlspecialchars(implode(" • ", $missing), ENT_QUOTES);
 
                 $headerBadge = $isComplete
                     ? '<span class="badge bg-success-subtle text-success"><i class="bi bi-check2-circle me-1"></i>OK</span>'
                     : '<span class="badge bg-warning-subtle text-warning" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $tooltip . '"><i class="bi bi-exclamation-triangle me-1"></i>À compléter</span>';
+
+                if ($cancelled) {
+                    $headerBadge = $badge('bg-secondary-subtle text-secondary', 'Session annulée');
+                    $piecesLine = '<span class="small text-muted">Aucun document attendu</span>';
+                }
 
                 $suiviHtml =
                     '<div class="d-flex flex-column gap-2 text-start">'
@@ -1018,6 +1076,7 @@ final class SessionController extends AbstractController
                     . $conventionsLine
                     . $emargLine
                     . $factLine
+                    . $reportLines
                     . '</div>'
                     . '</div>';
 
@@ -1444,7 +1503,7 @@ final class SessionController extends AbstractController
                 ->from(ContratFormateur::class, 'c1')
                 ->where('c1.session = s')
                 ->andWhere('c1.entite = :entite')
-                ->andWhere('c1.status = :cf_brouillon')
+                ->andWhere('c1.status != :cf_signe')
                 ->getDQL();
 
             // Une convention couvre ses inscriptions explicites, jamais toute l'entreprise.
@@ -1474,8 +1533,12 @@ final class SessionController extends AbstractController
             $subEmargNotSigned = $em->createQueryBuilder()
                 ->select('1')
                 ->from(Emargement::class, 'em2')
+                ->leftJoin('em2.participantAccess', 'empa')
                 ->where('em2.session = s')
+                ->andWhere('em2.utilisateur IS NOT NULL OR empa.active = true')
                 ->andWhere('s.typeFinancement != :emarg_sous_traitance')
+                ->andWhere('s.status != :session_done')
+                ->andWhere('EXISTS (SELECT aj.id FROM App\Entity\SessionJour aj WHERE aj.session = s AND aj.dateFin >= :attendance_now)')
                 ->andWhere('em2.signedAt IS NULL')
                 ->andWhere('(em2.signatureDataUrl IS NULL OR em2.signatureDataUrl = \'\')')
                 ->andWhere('(em2.signaturePath IS NULL OR em2.signaturePath = \'\')')
@@ -1513,6 +1576,17 @@ final class SessionController extends AbstractController
                 . ' OR (((EXISTS(' . $subEntrepriseSansConvention . ') OR EXISTS(' . $subEntrepriseConventionNonSignee . ')) AND NOT EXISTS(' . $subConvUploaded . ')))'
                 . ' OR (EXISTS(' . $subEmargNotSigned . ') AND NOT EXISTS(' . $subEmargUploaded . '))';
 
+            $subReport = static fn (string $alias, string $parameter): string =>
+                'SELECT ' . $alias . '.id FROM App\Entity\SessionPiece ' . $alias
+                . ' WHERE ' . $alias . '.session = s AND ' . $alias . '.entite = :entite AND ' . $alias . '.type IN (:' . $parameter . ')';
+            $subcontractIncomplete = '(NOT EXISTS(' . $subCfUploaded . ') AND (NOT EXISTS(' . $subHasContrat . ') OR EXISTS(' . $subContratNotSigned . ')))'
+                . ' OR NOT EXISTS(' . $subEmargUploaded . ')'
+                . ' OR NOT EXISTS(' . $subReport('sprf', 'trainer_report_types') . ')'
+                . ' OR NOT EXISTS(' . $subReport('sprs', 'learner_report_types') . ')';
+            $subcontractIncomplete = preg_replace('/\b(spcf|c0|c1|spem)\b/', 'external_$1', $subcontractIncomplete);
+            $incompleteDql = 's.status != :session_cancelled AND ((s.typeFinancement = :emarg_sous_traitance AND (' . $subcontractIncomplete . '))'
+                . ' OR (s.typeFinancement != :emarg_sous_traitance AND (' . $incompleteDql . ')))';
+
             if ($dossierFilter === 'registered') {
                 $filteredQb->andWhere('EXISTS(' . $subHasIns . ')');
             } elseif ($dossierFilter === 'missing') {
@@ -1527,7 +1601,12 @@ final class SessionController extends AbstractController
 
             // Paramètres du filtre dossier
             $filteredQb
-                ->setParameter('cf_brouillon', ContratFormateurStatus::BROUILLON)
+                ->setParameter('cf_signe', ContratFormateurStatus::SIGNE)
+                ->setParameter('session_cancelled', StatusSession::CANCELED)
+                ->setParameter('session_done', StatusSession::DONE)
+                ->setParameter('attendance_now', new \DateTimeImmutable())
+                ->setParameter('trainer_report_types', [SessionPieceType::COMPTE_RENDU_FORMATEUR->value])
+                ->setParameter('learner_report_types', [SessionPieceType::COMPTE_RENDU_STAGIAIRE->value, SessionPieceType::SATISFACTION_STAGIAIRE->value])
                 ->setParameter('emarg_type', SessionPieceType::EMARGEMENT_SIGNE)
                 ->setParameter('emarg_sous_traitance', TypeFinancement::OUI)
                 ->setParameter('conv_type', SessionPieceType::CONVENTION_SIGNEE)
@@ -1623,6 +1702,7 @@ final class SessionController extends AbstractController
         EntityManagerInterface $em,
         SessionNumberGenerator $sessionGen,
         SessionPlanningValidator $planningValidator,
+        \App\Service\Session\ParticipantConventions $participantConventions,
         ?Session $session = null
     ): Response {
 
@@ -1653,8 +1733,14 @@ final class SessionController extends AbstractController
 
 
 
+        $availableConventions = $session->getId() ? array_values(array_filter(
+            $em->getRepository(ConventionContrat::class)->findBy(['session' => $session, 'entite' => $entite]),
+            static fn(ConventionContrat $c) => !$c->isSigned()
+        )) : [];
+
         $form = $this->createForm(SessionType::class, $session, [
             'is_edit' => $isEdit,
+            'conventions' => $availableConventions,
             'entite'  => $entite,
         ]);
 
@@ -1662,6 +1748,18 @@ final class SessionController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             foreach ($planningValidator->errors($session) as $error) $form->get('jours')->addError(new FormError($error));
+            foreach ($form->get('inscriptions') as $entry) {
+                $inscription = $entry->getData();
+                $this->hydrateInscriptionEntrepriseFromStagiaire($inscription);
+                $company = $inscription->getEntreprise();
+                foreach ($entry->get('conventionsToAssociate')->getData() as $convention) {
+                    if (($convention->getStagiaire() && $convention->getStagiaire() !== $inscription->getStagiaire())
+                        || ($company && $convention->getEntreprise() && $company !== $convention->getEntreprise())) {
+                        $entry->get('conventionsToAssociate')->addError(new FormError('Cette convention concerne un autre stagiaire ou une autre entreprise.'));
+                    }
+                    $company ??= $convention->getEntreprise();
+                }
+            }
         }
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -1723,6 +1821,15 @@ final class SessionController extends AbstractController
 
 
 
+            foreach ($form->get('inscriptions') as $entry) {
+                foreach ($entry->get('conventionsToAssociate')->getData() as $convention) {
+                    $convention->addInscription($entry->getData());
+                    if (!$entry->getData()->getEntreprise() && $convention->getEntreprise()) {
+                        $entry->getData()->setEntreprise($convention->getEntreprise());
+                    }
+                }
+            }
+
             $em->persist($session);
             $em->flush(); // ✅ IMPORTANT : session doit avoir un id
 
@@ -1753,6 +1860,8 @@ final class SessionController extends AbstractController
         return $this->render('administrateur/session/form.html.twig', [
             'form'        => $form->createView(),
             'modeEdition' => $isEdit,
+            'participantEntreprises' => $em->getRepository(Entreprise::class)->findBy(['entite' => $entite], ['raisonSociale' => 'ASC']),
+            'participantConventions' => $participantConventions->forSession($session),
             'session'     => $session,
             'entite'      => $entite,
             'googleMapsBrowserKey' => $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),
@@ -1784,7 +1893,7 @@ final class SessionController extends AbstractController
         // Cas simple : entreprise directement portée par l'utilisateur
         if (method_exists($stagiaire, 'getEntreprise')) {
             $entreprise = $stagiaire->getEntreprise();
-            if ($entreprise !== null) {
+            if ($entreprise !== null && $entreprise->getEntite()?->getId() === $inscription->getEntite()?->getId()) {
                 $inscription->setEntreprise($entreprise);
             }
         }
@@ -1865,6 +1974,8 @@ final class SessionController extends AbstractController
         EntityManagerInterface $em,
         HttpClientInterface $http,
         \App\Service\Avatar\FormateurAvatarResolver $avatarResolver,
+        \App\Service\Session\SessionConventionTotals $conventionTotals,
+        \App\Service\Session\ParticipantConventions $participantConventions,
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -2186,6 +2297,8 @@ final class SessionController extends AbstractController
 
         return $this->render('administrateur/session/show.html.twig', [
             'session' => $session,
+            'conventionTotals' => $conventionTotals->calculate($session),
+            'participantConventions' => $participantConventions->forSession($session),
             'entite'  => $entite,
             'byEntreprise' => $byEntreprise,
             'formateursSession' => $formateursSession,
@@ -2225,6 +2338,10 @@ final class SessionController extends AbstractController
         /** @var Utilisateur $creator */
         $creator = $this->getUser();
 
+        if (!$this->isCsrfTokenValid('session_stagiaire_new_' . $entite->getId(), (string) $request->request->get('_token'))) {
+            return $this->json(['success' => false, 'message' => 'Le formulaire a expiré. Rechargez la page.'], 403);
+        }
+
         $prenom    = trim((string) $request->request->get('prenom', ''));
         $nom       = trim((string) $request->request->get('nom', ''));
         $email     = mb_strtolower(trim((string) $request->request->get('email', '')));
@@ -2245,6 +2362,15 @@ final class SessionController extends AbstractController
             ], 400);
         }
 
+        $entrepriseId = trim((string) $request->request->get('entreprise', ''));
+        $entreprise = null;
+        if ($entrepriseId !== '') {
+            $entreprise = ctype_digit($entrepriseId) ? $em->getRepository(Entreprise::class)->findOneBy(['id' => $entrepriseId, 'entite' => $entite]) : null;
+            if (!$entreprise) {
+                return $this->json(['success' => false, 'message' => 'Sélectionnez une entreprise de votre organisme.'], 422);
+            }
+        }
+
         $userRepo = $em->getRepository(Utilisateur::class);
         $ueRepo   = $em->getRepository(UtilisateurEntite::class);
 
@@ -2253,27 +2379,29 @@ final class SessionController extends AbstractController
             $em->beginTransaction();
 
             /** @var Utilisateur|null $user */
-            $user = $userRepo->findOneBy(['email' => $email]);
+            $matches = $userRepo->findByCanonicalEmail(['email' => $email]);
+            if (count($matches) > 1) {
+                $em->rollback();
+                return $this->json(['success' => false, 'message' => 'Plusieurs comptes correspondent à cette adresse. Faites vérifier ces comptes avant de continuer.'], 409);
+            }
+            $user = $matches[0] ?? null;
 
             // ===============================
             // CAS 1 : UTILISATEUR EXISTANT
             // ===============================
             if ($user) {
 
-                if ($telephone !== '' && !$user->getTelephone()) {
-                    $user->setTelephone($telephone);
+                $ue = $ueRepo->findOneBy(['entite' => $entite, 'utilisateur' => $user]);
+                if ((!$ue && $user->getEntite()?->getId() !== $entite->getId()) || ($ue && !$ue->isActive())) {
+                    $em->rollback();
+                    return $this->json(['success' => false, 'message' => 'Ce compte ne peut pas être sélectionné depuis cet organisme. Vérifiez son accès dans la gestion des clients.'], 409);
                 }
 
-                if ($civilite !== '' && !$user->getCivilite()) {
-                    $user->setCivilite($civilite);
+                // Keep the existing identity, password and contact details intact.
+                $needsLearnerRole = !$ue || !$ue->hasRole(UtilisateurEntite::TENANT_STAGIAIRE);
+                if ($needsLearnerRole) {
+                    $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
                 }
-
-                $ue = $ueRepo->findOneBy([
-                    'entite' => $entite,
-                    'utilisateur' => $user
-                ]);
-
-                $isNewForEntite = !$ue;
 
                 $this->ensureUserEntiteRole(
                     $em,
@@ -2283,10 +2411,13 @@ final class SessionController extends AbstractController
                     UtilisateurEntite::TENANT_STAGIAIRE
                 );
 
-                if ($isNewForEntite) {
-                    $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
+                // An existing company is preserved on the account. A different
+                // choice applies to this session's enrollment only.
+                if ($entreprise && !$user->getEntreprise() && $user->getEntite()?->getId() === $entite->getId()) {
+                    $user->setEntreprise($entreprise);
                 }
-
+                $selectedEntreprise = $entreprise ?? $user->getEntreprise();
+                if ($selectedEntreprise?->getEntite()?->getId() !== $entite->getId()) $selectedEntreprise = null;
                 $em->flush();
                 $em->commit();
 
@@ -2295,6 +2426,8 @@ final class SessionController extends AbstractController
                     'id'      => $user->getId(),
                     'label'   => trim(sprintf('%s %s (%s)', $user->getPrenom(), $user->getNom(), $user->getEmail())),
                     'already' => true,
+                    'entrepriseId' => $selectedEntreprise?->getId(),
+                    'entrepriseLabel' => $selectedEntreprise?->getRaisonSociale(),
                 ]);
             }
 
@@ -2309,6 +2442,7 @@ final class SessionController extends AbstractController
             $user->setTelephone($telephone !== '' ? $telephone : null);
             $user->setCreateur($creator);
             $user->setEntite($entite);
+            $user->setEntreprise($entreprise);
             $user->setRoles(["ROLE_USER"]);
         
 
@@ -2336,6 +2470,8 @@ final class SessionController extends AbstractController
                 'id'      => $user->getId(),
                 'label'   => trim(sprintf('%s %s (%s)', $user->getPrenom(), $user->getNom(), $user->getEmail())),
                 'already' => false,
+                'entrepriseId' => $entreprise?->getId(),
+                'entrepriseLabel' => $entreprise?->getRaisonSociale(),
             ]);
         }
 
@@ -2348,56 +2484,11 @@ final class SessionController extends AbstractController
                 $em->rollback();
             }
 
-            $existing = $userRepo->findOneBy(['email' => $email]);
-
-            if ($existing) {
-
-                $em->beginTransaction();
-
-                try {
-
-                    $ue = $ueRepo->findOneBy([
-                        'entite' => $entite,
-                        'utilisateur' => $existing
-                    ]);
-
-                    $isNewForEntite = !$ue;
-
-                    $this->ensureUserEntiteRole(
-                        $em,
-                        $entite,
-                        $existing,
-                        $creator,
-                        UtilisateurEntite::TENANT_STAGIAIRE
-                    );
-
-                    if ($isNewForEntite) {
-                        $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
-                    }
-
-                    $em->flush();
-                    $em->commit();
-
-                    return new JsonResponse([
-                        'success' => true,
-                        'id'      => $existing->getId(),
-                        'label'   => trim(sprintf('%s %s (%s)', $existing->getPrenom(), $existing->getNom(), $existing->getEmail())),
-                        'already' => true,
-                    ]);
-
-                } catch (\Throwable $e2) {
-
-                    if ($em->getConnection()->isTransactionActive()) {
-                        $em->rollback();
-                    }
-
-                    throw $e2;
-                }
-            }
-
-            return new JsonResponse([
-                'success' => false,
-                'message' => "Impossible de créer le stagiaire."
+            // A failed flush closes the entity manager. Let the browser retry
+            // once in a fresh request, where the winning account can be selected.
+            return $this->json([
+                'success' => false, 'retryable' => true,
+                'message' => 'Un compte vient d’être créé avec cette adresse. Réessayez pour le sélectionner.',
             ], 409);
         }
 
@@ -2763,6 +2854,8 @@ final class SessionController extends AbstractController
             ->where('e.session = :session')
             ->setParameter('session', $session)
             ->andWhere('e.role = :role')
+            // Les signatures sans compte restent rattachées à leur participant QR.
+            ->andWhere('e.utilisateur IS NOT NULL')
             ->setParameter('role', 'stagiaire');
 
         if (!empty($stagiaireIds)) {

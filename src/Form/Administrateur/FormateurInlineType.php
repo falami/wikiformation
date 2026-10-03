@@ -8,6 +8,8 @@ use Symfony\Component\Form\FormBuilderInterface;
 use App\Entity\Engin;
 use App\Entity\Site;
 use App\Entity\Utilisateur;
+use App\Entity\Entite;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Validator\Constraints\{
   Image,
@@ -18,10 +20,12 @@ class FormateurInlineType extends AbstractType
 {
   public function buildForm(FormBuilderInterface $builder, array $options): void
   {
+    $entite = $options['entite'];
     $builder
 
       ->add('qualificationEngins', EntityType::class, [
         'class' => Engin::class,
+        'query_builder' => fn($er) => $er->createQueryBuilder('e')->andWhere('e.entite = :entite')->setParameter('entite', $entite),
         'choice_label' => fn(Engin $b) => $b->getNom() . ' (' . $b->getSite()->getNom() . ')',
         'label' => 'Engins qualifiés',
         'multiple' => true,
@@ -30,6 +34,7 @@ class FormateurInlineType extends AbstractType
       ])
       ->add('sitePreferes', EntityType::class, [
         'class' => Site::class,
+        'query_builder' => fn($er) => $er->createQueryBuilder('s')->andWhere('s.entite = :entite')->setParameter('entite', $entite),
         'choice_label' => fn(Site $s) => $s->getNom() . ' - ' . $s->getVille(),
         'label' => 'Sites préférés',
         'multiple' => true,
@@ -102,9 +107,18 @@ class FormateurInlineType extends AbstractType
         'required' => false,
         'attr' => ['class' => 'form-select'],
         'query_builder' => fn($er) => $er->createQueryBuilder('u')
+          ->distinct()
+          ->innerJoin('u.utilisateurEntites', 'ue', 'WITH', 'ue.entite = :entite')
+          ->setParameter('entite', $entite)
           ->orderBy('u.nom', 'ASC')
           ->addOrderBy('u.prenom', 'ASC'),
       ])
     ;
+  }
+
+  public function configureOptions(OptionsResolver $resolver): void
+  {
+    $resolver->setDefaults(['entite' => null]);
+    $resolver->setAllowedTypes('entite', ['null', Entite::class]);
   }
 }

@@ -34,7 +34,7 @@ final class DevisConventionSessionType extends AbstractType
                 'query_builder' => fn(EntityRepository $r) => $r->createQueryBuilder('s')->andWhere('s.entite = :e')->setParameter('e', $entite)->orderBy('s.nom', 'ASC'),
             ])
             ->add('capacite', IntegerType::class, [
-                'label' => 'Nombre de places', 'attr' => ['min' => 1],
+                'label' => 'Nombre de places', 'attr' => ['class' => 'form-control', 'min' => 1],
                 'constraints' => [new Assert\NotNull(), new Assert\Positive(), new Assert\LessThanOrEqual(100000)],
             ])
             ->add('jours', CollectionType::class, [

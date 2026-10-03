@@ -36,6 +36,16 @@ final class SatisfactionFillType extends AbstractType
 
         switch ($q->getType()) {
 
+          case QType::STARS:
+            $choices = [];
+            for ($i = 1, $max = max(1, min(20, $q->getMaxStars() ?? 5)); $i <= $max; $i++) $choices[(string) $i] = $i;
+            $b->add($name, ChoiceType::class, [
+              'label' => $label, 'required' => $required, 'choices' => $choices,
+              'expanded' => true, 'multiple' => false, 'help' => $help,
+              'attr' => ['class' => 'js-star-radios'],
+            ]);
+            break;
+
           case QType::SCALE:
             // ✅ Toujours 0..10
             $choices = [];

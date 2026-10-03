@@ -393,7 +393,7 @@
         </span>
 
         <span class="hint d-none d-lg-inline ms-1">
-          Astuce : l’annuel est souvent le meilleur rapport qualité/prix.
+          Les nouvelles offres sont facturées mensuellement.
         </span>
       </div>
 
@@ -563,11 +563,10 @@
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Nouvelle offre</label>
-          {% set allowedCodes = ['ESSENTIEL','PROFESSIONNEL','EXPERT','EXCELLENCE'] %}
           <select class="form-select" id="newPlan">
             {% for p in plans %}
-              {% if p.isActive and p.code in allowedCodes %}
-                <option value="{{ p.code }}">{{ p.name }}</option>
+              {% if p.isActive %}
+                <option value="{{ p.code }}" data-month-ready="{{ p.isCheckoutConfigured('month') ? '1' : '0' }}">{{ p.name }} · {{ p.priceMonthlyCents ? (p.priceMonthlyCents / 100)|number_format(0, ',', ' ') ~ ' € HT/mois' : 'Sur demande' }}</option>
               {% endif %}
             {% endfor %}
           </select>
@@ -575,13 +574,7 @@
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Périodicité</label>
-          <div class="btn-group w-100" role="group" aria-label="Intervalle">
-            <input type="radio" class="btn-check" name="newInterval" id="intervalMonth" value="month" autocomplete="off">
-            <label class="btn btn-outline-primary" for="intervalMonth">Mensuel</label>
-
-            <input type="radio" class="btn-check" name="newInterval" id="intervalYear" value="year" autocomplete="off" checked>
-            <label class="btn btn-outline-primary" for="intervalYear">Annuel</label>
-          </div>
+          <div class="form-control bg-light">Mensuelle · nouvelles souscriptions</div>
         </div>
 
         <div class="alert alert-info d-flex gap-2 align-items-start mb-0" id="prorationBox" style="display:none;">
@@ -629,13 +622,11 @@
     const applyPlan = document.getElementById('applyPlan');
     const applyInterval = document.getElementById('applyInterval');
 
-    const intervalMonth = document.getElementById('intervalMonth');
-    const intervalYear = document.getElementById('intervalYear');
 
     const previewUrl = "{{ path('app_billing_change_preview') }}";
 
     function getInterval() {
-      return intervalYear.checked ? 'year' : 'month';
+      return 'month';
     }
 
     function money(cents, currency) {
@@ -652,8 +643,14 @@
       prorationBox.style.display = 'none';
       errorBox.style.display = 'none';
 
+      const selected = selectPlan.selectedOptions[0];
       const plan = selectPlan.value;
       const interval = getInterval();
+      if (!selected || selected.dataset[interval + 'Ready'] !== '1') {
+        errorBox.textContent = 'Le paiement de cette offre est en cours d’activation.';
+        errorBox.style.display = 'block';
+        return;
+      }
 
       // Alimente le form "apply"
       applyPlan.value = plan;
@@ -731,19 +728,14 @@
     btnOpen.addEventListener('click', () => {
       // pré-sélection (optionnel)
       const currentPlan = btnOpen.getAttribute('data-current-plan');
-      if (currentPlan) selectPlan.value = currentPlan;
+      if (currentPlan && Array.from(selectPlan.options).some(p => p.value === currentPlan)) selectPlan.value = currentPlan;
 
-      const currentInterval = btnOpen.getAttribute('data-current-interval') || 'year';
-      if (currentInterval === 'month') intervalMonth.checked = true;
-      else intervalYear.checked = true;
 
       modal.show();
       refreshPreview();
     });
 
     selectPlan.addEventListener('change', refreshPreview);
-    intervalMonth.addEventListener('change', refreshPreview);
-    intervalYear.addEventListener('change', refreshPreview);
 
   })();
 </script>

@@ -57,6 +57,52 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         }
     }
 
+    public function testParticipantConventionsShowOnlyActualCoverageAndTotalAmounts(): void
+    {
+        $learner = (new Utilisateur())->setEntite($this->entite)->setEmail('participant@example.test')->setPassword('unused')->setPrenom('Marine')->setNom('Cardona');
+        $other = (new Utilisateur())->setEntite($this->entite)->setEmail('other-participant@example.test')->setPassword('unused')->setPrenom('Alex')->setNom('Martin');
+        $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Entreprise de prise en charge');
+        $this->em->persist($learner); $this->em->persist($other); $this->em->persist($company);
+        foreach ([$learner, $other] as $person) {
+            $inscription = (new \App\Entity\Inscription())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setStagiaire($person)->setEntreprise($company);
+            $this->session->addInscription($inscription); $this->em->persist($inscription);
+        }
+        $covered = $this->session->getInscriptions()->first();
+        $this->session->setMontantCents(45000);
+        $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setNumero('DEV-COVERAGE')->setMontantTtcCents(120000);
+        $this->em->persist($quote);
+        foreach (['CONV-DEVIS', 'CONV-ESTIMATION'] as $index => $number) {
+            $convention = (new \App\Entity\ConventionContrat())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setEntreprise($company)->setNumero($number)->setEffectifPrevisionnel(2)->addInscription($covered);
+            if ($index === 0) $convention->setDevis($quote);
+            $this->em->persist($convention);
+        }
+        $this->em->flush();
+        $map = self::getContainer()->get(\App\Service\Session\ParticipantConventions::class)->forSession($this->session);
+        self::assertCount(1, $map);
+        self::assertCount(2, $map[$covered->getId()]);
+        self::assertSame(120000, $map[$covered->getId()][0]['amount']);
+        self::assertSame(90000, $map[$covered->getId()][1]['amount']);
+        self::assertTrue($map[$covered->getId()][1]['estimated']);
+        $page = $this->show();
+        self::assertStringContainsString('Entreprise de prise en charge', $page->filter('[data-participant-conventions]')->first()->text());
+        self::assertStringContainsString('1 200,00 € TTC', $page->filter('[data-participant-conventions]')->first()->text());
+        $client = self::getContainer()->get('test.client');
+        $client->disableReboot(); $client->loginUser($this->admin);
+        $page = $client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/session/modifier/'.$this->session->getId());
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertCount(2, $page->filter('[data-saved-conventions] [data-convention-id]'));
+        self::assertStringContainsString('900,00 € TTC', $page->filter('[data-saved-conventions]')->text());
+        $documentId = $map[$covered->getId()][0]['id'];
+        $submitted = $page->filter('form[name="session"]')->form();
+        $submitted['session[inscriptions][1][conventionsToAssociate]']->select([(string) $documentId]);
+        $client->submit($submitted);
+        self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $this->em->clear();
+        $saved = $this->em->find(\App\Entity\ConventionContrat::class, $documentId);
+        self::assertCount(2, $saved->getInscriptions());
+        self::assertSame(['Cardona', 'Martin'], $saved->getInscriptions()->map(fn($i) => $i->getStagiaire()->getNom())->toArray());
+    }
+
     public function testSessionListsEveryTrainerAndTheirOwnSlotsWithLocalInitials(): void
     {
         $crawler = $this->show();
@@ -89,6 +135,60 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         self::assertStringContainsString('Aucun créneau affecté', $referent->text());
         self::assertSame(0, $referent->filter('form')->count());
         self::assertSame(2, $trainers->filter('[data-trainer-id="' . $this->second->getId() . '"] .trainer-slots li')->count());
+    }
+
+    public function testNoConventionShowsZeroRatherThanThePerParticipantPrice(): void
+    {
+        $this->session->setMontantCents(90000);
+        $this->em->flush();
+        $total = $this->show()->filter('#session-conventions-total')->text();
+        self::assertStringContainsString('0,00 € TTC', $total);
+        self::assertStringContainsString('0 convention rattachée', $total);
+        self::assertStringNotContainsString('900,00', $total);
+        self::assertStringNotContainsString('par stagiaire', $total);
+    }
+
+    public function testConventionTotalsCombineQuotesAndEstimatedHeadcountsWithoutDuplicatingQuotes(): void
+    {
+        $this->session->setMontantCents(90000);
+        $first = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setMontantTtcCents(120000);
+        $second = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setMontantTtcCents(180050);
+        $this->em->persist($first);
+        $this->em->persist($second);
+        foreach ([[$first, 8], [$second, 4], [$first, 2], [null, 3]] as $index => [$quote, $headcount]) {
+            $convention = (new \App\Entity\ConventionContrat())->setEntite($this->entite)->setCreateur($this->admin)
+                ->setSession($this->session)->setNumero('TOTAL-' . $index)->setDevis($quote)->setEffectifPrevisionnel($headcount);
+            $this->em->persist($convention);
+        }
+        // Without a forecast, use the convention's actual named participants.
+        $free = (new \App\Entity\ConventionContrat())->setEntite($this->entite)->setCreateur($this->admin)
+            ->setSession($this->session)->setNumero('TOTAL-FREE')->setParticipantsLibres("Alice Exemple\nBob Exemple");
+        $foreign = (new Entite())->setNom('Autre organisme')->setCreateur($this->admin)->setPublic(false);
+        $foreignConvention = (new \App\Entity\ConventionContrat())->setEntite($foreign)->setCreateur($this->admin)
+            ->setSession($this->session)->setNumero('TOTAL-FOREIGN')->setEffectifPrevisionnel(50);
+        foreach ([$free, $foreign, $foreignConvention] as $record) $this->em->persist($record);
+        $this->em->flush();
+        $total = $this->show()->filter('#session-conventions-total')->text();
+        self::assertStringContainsString('7 500,50 € TTC', $total);
+        self::assertStringContainsString('5 conventions rattachées', $total);
+        self::assertStringContainsString('2 estimations', $total);
+        self::assertStringContainsString('Chaque devis est compté une seule fois', $total);
+    }
+
+    public function testConventionTotalsNeverAddDifferentCurrenciesTogether(): void
+    {
+        foreach (['EUR'=>12000, 'USD'=>25000] as $currency=>$amount) {
+            $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setDevise($currency)->setMontantTtcCents($amount);
+            $convention = (new \App\Entity\ConventionContrat())->setEntite($this->entite)->setCreateur($this->admin)
+                ->setSession($this->session)->setNumero('TOTAL-' . $currency)->setDevis($quote);
+            $this->em->persist($quote);
+            $this->em->persist($convention);
+        }
+        $this->em->flush();
+        $total = $this->show()->filter('#session-conventions-total')->text();
+        self::assertStringContainsString('120,00 € TTC', $total);
+        self::assertStringContainsString('250,00 USD TTC', $total);
+        self::assertStringNotContainsString('370,00', $total);
     }
 
     private function show(): \Symfony\Component\DomCrawler\Crawler

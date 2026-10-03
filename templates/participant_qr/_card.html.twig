@@ -1,0 +1,18 @@
+<article class="participant-qr-card" data-qr-card data-name="{{ card.name|lower }}">
+  <header><span class="participant-qr-avatar"><i class="bi bi-person"></i></span><div><h2>{{ card.name }}</h2><p>{{ card.guest ? 'Participant sans compte' : 'Stagiaire inscrit' }}</p></div></header>
+  <div class="participant-qr-pair">
+    <section><h3><i class="bi bi-pen"></i> Émargement</h3>
+      {% if card.attendanceUrl %}
+        <div class="participant-qr-code" data-participant-qr="{{ card.attendanceUrl }}" role="img" aria-label="QR code d’émargement de {{ card.name }}"></div>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ card.attendanceUrl }}" target="_blank" rel="noopener noreferrer">Ouvrir pour signer <i class="bi bi-box-arrow-up-right"></i></a>
+        <p>Une signature par demi-journée.</p>
+      {% else %}<p class="participant-qr-unavailable">Émargements gérés par l’organisme donneur d’ordre.</p>{% endif %}
+    </section>
+    <section><h3><i class="bi bi-chat-square-heart"></i> Appréciation</h3>
+      <div class="participant-qr-code" data-participant-qr="{{ card.satisfactionUrl }}" role="img" aria-label="QR code d’appréciation de {{ card.name }}"></div>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ card.satisfactionUrl }}" target="_blank" rel="noopener noreferrer">Donner mon avis <i class="bi bi-box-arrow-up-right"></i></a>
+      <p>Questionnaire de la formation.</p>
+    </section>
+  </div>
+  <footer><i class="bi bi-shield-lock"></i> Accès personnel, sans connexion. À remettre uniquement à {{ card.name }}.</footer>
+</article>

@@ -969,7 +969,24 @@ class Session
     /** Les sessions sous-traitées sont suivies par l'organisme donneur d'ordre. */
     public function isEmargementRequis(): bool
     {
-        return $this->typeFinancement !== TypeFinancement::OUI;
+        return !$this->isSousTraitance() && $this->status !== StatusSession::CANCELED;
+    }
+
+    public function isSousTraitance(): bool
+    {
+        return $this->typeFinancement === TypeFinancement::OUI;
+    }
+
+    public function isTerminee(?\DateTimeImmutable $now = null): bool
+    {
+        $fin = $this->getDateFin();
+        return $this->status === StatusSession::DONE || ($fin !== null && $fin < ($now ?? new \DateTimeImmutable()));
+    }
+
+    /** Les pièces conservées restent consultables, même lorsque les alertes cessent. */
+    public function isEmargementEnAttenteRequis(): bool
+    {
+        return $this->isEmargementRequis() && !$this->isTerminee();
     }
 
     /** @return Collection<int, SessionPiece> */

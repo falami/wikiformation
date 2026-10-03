@@ -46,7 +46,7 @@ final class PublicController extends AbstractController
         PlanRepository $plans,
         AddonRepository $addons,
         EntiteSubscriptionRepository $subRepo,
-        StripeBillingService $billing,
+        \App\Service\Tenant\TenantContext $tenant,
     ): Response {
         $host = $this->publicContext->getPublicHost();
 
@@ -58,21 +58,19 @@ final class PublicController extends AbstractController
             return $this->redirectToRoute('app_public_formation');
         }
 
-        $trialConsumed = false;
-
         $user = $this->getUser();
-        if ($user instanceof Utilisateur && $user->getEntite()) {
-            $sub = $subRepo->findLatestForEntite($user->getEntite());
-            $trialConsumed = $sub && ($sub->getTrialEndsAt() instanceof \DateTimeImmutable);
-        }
+        $currentEntite = $user instanceof Utilisateur ? $tenant->getCurrentEntiteForUser($user) : null;
+        if ($currentEntite && $tenant->isPlatformEntite($currentEntite)) $currentEntite = null;
+        $trialConsumed = $currentEntite ? $subRepo->entiteHasConsumedTrial($currentEntite) : false;
 
-        $activePlans = $plans->findActiveOrdered();
+        $activePlans = $plans->findPublicOffers();
 
         return $this->render('public/index.html.twig', [
             'plans' => $activePlans,
             'addons' => $addons->findBy(['isActive' => true], ['id' => 'ASC']),
             'trialConsumed' => $trialConsumed,
-            'planPrices' => $billing->getPlansPublicPrices($activePlans),
+            'pricingEntite' => $currentEntite,
+            'pricingSubscription' => $currentEntite ? $subRepo->findLatestForEntite($currentEntite) : null,
         ]);
     }
 
@@ -401,35 +399,22 @@ final class PublicController extends AbstractController
         PlanRepository $plans,
         AddonRepository $addons,
         EntiteSubscriptionRepository $subRepo,
+        \App\Service\Tenant\TenantContext $tenant,
     ): Response {
         if ($this->publicContext->hasCustomHost()) {
             return $this->redirectToRoute('app_public_formation');
         }
-        $trialConsumed = false;
-
         $user = $this->getUser();
-        if ($user instanceof Utilisateur && $user->getEntite()) {
-            $sub = $subRepo->findLatestForEntite($user->getEntite());
-
-            if ($sub) {
-                $now = new \DateTimeImmutable();
-                $trialEnds = $sub->getTrialEndsAt();
-
-                // Essai consommé = il y a une date de fin d'essai ET elle est passée
-                $trialConsumed = false;
-
-                $user = $this->getUser();
-                if ($user instanceof Utilisateur && $user->getEntite()) {
-                    $sub = $subRepo->findLatestForEntite($user->getEntite());
-                    $trialConsumed = $sub && ($sub->getTrialEndsAt() instanceof \DateTimeImmutable);
-                }
-            }
-        }
+        $currentEntite = $user instanceof Utilisateur ? $tenant->getCurrentEntiteForUser($user) : null;
+        if ($currentEntite && $tenant->isPlatformEntite($currentEntite)) $currentEntite = null;
+        $trialConsumed = $currentEntite ? $subRepo->entiteHasConsumedTrial($currentEntite) : false;
 
         return $this->render('public/pricing.html.twig', [
-            'plans' => $plans->findActiveOrdered(),
+            'plans' => $plans->findPublicOffers(),
             'addons' => $addons->findBy(['isActive' => true], ['id' => 'ASC']),
             'trialConsumed' => $trialConsumed,
+            'pricingEntite' => $currentEntite,
+            'pricingSubscription' => $currentEntite ? $subRepo->findLatestForEntite($currentEntite) : null,
         ]);
     }
 

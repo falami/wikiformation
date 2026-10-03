@@ -13,6 +13,7 @@ enum SessionPieceType: string implements LabelledEnum
   case CONTRAT_FORMATEUR_SIGNE     = 'contrat_formateur_signe';
   case CONTRAT_STAGIAIRE_SIGNE     = 'contrat_stagiaire_signe';
   case COMPTE_RENDU_FORMATEUR      = 'compte_rendu_formateur';
+  case COMPTE_RENDU_STAGIAIRE      = 'compte_rendu_stagiaire';
   case DEVIS_SIGNE                 = 'devis_signe';
   case DEMANDE_PRISE_CHARGE        = 'demande_prise_charge';
   case EMARGEMENT_SIGNE            = 'emargement_signe';
@@ -37,6 +38,7 @@ enum SessionPieceType: string implements LabelledEnum
       self::CONTRAT_FORMATEUR_SIGNE => 'Contrat formateur signé',
       self::CONTRAT_STAGIAIRE_SIGNE => 'Contrat stagiaire signé',
       self::COMPTE_RENDU_FORMATEUR  => 'Compte rendu formateur',
+      self::COMPTE_RENDU_STAGIAIRE  => 'Compte(s) rendu(s) stagiaires',
       self::DEVIS_SIGNE             => 'Devis signé',
       self::DEMANDE_PRISE_CHARGE    => 'Demande de prise en charge (OPCO)',
       self::EMARGEMENT_SIGNE        => 'Émargements signés',

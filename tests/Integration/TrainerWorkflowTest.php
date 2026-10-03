@@ -105,6 +105,33 @@ final class TrainerWorkflowTest extends KernelTestCase
         self::assertStringContainsString('chevauchent', implode(' ', $validator->errors($other)));
     }
 
+    public function testPlanningHoursRemainLocalInFeedsAndDetails(): void
+    {
+        $jour = $this->session->getJours()->first();
+        $jour->setDateDebut(new \DateTimeImmutable('2026-10-05 08:30', new \DateTimeZone('UTC')));
+        $jour->setDateFin(new \DateTimeImmutable('2026-10-05 17:00', new \DateTimeZone('UTC')));
+        $inscription = (new \App\Entity\Inscription())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setStagiaire($this->admin);
+        $this->em->persist($inscription); $this->em->flush();
+        $client = $this->client();
+        foreach (['formateurs', 'stagiaires', 'sessions'] as $planning) {
+            $prefix = 'app_administrateur_planning_'.$planning.'_';
+            $client->request('GET', $this->url($prefix.'data'), ['start' => '2026-10-01', 'end' => '2026-11-01']);
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            $events = json_decode($client->getResponse()->getContent(), true)['events'];
+            self::assertContains('2026-10-05T08:30:00', array_column($events, 'start'));
+            self::assertContains('2026-10-05T17:00:00', array_column($events, 'end'));
+            $params = ['jour' => $jour->getId()];
+            if ($planning === 'stagiaires') $params['inscription'] = $inscription->getId();
+            else $params['session'] = $this->session->getId();
+            if ($planning === 'formateurs') $params['formateur'] = $this->morning->getId();
+            $client->request('GET', $this->url($prefix.'event_details', $params));
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            $details = json_decode($client->getResponse()->getContent(), true);
+            self::assertSame('2026-10-05T08:30:00', $details['jour']['start']);
+            self::assertSame('2026-10-05T17:00:00', $details['jour']['end']);
+        }
+    }
+
     public function testAdminAndTrainerCalendarsUseTheEffectiveTrainerOnly(): void
     {
         $client = $this->client();
@@ -295,6 +322,160 @@ final class TrainerWorkflowTest extends KernelTestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('signée');
         self::getContainer()->get(\App\Service\Convention\DevisConventionLinker::class)->link($quote, $convention);
+    }
+
+    public function testGuestAttendanceAppearsInTrainerFeedSummaryAndPdf(): void
+    {
+        $participant = $this->guest('Camille Sans Compte');
+        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
+        $attendance = (new \App\Entity\Emargement())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)
+            ->setParticipantAccess($participant)->setDateJour(new \DateTimeImmutable('2026-10-05'))->setPeriode(\App\Enum\DemiJournee::AM)->setRole('stagiaire')
+            ->setSignatureDataUrl($signature)->setSignedAt(new \DateTimeImmutable());
+        $this->em->persist($attendance); $this->em->flush();
+        $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
+        $pdf->method('createLandscape')->willReturnCallback(static fn(string $html) => new \Symfony\Component\HttpFoundation\Response($html));
+        self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
+        $client = $this->client(); $client->loginUser($this->afternoon->getUtilisateur());
+        $client->request('GET', $this->url('app_formateur_emargement_feed'), ['session' => $this->session->getId(), 'date' => '2026-10-05']);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $data = json_decode($client->getResponse()->getContent(), true);
+        self::assertCount(1, $data['trainees']);
+        self::assertSame('Camille Sans Compte', $data['trainees'][0]['name']);
+        self::assertTrue($data['trainees'][0]['signed_am']);
+        self::assertFalse($data['trainees'][0]['signed_pm']);
+        self::assertSame($signature, $data['trainees'][0]['signature_am_url']);
+        $crawler = $client->request('GET', $this->url('app_formateur_emargement_liste', ['id' => $this->session->getId()]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('1 / 4', preg_replace('/\s+/', ' ', $crawler->filter('tbody')->text()));
+        $crawler = $client->request('GET', $this->url('app_formateur_emargement_pdf'), ['session' => $this->session->getId()]);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Camille Sans Compte', $crawler->text());
+        self::assertStringContainsString($signature, $client->getResponse()->getContent());
+    }
+
+    public function testGuestSatisfactionIsSearchableAndReadableByAdmin(): void
+    {
+        $participant = $this->guest('Alex Sans Compte');
+        $template = (new \App\Entity\SatisfactionTemplate())->setEntite($this->entite)->setCreateur($this->admin)->setTitre('Appréciation');
+        $assignment = (new \App\Entity\SatisfactionAssignment())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setTemplate($template)->setParticipantAccess($participant);
+        $attempt = (new \App\Entity\SatisfactionAttempt())->setAssignment($assignment)->setEntite($this->entite)->setCreateur($this->admin)->setStartedAt(new \DateTimeImmutable())->setSubmittedAt(new \DateTimeImmutable())->setNoteGlobale(5);
+        $assignment->setAttempt($attempt);
+        foreach ([$template, $assignment, $attempt] as $entity) $this->em->persist($entity);
+        $this->em->flush();
+        $client = $this->client();
+        foreach ([['search' => ['value' => 'Alex']], ['stagiaireFilter' => 'Sans Compte']] as $filter) {
+            $client->request('POST', $this->url('app_administrateur_satisfaction_assignment_ajax'), $filter);
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            $data = json_decode($client->getResponse()->getContent(), true);
+            self::assertSame(1, $data['recordsFiltered']);
+            self::assertSame('Alex Sans Compte', $data['data'][0]['stagiaire']);
+            self::assertSame('Sans compte', $data['data'][0]['email']);
+        }
+        $crawler = $client->request('GET', $this->url('app_administrateur_satisfaction_attempt_show', ['attempt' => $attempt->getId()]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Alex Sans Compte', $crawler->text());
+    }
+
+    public function testGuestAttendanceSurvivesSessionEditingWithoutAccountInscriptions(): void
+    {
+        $participant = $this->guest('Camille Sans Compte');
+        $attendance = (new \App\Entity\Emargement())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)
+            ->setParticipantAccess($participant)->setDateJour(new \DateTimeImmutable('2026-10-05'))->setPeriode(\App\Enum\DemiJournee::AM)->setRole('stagiaire')->setSignedAt(new \DateTimeImmutable());
+        $this->em->persist($attendance); $this->em->flush();
+        $id = $attendance->getId();
+        $client = $this->client();
+        $crawler = $client->request('GET', $this->url('app_administrateur_session_modifier', ['id' => $this->session->getId()]));
+        $client->submit($crawler->filter('form#session')->form());
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        self::assertNotNull($this->em->find(\App\Entity\Emargement::class, $id), 'Une signature sans compte doit rester conservée.');
+    }
+
+    public function testGuestAttendanceIsCountedAndNamedInAdministrativeFollowUp(): void
+    {
+        $participant = $this->guest('Camille Sans Compte');
+        $yesterday = new \DateTimeImmutable('yesterday');
+        $tomorrow = new \DateTimeImmutable('tomorrow');
+        $this->session->getJours()->first()->setDateDebut($yesterday->setTime(9, 0))->setDateFin($yesterday->setTime(12, 30));
+        $this->session->getJours()->last()->setDateDebut($tomorrow->setTime(13, 30))->setDateFin($tomorrow->setTime(17, 0));
+        $attendance = (new \App\Entity\Emargement())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)
+            ->setParticipantAccess($participant)->setDateJour($yesterday)->setPeriode(\App\Enum\DemiJournee::AM)->setRole('stagiaire');
+        $this->em->persist($attendance); $this->em->flush();
+        $client = $this->client();
+        $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $data = json_decode($client->getResponse()->getContent(), true);
+        self::assertCount(1, $data['unsignedEmargements']);
+        self::assertSame('Camille Sans Compte', $data['unsignedEmargements'][0]['userLabel']);
+        self::assertNull($data['unsignedEmargements'][0]['userId']);
+        $client->request('GET', $this->url('app_administrateur_dashboard_kpis'));
+        self::assertSame(1, json_decode($client->getResponse()->getContent(), true)['unsignedEmargements']);
+        $client->request('POST', $this->url('app_administrateur_session_ajax'));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('0/4 signés', json_decode($client->getResponse()->getContent(), true)['data'][0]['dossier']);
+        $this->em->find(\App\Entity\SessionParticipantAccess::class, $participant->getId())->setActive(false); $this->em->flush();
+        $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
+        self::assertCount(0, json_decode($client->getResponse()->getContent(), true)['unsignedEmargements']);
+        $client->request('GET', $this->url('app_administrateur_dashboard_kpis'));
+        self::assertSame(0, json_decode($client->getResponse()->getContent(), true)['unsignedEmargements']);
+    }
+
+    public function testGuestWithoutAnyAttendanceEntryAppearsAmongMissingSignatures(): void
+    {
+        $guest = $this->guest('Participant Papier');
+        $yesterday = new \DateTimeImmutable('yesterday');
+        $tomorrow = new \DateTimeImmutable('tomorrow');
+        $this->session->getJours()->first()->setDateDebut($yesterday->setTime(9, 0))->setDateFin($yesterday->setTime(12, 30));
+        $this->session->getJours()->last()->setDateDebut($tomorrow->setTime(13, 30))->setDateFin($tomorrow->setTime(17, 0));
+        $this->em->flush();
+        $client = $this->client();
+        $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $data = json_decode($client->getResponse()->getContent(), true);
+        self::assertCount(1, $data['unsignedEmargements']);
+        self::assertSame('Participant Papier', $data['unsignedEmargements'][0]['userLabel']);
+        self::assertSame('missing', $data['unsignedEmargements'][0]['type']);
+        self::assertSame($guest->getId(), $data['unsignedEmargements'][0]['participantId']);
+        self::assertNull($data['unsignedEmargements'][0]['userId']);
+    }
+
+    public function testCompanyPdfIncludesOnlyItsOwnGuestAndTrainerCsvKeepsGuestName(): void
+    {
+        $own = (new Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Client A');
+        $other = (new Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Client B');
+        $this->em->persist($own); $this->em->persist($other);
+        $this->admin->setEntreprise($own);
+        foreach ([[$own, 'Camille Client A'], [$other, 'Alex Client B']] as [$company, $name]) {
+            $convention = (new ConventionContrat())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setEntreprise($company)->setNumero('CONV-' . $name);
+            $this->em->persist($convention);
+            $guest = $this->guest($name)->setConvention($convention);
+            $attendance = (new \App\Entity\Emargement())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)
+                ->setParticipantAccess($guest)->setDateJour(new \DateTimeImmutable('2026-10-05'))->setPeriode(\App\Enum\DemiJournee::AM)->setRole('stagiaire')
+                ->setSignatureDataUrl('data:image/png;base64,dGVzdA==')->setSignedAt(new \DateTimeImmutable());
+            $this->em->persist($convention); $this->em->persist($attendance);
+        }
+        $this->em->flush();
+        $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
+        $pdf->method('createLandscape')->willReturnCallback(static fn(string $html) => new \Symfony\Component\HttpFoundation\Response($html));
+        self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
+        $client = $this->client();
+        $crawler = $client->request('GET', $this->url('app_entreprise_documents_emargement_sheet_pdf', ['id' => $this->session->getId()]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Camille Client A', $crawler->text());
+        self::assertStringNotContainsString('Alex Client B', $crawler->text());
+        $client->loginUser($this->afternoon->getUtilisateur());
+        $client->request('GET', $this->url('app_formateur_emargement_export', ['id' => $this->session->getId()]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Camille Client A', $client->getInternalResponse()->getContent());
+        self::assertStringContainsString('Alex Client B', $client->getInternalResponse()->getContent());
+        self::assertStringContainsString('2026-10-05,AM,', $client->getInternalResponse()->getContent());
+    }
+
+    private function guest(string $name): \App\Entity\SessionParticipantAccess
+    {
+        $guest = (new \App\Entity\SessionParticipantAccess())->setSession($this->session)->setEntite($this->entite)->setSourceKey('guest:test:' . md5($name))->setDisplayName($name);
+        $this->em->persist($guest); $this->em->flush();
+        return $guest;
     }
 
     private function trainer(string $name): Formateur

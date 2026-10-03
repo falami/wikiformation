@@ -117,7 +117,7 @@ final class DevisConventionQuickCreateController extends AbstractController
 
                         $email = mb_strtolower(trim($data['email']));
                         $client = $em->getRepository(Utilisateur::class)->createQueryBuilder('u')
-                            ->andWhere('LOWER(u.email) = :email')->setParameter('email', $email)->getQuery()->getOneOrNullResult();
+                            ->andWhere('LOWER(TRIM(u.email)) = :email')->setParameter('email', $email)->getQuery()->getOneOrNullResult();
                         $membership = $client ? $em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $client, 'entite' => $entite]) : null;
                         if ($client && !$membership && $client->getEntite()?->getId() !== $entite->getId()) {
                             throw new \DomainException('Cette adresse e-mail ne peut pas être utilisée pour créer un stagiaire depuis cet écran.');

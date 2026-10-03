@@ -2,7 +2,7 @@
 
 namespace App\Controller\Formateur;
 
-use App\Entity\{Emargement, Entite, Utilisateur, SessionJour, Session, Inscription};
+use App\Entity\{Emargement, Entite, Utilisateur, SessionJour, Session, Inscription, SessionParticipantAccess};
 use App\Enum\DemiJournee;
 use App\Repository\EmargementRepository;
 use App\Repository\SessionRepository;
@@ -90,10 +90,10 @@ class EmargementController extends AbstractController
 
         // ✅ Perf : 1 seule requête pour toutes les signatures du jour
         $rows = $em->getRepository(Emargement::class)->createQueryBuilder('e')
-            ->select('IDENTITY(e.utilisateur) AS uid, e.periode AS periode, e.role AS role, e.signaturePath AS path, e.signedAt AS signedAt')
+            ->select('IDENTITY(e.utilisateur) AS uid, IDENTITY(e.participantAccess) AS participantId, e.periode AS periode, e.role AS role, e.signaturePath AS path, e.signatureDataUrl AS dataUrl, e.signedAt AS signedAt')
             ->andWhere('e.session = :s')->setParameter('s', $session)
-            ->andWhere('e.dateJour = :d')->setParameter('d', $date)
-            ->andWhere('e.signaturePath IS NOT NULL')
+            ->andWhere('e.dateJour = :d')->setParameter('d', $date, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
+            ->andWhere("(e.signaturePath IS NOT NULL AND e.signaturePath <> '') OR (e.signatureDataUrl IS NOT NULL AND e.signatureDataUrl <> '')")
             ->getQuery()->getArrayResult();
 
 
@@ -102,16 +102,16 @@ class EmargementController extends AbstractController
         $signed = []; // signed[role][uid][AM|PM] = ['signed'=>bool,'url'=>string|null,'at'=>string|null]
 
         foreach ($rows as $r) {
-            $uid  = (int) ($r['uid'] ?? 0);
+            $uid = $r['uid'] ? (int) $r['uid'] : 'guest:' . ($r['participantId'] ?? '');
             $role = (string) ($r['role'] ?? '');
             $per  = $r['periode'] instanceof \BackedEnum ? $r['periode']->value : (string) $r['periode'];
             $per  = strtoupper($per);
 
-            if ($uid <= 0 || !$role || !\in_array($per, ['AM', 'PM'], true)) continue;
+            if (!$uid || $uid === 'guest:' || !$role || !\in_array($per, ['AM', 'PM'], true)) continue;
 
-            $path = (string) ($r['path'] ?? '');
+            $path = (string) ($r['dataUrl'] ?: ($r['path'] ?? ''));
             // ✅ IMPORTANT : forcer une URL web qui commence par "/"
-            if ($path && $path[0] !== '/' && !str_starts_with($path, 'http')) {
+            if ($path && $path[0] !== '/' && !str_starts_with($path, 'http') && !str_starts_with($path, 'data:')) {
                 $path = '/' . $path;
             }
 
@@ -133,11 +133,11 @@ class EmargementController extends AbstractController
             ];
         }
 
-        $info = static fn(array $signed, string $role, int $uid, string $per): array =>
+        $info = static fn(array $signed, string $role, int|string $uid, string $per): array =>
         $signed[$role][$uid][strtoupper($per)] ?? ['signed' => false, 'url' => null, 'at' => null];
 
 
-        $has = static fn(array $signed, string $role, int $uid, string $per): bool
+        $has = static fn(array $signed, string $role, int|string $uid, string $per): bool
         => !empty($signed[$role][$uid][strtoupper($per)]);
 
         $formateurUser = $session->hasFormateurUtilisateur($user) ? $user : null;
@@ -171,7 +171,7 @@ class EmargementController extends AbstractController
         $trainees = [];
         foreach ($session->getInscriptions() as $inscription) {
             $u = $inscription->getStagiaire();
-            if (!$u) continue;
+            if (!$u || $inscription->getStatus() === \App\Enum\StatusInscription::ANNULE) continue;
             if ($formateurUser && $u->getId() === $formateurUser->getId()) continue;
 
             $am = $info($signed, 'stagiaire', $u->getId(), 'AM');
@@ -189,6 +189,20 @@ class EmargementController extends AbstractController
                 'signature_pm_url' => $pm['url'],
                 'signed_at_am'     => $am['at'],
                 'signed_at_pm'     => $pm['at'],
+            ];
+        }
+
+        foreach ($em->getRepository(SessionParticipantAccess::class)->findBy(['session' => $session, 'entite' => $entite, 'active' => true]) as $participant) {
+            if (!$participant->isGuest()) continue;
+            $key = 'guest:' . $participant->getId();
+            $am = $info($signed, 'stagiaire', $key, 'AM');
+            $pm = $info($signed, 'stagiaire', $key, 'PM');
+            $trainees[] = [
+                'id' => $key, 'participantId' => $participant->getId(),
+                'name' => $participant->getDisplayName(),
+                'signed_am' => (bool) $am['signed'], 'signed_pm' => (bool) $pm['signed'],
+                'signature_am_url' => $am['url'], 'signature_pm_url' => $pm['url'],
+                'signed_at_am' => $am['at'], 'signed_at_pm' => $pm['at'],
             ];
         }
 
@@ -210,7 +224,8 @@ class EmargementController extends AbstractController
     public function liste(
         Entite $entite,
         Session $id,
-        EmargementRepository $repo
+        EmargementRepository $repo,
+        EntityManagerInterface $em
     ): Response {
         $this->assertCanManageSession($entite, $id);
 
@@ -221,6 +236,10 @@ class EmargementController extends AbstractController
         foreach ($id->getInscriptions() as $inscription) {
             $u = $inscription->getStagiaire();
             if ($u && !$id->hasFormateurUtilisateur($u) && $inscription->getStatus() !== \App\Enum\StatusInscription::ANNULE) $trainees[$u->getId()] = true;
+        }
+        $guests = [];
+        foreach ($em->getRepository(SessionParticipantAccess::class)->findBy(['session' => $id, 'entite' => $entite, 'active' => true]) as $participant) {
+            if ($participant->isGuest()) $guests[$participant->getId()] = true;
         }
         $periodsByDay = [];
         foreach ($id->getJours() as $j) {
@@ -234,7 +253,7 @@ class EmargementController extends AbstractController
         $jours = [];
         foreach ($periodsByDay as $key => $periods) {
             $day = new \DateTimeImmutable($key);
-            $expected = count($trainees) * count($periods);
+            $expected = (count($trainees) + count($guests)) * count($periods);
             foreach ($id->getFormateursEffectifs() as $f) {
                 $u = $f->getUtilisateur();
                 if (!$u) continue;
@@ -246,8 +265,12 @@ class EmargementController extends AbstractController
             foreach ($repo->findBy(['session' => $id, 'dateJour' => $day]) as $e) {
                 $u = $e->getUtilisateur();
                 $period = $e->getPeriode()->value;
-                if (!$u || !isset($periods[$period]) || (!$e->getSignaturePath() && !$e->getSignatureDataUrl())) continue;
-                if (isset($trainees[$u->getId()]) || $id->isFormateurUtilisateurSurPeriode($u, $day, $period)) $signed[$u->getId() . ':' . $period] = true;
+                if (!isset($periods[$period]) || (!$e->getSignaturePath() && !$e->getSignatureDataUrl())) continue;
+                if ($u && (isset($trainees[$u->getId()]) || $id->isFormateurUtilisateurSurPeriode($u, $day, $period))) {
+                    $signed['user:' . $u->getId() . ':' . $period] = true;
+                } elseif (!$u && isset($guests[$e->getParticipantAccess()?->getId()])) {
+                    $signed['guest:' . $e->getParticipantAccess()->getId() . ':' . $period] = true;
+                }
             }
             $count = count($signed);
             $jours[] = ['date' => $day, 'count' => $count, 'expected' => $expected,

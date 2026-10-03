@@ -36,15 +36,29 @@ class DashboardFormateurController extends AbstractController
     /** @return SessionJour[] */
     private function ownJours(Session $session): array
     {
-        $formateur = $this->getUser()?->getFormateur();
-        return $formateur ? $session->getJoursPourFormateur($formateur) : [];
+        /** @var Utilisateur|null $user */
+        $user = $this->getUser();
+
+        $formateur = $user?->getFormateur();
+
+        return $formateur
+            ? $session->getJoursPourFormateur($formateur)
+            : [];
     }
 
     private function isAssignedTo(Session $session, Entite $entite): bool
     {
-        $formateur = $this->getUser()?->getFormateur();
+        /** @var Utilisateur|null $user */
+        $user = $this->getUser();
+
+        $formateur = $user?->getFormateur();
+
+        if (!$formateur) {
+            return false;
+        }
+
         return $session->getEntite()?->getId() === $entite->getId()
-            && $formateur?->getEntite()?->getId() === $entite->getId()
+            && $formateur->getEntite()?->getId() === $entite->getId()
             && $session->hasFormateur($formateur);
     }
 

@@ -110,11 +110,11 @@ final class StripeWebhookController extends AbstractController
           }
       }
     } catch (\Throwable $e) {
-      // IMPORTANT: log + 200 OK pour éviter que Stripe spamme,
-      // OU 500 si tu veux que Stripe retente. Ici on log et 200.
+      // Un événement non synchronisé doit rester réessayable par Stripe.
+      // Les traitements ci-dessus mettent à jour l'abonnement existant.
       error_log('[STRIPE WEBHOOK] ERROR ' . $event->type . ' : ' . $e->getMessage());
       error_log($e->getTraceAsString());
-      return new Response('ok', 200);
+      return new Response('synchronization_failed', 500);
     }
 
     return new Response('ok', 200);

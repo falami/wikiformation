@@ -73,10 +73,7 @@ final class EntiteOnboardingType extends AbstractType
                         max: 20,
                         maxMessage: "Le numéro de téléphone est trop long."
                     ),
-                    new Assert\Regex([
-                        'pattern' => '/^\+[1-9]\d{7,14}$/',
-                        'message' => 'Le numéro de téléphone doit être au format international, par exemple +33612345678.',
-                    ]),
+                    new Assert\Regex(pattern: '/^\+[1-9]\d{7,14}$/', message: 'Le numéro de téléphone doit être au format international, par exemple +33612345678.'),
                 ],
             ])
 
@@ -90,10 +87,7 @@ final class EntiteOnboardingType extends AbstractType
                     'inputmode' => 'numeric',
                 ],
                 'constraints' => [
-                    new Assert\Regex([
-                        'pattern' => '/^$|^\d{14}$/',
-                        'message' => 'Le SIRET doit contenir exactement 14 chiffres.',
-                    ]),
+                    new Assert\Regex(pattern: '/^$|^\d{14}$/', message: 'Le SIRET doit contenir exactement 14 chiffres.'),
                 ],
             ])
 
@@ -146,10 +140,7 @@ final class EntiteOnboardingType extends AbstractType
                     'placeholder' => '#RRGGBB ou laisser vide',
                 ],
                 'constraints' => [
-                    new Assert\Regex([
-                        'pattern' => '/^$|^#[0-9A-Fa-f]{6}$/',
-                        'message' => 'Couleur invalide. Format attendu : #RRGGBB',
-                    ]),
+                    new Assert\Regex(pattern: '/^$|^#[0-9A-Fa-f]{6}$/', message: 'Couleur invalide. Format attendu : #RRGGBB'),
                 ],
             ])
 
@@ -162,10 +153,7 @@ final class EntiteOnboardingType extends AbstractType
                     'placeholder' => '#RRGGBB (optionnel)',
                 ],
                 'constraints' => [
-                    new Assert\Regex([
-                        'pattern' => '/^$|^#[0-9A-Fa-f]{6}$/',
-                        'message' => 'Couleur invalide. Format attendu : #RRGGBB',
-                    ]),
+                    new Assert\Regex(pattern: '/^$|^#[0-9A-Fa-f]{6}$/', message: 'Couleur invalide. Format attendu : #RRGGBB'),
                 ],
             ])
 
@@ -178,10 +166,7 @@ final class EntiteOnboardingType extends AbstractType
                     'placeholder' => '#RRGGBB (optionnel)',
                 ],
                 'constraints' => [
-                    new Assert\Regex([
-                        'pattern' => '/^$|^#[0-9A-Fa-f]{6}$/',
-                        'message' => 'Couleur invalide. Format attendu : #RRGGBB',
-                    ]),
+                    new Assert\Regex(pattern: '/^$|^#[0-9A-Fa-f]{6}$/', message: 'Couleur invalide. Format attendu : #RRGGBB'),
                 ],
             ])
 
@@ -194,10 +179,7 @@ final class EntiteOnboardingType extends AbstractType
                     'placeholder' => '#RRGGBB (optionnel)',
                 ],
                 'constraints' => [
-                    new Assert\Regex([
-                        'pattern' => '/^$|^#[0-9A-Fa-f]{6}$/',
-                        'message' => 'Couleur invalide. Format attendu : #RRGGBB',
-                    ]),
+                    new Assert\Regex(pattern: '/^$|^#[0-9A-Fa-f]{6}$/', message: 'Couleur invalide. Format attendu : #RRGGBB'),
                 ],
             ])
 
@@ -210,10 +192,10 @@ final class EntiteOnboardingType extends AbstractType
 
             ->add('interval', HiddenType::class, [
                 'mapped' => false,
-                'data' => 'year',
+                'data' => 'month',
                 'constraints' => [
                     new Assert\Choice(
-                        choices: ['month', 'year'],
+                        choices: ['month'],
                         message: 'Périodicité invalide.'
                     ),
                 ],

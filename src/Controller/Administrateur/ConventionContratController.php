@@ -22,6 +22,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Entity\Entreprise;
 use App\Service\Sequence\ConventionContratNumberGenerator;
 use App\Security\Permission\TenantPermission;
+use App\Service\Convention\ConventionParticipants;
+use Doctrine\DBAL\LockMode;
+use Symfony\Component\Form\FormError;
 
 
 
@@ -190,53 +193,72 @@ final class ConventionContratController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
-    public function edit(Entite $entite, ConventionContrat $c, Request $req, EM $em): Response
+    public function edit(Entite $entite, ConventionContrat $c, Request $req, EM $em, ConventionParticipants $participants): Response
     {
         $this->assertConventionTenant($entite, $c);
-        if ($c->isSigned()) {
-            $this->addFlash('warning', 'Une convention signée ne peut plus être modifiée.');
-            return $this->redirectToRoute('app_administrateur_convention_show', ['entite' => $entite->getId(), 'id' => $c->getId()]);
-        }
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
-
-        // 🔒 logique de lock
-        $lockSession   = true;
-        $lockEntreprise = ($c->getEntreprise() !== null) !== ($c->getStagiaire() !== null);
-        $lockStagiaire  = $lockEntreprise;
-
-
-        $form = $this->createForm(ConventionContratType::class, $c, [
-            'entite'         => $entite,
-            'lock_session'   => $lockSession,
-            'lock_entreprise' => $lockEntreprise,
-            'lock_stagiaire' => $lockStagiaire,
-        ])->handleRequest($req);
-
-        if ($form->isSubmitted() && $form->isValid()) {
-            foreach ($c->getInscriptions() as $inscription) {
-                $c->getDevis()?->addInscription($inscription);
+        $connection = $em->getConnection();
+        try {
+            if ($req->isMethod('POST')) {
+                $connection->beginTransaction();
+                // Une signature ou un autre ajout peut survenir entre l’ouverture et l’enregistrement.
+                $em->refresh($c, LockMode::PESSIMISTIC_WRITE);
+                if ($c->getSession()) {
+                    $em->refresh($c->getSession(), LockMode::PESSIMISTIC_WRITE);
+                }
             }
-            if (!$c->hasNumero()) {
-                $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
+            if ($c->isSigned()) {
+                $this->addFlash('warning', 'Une convention signée ne peut plus être modifiée.');
+                return $this->redirectToRoute('app_administrateur_convention_show', ['entite' => $entite->getId(), 'id' => $c->getId()]);
             }
-            // Toute modification rend le précédent document obsolète.
-            $c->setPdfPath(null);
-            $em->flush();
-            $this->addFlash('success', 'Convention mise à jour.');
+            /** @var Utilisateur $user */
+            $user = $this->getUser();
 
-            return $this->redirectToRoute('app_administrateur_convention_show', [
-                'entite' => $entite->getId(),
-                'id'     => $c->getId(),
+            // 🔒 logique de lock
+            $lockSession   = true;
+            $lockEntreprise = ($c->getEntreprise() !== null) !== ($c->getStagiaire() !== null);
+            $lockStagiaire  = $lockEntreprise;
+
+
+            $form = $this->createForm(ConventionContratType::class, $c, [
+                'entite'         => $entite,
+                'lock_session'   => $lockSession,
+                'lock_entreprise' => $lockEntreprise,
+                'lock_stagiaire' => $lockStagiaire,
+                'allow_new_participants' => true,
+            ])->handleRequest($req);
+
+            if ($form->isSubmitted() && $form->isValid()) {
+                try {
+                    $participants->persist($c, $user);
+                    if (!$c->hasNumero()) {
+                        $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
+                    }
+                    // Toute modification rend le précédent document obsolète.
+                    $c->setPdfPath(null);
+                    $em->flush();
+                    $connection->commit();
+                    $this->addFlash('success', 'Convention mise à jour.');
+
+                    return $this->redirectToRoute('app_administrateur_convention_show', [
+                        'entite' => $entite->getId(),
+                        'id'     => $c->getId(),
+                    ]);
+                } catch (\DomainException $error) {
+                    $form->addError(new FormError($error->getMessage()));
+                }
+            }
+
+            return $this->render('administrateur/convention/form.html.twig', [
+                'form'  => $form,
+                'title' => 'Modifier la convention',
+                'c'     => $c,
+                'entite' => $entite,
             ]);
+        } finally {
+            if ($req->isMethod('POST') && $connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
         }
-
-        return $this->render('administrateur/convention/form.html.twig', [
-            'form'  => $form,
-            'title' => 'Modifier la convention',
-            'c'     => $c,
-            'entite' => $entite,
-        ]);
     }
 
 

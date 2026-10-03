@@ -3,6 +3,7 @@
 {% block title %}Espace stagiaire — Tableau de bord{% endblock %}
 
 {% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('dist/css/participant-qr.css') }}">
 {{ parent() }}
 <link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
 <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -1189,6 +1190,7 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 
 
 
+                {% if participantQrCard %}<div class="participant-qr-inline">{% include 'participant_qr/_card.html.twig' with {card:participantQrCard} %}</div>{% endif %}
                 {# ✅ Bouton Satisfaction si dernière journée #}
                 {% if nextSession.hasSatisfactionAssign
                   and nextSession.isLastDay
@@ -1516,6 +1518,7 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 {% endblock %}
 
 {% block javascripts %}
+<script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script><script defer src="{{ asset('dist/js/participant-qr.js') }}"></script>
 {{ parent() }}
 
 {# ⚠️ IMPORTANT : il faut bootstrap.bundle.js dans base_admin.html.twig.

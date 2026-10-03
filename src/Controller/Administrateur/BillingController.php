@@ -68,7 +68,7 @@ final class BillingController extends AbstractController
 
     return $this->render('administrateur/billing/index.html.twig', [
       'sub' => $sub,
-      'plans' => $plans->findActiveOrdered(),
+      'plans' => $plans->findPublicOffers(),
       'addons' => $addons->findActiveOrdered(),
       'limits' => $limits,
       'usage' => $usage,

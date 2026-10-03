@@ -14,6 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     name: 'uniq_emargement_session_user_date_periode',
     columns: ['session_id', 'utilisateur_id', 'date_jour', 'periode']
 )]
+#[ORM\UniqueConstraint(name: 'uniq_emargement_participant_date_periode', columns: ['session_id', 'participant_access_id', 'date_jour', 'periode'])]
 class Emargement
 {
     #[ORM\Id]
@@ -26,8 +27,12 @@ class Emargement
     private ?Session $session = null;
 
     #[ORM\ManyToOne(inversedBy: 'emargements')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?Utilisateur $utilisateur = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?SessionParticipantAccess $participantAccess = null;
 
     #[ORM\Column(type: Types::DATE_IMMUTABLE)]
     #[Assert\NotNull]
@@ -109,6 +114,9 @@ class Emargement
 
         return $this;
     }
+
+    public function getParticipantAccess(): ?SessionParticipantAccess { return $this->participantAccess; }
+    public function setParticipantAccess(?SessionParticipantAccess $access): static { $this->participantAccess = $access; return $this; }
 
     public function getDateJour(): ?\DateTimeImmutable
     {

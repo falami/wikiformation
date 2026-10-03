@@ -1,0 +1,23 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}QR codes participants — {{ session.code }}{% endblock %}
+{% block stylesheets %}{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/participant-qr.css') }}">
+<style>:root{--theme-color-principal:{{ entite.couleurPrincipal|default('#233342') }};--theme-color-secondaire:{{ entite.couleurSecondaire|default('#ffc107') }};--theme-color-tertiaire:{{ entite.couleurTertiaire|default('#f0f0f0') }};--theme-color-quaternaire:{{ entite.couleurQuaternaire|default('#000000') }}}</style>
+{% endblock %}
+{% block javascripts %}{{ parent() }}<script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script><script defer src="{{ asset('dist/js/participant-qr.js') }}"></script>{% endblock %}
+{% block body %}
+<div class="participant-qr-page">
+  <a class="participant-qr-back" href="{{ path(back,{entite:entite.id}) }}">← Retour au tableau de bord</a>
+  <header class="participant-qr-hero"><div><span>{{ entite.nom }} · {{ session.code }}</span><h1>{{ personal ? 'Mes QR codes' : 'QR codes des participants' }}</h1><p>{{ session.formation ? session.formation.titre : session.formationIntituleLibre }}</p></div><i class="bi bi-qr-code"></i></header>
+  {% if session.sousTraitance %}
+    <div class="alert alert-info my-3">
+      <strong>Session en sous-traitance</strong>
+      <p class="mb-0">Les émargements sont gérés hors de Wikiformation par l’organisme donneur d’ordre. Aucun QR code d’émargement n’est disponible pour cette session. Les QR codes d’appréciation restent accessibles ci-dessous.</p>
+    </div>
+  {% endif %}
+  <div class="participant-qr-toolbar"><div><strong>{{ cards|length }} participant{{ cards|length > 1 ? 's' : '' }}</strong><p>Scanner, signer, donner son avis. Aucun compte ni adresse e-mail nécessaire.</p></div><div class="d-flex gap-2"><input class="form-control" type="search" data-qr-search placeholder="Rechercher un participant…" aria-label="Rechercher un participant"><button class="btn btn-warning" type="button" data-qr-print><i class="bi bi-printer"></i> Imprimer</button></div></div>
+  {% if cards is empty %}<div class="participant-qr-empty">{{ session.status.value == 'canceled' ? 'Cette session est annulée. Les accès sont désactivés.' : 'Aucun participant disponible. Ajoutez des stagiaires à la session ou renseignez les noms et prénoms dans sa convention.' }}</div>{% endif %}
+  <div class="participant-qr-grid">{% for card in cards %}{% include 'participant_qr/_card.html.twig' %}{% endfor %}</div>
+  <p class="participant-qr-empty" data-qr-no-result hidden>Aucun participant ne correspond à cette recherche.</p>
+</div>
+{% endblock %}

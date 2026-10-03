@@ -7,12 +7,16 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query\Expr\Join;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\{TextareaType, DateType, TextType, IntegerType};
+use Symfony\Component\Form\Extension\Core\Type\{TextareaType, DateType, TextType, IntegerType, CheckboxType};
 use Symfony\Component\Form\{FormBuilderInterface, FormEvent, FormEvents, FormInterface};
+use Symfony\Component\Form\FormError;
+use App\Service\Convention\ConventionParticipants;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class ConventionContratType extends AbstractType
 {
+    public function __construct(private readonly ConventionParticipants $participants) {}
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $entite = $options['entite'];
@@ -71,14 +75,14 @@ final class ConventionContratType extends AbstractType
             ->add('intituleFormation', TextType::class, [
                 'label' => 'Intitulé sur la convention',
                 'required' => false,
-                'attr' => ['maxlength' => 255, 'placeholder' => $convention?->getSession()?->getFormation()?->getTitre() ?? 'Intitulé de la formation'],
+                'attr' => ['class' => 'form-control', 'maxlength' => 255, 'placeholder' => $convention?->getSession()?->getFormation()?->getTitre() ?? 'Intitulé de la formation'],
                 'help' => 'Personnalisez le titre pour ce document. Vide : l’intitulé du catalogue est utilisé.',
             ])
             ->add('dureeFormation', TextType::class, [
                 'label' => 'Durée sur la convention',
                 'required' => false,
-                'attr' => ['maxlength' => 255, 'placeholder' => $convention?->getDureeFormationEffective() ?? 'Ex. : 1 jour / 7 heures'],
-                'help' => 'Ex. : 1 jour / 7 heures. Vide : la durée du catalogue est utilisée.',
+                'attr' => ['class' => 'form-control', 'maxlength' => 255, 'placeholder' => $convention?->getDureeFormationEffective() ?? 'Ex. : 1 jour / 7 heures'],
+                'help' => 'Ex. : 1 jour / 7 heures. Vide : la durée pédagogique de la session est utilisée.',
             ])
             ->add('conditionsFinancieres', TextareaType::class, [
                 'label' => 'Conditions financières',
@@ -92,13 +96,13 @@ final class ConventionContratType extends AbstractType
                 ->add('participantsLibres', TextareaType::class, [
                     'label' => 'Stagiaires sans compte ou sans e-mail',
                     'required' => false,
-                    'attr' => ['rows' => 4, 'placeholder' => "Camille Durand\nAlex Martin"],
-                    'help' => 'Un nom complet par ligne. Ces noms apparaissent dans la convention sans créer de compte ni d’inscription. Retirez la ligne lorsque vous rattachez l’inscription correspondante.',
+                    'attr' => ['class' => 'form-control', 'rows' => 4, 'placeholder' => "Camille Durand\nAlex Martin"],
+                    'help' => 'Un nom complet par ligne. Ces participants disposent de QR codes personnels pour émarger et donner leur appréciation, sans créer de compte ni renseigner d’e-mail. L’option ci-dessous permet de remplacer un nom libre identique par sa fiche stagiaire.',
                 ])
                 ->add('effectifPrevisionnel', IntegerType::class, [
                     'label' => 'Nombre total de stagiaires prévu',
                     'required' => false,
-                    'attr' => ['min' => 1, 'placeholder' => 'Calculé à partir des stagiaires renseignés'],
+                    'attr' => ['class' => 'form-control', 'min' => 1, 'placeholder' => 'Calculé à partir des stagiaires renseignés'],
                     'help' => 'Ce total inclut les inscriptions, les noms saisis et les stagiaires encore inconnus. Vous pouvez renseigner uniquement ce nombre. Vide : calcul automatique.',
                 ]);
         }
@@ -109,6 +113,39 @@ final class ConventionContratType extends AbstractType
                 'required' => false, 'disabled' => true,
                 'attr' => ['class' => 'form-control'],
             ]);
+        }
+
+        if ($options['allow_new_participants'] && $convention) {
+            $builder->add('stagiaires', EntityType::class, [
+                'class' => Utilisateur::class, 'mapped' => false, 'multiple' => true, 'required' => false,
+                'label' => 'Stagiaires couverts par la convention',
+                'data' => array_map(static fn(Inscription $i) => $i->getStagiaire(), $convention->getInscriptions()->toArray()),
+                'query_builder' => fn() => $this->participants->eligibleQuery($convention),
+                'choice_label' => static fn(Utilisateur $u): string => trim($u->getPrenom().' '.$u->getNom()).($u->getEmail() ? ' — '.$u->getEmail() : ''),
+                'choice_attr' => static fn(Utilisateur $u): array => ['data-name' => trim($u->getPrenom().' '.$u->getNom()), 'data-reverse-name' => trim($u->getNom().' '.$u->getPrenom())],
+                'attr' => ['class' => 'form-select', 'data-placeholder' => 'Rechercher un stagiaire par nom, prénom ou e-mail…'],
+                'help' => 'Retrouvez les stagiaires de cette entreprise et ceux de l’organisme sans entreprise. Les inscriptions et dossiers manquants seront créés à l’enregistrement.',
+            ]);
+            if (!$convention->getStagiaire()) {
+                $builder->add('remplacerNomsLibres', CheckboxType::class, [
+                    'mapped' => false, 'required' => false, 'data' => true,
+                    'label' => 'Remplacer les noms libres identiques par les stagiaires sélectionnés',
+                    'help' => 'Évite de compter deux fois une même personne. Les autres noms restent inchangés.',
+                ]);
+            }
+            $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event): void {
+                $form = $event->getForm();
+                if (!$form->get('stagiaires')->isSynchronized() || count($form->get('stagiaires')->getErrors(true)) > 0) {
+                    return;
+                }
+                try {
+                    $this->participants->prepare($event->getData(), $form->get('stagiaires')->getData() ?? [],
+                        $form->has('remplacerNomsLibres') && $form->get('remplacerNomsLibres')->getData());
+                } catch (\DomainException $error) {
+                    $form->get('stagiaires')->addError(new FormError($error->getMessage()));
+                }
+            }, 100);
+            return;
         }
 
         $this->addInscriptionsField($builder, $entite, $sessionId, $entrepriseId, $stagiaireId);
@@ -181,9 +218,10 @@ final class ConventionContratType extends AbstractType
             'lock_session' => false,
             'lock_entreprise' => false,
             'lock_stagiaire' => false,
+            'allow_new_participants' => false,
         ]);
         $resolver->setAllowedTypes('entite', [Entite::class, 'null']);
-        foreach (['lock_session', 'lock_entreprise', 'lock_stagiaire'] as $option) {
+        foreach (['lock_session', 'lock_entreprise', 'lock_stagiaire', 'allow_new_participants'] as $option) {
             $resolver->setAllowedTypes($option, 'bool');
         }
     }

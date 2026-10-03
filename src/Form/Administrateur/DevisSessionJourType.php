@@ -25,7 +25,7 @@ final class DevisSessionJourType extends AbstractType
             'label' => 'Pause (minutes)',
             'required' => false,
             'help' => 'Une journée prévoit 7 h de cours et 90 min de pause déjeuner. Vide : 90 min déduites sur une journée complète, aucune sur une demi-journée. Saisissez 0 ou une autre durée pour adapter la pause.',
-            'attr' => ['min' => 0, 'step' => 1, 'placeholder' => 'Automatique', 'data-training-pause' => ''],
+            'attr' => ['class' => 'form-control', 'min' => 0, 'step' => 1, 'placeholder' => 'Automatique', 'data-training-pause' => ''],
         ]);
     }
 

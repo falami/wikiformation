@@ -15,6 +15,7 @@ use App\Security\Permission\TenantPermission;
 
 #[Route('/administrateur/{entite}/planning/formateurs', name: 'app_administrateur_planning_formateurs_', requirements: ['entite' => '\d+'])]
 #[IsGranted(TenantPermission::PLANNING_FORMATEUR_MANAGE, subject: 'entite')]
+// SessionJour stores local timetable hours, not UTC instants. Export them without an offset.
 final class PlanningFormateursController extends AbstractController
 {
   public function __construct(
@@ -177,8 +178,8 @@ final class PlanningFormateursController extends AbstractController
         'id' => $eventId,
         'resourceId' => (string)$foId,
         'title' => (string)($titleFormation ?: 'Session'),
-        'start' => $startJour->format(\DateTimeInterface::ATOM),
-        'end' => $endJour->format(\DateTimeInterface::ATOM),
+        'start' => $startJour->format('Y-m-d\\TH:i:s'),
+        'end' => $endJour->format('Y-m-d\\TH:i:s'),
         'classNames' => [$slot === 'AM' ? 'ev-am' : 'ev-pm'],
         'extendedProps' => [
           'formateurId' => $foId,
@@ -330,8 +331,8 @@ final class PlanningFormateursController extends AbstractController
       ],
       'jour' => [
         'id' => (int)$jour->getId(),
-        'start' => $jour->getDateDebut()?->format(\DateTimeInterface::ATOM),
-        'end' => $jour->getDateFin()?->format(\DateTimeInterface::ATOM),
+        'start' => $jour->getDateDebut()?->format('Y-m-d\\TH:i:s'),
+        'end' => $jour->getDateFin()?->format('Y-m-d\\TH:i:s'),
         'date' => $jour->getDateDebut()?->format('Y-m-d'),
       ],
       'stats' => [

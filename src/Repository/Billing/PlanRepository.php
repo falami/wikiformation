@@ -26,18 +26,21 @@ final class PlanRepository extends ServiceEntityRepository
             ->getResult();
     }
     
+    /** Commercial catalogue only; historical plans remain available on existing subscriptions. @return Plan[] */
+    public function findPublicOffers(): array
+    {
+        $plans = $this->findActiveOrdered();
+        $plans = array_values(array_filter($plans, static fn(Plan $p): bool => $p->isAvailableForNewSubscription('month')));
+        usort($plans, static fn(Plan $a, Plan $b): int => array_search(strtoupper($a->getCode()), Plan::PUBLIC_CODES, true) <=> array_search(strtoupper($b->getCode()), Plan::PUBLIC_CODES, true));
+        return $plans;
+    }
+
     public function findNextUpgradePlan(?Plan $currentPlan): ?Plan
     {
-        $qb = $this->createQueryBuilder('p')
-            ->andWhere('p.isActive = true')
-            ->orderBy('p.ordre', 'ASC')
-            ->setMaxResults(1);
-
-        if ($currentPlan instanceof Plan) {
-            $qb->andWhere('p.ordre > :ordre')
-               ->setParameter('ordre', $currentPlan->getOrdre() ?? 0);
+        $currentPrice = $currentPlan?->getPriceMonthlyCents() ?? 0;
+        foreach ($this->findPublicOffers() as $plan) {
+            if ($plan->getId() !== $currentPlan?->getId() && ($plan->getPriceMonthlyCents() ?? 0) > $currentPrice) return $plan;
         }
-
-        return $qb->getQuery()->getOneOrNullResult();
+        return null;
     }
 }

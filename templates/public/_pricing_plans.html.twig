@@ -1,0 +1,50 @@
+{# One commercial catalogue for homepage and pricing; historical contracts are not edited here. #}
+<link rel="stylesheet" href="{{ asset('dist/css/pricing-catalogue.css') ~ '?v=20261003.2' }}">
+{% for type in ['billing_expired', 'warning', 'danger'] %}
+  {% for message in app.flashes(type) %}<div class="alert alert-warning" role="alert">{{ message }}</div>{% endfor %}
+{% endfor %}
+{% set pricingEntite = pricingEntite|default(null) %}
+{% set subscription = pricingSubscription|default(null) %}
+{% set canManage = app.user and pricingEntite and is_granted('ENTITE_BILLING_MANAGE', pricingEntite) %}
+{% set ongoing = subscription and subscription.isBlockingNewCheckout %}
+{% set checkout = (subscription or trialConsumed|default(false)) and canManage and not ongoing %}
+<div class="wf-offers-intro"><span><i class="bi bi-calendar3" aria-hidden="true"></i> Facturation mensuelle</span><span><i class="bi bi-gift" aria-hidden="true"></i> {{ billing_trial_days }} jours d’essai sans carte bancaire</span></div>
+<div class="wf-offers">
+  {% for plan in plans %}
+    {% set featured = plan.code|upper == 'PRO' %}
+    {% set excellence = plan.code|upper == 'EXCELLENCE_2026' %}
+    <article class="wf-offer {{ featured ? 'wf-offer-featured' : '' }} {{ excellence ? 'wf-offer-excellence' : '' }}">
+      <div class="wf-offer-topline"><span class="wf-offer-kicker">{{ excellence ? 'Le choix de l’envergure' : (plan.code|upper == 'SOLO' ? 'Votre point de départ' : (featured ? 'Pour prendre de l’élan' : 'Pour toute votre équipe')) }}</span>{% if featured %}<span class="wf-offer-badge">Recommandé</span>{% endif %}</div>
+      <h3>{{ plan.name }}</h3>
+      <p class="wf-offer-tagline">{{ plan.tagline }}</p>
+      <form method="post" action="{{ path(checkout ? 'app_billing_checkout' : 'app_pricing_start_trial') }}" data-turbo="false" class="wf-offer-form">
+        <input type="hidden" name="_token" value="{{ csrf_token('start_trial') }}">
+        <input type="hidden" name="plan" value="{{ plan.code }}">
+        <input type="hidden" name="interval" value="month">
+        <div class="wf-offer-price"><strong>{{ (plan.priceMonthlyCents / 100)|number_format(0, ',', ' ') }} €</strong><span>HT / mois</span></div>
+        <p class="wf-offer-billing-note">Votre tarif après l’essai</p>
+        <ul class="wf-offer-limits">
+          <li><i class="bi bi-mortarboard" aria-hidden="true"></i><span>{{ plan.maxApprenantsLabel }}</span></li>
+          <li><i class="bi bi-people" aria-hidden="true"></i><span>{{ plan.maxUtilisateurs == 1 ? '1 utilisateur gestionnaire' : plan.maxUtilisateursLabel }}</span></li>
+          <li><i class="bi bi-person-badge" aria-hidden="true"></i><span>{{ plan.maxFormateursLabel }}</span></li>
+          <li><i class="bi bi-building" aria-hidden="true"></i><span>{{ plan.maxEntreprisesLabel }}</span></li>
+          <li><i class="bi bi-person" aria-hidden="true"></i><span>{{ plan.maxProspectsLabel }}</span></li>
+        </ul>
+        <div class="wf-offer-included">Votre quotidien, simplifié</div>
+        <ul class="wf-offer-features"><li>Sessions, clients et participants</li><li>Conventions et documents de formation</li><li>Émargements et questionnaires</li><li>Devis, factures et suivi des paiements</li><li>Parcours administratifs automatisés</li>{% if plan.supportPrioritaire %}<li>Support prioritaire</li>{% endif %}</ul>
+        <div class="wf-offer-bottom">
+          {% if app.user and pricingEntite and not canManage %}
+            <p class="wf-offer-availability">Contactez l’administrateur de votre organisme pour choisir cette offre.</p>
+          {% elseif ongoing and canManage %}
+            <a class="wf-offer-cta" href="{{ path('app_administrateur_billing', {entite: pricingEntite.id}) }}">{{ subscription.status == 'trialing' ? 'Continuer mon essai' : 'Gérer mon abonnement' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+            <p class="wf-offer-availability">Retrouvez votre offre dans votre espace.</p>
+          {% else %}
+            <button type="submit" class="wf-offer-cta" {{ checkout and not plan.isCheckoutConfigured('month') ? 'disabled' : '' }}>{{ checkout ? 'Choisir cette offre' : 'Commencer mon essai' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+            <p class="wf-offer-availability">{{ checkout and not plan.isCheckoutConfigured('month') ? 'Paiement en cours d’activation.' : (checkout ? 'Montant confirmé avant le paiement.' : ('Gratuit pendant ' ~ billing_trial_days ~ ' jours · Sans carte bancaire')) }}</p>
+          {% endif %}
+        </div>
+      </form>
+    </article>
+  {% else %}<div class="alert alert-info">Les offres seront disponibles prochainement.</div>{% endfor %}
+</div>
+<p class="wf-offers-footnote"><i class="bi bi-shield-check" aria-hidden="true"></i> Tarifs hors taxes. Les abonnements existants conservent leurs conditions jusqu’à un changement demandé par leur titulaire.</p>

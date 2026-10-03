@@ -3,7 +3,7 @@
 namespace App\Tests\Integration;
 
 use App\Entity\{DossierInscription, Emargement, Entite, Formation, Inscription, Session, SessionJour, SessionPiece, Site, Utilisateur, UtilisateurEntite};
-use App\Enum\{DemiJournee, SessionPieceType, TypeFinancement};
+use App\Enum\{DemiJournee, SessionPieceType, StatusSession, TypeFinancement};
 use Doctrine\ORM\{EntityManagerInterface, Tools\SchemaTool};
 use Symfony\Bundle\FrameworkBundle\{KernelBrowser, Test\KernelTestCase};
 
@@ -42,7 +42,7 @@ final class AttendanceScopeTest extends KernelTestCase
         $this->em->persist($other);
         $foreign = $this->session('SES-FOREIGN', $other, false);
         foreach ([$this->internal, $this->subcontracted, $foreign] as $session) {
-            $this->em->persist((new Emargement())->setSession($session)->setEntite($session->getEntite())->setCreateur($this->admin)->setUtilisateur($this->learner)->setRole('stagiaire')->setDateJour(new \DateTimeImmutable('2020-01-06'))->setPeriode(DemiJournee::AM));
+            $this->em->persist((new Emargement())->setSession($session)->setEntite($session->getEntite())->setCreateur($this->admin)->setUtilisateur($this->learner)->setRole('stagiaire')->setDateJour(new \DateTimeImmutable('yesterday'))->setPeriode(DemiJournee::AM));
         }
         $this->em->flush();
     }
@@ -60,13 +60,13 @@ final class AttendanceScopeTest extends KernelTestCase
     {
         $client = $this->client();
         $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
-        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
         $alerts = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements'];
         self::assertCount(2, $alerts);
         self::assertSame(['missing', 'unsigned'], array_column($alerts, 'type'));
         self::assertSame(['SES-INTERNAL', 'SES-INTERNAL'], array_column($alerts, 'sessionLabel'));
         $client->request('GET', $this->url('app_administrateur_dashboard_kpis'));
-        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
         self::assertSame(1, json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements']);
         self::assertSame(3, $this->em->getRepository(Emargement::class)->count([]), 'Existing records are retained, including subcontracted sessions.');
     }
@@ -88,10 +88,14 @@ final class AttendanceScopeTest extends KernelTestCase
     {
         self::assertTrue($this->internal->isEmargementRequis());
         self::assertFalse($this->subcontracted->isEmargementRequis());
+        foreach ([SessionPieceType::CONTRAT_FORMATEUR_SIGNE, SessionPieceType::EMARGEMENT_SIGNE, SessionPieceType::COMPTE_RENDU_FORMATEUR, SessionPieceType::COMPTE_RENDU_STAGIAIRE] as $type) {
+            $this->piece($this->subcontracted, $type);
+        }
+        $this->em->flush();
         $client = $this->client();
         foreach (['complete' => 'SES-SUBCONTRACTED', 'missing' => 'SES-INTERNAL'] as $filter => $expectedCode) {
             $client->request('POST', $this->url('app_administrateur_session_ajax'), ['dossierFilter' => $filter, 'length' => 10]);
-            self::assertSame(200, $client->getResponse()->getStatusCode());
+            self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
             $body = $client->getResponse()->getContent();
             $result = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
             self::assertArrayNotHasKey('error', $result, $body);
@@ -99,10 +103,89 @@ final class AttendanceScopeTest extends KernelTestCase
             self::assertStringContainsString($expectedCode, $body);
             if ($filter === 'complete') {
                 $html = implode(' ', $result['data'][0]);
-                self::assertStringContainsString('Gérés par l’organisme donneur d’ordre', $html);
+                self::assertStringContainsString('Compte rendu formateur', $html);
+                self::assertStringContainsString('Compte(s) rendu(s) stagiaires', $html);
+                self::assertStringContainsString('>OK</span>', $html);
+                self::assertStringNotContainsString('Conventions', $html);
+                self::assertStringNotContainsString('Factures', $html);
+                self::assertStringNotContainsString('À compléter', $html);
                 self::assertStringNotContainsString('Émargements: 0/', $html);
             }
         }
+    }
+
+    public function testUploadedAttendanceStopsMissingAndUnsignedAlerts(): void
+    {
+        $this->piece($this->internal, SessionPieceType::EMARGEMENT_SIGNE);
+        $this->em->flush();
+        $client = $this->client();
+        $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
+        self::assertSame([], json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements']);
+        $client->request('GET', $this->url('app_administrateur_dashboard_kpis'));
+        self::assertSame(0, json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements']);
+    }
+
+    public function testClosedSessionsHaveNoDashboardAttendanceAlertsAndKeepTheirRecords(): void
+    {
+        foreach ([StatusSession::CANCELED, StatusSession::DONE, StatusSession::DRAFT] as $status) {
+            $this->internal->setStatus($status);
+            if ($status === StatusSession::DRAFT) {
+                foreach ($this->internal->getJours() as $jour) {
+                    $jour->setDateDebut(new \DateTimeImmutable('yesterday 08:30'))->setDateFin(new \DateTimeImmutable('yesterday 17:00'));
+                }
+            }
+            $this->em->flush();
+            $client = $this->client();
+            $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
+            self::assertSame([], json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements']);
+            $client->request('GET', $this->url('app_administrateur_dashboard_kpis'));
+            self::assertSame(0, json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements']);
+            self::assertSame(3, $this->em->getRepository(Emargement::class)->count([]));
+        }
+    }
+
+    public function testSubcontractedChecklistRequiresReportsButNeverConventionsOrInvoices(): void
+    {
+        $this->piece($this->subcontracted, SessionPieceType::CONTRAT_FORMATEUR_SIGNE);
+        $this->piece($this->subcontracted, SessionPieceType::EMARGEMENT_SIGNE);
+        $this->piece($this->subcontracted, SessionPieceType::COMPTE_RENDU_FORMATEUR);
+        $this->em->flush();
+        $client = $this->client();
+        $client->request('POST', $this->url('app_administrateur_session_ajax'), ['dossierFilter' => 'missing', 'length' => 10]);
+        $result = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(2, $result['recordsFiltered']);
+        $row = array_values(array_filter($result['data'], fn ($row) => str_contains(implode(' ', $row), 'SES-SUBCONTRACTED')))[0];
+        $html = implode(' ', $row);
+        self::assertStringContainsString('Compte(s) rendu(s) stagiaires', $html);
+        self::assertStringContainsString('À déposer', $html);
+        self::assertStringNotContainsString('Conventions', $html);
+        self::assertStringNotContainsString('Factures', $html);
+        // Les anciens questionnaires papier restent reconnus comme comptes rendus stagiaires.
+        $this->piece($this->subcontracted, SessionPieceType::SATISFACTION_STAGIAIRE);
+        $this->em->flush();
+        $client->request('POST', $this->url('app_administrateur_session_ajax'), ['dossierFilter' => 'complete', 'length' => 10]);
+        $result = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(1, $result['recordsFiltered']);
+        self::assertStringContainsString('SES-SUBCONTRACTED', implode(' ', $result['data'][0]));
+    }
+
+    public function testCancelledSessionHasNoMissingDocumentsInList(): void
+    {
+        $this->internal->setStatus(StatusSession::CANCELED);
+        $this->em->flush();
+        $client = $this->client();
+        $client->request('POST', $this->url('app_administrateur_session_ajax'), ['dossierFilter' => 'complete', 'length' => 10]);
+        $result = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(1, $result['recordsFiltered']);
+        $html = implode(' ', $result['data'][0]);
+        self::assertStringContainsString('Session annulée', $html);
+        self::assertStringContainsString('Aucun document attendu', $html);
+        self::assertStringNotContainsString('À compléter', $html);
+    }
+
+    private function piece(Session $session, SessionPieceType $type): void
+    {
+        $this->em->persist((new SessionPiece())->setSession($session)->setEntite($session->getEntite())->setCreateur($this->admin)->setType($type)->setFilename('test.pdf'));
     }
 
     private function session(string $code, Entite $entite, bool $subcontracted): Session
@@ -112,7 +195,8 @@ final class AttendanceScopeTest extends KernelTestCase
         $session = (new Session())->setEntite($entite)->setCreateur($this->admin)->setSite($site)->setCode($code);
         if ($subcontracted) $session->setTypeFinancement(TypeFinancement::OUI)->setFormationIntituleLibre('Formation sous-traitée');
         else $session->setFormation($formation);
-        $session->addJour((new SessionJour())->setEntite($entite)->setCreateur($this->admin)->setDateDebut(new \DateTimeImmutable('2020-01-06 08:30'))->setDateFin(new \DateTimeImmutable('2020-01-06 17:00')));
+        $session->addJour((new SessionJour())->setEntite($entite)->setCreateur($this->admin)->setDateDebut(new \DateTimeImmutable('yesterday 08:30'))->setDateFin(new \DateTimeImmutable('yesterday 17:00')));
+        $session->addJour((new SessionJour())->setEntite($entite)->setCreateur($this->admin)->setDateDebut(new \DateTimeImmutable('tomorrow 08:30'))->setDateFin(new \DateTimeImmutable('tomorrow 17:00')));
         $inscription = (new Inscription())->setSession($session)->setEntite($entite)->setCreateur($this->admin)->setStagiaire($this->learner);
         $dossier = (new DossierInscription())->setInscription($inscription)->setEntite($entite)->setCreateur($this->admin);
         $piece = (new SessionPiece())->setSession($session)->setEntite($entite)->setCreateur($this->admin)->setType(SessionPieceType::CONVENTION_SIGNEE)->setFilename('convention-test.pdf');

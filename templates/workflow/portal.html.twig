@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+  <title>Votre dossier de formation · {{ workflow.entite.nom }}</title>
+  <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/workflow-portal.css') }}">
+</head>
+<body>
+<main class="portal">
+  <header class="portal-hero">
+    <div><p class="eyebrow">{{ workflow.entite.nom }} · ESPACE ENTREPRISE</p><h1>Votre formation,<br><span>tout simplement.</span></h1>
+    <p>{{ workflow.convention.intituleFormationEffectif }}</p></div>
+    <div class="hero-meta"><span class="pill">{{ workflow.convention.numero }}</span><strong>{{ workflow.session.dateDebut|date('d/m/Y') }}{% if workflow.session.dateFin|date('Y-m-d') != workflow.session.dateDebut|date('Y-m-d') %} → {{ workflow.session.dateFin|date('d/m/Y') }}{% endif %}</strong><span>{{ workflow.convention.effectifTotal }} participant(s) prévu(s)</span></div>
+  </header>
+  {% for message in app.flashes('success') %}<p class="notice success" role="status">✓ {{ message }}</p>{% endfor %}
+  {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+  <div class="portal-grid">
+    <section class="panel" aria-labelledby="participants-title">
+      <div class="panel-heading"><span class="step">01</span><div><p class="eyebrow">PRÉPARER LA SESSION</p><h2 id="participants-title">Les participants</h2></div></div>
+      <p class="muted">Renseignez les noms disponibles. L’adresse email et la date de naissance peuvent être complétées plus tard. L’organisme validera les inscriptions.</p>
+      {% if workflow.convention.inscriptions|length %}<details class="existing"><summary>Participants déjà inscrits : {{ workflow.convention.inscriptions|length }}</summary><ul>{% for inscription in workflow.convention.inscriptions %}<li>{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}</li>{% endfor %}</ul></details>{% endif %}
+      <form method="post" id="participants-form" data-max="{{ maxParticipants }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('workflow_portal_' ~ workflow.id) }}"><input type="hidden" name="action" value="participants"><input type="hidden" name="revision" value="{{ revision }}">
+        <div id="participant-rows">
+        {% for position, participant in participants %}
+          <fieldset class="participant" data-position="{{ position }}">
+            <legend>Participant {{ position + 1 }}{% if participant.imported|default(false) %}<span class="validated">Validé par l’organisme</span>{% endif %}</legend>
+            <div class="field-grid">
+              <label>Prénom<input name="participants[{{ position }}][prenom]" value="{{ participant.prenom|default('') }}" autocomplete="off" maxlength="100" {% if participant.imported|default(false) %}readonly{% endif %}></label>
+              <label>Nom<input name="participants[{{ position }}][nom]" value="{{ participant.nom|default('') }}" autocomplete="off" maxlength="100" {% if participant.imported|default(false) %}readonly{% endif %}></label>
+              <label>Email <small>facultatif</small><input type="email" name="participants[{{ position }}][email]" value="{{ participant.email|default('') }}" autocomplete="off" maxlength="180" {% if participant.imported|default(false) %}readonly{% endif %}></label>
+              <label>Date de naissance <small>facultative</small><input type="date" class="birth-date" name="participants[{{ position }}][dateNaissance]" value="{{ participant.dateNaissance|default('') }}" max="{{ 'now'|date('Y-m-d') }}" {% if participant.imported|default(false) %}readonly{% endif %}></label>
+            </div>
+            {% if not participant.imported|default(false) %}<button type="button" class="remove-participant text-button">Retirer ce participant</button>{% endif %}
+          </fieldset>
+        {% endfor %}
+        </div>
+        <div class="actions"><button type="button" id="add-participant" class="button secondary">＋ Ajouter un participant</button><button type="submit" class="button primary">Transmettre les participants <span aria-hidden="true">→</span></button></div>
+        <p class="help">Ce lien privé reste accessible jusqu’au {{ expiresAt|date('d/m/Y') }}. Conservez-le et partagez-le uniquement avec les personnes autorisées.</p>
+      </form>
+    </section>
+    <aside>
+      <section class="panel document-panel" aria-labelledby="convention-title">
+        <div class="panel-heading"><span class="step">02</span><div><p class="eyebrow">VOTRE DOCUMENT</p><h2 id="convention-title">La convention</h2></div></div>
+        <p class="muted">Consultez les conditions de la formation avant de signer.</p>
+        <a class="document-link" href="{{ path('app_workflow_portal_convention', {id: workflow.id, token: token}) }}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">▤</span><span>Consulter la convention<small>Document PDF · {{ workflow.convention.numero }}</small></span><span aria-hidden="true">↗</span></a>
+        {% if workflow.convention.signedByEntreprise %}
+          <div class="signed-state"><strong>✓ Convention signée</strong><p>Le {{ workflow.convention.dateSignatureEntreprise|date('d/m/Y à H:i') }}. Le PDF signé reste disponible ci-dessus.</p></div>
+        {% elseif canSign %}
+          <form method="post" class="signature-form">
+            <input type="hidden" name="_token" value="{{ csrf_token('workflow_portal_' ~ workflow.id) }}"><input type="hidden" name="action" value="sign"><input type="hidden" name="revision" value="{{ revision }}"><input type="hidden" name="documentDigest" value="{{ digest }}">
+            <label>Votre prénom et nom<input name="signerName" maxlength="100" required autocomplete="name"></label>
+            <label>Votre fonction dans l’entreprise<input name="signerRole" maxlength="100" required autocomplete="organization-title" placeholder="Ex. Responsable formation"></label>
+            <label class="consent"><input type="checkbox" name="consent" value="1" required><span>Je confirme être habilité à représenter cette entreprise, avoir lu la convention et accepter de la signer électroniquement en saisissant mon nom.</span></label>
+            <button class="button primary" type="submit">Signer la convention</button>
+            <p class="help">La copie signée et la trace de votre accord seront conservées par l’organisme.</p>
+          </form>
+        {% else %}<p class="notice">Pour modifier ou signer ce document, contactez l’organisme de formation.</p>{% endif %}
+      </section>
+      <div class="privacy-note"><strong>Un dossier confidentiel</strong><p>Les informations sont transmises à {{ workflow.entite.nom }} pour préparer votre formation. Aucun compte participant n’est créé lors de cette saisie.</p></div>
+    </aside>
+  </div>
+  <footer>{{ workflow.entite.nom }} <span>·</span> Dossier préparé avec Wikiformation</footer>
+</main>
+<template id="participant-template"><fieldset class="participant"><legend>Participant <span class="participant-number"></span></legend><div class="field-grid"><label>Prénom<input data-field="prenom" maxlength="100" autocomplete="off"></label><label>Nom<input data-field="nom" maxlength="100" autocomplete="off"></label><label>Email <small>facultatif</small><input type="email" data-field="email" maxlength="180" autocomplete="off"></label><label>Date de naissance <small>facultative</small><input type="date" class="birth-date" data-field="dateNaissance" max="{{ 'now'|date('Y-m-d') }}"></label></div><button type="button" class="remove-participant text-button">Retirer ce participant</button></fieldset></template>
+<script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}" defer></script>
+<script src="{{ asset('dist/js/workflow-portal.js') }}" defer></script>
+</body></html>

@@ -129,6 +129,7 @@ final class UtilisateurController extends AbstractController
     // 1) Query principale (data)
     $qb = $this->em->createQueryBuilder()
       ->select('u', 'ue') // fetch join => ue sera hydraté dans u.utilisateurEntites
+      ->distinct()
       ->from(Utilisateur::class, 'u')
       ->innerJoin('u.utilisateurEntites', 'ue', 'WITH', 'ue.entite = :entite')
       ->setParameter('entite', $entite);
@@ -237,11 +238,10 @@ final class UtilisateurController extends AbstractController
     }
 
     $locked = $isEdit ? $this->isLockedUtilisateur($utilisateur) : false;
+    $identityLocked = $isEdit && !$this->canEditIdentity($utilisateur, $entite, $user);
 
     // snapshots si locked
     $origEmail    = $utilisateur->getEmail();
-    $origNom      = $utilisateur->getNom();
-    $origPrenom   = $utilisateur->getPrenom();
     $origSociete  = $utilisateur->getSociete();
     $origVerified = (bool) $utilisateur->isVerified();
 
@@ -260,6 +260,9 @@ final class UtilisateurController extends AbstractController
       'entite' => $entite,
       'ueRoles' => $ue?->getRoles() ?? [UtilisateurEntite::TENANT_STAGIAIRE],
       'can_set_high_roles' => $canSetHighRoles,
+      'locked' => $locked,
+      'identity_locked' => $identityLocked,
+      'csrf_token_id' => 'utilisateur',
     ]);
 
 
@@ -269,12 +272,31 @@ final class UtilisateurController extends AbstractController
 
     $form->handleRequest($request);
 
+    // Selecting an existing account must never overwrite its identity with the
+    // values entered in the creation form, or consume another subscription slot.
+    if (!$isEdit && $form->isSubmitted()) {
+      $submitted = $request->request->all($form->getName());
+      if ($this->isCsrfTokenValid('utilisateur', (string) ($submitted['_token'] ?? ''))) {
+        $matches = $this->em->getRepository(Utilisateur::class)->findByCanonicalEmail(['email' => $utilisateur->getEmail()]);
+        if (count($matches) === 1) {
+          $existing = $matches[0];
+          $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([
+            'entite' => $entite, 'utilisateur' => $existing,
+          ]);
+          if ($membership && $membership->isActive()) {
+            $this->addFlash('info', 'Cette adresse e-mail correspond à un client existant. Son compte a été sélectionné ; aucun doublon n’a été créé.');
+            return $this->redirectToRoute('app_administrateur_utilisateur_modifier', [
+              'entite' => $entite->getId(), 'id' => $existing->getId(),
+            ]);
+          }
+        }
+      }
+    }
+
     if ($form->isSubmitted() && $form->isValid()) {
       try {
           if ($locked) {
               $utilisateur->setEmail((string) $origEmail);
-              $utilisateur->setNom((string) $origNom);
-              $utilisateur->setPrenom((string) $origPrenom);
               $utilisateur->setSociete($origSociete);
               $utilisateur->setIsVerified($origVerified);
           }
@@ -313,7 +335,7 @@ final class UtilisateurController extends AbstractController
               $rolesFinal = $rolesFromForm;
           }
 
-          $rolesFinal = $rolesFinal ?: [UtilisateurEntite::TENANT_STAGIAIRE];
+          $rolesFinal = $rolesFinal ?: ["ROLE_USER"];
 
           // si tu as un champ status plus tard dans le form, remplace ici
           $futureStatus = UtilisateurEntite::STATUS_ACTIVE;
@@ -466,6 +488,7 @@ final class UtilisateurController extends AbstractController
       'utilisateur'       => $utilisateur,
       'modeEdition'       => $isEdit,
       'locked'            => $locked,
+      'identityLocked'    => $identityLocked,
       'form'              => $form->createView(),
       'entrepriseForm'    => $entrepriseForm->createView(),
 
@@ -1065,6 +1088,21 @@ final class UtilisateurController extends AbstractController
     if (!$ue) {
       throw $this->createNotFoundException('Utilisateur introuvable pour cette entité.');
     }
+  }
+
+  private function canEditIdentity(Utilisateur $target, Entite $entite, Utilisateur $actor): bool
+  {
+    if ($actor->isSuperAdmin() || $actor->getId() === $target->getId()) {
+      return true;
+    }
+    if ($target->getEntite() !== null) {
+      return $target->getEntite()->getId() === $entite->getId();
+    }
+
+    // A legacy account with no originating entity is editable only by its sole tenant.
+    $memberships = $target->getUtilisateurEntites();
+    return $memberships->count() === 1
+      && $memberships->first()->getEntite()?->getId() === $entite->getId();
   }
 
   private function isLockedUtilisateur(Utilisateur $u): bool

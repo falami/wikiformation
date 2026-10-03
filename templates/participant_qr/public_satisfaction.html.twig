@@ -1,0 +1,22 @@
+{% extends 'participant_qr/public_base.html.twig' %}
+{% block title %}Appréciation de la formation{% endblock %}
+{% block content %}
+  <span class="eyebrow">Votre retour compte</span>
+  <h1>Votre appréciation de la formation</h1>
+  <p class="lead">{{ access.displayName }}, partagez votre expérience pour nous aider à améliorer nos formations.</p>
+  {{ form_start(form, {attr: {'data-satisfaction-form': ''}}) }}
+    {{ form_errors(form) }}
+    {% for chapter in template.chapters %}
+      <section class="question-chapter"><h2>{{ chapter.titre }}</h2>
+        {% for question in chapter.questions %}{% set key = 'q_' ~ question.id %}{% if form[key] is defined %}
+          <div class="question {{ question.type.value in ['scale', 'stars', 'yes_no'] ? 'question-options' : '' }}">
+            {{ form_row(form[key]) }}
+            {% if question.type.value == 'scale' %}<div class="scale-caption"><span>0 · Pas du tout satisfait</span><span>10 · Tout à fait satisfait</span></div>{% endif %}
+          </div>
+        {% endif %}{% endfor %}
+      </section>
+    {% endfor %}
+    <p class="help">Après envoi, votre réponse sera conservée et ne pourra plus être modifiée depuis ce lien.</p>
+    <button class="button primary" type="submit">Envoyer mon appréciation <span aria-hidden="true">→</span></button>
+  {{ form_end(form) }}
+{% endblock %}

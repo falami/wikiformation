@@ -1,0 +1,20 @@
+{% extends 'automation/base.html.twig' %}
+{% block stylesheets %}
+  {{ parent() }}
+
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+  </style>
+{% endblock %}
+{% block body %}<div class="wf-page"><a class="wf-back" href="{{ path('app_administrateur_workflow_index',{entite:entite.id}) }}">← Dossiers automatisés</a><header class="wf-hero"><div><span class="wf-eyebrow">VOTRE ASSISTANT ADMINISTRATIF</span><h1>Une formation.<br>Tout un dossier préparé<span>.</span></h1><p>Renseignez l’essentiel. Retrouvez votre convention et le calendrier des actions au même endroit.</p></div><div class="wf-hero-note"><i class="bi bi-stars"></i><strong>Du premier contact<br>au prochain recyclage</strong><span>Vous gardez la main sur chaque étape.</span></div></header>
+{{ form_start(form, {attr: {class:'wf-form', 'data-workflow-form':''}}) }}{{ form_errors(form) }}<div class="wf-columns"><div>
+<section class="wf-panel"><div class="wf-heading"><span>01</span><div><h2>Votre projet</h2><p>La formation, le client et l’équipe.</p></div></div><div class="wf-fields">{{ form_row(form.formation) }}{{ form_row(form.entreprise) }}{{ form_row(form.formateur) }}{{ form_row(form.site) }}{{ form_row(form.contactEmail) }}{{ form_row(form.participants) }}</div></section>
+<section class="wf-panel"><div class="wf-heading"><span>02</span><div><h2>Le calendrier</h2><p>7 heures de cours par jour, avec une pause de 90 minutes.</p></div></div><div class="wf-fields">{{ form_row(form.dates) }}{{ form_row(form.startTime) }}{{ form_row(form.hours) }}{{ form_row(form.validityMonths) }}{{ form_row(form.postQcm) }}</div><p class="wf-notice" data-time-preview>08:30 → 17:00 · 7 h de cours · 1 h 30 de pause</p></section>
+<section class="wf-panel"><div class="wf-heading"><span>03</span><div><h2>Le montant du dossier</h2><p>Un tarif pour l’ensemble du groupe.</p></div></div><div class="wf-fields">{{ form_row(form.price) }}{{ form_row(form.vat) }}</div></section>
+</div><aside class="wf-panel wf-summary"><span class="wf-eyebrow">LE PARCOURS PRÉVU</span><h2>De l’administratif<br>en moins.</h2><ol><li><b>J−30</b> Convention et signature</li><li><b>J−15</b> Liste des participants</li><li><b>J−7</b> Convocations et formateur</li><li><b>Jour J</b> Accès à l’émargement</li><li><b>Fin</b> Bilan et documents validés</li><li><b>J+1</b> Facture</li><li><b>J+30</b> Relance si solde impayé</li></ol><p>Les documents de réussite nécessitent la validation du formateur. Vous pourrez vérifier le dossier avant d’activer les envois.</p><button class="btn btn-warning w-100" type="submit"><i class="bi bi-magic me-2"></i>Préparer mon dossier</button></aside></div>{{ form_end(form) }}</div>{% endblock %}

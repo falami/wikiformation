@@ -126,20 +126,26 @@ class FormateurEspaceController extends AbstractController
 
     // Export CSV émargement d'une session (par jour)
     #[Route('/session/{id}/emargement/export', name: 'emargement_export', methods: ['GET'])]
-    public function export(Session $session, EntityManagerInterface $em): StreamedResponse
+    public function export(Entite $entite, Session $session, EntityManagerInterface $em): StreamedResponse
     {
-        $emargs = $em->getRepository(Emargement::class)->findBy(['session' => $session], ['jour' => 'ASC', 'signedAt' => 'ASC']);
+        if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        $link = $this->utilisateurEntiteManager->getUserEntiteLink($entite);
+        if (!$link?->isTenantAdmin() && !$session->hasFormateurUtilisateur($this->getUser())) throw $this->createAccessDeniedException();
+        $emargs = $em->getRepository(Emargement::class)->findBy(['session' => $session, 'entite' => $entite], ['dateJour' => 'ASC', 'signedAt' => 'ASC']);
         $response = new StreamedResponse(function () use ($emargs) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Jour', 'Nom', 'Prénom', 'Rôle', 'Signé le']);
+            fputcsv($out, ['Jour', 'Période', 'Nom ou nom complet', 'Prénom', 'Rôle', 'Signé le'], ',', '"', '');
+            $safe = static fn(string $value): string => preg_match('/^[=+@\\-\\t\\r\\n]/', $value) ? "'" . $value : $value;
             foreach ($emargs as $e) {
                 $u = $e->getUtilisateur();
                 fputcsv($out, [
-                    $u->getNom(),
-                    $u->getPrenom(),
+                    $e->getDateJour()?->format('Y-m-d') ?? '',
+                    $e->getPeriode()->value,
+                    $safe($u?->getNom() ?? $e->getParticipantAccess()?->getDisplayName() ?? ''),
+                    $safe($u?->getPrenom() ?? ''),
                     $e->getRole(),
-                    $e->getSignedAt()->format('Y-m-d H:i:s')
-                ]);
+                    $e->getSignedAt()?->format('Y-m-d H:i:s') ?? '',
+                ], ',', '"', '');
             }
             fclose($out);
         });

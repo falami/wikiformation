@@ -1,0 +1,32 @@
+{% extends 'participant_qr/public_base.html.twig' %}
+{% block title %}Émargement{% endblock %}
+{% block content %}
+  <span class="eyebrow">Émargement du {{ today|date('d/m/Y') }}</span>
+  <h1>Bonjour {{ access.displayName }}</h1>
+  <p class="lead">Confirmez votre présence à la formation pour chaque demi-journée.</p>
+  {% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+  {% if periods is empty %}
+    <div class="notice">Aucune demi-journée n’est prévue aujourd’hui pour cette session. Revenez sur ce lien le jour de votre formation.</div>
+  {% else %}
+    <div class="attendance-status" aria-label="État des signatures">
+      {% for value, label in periods %}<div><strong>{{ label }}</strong><span class="{{ signed[value] is defined ? 'success-text' : '' }}">{{ signed[value] is defined ? '✓ Présence enregistrée' : 'À signer' }}</span></div>{% endfor %}
+    </div>
+    {% if signed|length == periods|length %}<div class="notice success" role="status">Vos signatures du jour sont enregistrées. Merci !</div>
+    {% else %}
+    <form method="post" data-attendance-form>
+      <input type="hidden" name="_token" value="{{ csrf_token('participant_attendance_' ~ access.id) }}">
+      <input type="hidden" name="date" value="{{ today|date('Y-m-d') }}">
+      <input type="hidden" name="signature" data-signature-value>
+      <fieldset><legend>Demi-journée à signer</legend><div class="period-choices">
+        {% for value, label in periods %}{% if signed[value] is not defined %}<label><input type="radio" name="periode" value="{{ value }}" required> <span>{{ label }}</span></label>{% endif %}{% endfor %}
+      </div></fieldset>
+      <div class="signature-heading"><label for="participant-signature">Votre signature</label><button class="button secondary small" type="button" data-clear-signature>Effacer</button></div>
+      <canvas id="participant-signature" data-signature-canvas width="900" height="320" aria-label="Dessinez votre signature avec la souris ou le doigt"></canvas>
+      <p class="help">Signez dans le cadre avec votre doigt ou votre souris.</p>
+      <label class="confirmation"><input type="checkbox" name="confirmation" value="1" required><span>Je suis {{ access.displayName }} et je confirme ma présence pour la demi-journée sélectionnée.</span></label>
+      <p class="error-text" data-signature-error role="alert" hidden>Veuillez dessiner votre signature.</p>
+      <button class="button primary" type="submit">Valider ma présence <span aria-hidden="true">→</span></button>
+    </form>
+    {% endif %}
+  {% endif %}
+{% endblock %}

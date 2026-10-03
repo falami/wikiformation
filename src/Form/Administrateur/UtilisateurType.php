@@ -19,6 +19,7 @@ use Symfony\Component\Form\Extension\Core\Type\{
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Image;
+use Symfony\Component\Validator\Constraints\Count;
 use App\Form\DataTransformer\FrenchToDateTransformer;
 use Symfony\Component\Form\FormInterface;
 
@@ -31,6 +32,8 @@ final class UtilisateurType extends AbstractType
     public function buildForm(FormBuilderInterface $b, array $o): void
     {
         $locked = $o['locked'] ?? false;
+        $identityLocked = $o['identity_locked'];
+        $emailLocked = $locked || $identityLocked;
         $entite = $o['entite'] ?? null;
 
         /** @var Utilisateur $utilisateur */
@@ -52,20 +55,22 @@ final class UtilisateurType extends AbstractType
 
         $b
             ->add('civilite', ChoiceType::class, [
+                'disabled' => $identityLocked,
                 'required' => false,
                 'choices' => ['-' => null, 'Monsieur' => 'Monsieur', 'Madame' => 'Madame'],
                 'attr' => ['class' => 'form-select']
             ])
             ->add('prenom', TextType::class, [
-                'disabled' => $locked,
+                'disabled' => $identityLocked,
                 'attr' => ['class' => 'form-control']
             ])
             ->add('nom', TextType::class, [
-                'disabled' => $locked,
+                'disabled' => $identityLocked,
                 'attr' => ['class' => 'form-control']
             ])
             ->add('email', EmailType::class, [
-                'disabled' => $locked,
+                'disabled' => $emailLocked,
+                'help' => $emailLocked ? 'Adresse du compte protégé. La correction du nom ou du prénom ne change pas ses accès ni ses inscriptions.' : null,
                 'attr' => ['class' => 'form-control']
             ])
             ->add('photo', FileType::class, [
@@ -90,7 +95,7 @@ final class UtilisateurType extends AbstractType
             ])
             ->add('dateNaissance', TextType::class, [
                 'required' => false,
-                'disabled' => $locked,
+                'disabled' => $identityLocked,
                 'attr' => ['class' => 'form-control js-flatpickr-date']
             ])
             ->add('entreprise', EntityType::class, [
@@ -127,7 +132,7 @@ final class UtilisateurType extends AbstractType
             ])
             ->add('isVerified', CheckboxType::class, [
                 'required' => false,
-                'disabled' => $locked,
+                'disabled' => $emailLocked,
             ])
             ->add('newsletter', CheckboxType::class, [
                 'required' => false,
@@ -141,16 +146,19 @@ final class UtilisateurType extends AbstractType
                 'label' => 'Rôles',
                 'data' => $o['ueRoles'] ?? [UtilisateurEntite::TENANT_STAGIAIRE],
                 'choices' => $choices,
+                'constraints' => [new Count(min: 1, minMessage: 'Sélectionnez au moins un rôle dans cet organisme.')],
                 'attr' => ['class' => 'form-select js-ts-ueroles'],
             ])
             ->add('formateurData', FormateurInlineType::class, [
                 'mapped' => false,
-                'required' => false
+                'required' => false,
+                'entite' => $entite,
             ])
             ->add('entrepriseData', EntrepriseInlineType::class, [
                 'mapped' => false,
                 'required' => false,
                 'locked' => $locked,
+                'entite' => $entite,
                 'data' => $utilisateur->getEntreprise() ?: new Entreprise(),
                 'empty_data' => fn(FormInterface $form) => new Entreprise(),
             ]);
@@ -163,6 +171,7 @@ final class UtilisateurType extends AbstractType
         $r->setDefaults([
             'data_class' => Utilisateur::class,
             'locked' => false,
+            'identity_locked' => false,
             'entite' => null,
             'ueRoles' => [UtilisateurEntite::TENANT_STAGIAIRE],
             'can_set_high_roles' => false,

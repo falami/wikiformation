@@ -19,6 +19,7 @@ final class ChangePlanController extends AbstractController
     EntiteSubscriptionRepository $subRepo,
     PlanRepository $planRepo,
     StripeBillingService $stripe,
+    \App\Service\Tenant\TenantContext $tenant,
   ): JsonResponse {
 
 
@@ -27,7 +28,10 @@ final class ChangePlanController extends AbstractController
 
     /** @var Utilisateur $user */
     $user = $this->getUser();
-    $entite = $user->getEntite();
+    $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+    $entite = $user instanceof Utilisateur ? $tenant->getCurrentEntiteForUser($user) : null;
+    if (!$entite) throw $this->createAccessDeniedException('Aucun organisme sélectionné.');
+    $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, $entite);
 
     if (!$entite) {
       return $this->json(['ok' => false, 'error' => 'Aucune entité rattachée.'], 400);
@@ -47,8 +51,12 @@ final class ChangePlanController extends AbstractController
     $plan = $planRepo->findOneBy(['code' => $planCode, 'isActive' => true]);
     if (!$plan) return $this->json(['ok' => false, 'error' => 'Plan introuvable.'], 404);
 
-    $newPriceId = $interval === 'year' ? $plan->getStripePriceYearlyId() : $plan->getStripePriceMonthlyId();
-    if (!$newPriceId) return $this->json(['ok' => false, 'error' => 'Price Stripe manquant.'], 400);
+    if (!$plan->isAvailableForNewSubscription($interval) || !$plan->isCheckoutConfigured($interval)) return $this->json(['ok' => false, 'error' => 'Le paiement de cette offre n’est pas encore activé pour cette périodicité.'], 400);
+    try {
+      $newPriceId = $stripe->validatePlanPrice($plan, $interval);
+    } catch (\Throwable $e) {
+      return $this->json(['ok' => false, 'error' => 'Le tarif de cette offre est temporairement indisponible. Aucun changement effectué.'], 400);
+    }
 
     // On récupère la subscription complète pour trouver le subscription_item id
     $stripeSub = $stripe->retrieveSubscription($sub->getStripeSubscriptionId());
@@ -145,6 +153,7 @@ final class ChangePlanController extends AbstractController
     EntiteSubscriptionRepository $subRepo,
     PlanRepository $planRepo,
     StripeBillingService $stripe,
+    \App\Service\Tenant\TenantContext $tenant,
   ): Response {
 
 
@@ -157,7 +166,10 @@ final class ChangePlanController extends AbstractController
 
     /** @var Utilisateur $user */
     $user = $this->getUser();
-    $entite = $user->getEntite();
+    $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+    $entite = $user instanceof Utilisateur ? $tenant->getCurrentEntiteForUser($user) : null;
+    if (!$entite) throw $this->createAccessDeniedException('Aucun organisme sélectionné.');
+    $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, $entite);
 
     $sub = $subRepo->findOneBy(['entite' => $entite], ['id' => 'DESC']);
     if (!$sub || !$sub->getStripeSubscriptionId()) {
@@ -171,7 +183,16 @@ final class ChangePlanController extends AbstractController
       return $this->redirectToRoute('app_administrateur_billing', ['entite' => $entite->getId()]);
     }
 
-    $newPriceId = $interval === 'year' ? $plan->getStripePriceYearlyId() : $plan->getStripePriceMonthlyId();
+    if (!$plan->isAvailableForNewSubscription($interval) || !$plan->isCheckoutConfigured($interval)) {
+      $this->addFlash('warning', 'Le paiement de cette offre n’est pas encore activé pour cette périodicité.');
+      return $this->redirectToRoute('app_administrateur_billing', ['entite' => $entite->getId()]);
+    }
+    try {
+      $newPriceId = $stripe->validatePlanPrice($plan, $interval);
+    } catch (\Throwable $e) {
+      $this->addFlash('warning', 'Le tarif de cette offre est temporairement indisponible. Aucun changement effectué.');
+      return $this->redirectToRoute('app_administrateur_billing', ['entite' => $entite->getId()]);
+    }
 
     $stripeSub = $stripe->retrieveSubscription($sub->getStripeSubscriptionId());
     $itemId = $stripeSub->items->data[0]->id ?? null;

@@ -355,6 +355,9 @@
     .modal.modal-ultra .btn-close{ opacity:.75; }
     .modal.modal-ultra .btn-close:hover{ opacity:1; }
 
+    .modal-dialog-scrollable .modal-content > form{ display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+    .modal-dialog-scrollable .modal-content > form > .modal-body{ overflow-y:auto; }
+    #modal-new-stagiaire .ts-dropdown{ z-index:1060; }
     .modal.modal-ultra .modal-body{ padding: 1rem 1.15rem 1.1rem; }
     .modal.modal-ultra .modal-footer{
       padding: .85rem 1.15rem 1.05rem;
@@ -719,17 +722,19 @@
       {# ===== Stagiaires ===== #}
       {% set insPrototype %}
         <div class='row g-3 mb-4 inscription-item align-items-end'>
-          <div class='col-md-5'>
+          <div class='col-md-4'>
             {{ form_row(form.inscriptions.vars.prototype.stagiaire) }}
           </div>
-          <div class='col-md-5'>
+          <div class='col-md-4'>{{ form_row(form.inscriptions.vars.prototype.entreprise) }}</div>
+          <div class='col-md-3'>
             {{ form_row(form.inscriptions.vars.prototype.status) }}
           </div>
-          <div class='col-md-2 d-flex align-items-end justify-content-end'>
+          <div class='col-md-1 d-flex align-items-end justify-content-end'>
             <button type='button' class='btn btn-outline-danger btn-remove-inscription'>
               <i class='fa fa-trash'></i>
             </button>
           </div>
+          <div class='col-12'>{{ form_row(form.inscriptions.vars.prototype.conventionsToAssociate) }}</div>
         </div>
       {% endset %}
 
@@ -742,12 +747,19 @@
           <div id="inscriptions-collection" data-prototype="{{ insPrototype|e('html_attr') }}">
             {% for ins in form.inscriptions %}
               <div class="row g-3 mb-4 inscription-item align-items-end">
-                <div class="col-md-5">{{ form_row(ins.stagiaire) }}</div>
-                <div class="col-md-5">{{ form_row(ins.status) }}</div>
-                <div class="col-md-2 d-flex align-items-end justify-content-end">
+                <div class="col-md-4">{{ form_row(ins.stagiaire) }}</div>
+                <div class="col-md-4">{{ form_row(ins.entreprise) }}</div>
+                <div class="col-md-3">{{ form_row(ins.status) }}</div>
+                <div class="col-md-1 d-flex align-items-end justify-content-end">
                   <button type="button" class="btn btn-outline-danger btn-remove-inscription">
                     <i class="fa fa-trash"></i>
                   </button>
+                </div>
+                <div class="col-12">{{ form_row(ins.conventionsToAssociate) }}</div>
+                <div class="col-12" data-saved-conventions data-learner="{{ ins.stagiaire.vars.value }}">
+                  <div class="small fw-semibold mb-2">Conventions rattachées</div>
+                  {% include 'administrateur/session/_participant_conventions.html.twig' with {documents: participantConventions[ins.vars.data.id]|default([])} %}
+                  <p class="small text-muted mb-0" data-conventions-pending hidden>Le stagiaire a changé. Enregistrez la session pour actualiser ses conventions.</p>
                 </div>
               </div>
             {% endfor %}
@@ -1029,13 +1041,14 @@
 
 {# ================== MODALES (identiques à ta version) ================== #}
 {# ===== NOUVEAU STAGIAIRE (ULTRA) ===== #}
-<div class="modal fade modal-ultra" id="modal-new-stagiaire" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade modal-ultra" id="modal-new-stagiaire" tabindex="-1" aria-hidden="true" aria-labelledby="new-stagiaire-title">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
 
       <form id="form-new-stagiaire">
+        <input type="hidden" name="_token" value="{{ csrf_token('session_stagiaire_new_' ~ entite.id) }}">
         <div class="modal-header">
-          <h5 class="modal-title">
+          <h5 class="modal-title" id="new-stagiaire-title">
             <span class="ico"><i class="bi bi-person-plus"></i></span>
             Nouveau stagiaire
           </h5>
@@ -1047,7 +1060,7 @@
             <i class="bi bi-shield-check"></i>
             <div>
               <div class="fw-semibold" style="color:var(--ink)">Création + association en 1 clic</div>
-              <div>On crée le stagiaire, puis on l’ajoute automatiquement dans la session.</div>
+              <div>Si cette adresse e-mail existe déjà, son compte est sélectionné sans créer de doublon.</div>
             </div>
           </div>
 
@@ -1097,6 +1110,23 @@
                 </div>
                 <div class="form-text">Cet email servira d’identifiant et de contact.</div>
               </div>
+              <div class="col-12">
+                <label class="form-label" for="new-stagiaire-entreprise">Entreprise <span class="text-muted fw-normal">(facultatif)</span></label>
+                <div class="d-flex align-items-start gap-2">
+                  <div class="flex-grow-1" style="min-width:0">
+                    <select name="entreprise" id="new-stagiaire-entreprise" class="form-select">
+                      <option value="">Aucune / particulier</option>
+                      {% for entreprise in participantEntreprises %}
+                        <option value="{{ entreprise.id }}">{{ entreprise.raisonSociale }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% if is_granted('ENTREPRISE_MANAGE', entite) %}
+                    <button type="button" class="btn btn-ultra-cancel" id="btn-new-participant-entreprise" title="Créer une entreprise" aria-label="Créer une entreprise"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+                  {% endif %}
+                </div>
+                <div class="form-text" id="participant-entreprise-status" role="status">Sélectionnez une entreprise ou créez-la avec le bouton +.</div>
+              </div>
             </div>
 
             <div class="alert alert-danger d-none mt-3 mb-0" id="new-stagiaire-error"></div>
@@ -1114,6 +1144,38 @@
         </div>
       </form>
 
+    </div>
+  </div>
+</div>
+{# ===== ENTREPRISE DU PARTICIPANT ===== #}
+<div class="modal fade modal-ultra" id="modal-participant-entreprise" tabindex="-1" aria-hidden="true" aria-labelledby="participant-entreprise-title">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="form-participant-entreprise">
+        <input type="hidden" name="_token" value="{{ csrf_token('session_entreprise_new_' ~ entite.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="participant-entreprise-title"><span class="ico"><i class="bi bi-building"></i></span> Nouvelle entreprise</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Retour au stagiaire"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">L’entreprise sera sélectionnée pour votre participant. Les informations du stagiaire sont conservées.</p>
+          <div class="ultra-panel">
+            <div class="row g-3">
+              <div class="col-12"><label class="form-label" for="participant-company-name">Raison sociale *</label><input id="participant-company-name" name="raisonSociale" class="form-control" required maxlength="255" placeholder="Ex. Renault Nîmes"></div>
+              <div class="col-md-6"><label class="form-label" for="participant-company-siret">SIRET</label><input id="participant-company-siret" name="siret" class="form-control" inputmode="numeric" maxlength="17" placeholder="14 chiffres"></div>
+              <div class="col-md-6"><label class="form-label" for="participant-company-email">E-mail de contact</label><input id="participant-company-email" name="email" type="email" class="form-control" maxlength="180" placeholder="contact@entreprise.fr"></div>
+              <div class="col-12"><label class="form-label" for="participant-company-address">Adresse</label><input id="participant-company-address" name="adresse" class="form-control" maxlength="255" autocomplete="street-address"></div>
+              <div class="col-md-4"><label class="form-label" for="participant-company-postcode">Code postal</label><input id="participant-company-postcode" name="codePostal" class="form-control" maxlength="20" autocomplete="postal-code"></div>
+              <div class="col-md-8"><label class="form-label" for="participant-company-city">Ville</label><input id="participant-company-city" name="ville" class="form-control" maxlength="100" autocomplete="address-level2"></div>
+            </div>
+            <div id="participant-company-error" class="alert alert-danger d-none mt-3 mb-0" role="alert"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ultra-cancel" data-bs-dismiss="modal">Retour</button>
+          <button type="submit" class="btn btn-ultra-primary"><i class="bi bi-check2 me-1"></i>Créer et sélectionner</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -1622,6 +1684,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ================== INSCRIPTIONS ==================
   const wrapIns = document.getElementById('inscriptions-collection');
+  wrapIns?.addEventListener('change', event => {
+    if (!event.target.matches('select[name$="[stagiaire]"]')) return;
+    const block = event.target.closest('.inscription-item')?.querySelector('[data-saved-conventions]');
+    if (!block) return;
+    const changed = event.target.value !== block.dataset.learner;
+    block.querySelector('[data-participant-conventions]').classList.toggle('d-none', changed);
+    block.querySelector('[data-conventions-pending]').hidden = !changed;
+  });
   const protoIns = wrapIns ? wrapIns.dataset.prototype : null;
   let indexIns = {{ form.inscriptions|length }};
 
@@ -1946,9 +2016,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const wrapIns = document.getElementById('inscriptions-collection');
   const protoIns = wrapIns ? wrapIns.dataset.prototype : null;
 
-  // ⚠️ indexIns existe déjà dans ton script principal, mais ici on le recalcule “safe”
-  let localIndexIns = wrapIns ? wrapIns.querySelectorAll('.inscription-item').length : 0;
-
   function showErr(msg){
     if (!errEl) return;
     errEl.textContent = msg || 'Erreur.';
@@ -1976,13 +2043,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // TomSelect
     if (selectEl.tomselect) {
       selectEl.tomselect.addOption({ value, text: label });
-      selectEl.tomselect.addItem(value, true);
+      selectEl.tomselect.setValue(value);
       return;
     }
 
     // Select natif
-    const opt = new Option(label, value, true, true);
-    selectEl.add(opt);
+    if (!Array.from(selectEl.options).some(option => option.value === value)) {
+      selectEl.add(new Option(label, value));
+    }
     selectEl.value = value;
     selectEl.dispatchEvent(new Event('change', { bubbles:true }));
   }
@@ -2006,32 +2074,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function addInscriptionRow(){
     if (!wrapIns || !protoIns) return null;
-
-    const html = protoIns.replace(/__name__/g, localIndexIns++);
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const row = div.firstElementChild;
-    wrapIns.appendChild(row);
-
-    // Important : ton initTomSelectOn/initTomSelectInscriptions existe déjà dans ton gros script.
-    // Ici on “ré-initialise” proprement sans casser :
-    row.querySelectorAll('select').forEach(el => {
-      if (window.TomSelect && el && !el.tomselect) {
-        new TomSelect(el, {
-          dropdownParent: 'body',
-          create: false,
-          allowEmptyOption: true,
-          sortField: { field: 'text', direction: 'asc' },
-          plugins: ['remove_button'],
-        });
-      }
-    });
-
-    // Mets à jour chips/résumé si tes fonctions existent
-    if (typeof updateChipIns === 'function') updateChipIns();
-    if (typeof refreshResume === 'function') refreshResume();
-
-    return row;
+    // Use the main collection handler so indices and summaries stay in sync.
+    document.getElementById('btn-add-inscription')?.click();
+    return wrapIns.querySelector('.inscription-item:last-child');
   }
 
   if (formNewStagiaire) {
@@ -2039,16 +2084,23 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       clearErr();
 
+      if (formNewStagiaire.dataset.submitting === '1') return;
+      formNewStagiaire.dataset.submitting = '1';
       const fd = new FormData(formNewStagiaire);
 
       try {
-        const resp = await fetch(newStagiaireUrl, {
+        const send = () => fetch(newStagiaireUrl, {
           method: 'POST',
           body: fd,
           headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
 
-        const data = await resp.json().catch(() => null);
+        let resp = await send();
+        let data = await resp.json().catch(() => null);
+        if (resp.status === 409 && data?.retryable) {
+          resp = await send();
+          data = await resp.json().catch(() => null);
+        }
 
         if (!resp.ok || !data || data.success === false) {
           showErr(data?.message || `Erreur serveur (${resp.status}).`);
@@ -2058,15 +2110,26 @@ document.addEventListener('DOMContentLoaded', function () {
         // ✅ 1) Ajoute l’option partout (pour les selects déjà existants)
         addOptionToAllStagiaireSelects(data.id, data.label);
 
-        // ✅ 2) Ajoute une ligne “inscription” et sélectionne automatiquement le nouveau stagiaire
-        const row = addInscriptionRow();
-        if (row) {
-          const stagSel = getStagiaireSelectFromRow(row);
-          addOptionAndSelect(stagSel, data.id, data.label);
-
-          // status: si tu veux forcer un status par défaut, tu peux le faire ici
-          // ex: row.querySelectorAll('select')[1]?.tomselect?.setValue('preinscrit', true);
+        const rows = Array.from(wrapIns?.querySelectorAll('.inscription-item') || []);
+        const selectedRow = rows.find(row => getStagiaireSelectFromRow(row)?.value === String(data.id));
+        const emptyRow = rows.find(row => !getStagiaireSelectFromRow(row)?.value);
+        const row = selectedRow || emptyRow || addInscriptionRow();
+        if (row) addOptionAndSelect(getStagiaireSelectFromRow(row), data.id, data.label);
+        if (row && data.entrepriseId) {
+          addOptionAndSelect(row.querySelector('select[name$="[entreprise]"]'), data.entrepriseId, data.entrepriseLabel);
         }
+
+        let notice = document.getElementById('stagiaire-selection-notice');
+        if (!notice && wrapIns) {
+          notice = document.createElement('div');
+          notice.id = 'stagiaire-selection-notice';
+          notice.className = 'alert alert-info mt-3';
+          notice.setAttribute('role', 'status');
+          wrapIns.after(notice);
+        }
+        if (notice) notice.textContent = data.already
+          ? 'Compte existant sélectionné : ' + data.label + '. Aucun doublon créé.'
+          : 'Stagiaire créé et sélectionné : ' + data.label + '.';
 
         // ✅ 3) Ferme modale + reset
         const modalEl = document.getElementById('modal-new-stagiaire');
@@ -2076,13 +2139,103 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         formNewStagiaire.reset();
+        document.getElementById('new-stagiaire-entreprise')?.tomselect?.clear();
         clearErr();
 
       } catch (err) {
         showErr("Erreur réseau / JS : " + (err?.message || err));
+      } finally {
+        delete formNewStagiaire.dataset.submitting;
       }
     });
   }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const learnerModal = document.getElementById('modal-new-stagiaire');
+  const companyModal = document.getElementById('modal-participant-entreprise');
+  const companySelect = document.getElementById('new-stagiaire-entreprise');
+  const companyForm = document.getElementById('form-participant-entreprise');
+  const error = document.getElementById('participant-company-error');
+  if (!learnerModal || !companyModal || !companySelect || !companyForm) return;
+  if (window.TomSelect && !companySelect.tomselect) new TomSelect(companySelect, {
+    create: false, allowEmptyOption: true, dropdownParent: '#modal-new-stagiaire',
+    placeholder: 'Rechercher une entreprise…', plugins: ['clear_button'],
+    render: { no_results: () => '<div class="no-results">Aucune entreprise trouvée</div>' }
+  });
+  const companyPicker = companySelect.tomselect;
+  if (companyPicker) {
+    // A custom dropdown parent needs explicit positioning. Keep it inside the
+    // modal for Bootstrap's focus trap, outside its clipped scrolling body.
+    companyPicker.positionDropdown = function () {
+      const rect = this.control.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const gap = 6;
+      const below = Math.max(0, viewportHeight - rect.bottom - 12);
+      const above = Math.max(0, rect.top - 12);
+      const openAbove = below < 220 && above > below;
+      const maxHeight = Math.min(260, (openAbove ? above : below) - gap);
+      Object.assign(this.dropdown.style, {
+        position: 'fixed', left: rect.left + 'px', width: rect.width + 'px',
+        top: 'auto', bottom: 'auto', margin: '0',
+      });
+      this.dropdown_content.style.maxHeight = Math.max(40, maxHeight) + 'px';
+      this.dropdown_content.style.overflowY = 'auto';
+      if (openAbove) this.dropdown.style.bottom = (viewportHeight - rect.top + gap) + 'px';
+      else this.dropdown.style.top = (rect.bottom + gap) + 'px';
+    };
+    const repositionCompanyMenu = () => { if (companyPicker.isOpen) companyPicker.positionDropdown(); };
+    companyPicker.on('dropdown_open', repositionCompanyMenu);
+    learnerModal.addEventListener('scroll', repositionCompanyMenu, true);
+    window.addEventListener('resize', repositionCompanyMenu);
+    learnerModal.addEventListener('hide.bs.modal', () => companyPicker.close());
+  }
+  document.getElementById('btn-new-participant-entreprise')?.addEventListener('click', () => {
+    companySelect.tomselect?.close();
+    learnerModal.addEventListener('hidden.bs.modal', () => {
+      bootstrap.Modal.getOrCreateInstance(companyModal).show();
+    }, {once:true});
+    bootstrap.Modal.getOrCreateInstance(learnerModal).hide();
+  });
+  companyModal.addEventListener('shown.bs.modal', () => document.getElementById('participant-company-name').focus());
+  companyModal.addEventListener('hidden.bs.modal', () => bootstrap.Modal.getOrCreateInstance(learnerModal).show());
+  companyForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (companyForm.dataset.submitting === '1') return;
+    companyForm.dataset.submitting = '1';
+    const button = companyForm.querySelector('[type="submit"]');
+    button.disabled = true;
+    error.classList.add('d-none');
+    try {
+      const body = new FormData(companyForm);
+      const send = () => fetch("{{ path('app_administrateur_session_entreprise_new', {entite:entite.id}) }}", {
+        method:'POST', body, headers:{'X-Requested-With':'XMLHttpRequest'}
+      });
+      let response = await send();
+      let data = await response.json();
+      if (response.status === 409 && data.retryable) { response = await send(); data = await response.json(); }
+      if (!response.ok || !data.success) throw new Error(data.message || 'Impossible de créer cette entreprise.');
+      const value = String(data.id);
+      if (companySelect.tomselect) {
+        companySelect.tomselect.addOption({value, text:data.label});
+        companySelect.tomselect.setValue(value);
+      } else {
+        if (!Array.from(companySelect.options).some(o => o.value === value)) companySelect.add(new Option(data.label, value));
+        companySelect.value = value;
+      }
+      document.getElementById('participant-entreprise-status').textContent = (data.already ? 'Entreprise existante sélectionnée : ' : 'Entreprise créée et sélectionnée : ') + data.label;
+      companyForm.reset();
+      bootstrap.Modal.getOrCreateInstance(companyModal).hide();
+    } catch (exception) {
+      error.textContent = exception.message || 'Erreur réseau. Réessayez.';
+      error.classList.remove('d-none');
+    } finally {
+      delete companyForm.dataset.submitting;
+      button.disabled = false;
+    }
+  });
 });
 </script>
 

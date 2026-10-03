@@ -214,7 +214,8 @@ class SessionType extends AbstractType
                 'required' => false,
                 'entry_options' => [
                     'label'  => false,
-                    'entite' => $o['entite'] ?? null,   // ✅ IMPORTANT
+                    'entite' => $o['entite'] ?? null,
+                    'conventions' => $o['conventions'],
                 ],
             ])
             ->add('piecesObligatoires', ChoiceType::class, [
@@ -284,6 +285,7 @@ class SessionType extends AbstractType
     {
         $r->setDefaults([
             'data_class' => Session::class,
+            'conventions' => [],
             'is_edit'    => false,
             'entite'     => null,
         ]);

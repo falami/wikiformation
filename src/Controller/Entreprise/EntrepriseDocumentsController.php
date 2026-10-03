@@ -1263,6 +1263,9 @@ final class EntrepriseDocumentsController extends AbstractController
         break;
       }
     }
+    if (!$ok) {
+      $ok = $em->getRepository(ConventionContrat::class)->count(['session' => $session, 'entite' => $entite, 'entreprise' => $entreprise]) > 0;
+    }
     if (!$ok) throw $this->createAccessDeniedException();
 
     // --- Formateur session
@@ -1312,17 +1315,17 @@ final class EntrepriseDocumentsController extends AbstractController
       ->setParameter('s', $session)
       ->setParameter('ds', $allDates);
 
-    // on limite aux stagiaires de l’entreprise (+ le formateur s’il existe)
-    if (!empty($stagiairesIds) || $trainerUserId) {
-      $ids = $stagiairesIds;
-      if ($trainerUserId) $ids[] = $trainerUserId;
-      $ids = array_values(array_unique($ids));
-
-      $emargementsQb
-        ->innerJoin('e.utilisateur', 'uu')
-        ->andWhere('uu.id IN (:uids)')
-        ->setParameter('uids', $ids);
-    }
+    // Les invités ne sont visibles qu'à l'entreprise destinataire de leur convention.
+    $ids = $stagiairesIds;
+    if ($trainerUserId) $ids[] = $trainerUserId;
+    $emargementsQb
+      ->leftJoin('e.utilisateur', 'uu')
+      ->leftJoin('e.participantAccess', 'pa')
+      ->leftJoin('pa.convention', 'pc')
+      ->andWhere('uu.id IN (:uids) OR (e.utilisateur IS NULL AND pc.entreprise = :company AND pc.entite = :entite AND pc.session = :s)')
+      ->setParameter('uids', $ids ?: [0])
+      ->setParameter('company', $entreprise)
+      ->setParameter('entite', $entite);
 
     $emargements = $emargementsQb->getQuery()->getResult();
 
@@ -1334,16 +1337,18 @@ final class EntrepriseDocumentsController extends AbstractController
 
     foreach ($emargements as $e) {
       $u    = $e->getUtilisateur();
-      $uid  = $u->getId();
+      $access = $e->getParticipantAccess();
+      if (!$u && !$access) continue;
+      $uid = $u ? 'user:' . $u->getId() : 'guest:' . $access->getId();
       $dYmd = $e->getDateJour()->format('Y-m-d');
 
       if (!isset($linesByDate[$dYmd][$uid])) {
         $linesByDate[$dYmd][$uid] = [
           'id'        => $uid,
-          'isTrainer' => $trainerUserId !== null && $uid === $trainerUserId,
-          'name'      => trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')),
-          'raisonSociale' => $u?->getEntreprise()->getRaisonSociale() ?? '—',
-          'naissance' => $u->getDateNaissance()?->format('d/m/Y') ?: '—',
+          'isTrainer' => $u && $u->getId() === $trainerUserId,
+          'name'      => $u ? trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')) : $access->getDisplayName(),
+          'raisonSociale' => $u?->getEntreprise()?->getRaisonSociale() ?? $access?->getConvention()?->getEntreprise()?->getRaisonSociale() ?? '—',
+          'naissance' => $u?->getDateNaissance()?->format('d/m/Y') ?: '—',
           'am'        => ['signed' => false, 'img' => null, 'at' => null],
           'pm'        => ['signed' => false, 'img' => null, 'at' => null],
         ];

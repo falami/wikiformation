@@ -24,10 +24,12 @@ final class ConventionDocument
     {
         if ($convention->isSigned()) {
             // Une signature fige le document : jamais de recalcul silencieux.
-            $public = realpath($this->projectDir . '/public');
-            $path = $public && $convention->getPdfPath()
-                ? realpath($public . '/' . ltrim($convention->getPdfPath(), '/')) : false;
-            if (!$path || !is_file($path) || !str_starts_with($path, $public . DIRECTORY_SEPARATOR)) {
+            $stored = $convention->getPdfPath() ?? '';
+            $private = str_starts_with($stored, 'private:');
+            $root = realpath($this->projectDir . ($private ? '/var/storage/conventions' : '/public'));
+            $relative = $private ? substr($stored, 8) : ltrim($stored, '/');
+            $path = $root && $relative !== '' ? realpath($root . '/' . $relative) : false;
+            if (!$path || !is_file($path) || !str_starts_with($path, $root . DIRECTORY_SEPARATOR)) {
                 throw new NotFoundHttpException('Le PDF signé est introuvable. Son original doit être restauré.');
             }
             $response = new BinaryFileResponse($path);
@@ -41,6 +43,8 @@ final class ConventionDocument
             $response = $this->pdf->streamPdfFromHtml($html, 'Convention-' . $convention->getNumero() . '.pdf');
         }
         $response->headers->set('Cache-Control', 'private, no-store');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
         return $response;
     }
 }

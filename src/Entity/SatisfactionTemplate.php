@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: SatisfactionTemplateRepository::class)]
 #[ORM\Index(columns: ['is_active'])]
+#[ORM\UniqueConstraint(name: 'uniq_satisfaction_template_system', columns: ['entite_id', 'system_key'])]
 class SatisfactionTemplate
 {
     #[ORM\Id]
@@ -22,6 +23,9 @@ class SatisfactionTemplate
 
     #[ORM\Column(length: 160)]
     private string $titre = 'Évaluation de la formation';
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $systemKey = null;
 
     #[ORM\Column(options: ['default' => true])]
     private bool $isActive = true;
@@ -93,6 +97,9 @@ class SatisfactionTemplate
         $this->titre = $titre;
         return $this;
     }
+
+    public function getSystemKey(): ?string { return $this->systemKey; }
+    public function setSystemKey(?string $key): static { $this->systemKey = $key; return $this; }
 
     public function isActive(): bool
     {

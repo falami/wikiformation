@@ -13,6 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'billing_plan')]
 class Plan
 {
+    public const PUBLIC_CODES = ['SOLO', 'PRO', 'ORGANISME', 'EXCELLENCE_2026'];
+
     public const CODE_EQUIPE = 'equipe';
     public const CODE_ORGA   = 'orga';
     public const CODE_ORGAP  = 'orga_plus';
@@ -284,12 +286,22 @@ class Plan
 
     public function getMaxUtilisateursLabel(): string
     {
-        return $this->maxUtilisateurs === 0 ? 'Utilisateurs illimités' : $this->maxUtilisateurs . ' utilisateurs';
+        return $this->maxUtilisateurs === 0 ? 'Utilisateurs illimités' : $this->maxUtilisateurs . ($this->maxUtilisateurs === 1 ? ' utilisateur' : ' utilisateurs');
     }
 
     public function getMaxFormateursLabel(): string
     {
-        return $this->maxFormateurs === 0 ? 'Formateurs illimités' : $this->maxFormateurs . ' formateurs';
+        return $this->maxFormateurs === 0 ? 'Formateurs illimités' : $this->maxFormateurs . ($this->maxFormateurs === 1 ? ' formateur' : ' formateurs');
+    }
+
+    public function getMaxProspectsLabel(): string
+    {
+        return $this->maxProspects === 0 ? 'Prospects illimités' : $this->maxProspects . ($this->maxProspects === 1 ? ' prospect' : ' prospects');
+    }
+
+    public function getMaxEntreprisesLabel(): string
+    {
+        return $this->maxEntreprises === 0 ? 'Entreprises illimités' : $this->maxEntreprises . ($this->maxEntreprises === 1 ? ' entreprise' : ' entreprises');
     }
 
     public function getMaxProspects(): int
@@ -356,9 +368,36 @@ class Plan
         return (int)($limits[$tenantRole] ?? 0);
     }
 
+    /** New sales are monthly only. Historical annual subscriptions retain their configuration. */
+    public function isAvailableForNewSubscription(string $interval): bool
+    {
+        return $interval === 'month' && $this->isActive()
+            && in_array(strtoupper($this->getCode()), self::PUBLIC_CODES, true)
+            && $this->hasPriceFor('month');
+    }
+
+    public function hasPriceFor(string $interval): bool
+    {
+        return in_array($interval, ['month', 'year'], true) && ($this->getPriceFor($interval) ?? 0) > 0;
+    }
+
+    public function isCheckoutConfigured(string $interval): bool
+    {
+        $priceId = match ($interval) {
+            'month' => $this->stripePriceMonthlyId,
+            'year' => $this->stripePriceYearlyId,
+            default => null,
+        };
+        return $this->isActive && $this->hasPriceFor($interval) && is_string($priceId) && str_starts_with($priceId, 'price_');
+    }
+
     public function getPriceFor(string $interval): ?int
     {
-        return $interval === 'month' ? $this->priceMonthlyCents : $this->priceYearlyCents;
+        return match ($interval) {
+            'month' => $this->priceMonthlyCents,
+            'year' => $this->priceYearlyCents,
+            default => null,
+        };
     }
 
 

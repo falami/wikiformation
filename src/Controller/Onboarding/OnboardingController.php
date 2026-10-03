@@ -23,7 +23,7 @@ final class OnboardingController extends AbstractController
         EntityManagerInterface $em,
         EntiteSubscriptionRepository $subRepo,
         TenantContext $tenant,
-        int $billingAppTrialDays = 90,
+        int $billingAppTrialDays,
     ): Response {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
@@ -33,13 +33,14 @@ final class OnboardingController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
-        $plans = $em->getRepository(Plan::class)->findBy(
-            ['isActive' => true],
-            ['ordre' => 'ASC', 'id' => 'ASC']
-        );
+        $plans = $em->getRepository(Plan::class)->findPublicOffers();
 
         $entite = new Entite();
         $form = $this->createForm(EntiteOnboardingType::class, $entite);
+        if (!$request->isMethod('POST')) {
+            $form->get('planCode')->setData((string) $request->getSession()->get('pricing_selected_plan', ''));
+            $form->get('interval')->setData('month');
+        }
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -59,11 +60,7 @@ final class OnboardingController extends AbstractController
             }
 
             $planCode = (string) $form->get('planCode')->getData();
-            $interval = (string) $form->get('interval')->getData() ?: 'year';
-
-            if (!in_array($interval, ['month', 'year'], true)) {
-                $interval = 'year';
-            }
+            $interval = (string) $form->get('interval')->getData() ?: 'month';
 
             $plan = null;
             if ($planCode !== '') {
@@ -73,7 +70,7 @@ final class OnboardingController extends AbstractController
                 ]);
             }
 
-            if (!$plan) {
+            if (!$plan || !$plan->isAvailableForNewSubscription($interval)) {
                 $form->get('planCode')->addError(new FormError('Choisissez un plan pour continuer.'));
                 return $this->render('onboarding/index.html.twig', [
                     'form' => $form,
@@ -127,11 +124,7 @@ final class OnboardingController extends AbstractController
 
                 $now = new \DateTimeImmutable();
 
-                // Vrai essai de 3 mois calendaires
-                $trialEndsAt = $now->modify('+3 months');
-
-                // Si tu préfères strictement 90 jours :
-                // $trialEndsAt = $now->modify('+' . $billingAppTrialDays . ' days');
+                $trialEndsAt = $now->modify('+' . $billingAppTrialDays . ' days');
 
                 $sub = new EntiteSubscription();
                 $sub->setEntite($entite);

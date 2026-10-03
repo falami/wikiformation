@@ -50,7 +50,7 @@ final class DevisConventionType extends AbstractType
                 ->add('capacite', IntegerType::class, [
                     'label' => 'Capacité de la session',
                     'constraints' => [new Assert\NotNull(), new Assert\Positive()],
-                    'attr' => ['min' => 1],
+                    'attr' => ['class' => 'form-control', 'min' => 1],
                 ])
                 ->add('jours', CollectionType::class, [
                     'label' => false,
@@ -137,7 +137,7 @@ final class DevisConventionType extends AbstractType
                     'label' => 'Nombre total de stagiaires prévu',
                     'required' => false,
                     'constraints' => [new Assert\Positive(message: 'Indiquez un effectif supérieur à zéro.'), new Assert\LessThanOrEqual(100000)],
-                    'attr' => ['min' => 1, 'max' => 100000, 'data-planned-count' => '', 'placeholder' => 'Calculé à partir des noms renseignés'],
+                    'attr' => ['class' => 'form-control', 'min' => 1, 'max' => 100000, 'data-planned-count' => '', 'placeholder' => 'Calculé à partir des noms renseignés'],
                     'help' => 'Inclut les clients sélectionnés, les noms saisis et les personnes encore inconnues. Renseignez seulement ce nombre si vous n’avez pas encore la liste.',
                 ]);
         }

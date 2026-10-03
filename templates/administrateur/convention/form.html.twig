@@ -1,5 +1,6 @@
 {# templates/administrateur/convention/form.html.twig #}
 {% extends 'base_admin.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
 {% block title %}{{ title }}{% endblock %}
 
 {% block stylesheets %}
@@ -7,8 +8,8 @@
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 
   <style>
     :root{
@@ -117,6 +118,20 @@
       z-index: 1080 !important;
     }
 
+    .participant-hint{background:#f6f8fb;border:1px solid #e3e9f0;border-radius:14px;padding:1rem;color:#53657b;font-size:.875rem;line-height:1.55}
+    .participant-hint>i{font-size:1.2rem;color:var(--theme-color-principal)}
+    .participant-hint a{display:inline-block;font-weight:600;margin-top:.2rem}
+    .cardx .form-label{display:block;font-weight:650;color:var(--ink);margin-bottom:.5rem}
+    .cardx .form-text{font-size:.84rem;line-height:1.55;color:var(--muted);margin-top:.5rem}
+    .cardx .form-check{padding-top:.35rem;padding-bottom:.35rem}
+    .cardx .form-check-input:checked{background-color:var(--theme-color-principal);border-color:var(--theme-color-principal)}
+    .cardx .ts-dropdown{border:1px solid #dbe3ec;border-radius:14px;box-shadow:0 14px 40px rgba(15,23,42,.12);overflow:hidden}
+    .cardx .ts-dropdown .option{padding:.7rem .9rem;line-height:1.5}
+    .cardx .ts-dropdown .active{background:#f0f4f8;color:var(--ink)}
+    .cardx .ts-wrapper.multi .ts-control>div{border-radius:8px;background:#eaf0f5;color:#233342;padding:.35rem .55rem}
+    .cardx .ts-control{min-height:48px}
+    .cardx .ts-wrapper.disabled .ts-control{background:#f4f6f8;opacity:1;color:#566476}
+    .cardx .invalid-feedback{font-size:.875rem;line-height:1.5}
     /* Badge résumé inscription */
     .info-box{
       border:1px solid var(--stroke);
@@ -134,15 +149,11 @@
 {% block javascripts %}
   {{ parent() }}
 
-  {# ✅ Ne charge jQuery que si ta base_admin ne le charge pas déjà.
-     Si base_admin charge déjà jQuery, SUPPRIME cette ligne. #}
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
   {# ✅ Flatpickr : lien correct + locale FR #}
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/fr.js"></script>
 {% endblock %}
 
 {% block body %}
@@ -278,12 +289,24 @@
           <span class="chip">À compléter au besoin</span>
         </div>
         <div class="p-3 p-md-4">
-          {{ form_row(form.inscriptions) }}
+          {% if form.stagiaires is defined %}
+            {{ form_row(form.stagiaires) }}
+            <div class="participant-hint d-flex align-items-start gap-2 mt-3">
+              <i class="bi bi-person-plus" aria-hidden="true"></i>
+              <div>Un stagiaire n’apparaît pas ? Recherchez les stagiaires de <strong>{{ c.entreprise ? c.entreprise.raisonSociale : 'cet organisme' }}</strong>, ainsi que ceux de l’organisme sans entreprise. Sélectionner un stagiaire sans entreprise rattache son inscription à ce client pour cette session.
+                <a href="{{ path('app_administrateur_utilisateur_ajouter', {entite: entite.id}) }}" target="_blank" rel="noopener">Créer une fiche client <span class="visually-hidden">dans un nouvel onglet</span><i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i></a>
+                Puis actualisez cette page avant de reprendre votre sélection.
+              </div>
+            </div>
+          {% else %}
+            {{ form_row(form.inscriptions) }}
+          {% endif %}
           {% if form.participantsLibres is defined %}
             <div class="border-top pt-3 mt-3">{{ form_row(form.participantsLibres) }}</div>
+            {% if form.remplacerNomsLibres is defined %}{{ form_row(form.remplacerNomsLibres) }}{% endif %}
             {{ form_row(form.effectifPrevisionnel) }}
             <div class="info-box small mt-3">
-              La liste nominative peut être complétée tant que la convention n’est pas signée. Lorsqu’un stagiaire obtient son compte, rattachez son inscription ici et retirez son nom du champ libre pour éviter de le compter deux fois.
+              La liste nominative peut être complétée tant que la convention n’est pas signée. Vous pouvez conserver des noms sans e-mail, ou indiquer seulement l’effectif attendu.
             </div>
           {% endif %}
         </div>
@@ -563,7 +586,8 @@ document.addEventListener('DOMContentLoaded', function(){
   const idSession     = '#{{ form.session.vars.id }}';
   const idEntreprise  = '#{{ form.entreprise.vars.id }}';
   const idStagiaire   = '#{{ form.stagiaire.vars.id }}';
-  const idInscriptions= '#{{ form.inscriptions.vars.id }}';
+  const idInscriptions= '#{{ form.stagiaires is defined ? form.stagiaires.vars.id : form.inscriptions.vars.id }}';
+  const elReplaceNames = document.getElementById('{{ form.remplacerNomsLibres is defined ? form.remplacerNomsLibres.vars.id : "unused-replace" }}');
   const elFreeNames = document.getElementById('{{ form.participantsLibres is defined ? form.participantsLibres.vars.id : "unused-free-names" }}');
   const elEffectif = document.getElementById('{{ form.effectifPrevisionnel is defined ? form.effectifPrevisionnel.vars.id : "unused-effectif" }}');
 
@@ -596,7 +620,10 @@ document.addEventListener('DOMContentLoaded', function(){
     new TomSelect(el, Object.assign({
       create:false,
       allowEmptyOption:true,
-      plugins: el.multiple ? ['remove_button'] : [],
+      plugins: el.multiple ? {remove_button: {title: 'Retirer ce stagiaire'}} : [],
+      placeholder: el.dataset.placeholder || '',
+      maxOptions: null,
+      render: {no_results: () => '<div class="no-results">Aucun stagiaire correspondant. Vérifiez sa fiche client et son entreprise.</div>'},
       sortField: { field:'text', direction:'asc' }
     }, opts));
 
@@ -652,7 +679,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const insTexts = getSelectedTexts(ins);
     if ($resume.inscriptions) $resume.inscriptions.textContent = insTexts.length ? insTexts.join(', ') : '—';
     const freeNames = (elFreeNames?.value || '').split(/\r\n|\r|\n/).map(name => name.trim()).filter(Boolean);
-    const knownCount = insTexts.length + freeNames.length;
+    const nameKey = name => name.trim().replace(/\s+/gu, ' ').toLocaleLowerCase('fr');
+    const selectedNames = Array.from(ins?.selectedOptions || []).flatMap(option => [option.dataset.name, option.dataset.reverseName]).filter(Boolean).map(nameKey);
+    const remainingNames = elReplaceNames?.checked ? freeNames.filter(name => !selectedNames.includes(nameKey(name))) : freeNames;
+    const knownCount = insTexts.length + remainingNames.length;
     const declared = (elEffectif?.value || '').trim();
     const total = declared ? Number(declared) : knownCount;
     const effectifOk = Number.isInteger(total) && total > 0 && total >= knownCount;
@@ -692,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function(){
     el.addEventListener('change', refreshResume);
     el.addEventListener('input', refreshResume);
   });
-  [elFreeNames, elEffectif].filter(Boolean).forEach(el => {
+  [elFreeNames, elEffectif, elReplaceNames].filter(Boolean).forEach(el => {
     el.addEventListener('input', refreshResume);
     el.addEventListener('change', refreshResume);
   });

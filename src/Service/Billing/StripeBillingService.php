@@ -39,6 +39,18 @@ final class StripeBillingService
     return $customer->id;
   }
 
+  /** Validate the configured Stripe price before creating customers, checkouts or changing subscriptions. */
+  public function validatePlanPrice(Plan $plan, string $interval): string
+  {
+    if (!$plan->isAvailableForNewSubscription($interval) || !$plan->isCheckoutConfigured($interval)) {
+      throw new \DomainException('La souscription à cette offre sera disponible après activation du paiement.');
+    }
+    $id = $interval === 'month' ? $plan->getStripePriceMonthlyId() : $plan->getStripePriceYearlyId();
+    $price = $this->client()->prices->retrieve($id, []);
+    PlanPriceValidator::assertMatches($plan, $interval, $price->toArray());
+    return $id;
+  }
+
   public function createCheckoutSession(
     string $customerId,
     Plan $plan,
@@ -49,6 +61,9 @@ final class StripeBillingService
     ?string $couponId = null,
     ?int $localSubId = null,              // 👈 AJOUT
   ): string {
+    if (!$plan->isAvailableForNewSubscription($interval) || !$plan->isCheckoutConfigured($interval)) {
+      throw new \DomainException('Cette offre mensuelle n’est pas disponible à la souscription.');
+    }
     $stripe = $this->client();
 
     $priceId = $interval === 'year' ? $plan->getStripePriceYearlyId() : $plan->getStripePriceMonthlyId();
@@ -313,7 +328,7 @@ final class StripeBillingService
 
   /**
    * Retourne un tableau [PLAN_CODE => ['month'=>cents|null, 'year'=>cents|null]]
-   * à partir des stripePriceMonthlyId / stripePriceYearlyId.
+   * Montants du catalogue local : aucune requête Stripe pour afficher la vitrine.
    *
    * @param Plan[] $plans
    */
@@ -323,8 +338,8 @@ final class StripeBillingService
     foreach ($plans as $plan) {
       $code = strtoupper($plan->getCode());
       $out[$code] = [
-        'month' => $this->getPriceUnitAmount($plan->getStripePriceMonthlyId()),
-        'year'  => $this->getPriceUnitAmount($plan->getStripePriceYearlyId()),
+        'month' => $plan->getPriceMonthlyCents(),
+        'year'  => $plan->getPriceYearlyCents(),
       ];
     }
     return $out;

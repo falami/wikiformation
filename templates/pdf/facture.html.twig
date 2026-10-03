@@ -1,5 +1,9 @@
 {# templates/pdf/facture.html.twig #}
 {% import _self as m %}
+{# Automated invoices share their calculation with payment reminders and PDF delivery. #}
+{% if invoiceTotals is not defined and facture.meta.workflow_billing is defined %}
+  {% set invoiceTotals = invoice_totals(facture) %}
+{% endif %}
 
 {% macro eur(cents) %}{{ ((cents ?? 0) / 100)|number_format(2, ',', ' ') }} €{% endmacro %}
 {% macro pct(v) %}{{ (v ?? 0)|number_format(2, ',', ' ') }} %{% endmacro %}
@@ -325,6 +329,7 @@
 
           {% set tva_rate = l.tva ?? 0 %}
           {% set line_tva = (line_ht_net * tva_rate / 100)|round(0, 'floor') %}
+          {% if invoiceTotals is defined %}{% set line_tva = l.totalTvaCents %}{% endif %}
 
           {% set total_ht_brut = total_ht_brut + line_ht %}
           {% set total_remises_lignes = total_remises_lignes + line_remise %}
@@ -432,6 +437,16 @@
     {# Si les débours sont déjà une ligne de facture, ne pas les rajouter une seconde fois #}
     {% set total_a_payer_display = ttc_display %}
 
+    {% if invoiceTotals is defined %}
+      {% set total_ht_brut = invoiceTotals.brutHtCents %}
+      {% set total_remises_lignes = invoiceTotals.lineDiscountCents %}
+      {% set remise_globale = invoiceTotals.globalDiscountCents %}
+      {% set ht_display = invoiceTotals.htCents %}
+      {% set tva_display = invoiceTotals.tvaCents %}
+      {% set ttc_display = invoiceTotals.ttcCents %}
+      {% set total_a_payer_display = invoiceTotals.ttcCents %}
+    {% endif %}
+
     {# ===== TOTAUX ===== #}
     <table class="totaux" cellspacing="0" cellpadding="0">
       <tr>
@@ -477,6 +492,7 @@
             {% if base_after < 0 %}{% set base_after = 0 %}{% endif %}
           {% endif %}
           {% set tva_rate_amount = (base_after * rate / 100)|round(0, 'floor') %}
+          {% if invoiceTotals is defined %}{% set tva_rate_amount = invoiceTotals.rates[rate_key].tvaCents %}{% endif %}
 
           <tr>
             <td style="border:none"></td>

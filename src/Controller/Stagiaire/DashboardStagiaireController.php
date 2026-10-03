@@ -81,7 +81,9 @@ class DashboardStagiaireController extends AbstractController
         Entite $entite,
         EntityManagerInterface $em,
         InscriptionRepository $inscriptionRepo,
-        SatisfactionAccess $satisfactionAccess
+        SatisfactionAccess $satisfactionAccess,
+        \App\Service\Session\ParticipantQrAccess $qrAccess,
+        \App\Service\Session\ParticipantQrPresenter $qrPresenter,
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -98,7 +100,10 @@ class DashboardStagiaireController extends AbstractController
             ->from(Session::class, 's')
             ->join(Inscription::class, 'i', 'WITH', 'i.session = s')
             ->andWhere('i.stagiaire = :me')->setParameter('me', $user)
-            ->join('s.formation', 'fo')
+            ->andWhere('s.entite = :entite AND i.entite = :entite')->setParameter('entite', $entite)
+            ->andWhere('s.status != :cancelled')->setParameter('cancelled', \App\Enum\StatusSession::CANCELED)
+            ->andWhere('i.status NOT IN (:inactive)')->setParameter('inactive', [\App\Enum\StatusInscription::ANNULE->value, \App\Enum\StatusInscription::ABSENT->value])
+            ->leftJoin('s.formation', 'fo')
             ->leftJoin('s.formateur', 'f')
             ->leftJoin('f.utilisateur', 'fu')
             ->leftJoin('s.site', 'si')
@@ -115,6 +120,7 @@ class DashboardStagiaireController extends AbstractController
 
 
         $nextSession = null;
+        $participantQrCard = null;
 
         if ($next) {
             // dates (tu as déjà getDateDebut/getDateFin)
@@ -176,7 +182,13 @@ class DashboardStagiaireController extends AbstractController
             $inscription = $inscriptionRepo->findOneBy([
                 'session'   => $next,
                 'stagiaire' => $user,
+                'entite'    => $entite,
             ]);
+
+            if ($inscription && $next->getStatus() !== \App\Enum\StatusSession::CANCELED
+                && !in_array($inscription->getStatus(), [\App\Enum\StatusInscription::ANNULE, \App\Enum\StatusInscription::ABSENT], true)) {
+                $participantQrCard = $qrPresenter->card($qrAccess->forInscription($inscription));
+            }
 
             $assign = $em->getRepository(SatisfactionAssignment::class)->findOneBy([
                 'session'   => $next,
@@ -224,10 +236,14 @@ class DashboardStagiaireController extends AbstractController
             ];
         }
 
-        return $this->render('stagiaire/dashboard.html.twig', [
+        $response = $this->render('stagiaire/dashboard.html.twig', [
             'entite' => $entite,
             'nextSession' => $nextSession,
+            'participantQrCard' => $participantQrCard,
         ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
+        return $response;
     }
 
 

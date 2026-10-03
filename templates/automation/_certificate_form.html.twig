@@ -1,0 +1,21 @@
+<section class="card border-0 shadow-sm rounded-4 p-4 mt-4" aria-labelledby="workflow-certificates-title">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div><h2 class="h5 mb-1" id="workflow-certificates-title">Certificats métier</h2><p class="text-muted small mb-0">Déposez les certificats délivrés et validés par une personne habilitée. Ils seront joints à l’envoi prévu dans le parcours.</p></div></div>
+  {% for inscription in workflow.convention.inscriptions %}
+    {% set certificate = inscription.meta.workflowCertificate|default(null) %}
+    <details class="border rounded-4 p-3 mb-3">
+      <summary class="fw-semibold">{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }} <span class="badge {{ certificate ? 'text-bg-success' : 'text-bg-light' }} ms-2">{{ certificate ? 'Version ' ~ certificate.version : 'À déposer' }}</span></summary>
+      {% if certificate %}
+        <p class="small mt-3 mb-2">Délivré le {{ certificate.issuedOn|date('d/m/Y') }} · Validé le {{ certificate.validatedAt|date('d/m/Y à H:i') }}</p>
+        <a class="btn btn-sm btn-outline-secondary mb-3" href="{{ path('app_administrateur_workflow_certificate_download', {entite: workflow.entite.id, id: workflow.id, inscription: inscription.id, version: certificate.version}) }}">Télécharger la version {{ certificate.version }}</a>
+        {% if certificate.history|default([])|length %}<details class="small mb-3"><summary>Versions précédentes conservées</summary><ul class="mt-2">{% for previous in certificate.history|reverse %}<li><a href="{{ path('app_administrateur_workflow_certificate_download', {entite: workflow.entite.id, id: workflow.id, inscription: inscription.id, version: previous.version}) }}">Version {{ previous.version }} · {{ previous.validatedAt|date('d/m/Y') }}</a></li>{% endfor %}</ul></details>{% endif %}
+      {% endif %}
+      <form method="post" enctype="multipart/form-data" action="{{ path('app_administrateur_workflow_certificate', {entite: workflow.entite.id, id: workflow.id}) }}" class="mt-3">
+        <input type="hidden" name="_token" value="{{ csrf_token('workflow_certificate_' ~ workflow.id) }}"><input type="hidden" name="inscription" value="{{ inscription.id }}"><input type="hidden" name="version" value="{{ certificate.version|default(0) }}">
+        <div class="row g-3"><div class="col-md-8"><label for="certificate-{{ inscription.id }}" class="form-label">Certificat PDF <span class="text-muted small">10 Mo maximum</span></label><input class="form-control" type="file" name="certificate" id="certificate-{{ inscription.id }}" accept="application/pdf,.pdf" required></div><div class="col-md-4"><label for="certificate-date-{{ inscription.id }}" class="form-label">Date de délivrance</label><input class="form-control js-certificate-datepicker" type="date" name="issuedOn" id="certificate-date-{{ inscription.id }}" max="{{ 'now'|date('Y-m-d') }}" required></div></div>
+        {% if certificate %}<div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="replace" id="replace-{{ inscription.id }}" value="1" required><label class="form-check-label" for="replace-{{ inscription.id }}">Remplacer le certificat actuel en conservant l’ancienne version</label></div><label class="form-label mt-2" for="certificate-reason-{{ inscription.id }}">Motif du remplacement</label><input class="form-control" name="reason" id="certificate-reason-{{ inscription.id }}" maxlength="500" required>{% endif %}
+        <div class="form-check my-3"><input class="form-check-input" type="checkbox" name="habilitation" id="validation-{{ inscription.id }}" value="1" required><label class="form-check-label small" for="validation-{{ inscription.id }}">Je confirme que ce document concerne ce participant et a été délivré et validé par une personne habilitée.</label></div>
+        <button class="btn btn-warning rounded-pill" type="submit"><i class="bi bi-file-earmark-check me-1" aria-hidden="true"></i>Conserver le certificat validé</button>
+      </form>
+    </details>
+  {% else %}<p class="text-muted mb-0">Validez les inscriptions des participants pour déposer leurs certificats.</p>{% endfor %}
+</section>

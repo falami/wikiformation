@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+  <title>{% block title %}Votre formation{% endblock %} · {{ entite ? entite.nom : 'Wikiformation' }}</title>
+  <link rel="stylesheet" href="{{ asset('dist/css/participant-qr-public.css') }}">
+  <script src="{{ asset('dist/js/participant-qr-public.js') }}" defer></script>
+</head>
+<body>
+<main class="participant-page">
+  <header class="organism">
+    {% if entite and entite.logo %}<img src="{{ asset('uploads/photos/entite/logo/' ~ entite.logo) }}" alt="Logo {{ entite.nom }}">{% endif %}
+    <div><span class="eyebrow">Votre espace formation</span><strong>{{ entite ? entite.nom : 'Wikiformation' }}</strong></div>
+    <span class="access-label">Accès personnel</span>
+  </header>
+  {% if session %}<div class="session-summary"><span>{{ session.code }}</span><strong>{{ session.formationLabel }}</strong></div>{% endif %}
+  <section class="participant-card">{% block content %}{% endblock %}</section>
+  <footer>Ce lien est personnel. Aucune connexion ni création de compte nécessaire.</footer>
+</main>
+</body>
+</html>

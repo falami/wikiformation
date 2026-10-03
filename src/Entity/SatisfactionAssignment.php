@@ -18,6 +18,7 @@ use App\Entity\Inscription;
   name: 'uniq_sat_session_stagiaire_template',
   columns: ['session_id', 'stagiaire_id', 'template_id']
 )]
+#[ORM\UniqueConstraint(name: 'uniq_sat_participant_template', columns: ['participant_access_id', 'template_id'])]
 class SatisfactionAssignment
 {
     #[ORM\Id]
@@ -30,8 +31,12 @@ class SatisfactionAssignment
     private ?Session $session = null;
 
     #[ORM\ManyToOne(inversedBy: 'satisfactionAssignments')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?Utilisateur $stagiaire = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?SessionParticipantAccess $participantAccess = null;
 
     #[ORM\ManyToOne(inversedBy: 'satisfactionAssignments')]
     #[ORM\JoinColumn(nullable: false)]
@@ -98,6 +103,9 @@ class SatisfactionAssignment
 
         return $this;
     }
+
+    public function getParticipantAccess(): ?SessionParticipantAccess { return $this->participantAccess; }
+    public function setParticipantAccess(?SessionParticipantAccess $access): static { $this->participantAccess = $access; return $this; }
 
     public function getTemplate(): ?SatisfactionTemplate
     {

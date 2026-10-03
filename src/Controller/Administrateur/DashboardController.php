@@ -682,7 +682,10 @@ final class DashboardController extends AbstractController
 
     // Ici on compte juste celles sans dossier (ça repère déjà un gros manque)
 
-    $qbDossierKo->andWhere('d.id IS NULL');
+    $qbDossierKo->andWhere('d.id IS NULL')
+      ->andWhere('s.typeFinancement != :externalDocs AND s.status != :cancelledDocs')
+      ->setParameter('externalDocs', TypeFinancement::OUI)
+      ->setParameter('cancelledDocs', StatusSession::CANCELED);
 
     $dossiersSansDossier = (int) $qbDossierKo->getQuery()->getSingleScalarResult();
 
@@ -701,10 +704,21 @@ final class DashboardController extends AbstractController
       ->from(Emargement::class, 'e')
 
       ->join('e.session', 's')
+      ->leftJoin('e.participantAccess', 'participant')
+      ->andWhere('e.utilisateur IS NOT NULL OR participant.active = true')
 
-      ->where('s.entite = :e')
+      ->andWhere('s.entite = :e')
 
       ->andWhere('s.typeFinancement != :sousTraitance')
+      ->andWhere('s.status NOT IN (:attendanceClosedStatuses)')
+      ->andWhere('EXISTS (SELECT aj.id FROM App\Entity\SessionJour aj WHERE aj.session = s AND aj.dateFin >= :attendanceNow)')
+      ->andWhere('e.dateJour <= :attendanceNow')
+      ->andWhere('NOT EXISTS (SELECT asp.id FROM App\Entity\SessionPiece asp WHERE asp.session = s AND asp.entite = :e AND asp.type = :attendanceUpload)')
+      ->setParameter('attendanceUpload', \App\Enum\SessionPieceType::EMARGEMENT_SIGNE)
+
+      ->setParameter('attendanceClosedStatuses', [StatusSession::CANCELED->value, StatusSession::DONE->value])
+      ->setParameter('attendanceNow', new \DateTimeImmutable())
+
 
       ->andWhere('e.signedAt IS NULL')
 
@@ -918,7 +932,7 @@ final class DashboardController extends AbstractController
 
       $session = $i->getSession();
 
-      if (!$session) continue;
+      if (!$session || $session->isSousTraitance() || $session->getStatus() === StatusSession::CANCELED) continue;
 
 
 
@@ -1122,11 +1136,11 @@ final class DashboardController extends AbstractController
 
     /**
 
-     * Émargements : MANQUANTS (sessions passées) + NON SIGNÉS (Top 20)
+     * Émargements dus des sessions actives : manquants et non signés (Top 20)
 
      */
 
-    $today = new \DateTimeImmutable('today');
+    $today = new \DateTimeImmutable();
 
     $conn = $this->em->getConnection();
 
@@ -1146,11 +1160,12 @@ final class DashboardController extends AbstractController
 
         SELECT
 
-            s.id   AS session_id,
+            DISTINCT s.id AS session_id,
 
             s.code AS session_code,
 
             u.id   AS user_id,
+            u.participant_id AS participant_id,
 
             u.prenom AS prenom,
 
@@ -1172,9 +1187,16 @@ final class DashboardController extends AbstractController
 
         ) sj ON sj.session_id = s.id
 
-        INNER JOIN inscription i ON i.session_id = s.id
-
-        INNER JOIN utilisateur u ON u.id = i.stagiaire_id
+        INNER JOIN (
+            SELECT i.session_id, u.id, NULL AS participant_id, u.prenom, u.nom
+            FROM inscription i
+            INNER JOIN utilisateur u ON u.id = i.stagiaire_id
+            WHERE i.entite_id = :eid AND i.status <> :insCancelled
+            UNION ALL
+            SELECT pa.session_id, NULL AS id, pa.id AS participant_id, pa.display_name AS prenom, '' AS nom
+            FROM session_participant_access pa
+            WHERE pa.entite_id = :eid AND pa.active = 1 AND pa.source_key LIKE 'guest:%'
+        ) u ON u.session_id = s.id
 
         INNER JOIN session_jour j ON j.session_id = s.id
 
@@ -1192,7 +1214,7 @@ final class DashboardController extends AbstractController
 
             ON e.session_id = s.id
 
-           AND e.utilisateur_id = u.id
+           AND (e.utilisateur_id = u.id OR e.participant_access_id = u.participant_id)
 
            AND e.date_jour = DATE(j.date_debut)
 
@@ -1202,7 +1224,11 @@ final class DashboardController extends AbstractController
 
           AND s.type_financement <> :sousTraitance
 
-          AND sj.dmax < :today
+          AND s.status NOT IN (:cancelled, :done)
+          AND sj.dmax >= :today
+          AND j.date_fin < :today
+          AND ((p.periode = :p1 AND TIME(j.date_debut) < '13:00:00') OR (p.periode = :p2 AND TIME(j.date_fin) > '13:00:00'))
+          AND NOT EXISTS (SELECT 1 FROM session_piece sp WHERE sp.session_id = s.id AND sp.entite_id = :eid AND sp.type = :attendanceUpload)
 
           AND e.id IS NULL
 
@@ -1216,7 +1242,11 @@ final class DashboardController extends AbstractController
 
       'sousTraitance' => TypeFinancement::OUI->value,
 
-      'today' => $today->format('Y-m-d 00:00:00'),
+      'today' => $today->format('Y-m-d H:i:s'),
+      'cancelled' => StatusSession::CANCELED->value,
+      'done' => StatusSession::DONE->value,
+      'insCancelled' => \App\Enum\StatusInscription::ANNULE->value,
+      'attendanceUpload' => \App\Enum\SessionPieceType::EMARGEMENT_SIGNE->value,
 
       'p1'    => $periode1,
 
@@ -1278,7 +1308,8 @@ final class DashboardController extends AbstractController
 
         'sessionLabel' => $r['session_code'] ?: ('Session #' . $r['session_id']),
 
-        'userId'       => (int) $r['user_id'],
+        'userId'       => $r['user_id'] !== null ? (int) $r['user_id'] : null,
+        'participantId' => $r['participant_id'] !== null ? (int) $r['participant_id'] : null,
 
         'userLabel'    => trim(($r['prenom'] ?? '') . ' ' . ($r['nom'] ?? '')),
 
@@ -1296,17 +1327,28 @@ final class DashboardController extends AbstractController
 
     $qbUnsigned = $this->em->createQueryBuilder()
 
-      ->select('e', 's', 'u')
+      ->select('e', 's', 'u', 'participant')
 
       ->from(Emargement::class, 'e')
 
       ->join('e.session', 's')
 
-      ->join('e.utilisateur', 'u')
+      ->leftJoin('e.utilisateur', 'u')
+      ->leftJoin('e.participantAccess', 'participant')
+      ->andWhere('u.id IS NOT NULL OR participant.active = true')
 
-      ->where('s.entite = :e')
+      ->andWhere('s.entite = :e')
 
       ->andWhere('s.typeFinancement != :sousTraitance')
+      ->andWhere('s.status NOT IN (:attendanceClosedStatuses)')
+      ->andWhere('EXISTS (SELECT aj.id FROM App\Entity\SessionJour aj WHERE aj.session = s AND aj.dateFin >= :attendanceNow)')
+      ->andWhere('e.dateJour <= :attendanceNow')
+      ->andWhere('NOT EXISTS (SELECT asp.id FROM App\Entity\SessionPiece asp WHERE asp.session = s AND asp.entite = :e AND asp.type = :attendanceUpload)')
+      ->setParameter('attendanceUpload', \App\Enum\SessionPieceType::EMARGEMENT_SIGNE)
+
+      ->setParameter('attendanceClosedStatuses', [StatusSession::CANCELED->value, StatusSession::DONE->value])
+      ->setParameter('attendanceNow', new \DateTimeImmutable())
+
 
       ->andWhere('e.signedAt IS NULL')
 
@@ -1371,8 +1413,9 @@ final class DashboardController extends AbstractController
         'sessionLabel' => $sess?->getCode() ?? ($sess ? ('Session #' . $sess->getId()) : '—'),
 
         'userId'       => $usr?->getId(),
+        'participantId' => $eRow->getParticipantAccess()?->getId(),
 
-        'userLabel'    => $usr ? trim(($usr->getPrenom() ?? '') . ' ' . ($usr->getNom() ?? '')) : '—',
+        'userLabel'    => $usr ? trim(($usr->getPrenom() ?? '') . ' ' . ($usr->getNom() ?? '')) : ($eRow->getParticipantAccess()?->getDisplayName() ?? '—'),
 
         'date'         => $eRow->getDateJour()?->format('d/m/Y') ?? '—',
 

@@ -690,6 +690,7 @@ body{ overflow-x:hidden; }
           <a href="{{ path('app_administrateur_session_index', {entite: entite.id}) }}" class="btn btn-outline-light btn-sm fw-semibold">
             <i class="fa fa-arrow-left"></i> Retour
           </a>
+          <a href="{{ path('app_administrateur_session_qr', {entite:entite.id,id:session.id}) }}" class="btn btn-outline-light btn-sm fw-semibold"><i class="bi bi-qr-code"></i> QR codes participants</a>
           <a href="{{ path('app_administrateur_session_modifier', {entite: entite.id, id: session.id}) }}"
             class="btn btn-light btn-sm fw-semibold">
             <i class="fa fa-pen"></i> Modifier
@@ -765,18 +766,24 @@ body{ overflow-x:hidden; }
               </div>
             </div>
 
-            <div class="session-meta-item">
+            <div class="session-meta-item" id="session-conventions-total">
               <div class="session-meta-label">
                 <i class="fa fa-euro-sign text-theme-secondaire"></i>
-                Tarif
+                Total des conventions
               </div>
               <div class="session-meta-value">
-                {% set tarif = session.tarifEffectifCents() %}
-                {% if tarif %}
-                  {{ (tarif/100)|number_format(2, ',', ' ') }} € TTC
-                  <div class="small text-muted">par stagiaire</div>
-                {% else %}
-                  <span class="text-muted small">Utilise le prix de base de la formation</span>
+                {% for currency, amount in conventionTotals.amounts %}
+                  <div>{{ (amount/100)|number_format(2, ',', ' ') }} {{ currency == 'EUR' ? '€' : currency }} TTC</div>
+                {% endfor %}
+                <div class="small text-muted">{{ conventionTotals.count }} convention{{ conventionTotals.count > 1 ? 's' : '' }} rattachée{{ conventionTotals.count > 1 ? 's' : '' }}</div>
+                {% if conventionTotals.estimatedCount %}
+                  <div class="small text-muted mt-1">Dont {{ conventionTotals.estimatedCount }} estimation{{ conventionTotals.estimatedCount > 1 ? 's' : '' }} : tarif de la session × effectif.</div>
+                {% endif %}
+                {% if conventionTotals.sharedQuoteCount %}
+                  <div class="small text-muted mt-1">Chaque devis est compté une seule fois.</div>
+                {% endif %}
+                {% if conventionTotals.missingCount %}
+                  <div class="small text-warning mt-1">Total partiel : {{ conventionTotals.missingCount }} montant(s) à vérifier.</div>
                 {% endif %}
               </div>
             </div>
@@ -870,8 +877,12 @@ body{ overflow-x:hidden; }
                   <div class="small mt-1"><i class="bi bi-person-badge me-1"></i>{{ intervenant and intervenant.utilisateur ? intervenant.utilisateur.prenom ~ ' ' ~ intervenant.utilisateur.nom : 'Formateur à affecter' }}</div>
                   <div class="small text-muted mt-1">
                     Émargements :
-                    {% if not session.emargementRequis %}
-                      <span>gérés par l’organisme donneur d’ordre</span>
+                    {% if session.status.value == 'canceled' %}
+                      <span>non requis — session annulée</span>
+                    {% elseif session.sousTraitance %}
+                      <span>feuilles signées à déposer dans les documents</span>
+                    {% elseif not session.emargementEnAttenteRequis %}
+                      <span>suivi clôturé</span>
                     {% elseif totalEmarg > 0 %}
                       {% if signedEmarg == totalEmarg %}
                         <span class="text-success">
@@ -1192,16 +1203,7 @@ body{ overflow-x:hidden; }
                       </td>
 
                       <td>
-                        {% for conv in ins.conventionContrats %}
-                          <div class="mb-1">
-                            <a href="{{ path('app_administrateur_convention_show', {entite: entite.id, id: conv.id}) }}"
-                               class="btn btn-sm {{ conv.signed ? 'btn-outline-success' : 'btn-outline-warning' }}">
-                              {{ conv.numero ?: 'Convention #' ~ conv.id }} · {{ conv.signed ? 'Signée' : 'À signer' }}
-                            </a>
-                          </div>
-                        {% else %}
-                          <span class="text-muted small d-block">Aucune convention rattachée</span>
-                        {% endfor %}
+                        {% include 'administrateur/session/_participant_conventions.html.twig' with {documents: participantConventions[ins.id]|default([])} %}
                         <a href="{{ path('app_administrateur_convention_from_inscription', {entite: entite.id, id: ins.id}) }}"
                            class="btn btn-outline-primary btn-sm mt-1">Nouvelle convention</a>
                       </td>

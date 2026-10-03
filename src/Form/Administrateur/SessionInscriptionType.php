@@ -3,6 +3,8 @@
 namespace App\Form\Administrateur;
 
 use App\Entity\Entite;
+use App\Entity\Entreprise;
+use App\Entity\UtilisateurEntite;
 use App\Entity\Inscription;
 use App\Entity\Utilisateur;
 use App\Enum\StatusInscription;
@@ -19,6 +21,16 @@ final class SessionInscriptionType extends AbstractType
     {
         /** @var Entite|null $entite */
         $entite = $options['entite'] ?? null;
+
+        $b->add('conventionsToAssociate', EntityType::class, [
+            'class' => \App\Entity\ConventionContrat::class,
+            'mapped' => false, 'multiple' => true, 'required' => false,
+            'choices' => $options['conventions'],
+            'label' => 'Associer à une convention',
+            'choice_label' => static fn(\App\Entity\ConventionContrat $c) => ($c->getNumero() ?: 'Convention #'.$c->getId()).' — '.$c->getDestinataireLabel(),
+            'attr' => ['class' => 'form-select', 'data-placeholder' => 'Sélectionner une ou plusieurs conventions…'],
+            'help' => 'Conventions non signées de cette session. Le rattachement sera effectué à l’enregistrement ; les liens existants sont conservés.',
+        ]);
 
         $b
             ->add('stagiaire', EntityType::class, [
@@ -45,11 +57,25 @@ final class SessionInscriptionType extends AbstractType
                     }
 
                     return $qb
-                        ->andWhere('u.entite = :e')
+                        ->leftJoin('u.utilisateurEntites', 'ue', 'WITH', 'ue.entite = :e')
+                        ->andWhere('(ue.status = :active OR (ue.id IS NULL AND u.entite = :e))')
+                        ->setParameter('active', UtilisateurEntite::STATUS_ACTIVE)
+                        ->distinct()
                         ->setParameter('e', $entite)
                         ->orderBy('u.nom', 'ASC')
                         ->addOrderBy('u.prenom', 'ASC');
                 },
+            ])
+            ->add('entreprise', EntityType::class, [
+                'class' => Entreprise::class,
+                'label' => 'Entreprise',
+                'required' => false,
+                'placeholder' => 'Aucune / particulier',
+                'choice_label' => 'raisonSociale',
+                'attr' => ['class' => 'form-select'],
+                'query_builder' => static fn(EntityRepository $er) => $er->createQueryBuilder('e')
+                    ->andWhere('e.entite = :entite')->setParameter('entite', $entite)
+                    ->orderBy('e.raisonSociale', 'ASC'),
             ])
             ->add('status', ChoiceType::class, [
                 'label' => 'Statut',
@@ -66,6 +92,7 @@ final class SessionInscriptionType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Inscription::class,
+            'conventions' => [],
             'entite' => null, // ✅ option custom
         ]);
 

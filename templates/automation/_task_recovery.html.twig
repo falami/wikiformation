@@ -1,0 +1,23 @@
+{% if task.status in ['unknown', 'processing'] %}
+  <details class="border rounded-3 p-3 mt-3 bg-light">
+    <summary class="fw-semibold"><i class="bi bi-shield-check me-1" aria-hidden="true"></i>Vérifier et reprendre cette étape</summary>
+    <p class="small text-secondary mt-3">Vérifiez le document et la messagerie avant de choisir le résultat. Cette action ne déclenche aucun envoi immédiat.{% if task.status == 'processing' %} Une étape en cours doit dater d’au moins 30 minutes.{% endif %}</p>
+    <form method="post" action="{{ path('app_administrateur_workflow_task_recover', {entite: entite.id, id: task.id}) }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('workflow_recovery_' ~ task.id) }}">
+      <input type="hidden" name="revision" value="{{ workflow_recovery_revision(task) }}">
+      <fieldset><legend class="fs-6 fw-semibold">Résultat de votre vérification</legend>
+        <label class="d-flex gap-2 align-items-start my-2"><input class="form-check-input" type="radio" name="decision" value="confirmed" required><span>{{ task.action == 'invoice' ? 'La création du document est confirmée' : 'L’envoi est confirmé dans la messagerie' }}</span></label>
+        <label class="d-flex gap-2 align-items-start my-2"><input class="form-check-input" type="radio" name="decision" value="retry" required><span>{{ task.action == 'invoice' ? 'Aucun document créé : replanifier' : 'Absence d’envoi confirmée : replanifier' }}</span></label>
+      </fieldset>
+      <label class="form-label mt-2" for="recovery-reason-{{ task.id }}">Vérification effectuée et motif</label>
+      <textarea class="form-control" id="recovery-reason-{{ task.id }}" name="reason" rows="2" minlength="10" maxlength="2000" required placeholder="Ex. journal de messagerie consulté, aucun message transmis…"></textarea>
+      <label class="d-flex gap-2 align-items-start my-3"><input class="form-check-input" type="checkbox" name="verified" value="1" required><span class="small">J’ai vérifié le document et la messagerie avant de confirmer ce résultat.</span></label>
+      <button type="submit" class="btn btn-outline-dark btn-sm"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Enregistrer la vérification</button>
+    </form>
+  </details>
+{% endif %}
+{% if task.snapshot.recoveryHistory|default([])|length %}
+  <details class="mt-3"><summary class="small text-secondary">Historique des vérifications ({{ task.snapshot.recoveryHistory|length }})</summary>
+    <ul class="small mt-2 ps-3">{% for recovery in task.snapshot.recoveryHistory %}<li class="mb-2"><strong>{{ recovery.at|date('d/m/Y H:i', 'Europe/Paris') }}</strong> · Administrateur #{{ recovery.actorId }} · {{ recovery.decision == 'retry' ? 'Replanifiée' : 'Confirmée' }}<br>{{ recovery.reason }}</li>{% endfor %}</ul>
+  </details>
+{% endif %}

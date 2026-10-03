@@ -21,12 +21,21 @@ final class PricingStartController extends AbstractController
     EntityManagerInterface $em,
     EntiteSubscriptionRepository $subRepo,
     TenantContext $tenant,                 // ✅ important
-    int $billingAppTrialDays = 90,
+    int $billingAppTrialDays,
   ): Response {
     // 1) On récupère le choix pricing
-    $planCode = (string) $request->request->get('plan', '');
-    $interval = (string) $request->request->get('interval', 'year'); // month|year
+    $planCode = strtoupper(trim((string) $request->request->get('plan', '')));
+    $interval = (string) $request->request->get('interval', 'month'); // New subscriptions are monthly.
     $addons   = (array)  $request->request->all('addons');           // addons[] codes
+
+    if (!$this->isCsrfTokenValid('start_trial', (string) $request->request->get('_token'))) {
+      throw $this->createAccessDeniedException('Votre session a expiré. Rechargez la page.');
+    }
+    $plan = $em->getRepository(Plan::class)->findOneBy(['code' => strtoupper($planCode), 'isActive' => true]);
+    if (!$plan || !$plan->isAvailableForNewSubscription($interval)) {
+      $this->addFlash('warning', 'Choisissez une offre et une périodicité disponibles.');
+      return $this->redirectToRoute('app_public_pricing');
+    }
 
     // 2) On stocke TOUJOURS en session (même si connecté)
     $request->getSession()->set('pricing_selected_plan', $planCode);
@@ -50,6 +59,8 @@ final class PricingStartController extends AbstractController
       return $this->redirectToRoute('app_onboarding');
     }
 
+    $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, $currentEntite);
+
     // 5) On est sur une entité client => créer le trial si pas de subscription
     $sub = $subRepo->findLatestForEntite($currentEntite);
 
@@ -57,9 +68,13 @@ final class PricingStartController extends AbstractController
       $sub = new EntiteSubscription();
       $sub->setEntite($currentEntite);
       $sub->setStatus(EntiteSubscription::STATUS_TRIALING);
-      $sub->setIntervale($interval ?: 'year');
+      $sub->setIntervale($interval ?: 'month');
       $sub->setAddons(array_values(array_map('strval', $addons)));
-      $sub->setTrialEndsAt((new \DateTimeImmutable())->modify('+' . $billingAppTrialDays . ' days'));
+      $now = new \DateTimeImmutable();
+      $trialEndsAt = $now->modify('+' . $billingAppTrialDays . ' days');
+      $sub->setStartedAt($now);
+      $sub->setTrialEndsAt($trialEndsAt);
+      $sub->setCurrentPeriodEnd($trialEndsAt);
       $sub->touch();
 
       if ($planCode) {

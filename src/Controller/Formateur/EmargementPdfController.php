@@ -88,7 +88,7 @@ class EmargementPdfController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        // --- Regrouper par jour + utilisateur
+        // --- Regrouper par jour + identité (compte ou participant sans compte)
         $linesByDate = [];
         foreach ($allDates as $d) {
             $linesByDate[$d] = [];
@@ -96,17 +96,19 @@ class EmargementPdfController extends AbstractController
 
         foreach ($emargements as $e) {
             $u   = $e->getUtilisateur();
-            $uid = $u->getId();
+            $access = $e->getParticipantAccess();
+            $uid = $u ? 'user:' . $u->getId() : 'guest:' . $access?->getId();
+            if (!$u && !$access) continue;
             $dYmd = $e->getDateJour()->format('Y-m-d');
 
             if (!isset($linesByDate[$dYmd][$uid])) {
                 $linesByDate[$dYmd][$uid] = [
                     'id'        => $uid,
                     // Les intervenants sont déduits des affectations du planning.
-                    'isTrainer'     => isset($trainerUsers[$uid]),
-                    'name'          => trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')),
-                    'raisonSociale' => $u?->getEntreprise()?->getRaisonSociale() ?? '—',
-                    'naissance'     => $u->getDateNaissance()?->format('d/m/Y') ?: '—',
+                    'isTrainer'     => $u && isset($trainerUsers[$u->getId()]),
+                    'name'          => $u ? trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')) : $access->getDisplayName(),
+                    'raisonSociale' => $u?->getEntreprise()?->getRaisonSociale() ?? $access?->getConvention()?->getEntreprise()?->getRaisonSociale() ?? '—',
+                    'naissance'     => $u?->getDateNaissance()?->format('d/m/Y') ?: '—',
                     'am'            => ['signed' => false, 'img' => null, 'at' => null],
                     'pm'            => ['signed' => false, 'img' => null, 'at' => null],
                 ];

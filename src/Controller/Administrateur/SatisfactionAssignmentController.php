@@ -86,7 +86,8 @@ final class SatisfactionAssignmentController extends AbstractController
       ->select('a')
       ->from(SatisfactionAssignment::class, 'a')
       ->join('a.session', 's')
-      ->join('a.stagiaire', 'u')
+      ->leftJoin('a.stagiaire', 'u')->addSelect('u')
+      ->leftJoin('a.participantAccess', 'pa')->addSelect('pa')
       ->join('a.template', 'tpl')
       ->leftJoin('a.attempt', 't')
       ->leftJoin('s.formation', 'fo')
@@ -110,13 +111,13 @@ final class SatisfactionAssignmentController extends AbstractController
 
     // stagiaire
     if ($stagiaireText !== '') {
-      $qb->andWhere('LOWER(u.nom) LIKE :st OR LOWER(u.prenom) LIKE :st OR LOWER(u.email) LIKE :st')
+      $qb->andWhere('LOWER(u.nom) LIKE :st OR LOWER(u.prenom) LIKE :st OR LOWER(u.email) LIKE :st OR LOWER(pa.displayName) LIKE :st')
         ->setParameter('st', '%' . mb_strtolower($stagiaireText) . '%');
     }
 
     // search global
     if ($search !== '') {
-      $qb->andWhere('LOWER(u.nom) LIKE :s OR LOWER(u.prenom) LIKE :s OR LOWER(u.email) LIKE :s OR LOWER(tpl.titre) LIKE :s OR LOWER(fo.titre) LIKE :s')
+      $qb->andWhere('LOWER(u.nom) LIKE :s OR LOWER(u.prenom) LIKE :s OR LOWER(u.email) LIKE :s OR LOWER(pa.displayName) LIKE :s OR LOWER(tpl.titre) LIKE :s OR LOWER(fo.titre) LIKE :s')
         ->setParameter('s', '%' . mb_strtolower($search) . '%');
     }
 
@@ -269,8 +270,8 @@ final class SatisfactionAssignmentController extends AbstractController
 
       $data[] = [
         'id' => $a->getId(),
-        'stagiaire' => htmlspecialchars(trim(($u?->getPrenom() ?? '') . ' ' . ($u?->getNom() ?? ''))),
-        'email' => htmlspecialchars($u?->getEmail() ?? ''),
+        'stagiaire' => htmlspecialchars($u ? trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')) : ($a->getParticipantAccess()?->getDisplayName() ?? '—')),
+        'email' => htmlspecialchars($u?->getEmail() ?? 'Sans compte'),
         'session' => htmlspecialchars($sessionLabel),
         'formation' => htmlspecialchars($fo?->getTitre() ?? '—'),
         'template' => htmlspecialchars($tpl?->getTitre() ?? ''),

@@ -403,6 +403,11 @@
           <span class="chip">Étape 1</span>
         </div>
         <div class="p-3 p-md-4">
+          {% if identityLocked|default(false) %}
+            <div class="alert alert-info" role="status"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Ce compte est géré par un autre organisme. Son identité doit être corrigée par son titulaire ou par l’organisme d’origine.</div>
+          {% elseif locked %}
+            <div class="alert alert-light border" role="status"><i class="bi bi-person-check me-2" aria-hidden="true"></i>Vous pouvez corriger l’identité de cette personne. Ses inscriptions et son adresse de connexion sont conservées.</div>
+          {% endif %}
           <div class="row g-3">
             <div class="col-12 col-md-3">{{ form_row(form.civilite) }}</div>
             <div class="col-12 col-md-4">{{ form_row(form.prenom) }}</div>

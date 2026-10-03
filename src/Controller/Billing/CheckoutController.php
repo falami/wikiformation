@@ -60,16 +60,13 @@ final class CheckoutController extends AbstractController
     $this->denyAccessUnlessGranted(TenantPermission::BILLING_MANAGE, $entite);
 
     // ✅ 4) Lire la demande
-    $planCode = trim((string) $request->request->get('plan', ''));
-    $interval = (string) $request->request->get('interval', 'month'); // month|year
+    $planCode = strtoupper(trim((string) $request->request->get('plan', '')));
+    $interval = (string) $request->request->get('interval', 'month'); // New subscriptions are monthly.
     $addons   = (array)  $request->request->all('addons');
 
     if (!$planCode) {
       $this->addFlash('danger', 'Plan manquant.');
       return $this->redirectToRoute('app_public_pricing');
-    }
-    if (!in_array($interval, ['month', 'year'], true)) {
-      $interval = 'year';
     }
 
         // ✅ 5) Récupérer plan actif
@@ -77,6 +74,20 @@ final class CheckoutController extends AbstractController
     $plan = $planRepo->findOneBy(['code' => $planCode, 'isActive' => true]);
     if (!$plan) {
       throw $this->createNotFoundException('Plan introuvable');
+    }
+
+    if (!$this->isCsrfTokenValid('start_trial', (string) $request->request->get('_token'))) {
+      throw $this->createAccessDeniedException('Votre session a expiré. Rechargez la page.');
+    }
+    if (!$plan->isAvailableForNewSubscription($interval) || !$plan->isCheckoutConfigured($interval)) {
+      $this->addFlash('warning', 'Cette offre est disponible à l’essai. Le paiement sera ouvert après activation de son tarif.');
+      return $this->redirectToRoute('app_public_pricing');
+    }
+    try {
+      $stripe->validatePlanPrice($plan, $interval);
+    } catch (\Throwable $e) {
+      $this->addFlash('warning', 'Le paiement de cette offre est temporairement indisponible. Aucun abonnement n’a été créé.');
+      return $this->redirectToRoute('app_public_pricing');
     }
 
     // ✅ 6) Addons

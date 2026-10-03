@@ -30,7 +30,7 @@ parameters:
   stripe.public_key: "%env(STRIPE_PUBLIC_KEY)%"
   stripe.webhook_secret: "%env(STRIPE_WEBHOOK_SECRET)%"
   app.url: "%env(APP_URL)%"
-  billing.app_trial_days: "%env(int:BILLING_APP_TRIAL_DAYS)%"
+  billing.app_trial_days: 30
   stripe_webhook_secret: "%env(STRIPE_WEBHOOK_SECRET)%"
   app.base_domain: "%env(APP_BASE_DOMAIN)%"
   insee_client_id: "%env(string:INSEE_CLIENT_ID)%"
@@ -46,6 +46,7 @@ services:
     autowire: true # Automatically injects dependencies in your services.
     autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
     bind:
+      int $billingAppTrialDays: "%billing.app_trial_days%"
       string $appUrl: "%app.url%"
       string $secretKey: "%stripe.secret_key%"
       string $stripeWebhookSecret: "%stripe.webhook_secret%"

@@ -31,7 +31,7 @@ final class SessionPieceUploadType extends AbstractType
                 ],
                 'attr' => ['class' => 'form-select'],
                 'row_attr' => ['class' => 'mb-3'],
-                'help' => 'Choisis la catégorie correspondant au document.',
+                'help' => 'Choisissez la catégorie du document. Les comptes rendus de plusieurs stagiaires peuvent être regroupés dans un même PDF.',
             ])
 
             ->add('commentaireControle', TextareaType::class, [
