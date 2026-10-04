@@ -71,6 +71,9 @@ class StagiaireEmargementController extends AbstractController
             'session'   => $session,
             'stagiaire' => $user,
         ]);
+        if (!$insc || $insc->getStatus() === \App\Enum\StatusInscription::ANNULE) {
+            return new JsonResponse(['success' => false, 'message' => 'Inscription requise'], 403);
+        }
 
 
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $dateStr) ?: new \DateTimeImmutable('today');
@@ -81,13 +84,13 @@ class StagiaireEmargementController extends AbstractController
 
         $signatureInfo = function (Utilisateur $u, DemiJournee $periode) use ($session, $date, $em, $basePath): array {
             $ema = $em->getRepository(Emargement::class)->createQueryBuilder('e')
-                ->select('e.signaturePath, e.signedAt')
+                ->select('e.signaturePath, e.signatureDataUrl, e.signedAt')
                 ->andWhere('e.session = :s')->setParameter('s', $session)
                 ->andWhere('e.utilisateur = :u')->setParameter('u', $u)
-                ->andWhere('e.dateJour = :d')->setParameter('d', $date)
+                ->andWhere('e.dateJour = :d')->setParameter('d', $date, \Doctrine\DBAL\Types\Types::DATE_IMMUTABLE)
                 ->andWhere('e.periode = :p')->setParameter('p', $periode)
                 ->andWhere('e.signedAt IS NOT NULL')
-                ->andWhere('(e.signaturePath IS NOT NULL OR e.signatureDataUrl IS NOT NULL)')
+                ->andWhere("(e.signaturePath IS NOT NULL AND e.signaturePath <> '') OR (e.signatureDataUrl IS NOT NULL AND e.signatureDataUrl <> '')")
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
@@ -97,7 +100,7 @@ class StagiaireEmargementController extends AbstractController
             return [
                 'signed' => $ema !== null,
                 // ✅ URL web correcte même si l’app a un basePath
-                'url'    => $path ? ($basePath . '/' . ltrim((string)$path, '/')) : null,
+                'url'    => ($ema['signatureDataUrl'] ?? null) ?: ($path ? ($basePath . '/' . ltrim((string)$path, '/')) : null),
                 'at'     => isset($ema['signedAt']) && $ema['signedAt'] instanceof \DateTimeInterface
                     ? $ema['signedAt']->format('d/m/Y H:i')
                     : null,
@@ -151,12 +154,19 @@ class StagiaireEmargementController extends AbstractController
             'session'   => $id,
             'stagiaire' => $user,
         ]);
+        if (!$insc || $insc->getStatus() === \App\Enum\StatusInscription::ANNULE) {
+            return new JsonResponse(['success' => false, 'message' => 'Inscription requise'], 403);
+        }
 
 
         // ✅ conseillé: bloquer si la session n'est pas dans l'entité de l'URL
         // (si Session n’a pas entite, commente)
         if (method_exists($id, 'getEntite') && $id->getEntite() && $id->getEntite()->getId() !== $entite->getId()) {
             return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
+        }
+
+        if (!$id->isEmargementRequis()) {
+            return new JsonResponse(['success' => false, 'message' => 'Émargement indisponible pour cette session.'], 403);
         }
 
         $periodeStr = strtoupper((string)$request->request->get('periode', ''));
@@ -176,6 +186,18 @@ class StagiaireEmargementController extends AbstractController
 
         if (!$dataUrl || !str_starts_with($dataUrl, 'data:image/png;base64,')) {
             return new JsonResponse(['success' => false, 'message' => 'Signature manquante'], 400);
+        }
+
+        $scheduled = false;
+        foreach ($id->getJours() as $slot) {
+            $start = $slot->getDateDebut();
+            $end = $slot->getDateFin();
+            if (!$start || !$end || $start->format('Y-m-d') !== $date->format('Y-m-d')) continue;
+            $boundary = $date->setTime(13, 0);
+            if (($periodeStr === 'AM' && $start < $boundary) || ($periodeStr === 'PM' && $end > $boundary)) $scheduled = true;
+        }
+        if ($date->format('d/m/Y') !== $dateFr || !$scheduled) {
+            return new JsonResponse(['success' => false, 'message' => 'Cette demi-journée ne fait pas partie de la session.'], 400);
         }
 
         // Upsert Emargement

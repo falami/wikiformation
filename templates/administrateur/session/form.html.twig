@@ -734,7 +734,7 @@
               <i class='fa fa-trash'></i>
             </button>
           </div>
-          <div class='col-12'>{{ form_row(form.inscriptions.vars.prototype.conventionsToAssociate) }}</div>
+          <div class='col-12'>{{ form_row(form.inscriptions.vars.prototype.conventionsToAssociate) }}{{ form_row(form.inscriptions.vars.prototype.createConvention) }}</div>
         </div>
       {% endset %}
 
@@ -755,7 +755,7 @@
                     <i class="fa fa-trash"></i>
                   </button>
                 </div>
-                <div class="col-12">{{ form_row(ins.conventionsToAssociate) }}</div>
+                <div class="col-12">{{ form_row(ins.conventionsToAssociate) }}{{ form_row(ins.createConvention) }}</div>
                 <div class="col-12" data-saved-conventions data-learner="{{ ins.stagiaire.vars.value }}">
                   <div class="small fw-semibold mb-2">Conventions rattachées</div>
                   {% include 'administrateur/session/_participant_conventions.html.twig' with {documents: participantConventions[ins.vars.data.id]|default([])} %}
@@ -1686,7 +1686,15 @@ document.addEventListener('DOMContentLoaded', function () {
   const wrapIns = document.getElementById('inscriptions-collection');
   wrapIns?.addEventListener('change', event => {
     if (!event.target.matches('select[name$="[stagiaire]"]')) return;
-    const block = event.target.closest('.inscription-item')?.querySelector('[data-saved-conventions]');
+    const row = event.target.closest('.inscription-item');
+    const option = event.target.selectedOptions[0];
+    const companySelect = row?.querySelector('select[name$="[entreprise]"]');
+    if (companySelect) {
+      const value = option?.dataset.company || '';
+      if (companySelect.tomselect) companySelect.tomselect.setValue(value);
+      else { companySelect.value = value; companySelect.dispatchEvent(new Event('change', {bubbles:true})); }
+    }
+    const block = row?.querySelector('[data-saved-conventions]');
     if (!block) return;
     const changed = event.target.value !== block.dataset.learner;
     block.querySelector('[data-participant-conventions]').classList.toggle('d-none', changed);

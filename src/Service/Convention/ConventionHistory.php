@@ -11,6 +11,9 @@ final class ConventionHistory
     public function state(ConventionContrat $c): array
     {
         return ['numero' => $c->getNumero(), 'signed' => $c->isSigned(), 'pdf' => $c->getPdfPath(),
+            'session' => $c->getSession()?->getId(), 'entreprise' => $c->getEntreprise()?->getId(),
+            'stagiaire' => $c->getStagiaire()?->getId(), 'devis' => $c->getDevis()?->getId(),
+            'montantHtCents' => $c->getMontantHtCents(), 'tauxTva' => $c->getTauxTva(),
             'titre' => $c->getIntituleFormation(), 'duree' => $c->getDureeFormation(),
             'conditions' => $c->getConditionsFinancieres(), 'effectif' => $c->getEffectifPrevisionnel(),
             'libres' => $c->getParticipantsLibres(),

@@ -477,7 +477,16 @@
                 </div>
               </div>
             {% endif %}
-            {% if devis %}
+            {% if convention and convention.montantHtCents is not null %}
+              <div class="info-block mb-0">
+                <span class="info-label">Montant de la convention</span>
+                <div class="info-content">
+                  HT : {{ (convention.montantHtCents / 100)|number_format(2, ',', ' ') }} {{ devis ? devis.devise : 'EUR' }}<br>
+                  TVA ({{ convention.tauxTva }} %) : {{ (convention.montantTvaCents / 100)|number_format(2, ',', ' ') }} {{ devis ? devis.devise : 'EUR' }}<br>
+                  TTC : {{ (convention.montantTtcCents / 100)|number_format(2, ',', ' ') }} {{ devis ? devis.devise : 'EUR' }}
+                </div>
+              </div>
+            {% elseif devis %}
               <div class="info-block mb-0">
                 <span class="info-label">Total du devis {{ devis.numero }}</span>
                 <div class="info-content">

@@ -1,131 +1,130 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Session {{ session.code }} - Formateur{% endblock %}
-
-
 {% block stylesheets %}
 {{ parent() }}
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css" />
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet"/>
 <style>
-  .fc { --fc-border-color:#e9ecef; --fc-page-bg-color:transparent; }
-  .session-card { border-radius:1rem; border:1px solid #e9ecef; padding:1rem; background:#fff; }
-</style>
-<style>
-:root{ --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};}
-@media (max-width:768px){
-  table.dataTable td.action-column{ position:sticky; right:0; background:#fff; z-index:5; box-shadow:-8px 0 12px -8px rgba(0,0,0,.08); }
+:root{
+  --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+  --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+  --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+  --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
 }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css"/>
-<style>.sign-pad{border:1px dashed var(--stroke,#ddd); border-radius:12px; background:#fff;}</style>
 <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
-<link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/trainer-session.css') }}">
 {% endblock %}
 
 {% block body %}
-<div class="row g-3">
-  <div class="col-12 col-xl-8">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div class="d-flex flex-wrap justify-content-between align-items-center">
-          <h4 class="mb-2">{{ session.formation.titre }}</h4>
-          <span class="badge bg-info-subtle text-info">Code {{ session.code }}</span>
-        </div>
-        <div class="text-muted mb-3">
-          {% for j in session.jours %}
-              {{ j.dateDebut|date('d/m/Y : H:i') }} → {{ j.dateFin|date('H:i') }} - {{ session.site.nom }}<br>
-          {% endfor %} 
-        </div>
+<div class="trainer-workspace">
+  <div class="ts-breadcrumb"><a href="{{ path('app_formateur_sessions', {entite:entite.id}) }}"><i class="bi bi-arrow-left"></i> Mes sessions</a><span>/</span><span>{{ session.code }}</span></div>
+  <header class="ts-hero">
+    <div>
+      <div class="ts-eyebrow"><span></span> ESPACE FORMATEUR <span class="ts-code">{{ session.code }}</span></div>
+      <h1>{{ session.formation.titre|default(session.formationIntituleLibre) }}</h1>
+      <p><i class="bi bi-building"></i> {{ entite.nom }} <span>·</span> <i class="bi bi-geo-alt"></i> {{ session.site.nom|default('Lieu à préciser') }}</p>
+    </div>
+    <div class="ts-hero-status"><i class="bi bi-calendar2-check"></i><span>{{ session.status.label }}</span></div>
+  </header>
 
-        <h6 class="mt-3">Participants</h6>
-        <ul class="list-group mb-3">
-          {% for r in session.reservations %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span>{{ r.utilisateur.prenom }} {{ r.utilisateur.nom }}</span>
-              <span class="text-muted small">{{ r.status.name }}</span>
-            </li>
-          {% else %}
-            <li class="list-group-item text-muted">Aucun stagiaire inscrit.</li>
+  <div class="ts-summary">
+    <div><span class="ts-summary-icon"><i class="bi bi-people"></i></span><div><strong>{{ session.inscriptions|length }}</strong><span>Participant{{ session.inscriptions|length > 1 ? 's' : '' }} inscrit{{ session.inscriptions|length > 1 ? 's' : '' }}</span></div></div>
+    <div><span class="ts-summary-icon"><i class="bi bi-calendar3"></i></span><div><strong>{{ attendanceDays|length }}</strong><span>Journée{{ attendanceDays|length > 1 ? 's' : '' }} de formation</span></div></div>
+    <div><span class="ts-summary-icon"><i class="bi bi-pen"></i></span><div><strong>{{ session.emargementRequis ? 'Matin & après-midi' : 'Gestion externe / clôturée' }}</strong><span>Suivi des émargements</span></div></div>
+  </div>
+
+  <section class="ts-panel ts-planning">
+    <div class="ts-section-title"><span class="ts-icon"><i class="bi bi-calendar-week"></i></span><div><h2>Votre planning</h2><p>Les créneaux de cette session</p></div></div>
+    <div class="ts-slots">
+      {% for j in session.jours %}
+        <div class="ts-slot"><span class="ts-date-number">{{ j.dateDebut|date('d') }}<small>{{ j.dateDebut|date('m/Y') }}</small></span><div><strong>{{ j.dateDebut|date('H:i') }} <span>→</span> {{ j.dateFin|date('H:i') }}</strong><small>{{ session.site.nom|default('Lieu à préciser') }}</small></div></div>
+      {% else %}<p class="ts-empty">Aucun créneau planifié.</p>{% endfor %}
+    </div>
+  </section>
+
+  <section class="ts-panel">
+    <div class="ts-section-title"><span class="ts-icon"><i class="bi bi-people"></i></span><div><h2>Les participants</h2><p>Votre groupe de formation</p></div><span class="ts-count">{{ session.inscriptions|length }} inscrit(s)</span></div>
+    <div class="ts-people">
+      {% for r in session.inscriptions %}
+        <div class="ts-person"><span class="ts-avatar">{{ r.stagiaire.prenom|slice(0,1)|upper }}{{ r.stagiaire.nom|slice(0,1)|upper }}</span><div><strong>{{ r.stagiaire.prenom }} {{ r.stagiaire.nom }}</strong><small>{{ r.entreprise.raisonSociale|default('Participant individuel') }}</small></div><span class="ts-pill">{{ r.status.label }}</span></div>
+      {% else %}<p class="ts-empty">Aucun stagiaire inscrit.</p>{% endfor %}
+    </div>
+  </section>
+
+  <div class="ts-attendance-title">
+    <div><div class="ts-eyebrow ts-eyebrow-dark">SUIVI DE PRÉSENCE</div><h2>Les émargements</h2><p>Consultez les signatures et complétez les vôtres, journée par journée.</p></div>
+    <a class="ts-button ts-button-light" href="{{ path('app_formateur_emargement_export', {entite:entite.id,id:session.id}) }}"><i class="bi bi-download"></i> Exporter en CSV</a>
+  </div>
+  {% if attendanceDays|length %}
+    <div class="ts-day-picker"><label for="attendance-day"><i class="bi bi-calendar3"></i> Journée affichée</label><select id="attendance-day" class="form-select">{% for key,day in attendanceDays %}<option value="{{ key }}">{{ day|date('d/m/Y') }}</option>{% endfor %}</select><span>Matin / Après-midi</span></div>
+  {% endif %}
+  {% if not session.emargementRequis %}<div class="ts-notice"><i class="bi bi-info-circle"></i> Émargements indisponibles : session annulée ou gérée par l’organisme donneur d’ordre. Les signatures déjà enregistrées restent consultables.</div>{% endif %}
+  <div class="ts-attendance-grid">
+    <section class="ts-panel">
+      <div class="ts-section-title"><span class="ts-icon"><i class="bi bi-pen"></i></span><div><h2>Signatures des participants</h2><p>Les présences enregistrées par demi-journée</p></div></div>
+      {% for key,day in attendanceDays %}
+        <div class="ts-day-content" data-day="{{ key }}">
+          <div class="ts-day-heading">{{ day|date('d/m/Y') }}<span>{{ session.inscriptions|length }} participant(s)</span></div>
+          <div class="ts-signature-table-wrap"><table class="ts-signature-table"><thead><tr><th>Participant</th><th><i class="bi bi-sunrise"></i> Matin</th><th><i class="bi bi-sun"></i> Après-midi</th></tr></thead><tbody>
+          {% for inscription in session.inscriptions %}
+            <tr><th scope="row">{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}</th>
+              {% for period,label in {'AM':'Matin','PM':'Après-midi'} %}
+                {% set signature = signatures[key][inscription.stagiaire.id][period]|default(null) %}
+                <td>{% if signature %}<span class="ts-signed"><i class="bi bi-check-circle-fill"></i> Signé</span><img src="{{ signature.signatureDataUrl ?: asset(signature.signaturePath) }}" alt="Signature {{ label }} de {{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}"><small>{{ signature.signedAt|date('d/m/Y H:i') }}</small>{% else %}<span class="ts-unsigned">Non renseigné</span>{% endif %}</td>
+              {% endfor %}
+            </tr>
+          {% else %}<tr><td colspan="3" class="ts-empty">Aucun stagiaire inscrit.</td></tr>{% endfor %}
+          </tbody></table></div>
+        </div>
+      {% else %}<p class="ts-empty">Ajoutez des créneaux à la session pour retrouver les émargements.</p>{% endfor %}
+    </section>
+    <section class="ts-panel ts-trainer-panel">
+      <div class="ts-section-title"><span class="ts-icon"><i class="bi bi-person-check"></i></span><div><h2>Votre émargement</h2><p>{{ app.user.prenom }} {{ app.user.nom }}</p></div></div>
+      {% for key,day in attendanceDays %}
+        <div class="ts-day-content ts-trainer-day" data-day="{{ key }}">
+          <div class="ts-day-heading">{{ day|date('d/m/Y') }}</div>
+          {% for period,label in {'AM':'Matin','PM':'Après-midi'} %}
+            {% set signature = signatures[key][app.user.id][period]|default(null) %}
+            <div class="ts-sign-block">
+              <div class="ts-sign-block-title"><strong><i class="bi {{ period == 'AM' ? 'bi-sunrise' : 'bi-sun' }}"></i> {{ label }}</strong>{% if signature %}<span class="ts-signed"><i class="bi bi-check-circle-fill"></i> Signé</span>{% endif %}</div>
+              {% if signature %}
+                <div class="ts-sign-preview"><img src="{{ signature.signatureDataUrl ?: asset(signature.signaturePath) }}" alt="Signature du formateur"></div><small class="ts-sign-date">Enregistré le {{ signature.signedAt|date('d/m/Y à H:i') }}</small>
+              {% elseif session.emargementRequis and session.isFormateurUtilisateurSurPeriode(app.user, day, period) %}
+                <div class="trainer-signature" data-date="{{ day|date('d/m/Y') }}" data-period="{{ period }}">
+                  <p class="ts-sign-hint">Tracez votre signature dans le cadre.</p><canvas height="150" class="sign-pad" aria-label="Signature {{ label }}"></canvas>
+                  <div class="ts-sign-actions"><button type="button" class="ts-button ts-button-light pad-clear">Effacer</button><button type="button" class="ts-button pad-save"><i class="bi bi-pen"></i> Signer</button></div><p class="sign-status small mt-2" role="status"></p>
+                </div>
+              {% else %}<p class="ts-sign-hint">Aucune signature à recueillir.</p>{% endif %}
+            </div>
           {% endfor %}
-        </ul>
-
-        <h6 class="mt-4">Supports (Formation & Session)</h6>
-        <div class="row g-2">
-          {% for d in session.formation.supportDocuments ?? [] %}{% endfor %} {# si tu ajoutes relation inverse #}
-          {# simple liste via assets #}
-          {% set folder = asset('uploads/supports') %}
-          <div id="supports-list"></div>
-          <template id="tpl-item">
-            <div class="col-12">
-              <div class="d-flex justify-content-between align-items-center border rounded p-2">
-                <div><i class="bi bi-file-earmark-text"></i> <span data-title></span></div>
-                <a class="btn btn-sm btn-outline-secondary" data-href target="_blank">Ouvrir</a>
-              </div>
-            </div>
-          </template>
         </div>
-
-        <form id="upload-form" class="mt-3" enctype="multipart/form-data">
-          <div class="row g-2 align-items-end">
-            <div class="col-lg-6">
-              <label class="form-label">Titre du document</label>
-              <input name="titre" class="form-control" placeholder="Support de cours (PDF, PPTX, ZIP…)" />
-            </div>
-            <div class="col-lg-6">
-              <input type="file" name="file" class="form-control" required>
-            </div>
-            <div class="col-12">
-              <button class="btn btn-primary btn-sm"><i class="bi bi-cloud-upload"></i> Déposer</button>
-              <small class="text-muted ms-2">Formats libres - taille max selon php.ini</small>
-            </div>
-          </div>
-        </form>
-        <div id="upload-status" class="small text-muted mt-2"></div>
-      </div>
-    </div>
+      {% endfor %}
+    </section>
   </div>
 
-
-  
-
-  <div class="col-12 col-xl-4">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="mb-2">Émargement formateur</h5>
-        <label class="form-label">Jour</label>
-
-
-
-        {% for j in session.jours %}
-          <input type="date" id="sign-date" class="form-control mb-2" value="{{ j.dateDebut|date('Y-m-d') }}" min="{{ j.dateDebut|date('Y-m-d') }}" max="{{ j.dateFin|date('Y-m-d') }}"/>
-
-          <canvas id="pad" width="520" height="180" class="sign-pad w-100"></canvas>
-          <div class="d-flex gap-2 mt-2">
-            <button id="pad-clear" class="btn btn-sm btn-outline-secondary">Effacer</button>
-            <button id="pad-save"  class="btn btn-sm btn-primary ms-auto"><i class="bi bi-pen"></i> Signer</button>
-          </div>
-          <div class="small text-muted mt-2" id="sign-status"></div>
-        {% endfor %} 
-
-
-        
-
-        <hr class="my-3"/>
-        <a class="btn btn-outline-success btn-sm" href="{{ path('app_formateur_emargement_export', {entite: entite.id, id: session.id}) }}"><i class="bi bi-filetype-csv"></i> Export CSV émargement</a>
-      </div>
-    </div>
-  </div>
+  <section class="ts-panel ts-resources">
+    <div class="ts-section-title"><span class="ts-icon"><i class="bi bi-folder2-open"></i></span><div><h2>Supports pédagogiques</h2><p>Déposez un document pour cette session.</p></div></div>
+    <form id="upload-form" enctype="multipart/form-data" class="ts-upload">
+      <div><label for="support-title">Titre du document</label><input id="support-title" name="titre" class="form-control" placeholder="Ex. Exercices et support de cours"></div>
+      <div><label for="support-file">Fichier à déposer</label><input id="support-file" name="file" type="file" class="form-control" required></div>
+      <button class="ts-button"><i class="bi bi-cloud-arrow-up"></i> Déposer le document</button>
+    </form>
+    <div id="upload-status" class="small text-muted" role="status"></div>
+  </section>
 </div>
 {% endblock %}
 
 {% block javascripts %}
 {{ parent() }}
-<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@5.0.4/dist/signature_pad.umd.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@5.0.4/dist/signature_pad.umd.min.js">  const dayPicker = document.getElementById('attendance-day');
+  function selectDay(){
+    document.querySelectorAll('.ts-day-content').forEach(section => {
+      section.hidden = section.dataset.day !== dayPicker.value;
+    });
+    signatureResizers.forEach(resize => resize());
+  }
+  if (dayPicker) { dayPicker.addEventListener('change', selectDay); selectDay(); }
+</script>
 <script>
   // Upload
   const form = document.getElementById('upload-form');
@@ -140,25 +139,52 @@
     if (json.ok) location.reload();
   });
 
-  // Signature
-  const canvas = document.getElementById('pad');
-  const pad = new SignaturePad(canvas, { backgroundColor:'#fff', penColor:'#111' });
-  document.getElementById('pad-clear').onclick = ()=> pad.clear();
-  document.getElementById('pad-save').onclick = async ()=>{
-    if (pad.isEmpty()) { alert('Merci de signer.'); return; }
-    const fd = new FormData();
-    fd.append('dataUrl', pad.toDataURL('image/png'));
-    fd.append('date', document.getElementById('sign-date').value);
-    const res = await fetch('{{ path("app_formateur_session_sign",{entite: entite.id, id: session.id}) }}', { method:'POST', body: fd });
-    const json = await res.json();
-    document.getElementById('sign-status').textContent = json.ok ? (json.already?'Déjà signé.':'Signature enregistrée.') : 'Erreur.';
-  };
-
-  function fixDpi(){
-    const ratio = window.devicePixelRatio||1;
-    const w=canvas.clientWidth, h=canvas.clientHeight;
-    canvas.width=w*ratio; canvas.height=h*ratio; canvas.getContext('2d').scale(ratio,ratio); pad.clear();
+  const signatureResizers = [];
+  document.querySelectorAll('.trainer-signature').forEach(block => {
+    const canvas = block.querySelector('canvas');
+    const pad = new SignaturePad(canvas, { backgroundColor:'#fff', penColor:'#111' });
+    const message = block.querySelector('.sign-status');
+    const save = block.querySelector('.pad-save');
+    const resize = () => {
+      if (!canvas.clientWidth) return;
+      const strokes = pad.toData();
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = canvas.clientWidth * ratio;
+      canvas.height = canvas.clientHeight * ratio;
+      canvas.getContext('2d').scale(ratio, ratio);
+      pad.clear();
+      pad.fromData(strokes);
+    };
+    signatureResizers.push(resize);
+    resize();
+    window.addEventListener('resize', resize);
+    block.querySelector('.pad-clear').onclick = () => pad.clear();
+    save.onclick = async () => {
+      if (pad.isEmpty()) { message.textContent = 'Merci de tracer votre signature.'; return; }
+      save.disabled = true;
+      message.textContent = 'Enregistrement…';
+      try {
+        const data = new FormData();
+        data.append('date', block.dataset.date);
+        data.append('periode', block.dataset.period);
+        data.append('signatureData', pad.toDataURL('image/png'));
+        const response = await fetch('{{ path("app_formateur_emargement_sign", {entite:entite.id, id:session.id}) }}', {method:'POST', body:data});
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'La signature n’a pas pu être enregistrée.');
+        location.reload();
+      } catch (error) {
+        message.textContent = error.message || 'Erreur de connexion. Veuillez réessayer.';
+        save.disabled = false;
+      }
+    };
+  });
+  const dayPicker = document.getElementById('attendance-day');
+  function selectDay(){
+    document.querySelectorAll('.ts-day-content').forEach(section => {
+      section.hidden = section.dataset.day !== dayPicker.value;
+    });
+    signatureResizers.forEach(resize => resize());
   }
-  window.addEventListener('resize', fixDpi); fixDpi();
+  if (dayPicker) { dayPicker.addEventListener('change', selectDay); selectDay(); }
 </script>
 {% endblock %}

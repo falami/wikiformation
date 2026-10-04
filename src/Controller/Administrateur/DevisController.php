@@ -283,8 +283,12 @@ class DevisController extends AbstractController
       0 => 'd.numero',
       1 => 'COALESCE(e.raisonSociale, u.nom, p.nom)',
       2 => 'formation.titre',
-      4 => 'd.montantTtcCents',
-      5 => 'd.status',
+      4 => 'd.dateEmission',
+      5 => 'd.dateValidite',
+      6 => 'd.montantHtCents',
+      7 => 'd.montantTvaCents',
+      8 => 'd.montantTtcCents',
+      9 => 'd.status',
     ];
 
     $qb = $em->getRepository(Devis::class)->createQueryBuilder('d')
@@ -381,7 +385,11 @@ class DevisController extends AbstractController
         'dest' => $label,
         'formation' => $trainingDetails[$d->getId()]['formation'],
         'dates' => $trainingDetails[$d->getId()]['dates'],
-        'ttc'    => number_format(($d->getMontantTtcCents() ?? 0) / 100, 2, ',', ' ') . ' €',
+        'dateEmission' => $d->getDateEmission()->format('d/m/Y'),
+        'dateValidite' => $d->getDateValidite()?->format('d/m/Y') ?? '—',
+        'ht' => number_format(($d->getMontantHtCents() ?? 0) / 100, 2, ',', ' ') . ' ' . ($d->getDevise() ?: 'EUR'),
+        'tva' => number_format(($d->getMontantTvaCents() ?? 0) / 100, 2, ',', ' ') . ' ' . ($d->getDevise() ?: 'EUR'),
+        'ttc'    => number_format(($d->getMontantTtcCents() ?? 0) / 100, 2, ',', ' ') . ' ' . ($d->getDevise() ?: 'EUR'),
 
         // si tu utilises déjà un badge twig
         'status' => $this->renderView('administrateur/devis/_status_badge.html.twig', [

@@ -816,8 +816,18 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
 
 
 
+    /** Entreprises clientes auxquelles ce stagiaire est rattaché, sans rôle de représentant. */
+    #[ORM\ManyToMany(targetEntity: Entreprise::class)]
+    #[ORM\JoinTable(name: 'stagiaire_entreprise')]
+    private Collection $entreprisesAssociees;
+
+    public function getEntreprisesAssociees(): Collection { return $this->entreprisesAssociees; }
+    public function addEntreprisesAssociee(Entreprise $e): static { if (!$this->entreprisesAssociees->contains($e)) $this->entreprisesAssociees->add($e); return $this; }
+    public function removeEntreprisesAssociee(Entreprise $e): static { $this->entreprisesAssociees->removeElement($e); return $this; }
+
     public function __construct()
     {
+        $this->entreprisesAssociees = new ArrayCollection();
         $this->entites = new ArrayCollection();
         $this->utilisateurEntites = new ArrayCollection();
         $this->utilisateursCreateur = new ArrayCollection();

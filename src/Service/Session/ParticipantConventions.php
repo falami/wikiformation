@@ -26,8 +26,8 @@ final class ParticipantConventions
             $card = [
                 'id' => $document->getId(), 'number' => $document->getNumero() ?: 'Convention #'.$document->getId(),
                 'payer' => $document->getDestinataireLabel(), 'company' => $document->getEntreprise() !== null,
-                'signed' => $document->isSigned(), 'estimated' => !$quote,
-                'amount' => $foreignQuote ? null : ($quote ? $quote->getMontantTtcCents() : $session->getTarifEffectifCents() * $document->getEffectifTotal()),
+                'signed' => $document->isSigned(), 'estimated' => !$quote && $document->getMontantHtCents() === null,
+                'amount' => $foreignQuote ? null : ($document->getMontantHtCents() ?? ($quote ? $quote->getMontantHtCents() : $session->getTarifEffectifCents() * $document->getEffectifTotal())),
                 'currency' => $quote && !$foreignQuote ? $quote->getDevise() : 'EUR',
                 'participants' => $document->getEffectifTotal(),
             ];

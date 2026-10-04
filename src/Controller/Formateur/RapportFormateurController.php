@@ -108,6 +108,8 @@ class RapportFormateurController extends AbstractController
                 'formateur'   => $r['formateurEmail'] ?? ('#' . $r['formateurId']),
                 'submittedAt' => $submittedAt,
                 'comment'     => $commentShort !== '' ? $commentShort : '—',
+                'importance' => array_search($r['importance'], RapportFormateur::PRIORITIES, true),
+                'suivi' => array_search($r['statutTraitement'], RapportFormateur::STATUSES, true),
                 // données pour modal
                 'commentFull' => $comment !== '' ? $comment : '',
                 'critCount'   => $critCount,
@@ -175,6 +177,7 @@ class RapportFormateurController extends AbstractController
             ->select('r.id AS id')
             ->addSelect('r.submittedAt AS submittedAt')
             ->addSelect('r.commentaires AS commentaires')
+            ->addSelect('r.importance AS importance, r.statutTraitement AS statutTraitement')
             ->addSelect('r.criteres AS criteres')
             ->addSelect('s.code AS sessionCode')
             ->addSelect('f.id AS formateurId')
@@ -261,7 +264,10 @@ class RapportFormateurController extends AbstractController
             }
         }
 
-        $form = $this->createForm(RapportFormateurType::class, $r)
+        $form = $this->createForm(RapportFormateurType::class, $r, ['sessions' => array_values(array_filter(
+            $em->getRepository(Session::class)->findBy(['entite' => $entite]),
+            static fn (Session $session): bool => $formateur && $session->hasFormateur($formateur),
+        ))])
             ->handleRequest($req);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -280,6 +286,40 @@ class RapportFormateurController extends AbstractController
             'title' => 'Nouveau rapport',
             'entite' => $entite,
         ]);
+    }
+
+    #[Route('/{id}/voir', name: 'show', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function show(Entite $entite, RapportFormateur $rapport, EM $em): Response
+    {
+        $this->checkReport($rapport, $entite, $em);
+        return $this->render('formateur/rapport/show.html.twig', ['entite' => $entite, 'rapport' => $rapport]);
+    }
+
+    #[Route('/{id}/modifier', name: 'edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
+    public function edit(Entite $entite, RapportFormateur $rapport, Request $request, EM $em): Response
+    {
+        $this->checkReport($rapport, $entite, $em);
+        $form = $this->createForm(RapportFormateurType::class, $rapport, [
+            'sessions' => $rapport->getSession() ? [$rapport->getSession()] : [], 'lock_session' => true,
+        ])->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $em->flush();
+            $this->addFlash('success', 'Rapport modifié.');
+            return $this->redirectToRoute('app_formateur_rapport_show', ['entite' => $entite->getId(), 'id' => $rapport->getId()]);
+        }
+        return $this->render('formateur/rapport/form.html.twig', [
+            'entite' => $entite, 'form' => $form, 'title' => 'Modifier le rapport', 'modeEdition' => true,
+        ]);
+    }
+
+    private function checkReport(RapportFormateur $rapport, Entite $entite, EM $em): void
+    {
+        $formateur = $this->getCurrentFormateur($em);
+        if (!$formateur || $rapport->getEntite()?->getId() !== $entite->getId()
+            || $rapport->getFormateur()?->getId() !== $formateur->getId()
+            || ($rapport->getSession() && $rapport->getSession()->getEntite()?->getId() !== $entite->getId())) {
+            throw $this->createNotFoundException();
+        }
     }
 
     private function getCurrentFormateur(EM $em): ?Formateur

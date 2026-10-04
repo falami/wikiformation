@@ -194,6 +194,30 @@ final class ConventionContratController extends AbstractController
         ]);
     }
 
+    #[Route('/{id}/participants-eligibles', name: 'eligible_participants', methods: ['GET'])]
+    public function eligibleParticipants(Entite $entite, ConventionContrat $c, Request $request, EM $em, ConventionParticipants $participants): Response
+    {
+        $this->assertConventionTenant($entite, $c);
+        $context = clone $c;
+        if (!$c->isSigned()) {
+            foreach (['session' => \App\Entity\Session::class, 'entreprise' => \App\Entity\Entreprise::class] as $field => $class) {
+                $id = $request->query->getInt($field);
+                $object = $id ? $em->getRepository($class)->findOneBy(['id' => $id, 'entite' => $entite]) : null;
+                if ($id && !$object) throw $this->createNotFoundException();
+                $context->{'set'.ucfirst($field)}($object);
+            }
+            $learnerId = $request->query->getInt('stagiaire');
+            $learner = $learnerId ? $em->getRepository(Utilisateur::class)->createQueryBuilder('u')
+                ->leftJoin('u.utilisateurEntites', 'ue')->where('u.id = :id AND (u.entite = :e OR ue.entite = :e)')
+                ->setParameter('id', $learnerId)->setParameter('e', $entite)->getQuery()->getOneOrNullResult() : null;
+            if ($learnerId && !$learner) throw $this->createNotFoundException();
+            $context->setStagiaire($learner);
+        }
+        return $this->json(array_map(static fn(Utilisateur $u) => [
+            'value' => (string) $u->getId(), 'text' => trim($u->getPrenom().' '.$u->getNom()).' — '.$u->getEmail(),
+        ], $participants->eligibleQuery($context)->getQuery()->getResult()));
+    }
+
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
     public function edit(Entite $entite, ConventionContrat $c, Request $req, EM $em, ConventionParticipants $participants, \App\Service\Convention\ConventionHistory $history): Response
     {
@@ -223,8 +247,8 @@ final class ConventionContratController extends AbstractController
             $user = $this->getUser();
 
             // 🔒 logique de lock
-            $lockSession   = true;
-            $lockEntreprise = ($c->getEntreprise() !== null) !== ($c->getStagiaire() !== null);
+            $lockSession   = $linkSigned;
+            $lockEntreprise = $linkSigned;
             $lockStagiaire  = $lockEntreprise;
 
 

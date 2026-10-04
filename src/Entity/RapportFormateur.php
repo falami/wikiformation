@@ -43,6 +43,39 @@ class RapportFormateur
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Entite $entite = null;
 
+    public const PRIORITIES = ['Faible' => 'low', 'Normale' => 'normal', 'Importante' => 'high', 'Urgente' => 'urgent'];
+    public const STATUSES = ['À traiter' => 'new', 'En cours' => 'in_progress', 'Traité' => 'resolved', 'Classé sans suite' => 'closed'];
+
+    #[ORM\Column(length: 20, options: ['default' => 'normal'])]
+    private string $importance = 'normal';
+
+    #[ORM\Column(length: 20, options: ['default' => 'new'])]
+    private string $statutTraitement = 'new';
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $actionsRealisees = null;
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $historiqueTraitement = [];
+
+    public function getImportance(): string { return $this->importance; }
+    public function setImportance(string $value): static {
+        if (!in_array($value, self::PRIORITIES, true)) throw new \InvalidArgumentException('Importance invalide');
+        $this->importance = $value; return $this;
+    }
+    public function getImportanceLabel(): string { return array_search($this->importance, self::PRIORITIES, true) ?: $this->importance; }
+    public function getStatutTraitement(): string { return $this->statutTraitement; }
+    public function getStatutTraitementLabel(): string { return array_search($this->statutTraitement, self::STATUSES, true) ?: $this->statutTraitement; }
+    public function getActionsRealisees(): ?string { return $this->actionsRealisees; }
+    public function getHistoriqueTraitement(): array { return $this->historiqueTraitement ?? []; }
+    public function traiter(string $status, ?string $actions, Utilisateur $author): void {
+        if (!in_array($status, self::STATUSES, true)) throw new \InvalidArgumentException('Statut invalide');
+        if ($this->statutTraitement === $status && $this->actionsRealisees === $actions) return;
+        $this->historiqueTraitement[] = ['date' => (new \DateTimeImmutable())->format(DATE_ATOM), 'auteur' => trim($author->getPrenom().' '.$author->getNom()), 'auteurId' => $author->getId(), 'statut' => $status, 'actions' => $actions];
+        $this->statutTraitement = $status;
+        $this->actionsRealisees = $actions;
+    }
+
     public function __construct()
     {
         $this->dateCreation = new \DateTimeImmutable();

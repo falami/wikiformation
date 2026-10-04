@@ -53,6 +53,8 @@ class EmargementRepository extends ServiceEntityRepository
     {
         $rows = $this->createQueryBuilder('e')
             ->select('e.dateJour AS d, e.periode AS p')
+            ->andWhere('e.signedAt IS NOT NULL')
+            ->andWhere("(e.signaturePath IS NOT NULL AND e.signaturePath <> '') OR (e.signatureDataUrl IS NOT NULL AND e.signatureDataUrl <> '')")
             ->andWhere('e.session = :s')->setParameter('s', $session)
             ->andWhere('e.utilisateur = :u')->setParameter('u', $user)
             ->getQuery()

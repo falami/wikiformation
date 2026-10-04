@@ -1,0 +1,35 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Rapport formateur #{{ rapport.id }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+
+  <style>
+
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+    
+
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+{% endblock %}
+{% block body %}
+<div class="container py-4">
+  <p><span class="badge text-bg-warning">{{ rapport.importanceLabel }}</span> <span class="badge text-bg-secondary">{{ rapport.statutTraitementLabel }}</span></p>
+  {% if rapport.actionsRealisees %}<div class="alert alert-info"><strong>Retour de l’organisme</strong><div style="white-space:pre-wrap">{{ rapport.actionsRealisees }}</div></div>{% endif %}
+  <div class="d-flex justify-content-between align-items-center mb-4 gap-3 flex-wrap">
+    <div><h1>Rapport formateur #{{ rapport.id }}</h1><p class="text-muted">{{ rapport.session ? rapport.session.code : 'Session non renseignée' }} · {{ rapport.submittedAt|date('d/m/Y H:i') }}</p></div>
+    <div class="d-flex gap-2"><a class="btn btn-outline-secondary" href="{{ path('app_formateur_rapport_index', {entite: entite.id}) }}">Retour à la liste</a><a class="btn btn-primary" href="{{ path('app_formateur_rapport_edit', {entite: entite.id, id: rapport.id}) }}">Modifier le rapport</a><button class="btn btn-outline-secondary" onclick="window.print()">Imprimer</button></div>
+  </div>
+  <div class="card mb-4"><div class="card-body"><h2 class="h5">Formation</h2><p>{{ rapport.session ? (rapport.session.formation ? rapport.session.formation.titre : rapport.session.formationIntituleLibre) : '—' }}</p><h2 class="h5">Commentaires</h2><div style="white-space:pre-wrap">{{ rapport.commentaires ?: 'Aucun commentaire renseigné.' }}</div></div></div>
+  {% if rapport.criteres %}<div class="card"><div class="card-body"><h2 class="h5">Critères</h2><dl>{% for label, value in rapport.criteres %}<dt>{{ label }}</dt><dd>{{ value is iterable ? value|json_encode : value }}</dd>{% endfor %}</dl></div></div>{% endif %}
+</div>
+{% endblock %}

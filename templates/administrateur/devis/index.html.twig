@@ -319,6 +319,7 @@ body .devis-floating-dropdown{
 
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}">
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
@@ -471,14 +472,19 @@ body .devis-floating-dropdown{
     </div>
   </div>
 
-  <div class="table-card mb-4 p-3">
+  <div class="table-card premium-list mb-4">
+    <div class="ledger-heading"><div><h3>Vos devis</h3><p>Références, échéances et montants de vos propositions commerciales.</p></div><span class="ledger-mark"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Suivi commercial</span></div>
     <table id="tableauDevis" class="table table-hover align-middle mb-0" style="width:100%">
       <thead>
         <tr>
           <th>Numéro</th>
           <th>Destinataire</th>
           <th>Formation</th>
-          <th>Dates de formation</th>
+          <th>Dates</th>
+          <th>émission</th>
+          <th>Validité</th>
+          <th>Montant HT</th>
+          <th>TVA</th>
           <th>Montant TTC</th>
           <th>Statut</th>
           <th></th>
@@ -669,22 +675,34 @@ $(function () {
       { data:'dest' },
       { data:'formation' },
       { data:'dates' },
+      { data:'dateEmission' },
+      { data:'dateValidite' },
+      { data:'ht' },
+      { data:'tva' },
       { data:'ttc' },
       { data:'status' },
       { data:'actions' }
     ],
 
     columnDefs: [
-      { targets:[0,1,2,3,4], render: $.fn.dataTable.render.text() },
+      { targets:8, className:'ledger-total' },
+      { targets:0, render: function(data,type){ return type === 'display' ? '<span class="ledger-ref">' + $('<div>').text(data || '—').html() + '</span>' : data; } },
+      { targets:[1,2], render: function(data,type){ return type === 'display' ? '<div class="ledger-primary">' + $('<div>').text(data || '—').html().replace(/\n/g,'<br>') + '</div>' : data; } },
+      { targets:[3,4,5], render: function(data,type){ return type === 'display' ? '<span class="ledger-subtle">' + $('<div>').text(data || '—').html().replace(/\n/g,'<br>') + '</span>' : data; } },
+      { targets:[6,7,8], render: function(data,type, row, meta){
+          if (type !== 'display') return data;
+          const tone = meta.col === 7 ? 'tax' : (meta.col === 8 ? 'total' : 'net');
+          return '<span class="ledger-amount ledger-amount--' + tone + '">' + $('<div>').text(data || '—').html() + '</span>';
+        } },
       { targets:2, className:'devis-training-column' },
       { targets:3, className:'devis-dates-column', orderable:false, searchable:false },
-      { targets:4, className:'text-end' },
-      { targets:[5,6], orderable:false, searchable:false, render: function(data, type){
+      { targets:[6,7,8], className:'ledger-money' },
+      { targets:[9,10], orderable:false, searchable:false, render: function(data, type){
           if (type === 'display') return data || '';
           return (data || '').toString().replace(/<[^>]*>/g,'').trim();
         }
       },
-      { targets:6, className:'action-column text-end' },
+      { targets:10, className:'action-column text-end' },
     ],
 
     order: [[0,'desc']],

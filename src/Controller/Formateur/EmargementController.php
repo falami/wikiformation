@@ -392,6 +392,9 @@ class EmargementController extends AbstractController
         EntityManagerInterface $em
     ): JsonResponse {
         $this->assertCanManageSession($entite, $id);
+        if (!$id->isEmargementRequis()) {
+            return new JsonResponse(['success' => false, 'message' => 'Les émargements ne sont pas disponibles pour cette session.'], 403);
+        }
 
         /** @var Utilisateur $user */
         $user = $this->getUser();

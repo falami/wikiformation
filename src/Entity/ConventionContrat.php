@@ -103,6 +103,21 @@ class ConventionContrat
     #[ORM\Column(length: 40, unique: true)]
     private string $numero = '';
 
+    #[ORM\Column(nullable: true)]
+    #[Assert\PositiveOrZero]
+    private ?int $montantHtCents = null;
+
+    #[ORM\Column]
+    #[Assert\Range(min: 0, max: 100)]
+    private float $tauxTva = 0;
+
+    public function getMontantHtCents(): ?int { return $this->montantHtCents; }
+    public function setMontantHtCents(?int $value): static { $this->montantHtCents = $value; return $this; }
+    public function getTauxTva(): float { return $this->tauxTva; }
+    public function setTauxTva(float $value): static { $this->tauxTva = $value; return $this; }
+    public function getMontantTvaCents(): int { return (int) round(($this->montantHtCents ?? 0) * $this->tauxTva / 100); }
+    public function getMontantTtcCents(): int { return ($this->montantHtCents ?? 0) + $this->getMontantTvaCents(); }
+
     public function __construct()
     {
         $this->dateCreation = new \DateTimeImmutable();

@@ -416,7 +416,10 @@ $(function () {
       { data:'session' },
       { data:'formateur' },
       { data:'submittedAt' },
-      { data:'comment' },
+      { data:'comment', render: function(data, type, row) {
+        const text = `${row.importance} · ${row.suivi} — ${data}`;
+        return type === 'display' ? $('<div>').text(text).html() : text;
+      } },
       { data:'actions' }
     ],
 
@@ -429,9 +432,11 @@ $(function () {
         render: function(data, type, row){
           return `
             <button type="button" class="btn btn-sm btn-outline-secondary fw-semibold" data-action="details">
-              <i class="bi bi-eye"></i> Détails
+              <i class="bi bi-info-circle"></i> Détails
             </button>
-          `;
+            <a class="btn btn-sm btn-outline-primary" href="{{ path('app_formateur_rapport_show', {entite: entite.id, id: 0}) }}" data-report-link="show">Voir</a>
+            <a class="btn btn-sm btn-primary" href="{{ path('app_formateur_rapport_edit', {entite: entite.id, id: 0}) }}" data-report-link="edit">Modifier</a>
+          `.replaceAll('/0/', '/' + Number(row.id) + '/');
         }
       },
       { targets:[4,5], searchable:false }

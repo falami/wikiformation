@@ -71,6 +71,8 @@ final class DashboardController extends AbstractController
     return $this->render('administrateur/dashboard/index.html.twig', [
 
       'title'  => 'Tableau de bord',
+      'rapportsOuverts' => $this->em->getRepository(\App\Entity\RapportFormateur::class)->count(['entite' => $entite, 'statutTraitement' => ['new', 'in_progress']]),
+      'rapportsUrgents' => $this->em->getRepository(\App\Entity\RapportFormateur::class)->count(['entite' => $entite, 'statutTraitement' => ['new', 'in_progress'], 'importance' => ['urgent', 'high']]),
 
       'entite' => $entite,
 
@@ -1274,10 +1276,19 @@ final class DashboardController extends AbstractController
 
 
 
-    $sql .= " ORDER BY j.date_debut ASC, p.periode ASC LIMIT 20";
+    $sql .= " ORDER BY date_jour ASC, periode ASC LIMIT 20";
 
 
 
+    // Historical user and guest tables can have different MySQL collations.
+    if ($conn->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\AbstractMySQLPlatform) {
+      $sql = str_replace(
+        ['u.prenom, u.nom', "pa.display_name AS prenom, '' AS nom"],
+        ["CONVERT(u.prenom USING utf8mb4) COLLATE utf8mb4_unicode_ci AS prenom, CONVERT(u.nom USING utf8mb4) COLLATE utf8mb4_unicode_ci AS nom",
+         "CONVERT(pa.display_name USING utf8mb4) COLLATE utf8mb4_unicode_ci AS prenom, CONVERT('' USING utf8mb4) COLLATE utf8mb4_unicode_ci AS nom"],
+        $sql
+      );
+    }
     $missingRows = $conn->executeQuery($sql, $params)->fetchAllAssociative();
 
 

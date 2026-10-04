@@ -116,7 +116,7 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         $crawler = $this->client->request('GET', $this->url());
         foreach ([$foreign, $wrongClient] as $u) self::assertSame(0, $crawler->filter('#convention_contrat_stagiaires option[value="'.$u->getId().'"]')->count());
         $token = $crawler->filter('input[name="convention_contrat[_token]"]')->attr('value');
-        $this->client->request('POST', $this->url(), ['convention_contrat' => ['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'stagiaires'=>[$foreign->getId()], 'participantsLibres'=>'Nom maintenu', 'effectifPrevisionnel'=>2]]);
+        $this->client->request('POST', $this->url(), ['convention_contrat' => ['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'session'=>$this->session->getId(), 'entreprise'=>$this->company->getId(), 'devis'=>$this->convention->getDevis()?->getId(), 'tauxTva'=>'0', 'stagiaires'=>[$foreign->getId()], 'participantsLibres'=>'Nom maintenu', 'effectifPrevisionnel'=>2]]);
         self::assertNotSame(302, $this->client->getResponse()->getStatusCode());
         $id = $this->convention->getId(); $this->em->clear(); $saved = $this->em->find(ConventionContrat::class, $id);
         self::assertCount(0, $saved->getInscriptions()); self::assertSame("BRABANT Hugo\nBERNARD Ilian", $saved->getParticipantsLibres());
@@ -168,7 +168,7 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         $hugo = $this->learner('Hugo', 'BRABANT'); $crawler = $this->client->request('GET', $this->url());
         $token = $crawler->filter('input[name="convention_contrat[_token]"]')->attr('value');
         $this->current()->setDateSignatureEntreprise(new \DateTimeImmutable()); $this->em->flush();
-        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'stagiaires'=>[$hugo->getId()], 'effectifPrevisionnel'=>1]]);
+        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'session'=>$this->session->getId(), 'entreprise'=>$this->company->getId(), 'devis'=>$this->convention->getDevis()?->getId(), 'tauxTva'=>'0', 'stagiaires'=>[$hugo->getId()], 'effectifPrevisionnel'=>1]]);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertSame('uploads/old-convention.pdf', $this->current()->getPdfPath());
         self::assertCount(0, $this->current()->getInscriptions()); self::assertSame(2, $this->current()->getEffectifTotal());
@@ -207,6 +207,7 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
             self::assertTrue($c->isSigned());
             self::assertSame('private:'.$name, $c->getPdfPath());
             self::assertNull($c->getIntituleFormation()); // forged changes to disabled fields are ignored
+            self::assertNull($c->getMontantHtCents());
             self::assertCount(1, $c->getInscriptions());
             self::assertSame(['BERNARD Ilian'], $c->getParticipantsLibresListe());
             $revision = $this->em->getRepository(\App\Entity\ConventionRevision::class)->findOneBy(['convention'=>$c]);
@@ -252,10 +253,110 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
 
     private function current(): ConventionContrat { return $this->em->find(ConventionContrat::class, $this->convention->getId()); }
     private function url(): string { return '/fr/administrateur/'.$this->entity->getId().'/conventions/'.$this->convention->getId().'/edit'; }
+    public function testQuotePricesAndVatArePrefilledAndRemainInherited(): void
+    {
+        $this->convention->getDevis()->setMontantHtCents(189000)->setMontantTvaCents(37800)->setMontantTtcCents(226800);
+        $this->em->flush();
+        $page = $this->client->request('GET', $this->url());
+        self::assertSame('1890,00', $page->filter('#convention_contrat_montantHtCents')->attr('value'));
+        self::assertSame('20,000000', $page->filter('#convention_contrat_tauxTva')->attr('value'));
+        $option = $page->filter('#convention_contrat_devis option[selected]');
+        self::assertSame('189000', $option->attr('data-ht'));
+        self::assertEquals(20, $option->attr('data-tva'));
+        $this->client->submit($page->filter('form[name="convention_contrat"]')->form());
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $saved = $this->current();
+        self::assertNull($saved->getMontantHtCents());
+        self::assertSame(37800, $saved->getDevis()->getMontantTvaCents());
+        self::assertSame(226800, $saved->getDevis()->getMontantTtcCents());
+    }
+
+    public function testMixedVatQuoteKeepsItsExactTotalsWithoutPersonalisation(): void
+    {
+        $this->convention->getDevis()->setMontantHtCents(30001)->setMontantTvaCents(3550)->setMontantTtcCents(33551);
+        $this->em->flush();
+        $page = $this->client->request('GET', $this->url());
+        self::assertSame('11,832939', $page->filter('#convention_contrat_tauxTva')->attr('value'));
+        $this->client->submit($page->filter('form[name="convention_contrat"]')->form());
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $saved = $this->current();
+        self::assertNull($saved->getMontantHtCents());
+        self::assertSame(3550, $saved->getDevis()->getMontantTvaCents());
+        self::assertSame(33551, $saved->getDevis()->getMontantTtcCents());
+    }
+
+    public function testPriceCanBeEditedIndependentlyOfQuoteAndIsArchived(): void
+    {
+        $quoteId = $this->convention->getDevis()->getId();
+        $quoteAmount = $this->convention->getDevis()->getMontantHtCents();
+        $page = $this->client->request('GET', $this->url());
+        self::assertSame(0, $page->filter('#convention_contrat_session[disabled]')->count());
+        $form = $page->filter('form[name="convention_contrat"]')->form();
+        $form['convention_contrat[montantHtCents]'] = '1234.56';
+        $form['convention_contrat[tauxTva]'] = '20';
+        $this->client->submit($form);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode(), $this->client->getResponse()->getContent());
+        $saved = $this->current();
+        self::assertSame(123456, $saved->getMontantHtCents());
+        self::assertSame(24691, $saved->getMontantTvaCents());
+        self::assertSame(148147, $saved->getMontantTtcCents());
+        $page = $this->client->request('GET', $this->url());
+        self::assertSame('1234,56', $page->filter('#convention_contrat_montantHtCents')->attr('value'));
+        self::assertSame('20,000000', $page->filter('#convention_contrat_tauxTva')->attr('value'));
+        self::assertSame($quoteAmount, $this->em->find(Devis::class, $quoteId)->getMontantHtCents());
+        $totals = self::getContainer()->get(\App\Service\Session\SessionConventionTotals::class)->calculate($saved->getSession());
+        self::assertSame(123456, $totals['amounts']['EUR']);
+        self::assertSame(0, $totals['estimatedCount']);
+        self::assertCount(1, self::getContainer()->get(\App\Service\Convention\ConventionHistory::class)->list($saved));
+    }
+
+    public function testLearnerCanBelongToTwoCompaniesWithoutRepresentativeAccess(): void
+    {
+        $learner = $this->learner('Multi', 'CLIENT');
+        $second = (new Entreprise())->setEntite($this->entity)->setCreateur($this->admin)->setRaisonSociale('Second employeur');
+        $this->em->persist($second);
+        $learner->addEntreprisesAssociee($second);
+        $this->em->flush();
+        $id = $learner->getId(); $secondId = $second->getId();
+        $this->em->clear();
+        $learner = $this->em->find(Utilisateur::class, $id);
+        $second = $this->em->find(Entreprise::class, $secondId);
+        self::assertCount(1, $learner->getEntreprisesAssociees());
+        self::assertNotSame($second, $learner->getEntreprise());
+        self::assertNull($second->getRepresentant());
+        $context = (new ConventionContrat())->setEntite($second->getEntite())->setSession($this->em->find(Session::class, $this->session->getId()))->setEntreprise($second);
+        $eligible = self::getContainer()->get(\App\Service\Convention\ConventionParticipants::class)->eligibleQuery($context)->getQuery()->getResult();
+        self::assertContains($learner, $eligible);
+    }
+
+    public function testChangingRecipientRefreshesChoicesAndPersistsNewContext(): void
+    {
+        $second = (new Entreprise())->setEntite($this->entity)->setCreateur($this->admin)->setRaisonSociale('Second client');
+        $this->em->persist($second);
+        $learner = $this->learner('Second', 'CLIENT');
+        $learner->setEntreprise($second); $this->em->flush();
+        $id = $learner->getId();
+        $this->client->request('GET', str_replace('/edit', '/participants-eligibles', $this->url()), [
+            'session' => $this->session->getId(), 'entreprise' => $second->getId(),
+        ]);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Second CLIENT', $this->client->getResponse()->getContent());
+        $page = $this->client->request('GET', $this->url());
+        $values = $page->filter('form[name="convention_contrat"]')->form()->getPhpValues();
+        $values['convention_contrat']['entreprise'] = $second->getId();
+        $values['convention_contrat']['devis'] = '';
+        $values['convention_contrat']['stagiaires'] = [$id];
+        $values['convention_contrat']['participantsLibres'] = '';
+        $this->client->request('POST', $this->url(), $values);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode(), $this->client->getResponse()->getContent());
+        self::assertSame($second->getId(), $this->current()->getEntreprise()->getId());
+        self::assertCount(1, $this->current()->getInscriptions());
+    }
+
     private function submit(array $ids, string $free = "BRABANT Hugo\nBERNARD Ilian"): void
     {
         $crawler = $this->client->request('GET', $this->url());
         $token = $crawler->filter('input[name="convention_contrat[_token]"]')->attr('value');
-        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'stagiaires'=>$ids, 'participantsLibres'=>$free, 'remplacerNomsLibres'=>'1', 'effectifPrevisionnel'=>'2', 'intituleFormation'=>'Titre personnalisé', 'conditionsFinancieres'=>'Paiement à 30 jours']]);
+        $this->client->request('POST', $this->url(), ['convention_contrat'=>['_token'=>$token, 'historyToken'=>$crawler->filter('input[name="convention_contrat[historyToken]"]')->attr('value'), 'session'=>$this->session->getId(), 'entreprise'=>$this->company->getId(), 'devis'=>$this->convention->getDevis()?->getId(), 'tauxTva'=>'0', 'stagiaires'=>$ids, 'participantsLibres'=>$free, 'remplacerNomsLibres'=>'1', 'effectifPrevisionnel'=>'2', 'intituleFormation'=>'Titre personnalisé', 'montantHtCents'=>'1234.56', 'tauxTva'=>'20', 'conditionsFinancieres'=>'Paiement à 30 jours']]);
     }
 }

@@ -93,8 +93,16 @@ final class ParticipantQrPublicController extends AbstractController
         foreach ($assignments as $assignment) {
             if ($assignment->getAttempt()?->isSubmitted()) return $this->thankYou($access);
         }
-        $assignment = $assignments[0] ?? null;
-        $template = $assignment?->getTemplate() ?? $templates->forSession($session);
+        // The catalogue selection is authoritative, even if an older model was assigned.
+        // Keep previous attempts on their original model instead of reinterpreting their answers.
+        $template = $templates->forSession($session);
+        $assignment = null;
+        foreach ($assignments as $candidate) {
+            if ($candidate->getTemplate()?->getId() === $template->getId()) {
+                $assignment = $candidate;
+                break;
+            }
+        }
         if (!$template || $template->getEntite()?->getId() !== $access->getEntite()?->getId()) {
             return $this->unavailable('Le questionnaire n’est pas encore disponible. Votre formateur pourra vous prévenir dès qu’il sera prêt.', $access, 200);
         }
@@ -126,6 +134,7 @@ final class ParticipantQrPublicController extends AbstractController
                         $em->commit();
                         return $this->thankYou($access);
                     }
+                    if ($current->getTemplate()?->getId() === $template->getId()) $assignment = $current;
                 }
                 if (!$assignment) {
                     $assignment = (new SatisfactionAssignment())->setSession($session)->setEntite($access->getEntite())

@@ -143,6 +143,12 @@
     @media (max-width:768px){
       .hero{ border-radius:16px; }
     }
+    .quote-choice{display:grid;gap:.35rem;padding:.3rem .1rem;white-space:normal;overflow-wrap:anywhere}
+    .quote-choice-head{display:flex;align-items:baseline;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+    .quote-choice-amount{font-weight:700;white-space:nowrap}
+    .quote-choice-client{font-weight:600}
+    .quote-choice-meta{font-size:.85em;opacity:.8}
+    .quote-choice-selected{white-space:normal;overflow-wrap:anywhere}
   </style>
 {% endblock %}
 
@@ -259,7 +265,7 @@
 
             <div class="col-12">
               <div class="form-text">
-                Le destinataire et la session restent ceux du dossier d’origine.
+                Choisissez une entreprise ou un stagiaire destinataire. Le devis et les participants doivent correspondre à cette sélection.
               </div>
             </div>
 
@@ -348,6 +354,8 @@
         </div>
 
         <div class="p-3 p-md-4">
+          {{ form_row(form.devis) }}
+          <div class="row g-3"><div class="col-md-8">{{ form_row(form.montantHtCents) }}</div><div class="col-md-4">{{ form_row(form.tauxTva) }}</div></div>
           {{ form_row(form.conditionsFinancieres) }}
           <div class="form-text mt-2">
             Indiquez les modalités de règlement, les prises en charge et les échéances.
@@ -598,6 +606,21 @@ document.addEventListener('DOMContentLoaded', function(){
 
   const formEl = document.getElementById('{{ form.vars.id }}');
 
+  const quoteSelect = document.getElementById('{{ form.devis.vars.id }}');
+  const quoteAmount = document.getElementById('{{ form.montantHtCents.vars.id }}');
+  const quoteVat = document.getElementById('{{ form.tauxTva.vars.id }}');
+  quoteSelect?.addEventListener('change', () => {
+    if (quoteAmount.disabled || quoteVat.disabled) return;
+    const option = quoteSelect.selectedOptions[0];
+    quoteAmount.value = option?.dataset.ht !== undefined ? (Number(option.dataset.ht) / 100).toFixed(2).replace('.', ',') : '';
+    quoteVat.value = option?.dataset.tva ?? '0';
+    const label = document.querySelector('label[for="' + quoteAmount.id + '"]');
+    if (label) label.textContent = 'Montant total de la convention HT (' + (option?.dataset.currency || 'EUR') + ')';
+    quoteAmount.dispatchEvent(new Event('input', {bubbles: true}));
+    quoteVat.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+
+
   const $resume = {
     pill: document.getElementById('resume-valid-pill'),
     session: document.getElementById('resume-session'),
@@ -635,6 +658,31 @@ document.addEventListener('DOMContentLoaded', function(){
   const elEntreprise   = initTomSelect(idEntreprise);
   const elStagiaire    = initTomSelect(idStagiaire);
   const elInscriptions = initTomSelect(idInscriptions);
+  const quoteDetails = new Map(Array.from(quoteSelect?.options || []).map(option => [
+    option.value, option.dataset.details ? JSON.parse(option.dataset.details) : null
+  ]));
+  initTomSelect('#{{ form.devis.vars.id }}', {
+    placeholder: 'Rechercher un numéro, un client, une formation…',
+    searchField: ['text'],
+    sortField: [{field:'$order', direction:'asc'}],
+    render: {
+      option(data, escape) {
+        const details = quoteDetails.get(String(data.value));
+        if (!details) return '<div>' + escape(data.text) + '</div>';
+        const [number, client, training, date, amount, status] = details.map(value => escape(value));
+        return '<div><div class="quote-choice"><div class="quote-choice-head"><strong>' + number
+          + '</strong><span class="quote-choice-amount">' + amount + '</span></div>'
+          + '<div class="quote-choice-client">' + client + '</div><div>' + training
+          + '</div><div class="quote-choice-meta">' + date + ' · ' + status + '</div></div></div>';
+      },
+      item(data, escape) {
+        const details = quoteDetails.get(String(data.value));
+        return '<div class="quote-choice-selected">' + escape(details ? details[0] + ' — ' + details[1] + ' — ' + details[4] : data.text) + '</div>';
+      },
+      no_results: () => '<div class="no-results">Aucun devis correspondant à votre recherche.</div>'
+    }
+  });
+
 
   /* =========================================================
      Flatpickr FR
@@ -727,6 +775,39 @@ document.addEventListener('DOMContentLoaded', function(){
     el.addEventListener('input', refreshResume);
     el.addEventListener('change', refreshResume);
   });
+
+  {% if c is defined and c and c.id and not c.signed %}
+  let participantRequest = 0;
+  [idSession, idEntreprise, idStagiaire].forEach(selector => {
+    document.querySelector(selector)?.addEventListener('change', async () => {
+      const requestNumber = ++participantRequest;
+      const select = document.querySelector(idInscriptions);
+      if (!select) return;
+      const url = new URL('{{ path('app_administrateur_convention_eligible_participants', {entite: entite.id, id: c.id}) }}', location.origin);
+      url.searchParams.set('session', document.querySelector(idSession)?.value || '');
+      url.searchParams.set('entreprise', document.querySelector(idEntreprise)?.value || '');
+      url.searchParams.set('stagiaire', document.querySelector(idStagiaire)?.value || '');
+      try {
+        const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+        if (!response.ok) throw new Error('Chargement impossible');
+        const items = await response.json();
+        if (requestNumber !== participantRequest) return;
+        if (select.tomselect) {
+          select.tomselect.clear();
+          select.tomselect.clearOptions();
+          select.tomselect.addOptions(items);
+          select.tomselect.refreshOptions(false);
+        } else select.replaceChildren(...items.map(item => new Option(item.text, item.value)));
+        refreshResume();
+      } catch (error) {
+        if (requestNumber === participantRequest) {
+          const alert = document.getElementById('form-error-alert');
+          if (alert) { alert.textContent = 'Impossible de charger les participants. Rechargez la page avant d’enregistrer.'; alert.classList.remove('d-none'); }
+        }
+      }
+    });
+  });
+  {% endif %}
 
   /* =========================================================
      INIT

@@ -17,6 +17,8 @@ class RapportFormateurType extends AbstractType
         $b
             ->add('session', EntityType::class, [
                 'class' => Session::class,
+                'choices' => $opt['sessions'],
+                'disabled' => $opt['lock_session'],
                 'choice_label' => function (Session $s) {
                     $titre = $s->getFormation()?->getTitre() ?: 'Formation';
                     $code  = $s->getCode() ?: '-';
@@ -25,6 +27,10 @@ class RapportFormateurType extends AbstractType
                 'label' => '*Session',
                 'placeholder' => 'Sélectionner une session',
                 'attr' => ['class' => 'form-select'],
+            ])
+            ->add('importance', \Symfony\Component\Form\Extension\Core\Type\ChoiceType::class, [
+                'label' => 'Degré d’importance', 'choices' => RapportFormateur::PRIORITIES,
+                'attr' => ['class' => 'form-select'], 'help' => 'Indiquez la priorité de prise en charge par votre organisme.',
             ])
             ->add('commentaires', TextareaType::class, [
                 'required' => false,
@@ -41,6 +47,6 @@ class RapportFormateurType extends AbstractType
 
     public function configureOptions(OptionsResolver $r): void
     {
-        $r->setDefaults(['data_class' => RapportFormateur::class]);
+        $r->setDefaults(['data_class' => RapportFormateur::class, 'sessions' => [], 'lock_session' => false]);
     }
 }

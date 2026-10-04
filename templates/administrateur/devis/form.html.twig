@@ -359,7 +359,8 @@
               <div class="form-text">Vous pouvez laisser ce champ vide et choisir ou créer la session, puis sélectionner les stagiaires lors de la création de la convention.</div>
             </div>
 
-            <div class="col-md-4">{{ form_row(form.dateEmission) }}</div>
+            <div class="col-md-6">{{ form_row(form.dateEmission) }}</div>
+            <div class="col-md-6">{{ form_row(form.dateValidite) }}</div>
             <div class="col-md-4">{{ form_row(form.devise) }}</div>
             <div class="col-md-4">{{ form_row(form.status) }}</div>
           </div>
@@ -780,6 +781,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const idEntreprise    = '#{{ form.entrepriseDestinataire.vars.id }}';
   const idInscriptions  = '#{{ form.inscriptions.vars.id }}';
   const idDate          = '#{{ form.dateEmission.vars.id }}';
+  const idValidite = '#{{ form.dateValidite.vars.id }}';
   const idDevise        = '#{{ form.devise.vars.id }}';
   const idStatus        = '#{{ form.status.vars.id }}';
 
@@ -853,6 +855,27 @@ document.addEventListener('DOMContentLoaded', function(){
   document.querySelectorAll('.flatpickr-date').forEach(el => {
     if (!el._fp) flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
   });
+
+  const emissionInput = document.querySelector(idDate);
+  const validiteInput = document.querySelector(idValidite);
+  function defaultValidity(value) {
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value || '');
+    if (!match) return '';
+    const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]), 12);
+    if (date.getDate() !== Number(match[1]) || date.getMonth() !== Number(match[2]) - 1) return '';
+    date.setDate(date.getDate() + 30);
+    return String(date.getDate()).padStart(2, '0') + '/' + String(date.getMonth() + 1).padStart(2, '0') + '/' + date.getFullYear();
+  }
+  let previousDefault = defaultValidity(emissionInput.value);
+  emissionInput.addEventListener('change', () => {
+    const next = defaultValidity(emissionInput.value);
+    if (next && (!validiteInput.value || validiteInput.value === previousDefault)) {
+      if (validiteInput._flatpickr) validiteInput._flatpickr.setDate(next, true, 'd/m/Y');
+      else validiteInput.value = next;
+    }
+    previousDefault = next;
+  });
+
 
   /* =========================================================
      Remise globale exclusivité % / €

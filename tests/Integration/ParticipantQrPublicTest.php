@@ -137,6 +137,22 @@ final class ParticipantQrPublicTest extends KernelTestCase
         self::assertSame(1, $this->em->getRepository(Emargement::class)->count([]));
     }
 
+    public function testQrSignsMorningAndAfternoonSeparately(): void
+    {
+        $client = $this->client();
+        $url = $this->url($this->member, 'attendance');
+        $crawler = $client->request('GET', $url);
+        $data = $this->attendanceData($crawler->filter('[name="_token"]')->attr('value'));
+        foreach (['AM', 'PM'] as $period) {
+            $client->request('POST', $url, array_replace($data, ['periode' => $period]));
+            self::assertSame(303, $client->getResponse()->getStatusCode());
+        }
+        $records = $this->em->getRepository(Emargement::class)->findBy(['utilisateur' => $this->learner]);
+        self::assertCount(2, $records);
+        self::assertEqualsCanonicalizing([DemiJournee::AM, DemiJournee::PM], array_map(fn ($record) => $record->getPeriode(), $records));
+        foreach ($records as $record) self::assertNotNull($record->getSignedAt());
+    }
+
     public function testWrongPurposeExpiredRemovedAndCancelledLinksAreDenied(): void
     {
         $client = $this->client();
@@ -227,6 +243,33 @@ final class ParticipantQrPublicTest extends KernelTestCase
         self::assertSame($this->learner->getId(), $saved->getStagiaire()->getId());
         self::assertSame($this->template->getId(), $saved->getTemplate()->getId());
         self::assertSame(10, $saved->getAttempt()->getNoteGlobale());
+    }
+
+    public function testFormationQuestionnaireOverridesAnOlderPendingAssignment(): void
+    {
+        $old = (new SatisfactionTemplate())->setEntite($this->entite)->setCreateur($this->admin)->setTitre('Ancien questionnaire');
+        $this->em->persist($old);
+        foreach ([$this->member, $this->guest] as $access) {
+            $assignment = (new SatisfactionAssignment())->setSession($this->session)->setEntite($this->entite)
+                ->setCreateur($this->admin)->setTemplate($old)->setParticipantAccess($access)
+                ->setStagiaire($access->getInscription()?->getStagiaire())->setInscription($access->getInscription());
+            $this->em->persist($assignment);
+        }
+        $this->em->flush();
+        $client = $this->client();
+        foreach ([$this->member, $this->guest] as $access) {
+            $url = $this->url($access, 'satisfaction');
+            $crawler = $client->request('GET', $url);
+            self::assertStringContainsString($this->question->getLibelle(), $client->getResponse()->getContent());
+            $token = $crawler->filter('[name="satisfaction_fill[_token]"]')->attr('value');
+            $client->request('POST', $url, ['satisfaction_fill' => ['_token' => $token, 'q_' . $this->question->getId() => '9']]);
+            self::assertSame(303, $client->getResponse()->getStatusCode());
+            $saved = $this->em->getRepository(SatisfactionAssignment::class)->findOneBy(['participantAccess' => $access, 'template' => $this->template]);
+            self::assertNotNull($saved);
+            self::assertSame(9, $saved->getAttempt()->getNoteGlobale());
+            $previous = $this->em->getRepository(SatisfactionAssignment::class)->findOneBy(['participantAccess' => $access, 'template' => $old]);
+            self::assertNull($previous->getAttempt());
+        }
     }
 
     public function testGuestFallbackQuestionnaireWorksForFreeTextFormation(): void

@@ -1701,6 +1701,7 @@ final class SessionController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         SessionNumberGenerator $sessionGen,
+        \App\Service\Sequence\ConventionContratNumberGenerator $conventionGen,
         SessionPlanningValidator $planningValidator,
         \App\Service\Session\ParticipantConventions $participantConventions,
         ?Session $session = null
@@ -1750,8 +1751,11 @@ final class SessionController extends AbstractController
             foreach ($planningValidator->errors($session) as $error) $form->get('jours')->addError(new FormError($error));
             foreach ($form->get('inscriptions') as $entry) {
                 $inscription = $entry->getData();
-                $this->hydrateInscriptionEntrepriseFromStagiaire($inscription);
+
                 $company = $inscription->getEntreprise();
+                if ($entry->get('createConvention')->getData() && count($entry->get('conventionsToAssociate')->getData()) > 0) {
+                    $entry->get('createConvention')->addError(new FormError('Choisissez une convention existante ou la création d’une nouvelle convention.'));
+                }
                 foreach ($entry->get('conventionsToAssociate')->getData() as $convention) {
                     if (($convention->getStagiaire() && $convention->getStagiaire() !== $inscription->getStagiaire())
                         || ($company && $convention->getEntreprise() && $company !== $convention->getEntreprise())) {
@@ -1805,7 +1809,7 @@ final class SessionController extends AbstractController
                     throw new \RuntimeException('Inscription sans stagiaire.');
                 }
 
-                $this->hydrateInscriptionEntrepriseFromStagiaire($inscription);
+
             }
 
 
@@ -1821,7 +1825,21 @@ final class SessionController extends AbstractController
 
 
 
+            $createdConventions = [];
             foreach ($form->get('inscriptions') as $entry) {
+                $inscription = $entry->getData();
+                if ($entry->get('createConvention')->getData()) {
+                    $company = $inscription->getEntreprise();
+                    $key = $company ? 'company-'.$company->getId() : 'learner-'.$inscription->getStagiaire()->getId();
+                    if (!isset($createdConventions[$key])) {
+                        $document = (new ConventionContrat())->setEntite($entite)->setCreateur($user)->setSession($session)
+                            ->setEntreprise($company)->setStagiaire($company ? null : $inscription->getStagiaire())
+                            ->setNumero($conventionGen->nextForEntite($entite->getId()));
+                        $createdConventions[$key] = $document;
+                        $em->persist($document);
+                    }
+                    $createdConventions[$key]->addInscription($inscription);
+                }
                 foreach ($entry->get('conventionsToAssociate')->getData() as $convention) {
                     $convention->addInscription($entry->getData());
                     if (!$entry->getData()->getEntreprise() && $convention->getEntreprise()) {
@@ -1870,34 +1888,6 @@ final class SessionController extends AbstractController
 
 
 
-    private function hydrateInscriptionEntrepriseFromStagiaire(Inscription $inscription): void
-    {
-        if (!method_exists($inscription, 'getEntreprise') || !method_exists($inscription, 'setEntreprise')) {
-            return;
-        }
-
-        // On ne remplace pas une entreprise déjà choisie manuellement
-        if ($inscription->getEntreprise() !== null) {
-            return;
-        }
-
-        if (!method_exists($inscription, 'getStagiaire')) {
-            return;
-        }
-
-        $stagiaire = $inscription->getStagiaire();
-        if (!$stagiaire) {
-            return;
-        }
-
-        // Cas simple : entreprise directement portée par l'utilisateur
-        if (method_exists($stagiaire, 'getEntreprise')) {
-            $entreprise = $stagiaire->getEntreprise();
-            if ($entreprise !== null && $entreprise->getEntite()?->getId() === $inscription->getEntite()?->getId()) {
-                $inscription->setEntreprise($entreprise);
-            }
-        }
-    }
 
     #[Route('/dupliquer/{id}', name: 'app_administrateur_session_duplicate', methods: ['GET'])]
     public function duplicate(Entite $entite, EntityManagerInterface $em, Session $session): RedirectResponse

@@ -42,7 +42,7 @@ class FormateurEspaceController extends AbstractController
 
 
     #[Route('/session/{id}', name: 'session_show', methods: ['GET'])]
-    public function sessionShow(Entite $entite, Session $session): Response
+    public function sessionShow(Entite $entite, Session $session, EntityManagerInterface $em): Response
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED');
         if ($session->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($this->getUser())) {
@@ -51,9 +51,21 @@ class FormateurEspaceController extends AbstractController
 
         /** @var Utilisateur $user */
         $user = $this->getUser();
+        $days = [];
+        foreach ($session->getJours() as $slot) {
+            if ($slot->getDateDebut()) $days[$slot->getDateDebut()->format('Y-m-d')] = $slot->getDateDebut()->setTime(0, 0);
+        }
+        ksort($days);
+        $signatures = [];
+        foreach ($em->getRepository(Emargement::class)->findBy(['session' => $session, 'entite' => $entite]) as $signature) {
+            if (!$signature->getUtilisateur() || (!$signature->getSignaturePath() && !$signature->getSignatureDataUrl())) continue;
+            $signatures[$signature->getDateJour()->format('Y-m-d')][$signature->getUtilisateur()->getId()][$signature->getPeriode()->value] = $signature;
+        }
         return $this->render('formateur/session_show.html.twig', [
             'session' => $session,
             'entite' => $entite,
+            'attendanceDays' => $days,
+            'signatures' => $signatures,
         ]);
     }
 
@@ -92,36 +104,14 @@ class FormateurEspaceController extends AbstractController
 
     // Signature du formateur
     #[Route('/session/{id}/sign', name: 'session_sign', methods: ['POST'])]
-    public function sign(Entite $entite, Session $session, Request $request, EntityManagerInterface $em): JsonResponse
+    public function sign(Entite $entite, Session $session, Request $request, EntityManagerInterface $em): Response
     {
-        $dataUrl = $request->request->get('dataUrl');
-        $dateStr = $request->request->get('date');
-        if (!$dataUrl || !$dateStr) return new JsonResponse(['ok' => false], 400);
-
-        $jour = \DateTimeImmutable::createFromFormat('Y-m-d', $dateStr);
-        $user = $this->getUser();
-        $existing = $em->getRepository(Emargement::class)->findOneBy([
-            'session' => $session,
-            'utilisateur' => $user,
-            'jour' => $jour
-        ]);
-        if ($existing) return new JsonResponse(['ok' => true, 'already' => true]);
-
-        $emarg = (new Emargement())
-            ->setCreateur($user)
-            ->setEntite($entite)
-            ->setSession($session)
-            ->setUtilisateur($user)
-            ->setRole('formateur')
-            ->setDateJour($jour)
-            ->setSignedAt(new \DateTimeImmutable())
-            ->setSignatureDataUrl($dataUrl)
-            ->setIp($request->getClientIp())
-            ->setUserAgent($request->headers->get('User-Agent'));
-        $em->persist($emarg);
-        $em->flush();
-
-        return new JsonResponse(['ok' => true]);
+        // Keep the old URL compatible, but use the same AM/PM writer as the dashboard.
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', (string) $request->request->get('date', ''));
+        if (!$date) return new JsonResponse(['success' => false, 'error' => 'date_invalid'], 400);
+        $request->request->set('date', $date->format('d/m/Y'));
+        $request->request->set('signatureData', $request->request->get('dataUrl', ''));
+        return $this->forward(EmargementController::class . '::sign', ['entite' => $entite, 'id' => $session]);
     }
 
     // Export CSV émargement d'une session (par jour)

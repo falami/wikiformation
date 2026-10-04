@@ -1137,6 +1137,13 @@
 {% endblock %}
 
 {% block body %}
+{% if rapportsOuverts|default(0) > 0 %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center gap-3 flex-wrap">
+  <span><i class="bi bi-clipboard-check"></i> <strong>{{ rapportsOuverts }} rapport(s) formateur à traiter</strong> · {{ rapportsUrgents }} important(s) ou urgent(s)</span>
+  <a class="btn btn-dark btn-sm" href="{{ path('app_administrateur_rapport_index', {entite:entite.id, statut:'open'}) }}">Traiter les rapports</a>
+</div>
+{% endif %}
+
 <div class="of-dashboard">
 
   {# ================= HERO ================= #}
@@ -2146,7 +2153,10 @@
             x:{
               grid:{display:false},
               border:{display:false},
-              ticks:{color:tickColor,font:{size:11}}
+              ticks:{color:tickColor,font:{size:11},maxRotation:25,minRotation:0,callback:function(value){
+                const label = this.getLabelForValue(value);
+                return label.length > 26 ? label.slice(0,26).trimEnd() + '…' : label;
+              }}
             },
             y:{
               beginAtZero:true,

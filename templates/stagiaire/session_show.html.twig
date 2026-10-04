@@ -216,7 +216,7 @@
 
         <h3 class="mb-1">{{ session.formation.titre }}</h3>
         <div class="opacity-75 small">
-          Supports + émargement (signature) — tous les jours de la formation sont signables.
+          Supports et suivi des émargements par demi-journée.
         </div>
       </div>
 
@@ -299,11 +299,11 @@
                   <div class="tl-chips">
                     <span class="tl-chip {{ am ? 'ok' : 'todo' }}">
                       <i class="bi {{ am ? 'bi-check2-circle' : 'bi-hourglass-split' }}"></i> AM
-                      <span class="ms-1">{{ am ? 'Signé' : 'À signer' }}</span>
+                      <span class="ms-1">{{ am ? 'Signé' : (session.emargementRequis ? 'À signer' : 'Indisponible') }}</span>
                     </span>
                     <span class="tl-chip {{ pm ? 'ok' : 'todo' }}">
                       <i class="bi {{ pm ? 'bi-check2-circle' : 'bi-hourglass-split' }}"></i> PM
-                      <span class="ms-1">{{ pm ? 'Signé' : 'À signer' }}</span>
+                      <span class="ms-1">{{ pm ? 'Signé' : (session.emargementRequis ? 'À signer' : 'Indisponible') }}</span>
                     </span>
                   </div>
                 </div>
@@ -432,9 +432,11 @@
             </span>
           </div>
 
-          <canvas id="pad" width="520" height="180" class="sign-pad w-100"></canvas>
+          <img id="saved-signature" alt="Votre signature enregistrée" class="img-fluid mb-3" style="max-height:140px" hidden>
+          {% if not session.emargementRequis %}<p class="alert alert-info">Les émargements sont indisponibles pour cette session annulée ou en sous-traitance.</p>{% endif %}
+          <canvas {{ not session.emargementRequis ? 'hidden' : '' }} id="pad"  width="520" height="180" class="sign-pad w-100"></canvas>
 
-          <div class="d-flex gap-2 mt-3">
+          <div class="d-flex gap-2 mt-3 {{ not session.emargementRequis ? 'd-none' : '' }}">
             <button id="pad-clear" class="btn btn-outline-secondary">
               <i class="bi bi-eraser"></i> Effacer
             </button>
@@ -481,6 +483,8 @@
 
       // Etats signés depuis PHP
       const signStates = {{ signStates|json_encode|raw }};
+      const signatureImages = {{ signatureImages|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
+      const canSign = {{ session.emargementRequis ? 'true' : 'false' }};
       const enabledDays = Object.keys(signStates).sort(); // 'YYYY-mm-dd'
       const firstDay = enabledDays[0] || null;
 
@@ -515,13 +519,18 @@
         if (!selectedDate) return;
 
         const signed = !!(signStates?.[selectedDate]?.[periode]);
+        const image = document.getElementById('saved-signature');
+        const imageUrl = signatureImages?.[selectedDate]?.[periode];
+        image.hidden = !imageUrl;
+        if (imageUrl) image.src = imageUrl;
+        if (saveBtn) saveBtn.disabled = !canSign;
 
         if (signedPill){
           signedPill.classList.remove('status-ok','status-warn','status-bad');
           signedPill.classList.add(signed ? 'status-ok' : 'status-warn');
           signedPill.innerHTML = signed
             ? '<i class="bi bi-check2-circle"></i> Déjà signé'
-            : '<i class="bi bi-hourglass-split"></i> À signer';
+            : (canSign ? '<i class="bi bi-hourglass-split"></i> À signer' : 'Indisponible');
         }
 
         if (saveBtn){
@@ -655,6 +664,8 @@
           // met à jour l’état local
           signStates[selectedDate] = signStates[selectedDate] || {};
           signStates[selectedDate][periode] = true;
+          signatureImages[selectedDate] = signatureImages[selectedDate] || {};
+          signatureImages[selectedDate][periode] = json.path ? '/' + json.path.replace(/^\//, '') : pad.toDataURL('image/png');
 
           // met à jour les chips de la timeline
           const tl = document.querySelector(`#timeline .tl-item[data-date="${selectedDate}"]`);

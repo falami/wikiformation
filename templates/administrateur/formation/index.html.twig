@@ -499,6 +499,7 @@
 
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}">
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
@@ -716,7 +717,8 @@
   </div>
 
   {# TABLE #}
-  <div class="table-card p-3">
+  <div class="table-card premium-list mb-4">
+    <div class="ledger-heading"><div><h3>Catalogue des formations</h3><p>Vos programmes et leurs tarifs, réunis dans une vue claire.</p></div><span class="ledger-mark"><i class="bi bi-collection" aria-hidden="true"></i>Tarifs du catalogue</span></div>
     <table id="tableauFormation" class="table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
@@ -725,7 +727,7 @@
           <th>Catégorie</th>
           <th>Sous-catégorie</th>
           <th>Niveau</th>
-          <th>Prix base</th>
+          <th>Tarif HT</th><th>TVA (%)</th><th>Montant TVA</th><th>Tarif TTC</th>
           <th>Durée</th>
           <th>Sessions</th>
           <th class="text-end"></th>
@@ -889,7 +891,7 @@ $(function(){
       + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
 
     buttons:['copy','csv','excel','pdf','print'],
-    lengthMenu:[[10,25,50,500],[10,25,50,500]],
+    lengthMenu:[[10,25,50,100,500],[10,25,50,100,500]],
     pageLength: 100,
     columns:[
       {data:'id', name:'id'},
@@ -898,12 +900,28 @@ $(function(){
       {data:'sousCategorie', name:'sousCategorie'},
       {data:'niveau', name:'niveau'},
       {data:'prixBase', name:'prixBase'},
+      {data:'tauxTva', name:'tauxTva'},
+      {data:'tva', name:'tva', orderable:false},
+      {data:'ttc', name:'ttc', orderable:false},
       {data:'duree', name:'duree'},
       {data:'nbSessions', name:'nbSessions'},
       {data:'actions', name:'actions'}
     ],
     columnDefs:[
-      {targets:8, className:"action-column text-end", orderable:false, searchable:false},
+      {targets:8, className:'ledger-total'},
+      {targets:0, render:function(data,type){ return type === 'display' ? '<span class="ledger-subtle">#' + Number(data) + '</span>' : data; }},
+      {targets:1, render:function(data,type){ return type === 'display' ? '<div class="ledger-primary">' + data + '</div>' : $('<div>').html(data).text(); }},
+      {targets:[2,3,4,9], render:function(data,type){ return type === 'display' ? '<span class="ledger-pill">' + $('<div>').text(data || '—').html() + '</span>' : data; }},
+      {targets:10, render:function(data,type){ return type === 'display' ? '<span class="ledger-count">' + Number(data) + '</span>' : data; }},
+      {targets:[5,6,7,8], className:"ledger-money", render:function(data,type,row,meta){
+        if (type !== 'display') return data;
+        const tone = [6,7].includes(meta.col) ? 'tax' : (meta.col === 8 ? 'total' : 'net');
+        return '<span class="ledger-amount ledger-amount--' + tone + '">' + $('<div>').text(data || '—').html() + '</span>';
+      }},
+      {targets:2, className:'ledger-category'},
+      {targets:4, className:'ledger-level'},
+      {targets:9, className:'ledger-duration'},
+      {targets:11, className:"action-column text-end", orderable:false, searchable:false},
       {type:"num", targets:0}
     ],
 

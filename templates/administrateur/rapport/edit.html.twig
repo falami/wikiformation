@@ -1,0 +1,20 @@
+{% extends 'formateur/rapport/show.html.twig' %}
+{% block title %}Traitement du rapport #{{ rapport.id }}{% endblock %}
+{% block body %}
+<div class="container py-4">
+  <a href="{{ path('app_administrateur_rapport_index', {entite:entite.id}) }}" class="btn btn-outline-secondary mb-3">← Rapports formateurs</a>
+  <h1 class="h2">Rapport #{{ rapport.id }} · {{ rapport.session.code|default('—') }}</h1>
+  <p class="text-muted">{{ rapport.formateur.utilisateur.prenom|default('') }} {{ rapport.formateur.utilisateur.nom|default('') }} · {{ rapport.submittedAt|date('d/m/Y H:i') }}</p>
+  <div class="mb-4"><span class="badge text-bg-warning">{{ rapport.importanceLabel }}</span> <span class="badge text-bg-secondary">{{ rapport.statutTraitementLabel }}</span></div>
+  <div class="card card-body mb-4"><h2 class="h5">{{ rapport.session.formation.titre|default('Observations du formateur') }}</h2><p style="white-space:pre-wrap">{{ rapport.commentaires ?: 'Aucun commentaire.' }}</p>
+  {% if rapport.criteres %}<dl>{% for label,value in rapport.criteres %}<dt>{{ label }}</dt><dd>{{ value is iterable ? value|json_encode : value }}</dd>{% endfor %}</dl>{% endif %}</div>
+  <div class="card card-body mb-4"><h2 class="h5">Traitement administratif</h2>
+    {{ form_start(form) }}{{ form_row(form.statut) }}{{ form_row(form.actions) }}<button class="btn btn-primary">Enregistrer le suivi</button>{{ form_end(form) }}
+  </div>
+  <div class="card card-body"><h2 class="h5">Historique de traitement</h2>
+    {% for entry in rapport.historiqueTraitement|reverse %}
+      <article class="border-bottom py-3"><strong>{{ entry.date|date('d/m/Y H:i') }} · {{ entry.auteur }}</strong><div class="small text-muted">{{ constant('App\\Entity\\RapportFormateur::STATUSES')|filter(v => v == entry.statut)|keys|first }}</div><p class="mb-0" style="white-space:pre-wrap">{{ entry.actions ?: 'Statut mis à jour.' }}</p></article>
+    {% else %}<p class="text-muted mb-0">Aucune action enregistrée.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

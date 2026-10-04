@@ -43,6 +43,7 @@ class StagiaireEspaceController extends AbstractController
             ->from(Inscription::class, 'i')
             ->join('i.session', 's')
             ->join('s.formation', 'f')
+            ->andWhere('s.entite = :entite')->setParameter('entite', $entite)
             ->andWhere('i.stagiaire = :me')
             ->setParameter('me', $user);
 
@@ -82,6 +83,8 @@ class StagiaireEspaceController extends AbstractController
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
+
+        if ($id->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
 
         // Sécu : je dois être inscrit
         $isTrainer = false;
@@ -160,8 +163,8 @@ class StagiaireEspaceController extends AbstractController
             $dayKey = $j->getDateDebut()->format('Y-m-d');
             $days[$dayKey] = [
                 'date' => $dayKey,
-                'start' => $j->getDateDebut(),
-                'end'   => $j->getDateFin(),
+                'start' => isset($days[$dayKey]) ? min($days[$dayKey]['start'], $j->getDateDebut()) : $j->getDateDebut(),
+                'end' => isset($days[$dayKey]) ? max($days[$dayKey]['end'], $j->getDateFin()) : $j->getDateFin(),
             ];
         }
         ksort($days);
@@ -180,12 +183,20 @@ class StagiaireEspaceController extends AbstractController
             ];
         }
 
+        $signatureImages = [];
+        foreach ($emargementRepo->findBy(['session' => $id, 'utilisateur' => $user]) as $signature) {
+            if (!$signature->getSignedAt()) continue;
+            $url = $signature->getSignatureDataUrl() ?: ($signature->getSignaturePath() ? $basePath . '/' . ltrim($signature->getSignaturePath(), '/') : null);
+            if ($url) $signatureImages[$signature->getDateJour()->format('Y-m-d')][$signature->getPeriode()->value] = $url;
+        }
+
         return $this->render('stagiaire/session_show.html.twig', [
             'session' => $id,
             'entite'  => $entite,
             'supports' => $supports,
             'days' => $days,
             'signStates' => $signStates,
+            'signatureImages' => $signatureImages,
 
         ]);
     }

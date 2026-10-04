@@ -98,10 +98,19 @@ final class UtilisateurType extends AbstractType
                 'disabled' => $identityLocked,
                 'attr' => ['class' => 'form-control js-flatpickr-date']
             ])
+            ->add('entreprisesAssociees', EntityType::class, [
+                'class' => Entreprise::class, 'multiple' => true, 'required' => false, 'mapped' => false,
+                'label' => 'Autres entreprises associées', 'choice_label' => 'raisonSociale',
+                'data' => $b->getData()?->getEntreprisesAssociees()->filter(fn($e) => $e->getEntite() === $entite)->toArray() ?? [],
+                'attr' => ['class' => 'form-select js-tomselect-entreprise'],
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('e')->where('e.entite = :entite')->setParameter('entite', $entite)->orderBy('e.raisonSociale', 'ASC'),
+                'help' => 'Le stagiaire pourra être sélectionné pour les conventions de chacune de ces entreprises.',
+            ])
             ->add('entreprise', EntityType::class, [
                 'required' => false,
                 'class' => Entreprise::class,
                 'choice_label' => 'raisonSociale',
+                'label' => 'Entreprise principale (proposée par défaut)',
                 'placeholder' => '- Aucune -',
                 'attr' => ['class' => 'form-select js-tomselect-entreprise'],
                 'query_builder' => fn(EntityRepository $er) =>
@@ -164,6 +173,16 @@ final class UtilisateurType extends AbstractType
             ]);
 
         $b->get('dateNaissance')->addModelTransformer($this->dateFr);
+        $b->addEventListener(\Symfony\Component\Form\FormEvents::POST_SUBMIT, static function (\Symfony\Component\Form\FormEvent $event) use ($entite): void {
+            $form = $event->getForm();
+            if (!$form->get('entreprisesAssociees')->isValid()) return;
+            $u = $event->getData();
+            foreach ($u->getEntreprisesAssociees()->toArray() as $company) {
+                if ($company->getEntite() === $entite) $u->removeEntreprisesAssociee($company);
+            }
+            foreach ($form->get('entreprisesAssociees')->getData() as $company) $u->addEntreprisesAssociee($company);
+        });
+
     }
 
     public function configureOptions(OptionsResolver $r): void

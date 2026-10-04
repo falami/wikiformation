@@ -182,6 +182,7 @@ final class FormationController extends AbstractController
             'sousCategorie' => 'c.nom',
             'niveau'       => 'f.niveau',
             'prixBase'     => 'f.prixBaseCents',
+            'tauxTva' => 'f.tauxTva',
             'duree'        => 'f.duree',
             'nbSessions'   => 'nbSessions',
         ];
@@ -226,7 +227,7 @@ final class FormationController extends AbstractController
                     htmlspecialchars($f->getNote(), ENT_QUOTES, 'UTF-8'),
                 );
             } else {
-                $titre = $f->getTitre();
+                $titre = htmlspecialchars($f->getTitre(), ENT_QUOTES, 'UTF-8');
             }
             return [
                 'id'         => $f->getId(),
@@ -247,6 +248,9 @@ final class FormationController extends AbstractController
                 'niveauRaw'  => $f->getNiveau()?->value ?? null,    // utile si tu veux
                 'enginId'    => $f?->getEngin()?->getId() ?? null,  // utile si tu veux
                 'prixBase'   => $prixBase,
+                'tauxTva' => number_format($f->getTauxTva(), 2, ',', ' ') . ' %',
+                'tva' => number_format($f->getPrixTvaCents() / 100, 2, ',', ' ') . ' €',
+                'ttc' => number_format($f->getPrixTtcCents() / 100, 2, ',', ' ') . ' €',
                 'duree'      => ($f->getDuree() !== null ? $f->getDuree() . 'j' : '—'),
                 'nbSessions' => $nbSessions,
                 'publicHosts' => $f->getPublicHosts()->count() > 0

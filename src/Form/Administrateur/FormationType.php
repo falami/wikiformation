@@ -132,8 +132,13 @@ class FormationType extends AbstractType
                 },
             ])
 
+            ->add('tauxTva', \Symfony\Component\Form\Extension\Core\Type\NumberType::class, [
+                'label' => 'TVA (%)', 'scale' => 2, 'html5' => true,
+                'attr' => ['min' => 0, 'max' => 100, 'step' => '0.01'],
+                'help' => 'Taux du tarif catalogue. 0 pour une formation exonérée.',
+            ])
             ->add('prixBaseCents', TextType::class, [
-                'label' => 'Prix de base (€)',
+                'label' => 'Prix de base HT (€)',
                 'attr' => [
                     'class' => 'form-control',
                     'inputmode' => 'decimal',

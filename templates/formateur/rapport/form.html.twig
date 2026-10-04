@@ -233,8 +233,7 @@
   {{ form_start(form, {
     attr: {
       id: form.vars.id,
-      novalidate:'novalidate',
-      name:'rapport_formateur_form'
+      novalidate:'novalidate'
     }
   }) }}
   {{ form_errors(form) }}
@@ -270,6 +269,7 @@
           <span class="chip">Étape 2</span>
         </div>
         <div class="p-3 p-md-4">
+          {{ form_row(form.importance) }}
           {{ form_row(form.commentaires) }}
           <div class="form-text mt-2">Sois factuel : déroulé, points clés, actions, suivi.</div>
         </div>
@@ -353,7 +353,7 @@
     const idSession   = '#{{ form.session.vars.id }}';
     const idCom       = '#{{ form.commentaires.vars.id }}';
 
-    const form = document.querySelector('form[name="rapport_formateur_form"]');
+    const form = document.querySelector('form[name="rapport_formateur"]');
     const submitButtons = form ? [...form.querySelectorAll('button[type="submit"]')] : [];
 
     // ===== HERO last refresh =====
@@ -399,7 +399,7 @@
 
     function isFormComplete(){
       const s = document.querySelector(idSession);
-      const okBusiness = !!(s?.value && f?.value);
+      const okBusiness = !!s?.value;
       const okHtml = form ? form.checkValidity() : true;
       return okBusiness && okHtml;
     }
@@ -441,7 +441,7 @@
 
     // ---------- Validation (submit) : comme ta réservation ----------
     initFormValidation({
-      formName: 'rapport_formateur_form',
+      formName: 'rapport_formateur',
       tomSelectFields: [
         { id: '{{ form.session.vars.id }}',   label: '*Session' },
       ]

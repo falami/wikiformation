@@ -18,6 +18,7 @@ final class ConventionParticipants
     {
         $qb = $this->em->getRepository(Utilisateur::class)->createQueryBuilder('u')->distinct()
             ->leftJoin('u.utilisateurEntites', 'membership', 'WITH', 'membership.entite = :entite')
+            ->leftJoin('u.entreprisesAssociees', 'associated')
             ->leftJoin('u.inscriptions', 'existing', 'WITH', 'existing.session = :session AND existing.entite = :entite')
             ->leftJoin('u.inscriptions', 'history', 'WITH', 'history.entite = :entite')
             ->leftJoin('history.session', 'historySession', 'WITH', 'historySession.entite = :entite')
@@ -28,7 +29,7 @@ final class ConventionParticipants
             ->setParameter('session', $convention->getSession())
             ->orderBy('u.nom', 'ASC')->addOrderBy('u.prenom', 'ASC');
         if ($company = $convention->getEntreprise()) {
-            $qb->andWhere('(u.entreprise = :company OR existing.entreprise = :company OR (u.entreprise IS NULL AND (membership.roles LIKE :learnerRole OR historySession.id IS NOT NULL)))')
+            $qb->andWhere('(u.entreprise = :company OR associated = :company OR existing.entreprise = :company OR (u.entreprise IS NULL AND (membership.roles LIKE :learnerRole OR historySession.id IS NOT NULL)))')
                 ->setParameter('company', $company)->setParameter('learnerRole', '%"TENANT_STAGIAIRE"%');
         } elseif ($learner = $convention->getStagiaire()) {
             $qb->andWhere('u.id = :learner')->setParameter('learner', $learner->getId());

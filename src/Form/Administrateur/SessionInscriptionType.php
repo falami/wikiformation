@@ -22,6 +22,10 @@ final class SessionInscriptionType extends AbstractType
         /** @var Entite|null $entite */
         $entite = $options['entite'] ?? null;
 
+        $b->add('createConvention', \Symfony\Component\Form\Extension\Core\Type\CheckboxType::class, [
+            'mapped' => false, 'required' => false, 'label' => 'Créer et rattacher une nouvelle convention',
+            'help' => 'Une convention brouillon par entreprise (ou par particulier) sera créée à l’enregistrement. Son prix pourra ensuite être ajusté.',
+        ]);
         $b->add('conventionsToAssociate', EntityType::class, [
             'class' => \App\Entity\ConventionContrat::class,
             'mapped' => false, 'multiple' => true, 'required' => false,
@@ -42,6 +46,12 @@ final class SessionInscriptionType extends AbstractType
                         $u->getNom() ?? '',
                         $u->getEmail() ?? ''
                     ));
+                },
+                'choice_attr' => static function (Utilisateur $u) use ($entite): array {
+                    $company = $u->getEntreprise();
+                    if ($company?->getEntite() !== $entite) $company = null;
+                    $company ??= $u->getEntreprisesAssociees()->filter(fn($e) => $e->getEntite() === $entite)->first() ?: null;
+                    return ['data-company' => $company?->getId() ?? '', 'data-company-label' => $company?->getRaisonSociale() ?? ''];
                 },
                 'placeholder' => 'Sélectionner un stagiaire…',
                 'attr' => ['class' => 'form-select tom-select-inscription'],
@@ -68,7 +78,7 @@ final class SessionInscriptionType extends AbstractType
             ])
             ->add('entreprise', EntityType::class, [
                 'class' => Entreprise::class,
-                'label' => 'Entreprise',
+                'label' => 'Entreprise de prise en charge',
                 'required' => false,
                 'placeholder' => 'Aucune / particulier',
                 'choice_label' => 'raisonSociale',

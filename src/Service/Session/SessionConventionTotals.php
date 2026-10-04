@@ -23,7 +23,10 @@ final class SessionConventionTotals
         $quotes = [];
         foreach ($conventions as $convention) {
             $quote = $convention->getDevis();
-            if ($quote) {
+            if ($convention->getMontantHtCents() !== null) {
+                $currency = $quote && $quote->getEntite() === $session->getEntite() ? $quote->getDevise() : 'EUR';
+                $amount = $convention->getMontantHtCents();
+            } elseif ($quote) {
                 if ($quote->getEntite()?->getId() !== $session->getEntite()?->getId()) {
                     ++$result['missingCount'];
                     continue;
@@ -35,7 +38,7 @@ final class SessionConventionTotals
                 }
                 $quotes[$quote->getId()] = true;
                 $currency = $quote->getDevise();
-                $amount = $quote->getMontantTtcCents();
+                $amount = $quote->getMontantHtCents();
             } else {
                 $currency = 'EUR';
                 $amount = $session->getTarifEffectifCents() * $convention->getEffectifTotal();

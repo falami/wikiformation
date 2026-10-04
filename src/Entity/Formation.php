@@ -16,6 +16,15 @@ use App\Entity\PublicHost;
 #[ORM\UniqueConstraint(name: 'uniq_formation_entite_slug', columns: ['entite_id', 'slug'])]
 class Formation
 {
+    #[ORM\Column(options: ['default' => 20])]
+    #[\Symfony\Component\Validator\Constraints\Range(min: 0, max: 100)]
+    private float $tauxTva = 20;
+
+    public function getTauxTva(): float { return $this->tauxTva; }
+    public function setTauxTva(float $value): static { $this->tauxTva = $value; return $this; }
+    public function getPrixTvaCents(): int { return (int) round(($this->getPrixBaseCents() ?? 0) * $this->tauxTva / 100); }
+    public function getPrixTtcCents(): int { return ($this->getPrixBaseCents() ?? 0) + $this->getPrixTvaCents(); }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

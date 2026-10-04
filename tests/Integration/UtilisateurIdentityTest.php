@@ -57,6 +57,29 @@ final class UtilisateurIdentityTest extends KernelTestCase
         }
     }
 
+    public function testMultipleCompanyAssociationsCanBeSavedWithoutChangingPrimary(): void
+    {
+        $companies = [];
+        foreach (['Principale', 'Deuxième', 'Troisième'] as $name) {
+            $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale($name);
+            $this->em->persist($company); $companies[] = $company;
+        }
+        $this->learner->setEntreprise($companies[0]); $this->em->flush();
+        $ids = array_map(fn($c) => $c->getId(), $companies);
+        $id = $this->learner->getId();
+        $client = $this->client();
+        $page = $client->request('GET', $this->editUrl($id));
+        $form = $page->filter('form[name="utilisateur"]')->form();
+        $form['utilisateur[entreprisesAssociees]']->select([(string) $ids[1], (string) $ids[2]]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $this->em->clear();
+        $saved = $this->em->find(Utilisateur::class, $id);
+        self::assertSame($ids[0], $saved->getEntreprise()->getId());
+        self::assertCount(2, $saved->getEntreprisesAssociees());
+        foreach ($saved->getEntreprisesAssociees() as $company) self::assertNull($company->getRepresentant());
+    }
+
     public function testEnrolledVerifiedIdentityCanBeCorrectedWithoutChangingAccountOrEnrollments(): void
     {
         $this->learner->setIsVerified(true); $this->em->flush();

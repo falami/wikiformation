@@ -163,6 +163,12 @@ final class DevisType extends AbstractType
                 'attr'  => ['class' => 'form-control flatpickr-date', 'placeholder' => 'jj/mm/aaaa'],
             ])
 
+            ->add('dateValidite', TextType::class, [
+                'label' => 'Date de validité',
+                'required' => false,
+                'attr' => ['class' => 'form-control flatpickr-date', 'placeholder' => 'jj/mm/aaaa'],
+            ])
+
             ->add('devise', CurrencyType::class, [
                 'label' => '*Devise',
                 'attr' => ['class' => 'form-select'],
@@ -224,6 +230,25 @@ final class DevisType extends AbstractType
         ;
 
         $b->get('dateEmission')->addModelTransformer($this->dateFr);
+        $b->get('dateValidite')->addModelTransformer($this->dateFr);
+        $b->addEventListener(\Symfony\Component\Form\FormEvents::PRE_SET_DATA, static function (\Symfony\Component\Form\FormEvent $event): void {
+            $devis = $event->getData();
+            if ($devis instanceof Devis && $devis->getDateValidite() === null) {
+                $devis->setDateValidite($devis->getDateEmission()->modify('+30 days'));
+            }
+        });
+        $b->addEventListener(\Symfony\Component\Form\FormEvents::PRE_SUBMIT, function (\Symfony\Component\Form\FormEvent $event): void {
+            $data = $event->getData();
+            if (is_array($data) && trim((string) ($data['dateValidite'] ?? '')) === '') {
+                try {
+                    $date = $this->dateFr->reverseTransform($data['dateEmission'] ?? '');
+                    if ($date) $data['dateValidite'] = $date->modify('+30 days')->format('d/m/Y');
+                } catch (\Symfony\Component\Form\Exception\TransformationFailedException) {
+                    // The emission field will display its own validation error.
+                }
+                $event->setData($data);
+            }
+        });
     }
 
     public function configureOptions(OptionsResolver $r): void
