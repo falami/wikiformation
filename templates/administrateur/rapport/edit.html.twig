@@ -1,20 +1,54 @@
 {% extends 'formateur/rapport/show.html.twig' %}
 {% block title %}Traitement du rapport #{{ rapport.id }}{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/report-workspace.css') }}">{% endblock %}
 {% block body %}
-<div class="container py-4">
-  <a href="{{ path('app_administrateur_rapport_index', {entite:entite.id}) }}" class="btn btn-outline-secondary mb-3">← Rapports formateurs</a>
-  <h1 class="h2">Rapport #{{ rapport.id }} · {{ rapport.session.code|default('—') }}</h1>
-  <p class="text-muted">{{ rapport.formateur.utilisateur.prenom|default('') }} {{ rapport.formateur.utilisateur.nom|default('') }} · {{ rapport.submittedAt|date('d/m/Y H:i') }}</p>
-  <div class="mb-4"><span class="badge text-bg-warning">{{ rapport.importanceLabel }}</span> <span class="badge text-bg-secondary">{{ rapport.statutTraitementLabel }}</span></div>
-  <div class="card card-body mb-4"><h2 class="h5">{{ rapport.session.formation.titre|default('Observations du formateur') }}</h2><p style="white-space:pre-wrap">{{ rapport.commentaires ?: 'Aucun commentaire.' }}</p>
-  {% if rapport.criteres %}<dl>{% for label,value in rapport.criteres %}<dt>{{ label }}</dt><dd>{{ value is iterable ? value|json_encode : value }}</dd>{% endfor %}</dl>{% endif %}</div>
-  <div class="card card-body mb-4"><h2 class="h5">Traitement administratif</h2>
-    {{ form_start(form) }}{{ form_row(form.statut) }}{{ form_row(form.actions) }}<button class="btn btn-primary">Enregistrer le suivi</button>{{ form_end(form) }}
+{% set trainer = rapport.formateur.utilisateur|default(null) %}
+{% set history = rapport.historiqueTraitement|reverse %}
+<div class="report-workspace">
+  <nav class="rp-breadcrumb" aria-label="Fil d’Ariane"><a href="{{ path('app_administrateur_rapport_index', {entite:entite.id}) }}"><i class="bi bi-arrow-left"></i> Rapports formateurs</a><span>/</span><span>Rapport #{{ rapport.id }}</span></nav>
+  <header class="rp-hero">
+    <div><div class="rp-eyebrow"><i class="bi bi-clipboard-check"></i> SUIVI PÉDAGOGIQUE <span>RAPPORT #{{ rapport.id }}</span></div>
+      <h1>{{ rapport.session.formation.titre|default(rapport.session.formationIntituleLibre|default('Rapport formateur')) }}</h1>
+      <p>Consultez les observations du formateur et accompagnez leur résolution.</p>
+      <div class="rp-hero-meta"><span><i class="bi bi-calendar3"></i> {{ rapport.session.code|default('Session non renseignée') }}</span><span><i class="bi bi-clock"></i> Soumis le {{ rapport.submittedAt|date('d/m/Y à H:i') }}</span></div>
+    </div><div class="rp-hero-icon" aria-hidden="true"><i class="bi bi-chat-square-text"></i></div>
+  </header>
+  <div class="rp-summary">
+    <div><span class="rp-avatar">{{ trainer.prenom|default('')|slice(0,1)|upper }}{{ trainer.nom|default('')|slice(0,1)|upper }}</span><div><small>FORMATEUR</small><strong>{{ trainer.prenom|default('') }} {{ trainer.nom|default('Non renseigné') }}</strong></div></div>
+    <div><span class="rp-summary-icon"><i class="bi bi-flag"></i></span><div><small>IMPORTANCE</small><span class="rp-pill rp-priority-{{ rapport.importance }}">{{ rapport.importanceLabel }}</span></div></div>
+    <div><span class="rp-summary-icon"><i class="bi bi-check2-circle"></i></span><div><small>STATUT ACTUEL</small><span class="rp-pill rp-status-{{ rapport.statutTraitement }}">{{ rapport.statutTraitementLabel }}</span></div></div>
   </div>
-  <div class="card card-body"><h2 class="h5">Historique de traitement</h2>
-    {% for entry in rapport.historiqueTraitement|reverse %}
-      <article class="border-bottom py-3"><strong>{{ entry.date|date('d/m/Y H:i') }} · {{ entry.auteur }}</strong><div class="small text-muted">{{ constant('App\\Entity\\RapportFormateur::STATUSES')|filter(v => v == entry.statut)|keys|first }}</div><p class="mb-0" style="white-space:pre-wrap">{{ entry.actions ?: 'Statut mis à jour.' }}</p></article>
-    {% else %}<p class="text-muted mb-0">Aucune action enregistrée.</p>{% endfor %}
+  <div class="rp-layout">
+    <div class="rp-main">
+      <section class="rp-panel">
+        <div class="rp-heading"><span class="rp-section-icon"><i class="bi bi-chat-left-text"></i></span><div><h2>Observations du formateur</h2><p>Le compte rendu transmis pour cette session.</p></div></div>
+        <div class="rp-panel-body">
+          {% if rapport.commentaires %}<div class="rp-prose">{{ rapport.commentaires }}</div>{% else %}<div class="rp-empty"><i class="bi bi-chat-square"></i><div><strong>Aucun commentaire renseigné</strong><p>Ce rapport ne contient pas d’observation écrite.</p></div></div>{% endif %}
+          {% if rapport.criteres %}<dl class="rp-criteria">{% for label,value in rapport.criteres %}<div><dt>{{ label }}</dt><dd>{{ value is iterable ? value|json_encode : value }}</dd></div>{% endfor %}</dl>{% endif %}
+        </div>
+      </section>
+      <section class="rp-panel rp-treatment">
+        <div class="rp-heading"><span class="rp-section-icon"><i class="bi bi-pencil-square"></i></span><div><h2>Traitement administratif</h2><p>Documentez votre intervention et faites avancer le suivi.</p></div><span class="rp-step">MISE À JOUR DU SUIVI</span></div>
+        {{ form_start(form) }}
+        <div class="rp-panel-body">
+          {{ form_errors(form) }}
+          <div class="rp-status-field">{{ form_row(form.statut, {attr:{class:'form-select'}}) }}<p class="rp-help">Choisissez l’état du rapport après votre intervention.</p></div>
+          {{ form_row(form.actions, {attr:{class:'form-control', rows:6, placeholder:'Décrivez les démarches effectuées, la solution apportée ou les prochaines étapes…'}}) }}
+          <div class="rp-info"><i class="bi bi-info-circle"></i><span>Votre réponse sera visible par le formateur. Chaque mise à jour est conservée dans l’historique.</span></div>
+        </div>
+        <div class="rp-form-footer"><span><i class="bi bi-shield-check"></i> Suivi daté et conservé</span><button class="rp-save" type="submit"><i class="bi bi-check2"></i> Enregistrer le suivi</button></div>
+        {{ form_end(form) }}
+      </section>
+    </div>
+    <aside class="rp-panel rp-history">
+      <div class="rp-heading"><span class="rp-section-icon"><i class="bi bi-clock-history"></i></span><div><h2>Historique du suivi</h2><p>Les étapes de la prise en charge.</p></div><span class="rp-count">{{ history|length }}</span></div>
+      <div class="rp-timeline">
+        {% for entry in history %}
+          <article class="rp-event"><span class="rp-event-dot"><i class="bi bi-check2"></i></span><time>{{ entry.date|date('d/m/Y · H:i') }}</time><h3>{{ entry.auteur }}</h3><span class="rp-pill rp-status-{{ entry.statut }}">{{ statuts|filter(v => v == entry.statut)|keys|first }}</span><p class="rp-prose">{{ entry.actions ?: 'Statut mis à jour.' }}</p></article>
+        {% endfor %}
+        <article class="rp-event rp-event-origin"><span class="rp-event-dot"><i class="bi bi-file-earmark-text"></i></span><time>{{ rapport.submittedAt|date('d/m/Y · H:i') }}</time><h3>Rapport transmis</h3><p>{{ trainer.prenom|default('') }} {{ trainer.nom|default('') }}</p>{% if history is empty %}<div class="rp-history-empty">Le suivi commencera dès votre première intervention.</div>{% endif %}</article>
+      </div>
+    </aside>
   </div>
 </div>
 {% endblock %}
