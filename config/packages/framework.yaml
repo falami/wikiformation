@@ -12,11 +12,15 @@ framework:
 
   session:
     name: WKFORMATIONSESSID # <-- important : nom de session dédié à ton app
-    handler_id: null # stockage natif fichier
+    handler_id: session.handler.native_file
+    save_path: "%kernel.project_dir%/var/sessions/%kernel.environment%"
     cookie_secure: auto
     cookie_samesite: lax
-    cookie_lifetime: 604800 # 7 jours
-    gc_maxlifetime: 86400 # 24h
+    cookie_httponly: true
+    cookie_lifetime: 2592000 # 30 jours
+    gc_maxlifetime: 2592000 # 30 jours sans activité
+    gc_probability: 1
+    gc_divisor: 100
 
 when@test:
   framework:

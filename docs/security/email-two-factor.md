@@ -27,3 +27,12 @@ Le lien personnel par QR code destiné aux participants sans compte demeure un p
 `php bin/phpunit tests/Unit/EmailChallengeTest.php`
 
 `php bin/phpunit tests/Integration/EmailTwoFactorLoginTest.php`
+
+
+## Durée de connexion
+
+Le cookie de session et la conservation des sessions côté serveur sont configurés pour 30 jours (2 592 000 secondes). Les fichiers sont isolés dans `var/sessions/<environnement>`, hors du cache Symfony et du répertoire temporaire partagé de PHP. Le nettoyage probabiliste PHP est activé (1 % des requêtes) avec cette même durée de conservation. La vérification e-mail reste obligatoire lors d’une nouvelle connexion ; aucun mécanisme remember-me ne contourne la double vérification.
+
+En production, conserver `var/sessions/prod` entre les déploiements et le rendre accessible en écriture au processus PHP. Avec des répertoires de versions distincts, utiliser un répertoire partagé persistant via un lien symbolique. Ne pas purger ce dossier lors du nettoyage du cache et ne pas lui appliquer un nettoyage système plus court. Un hébergement sur plusieurs serveurs nécessite un stockage de sessions partagé avec verrouillage.
+
+Le changement de répertoire de sessions demandera une reconnexion aux utilisateurs déjà connectés au moment de cette mise à jour. Les nouvelles connexions utilisent ensuite la nouvelle durée. Une déconnexion volontaire, la suppression des cookies ou un changement du mot de passe peuvent toujours mettre fin à la connexion. Aucun paquet ni migration SQL supplémentaire : déployer la configuration et vider le cache de production.
