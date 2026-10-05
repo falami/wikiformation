@@ -72,7 +72,7 @@ final class EmailTwoFactorLoginTest extends KernelTestCase
         self::assertMatchesRegularExpression('/^[0-9]{6}$/', $code);
         $session = $this->client->getSession();
         self::assertStringNotContainsString('"'.$code.'"', json_encode($session->get(EmailChallenge::KEY)));
-        foreach (['/fr/workspace', '/fr/administrateur/1/dashboard', '/fr/formateur/1/dashboard', '/fr/login'] as $url) {
+        foreach (['/fr/workspace', '/fr/compte/preferences', '/fr/administrateur/1/dashboard', '/fr/formateur/1/dashboard', '/fr/login'] as $url) {
             $this->client->request('GET', $url);
             self::assertSame('/2fa', parse_url($this->client->getResponse()->headers->get('Location'), PHP_URL_PATH));
         }

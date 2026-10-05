@@ -1,0 +1,49 @@
+{% extends 'base_admin.html.twig' %}
+{% if form %}{% form_theme form 'bootstrap_5_layout.html.twig' %}{% endif %}
+{% block title %}Mon compte · Préférences{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+{% endblock %}
+
+
+
+{% block body %}
+<div class="preferences">
+<header class="pref-hero"><div class="eyebrow">Préférences · Espace personnel</div><h1>Un espace à votre image.</h1><p>Gérez vos informations, protégez votre accès et conservez votre signature personnelle.</p></header>
+{% include 'flagMessage.html.twig' %}
+<div class="pref-layout">{% include 'account/_navigation.html.twig' %}<main>
+{% if section == 'profil' %}
+<section class="pref-panel"><h2>Mes coordonnées</h2><p class="pref-intro">Les informations associées à votre compte, dans tous vos espaces.</p>
+<label class="form-label" for="account-email">Adresse e-mail de connexion</label><input id="account-email" class="form-control" value="{{ app.user.email }}" readonly><small>Pour changer votre adresse de connexion, contactez votre administrateur.</small>
+{{ form_start(form) }}{{ form_widget(form) }}<div class="pref-actions"><button class="btn btn-primary">Enregistrer mes coordonnées</button></div>{{ form_end(form) }}</section>
+{% elseif section == 'securite' %}
+<section class="pref-panel"><div class="d-flex justify-content-between flex-wrap gap-2"><h2>Connexion et sécurité</h2><span class="pref-pill">Vérification par e-mail active</span></div><p class="pref-intro">À chaque nouvelle connexion, un code personnel est envoyé à votre adresse e-mail après vérification du mot de passe.</p>
+<div class="pref-note">Choisissez un mot de passe d’au moins 12 caractères. Après l’enregistrement, reconnectez-vous avec votre nouveau mot de passe et le code reçu par e-mail.</div>
+{{ form_start(form) }}{{ form_widget(form) }}<div class="pref-actions"><button class="btn btn-primary">Modifier mon mot de passe</button></div>{{ form_end(form) }}</section>
+{% else %}
+<section class="pref-panel"><h2>Ma signature personnelle</h2><p class="pref-intro">Votre signature de client, stagiaire ou formateur est privée et rattachée à votre compte.</p>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% if signature %}<div class="pref-signature"><img src="{{ signature.image }}" alt="Votre signature enregistrée"><div><small>Mise à jour le {{ signature.updatedAt|date('d/m/Y à H:i') }}</small></div></div>
+<form method="post" class="text-end mt-2"><input type="hidden" name="_token" value="{{ csrf_token('personal_signature') }}"><button class="btn btn-outline-danger" name="action" value="delete">Supprimer ma signature</button></form>{% endif %}
+<div class="pref-note">L’enregistrement de ce modèle ne signe aucun document. La validation d’un contrat ou d’un émargement reste une action distincte.</div>
+<form method="post" id="personal-signature-form"><input type="hidden" name="_token" value="{{ csrf_token('personal_signature') }}"><input type="hidden" name="image" id="signature-image">
+<label class="form-label" for="personal-canvas">Dessinez votre signature</label><canvas id="personal-canvas" width="1000" height="300" aria-label="Zone de dessin de la signature"></canvas><button type="button" class="btn btn-outline-secondary mt-2" id="clear-signature">Effacer le dessin</button>
+<label class="form-label d-block" for="signature-file">Ou importez une image</label><input type="file" class="form-control" id="signature-file" accept="image/png,image/jpeg"><small>PNG ou JPEG · 500 Ko maximum · 2 400 × 1 200 pixels maximum</small><img id="signature-upload-preview" alt="Aperçu de la signature à enregistrer" hidden style="max-width:100%;max-height:140px;margin-top:16px"><p id="signature-error" class="text-danger mt-2" role="alert"></p>
+<div class="pref-actions"><button class="btn btn-primary" id="save-personal-signature">Enregistrer ma signature</button></div></form></section>
+<script src="{{ asset('dist/js/personal-signature.js') }}" defer></script>
+{% endif %}</main></div></div>
+{% endblock %}

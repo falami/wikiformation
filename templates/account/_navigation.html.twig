@@ -1,0 +1,10 @@
+<nav class="pref-nav" aria-label="Rubriques des préférences">
+<div class="nav-label">Espace personnel</div>
+{% for key, label in {'profil':'Mes coordonnées','securite':'Connexion et sécurité','signature':'Ma signature'} %}
+<a href="{{ path('app_account_preferences', {section:key}) }}" class="{{ section == key ? 'active' : '' }}" {% if section == key %}aria-current="page"{% endif %}><i class="bi bi-{{ key == 'profil' ? 'person' : (key == 'securite' ? 'shield-lock' : 'pen') }}"></i>{{ label }}</a>
+{% endfor %}
+{% if is_granted('ENTITE_PREFERENCE_MANAGE', entite) %}
+<div class="nav-label">{{ entite.nom }}</div>
+<a href="{{ path('app_administrateur_preferences_formateurs_contrat', {entite:entite.id}) }}" class="{{ section == 'organisme' ? 'active' : '' }}"><i class="bi bi-building"></i>Contrats et organisme</a>
+{% endif %}
+</nav>

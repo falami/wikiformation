@@ -52,6 +52,9 @@ class EntitePreferencesController extends AbstractController
     #[Route('/formateurs/contrat/signature', name: 'formateurs_contrat_signature', methods: ['POST'])]
     public function saveSignatureOrganisme(Entite $entite, Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('organisme_assets_'.$entite->getId(), $request->request->getString('_token'))) {
+            return $this->json(['success' => false, 'message' => 'Formulaire expiré. Actualisez la page.'], 403);
+        }
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -114,6 +117,9 @@ class EntitePreferencesController extends AbstractController
     #[Route('/formateurs/contrat/tampon', name: 'formateurs_contrat_tampon', methods: ['POST'])]
     public function saveTamponOrganisme(Entite $entite, Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('organisme_assets_'.$entite->getId(), $request->request->getString('_token'))) {
+            return $this->json(['success' => false, 'message' => 'Formulaire expiré. Actualisez la page.'], 403);
+        }
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
