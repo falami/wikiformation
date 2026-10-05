@@ -4,6 +4,7 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('dist/css/convention-participant-modal.css') }}">
   {{ parent() }}
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -301,8 +302,8 @@
             <div class="participant-hint d-flex align-items-start gap-2 mt-3">
               <i class="bi bi-person-plus" aria-hidden="true"></i>
               <div>Un stagiaire n’apparaît pas ? Recherchez les stagiaires de <strong>{{ c.entreprise ? c.entreprise.raisonSociale : 'cet organisme' }}</strong>, ainsi que ceux de l’organisme sans entreprise. Sélectionner un stagiaire sans entreprise rattache son inscription à ce client pour cette session.
-                <a href="{{ path('app_administrateur_utilisateur_ajouter', {entite: entite.id}) }}" target="_blank" rel="noopener">Créer une fiche client <span class="visually-hidden">dans un nouvel onglet</span><i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i></a>
-                Puis actualisez cette page avant de reprendre votre sélection.
+                {% if is_granted('SESSION_MANAGE', entite) %}<button type="button" class="btn btn-gradient mt-2" data-bs-toggle="modal" data-bs-target="#modal-new-stagiaire"><i class="bi bi-person-plus me-2"></i>Créer un nouveau stagiaire</button>{% endif %}
+                <div id="convention-stagiaire-notice" class="mt-2" role="status"></div>
               </div>
             </div>
           {% else %}
@@ -453,6 +454,7 @@
   </div>
 
   {{ form_end(form) }}
+  {% if form.stagiaires is defined and is_granted('SESSION_MANAGE', entite) %}{% include 'administrateur/convention/_new_stagiaire.html.twig' %}{% endif %}
 
 <script>
 /* =========================================================
@@ -658,6 +660,55 @@ document.addEventListener('DOMContentLoaded', function(){
   const elEntreprise   = initTomSelect(idEntreprise);
   const elStagiaire    = initTomSelect(idStagiaire);
   const elInscriptions = initTomSelect(idInscriptions);
+  const learnerModal = document.getElementById('modal-new-stagiaire');
+  const learnerForm = document.getElementById('form-new-stagiaire');
+  learnerModal?.addEventListener('show.bs.modal', () => {
+    document.getElementById('new-stagiaire-entreprise').value = elEntreprise?.value || '';
+    document.getElementById('new-stagiaire-company-label').textContent = getSelectedText(elEntreprise) || 'Aucune / particulier';
+    document.getElementById('new-stagiaire-error').classList.add('d-none');
+  });
+  learnerModal?.addEventListener('shown.bs.modal', () => document.getElementById('conv-new-civilite').focus());
+  learnerModal?.addEventListener('hide.bs.modal', event => { if (learnerForm?.dataset.submitting) event.preventDefault(); });
+  learnerForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (learnerForm.dataset.submitting) return;
+    const error = document.getElementById('new-stagiaire-error');
+    error.classList.add('d-none');
+    learnerForm.dataset.submitting = '1';
+    const button = learnerForm.querySelector('[type="submit"]');
+    const original = button.innerHTML;
+    button.disabled = true; button.textContent = 'Enregistrement…';
+    try {
+      const fd = new FormData(learnerForm);
+      const send = () => fetch({{ path('app_administrateur_session_stagiaire_new', {entite:entite.id})|json_encode|raw }}, {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}});
+      let response = await send();
+      let data = await response.json().catch(() => null);
+      if (response.status === 409 && data?.retryable) { response = await send(); data = await response.json().catch(() => null); }
+      if (!response.ok || !data?.success || !data.id) throw new Error(data?.message || 'Impossible de créer le stagiaire. Veuillez réessayer.');
+      const id = String(data.id);
+      if (elInscriptions.tomselect) {
+        elInscriptions.tomselect.addOption({value:id,text:data.label});
+        elInscriptions.tomselect.addItem(id);
+      } else {
+        let option = Array.from(elInscriptions.options).find(option => option.value === id);
+        if (!option) { option = new Option(data.label,id); elInscriptions.add(option); }
+        option.selected = true;
+      }
+      elInscriptions.dispatchEvent(new Event('change', {bubbles:true}));
+      document.getElementById('convention-stagiaire-notice').textContent = (data.already ? 'Compte existant sélectionné : ' : 'Stagiaire créé et sélectionné : ') + data.label + '. Enregistrez la convention pour confirmer le rattachement.';
+      delete learnerForm.dataset.submitting;
+      bootstrap.Modal.getInstance(learnerModal)?.hide();
+      learnerForm.reset();
+      refreshResume();
+    } catch (failure) {
+      error.textContent = failure.message || 'La connexion a échoué. Veuillez réessayer.';
+      error.classList.remove('d-none');
+    } finally {
+      delete learnerForm.dataset.submitting;
+      button.disabled = false; button.innerHTML = original;
+    }
+  });
+
   const quoteDetails = new Map(Array.from(quoteSelect?.options || []).map(option => [
     option.value, option.dataset.details ? JSON.parse(option.dataset.details) : null
   ]));
@@ -776,14 +827,14 @@ document.addEventListener('DOMContentLoaded', function(){
     el.addEventListener('change', refreshResume);
   });
 
-  {% if c is defined and c and c.id and not c.signed %}
+  {% if c is defined and c and not c.signed %}
   let participantRequest = 0;
   [idSession, idEntreprise, idStagiaire].forEach(selector => {
     document.querySelector(selector)?.addEventListener('change', async () => {
       const requestNumber = ++participantRequest;
       const select = document.querySelector(idInscriptions);
       if (!select) return;
-      const url = new URL('{{ path('app_administrateur_convention_eligible_participants', {entite: entite.id, id: c.id}) }}', location.origin);
+      const url = new URL('{{ c.id ? path('app_administrateur_convention_eligible_participants', {entite: entite.id, id: c.id}) : path('app_administrateur_convention_new_eligible_participants', {entite: entite.id}) }}', location.origin);
       url.searchParams.set('session', document.querySelector(idSession)?.value || '');
       url.searchParams.set('entreprise', document.querySelector(idEntreprise)?.value || '');
       url.searchParams.set('stagiaire', document.querySelector(idStagiaire)?.value || '');

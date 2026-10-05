@@ -179,6 +179,38 @@ final class ConventionContratController extends AbstractController
     }
 
 
+    #[Route('/nouvelle', name: 'new', methods: ['GET', 'POST'], priority: 10)]
+    public function new(Entite $entite, Request $request, EM $em, ConventionParticipants $participants): Response
+    {
+        $c = (new ConventionContrat())->setEntite($entite)->setCreateur($this->getUser());
+        $form = $this->createForm(ConventionContratType::class, $c, ['entite' => $entite, 'allow_new_participants' => true]);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $connection = $em->getConnection();
+            $connection->beginTransaction();
+            try {
+                $participants->persist($c, $this->getUser());
+                $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));
+                $em->persist($c);
+                $em->flush();
+                $connection->commit();
+                $this->addFlash('success', 'La convention a été créée.');
+                return $this->redirectToRoute('app_administrateur_convention_show', ['entite' => $entite->getId(), 'id' => $c->getId()]);
+            } catch (\DomainException $error) {
+                $form->addError(new FormError($error->getMessage()));
+            } finally {
+                if ($connection->isTransactionActive()) $connection->rollBack();
+            }
+        }
+        return $this->render('administrateur/convention/form.html.twig', ['form' => $form, 'title' => 'Nouvelle convention', 'c' => $c, 'entite' => $entite]);
+    }
+
+    #[Route('/nouvelle/participants-eligibles', name: 'new_eligible_participants', methods: ['GET'], priority: 10)]
+    public function newEligibleParticipants(Entite $entite, Request $request, EM $em, ConventionParticipants $participants): Response
+    {
+        return $this->eligibleParticipants($entite, (new ConventionContrat())->setEntite($entite), $request, $em, $participants);
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     public function show(Entite $entite, ConventionContrat $c, \App\Service\Convention\ConventionHistory $history): Response
     {
@@ -197,7 +229,7 @@ final class ConventionContratController extends AbstractController
     #[Route('/{id}/participants-eligibles', name: 'eligible_participants', methods: ['GET'])]
     public function eligibleParticipants(Entite $entite, ConventionContrat $c, Request $request, EM $em, ConventionParticipants $participants): Response
     {
-        $this->assertConventionTenant($entite, $c);
+        if ($c->getId()) $this->assertConventionTenant($entite, $c);
         $context = clone $c;
         if (!$c->isSigned()) {
             foreach (['session' => \App\Entity\Session::class, 'entreprise' => \App\Entity\Entreprise::class] as $field => $class) {

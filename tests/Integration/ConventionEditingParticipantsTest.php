@@ -353,6 +353,61 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         self::assertCount(1, $this->current()->getInscriptions());
     }
 
+    public function testCreateParticipantFromConventionModalThenSaveWithoutReload(): void
+    {
+        $page = $this->client->request('GET', $this->url());
+        $values = $page->filter('form[name="convention_contrat"]')->form()->getPhpValues();
+        self::assertCount(1, $page->filter('#modal-new-stagiaire'));
+        self::assertCount(0, $page->filter('form[name="convention_contrat"] form'));
+        $data = ['_token'=>$page->filter('#form-new-stagiaire input[name="_token"]')->attr('value'),
+            'civilite'=>'Madame', 'prenom'=>'Camille', 'nom'=>'Nouvelle', 'email'=>'camille-modal@example.test', 'entreprise'=>$this->company->getId()];
+        $endpoint = '/fr/administrateur/'.$this->entity->getId().'/session/ajax/stagiaire/new';
+        $this->client->request('POST', $endpoint, $data);
+        self::assertTrue($this->client->getResponse()->isSuccessful(), $this->client->getResponse()->getContent());
+        $created = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertTrue($created['success']);
+        $this->client->request('POST', $endpoint, $data);
+        $existing = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertSame($created['id'], $existing['id']);
+        self::assertTrue($existing['already']);
+        $values['convention_contrat']['stagiaires'] = [$created['id']];
+        $values['convention_contrat']['effectifPrevisionnel'] = '3';
+        $this->client->request('POST', $this->url(), $values);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $saved = $this->current();
+        self::assertCount(1, $saved->getInscriptions());
+        self::assertSame($created['id'], $saved->getInscriptions()->first()->getStagiaire()->getId());
+        self::assertSame($this->company->getId(), $saved->getInscriptions()->first()->getEntreprise()->getId());
+    }
+
+    public function testDirectConventionCreationFromList(): void
+    {
+        $sequence = $this->createMock(\App\Service\Sequence\SequenceNumberManager::class);
+        $sequence->expects(self::once())->method('next')->willReturn([2026, 99]);
+        self::getContainer()->set(\App\Service\Sequence\ConventionContratNumberGenerator::class, new \App\Service\Sequence\ConventionContratNumberGenerator($sequence));
+        $base = '/fr/administrateur/'.$this->entity->getId().'/conventions';
+        $page = $this->client->request('GET', $base.'/liste');
+        self::assertCount(1, $page->filter('a[href="'.$base.'/nouvelle"]'));
+        $page = $this->client->request('GET', $base.'/nouvelle');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $values = $page->filter('form[name="convention_contrat"]')->form()->getPhpValues();
+        $values['convention_contrat']['session'] = $this->session->getId();
+        $values['convention_contrat']['entreprise'] = $this->company->getId();
+        $values['convention_contrat']['participantsLibres'] = 'Camille Durand';
+        $values['convention_contrat']['effectifPrevisionnel'] = '1';
+        $values['convention_contrat']['montantHtCents'] = '500';
+        $values['convention_contrat']['tauxTva'] = '20';
+        $this->client->request('POST', $base.'/nouvelle', $values);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $this->client->followRedirect();
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $created = $this->em->getRepository(ConventionContrat::class)->findOneBy(['participantsLibres'=>'Camille Durand']);
+        self::assertNotNull($created);
+        self::assertTrue($created->hasNumero());
+        self::assertNull($created->getDevis());
+        self::assertSame(50000, $created->getMontantHtCents());
+    }
+
     private function submit(array $ids, string $free = "BRABANT Hugo\nBERNARD Ilian"): void
     {
         $crawler = $this->client->request('GET', $this->url());

@@ -198,6 +198,8 @@ final class ConventionContratType extends AbstractType
                     if ($object && $field !== 'stagiaire' && $object->getEntite() !== $entite) return;
                     $context->{'set'.ucfirst($field)}($object);
                 }
+                // This clone only supplies choice filters; it must not become a session document.
+                $context->getSession()?->getConventionContrats()->removeElement($context);
                 $fieldOptions = $event->getForm()->get('stagiaires')->getConfig()->getOptions();
                 unset($fieldOptions['choice_loader']);
                 $fieldOptions['query_builder'] = fn() => $this->participants->eligibleQuery($context);
