@@ -26,7 +26,6 @@ final class ElearningContentReorderController extends AbstractController
 
   #[Route('/reorder', name: 'reorder', methods: ['POST'])]
   public function reorder(
-    Entite $entite,
     ElearningCourse $course,
     Request $request,
     EntityManagerInterface $em

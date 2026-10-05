@@ -11,9 +11,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, JsonResponse, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\FileUploader;
-use App\Service\Photo\PhotoManager;
-use App\Service\Email\MailerManager;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 
@@ -25,9 +22,6 @@ class EmargementController extends AbstractController
 {
     public function __construct(
         private UtilisateurEntiteManager $utilisateurEntiteManager,
-        private MailerManager $mailerManager,
-        private PhotoManager $photoManager,
-        private FileUploader $fileUploader,
     ) {}
 
     // =========================================================

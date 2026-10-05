@@ -15,7 +15,6 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\{Request, Response, ResponseHeaderBag};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Security\Permission\TenantPermission;
 
@@ -24,7 +23,6 @@ use App\Security\Permission\TenantPermission;
 class AttestationController extends AbstractController
 {
     public function __construct(
-        private UtilisateurEntiteManager $utilisateurEntiteManager,
         private PdfManager $pdf,
         private AssiduiteCalculator $assiduiteCalculator,
         private string $projectDir = '',

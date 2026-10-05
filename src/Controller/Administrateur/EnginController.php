@@ -5,13 +5,11 @@ namespace App\Controller\Administrateur;
 use App\Entity\{Engin, Entite, Utilisateur, EnginPhoto};
 use App\Service\FileUploader;
 use App\Service\Photo\PhotoManager;
-use App\Service\Email\MailerManager;
 use App\Form\Administrateur\EnginType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse, RedirectResponse};
 use Symfony\Component\Routing\Attribute\Route;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -22,8 +20,6 @@ final class EnginController extends AbstractController
 {
 
     public function __construct(
-        private UtilisateurEntiteManager $utilisateurEntiteManager,
-        private MailerManager $mailerManager,
         private PhotoManager $photoManager,
         private FileUploader $fileUploader,
     ) {}
@@ -32,17 +28,10 @@ final class EnginController extends AbstractController
     #[Route('', name: 'app_administrateur_engin_index', methods: ['GET'])]
     public function index(Entite $entite): Response
     {
-
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
-
-
-
         return $this->render(
             'administrateur/engin/index.html.twig',
             [
                 'entite' => $entite,
-
             ]
         );
     }

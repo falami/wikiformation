@@ -28,7 +28,7 @@ final class EntiteActivitySubscriber implements EventSubscriberInterface
     if (!$event->isMainRequest()) return;
 
     $token = $this->tokenStorage->getToken();
-    if (!$token) return;
+    if (!$token || $token instanceof \Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface) return;
 
     $user = $token->getUser();
     if (!$user instanceof Utilisateur) return;

@@ -13,7 +13,6 @@ use App\Entity\{
   DepenseCategorie,
   DepenseFournisseur
 };
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
@@ -32,7 +31,6 @@ final class FinanceDashboardController extends AbstractController
   private const TZ = 'Europe/Paris';
 
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
 
   #[Route('', name: 'dashboard', methods: ['GET'])]

@@ -9,7 +9,6 @@ use App\Entity\{Depense, Entite, Utilisateur};
 use App\Form\Administrateur\DepenseType;
 use App\Service\Depense\DepenseUploader;
 use App\Service\Depense\ReceiptScanService;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
@@ -42,7 +41,6 @@ final class DepenseController extends AbstractController
 
 
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
     private DepenseUploader $depenseUploader,
   ) {}
 

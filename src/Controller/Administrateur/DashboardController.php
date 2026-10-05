@@ -11,325 +11,167 @@ namespace App\Controller\Administrateur;
 
 
 use App\Entity\{Session, Entite, Utilisateur, Facture, Paiement, Inscription, Emargement, PieceDossier};
-
 use App\Enum\{LabelledEnum, PieceType, StatusSession, StatusInscription, FactureStatus, DemiJournee, TypeFinancement};
-
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
-
 use Doctrine\ORM\EntityManagerInterface as EM;
-
 use App\Security\Permission\TenantPermission;
-
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
-
 use Symfony\Component\Routing\Attribute\Route;
-
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
 
-
-
-
 #[Route('/administrateur/{entite}/dashboard', name: 'app_administrateur_dashboard_', requirements: ['entite' => '\d+'])]
-
 #[IsGranted(TenantPermission::ADMIN_DASHBOARD_MANAGE, subject: 'entite')]
-
 final class DashboardController extends AbstractController
-
 {
 
   public function __construct(
-
     private readonly EM $em,
-
-    private readonly UtilisateurEntiteManager $utilisateurEntiteManager,
-
   ) {}
 
-
-
   #[Route('', name: 'index', methods: ['GET'])]
-
   public function index(Entite $entite): Response
-
   {
-
     /** @var Utilisateur $user */
-
     $user = $this->getUser();
 
-
-
-
-
     return $this->render('administrateur/dashboard/index.html.twig', [
-
       'title'  => 'Tableau de bord',
       'rapportsOuverts' => $this->em->getRepository(\App\Entity\RapportFormateur::class)->count(['entite' => $entite, 'statutTraitement' => ['new', 'in_progress']]),
       'rapportsUrgents' => $this->em->getRepository(\App\Entity\RapportFormateur::class)->count(['entite' => $entite, 'statutTraitement' => ['new', 'in_progress'], 'importance' => ['urgent', 'high']]),
-
       'entite' => $entite,
-
-
-
     ]);
 
   }
-
-
 
   /**
-
    * META filtres : formations et formateurs
-
    * - Formation n'a pas entite => on récupère les formations via sessions.entite
-
    */
-
   #[Route('/meta', name: 'meta', methods: ['GET'])]
-
   public function meta(Entite $entite): JsonResponse
-
   {
-
-
 
     // Formations réellement utilisées par cette entité (via sessions)
-
     $formations = $this->em->createQueryBuilder()
-
       ->select('DISTINCT f.id AS id, f.titre AS label')
-
       ->from(Session::class, 's')
-
       ->join('s.formation', 'f')
-
       ->where('s.entite = :e')
-
       ->setParameter('e', $entite)
-
       ->orderBy('f.titre', 'ASC')
-
       ->getQuery()
-
       ->getArrayResult();
-
-
 
     // Formateurs (Formateur possède bien entite chez toi)
-
     $formateurs = $this->em->createQueryBuilder()
-
       ->select('fo.id AS id, u.nom AS nom, u.prenom AS prenom')
-
       ->from('App\Entity\Formateur', 'fo')
-
       ->join('fo.utilisateur', 'u')
-
       ->where('fo.entite = :e')
-
       ->setParameter('e', $entite)
-
       ->orderBy('u.nom', 'ASC')
-
       ->addOrderBy('u.prenom', 'ASC')
-
       ->getQuery()
-
       ->getArrayResult();
 
-
-
     return $this->json([
-
       'formations' => $formations,
-
       'formateurs' => array_map(fn($x) => [
-
         'id' => $x['id'],
-
         'label' => trim(($x['prenom'] ?? '') . ' ' . ($x['nom'] ?? '')),
-
       ], $formateurs),
-
     ]);
-
   }
 
-
-
   #[Route('/kpis', name: 'kpis', methods: ['GET'])]
-
   public function kpis(Request $request, Entite $entite): JsonResponse
-
   {
-
-
-
     [$from, $to] = $this->readDateRange($request);
-
     $formationId = $request->query->get('formation', 'all');
-
     $formateurId = $request->query->get('formateur', 'all');
-
     $sessionStatus = $request->query->get('sessionStatus', 'all');
-
     $inscriptionStatus = $request->query->get('inscriptionStatus', 'all');
-
-
 
     $today = new \DateTimeImmutable('today');
 
-
-
     /**
-
      * Sessions filtrées (base)
-
      */
-
     $qbSessions = $this->em->createQueryBuilder()
-
       ->select('COUNT(DISTINCT s.id)')
-
       ->from(Session::class, 's')
-
       ->where('s.entite = :e')
-
       ->setParameter('e', $entite);
 
-
-
     $this->applySessionFilters($qbSessions, $from, $to, $formationId, $formateurId, $sessionStatus);
-
     $sessionsCount = (int) $qbSessions->getQuery()->getSingleScalarResult();
 
-
-
     /**
-
      * Sessions à venir / passées
-
      * On se base sur s.getDateDebut/getDateFin => pas utilisable en DQL facilement
-
      * => on filtre via SessionJour (min/max).
-
      */
-
     $conn = $this->em->getConnection();
 
-
-
     // NB jours et demi-journées sur la période / filtres de session (via SQL)
-
     // => on calcule à partir des session_jour liées à sessions filtrées.
-
     $sqlBaseSess = "
-
             SELECT DISTINCT s.id
-
             FROM session s
-
             LEFT JOIN session_jour j ON j.session_id = s.id
-
             WHERE s.entite_id = :eid
-
         ";
 
     $params = ['eid' => $entite->getId()];
-
-
-
     if ($formationId !== 'all') {
-
       $sqlBaseSess .= " AND s.formation_id = :fid";
-
       $params['fid'] = (int) $formationId;
-
     }
 
     if ($formateurId !== 'all') {
-
       $sqlBaseSess .= " AND s.formateur_id = :foid";
-
       $params['foid'] = (int) $formateurId;
-
     }
 
     if ($sessionStatus !== 'all') {
-
       $sqlBaseSess .= " AND s.status = :sst";
-
       $params['sst'] = $sessionStatus;
-
     }
 
     if ($from) {
-
       $sqlBaseSess .= " AND j.date_debut >= :from";
-
       $params['from'] = $from->format('Y-m-d H:i:s');
-
     }
 
     if ($to) {
-
       $sqlBaseSess .= " AND j.date_debut <= :to";
-
       $params['to'] = $to->format('Y-m-d H:i:s');
-
     }
 
-
-
     $ids = $conn->executeQuery($sqlBaseSess, $params)->fetchFirstColumn();
-
     $sessionIds = array_map('intval', $ids ?: []);
-
-
-
     $sessionsAVenir = 0;
-
     $sessionsPassees = 0;
-
     $nbJours = 0;
 
-
-
     if (!empty($sessionIds)) {
-
       $in = implode(',', array_fill(0, count($sessionIds), '?'));
 
-
-
       // sessions à venir : min(j.date_debut) >= today
-
       $sqlUpcoming = "
-
                 SELECT COUNT(*) AS c
-
                 FROM (
-
                     SELECT s.id, MIN(j.date_debut) AS dmin
-
                     FROM session s
-
                     LEFT JOIN session_jour j ON j.session_id = s.id
-
                     WHERE s.id IN ($in)
-
                     GROUP BY s.id
-
                 ) x
-
                 WHERE x.dmin >= ?
-
             ";
 
       $sessionsAVenir = (int) $conn->executeQuery($sqlUpcoming, array_merge($sessionIds, [$today->format('Y-m-d 00:00:00')]))->fetchOne();

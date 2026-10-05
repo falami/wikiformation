@@ -10,7 +10,6 @@ use App\Form\Administrateur\ElearningCourseType;
 use App\Service\Elearning\ElearningEnrollmentManager;
 use App\Enum\OrderStatus;
 use App\Service\Slug\UniqueSlugger;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,20 +25,15 @@ use App\Security\Permission\TenantPermission;
 final class ElearningCourseController extends AbstractController
 {
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]
-  public function index(Entite $entite, EntityManagerInterface $em): Response
+  public function index(Entite $entite): Response
   {
-    /** @var Utilisateur $user */
-    $user = $this->getUser();
 
     // ✅ serverSide => on ne charge PAS courses ici
     return $this->render('administrateur/elearning/index.html.twig', [
       'entite' => $entite,
-
-
     ]);
   }
 

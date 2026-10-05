@@ -16,9 +16,6 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use App\Service\FileUploader;
-use App\Service\Photo\PhotoManager;
-use App\Service\Email\MailerManager;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 
@@ -30,9 +27,6 @@ class InscriptionController extends AbstractController
 
     public function __construct(
         private UtilisateurEntiteManager $utilisateurEntiteManager,
-        private MailerManager $mailerManager,
-        private PhotoManager $photoManager,
-        private FileUploader $fileUploader,
         private AssiduiteCalculator $assiduiteCalculator,
         private PdfManager $pdf,
         private string $projectDir = '',

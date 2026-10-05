@@ -21,7 +21,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\HttpFoundation\{Request, Response};
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use App\Entity\EmailLog;
 use App\Entity\ProspectInteraction;
@@ -37,7 +36,6 @@ class DevisController extends AbstractController
 {
 
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
     private MailerManager $mailer,
     private ?PdfManager $pdf = null,
   ) {}

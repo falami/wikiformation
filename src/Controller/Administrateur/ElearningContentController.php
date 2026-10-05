@@ -13,7 +13,6 @@ use App\Entity\Elearning\ElearningBlock;
 use App\Form\Administrateur\ElearningNodeType;
 use App\Form\Administrateur\ElearningBlockType;
 use App\Service\FileUploader;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse, RedirectResponse};
@@ -29,7 +28,6 @@ use App\Security\Permission\TenantPermission;
 final class ElearningContentController extends AbstractController
 {
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
     private FileUploader $fileUploader,
   ) {}
 

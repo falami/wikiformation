@@ -12,8 +12,6 @@ use Symfony\Component\Routing\Attribute\Route;
 use App\Enum\StatusReservation;
 use App\Enum\StatusInscription;
 use App\Entity\{Session, Entite, Utilisateur, Reservation, Inscription};
-use App\Service\Email\MailerManager;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -24,8 +22,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ReservationController extends AbstractController
 {
     public function __construct(
-        private UtilisateurEntiteManager $utilisateurEntiteManager,
-        private MailerManager $mailerManager,
     ) {}
     #[Route('', name: 'app_administrateur_reservation_index', methods: ['GET'])]
     public function index(Entite $entite): Response

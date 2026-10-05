@@ -7,7 +7,6 @@ use App\Service\Filter\ChoiceFilter;
 use App\Entity\{Entreprise, Entite, Utilisateur};
 use App\Form\Administrateur\EntrepriseType;
 use App\Security\Permission\TenantPermission;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Asset\Packages;
@@ -24,7 +23,6 @@ use Symfony\Component\String\Slugger\SluggerInterface;
 final class EntrepriseController extends AbstractController
 {
     public function __construct(
-        private readonly UtilisateurEntiteManager $utilisateurEntiteManager,
         private readonly Packages $assets,
         private readonly SluggerInterface $slugger,
     ) {
@@ -33,8 +31,6 @@ final class EntrepriseController extends AbstractController
     #[Route('', name: 'app_administrateur_entreprise_index', methods: ['GET'])]
     public function index(Entite $entite): Response
     {
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
 
         return $this->render('administrateur/entreprise/index.html.twig', [
             'entite' => $entite,

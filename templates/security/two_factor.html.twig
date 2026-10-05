@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><title>Vérification de connexion · Wikiformation</title>
+  <link rel="stylesheet" href="{{ asset('dist/css/two-factor.css') }}">
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="auth-intro" aria-label="Connexion sécurisée">
+      <a class="auth-brand" href="{{ logoutPath }}">W<span>iki</span>formation<span class="brand-dot">.</span></a>
+      <div class="intro-copy">
+        <span class="eyebrow">VOTRE ESPACE, PROTÉGÉ</span>
+        <h1>Une dernière étape.<br><span>Pour votre sécurité.</span></h1>
+        <p>Confirmez votre connexion grâce au code reçu par e-mail. Vos formations et vos documents restent à l’abri.</p>
+        <ol class="auth-steps"><li><span class="step-check">✓</span><div><strong>Identifiants vérifiés</strong><small>Adresse e-mail et mot de passe</small></div></li><li aria-current="step"><span class="step-current">2</span><div><strong>Vérification par e-mail</strong><small>Votre code personnel à six chiffres</small></div></li></ol>
+      </div>
+      <p class="auth-footnote">Wikiformation · Votre espace de formation</p>
+    </section>
+    <section class="auth-form-panel" aria-labelledby="code-title">
+      <div class="shield" aria-hidden="true"><svg width="30" height="34" viewBox="0 0 24 28" fill="none"><path d="M12 2 22 6v8c0 6-10 12-10 12S2 20 2 14V6L12 2Z" stroke="currentColor" stroke-width="1.7"/><path d="m7 14 3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg></div>
+      <span class="eyebrow">ÉTAPE 2 SUR 2</span>
+      <h2 id="code-title">Vérifiez votre e-mail</h2>
+      <p class="form-description">Le code de connexion est envoyé à<br><strong>{{ maskedEmail }}</strong></p>
+      {% for type, messages in app.flashes %}{% for message in messages %}<div class="notice {{ type == 'success' ? 'notice-success' : '' }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+      {% if authenticationError %}<div class="notice notice-error" role="alert">{{ authenticationError|trans(authenticationErrorData, 'SchebTwoFactorBundle') }}</div>{% endif %}
+      <form action="{{ checkPathRoute ? path(checkPathRoute) : checkPathUrl }}" method="post" data-turbo="false">
+        <label for="verification-code">Code de vérification</label>
+        <input id="verification-code" class="code-input" name="{{ authCodeParameterName }}" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000" aria-describedby="code-help" required autofocus>
+        <p id="code-help" class="code-help">6 chiffres · Valable 10 minutes · Usage unique</p>
+        {% if isCsrfProtectionEnabled %}<input type="hidden" name="{{ csrfParameterName }}" value="{{ csrf_token(csrfTokenId) }}">{% endif %}
+        <button class="verify-button" type="submit">Vérifier et me connecter <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="resend-box"><p>Vous n’avez pas reçu le code ?</p><span>Vérifiez vos courriers indésirables.</span><form action="{{ path('app_2fa_resend') }}" method="post" data-turbo="false"><input type="hidden" name="_token" value="{{ csrf_token('2fa_resend') }}"><button type="submit" class="resend-button">Envoyer un nouveau code</button></form><small>Un renvoi par minute, cinq envois maximum en quinze minutes.</small></div>
+      <a class="cancel-link" href="{{ logoutPath }}">← Revenir à la connexion</a>
+      <p class="security-note">Ne communiquez jamais ce code. Notre équipe ne vous le demandera pas.</p>
+    </section>
+  </main>
+</body>
+</html>

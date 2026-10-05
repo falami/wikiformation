@@ -14,8 +14,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 use App\Form\Administrateur\ContratFormateurType;
 use App\Repository\FormateurRepository;
 use App\Repository\SessionRepository;
-use App\Service\Sequence\SequenceNumberManager;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,8 +33,6 @@ class ContratFormateurController extends AbstractController
 {
   public function __construct(
     private EntityManagerInterface $em,
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
-    private SequenceNumberManager $sequenceNumberManager,
     private ContratFormateurNumberGenerator $contratNumberGenerator,
   ) {}
 

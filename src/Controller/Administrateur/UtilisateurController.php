@@ -20,7 +20,6 @@ use App\Repository\ProspectInteractionRepository;
 use App\Form\Administrateur\ProspectInteractionType;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Service\Billing\BillingGuard;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -36,7 +35,6 @@ use App\Entity\Billing\Plan;
 final class UtilisateurController extends AbstractController
 {
   public function __construct(
-      private readonly UtilisateurEntiteManager $utilisateurEntiteManager,
       private readonly MailerManager $mailerManager,
       private readonly EntityManagerInterface $em,
       private readonly ProspectInteractionRepository $interactionRepo,

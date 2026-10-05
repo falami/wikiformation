@@ -13,7 +13,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Service\Pdf\PdfManager;
 use Symfony\Component\Form\FormInterface;
@@ -27,8 +26,6 @@ use App\Security\Permission\TenantPermission;
 final class QcmController extends AbstractController
 {
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
-    private PdfManager $pdfManager,
   ) {}
 
 

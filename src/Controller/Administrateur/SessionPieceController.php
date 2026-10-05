@@ -18,7 +18,6 @@ use Symfony\Component\HttpFoundation\{
   ResponseHeaderBag
 };
 use Symfony\Component\Routing\Attribute\Route;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -32,7 +31,6 @@ final class SessionPieceController extends AbstractController
   public function __construct(
     #[Autowire('%session_piece_dir%')]
     private readonly string $uploadDir,
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
 
   private function assertEntiteSession(Entite $entite, Session $session): void

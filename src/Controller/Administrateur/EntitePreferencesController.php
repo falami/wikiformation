@@ -9,10 +9,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\String\ByteString;
-use Symfony\Component\Asset\Packages;
 use App\Security\Permission\TenantPermission;
 
 #[Route('/administrateur/{entite}/preferences', name: 'app_administrateur_preferences_', requirements: ['entite' => '\d+'])]
@@ -21,8 +19,6 @@ class EntitePreferencesController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $em,
-        private UtilisateurEntiteManager $utilisateurEntiteManager,
-        private Packages $assets,
     ) {}
 
     #[Route('/formateurs/contrat', name: 'formateurs_contrat', methods: ['GET', 'POST'])]

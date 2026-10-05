@@ -7,7 +7,6 @@ namespace App\Controller\Administrateur;
 use App\Entity\{ConventionContrat, Inscription, Entite, Utilisateur, Session};
 use App\Form\Administrateur\ConventionContratType;
 use App\Service\Pdf\PdfManager;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{
@@ -15,7 +14,6 @@ use Symfony\Component\HttpFoundation\{
     Response,
     JsonResponse,
     RedirectResponse,
-    BinaryFileResponse
 };
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -33,7 +31,6 @@ use Symfony\Component\Form\FormError;
 final class ConventionContratController extends AbstractController
 {
     public function __construct(
-        private readonly UtilisateurEntiteManager $utilisateurEntiteManager,
         private readonly PdfManager $pdf,
         private readonly string $projectDir,
         private readonly ConventionContratNumberGenerator $ccNumber,

@@ -10,7 +10,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 
 
@@ -20,7 +19,6 @@ use App\Security\Permission\TenantPermission;
 final class QcmFollowUpController extends AbstractController
 {
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
   #[Route('/{id}', name: 'edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
   public function edit(Entite $entite, QcmAssignment $a, Request $req, EM $em): Response

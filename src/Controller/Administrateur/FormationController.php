@@ -3,7 +3,6 @@
 namespace App\Controller\Administrateur;
 
 use App\Service\Filter\ChoiceFilter;
-
 use App\Entity\{Formation, Entite, Utilisateur, FormationPhoto, Categorie};
 use App\Service\FileUploader;
 use Doctrine\ORM\QueryBuilder;
@@ -16,8 +15,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse, RedirectResponse};
 use Symfony\Component\Routing\Attribute\Route;
 use App\Enum\NiveauFormation;
-use App\Service\Email\MailerManager;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Service\Formation\FormationCloner;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -34,8 +31,6 @@ use App\Service\Pdf\PdfManager;
 final class FormationController extends AbstractController
 {
     public function __construct(
-        private UtilisateurEntiteManager $utilisateurEntiteManager,
-        private MailerManager $mailerManager,
         private PhotoManager $photoManager,
         private FileUploader $fileUploader,
         private FormationCloner $formationCloner,

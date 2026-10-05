@@ -3,7 +3,6 @@
 namespace App\Controller\Administrateur;
 
 use App\Entity\{Emargement, Entite, Utilisateur, Formation, Entreprise, Inscription, SessionJour};
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
@@ -19,7 +18,6 @@ use App\Security\Permission\TenantPermission;
 final class PlanningStagiairesController extends AbstractController
 {
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
 
   #[Route('/event-details/{inscription}/{jour}', name: 'event_details', methods: ['GET'])]

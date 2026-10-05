@@ -1,48 +1,67 @@
 {% extends 'base_admin.html.twig' %}
-
 {% block title %}Créer une convention{% endblock %}
-
-
 {% block stylesheets %}
   {{ parent() }}
-
-  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css">
-
   <style>
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-
-
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/convention-creation.css') }}">
 {% endblock %}
-
 {% block body %}
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <h1 class="h3">Créer une convention</h1>
-      <p>Session <strong>{{ session.code }}</strong> — {{ session.formationLabel }}</p>
-      <p>Destinataire : <strong>{{ destinataire }}</strong></p>
-      {% if inscriptions|length %}
-        <p>Cette nouvelle convention couvrira les inscriptions suivantes. Vous pourrez ajuster la sélection avant de générer le document.</p>
-        <ul>
+{% set sessionUrl = path('app_administrateur_session_show', {entite: entite.id, id: session.id}) %}
+<div class="convention-creation">
+  <a href="{{ sessionUrl }}" class="cc-back"><i class="bi bi-arrow-left"></i> Retour à la session</a>
+  <header class="cc-hero">
+    <div class="cc-eyebrow"><i class="bi bi-file-earmark-plus"></i> CONVENTIONS & CONTRATS</div>
+    <h1>Créer une convention</h1>
+    <p>Préparez le document et vérifiez les participants avant sa création.</p>
+    <div class="cc-chips"><span><i class="bi bi-building"></i> {{ entite.nom }}</span><span><i class="bi bi-calendar3"></i> {{ session.code }}</span><span><i class="bi bi-people"></i> {{ inscriptions|length }} participant{{ inscriptions|length > 1 ? 's' : '' }}</span></div>
+    <i class="bi bi-file-earmark-text cc-watermark" aria-hidden="true"></i>
+  </header>
+  <div class="cc-layout">
+    <main class="cc-main">
+      <section class="cc-card">
+        <div class="cc-card-title"><span class="cc-icon"><i class="bi bi-mortarboard"></i></span><div><span class="cc-kicker">LE CADRE DE LA CONVENTION</span><h2>Formation & destinataire</h2></div></div>
+        <div class="cc-card-body">
+          <div class="cc-training"><span class="cc-kicker">FORMATION</span><h3>{{ session.formationLabel }}</h3><a href="{{ sessionUrl }}">{{ session.code }} <i class="bi bi-arrow-up-right"></i></a></div>
+          <div class="cc-recipient"><span class="cc-icon"><i class="bi bi-person-vcard"></i></span><div><span class="cc-kicker">DESTINATAIRE DU DOCUMENT</span><strong>{{ destinataire }}</strong></div></div>
+        </div>
+      </section>
+      <section class="cc-card">
+        <div class="cc-card-title"><span class="cc-icon"><i class="bi bi-people"></i></span><div><span class="cc-kicker">LES PERSONNES CONCERNÉES</span><h2>Participants couverts</h2></div><span class="cc-count">{{ inscriptions|length }}</span></div>
+        <div class="cc-card-body">
+          <p class="cc-muted">La convention sera créée pour les inscriptions ci-dessous.</p>
+          <ul class="cc-participants">
           {% for inscription in inscriptions %}
-            <li>{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}</li>
+            {% set stagiaire = inscription.stagiaire %}
+            <li><span class="cc-avatar" aria-hidden="true">{{ stagiaire.prenom|slice(0,1)|upper }}{{ stagiaire.nom|slice(0,1)|upper }}</span><div><strong>{{ stagiaire.prenom }} {{ stagiaire.nom }}</strong>{% if stagiaire.email %}<span class="cc-muted">{{ stagiaire.email }}</span>{% endif %}</div><span class="cc-included"><i class="bi bi-check2"></i> Inclus</span></li>
+          {% else %}
+            <li class="cc-empty"><i class="bi bi-info-circle"></i> Aucune inscription pour ce destinataire dans cette session.</li>
           {% endfor %}
-        </ul>
+          </ul>
+        </div>
+      </section>
+    </main>
+    <aside class="cc-card cc-summary" aria-label="Résumé de la création">
+      <div class="cc-card-title"><span class="cc-icon"><i class="bi bi-clipboard-check"></i></span><h2>Prêt à créer ?</h2></div>
+      <div class="cc-card-body">
+        <dl><div><dt>Session</dt><dd>{{ session.code }}</dd></div><div><dt>Destinataire</dt><dd>{{ destinataire }}</dd></div><div><dt>Participants</dt><dd>{{ inscriptions|length }}</dd></div></dl>
+        <div class="cc-note"><i class="bi bi-pencil-square"></i><p>Vous pourrez ajuster les participants et compléter les informations de la convention avant de générer le document.</p></div>
+        {% if inscriptions|length %}
         <form method="post">
           <input type="hidden" name="_token" value="{{ csrf_token(tokenId) }}">
-          <button class="btn btn-primary" type="submit">Créer la convention</button>
-          <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_convention_index', {entite: entite.id}) }}">Annuler</a>
+          <button class="cc-submit" type="submit"><i class="bi bi-file-earmark-plus"></i> Créer la convention <i class="bi bi-arrow-right"></i></button>
         </form>
-      {% else %}
-        <p class="alert alert-warning">Aucune inscription pour ce destinataire dans cette session.</p>
-        <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_convention_index', {entite: entite.id}) }}">Retour</a>
-      {% endif %}
-    </div>
+        {% endif %}
+        <a class="cc-cancel" href="{{ sessionUrl }}">Annuler et revenir à la session</a>
+      </div>
+    </aside>
   </div>
+</div>
 {% endblock %}

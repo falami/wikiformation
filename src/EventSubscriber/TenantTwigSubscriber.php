@@ -25,6 +25,8 @@ final class TenantTwigSubscriber implements EventSubscriberInterface
 
   public function onController(ControllerEvent $event): void
   {
+    if ($this->security->isGranted('IS_AUTHENTICATED_2FA_IN_PROGRESS')) return;
+
     $user = $this->security->getUser();
     if (!$user instanceof Utilisateur) {
       return;

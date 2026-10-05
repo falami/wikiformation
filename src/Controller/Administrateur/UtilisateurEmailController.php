@@ -14,7 +14,6 @@ use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Repository\EmailTemplateRepository;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 
 
@@ -27,7 +26,6 @@ final class UtilisateurEmailController extends AbstractController
     private EmailTemplateRepository $templates,
     private EmailLogRepository $logs,
     private MailerManager $mailer,
-    private readonly UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
 
   private function guardEntite(Entite $entite, Utilisateur $u): void

@@ -7,7 +7,6 @@ use App\Entity\Utilisateur;
 use App\Entity\Elearning\ElearningCourse;
 use App\Entity\Elearning\ElearningEnrollment;
 use App\Enum\EnrollmentStatus;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -28,7 +27,6 @@ final class ElearningEnrollmentController extends AbstractController
   private const TZ = 'Europe/Paris';
 
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
     private EM $em
   ) {}
 

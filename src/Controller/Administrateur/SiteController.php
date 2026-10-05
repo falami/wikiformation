@@ -3,13 +3,11 @@
 namespace App\Controller\Administrateur;
 
 use App\Entity\{Site, Entite, Utilisateur};
-use App\Service\Email\MailerManager;
 use App\Form\Administrateur\SiteType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse, RedirectResponse};
 use Symfony\Component\Routing\Attribute\Route;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -19,8 +17,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class SiteController extends AbstractController
 {
     public function __construct(
-        private UtilisateurEntiteManager $utilisateurEntiteManager,
-        private MailerManager $mailerManager,
     ) {}
 
     #[Route('', name: 'app_administrateur_site_index', methods: ['GET'])]

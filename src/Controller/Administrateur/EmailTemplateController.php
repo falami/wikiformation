@@ -5,7 +5,6 @@ namespace App\Controller\Administrateur;
 use App\Entity\{EmailTemplate, Entite, Utilisateur};
 use App\Form\Administrateur\EmailTemplateType;
 use App\Repository\EmailTemplateRepository;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
@@ -21,7 +20,6 @@ final class EmailTemplateController extends AbstractController
   public function __construct(
     private EM $em,
     private EmailTemplateRepository $repo,
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]

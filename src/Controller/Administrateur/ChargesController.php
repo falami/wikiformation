@@ -10,7 +10,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Security\Permission\TenantPermission;
 
@@ -21,7 +20,6 @@ final class ChargesController extends AbstractController
 {
 
     public function __construct(
-        private UtilisateurEntiteManager $utilisateurEntiteManager,
     ) {}
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Entite $entite): Response

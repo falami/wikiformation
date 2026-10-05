@@ -3,7 +3,6 @@
 namespace App\Controller\Administrateur;
 
 use App\Entity\{Inscription, Entite, Utilisateur, Formation, Site, Formateur, Session, SessionJour};
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
@@ -21,7 +20,6 @@ use App\Enum\PieceType;
 final class PlanningSessionsController extends AbstractController
 {
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]

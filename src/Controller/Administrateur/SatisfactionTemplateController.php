@@ -13,7 +13,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Form\Satisfaction\SatisfactionTemplateType;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\HttpFoundation\{Request, Response};
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Twig\Environment as Twig;
@@ -28,7 +27,6 @@ class SatisfactionTemplateController extends AbstractController
 {
 
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
   ) {}
 
 

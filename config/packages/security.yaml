@@ -26,15 +26,15 @@ security:
         # where to redirect after logout
         target: app_login
         delete_cookies: ["REMEMBERME"] # on nettoie bien le cookie au logout
-      remember_me:
-        secret: "%kernel.secret%"
-        lifetime: 1209600
-        path: "/"
-        name: REMEMBERME
-        secure: auto
-        samesite: lax
-        always_remember_me: false
-        remember_me_parameter: _remember_me # <-- ajoute ça
+      login_throttling:
+        max_attempts: 5
+        interval: '1 minute'
+      two_factor:
+        auth_form_path: 2fa_login
+        check_path: 2fa_login_check
+        enable_csrf: true
+        prepare_on_login: true
+        success_handler: App\Security\LoginSuccessHandler
 
       # activate different ways to authenticate
       # https://symfony.com/doc/current/security.html#the-firewall
@@ -45,6 +45,8 @@ security:
   # Easy way to control access for large sections of your site
   # Note: Only the *first* access control that matches will be used
   access_control:
+    - { path: ^/(fr/|en/)?logout$, roles: PUBLIC_ACCESS }
+    - { path: ^/(fr/|en/)?2fa, roles: IS_AUTHENTICATED_2FA_IN_PROGRESS }
     - { path: ^/(fr|en)/super, roles: ROLE_SUPER_ADMIN }
     - { path: ^/(fr|en)/public, roles: ROLE_USER }
     # le reste : ROLE_USER suffit, ensuite c’est TenantVoter + denyAccessUnlessGranted(...)

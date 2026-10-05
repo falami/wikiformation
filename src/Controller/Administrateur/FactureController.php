@@ -12,15 +12,12 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Service\Sequence\FactureNumberGenerator;
 use App\Service\Pdf\PdfManager;
-use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\Address;
 use Doctrine\DBAL\ParameterType;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\Connection;
 use App\Security\Permission\TenantPermission;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\Billing\InscriptionBillingSync;
@@ -35,8 +32,6 @@ use App\Service\Filter\{AccountingPeriodFilter, ChoiceFilter};
 class FactureController extends AbstractController
 {
   public function __construct(
-    private UtilisateurEntiteManager $utilisateurEntiteManager,
-    #[Autowire('%upload_proofs_dir%')] private string $proofDir,
     private readonly InscriptionBillingSync $inscSync, // ✅
     private ?PdfManager $pdf = null,
   ) {}

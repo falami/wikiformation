@@ -18,6 +18,9 @@ final class LoginSuccessHandler implements AuthenticationSuccessHandlerInterface
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token): RedirectResponse
     {
+        if ($token instanceof \Scheb\TwoFactorBundle\Security\Authentication\Token\TwoFactorTokenInterface) {
+            return new RedirectResponse('/2fa');
+        }
         $user = $token->getUser();
         if (!$user instanceof Utilisateur) {
             return new RedirectResponse('/'); // ou app_public_home

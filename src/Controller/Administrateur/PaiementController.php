@@ -15,7 +15,6 @@ use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse, RedirectR
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Doctrine\DBAL\ParameterType;
 use App\Security\Permission\TenantPermission;
 use App\Service\Billing\InscriptionBillingSync;
 use App\Service\Filter\{AccountingPeriodFilter, ChoiceFilter};
