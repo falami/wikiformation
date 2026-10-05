@@ -168,7 +168,8 @@ final class UtilisateurType extends AbstractType
                 'required' => false,
                 'locked' => $locked,
                 'entite' => $entite,
-                'data' => $utilisateur->getEntreprise() ?: new Entreprise(),
+                // Edit a detached copy: selecting another company must not mutate the original.
+                'data' => $utilisateur->getEntreprise() ? clone $utilisateur->getEntreprise() : new Entreprise(),
                 'empty_data' => fn(FormInterface $form) => new Entreprise(),
             ]);
 

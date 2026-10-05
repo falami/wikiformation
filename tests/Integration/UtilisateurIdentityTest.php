@@ -80,6 +80,40 @@ final class UtilisateurIdentityTest extends KernelTestCase
         foreach ($saved->getEntreprisesAssociees() as $company) self::assertNull($company->getRepresentant());
     }
 
+    public function testSwappingPrimaryAndAssociatedCompaniesPreservesBothCompanyRecords(): void
+    {
+        $companies = [];
+        foreach (['Generale du solaire', 'HOLDING DU SOLAIRE'] as $index => $name) {
+            $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale($name)->setVille('Ville '.$index)->setEmail('company'.$index.'@example.test');
+            $this->em->persist($company); $companies[] = $company;
+        }
+        $this->learner->setEntreprise($companies[0])->addEntreprisesAssociee($companies[1]);
+        $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur'=>$this->learner,'entite'=>$this->entite]);
+        $membership->setRoles([UtilisateurEntite::TENANT_STAGIAIRE, UtilisateurEntite::TENANT_ENTREPRISE]);
+        $this->em->flush();
+        $ids = array_map(fn($c) => $c->getId(), $companies);
+        $id = $this->learner->getId(); $client = $this->client();
+        foreach ([[1,0],[0,1]] as [$primary,$secondary]) {
+            $page = $client->request('GET', $this->editUrl($id));
+            $form = $page->filter('form[name="utilisateur"]')->form();
+            $form['utilisateur[entreprise]']->select((string)$ids[$primary]);
+            $form['utilisateur[entreprisesAssociees]']->select([(string)$ids[$secondary]]);
+            $client->submit($form);
+            self::assertSame(302, $client->getResponse()->getStatusCode());
+            $this->em->clear();
+            $saved = $this->em->find(Utilisateur::class,$id);
+            self::assertSame($ids[$primary],$saved->getEntreprise()->getId());
+            self::assertSame([$ids[$secondary]],array_map(fn($c)=>$c->getId(),$saved->getEntreprisesAssociees()->toArray()));
+            foreach ($ids as $index => $companyId) {
+                $company = $this->em->find(\App\Entity\Entreprise::class,$companyId);
+                self::assertSame(['Generale du solaire','HOLDING DU SOLAIRE'][$index],$company->getRaisonSociale());
+                self::assertSame('Ville '.$index,$company->getVille());
+                self::assertSame('company'.$index.'@example.test',$company->getEmail());
+            }
+            self::assertSame(2,$this->em->getRepository(\App\Entity\Entreprise::class)->count([]));
+        }
+    }
+
     public function testEnrolledVerifiedIdentityCanBeCorrectedWithoutChangingAccountOrEnrollments(): void
     {
         $this->learner->setIsVerified(true); $this->em->flush();

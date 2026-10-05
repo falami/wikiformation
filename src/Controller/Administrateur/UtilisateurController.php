@@ -241,6 +241,7 @@ final class UtilisateurController extends AbstractController
     $identityLocked = $isEdit && !$this->canEditIdentity($utilisateur, $entite, $user);
 
     // snapshots si locked
+    $origEntrepriseId = $utilisateur->getEntreprise()?->getId();
     $origEmail    = $utilisateur->getEmail();
     $origSociete  = $utilisateur->getSociete();
     $origVerified = (bool) $utilisateur->isVerified();
@@ -386,7 +387,10 @@ final class UtilisateurController extends AbstractController
 
           $hasTenantEntreprise = $ue->hasRole(UtilisateurEntite::TENANT_ENTREPRISE);
 
-          if ($hasTenantEntreprise && $form->has('entrepriseData')) {
+          // Inline details belong to the company displayed when the form opened.
+          // A changed selection only updates the user association.
+          if ($hasTenantEntreprise && $form->has('entrepriseData')
+              && $utilisateur->getEntreprise()?->getId() === $origEntrepriseId) {
               /** @var Entreprise|null $edata */
               $edata = $form->get('entrepriseData')->getData();
 
