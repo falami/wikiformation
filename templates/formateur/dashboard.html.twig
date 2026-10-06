@@ -1030,6 +1030,37 @@ html, body{
 {% endblock %}
 
 {% block body %}
+  {% if pendingContracts is not empty %}
+  <section class="card border-0 shadow-sm rounded-4 mb-4 mt-3" aria-labelledby="pending-contracts-title">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+          <h2 id="pending-contracts-title" class="h4 fw-bold mb-1"><i class="bi bi-pen text-warning me-2" aria-hidden="true"></i>Contrats à signer</h2>
+          <p class="text-muted mb-0">Votre signature est attendue sur {{ pendingContracts|length }} contrat{{ pendingContracts|length > 1 ? 's' : '' }} formateur. Consultez chaque contrat pour le signer.</p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm rounded-pill" href="{{ path('app_formateur_contrats', {entite: entite.id}) }}">Tous mes contrats <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+      </div>
+      <div class="row g-3">
+        {% for contrat in pendingContracts %}
+        <div class="col-12 col-xl-6">
+          <article class="border rounded-4 p-3 h-100 bg-light d-flex flex-column gap-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <span class="small fw-semibold text-muted">{{ contrat.numero }} · Version {{ contrat.versionNumero }}</span>
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">Signature manquante</span>
+            </div>
+            <h3 class="h6 fw-bold mb-0">{{ contrat.session.formationLabel }}</h3>
+            <p class="small text-muted mb-2">{{ contrat.session.code }} · Contrat créé le {{ contrat.dateCreation|date('d/m/Y') }}</p>
+            <div class="mt-auto">
+              <a class="btn btn-warning btn-sm rounded-pill" href="{{ path('app_formateur_contrat_sign', {entite: entite.id, contrat: contrat.id}) }}" aria-label="Consulter et signer le contrat {{ contrat.numero }}"><i class="bi bi-pen me-1" aria-hidden="true"></i> Consulter et signer</a>
+            </div>
+          </article>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
   {% if pendingSessions is not empty %}
   <section class="card border-0 shadow-sm rounded-4 mb-4 mt-3">
     <div class="card-body p-4">

@@ -342,6 +342,9 @@ class DashboardFormateurController extends AbstractController
             'utilisateurEntite' => $utilisateurEntite,
             'nextSession'       => $nextSession,
             'pendingSessions' => $pendingSessions,
+            'pendingContracts' => $formateur
+                ? $em->getRepository(ContratFormateur::class)->findAwaitingTrainerSignature($entite, $formateur)
+                : [],
 
             'google_maps_server_key'  => (string) $this->getParameter('GOOGLE_MAPS_SERVER_KEY'),
             'google_maps_browser_key' => (string) $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),

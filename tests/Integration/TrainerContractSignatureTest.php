@@ -49,6 +49,49 @@ final class TrainerContractSignatureTest extends KernelTestCase
         }
     }
 
+    public function testDashboardContractRemindersRespectSignatureStatusAndOwnership(): void
+    {
+        $repo = $this->em->getRepository(ContratFormateur::class);
+        $trainer = $this->contract->getFormateur();
+        // Past or completed sessions still need their contract signed.
+        $this->contract->getSession()->setStatus(\App\Enum\StatusSession::DONE);
+        foreach ([ContratFormateurStatus::BROUILLON, ContratFormateurStatus::ENVOYE] as $status) {
+            $this->contract->setStatus($status);
+            $this->em->flush();
+            self::assertSame([$this->contract], $repo->findAwaitingTrainerSignature($this->entite, $trainer));
+        }
+        $client = $this->client();
+        $client->request('GET', self::getContainer()->get('router')->generate('app_formateur_dashboard', ['entite' => $this->entite->getId()]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Contrats à signer', $client->getResponse()->getContent());
+        self::assertStringContainsString($this->url('app_formateur_contrat_sign'), $client->getResponse()->getContent());
+
+        foreach ([ContratFormateurStatus::SIGNE, ContratFormateurStatus::RESILIE, ContratFormateurStatus::ARCHIVE] as $status) {
+            $this->contract->setStatus($status);
+            $this->em->flush();
+            self::assertSame([], $repo->findAwaitingTrainerSignature($this->entite, $trainer));
+        }
+        $this->contract->setStatus(ContratFormateurStatus::ENVOYE)->setSignatureAt(new \DateTimeImmutable());
+        $this->em->flush();
+        self::assertSame([], $repo->findAwaitingTrainerSignature($this->entite, $trainer));
+        $this->contract->setSignatureAt(null)->setSignatureDataUrl('data:image/png;base64,example');
+        $this->em->flush();
+        self::assertSame([], $repo->findAwaitingTrainerSignature($this->entite, $trainer));
+        $this->contract->setSignatureDataUrl(null);
+        $otherTenant = (new Entite())->setNom('Autre')->setPublic(false)->setCreateur($this->user);
+        $otherUser = (new Utilisateur())->setEmail('other-trainer@example.test')->setPassword('unused')->setNom('Autre')->setPrenom('Formateur');
+        $otherTrainer = (new Formateur())->setEntite($this->entite)->setUtilisateur($otherUser)->setCreateur($this->user);
+        foreach ([$otherTenant, $otherUser, $otherTrainer] as $entity) $this->em->persist($entity);
+        $this->em->flush();
+        self::assertSame([], $repo->findAwaitingTrainerSignature($this->entite, $otherTrainer));
+        self::assertSame([], $repo->findAwaitingTrainerSignature($otherTenant, $trainer));
+        $this->contract->setStatus(ContratFormateurStatus::SIGNE);
+        $this->em->flush();
+        $client->request('GET', self::getContainer()->get('router')->generate('app_formateur_dashboard', ['entite' => $this->entite->getId()]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringNotContainsString('id="pending-contracts-title"', $client->getResponse()->getContent());
+    }
+
     public function testSignatureRequiresValidCsrfAndDisplaysOnlyAssignedSlots(): void
     {
         $client = $this->client();
