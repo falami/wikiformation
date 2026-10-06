@@ -602,9 +602,11 @@
           <div class="row g-3">
             <div class="col-md-6">{{ form_row(form.capacite) }}</div>
             <div class="col-md-6">{{ form_row(form.montantCents) }}</div>
+            <div class="col-md-6">{{ form_row(form.tauxTva) }}</div>
+            <div class="col-md-6"><label class="form-label">Tarif TTC calculé</label><output id="session-tarif-ttc" class="form-control bg-light" aria-live="polite">—</output><small id="session-tarif-tax" class="text-muted"></small></div>
           </div>
           <div class="form-text mt-2">
-            Le tarif effectif = montant personnalisé, sinon le prix de base de la formation.
+            Le tarif HT effectif reprend le montant personnalisé, sinon le prix HT de la formation. Le TTC inclut la TVA choisie.
           </div>
         </div>
       </div>
@@ -988,7 +990,7 @@
                 <span class="fw-semibold text-end" id="resume-capacite">-</span>
               </div>
               <div class="d-flex justify-content-between gap-3 py-1">
-                <span class="text-muted">Montant</span>
+                <span class="text-muted">Tarif HT / TVA / TTC</span>
                 <span class="fw-semibold text-end" id="resume-montant">-</span>
               </div>
 
@@ -1584,6 +1586,37 @@ document.addEventListener('DOMContentLoaded', function () {
   [$formation, $site, $engin, $formateur, $status, $typeFinancement, $organisme].forEach(el => el && initTomSelectOn(el));
 
 
+  // Single-value rate picker: NumberType retains server-side decimal validation.
+  const vatPickerInput = document.getElementById('{{ form.tauxTva.vars.id }}');
+  if (vatPickerInput && !vatPickerInput.tomselect) {
+    const normalizeVat = value => String(value).trim().replace('%', '').trim().replace('.', ',');
+    const validVat = value => /^(?:\d{1,3})(?:[,.]\d{1,2})?$/.test(value)
+      && Number(value.replace(',', '.')) <= 100;
+    const rates = ['0', '2,1', '5,5', '10', '20'];
+    const currentRate = normalizeVat(vatPickerInput.value);
+    if (currentRate && !rates.includes(currentRate)) rates.push(currentRate);
+    new TomSelect(vatPickerInput, {
+      dropdownParent: 'body',
+      delimiter: ';',
+      maxItems: 1,
+      persist: false,
+      options: rates.map(value => ({value, text: value + ' %'})),
+      items: currentRate ? [currentRate] : [],
+      plugins: ['clear_button'],
+      placeholder: 'Automatique : TVA formation / 20 %',
+      createFilter: input => validVat(normalizeVat(input)),
+      create: input => {
+        const value = normalizeVat(input);
+        return validVat(value) ? {value, text: value + ' %'} : false;
+      },
+      render: {
+        option_create: (data, escape) => '<div class="create">Utiliser le taux ' + escape(normalizeVat(data.input)) + ' %</div>',
+        no_results: () => '<div class="no-results">Saisissez un taux entre 0 et 100 %</div>'
+      },
+      onChange: refreshResume
+    });
+  }
+
   // Flatpickr FR
   if (window.flatpickr && window.flatpickr.l10ns && window.flatpickr.l10ns.fr) {
     flatpickr.localize(flatpickr.l10ns.fr);
@@ -1776,8 +1809,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const cap = ($capacite?.value || '').toString().trim();
     if ($r.capacite) $r.capacite.textContent = cap ? cap : '-';
 
-    const m = parseEuros($montant?.value || '');
-    if ($r.montant) $r.montant.textContent = m ? formatMoney(m) : '-';
+    const option = $formation?.selectedOptions?.[0];
+    const m = ($montant?.value || '').trim() !== '' ? parseEuros($montant.value) : Number(option?.dataset.ht || 0) / 100;
+    const vatInput = document.getElementById('{{ form.tauxTva.vars.id }}');
+    const rate = vatInput.value.trim() !== '' ? parseEuros(vatInput.value) : Number(option?.dataset.tva ?? 20);
+    const htCents = Math.round(m * 100);
+    const tax = Math.round(htCents * rate / 100) / 100;
+    const ttc = htCents / 100 + tax;
+    document.getElementById('session-tarif-ttc').textContent = formatMoney(ttc);
+    document.getElementById('session-tarif-tax').textContent = 'TVA ' + rate + ' % : ' + formatMoney(tax);
+    if ($r.montant) $r.montant.textContent = formatMoney(m) + ' HT · TVA ' + rate + ' % · ' + formatMoney(ttc) + ' TTC';
 
     updateChipJours();
     updateChipIns();
@@ -1810,6 +1851,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   formMain?.addEventListener('input', refreshResume);
   formMain?.addEventListener('change', refreshResume);
+  [$montant, document.getElementById('{{ form.tauxTva.vars.id }}')].forEach(el => el?.addEventListener('input', refreshResume));
   [$code,$capacite,$montant].forEach(el => el && el.addEventListener('change', refreshResume));
 
   // ✅ rafraîchit résumé si l’intitulé libre change

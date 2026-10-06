@@ -335,6 +335,16 @@ class Session
         return $this;
     }
 
+    #[ORM\Column(nullable: true)]
+    #[\Symfony\Component\Validator\Constraints\Range(min: 0, max: 100)]
+    private ?float $tauxTva = null;
+
+    public function getTauxTva(): ?float { return $this->tauxTva; }
+    public function setTauxTva(?float $value): static { $this->tauxTva = $value; return $this; }
+    public function getTauxTvaEffectif(): float { return $this->tauxTva ?? $this->formation?->getTauxTva() ?? 20; }
+    public function getTarifTvaCents(): int { return (int) round($this->getTarifEffectifCents() * $this->getTauxTvaEffectif() / 100); }
+    public function getTarifTtcCents(): int { return $this->getTarifEffectifCents() + $this->getTarifTvaCents(); }
+
     public function getTarifEffectifCents(): int
     {
         return $this->montantCents ?? $this->formation?->getPrixBaseCents() ?? 0;

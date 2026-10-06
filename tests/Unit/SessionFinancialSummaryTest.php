@@ -6,6 +6,23 @@ use App\Service\Session\SessionFinancialSummary;
 use PHPUnit\Framework\TestCase;
 final class SessionFinancialSummaryTest extends TestCase
 {
+    public function testSessionVatOverridesFormationAndSupportsExemption(): void
+    {
+        $session = (new Session())->setMontantCents(83200);
+        self::assertSame(20.0, $session->getTauxTvaEffectif());
+        self::assertSame(99840, $session->getTarifTtcCents());
+        $session->setFormation((new Formation())->setTauxTva(10));
+        self::assertSame(91520, $session->getTarifTtcCents());
+        $session->setTauxTva(5.5);
+        $result = (new SessionFinancialSummary())->calculate($session, [], []);
+        self::assertSame(4576, $result['sessionTax']);
+        self::assertSame(87776, $result['sessionTtc']);
+        $session->setTauxTva(0);
+        self::assertSame(83200, $session->getTarifTtcCents());
+        $session->setTauxTva(null);
+        self::assertSame(10.0, $session->getTauxTvaEffectif());
+    }
+
     private function convention(Session $s, ?int $ht = 100000): ConventionContrat { return (new ConventionContrat())->setSession($s)->setEntite($s->getEntite())->setMontantHtCents($ht)->setTauxTva(20); }
     private function contract(Session $s, Formateur $f, int $cost): ContratFormateur { return (new ContratFormateur())->setSession($s)->setEntite($s->getEntite())->setFormateur($f)->setMontantPrevuCents($cost); }
     public function testTotalsIncludeAllTrainersAndMissionExpenses(): void {

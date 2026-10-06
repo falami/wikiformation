@@ -58,6 +58,7 @@ class SessionType extends AbstractType
 
 
             ->add('formation', EntityType::class, [
+                'choice_attr' => fn(Formation $f) => ['data-ht' => $f->getPrixBaseCents() ?? 0, 'data-tva' => $f->getTauxTva()],
                 'class' => Formation::class,
                 'label' => '*Formation',
                 'required' => false,
@@ -183,14 +184,19 @@ class SessionType extends AbstractType
                 },
             ])
             ->add('montantCents', TextType::class, [
-                'label' => 'Tarif spécifique (€)',
+                'label' => 'Tarif spécifique HT (€)',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-control',
                     'inputmode' => 'decimal',
                     'placeholder' => '1 390,00',
                 ],
-                'help' => 'Laisse vide pour utiliser le prix de la formation.',
+                'help' => 'Montant hors taxes. Vide : tarif HT de la formation.',
+            ])
+            ->add('tauxTva', \Symfony\Component\Form\Extension\Core\Type\NumberType::class, [
+                'label' => 'Taux de TVA (%)', 'required' => false, 'scale' => 2,
+                'attr' => ['class' => 'form-control', 'inputmode' => 'decimal', 'placeholder' => 'TVA de la formation ou 20 %'],
+                'help' => 'Choisissez un taux ou saisissez un taux personnalisé. Effacer la sélection reprend la TVA de la formation, sinon 20 %.',
             ])
             ->add('jours', CollectionType::class, [
                 'entry_type' => SessionJourType::class,

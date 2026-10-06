@@ -37,7 +37,7 @@ final class SessionFinancialSummary
         }
         if (!$count) {
             $ht = $session->getTarifEffectifCents() * (new SessionParticipantCount())->count($session);
-            $amounts['EUR'] = ['ht' => $ht, 'tax' => (int) round($ht * ($session->getFormation()?->getTauxTva() ?? 0) / 100)];
+            $amounts['EUR'] = ['ht' => $ht, 'tax' => (int) round($ht * $session->getTauxTvaEffectif() / 100)];
             $estimated = true;
         }
         $cost = 0; $trainerCount = 0; $covered = [];
@@ -51,7 +51,7 @@ final class SessionFinancialSummary
         $missing = 0;
         foreach ($session->getFormateursEffectifs() as $trainer) if (!isset($covered[spl_object_id($trainer)])) ++$missing;
         ksort($amounts);
-        return ['amounts' => $amounts, 'estimated' => $estimated, 'conventions' => $count, 'trainerCost' => $cost,
+        return ['sessionHt' => $session->getTarifEffectifCents(), 'sessionRate' => $session->getTauxTvaEffectif(), 'sessionTax' => $session->getTarifTvaCents(), 'sessionTtc' => $session->getTarifTtcCents(), 'amounts' => $amounts, 'estimated' => $estimated, 'conventions' => $count, 'trainerCost' => $cost,
             'contracts' => $trainerCount, 'missingTrainers' => $missing,
             'remaining' => count($amounts) === 1 && isset($amounts['EUR']) && $trainerCount > 0 && $missing === 0 ? $amounts['EUR']['ht'] - $cost : null];
     }
