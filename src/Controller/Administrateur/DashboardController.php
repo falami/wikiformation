@@ -33,8 +33,9 @@ final class DashboardController extends AbstractController
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]
-  public function index(Entite $entite): Response
+  public function index(Entite $entite, \App\Service\Session\SessionLifecycle $lifecycle): Response
   {
+    $lifecycle->synchronize($entite);
     /** @var Utilisateur $user */
     $user = $this->getUser();
 

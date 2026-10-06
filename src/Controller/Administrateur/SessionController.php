@@ -53,6 +53,7 @@ final class SessionController extends AbstractController
         private ContratFormateurNumberGenerator $contratNumberGenerator,
         private FormateurSatAssigner $formateurSatisfactionAssigner,
         private BillingGuard $billingGuard,
+        private \App\Service\Session\SessionLifecycle $lifecycle,
     ) {}
 
 
@@ -106,6 +107,7 @@ final class SessionController extends AbstractController
     #[Route('', name: 'app_administrateur_session_index', methods: ['GET'])]
     public function index(Entite $entite): Response
     {
+        $this->lifecycle->synchronize($entite);
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -669,6 +671,14 @@ final class SessionController extends AbstractController
                     $timeClass = 'bg-secondary-subtle text-secondary';
                     $timeIcon = 'bi-check2-circle';
                     $timeLabel = 'Terminé';
+                } elseif (in_array($s->getStatus(), [StatusSession::ON_HOLD, StatusSession::MISSING_DOCUMENTS, StatusSession::IN_PROGRESS], true)) {
+                    $timeClass = match ($s->getStatus()) {
+                        StatusSession::ON_HOLD => 'bg-warning-subtle text-warning',
+                        StatusSession::MISSING_DOCUMENTS => 'bg-danger-subtle text-danger',
+                        default => 'bg-success-subtle text-success',
+                    };
+                    $timeIcon = 'bi-info-circle';
+                    $timeLabel = $s->getStatus()->label();
                 } elseif ($min && $max) {
                     if ($min > $now) {
                         $timeClass = 'bg-info-subtle text-info';
@@ -1373,7 +1383,10 @@ final class SessionController extends AbstractController
         }
 
         $class = match ($st) {
-            StatusSession::DRAFT     => 'text-bg-secondary',
+            StatusSession::IN_PROGRESS => 'bg-success text-white',
+      StatusSession::ON_HOLD => 'bg-warning text-dark',
+      StatusSession::MISSING_DOCUMENTS => 'bg-danger text-white',
+      StatusSession::DRAFT     => 'text-bg-secondary',
             StatusSession::PUBLISHED => 'text-bg-success',
             StatusSession::FULL      => 'text-bg-warning',
             StatusSession::CANCELED  => 'text-bg-dark',
@@ -1864,23 +1877,8 @@ final class SessionController extends AbstractController
             $em->persist($session);
             $em->flush(); // ✅ IMPORTANT : session doit avoir un id
 
-            // ✅ si on vient de passer à FULL => créer les assignments
-            // ✅ si on vient de passer à FULL => créer les assignments
-            if ($session->getTypeFinancement() !== TypeFinancement::OUI) {
-                if ($oldStatus !== StatusSession::FULL && $session->getStatus() === StatusSession::FULL) {
-
-                    $createdStagiaires = $this->satisfactionAssigner->assignForSession($session, $user, $entite);
-                    $createdFormateurs = $this->formateurSatisfactionAssigner->assignForSession($session, $user, $entite);
-
-                    $em->flush();
-
-                    $this->addFlash('success', sprintf(
-                        'Session passée à "Complète" : %d affectation(s) stagiaire + %d affectation(s) formateur créées.',
-                        $createdStagiaires,
-                        $createdFormateurs
-                    ));
-                }
-            }
+            $this->lifecycle->assignQuestionnaires($session);
+            $em->flush();
 
             $this->addFlash('success', $isEdit ? 'Session modifiée.' : 'Session créée.');
             return $this->redirectToRoute('app_administrateur_session_index', [

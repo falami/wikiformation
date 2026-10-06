@@ -20,7 +20,7 @@ final class FormateurSatisfactionAssigner
    */
   public function assignForSession(Session $session, Utilisateur $user, Entite $entite): int
   {
-    if (method_exists($session, 'getStatus') && $session->getStatus() !== StatusSession::FULL) {
+    if (method_exists($session, 'getStatus') && !in_array($session->getStatus(), [StatusSession::FULL, StatusSession::IN_PROGRESS], true)) {
       return 0;
     }
 

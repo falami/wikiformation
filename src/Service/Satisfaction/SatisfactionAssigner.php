@@ -17,7 +17,7 @@ final class SatisfactionAssigner
 
   public function assignForSessionIfFull(Session $session, Utilisateur $user, Entite $entite): void
   {
-    if ($session->getStatus() !== StatusSession::FULL) return;
+    if (!in_array($session->getStatus(), [StatusSession::FULL, StatusSession::IN_PROGRESS], true)) return;
 
     $tpl = $session->getFormation()?->getSatisfactionTemplate();
     if (!$tpl) return;
@@ -27,18 +27,19 @@ final class SatisfactionAssigner
     }
   }
 
-  public function assignForInscriptionIfEligible(Inscription $inscription, Utilisateur $user, Entite $entite): void
+  public function assignForInscriptionIfEligible(Inscription $inscription, Utilisateur $user, Entite $entite): bool
   {
       $session = $inscription->getSession();
-      if (!$session) return;
+      if (!$session) return false;
+      if (in_array($inscription->getStatus(), [\App\Enum\StatusInscription::ANNULE, \App\Enum\StatusInscription::ABSENT], true)) return false;
 
-      if ($session->getStatus() !== StatusSession::FULL) return;
+      if (!in_array($session->getStatus(), [StatusSession::FULL, StatusSession::IN_PROGRESS], true)) return false;
 
       $tpl = $session->getFormation()?->getSatisfactionTemplate();
-      if (!$tpl) return;
+      if (!$tpl) return false;
 
       $stagiaire = $inscription->getStagiaire();
-      if (!$stagiaire) return;
+      if (!$stagiaire) return false;
 
       $repo = $this->em->getRepository(SatisfactionAssignment::class);
 
@@ -47,7 +48,7 @@ final class SatisfactionAssigner
           'inscription' => $inscription,
           'template'    => $tpl,
       ]);
-      if ($existing) return;
+      if ($existing) return false;
 
       $a = (new SatisfactionAssignment())
           ->setCreateur($user)
@@ -62,6 +63,7 @@ final class SatisfactionAssigner
       // $inscription->addSatisfactionAssignment($a);
 
       $this->em->persist($a);
+      return true;
   }
 
 
@@ -71,7 +73,7 @@ final class SatisfactionAssigner
    */
   public function assignForSession(Session $session, Utilisateur $user, Entite $entite): int
   {
-      if ($session->getStatus() !== StatusSession::FULL) return 0;
+      if (!in_array($session->getStatus(), [StatusSession::FULL, StatusSession::IN_PROGRESS], true)) return 0;
 
       $tpl = $session->getFormation()?->getSatisfactionTemplate();
       if (!$tpl) return 0;

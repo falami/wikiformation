@@ -52,7 +52,7 @@ class SessionType extends AbstractType
                 'choice_label' => fn($e) => match ($e) {
                     TypeFinancement::NON => 'Non',
                     TypeFinancement::OUI => 'Oui',
-                    default => $e->name,
+                    default => $e->label(),
                 },
             ])
 
@@ -173,6 +173,7 @@ class SessionType extends AbstractType
             ->add('status', EnumType::class, [
                 'class' => StatusSession::class,
                 'label' => 'Statut',
+                'help' => 'En cours : démarrage automatique des sessions publiées ou complètes selon le planning. En attente : session suspendue. Documents manquants : suivi administratif à compléter. Ces deux derniers états restent manuels.',
                 'attr'  => ['class' => 'form-select'],
                 'choice_label' => fn($e) => match ($e) {
                     StatusSession::DRAFT        => 'Brouillon',
@@ -180,7 +181,7 @@ class SessionType extends AbstractType
                     StatusSession::FULL         => 'Complète',
                     StatusSession::CANCELED     => 'Annulée',
                     StatusSession::DONE         => 'Terminée',
-                    default => $e->name,
+                    default => $e->label(),
                 },
             ])
             ->add('montantCents', TextType::class, [

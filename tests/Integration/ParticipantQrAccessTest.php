@@ -75,6 +75,33 @@ final class ParticipantQrAccessTest extends KernelTestCase
         self::assertLessThan(time(), $this->access->roster($this->session)[0]->getExpiresAt()->getTimestamp());
     }
 
+    public function testSessionLifecycleStartsAndAssignsWithoutOverridingWaitingStates(): void
+    {
+        $lifecycle = self::getContainer()->get(\App\Service\Session\SessionLifecycle::class);
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris'));
+        foreach ($this->session->getJours() as $day) {
+            $day->setDateDebut($now->modify('-1 hour'))->setDateFin($now->modify('+1 hour'));
+        }
+        $template = (new \App\Entity\SatisfactionTemplate())->setEntite($this->session->getEntite())->setCreateur($this->admin);
+        $this->em->persist($template);
+        $this->session->getFormation()->setSatisfactionTemplate($template);
+        $this->session->setStatus(StatusSession::PUBLISHED);
+        $this->em->flush();
+        $lifecycle->synchronize($this->session->getEntite());
+        self::assertSame(StatusSession::IN_PROGRESS, $this->session->getStatus());
+        self::assertSame(1, $this->em->getRepository(\App\Entity\SatisfactionAssignment::class)->count(['session' => $this->session]));
+        $lifecycle->assignQuestionnaires($this->session);
+        $this->em->flush();
+        self::assertSame(1, $this->em->getRepository(\App\Entity\SatisfactionAssignment::class)->count(['session' => $this->session]));
+        foreach ([StatusSession::DRAFT, StatusSession::ON_HOLD, StatusSession::MISSING_DOCUMENTS, StatusSession::DONE, StatusSession::CANCELED] as $status) {
+            $this->session->setStatus($status);
+            self::assertFalse($lifecycle->shouldStart($this->session, $now));
+        }
+        $this->session->setStatus(StatusSession::FULL);
+        self::assertFalse($lifecycle->shouldStart($this->session, $now->modify('-2 hours')));
+        self::assertFalse($lifecycle->shouldStart($this->session, $now->modify('+2 hours')));
+    }
+
     public function testRosterIsStableAndDoesNotCreateAccounts(): void
     {
         $roster = $this->access->roster($this->session);

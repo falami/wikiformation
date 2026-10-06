@@ -104,8 +104,9 @@ class DashboardFormateurController extends AbstractController
      * DASHBOARD
      * ========================================================= */
     #[Route('/dashboard', name: 'dashboard', methods: ['GET'])]
-    public function dashboard(Entite $entite, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp): Response
+    public function dashboard(Entite $entite, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle): Response
     {
+    $lifecycle->synchronize($entite);
         /** @var Utilisateur $user */
         $user = $this->getUser();
 

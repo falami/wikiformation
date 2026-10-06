@@ -956,6 +956,9 @@ final class UtilisateurController extends AbstractController
   private function sessionStatusBadge(StatusSession $s): string
   {
     $class = match ($s) {
+      StatusSession::IN_PROGRESS => 'bg-success text-white',
+      StatusSession::ON_HOLD => 'bg-warning text-dark',
+      StatusSession::MISSING_DOCUMENTS => 'bg-danger text-white',
       StatusSession::DRAFT     => 'bg-secondary',
       StatusSession::PUBLISHED => 'bg-primary',
       StatusSession::FULL      => 'bg-warning text-dark',
