@@ -602,11 +602,12 @@
           <div class="row g-3">
             <div class="col-md-6">{{ form_row(form.capacite) }}</div>
             <div class="col-md-6">{{ form_row(form.montantCents) }}</div>
+            <div class="col-12">{{ form_row(form.montantGlobalCents) }}</div>
             <div class="col-md-6">{{ form_row(form.tauxTva) }}</div>
             <div class="col-md-6"><label class="form-label">Tarif TTC calculé</label><output id="session-tarif-ttc" class="form-control bg-light" aria-live="polite">—</output><small id="session-tarif-tax" class="text-muted"></small></div>
           </div>
           <div class="form-text mt-2">
-            Le tarif HT effectif reprend le montant personnalisé, sinon le prix HT de la formation. Le TTC inclut la TVA choisie.
+            Renseignez un prix par participant ou un forfait global. Le forfait global est prioritaire ; les montants des devis et conventions déjà enregistrés restent inchangés.
           </div>
         </div>
       </div>
@@ -1810,14 +1811,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if ($r.capacite) $r.capacite.textContent = cap ? cap : '-';
 
     const option = $formation?.selectedOptions?.[0];
-    const m = ($montant?.value || '').trim() !== '' ? parseEuros($montant.value) : Number(option?.dataset.ht || 0) / 100;
+    const globalPrice = document.getElementById('{{ form.montantGlobalCents.vars.id }}');
+    const isGlobal = globalPrice.value.trim() !== '';
+    const m = isGlobal ? parseEuros(globalPrice.value) : ($montant?.value || '').trim() !== '' ? parseEuros($montant.value) : Number(option?.dataset.ht || 0) / 100;
     const vatInput = document.getElementById('{{ form.tauxTva.vars.id }}');
     const rate = vatInput.value.trim() !== '' ? parseEuros(vatInput.value) : Number(option?.dataset.tva ?? 20);
     const htCents = Math.round(m * 100);
     const tax = Math.round(htCents * rate / 100) / 100;
     const ttc = htCents / 100 + tax;
     document.getElementById('session-tarif-ttc').textContent = formatMoney(ttc);
-    document.getElementById('session-tarif-tax').textContent = 'TVA ' + rate + ' % : ' + formatMoney(tax);
+    document.getElementById('session-tarif-tax').textContent = (isGlobal ? 'Forfait global · ' : 'Par participant · ') + 'TVA ' + rate + ' % : ' + formatMoney(tax);
     if ($r.montant) $r.montant.textContent = formatMoney(m) + ' HT · TVA ' + rate + ' % · ' + formatMoney(ttc) + ' TTC';
 
     updateChipJours();
@@ -1851,7 +1854,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   formMain?.addEventListener('input', refreshResume);
   formMain?.addEventListener('change', refreshResume);
-  [$montant, document.getElementById('{{ form.tauxTva.vars.id }}')].forEach(el => el?.addEventListener('input', refreshResume));
+  [$montant, document.getElementById('{{ form.montantGlobalCents.vars.id }}'), document.getElementById('{{ form.tauxTva.vars.id }}')].forEach(el => el?.addEventListener('input', refreshResume));
   [$code,$capacite,$montant].forEach(el => el && el.addEventListener('change', refreshResume));
 
   // ✅ rafraîchit résumé si l’intitulé libre change

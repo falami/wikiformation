@@ -41,7 +41,7 @@ final class SessionConventionTotals
                 $amount = $quote->getMontantHtCents();
             } else {
                 $currency = 'EUR';
-                $amount = $session->getTarifEffectifCents() * $convention->getEffectifTotal();
+                $amount = $session->estimatePriceForParticipants($convention->getEffectifTotal());
                 ++$result['estimatedCount'];
             }
             $result['amounts'][$currency] = ($result['amounts'][$currency] ?? 0) + $amount;

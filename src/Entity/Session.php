@@ -57,6 +57,10 @@ class Session
     #[ORM\Column(nullable: true, options: ['unsigned' => true])]
     private ?int $montantCents = null;
 
+    #[ORM\Column(nullable: true)]
+    #[Assert\PositiveOrZero]
+    private ?int $montantGlobalCents = null;
+
     // 🖥️ Équipements pédagogiques
     #[ORM\Column(options: ['default' => true])]
     private bool $equipOrdinateurFormateur = true;
@@ -344,6 +348,21 @@ class Session
     public function getTauxTvaEffectif(): float { return $this->tauxTva ?? $this->formation?->getTauxTva() ?? 20; }
     public function getTarifTvaCents(): int { return (int) round($this->getTarifEffectifCents() * $this->getTauxTvaEffectif() / 100); }
     public function getTarifTtcCents(): int { return $this->getTarifEffectifCents() + $this->getTarifTvaCents(); }
+
+    public function getMontantGlobalCents(): ?int { return $this->montantGlobalCents; }
+    public function setMontantGlobalCents(?int $amount): static { $this->montantGlobalCents = $amount; return $this; }
+    public function getTarifTotalHtCents(): int
+    {
+        return $this->montantGlobalCents ?? $this->getTarifEffectifCents() * (new \App\Service\Session\SessionParticipantCount())->count($this);
+    }
+
+    /** Estimated share of the session price; document-specific amounts remain authoritative. */
+    public function estimatePriceForParticipants(int $count): int
+    {
+        if ($this->montantGlobalCents === null) return $this->getTarifEffectifCents() * $count;
+        $total = (new \App\Service\Session\SessionParticipantCount())->count($this);
+        return $total > 0 ? (int) round($this->montantGlobalCents * min($count, $total) / $total) : $this->montantGlobalCents;
+    }
 
     public function getTarifEffectifCents(): int
     {

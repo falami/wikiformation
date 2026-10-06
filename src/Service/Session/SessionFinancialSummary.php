@@ -28,7 +28,7 @@ final class SessionFinancialSummary
                 $ht = $quote->getMontantHtCents();
                 $tax = $quote->getMontantTvaCents();
             } else {
-                $ht = $session->getTarifEffectifCents() * $convention->getEffectifTotal();
+                $ht = $session->estimatePriceForParticipants($convention->getEffectifTotal());
                 $tax = (int) round($ht * $convention->getTauxTva() / 100);
                 $estimated = true;
             }
@@ -36,7 +36,7 @@ final class SessionFinancialSummary
             $amounts[$currency]['tax'] = ($amounts[$currency]['tax'] ?? 0) + $tax;
         }
         if (!$count) {
-            $ht = $session->getTarifEffectifCents() * (new SessionParticipantCount())->count($session);
+            $ht = $session->getTarifTotalHtCents();
             $amounts['EUR'] = ['ht' => $ht, 'tax' => (int) round($ht * $session->getTauxTvaEffectif() / 100)];
             $estimated = true;
         }
@@ -51,7 +51,9 @@ final class SessionFinancialSummary
         $missing = 0;
         foreach ($session->getFormateursEffectifs() as $trainer) if (!isset($covered[spl_object_id($trainer)])) ++$missing;
         ksort($amounts);
-        return ['sessionHt' => $session->getTarifEffectifCents(), 'sessionRate' => $session->getTauxTvaEffectif(), 'sessionTax' => $session->getTarifTvaCents(), 'sessionTtc' => $session->getTarifTtcCents(), 'amounts' => $amounts, 'estimated' => $estimated, 'conventions' => $count, 'trainerCost' => $cost,
+        $base = $session->getMontantGlobalCents() ?? $session->getTarifEffectifCents();
+        $tax = (int) round($base * $session->getTauxTvaEffectif() / 100);
+        return ['global' => $session->getMontantGlobalCents() !== null, 'sessionHt' => $base, 'sessionRate' => $session->getTauxTvaEffectif(), 'sessionTax' => $tax, 'sessionTtc' => $base + $tax, 'amounts' => $amounts, 'estimated' => $estimated, 'conventions' => $count, 'trainerCost' => $cost,
             'contracts' => $trainerCount, 'missingTrainers' => $missing,
             'remaining' => count($amounts) === 1 && isset($amounts['EUR']) && $trainerCount > 0 && $missing === 0 ? $amounts['EUR']['ht'] - $cost : null];
     }

@@ -23,6 +23,24 @@ final class SessionFinancialSummaryTest extends TestCase
         self::assertSame(10.0, $session->getTauxTvaEffectif());
     }
 
+    public function testGlobalPriceIsNotMultipliedAndCanReturnToPerParticipant(): void
+    {
+        $s = (new Session())->setMontantCents(60000)->setMontantGlobalCents(150000)->setTauxTva(20)->setEntite(new Entite());
+        foreach (range(1, 3) as $i) $s->addInscription((new Inscription())->setEntite($s->getEntite())->setStagiaire(new Utilisateur()));
+        $calculator = new SessionFinancialSummary();
+        $result = $calculator->calculate($s, [], []);
+        self::assertSame(150000, $result['amounts']['EUR']['ht']);
+        self::assertSame(30000, $result['amounts']['EUR']['tax']);
+        self::assertSame(180000, $result['sessionTtc']);
+        self::assertTrue($result['global']);
+        $result = $calculator->calculate($s, [$this->convention($s, 90000)], []);
+        self::assertSame(90000, $result['amounts']['EUR']['ht']);
+        $s->setMontantGlobalCents(0);
+        self::assertSame(0, $calculator->calculate($s, [], [])['amounts']['EUR']['ht']);
+        $s->setMontantGlobalCents(null);
+        self::assertSame(180000, $calculator->calculate($s, [], [])['amounts']['EUR']['ht']);
+    }
+
     private function convention(Session $s, ?int $ht = 100000): ConventionContrat { return (new ConventionContrat())->setSession($s)->setEntite($s->getEntite())->setMontantHtCents($ht)->setTauxTva(20); }
     private function contract(Session $s, Formateur $f, int $cost): ContratFormateur { return (new ContratFormateur())->setSession($s)->setEntite($s->getEntite())->setFormateur($f)->setMontantPrevuCents($cost); }
     public function testTotalsIncludeAllTrainersAndMissionExpenses(): void {

@@ -185,7 +185,7 @@ class SessionType extends AbstractType
                 },
             ])
             ->add('montantCents', TextType::class, [
-                'label' => 'Tarif spécifique HT (€)',
+                'label' => 'Tarif HT par participant (€)',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-control',
@@ -193,6 +193,11 @@ class SessionType extends AbstractType
                     'placeholder' => '1 390,00',
                 ],
                 'help' => 'Montant hors taxes. Vide : tarif HT de la formation.',
+            ])
+            ->add('montantGlobalCents', TextType::class, [
+                'label' => 'Forfait global HT de la session (€)', 'required' => false,
+                'attr' => ['class' => 'form-control', 'inputmode' => 'decimal', 'placeholder' => 'Ex. 1 800,00'],
+                'help' => 'Si renseigné, ce total remplace le tarif par participant. Il ne sera pas multiplié par l’effectif. Effacez-le pour revenir au tarif par participant.',
             ])
             ->add('tauxTva', \Symfony\Component\Form\Extension\Core\Type\NumberType::class, [
                 'label' => 'Taux de TVA (%)', 'required' => false, 'scale' => 2,
@@ -286,6 +291,7 @@ class SessionType extends AbstractType
         ;
 
         $b->get('montantCents')->addModelTransformer($this->eurosToCents);
+        $b->get('montantGlobalCents')->addModelTransformer($this->eurosToCents);
     }
 
     public function configureOptions(OptionsResolver $r): void
