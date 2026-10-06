@@ -1190,8 +1190,8 @@ html, body{
           <div class="small text-muted mb-2">{{ item.session.code }} · Fin le {{ item.lastDate|date('d/m/Y', false) }}</div>
           <h3 class="h6 fw-bold">{{ item.session.formationLabel }}</h3>
           <div class="d-flex flex-wrap gap-2 my-3">
-            {% if item.attendance %}<span class="badge bg-warning-subtle text-warning-emphasis">{{ item.attendance }} émargement(s) manquant(s)</span>{% endif %}
-            {% if item.satisfaction %}<span class="badge bg-info-subtle text-info-emphasis">{{ item.satisfaction }} appréciation(s) stagiaire(s) manquante(s)</span>{% endif %}
+            {% if item.attendance %}<span class="badge bg-warning-subtle text-warning-emphasis">{{ item.attendance }} {% if item.attendance|length > 1 %}émargements manquants{% else %}émargement manquant{% endif %}</span>{% endif %}
+            {% if item.satisfaction %}<span class="badge bg-info-subtle text-info-emphasis">{{ item.satisfaction }} {% if item.satisfaction|length > 1 %}appréciations stagiaires manquantes{% else %}appréciation stagiaire manquante{% endif %}</span>{% endif %}
           </div>
           <a class="btn btn-outline-primary btn-sm rounded-pill" href="{{ path('app_formateur_session_show', {entite: entite.id, id: item.session.id}) }}"><i class="bi bi-arrow-right me-1"></i> Ouvrir la session</a>
           <a class="btn btn-warning btn-sm rounded-pill ms-1" href="{{ path('app_formateur_session_qr', {entite: entite.id, id: item.session.id}) }}"><i class="bi bi-qr-code me-1"></i> QR codes participants</a>
