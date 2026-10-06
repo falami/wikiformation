@@ -47,7 +47,8 @@ final class TrainerSessionFollowUp
         }
         foreach ($session->getEmargements() as $e) {
             if (!$e->getSignedAt() && !$e->getSignaturePath() && !$e->getSignatureDataUrl()) continue;
-            $key = $e->getUtilisateur() ? ($e->getRole() === 'formateur' ? 'trainer:' : 'user:').$e->getUtilisateur()->getId() : $e->getParticipantAccess()?->getSourceKey();
+            // Trainer signatures use "trainer"; keep compatibility with "formateur".
+            $key = $e->getUtilisateur() ? (in_array($e->getRole(), ['trainer', 'formateur'], true) ? 'trainer:' : 'user:').$e->getUtilisateur()->getId() : $e->getParticipantAccess()?->getSourceKey();
             unset($expected[$e->getDateJour()->format('Y-m-d').':'.$e->getPeriode()->value.':'.$key]);
         }
         $remaining = $people;
