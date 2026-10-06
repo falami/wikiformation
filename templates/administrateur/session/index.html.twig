@@ -336,7 +336,7 @@
       scrollbar-gutter: stable both-edges;
     }
 
-    /* Colonnes : permettre wrap sur Infos (4) */
+    /* Colonne Infos : permettre le retour à la ligne */
     #tableauSession td:nth-child(2){
       white-space: normal !important;
       width:150px !important;
@@ -484,8 +484,8 @@
     .session-finance-net{background:#e7f5ed;color:#216547;padding:10px;border-radius:9px;margin-top:12px}
     .session-finance-net.is-negative{background:#fcebee;color:#ac3545}
     /* ===== Colonne Tarif : ne jamais couper le montant / € ===== */
-  #tableauSession th:nth-child(6),
-  #tableauSession td:nth-child(6){
+  #tableauSession th:nth-child(3),
+  #tableauSession td:nth-child(3){
     white-space: nowrap !important;
   }
 
@@ -912,11 +912,10 @@ body .session-floating-dropdown{
       <thead>
         <tr>
           <th>Avancement</th>
-          <th>Dates</th>
           <th>Infos</th>
+          <th>Tarif</th>
           <th>Participants</th>
           <th>Capacité</th>
-          <th>Tarif</th>
           <th>Satisfaction</th>
           <th>Statut</th>
           <th class="action-column text-end"></th>
@@ -1136,17 +1135,18 @@ $(function(){
     columns:[
       {data:'dossier', name:'dossier', orderable:true, searchable:false},
       {
-        data:'dates',
+        data:'infos',
         name:'dates',
+        orderable:true,
+        searchable:true,
         render: function(data, type, row){
           if(type === 'sort' || type === 'type') return row.dateStartSort || '';
-          return data;
+          return (data || '') + '<div class="session-info-dates mt-3 pt-2 border-top">' + (row.dates || '') + '</div>';
         }
       },
-      {data:'infos', name:'infos', orderable:false, searchable:true},
+      {data:'tarif', name:'tarif', orderable:false, searchable:false},
       {data:'participants', name:'participants', orderable:false, searchable:false},
       {data:'capacite', name:'capacite', orderable:false, searchable:false},
-      {data:'tarif', name:'tarif', orderable:false, searchable:false},
       {data:'satisfaction', name:'satisfaction', orderable:false, searchable:false}, // ✅ NEW
       {data:'status', name:'status', orderable:true, searchable:false},
       {data:'actions', name:'actions', orderable:false, searchable:false}
@@ -1154,9 +1154,9 @@ $(function(){
     ],
 
     columnDefs:[
-      {targets: 8, className:'action-column text-end', orderable:false, searchable:false}, // ✅ actions = 8 maintenant
-      {targets: [0,1,2,3,4,5,6,7], className:'text-center'},
-      {targets: 6, width: '360px'} // ✅ satisfaction = index 6 maintenant (0-based)
+      {targets: 7, className:'action-column text-end', orderable:false, searchable:false},
+      {targets: [0,1,2,3,4,5,6], className:'text-center'},
+      {targets: 5, width: '360px'} // Satisfaction
     ],
 
     order:[[1,'desc']],
