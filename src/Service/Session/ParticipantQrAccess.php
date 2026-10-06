@@ -42,7 +42,7 @@ final class ParticipantQrAccess
             $key = $this->inscriptionKey($inscription);
             $access = $existing[$key] ?? $this->create($session, $key);
             $access->setInscription($inscription)->setDisplayName($this->learnerName($inscription));
-            $this->activate($access, $session);
+            $this->activate($access, $session, true);
             $roster[] = $access;
             unset($existing[$key]);
         }
@@ -50,7 +50,7 @@ final class ParticipantQrAccess
             foreach ($this->guestSources($convention) as $key => $name) {
                 $access = $existing[$key] ?? $this->create($session, $key);
                 $access->setConvention($convention)->setDisplayName($name);
-                $this->activate($access, $session);
+                $this->activate($access, $session, true);
                 $roster[] = $access;
                 unset($existing[$key]);
             }
@@ -101,7 +101,7 @@ final class ParticipantQrAccess
         if (!$access || !$access->isActive() || $access->getVersion() !== (int) $version || $access->getExpiresAt()->getTimestamp() < (int) $expiry) return null;
         $session = $access->getSession();
         if (!$session || $session->getStatus() === StatusSession::CANCELED || !$session->getEntite() || $session->getEntite()->isActive() === false || $access->getEntite()?->getId() !== $session->getEntite()->getId()) return null;
-        if ($session->getDateFin() && $session->getDateFin()->modify('+90 days')->getTimestamp() <= time()) return null;
+        if ($session->getStatus() === StatusSession::DONE && $session->getDateFin() && $session->getDateFin()->modify('+90 days')->getTimestamp() <= time()) return null;
         // The source is checked again on every anonymous visit: a convention edit revokes links immediately.
         if ($access->isGuest()) {
             $convention = $access->getConvention();
@@ -121,10 +121,20 @@ final class ParticipantQrAccess
         return $access;
     }
 
-    private function activate(SessionParticipantAccess $access, Session $session): void
+    private function activate(SessionParticipantAccess $access, Session $session, bool $authorizedRoster = false): void
     {
         $access->setActive($session->getStatus() !== StatusSession::CANCELED);
-        if ($session->getDateFin()) $access->setExpiresAt($session->getDateFin()->modify('+90 days'));
+        if (!$session->getDateFin()) return;
+        $expiry = $session->getDateFin()->modify('+90 days');
+        if ($expiry->getTimestamp() <= time() && !in_array($session->getStatus(), [StatusSession::DONE, StatusSession::CANCELED], true)) {
+            // Only the authorized roster can renew an expired access. Anonymous visits never renew it.
+            if ($authorizedRoster && (!$access->getId() || $access->getExpiresAt()->getTimestamp() <= time())) {
+                $expiry = new \DateTimeImmutable('+7 days');
+            } elseif ($access->getId() && $access->getExpiresAt() > $expiry) {
+                $expiry = $access->getExpiresAt();
+            }
+        }
+        $access->setExpiresAt($expiry);
     }
 
     private function requireSession(Session $session): void

@@ -66,6 +66,70 @@ final class ParticipantQrPublicTest extends KernelTestCase
         }
     }
 
+    public function testRenderedParisDateCanBeSubmittedWhenTwigUsesUtc(): void
+    {
+        self::getContainer()->get('twig')->getExtension(\Twig\Extension\CoreExtension::class)->setTimezone('UTC');
+        $day = new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris'));
+        foreach ($this->session->getJours() as $jour) {
+            $jour->setDateDebut($day->setTime(8, 30))->setDateFin($day->setTime(17, 0));
+        }
+        $this->em->flush();
+        $client = $this->client();
+        $url = $this->url($this->guest, 'attendance');
+        $crawler = $client->request('GET', $url);
+        $renderedDate = $crawler->filter('input[name="date"]')->attr('value');
+        self::assertSame($day->format('Y-m-d'), $renderedDate);
+        self::assertStringContainsString('Émargement du '.$day->format('d/m/Y'), $client->getResponse()->getContent());
+        $data = $this->attendanceData($crawler->filter('[name="_token"]')->attr('value'));
+        $data['date'] = $renderedDate;
+        $client->request('POST', $url, $data);
+        self::assertSame(303, $client->getResponse()->getStatusCode());
+        $record = $this->em->getRepository(Emargement::class)->findOneBy(['participantAccess' => $this->guest]);
+        self::assertNotNull($record);
+        self::assertSame($day->format('Y-m-d'), $record->getDateJour()->format('Y-m-d'));
+    }
+
+    public function testPastPlannedDayCanBeSignedWithActualSigningTime(): void
+    {
+        $day = new \DateTimeImmutable('-20 days', new \DateTimeZone('Europe/Paris'));
+        foreach ($this->session->getJours() as $jour) $jour->setDateDebut($day->setTime(8, 30))->setDateFin($day->setTime(17, 0));
+        $this->em->flush();
+        $client = $this->client();
+        $url = $this->url($this->guest, 'attendance');
+        $crawler = $client->request('GET', $url);
+        self::assertSame($day->format('Y-m-d'), $crawler->filter('input[name="date"]')->attr('value'));
+        self::assertStringContainsString('Régularisation de présence', $client->getResponse()->getContent());
+        $data = $this->attendanceData($crawler->filter('[name="_token"]')->attr('value'));
+        $data['date'] = $day->format('Y-m-d');
+        $client->request('POST', $url, $data);
+        self::assertSame(303, $client->getResponse()->getStatusCode());
+        $record = $this->em->getRepository(Emargement::class)->findOneBy(['participantAccess' => $this->guest]);
+        self::assertSame($day->format('Y-m-d'), $record->getDateJour()->format('Y-m-d'));
+        self::assertEqualsWithDelta(time(), $record->getSignedAt()->getTimestamp(), 5);
+        $signedAt = $record->getSignedAt();
+        $client->request('POST', $url, $data);
+        self::assertSame(1, $this->em->getRepository(Emargement::class)->count([]));
+        self::assertEquals($signedAt, $record->getSignedAt());
+        $client->followRedirect();
+        self::assertStringContainsString('Présence enregistrée', $client->getResponse()->getContent());
+        self::assertStringContainsString($day->format('d/m/Y'), $client->getResponse()->getContent());
+    }
+
+    public function testFuturePlannedDayCannotBeSigned(): void
+    {
+        $client = $this->client();
+        $url = $this->url($this->guest, 'attendance');
+        $crawler = $client->request('GET', $url);
+        $data = $this->attendanceData($crawler->filter('[name="_token"]')->attr('value'));
+        $day = new \DateTimeImmutable('tomorrow', new \DateTimeZone('Europe/Paris'));
+        foreach ($this->session->getJours() as $jour) $jour->setDateDebut($day->setTime(8, 30))->setDateFin($day->setTime(17, 0));
+        $this->em->flush();
+        $data['date'] = $day->format('Y-m-d');
+        $client->request('POST', $url, $data);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        self::assertSame(0, $this->em->getRepository(Emargement::class)->count([]));
+    }
+
     public function testGuestCanSignWithoutAccountAndGetNeverSigns(): void
     {
         $client = $this->client();

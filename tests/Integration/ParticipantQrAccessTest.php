@@ -50,6 +50,31 @@ final class ParticipantQrAccessTest extends KernelTestCase
         }
     }
 
+    public function testOldUnfinishedSessionAccessIsRenewedOnlyByAuthorizedRoster(): void
+    {
+        foreach ($this->session->getJours() as $day) {
+            $day->setDateDebut(new \DateTimeImmutable('-180 days 08:30'));
+            $day->setDateFin(new \DateTimeImmutable('-180 days 17:00'));
+        }
+        $this->em->flush();
+        $access = $this->access->forInscription($this->inscription);
+        $expiredToken = $this->access->token($access, 'satisfaction');
+        self::assertNull($this->access->resolve($expiredToken, 'satisfaction'));
+        $roster = $this->access->roster($this->session);
+        $expiry = $access->getExpiresAt();
+        self::assertEqualsWithDelta(time() + 7 * 86400, $expiry->getTimestamp(), 5);
+        $token = $this->access->token($access, 'satisfaction');
+        self::assertSame($access, $this->access->resolve($token, 'satisfaction'));
+        self::assertNull($this->access->resolve($expiredToken, 'satisfaction'));
+        self::assertSame($expiry, $this->access->forInscription($this->inscription)->getExpiresAt());
+        self::assertSame($expiry, $this->access->roster($this->session)[0]->getExpiresAt());
+        // Newly created guest accesses also receive only seven days.
+        self::assertEqualsWithDelta(time() + 7 * 86400, $roster[1]->getExpiresAt()->getTimestamp(), 5);
+        $this->session->setStatus(StatusSession::DONE);
+        self::assertNull($this->access->resolve($token, 'satisfaction'));
+        self::assertLessThan(time(), $this->access->roster($this->session)[0]->getExpiresAt()->getTimestamp());
+    }
+
     public function testRosterIsStableAndDoesNotCreateAccounts(): void
     {
         $roster = $this->access->roster($this->session);

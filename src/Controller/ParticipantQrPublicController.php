@@ -31,15 +31,26 @@ final class ParticipantQrPublicController extends AbstractController
         }
 
         $today = new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris'));
-        $periods = $this->periods($session, $today);
+        $days = [];
+        foreach ($session->getJours() as $jour) {
+            $key = $jour->getDateDebut()?->format('Y-m-d');
+            if (!$key || $key > $today->format('Y-m-d')) continue;
+            $day = new \DateTimeImmutable($key, new \DateTimeZone('Europe/Paris'));
+            if ($this->periods($session, $day)) $days[$key] = $day;
+        }
+        ksort($days);
+        $defaultDate = isset($days[$today->format('Y-m-d')]) ? $today->format('Y-m-d') : array_key_first($days);
+        $requestedDate = $request->isMethod('POST') ? $request->request->get('date') : $request->query->get('date', $defaultDate);
+        $selectedDay = is_string($requestedDate) ? ($days[$requestedDate] ?? null) : null;
+        $periods = $selectedDay ? $this->periods($session, $selectedDay) : [];
         $error = null;
         if ($request->isMethod('POST')) {
             $period = (string) $request->request->get('periode', '');
             $signature = (string) $request->request->get('signature', '');
             if (!$this->isCsrfTokenValid('participant_attendance_' . $access->getId(), $request->request->get('_token'))) {
                 $error = 'Votre page a expiré. Actualisez-la, puis signez à nouveau.';
-            } elseif ($request->request->get('date') !== $today->format('Y-m-d') || !isset($periods[$period])) {
-                $error = 'La signature est uniquement disponible pour une demi-journée prévue aujourd’hui.';
+            } elseif (!$selectedDay || !isset($periods[$period])) {
+                $error = 'Choisissez une demi-journée prévue dans cette session, passée ou aujourd’hui.';
             } elseif ($request->request->get('confirmation') !== '1') {
                 $error = 'Confirmez votre présence avant de valider.';
             } elseif (!$this->validSignature($signature)) {
@@ -49,12 +60,12 @@ final class ParticipantQrPublicController extends AbstractController
                 try {
                     // Serialize submissions for this participant; an existing signature is immutable here.
                     $em->lock($access, LockMode::PESSIMISTIC_WRITE);
-                    $record = $this->attendanceRecord($em, $access, $today, $period);
+                    $record = $this->attendanceRecord($em, $access, $selectedDay, $period);
                     if ($record) $em->refresh($record);
                     if (!$record || !$this->isSigned($record)) {
                         $record ??= (new Emargement())->setSession($session)->setEntite($access->getEntite())
                             ->setCreateur($session->getCreateur())->setUtilisateur($access->getInscription()?->getStagiaire())
-                            ->setParticipantAccess($access)->setRole('stagiaire')->setDateJour($today)->setPeriode(DemiJournee::from($period));
+                            ->setParticipantAccess($access)->setRole('stagiaire')->setDateJour($selectedDay)->setPeriode(DemiJournee::from($period));
                         $record->setSignatureDataUrl($signature)->setSignedAt(new \DateTimeImmutable())
                             ->setIp($request->getClientIp())->setUserAgent(mb_substr((string) $request->headers->get('User-Agent'), 0, 255))
                             ->setUpdatedAt(new \DateTimeImmutable());
@@ -69,17 +80,35 @@ final class ParticipantQrPublicController extends AbstractController
                     $em->rollback();
                     throw $exception;
                 }
-                return $this->privateResponse($this->redirectToRoute('app_participant_qr_attendance', ['token' => $token], 303));
+                return $this->privateResponse($this->redirectToRoute('app_participant_qr_attendance', ['token' => $token, 'date' => $selectedDay->format('Y-m-d')], 303));
             }
+        }
+        // One query for this participant's calendar, including signatures made through other interfaces.
+        $criteria = ['session' => $session, 'entite' => $access->getEntite(), 'role' => 'stagiaire'];
+        if ($user = $access->getInscription()?->getStagiaire()) $criteria['utilisateur'] = $user;
+        else $criteria['participantAccess'] = $access;
+        $signedDays = [];
+        foreach ($em->getRepository(Emargement::class)->findBy($criteria) as $record) {
+            if ($this->isSigned($record)) $signedDays[$record->getDateJour()->format('Y-m-d')][$record->getPeriode()->value] = true;
+        }
+        $calendarStates = [];
+        $completeDays = 0;
+        foreach ($days as $key => $day) {
+            $expected = $this->periods($session, $day);
+            $count = count(array_intersect_key($signedDays[$key] ?? [], $expected));
+            $complete = $count === count($expected);
+            $calendarStates[$key] = ['complete' => $complete, 'signed' => $count, 'expected' => count($expected)];
+            if ($complete) ++$completeDays;
         }
         $signed = [];
         foreach (array_keys($periods) as $period) {
-            $record = $this->attendanceRecord($em, $access, $today, $period);
+            $record = $this->attendanceRecord($em, $access, $selectedDay, $period);
             if ($record && $this->isSigned($record)) $signed[$period] = $record->getSignedAt();
         }
         return $this->privateResponse($this->render('participant_qr/public_attendance.html.twig', [
             'access' => $access, 'session' => $session, 'entite' => $access->getEntite(),
-            'today' => $today, 'periods' => $periods, 'signed' => $signed, 'error' => $error,
+            'calendarStates' => $calendarStates, 'completeDays' => $completeDays,
+            'today' => $today, 'selectedDay' => $selectedDay, 'days' => $days, 'periods' => $periods, 'signed' => $signed, 'error' => $error,
         ], new Response(status: $error ? 422 : 200)));
     }
 

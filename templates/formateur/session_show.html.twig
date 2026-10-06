@@ -32,6 +32,20 @@
     <div><span class="ts-summary-icon"><i class="bi bi-pen"></i></span><div><strong>{{ session.emargementRequis ? 'Matin & après-midi' : 'Gestion externe / clôturée' }}</strong><span>Suivi des émargements</span></div></div>
   </div>
 
+  {% if session.status.value != 'canceled' %}
+  <section class="ts-panel ts-participant-access">
+    <div class="ts-section-title"><span class="ts-icon"><i class="bi bi-qr-code"></i></span><div><h2>Émargements & appréciations</h2><p>Les accès personnels de vos participants, réunis au même endroit.</p></div></div>
+    <div class="ts-access-body">
+      <p>Affichez ou imprimez les QR codes pour permettre à chaque stagiaire de donner son appréciation et de compléter ses émargements, y compris pour les journées passées.</p>
+      <div class="ts-access-actions">
+        <a class="ts-button" href="{{ path('app_formateur_session_qr', {entite: entite.id, id: session.id}) }}"><i class="bi bi-qr-code"></i> QR codes des participants</a>
+        {% if session.emargementRequis %}<a class="ts-button ts-button-light" href="{{ path('app_formateur_emargement_liste', {entite: entite.id, id: session.id}) }}"><i class="bi bi-clipboard-check"></i> Ouvrir la feuille de présence</a>{% endif %}
+      </div>
+      <small>{% if session.sousTraitance %}Les émargements sont gérés par l’organisme donneur d’ordre. Les appréciations restent accessibles.{% else %}Chaque participant choisit la journée concernée et signe personnellement. Les QR codes sont personnels : remettez chaque accès uniquement au participant concerné.{% endif %}</small>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="ts-panel ts-planning">
     <div class="ts-section-title"><span class="ts-icon"><i class="bi bi-calendar-week"></i></span><div><h2>Votre planning</h2><p>Les créneaux de cette session</p></div></div>
     <div class="ts-slots">

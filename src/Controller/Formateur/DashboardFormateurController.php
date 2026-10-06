@@ -104,7 +104,7 @@ class DashboardFormateurController extends AbstractController
      * DASHBOARD
      * ========================================================= */
     #[Route('/dashboard', name: 'dashboard', methods: ['GET'])]
-    public function dashboard(Entite $entite, EntityManagerInterface $em): Response
+    public function dashboard(Entite $entite, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp): Response
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -317,10 +317,30 @@ class DashboardFormateurController extends AbstractController
             }
         }
 
+        $pendingSessions = [];
+        if ($formateur) {
+            $candidates = $sessions->createForFormateurQueryBuilder($entite, $formateur)
+                ->andWhere('s.status NOT IN (:closedStatuses)')
+                ->setParameter('closedStatuses', ['done', 'canceled'])
+                ->getQuery()->getResult();
+            $conventionsBySession = [];
+            if ($candidates) {
+                foreach ($em->getRepository(\App\Entity\ConventionContrat::class)->findBy(['session' => $candidates, 'entite' => $entite]) as $convention) {
+                    $conventionsBySession[$convention->getSession()->getId()][] = $convention;
+                }
+            }
+            foreach ($candidates as $candidate) {
+                $pending = $followUp->summarize($candidate, $formateur, $todayStart, $conventionsBySession[$candidate->getId()] ?? []);
+                if ($pending) $pendingSessions[] = $pending;
+            }
+            usort($pendingSessions, static fn($a, $b) => strcmp($b['lastDate'], $a['lastDate']));
+        }
+
         return $this->render('formateur/dashboard.html.twig', [
             'entite'            => $entite,
             'utilisateurEntite' => $utilisateurEntite,
             'nextSession'       => $nextSession,
+            'pendingSessions' => $pendingSessions,
 
             'google_maps_server_key'  => (string) $this->getParameter('GOOGLE_MAPS_SERVER_KEY'),
             'google_maps_browser_key' => (string) $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),

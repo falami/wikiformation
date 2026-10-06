@@ -9,6 +9,16 @@
 <div class="participant-qr-page">
   <a class="participant-qr-back" href="{{ path(back,{entite:entite.id}) }}">← Retour au tableau de bord</a>
   <header class="participant-qr-hero"><div><span>{{ entite.nom }} · {{ session.code }}</span><h1>{{ personal ? 'Mes QR codes' : 'QR codes des participants' }}</h1><p>{{ session.formation ? session.formation.titre : session.formationIntituleLibre }}</p></div><i class="bi bi-qr-code"></i></header>
+  {% if back == 'app_formateur_dashboard' %}
+    <div class="d-flex flex-wrap gap-2 my-3">
+      <a class="btn btn-outline-secondary" href="{{ path('app_formateur_session_show', {entite: entite.id, id: session.id}) }}">← Retour à la session</a>
+      {% if session.emargementRequis %}<a class="btn btn-outline-secondary" href="{{ path('app_formateur_emargement_liste', {entite: entite.id, id: session.id}) }}">Ouvrir la feuille de présence</a>{% endif %}
+    </div>
+  {% endif %}
+  {% if session.dateFin and session.dateFin < date('today') %}
+    <div class="alert alert-info my-3"><strong>Suivi après la formation</strong><p class="mb-0">Les appréciations peuvent être complétées avec les accès personnels ci-dessous. Le QR d’émargement permet de choisir une journée passée ou prévue aujourd’hui et de compléter les signatures manquantes. La date réelle de signature est conservée.</p>
+    {% if session.dateFin < date('-90 days') and session.status.value not in ['done', 'canceled'] %}<p class="mb-0 mt-2">Les accès expirés sont renouvelés pour 7 jours à l’ouverture de cette liste par le formateur ou l’administrateur autorisé.</p>{% endif %}</div>
+  {% endif %}
   {% if session.sousTraitance %}
     <div class="alert alert-info my-3">
       <strong>Session en sous-traitance</strong>
