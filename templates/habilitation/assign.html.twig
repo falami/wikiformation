@@ -1,0 +1,27 @@
+{% extends 'habilitation/layout.html.twig' %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+{% endblock %}
+{% block content %}<header class="hab-hero"><div><div class="hab-eyebrow">AFFECTATION INDIVIDUELLE</div><h1>{{ d ? 'Réaffecter le dossier.' : 'Préparer une évaluation.' }}</h1><p>Un stagiaire, une session, un formateur et une entreprise : chaque responsabilité est clairement définie.</p></div></header>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% if d %}<div class="hab-note">La réaffectation remet le dossier à zéro et demande de nouvelles signatures. Les versions précédentes restent archivées pour l’administrateur.</div>{% endif %}
+<form method="post" class="hab-panel" id="hab-assignment"><input type="hidden" name="_token" value="{{ csrf_token('habilitation_assign') }}"><input type="hidden" name="version" value="{{ d ? d.version : 0 }}">
+<div class="hab-grid"><div class="hab-full"><label for="hab-registration">Stagiaire et session</label><select id="hab-registration" name="inscription" required><option value="">Choisir une inscription…</option>{% for i in inscriptions %}<option value="{{ i.id }}" data-template="{{ i.session.formation.habilitationTemplate.id|default('') }}" data-company="{{ i.entreprise.id|default(i.stagiaire.entreprise.id|default('')) }}" {{ d and d.inscription.id == i.id ? 'selected' }}>{{ i.stagiaire.prenom }} {{ i.stagiaire.nom }} · {{ i.session.code }} · {{ i.session.formationLabel }}</option>{% endfor %}</select></div>
+<div><label for="hab-template">Questionnaire d’habilitation</label><select id="hab-template" name="template" required><option value="">Choisir un modèle…</option>{% for t in models %}<option value="{{ t.id }}" {{ d and d.template.id == t.id ? 'selected' }}>{{ t.titre }}</option>{% endfor %}</select><small>Le modèle de la formation est proposé automatiquement.</small></div>
+<div><label for="hab-trainer">Formateur chargé de l’évaluation</label><select id="hab-trainer" name="formateur" required><option value="">Choisir un formateur…</option>{% for f in trainers %}{% if f.utilisateur and (isAdmin or f.utilisateur.id == app.user.id) %}<option value="{{ f.id }}" {{ (d and d.formateur.id == f.utilisateur.id) or (not isAdmin and f.utilisateur.id == app.user.id) ? 'selected' }}>{{ f.utilisateur.prenom }} {{ f.utilisateur.nom }}</option>{% endif %}{% endfor %}</select></div>
+<div class="hab-full"><label for="hab-company">Entreprise qui délivrera le titre</label><select id="hab-company" name="entreprise" required><option value="">Choisir l’employeur…</option>{% for c in companies %}<option value="{{ c.id }}" {{ d and d.entreprise.id == c.id ? 'selected' }}>{{ c.raisonSociale }}</option>{% endfor %}</select><small>La décision finale sera accessible aux représentants de cette entreprise.</small></div></div>
+<div class="hab-actions"><a class="hab-btn" href="{{ path('app_habilitation_index', {entite: entite.id}) }}">Annuler</a><button class="hab-btn gold">{{ d ? 'Réaffecter et recommencer' : 'Créer le dossier' }}</button></div></form>
+<script>document.getElementById('hab-registration').addEventListener('change',function(){const o=this.selectedOptions[0];[['hab-template',o.dataset.template],['hab-company',o.dataset.company]].forEach(([id,value])=>{const select=document.getElementById(id);if(select.tomselect)select.tomselect.setValue(value||'');else select.value=value||'';});});</script>{% endblock %}

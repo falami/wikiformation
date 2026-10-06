@@ -1,0 +1,25 @@
+{% extends 'habilitation/layout.html.twig' %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+{% endblock %}
+{% block content %}
+<header class="hab-hero"><div><div class="hab-eyebrow">ÉVALUATION & HABILITATION</div><h1>Des compétences évaluées.<br>Des décisions tracées.</h1><p>De l’avis du formateur au titre délivré par l’employeur, retrouvez chaque dossier et ses documents.</p></div>{% if canCreate %}<a class="hab-btn gold" href="{{ path('app_habilitation_assign', {entite: entite.id}) }}"><i class="bi bi-plus-lg"></i> Affecter une évaluation</a>{% endif %}</header>
+<div class="hab-steps"><span><b>01</b> Modèle de formation</span><span><b>02</b> Avis du formateur</span><span><b>03</b> Décision de l’entreprise</span><span><b>04</b> Titre du stagiaire</span></div>
+<section class="hab-panel"><div class="hab-heading"><div><h2>Dossiers d’habilitation</h2><p>Les documents signés restent consultables dans chaque dossier.</p></div><form method="get" class="hab-search"><input name="q" aria-label="Rechercher" placeholder="Stagiaire, entreprise, session…" value="{{ q }}"><button class="hab-btn">Rechercher</button></form></div>
+<div class="hab-table-wrap"><table class="hab-table"><thead><tr><th>Stagiaire / session</th><th>Entreprise</th><th>Suivi</th><th>Actions</th></tr></thead><tbody>{% for d in dossiers %}<tr><td><strong>{{ d.inscription.stagiaire.prenom }} {{ d.inscription.stagiaire.nom }}</strong><small>{{ d.inscription.session.code }} · {{ d.inscription.session.formationLabel }}</small></td><td>{{ d.entreprise.raisonSociale }}</td><td>{% include 'habilitation/_badge.html.twig' %}<small>{{ d.formateur.prenom }} {{ d.formateur.nom }}</small></td><td><a class="hab-btn" href="{{ path('app_habilitation_show', {entite: entite.id, id: d.id}) }}">Ouvrir <i class="bi bi-arrow-up-right"></i></a></td></tr>{% else %}<tr><td colspan="4"><div class="hab-empty"><i class="bi bi-lightning-charge"></i><h3>Aucun dossier à afficher</h3><p>{% if canCreate %}Choisissez une inscription et le modèle d’habilitation de sa formation pour démarrer.{% else %}Les dossiers apparaîtront ici lorsqu’ils seront disponibles pour votre espace.{% endif %}</p></div></td></tr>{% endfor %}</tbody></table></div>
+<div class="hab-actions">{% if page > 1 %}<a class="hab-btn" href="{{ path('app_habilitation_index', {entite: entite.id, page: page - 1, q: q}) }}">Précédent</a>{% endif %}<span>Page {{ page }}</span>{% if more %}<a class="hab-btn" href="{{ path('app_habilitation_index', {entite: entite.id, page: page + 1, q: q}) }}">Suivant</a>{% endif %}</div></section>
+{% endblock %}

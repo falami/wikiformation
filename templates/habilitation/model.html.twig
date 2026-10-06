@@ -1,0 +1,25 @@
+{% extends 'habilitation/layout.html.twig' %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+{% endblock %}
+{% block content %}<header class="hab-hero"><div><div class="hab-eyebrow">CONCEPTEUR DE MODÈLES</div><h1>{{ model.id ? 'Affinez votre questionnaire.' : 'Un modèle à votre mesure.' }}</h1><p>Organisez les compétences par section, puis définissez les choix et les champs libres de chaque sous-section.</p></div><span class="hab-icon"><i class="bi bi-sliders"></i></span></header>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+<form method="post" id="hab-builder"><input type="hidden" name="_token" value="{{ csrf_token('habilitation_model') }}"><input type="hidden" name="version" value="{{ model.version }}"><input type="hidden" name="schema" id="hab-schema" value="{{ schemaJson }}">
+<section class="hab-panel hab-heading"><div class="hab-grow"><label for="hab-title">Nom du modèle</label><input id="hab-title" name="titre" maxlength="180" required value="{{ model.titre }}"></div><label class="hab-check"><input type="checkbox" name="active" value="1" {{ model.active ? 'checked' }}> Disponible pour les nouvelles affectations</label></section>
+<div class="hab-note"><i class="bi bi-shield-check"></i> Les dossiers existants conservent leur grille. Désactiver un modèle empêche les nouvelles affectations sans retirer les documents déjà émis.</div>
+<div id="hab-sections"></div><button class="hab-btn" id="hab-add-section" type="button">+ Ajouter une section</button>
+<div class="hab-savebar"><span>Sections · Sous-sections · Jusqu’à 6 colonnes</span><button class="hab-btn gold">Enregistrer le modèle</button></div></form>
+<script src="{{ asset('dist/js/habilitation-builder.js') }}" defer></script>{% endblock %}

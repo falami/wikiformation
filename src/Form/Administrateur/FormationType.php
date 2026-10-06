@@ -42,6 +42,8 @@ class FormationType extends AbstractType
         /** @var Entite|null $entite */
         $entite = $o['entite'] ?? null;
 
+        $habilitationCurrent = $b->getData()?->getHabilitationTemplate()?->getId();
+
         $b
             ->add('titre', TextType::class, [
                 'label' => '*Titre',
@@ -318,6 +320,18 @@ class FormationType extends AbstractType
                 'required' => false,
             ])
 
+            ->add('habilitationTemplate', EntityType::class, [
+                'class' => \App\Entity\HabilitationTemplate::class,
+                'required' => false,
+                'placeholder' => 'Aucune évaluation d’habilitation',
+                'label' => 'Modèle d’habilitation électrique',
+                'choice_label' => static fn ($t) => $t->getTitre().($t->getActive() ? '' : ' (désactivé)'),
+                'attr' => ['class' => 'form-select js-ts'],
+                'query_builder' => static fn (EntityRepository $er) => $er->createQueryBuilder('t')
+                    ->where('t.entite = :e')->setParameter('e', $entite)
+                    ->andWhere('t.active = true OR t.id = :current')->setParameter('current', $habilitationCurrent ?? 0)->orderBy('t.titre', 'ASC'),
+                'help' => 'Le modèle prépare les évaluations individuelles des stagiaires. Les dossiers existants conservent leur propre version.',
+            ])
             ->add('satisfactionTemplate', EntityType::class, [
                 'class' => SatisfactionTemplate::class,
                 'required' => false,

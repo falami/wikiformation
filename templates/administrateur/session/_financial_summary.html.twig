@@ -1,0 +1,14 @@
+<div class="session-finance">
+  <div class="session-finance-source">{{ finance.estimated ? 'Total estimé HT' : 'Total des conventions' }}</div>
+  {% for currency, amount in finance.amounts %}
+    {% set symbol = currency == 'EUR' ? '€' : currency %}
+    <div class="session-finance-line session-finance-ht"><span>Montant HT</span><strong>{{ (amount.ht / 100)|number_format(2, ',', ' ') }} {{ symbol }}</strong></div>
+    <div class="session-finance-line"><span>TVA</span><b>{{ (amount.tax / 100)|number_format(2, ',', ' ') }} {{ symbol }}</b></div>
+    <div class="session-finance-line"><span>Montant TTC</span><b>{{ ((amount.ht + amount.tax) / 100)|number_format(2, ',', ' ') }} {{ symbol }}</b></div>
+  {% else %}<div>Montants indisponibles</div>{% endfor %}
+  <div class="session-finance-line session-finance-cost"><span>Formateurs HT</span><b>{{ finance.contracts ? (finance.trainerCost / 100)|number_format(2, ',', ' ') ~ ' €' : 'Non renseigné' }}</b></div>
+  <small>{{ finance.contracts }} contrat(s) · honoraires et frais de mission{% if finance.missingTrainers %} · {{ finance.missingTrainers }} formateur(s) sans contrat{% endif %}</small>
+  <div class="session-finance-line session-finance-net {{ finance.remaining is not null and finance.remaining < 0 ? 'is-negative' : '' }}"><span>HT après formateurs</span><strong>{{ finance.remaining is not null ? (finance.remaining / 100)|number_format(2, ',', ' ') ~ ' €' : 'À compléter' }}</strong></div>
+  {% if finance.estimated %}<small>Tarif × effectif · estimation</small>{% endif %}
+  {% if finance.amounts|length > 1 or (finance.amounts|length == 1 and finance.amounts.EUR is not defined) %}<small>Solde non calculé entre devises différentes.</small>{% endif %}
+</div>

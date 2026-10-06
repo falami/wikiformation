@@ -1,0 +1,19 @@
+{% extends 'habilitation/layout.html.twig' %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+{% endblock %}
+{% block content %}<header class="hab-hero"><div><div class="hab-eyebrow">BIBLIOTHÈQUE · ADMINISTRATEUR</div><h1>Vos modèles d’habilitation.</h1><p>Composez une grille adaptée à chaque formation. Affectez-la depuis la fiche formation ou directement à un dossier.</p></div><a class="hab-btn gold" href="{{ path('app_habilitation_template_new', {entite: entite.id}) }}">+ Nouveau modèle</a></header>
+<div class="hab-models">{% for model in models %}<article class="hab-panel"><div class="hab-heading"><span class="hab-icon"><i class="bi bi-ui-checks-grid"></i></span><span class="hab-badge {{ model.active ? 'published' : 'muted' }}">{{ model.active ? 'Actif' : 'Désactivé' }}</span></div><h2>{{ model.titre }}</h2><p>{{ model.schema.sections|length }} sections · Version {{ model.version }}</p><a class="hab-btn" href="{{ path('app_habilitation_template_edit', {entite: entite.id, id: model.id}) }}">Modifier le modèle <i class="bi bi-pencil"></i></a><form method="post" class="mt-3" action="{{ path('app_habilitation_template_delete', {entite: entite.id, id: model.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('habilitation_model') }}"><input type="hidden" name="version" value="{{ model.version }}"><button class="hab-btn danger" onclick="return confirm('Supprimer ce modèle ? S’il est utilisé, il sera désactivé pour conserver les dossiers.')">Supprimer / archiver</button></form></article>{% else %}<div class="hab-panel hab-empty"><h2>Créez votre premier modèle</h2><p>La grille fournie est proposée comme point de départ. Personnalisez ensuite chaque section et chaque colonne.</p></div>{% endfor %}</div>{% endblock %}

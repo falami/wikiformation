@@ -122,7 +122,7 @@ final class SessionController extends AbstractController
 
 
     #[Route('/ajax', name: 'app_administrateur_session_ajax', methods: ['POST'])]
-    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em): JsonResponse
+    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Session\SessionFinancialSummary $financialSummary): JsonResponse
     {
 
 
@@ -574,7 +574,19 @@ final class SessionController extends AbstractController
             // =========================
             // DATA (rows) - SUIVI = TOUS LES DOCUMENTS DANS 1 SEULE CELLULE
             // =========================
-            $data = array_map(function (Session $s) use ($entite, $stats) {
+            // Load financial documents once for the displayed page, scoped to the current tenant.
+            $financialConventions = $financialContracts = [];
+            if ($ids) {
+                $documents = $em->getRepository(\App\Entity\ConventionContrat::class)->createQueryBuilder('c')
+                    ->leftJoin('c.devis', 'd')->addSelect('d')
+                    ->where('c.session IN (:ids) AND c.entite = :entite')->setParameter('ids', $ids)->setParameter('entite', $entite)->getQuery()->getResult();
+                foreach ($documents as $document) $financialConventions[$document->getSession()->getId()][] = $document;
+                $contracts = $em->getRepository(\App\Entity\ContratFormateur::class)->createQueryBuilder('c')
+                    ->leftJoin('c.formateur', 'f')->addSelect('f')
+                    ->where('c.session IN (:ids) AND c.entite = :entite')->setParameter('ids', $ids)->setParameter('entite', $entite)->getQuery()->getResult();
+                foreach ($contracts as $contract) $financialContracts[$contract->getSession()->getId()][] = $contract;
+            }
+            $data = array_map(function (Session $s) use ($entite, $stats, $financialSummary, $financialConventions, $financialContracts) {
 
                 $sid = (int)$s->getId();
 
@@ -706,8 +718,9 @@ final class SessionController extends AbstractController
                 $u = $s->getFormateur()?->getUtilisateur();
                 $formateur = $u ? trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? '')) : '-';
 
-                $tarifCents = $s->getTarifEffectifCents();
-                $tarifHtml  = number_format(($tarifCents ?? 0) / 100, 2, ',', ' ') . '&nbsp;€';
+                $tarifHtml = $this->renderView('administrateur/session/_financial_summary.html.twig', [
+                    'finance' => $financialSummary->calculate($s, $financialConventions[$sid] ?? [], $financialContracts[$sid] ?? []),
+                ]);
 
                 $nbJours = $s->getJours()->count();
                 $pieces = method_exists($s, 'getPiecesObligatoires') ? ($s->getPiecesObligatoires() ?? []) : [];

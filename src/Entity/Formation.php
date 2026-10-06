@@ -16,6 +16,13 @@ use App\Entity\PublicHost;
 #[ORM\UniqueConstraint(name: 'uniq_formation_entite_slug', columns: ['entite_id', 'slug'])]
 class Formation
 {
+    #[ORM\ManyToOne(targetEntity: HabilitationTemplate::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?HabilitationTemplate $habilitationTemplate = null;
+
+    public function getHabilitationTemplate(): ?HabilitationTemplate { return $this->habilitationTemplate; }
+    public function setHabilitationTemplate(?HabilitationTemplate $value): static { $this->habilitationTemplate = $value; return $this; }
+
     #[ORM\Column(options: ['default' => 20])]
     #[\Symfony\Component\Validator\Constraints\Range(min: 0, max: 100)]
     private float $tauxTva = 20;
