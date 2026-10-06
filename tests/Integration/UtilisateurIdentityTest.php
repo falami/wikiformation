@@ -368,6 +368,23 @@ final class UtilisateurIdentityTest extends KernelTestCase
         self::assertSame(1, $this->em->getRepository(\App\Entity\Entreprise::class)->count([]));
     }
 
+    public function testCompanyPageEnforcesSameQuotaAsSessionModal(): void
+    {
+        $plan = $this->em->getRepository(Plan::class)->findOneBy(['code' => 'IDENTITY_TEST']);
+        $plan->setMaxEntreprises(1);
+        $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Existante');
+        $this->em->persist($company);
+        $this->em->flush();
+        $client = $this->client();
+        $crawler = $client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/entreprise/ajouter');
+        $form = $crawler->filter('form[name="entreprise"]')->form();
+        $form['entreprise[raisonSociale]'] = 'Nouvelle';
+        $client->submit($form);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Limite', $client->getResponse()->getContent());
+        self::assertSame(1, $this->em->getRepository(\App\Entity\Entreprise::class)->count([]));
+    }
+
     public function testParticipantRejectsACompanyFromAnotherTenant(): void
     {
         $other = (new Entite())->setNom('Autre organisme')->setPublic(false)->setCreateur($this->admin);

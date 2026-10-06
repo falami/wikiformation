@@ -23,6 +23,7 @@ use Symfony\Component\String\Slugger\SluggerInterface;
 final class EntrepriseController extends AbstractController
 {
     public function __construct(
+        private readonly \App\Service\Billing\BillingGuard $billingGuard,
         private readonly Packages $assets,
         private readonly SluggerInterface $slugger,
     ) {
@@ -216,6 +217,13 @@ final class EntrepriseController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            if (!$isEdit) {
+                try {
+                    $this->billingGuard->assertCanCreateEntreprise($entite);
+                } catch (\App\Exception\BillingQuotaExceededException $exception) {
+                    $form->addError(new FormError($exception->getMessage()));
+                }
+            }
             /** @var UploadedFile|null $logoFile */
             $logoFile = $form->get('logoFile')->getData();
             $deleteLogo = (bool) $form->get('deleteLogo')->getData();
