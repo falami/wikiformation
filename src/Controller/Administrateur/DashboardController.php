@@ -556,7 +556,7 @@ final class DashboardController extends AbstractController
 
       ->andWhere('s.typeFinancement != :sousTraitance')
       ->andWhere('s.status NOT IN (:attendanceClosedStatuses)')
-      ->andWhere('EXISTS (SELECT aj.id FROM App\Entity\SessionJour aj WHERE aj.session = s AND aj.dateFin >= :attendanceNow)')
+      ->andWhere('s.emargementClotureAt IS NULL')
       ->andWhere('e.dateJour <= :attendanceNow')
       ->andWhere('NOT EXISTS (SELECT asp.id FROM App\Entity\SessionPiece asp WHERE asp.session = s AND asp.entite = :e AND asp.type = :attendanceUpload)')
       ->setParameter('attendanceUpload', \App\Enum\SessionPieceType::EMARGEMENT_SIGNE)
@@ -1070,7 +1070,7 @@ final class DashboardController extends AbstractController
           AND s.type_financement <> :sousTraitance
 
           AND s.status NOT IN (:cancelled, :done)
-          AND sj.dmax >= :today
+          AND s.emargement_cloture_at IS NULL
           AND j.date_fin < :today
           AND ((p.periode = :p1 AND TIME(j.date_debut) < '13:00:00') OR (p.periode = :p2 AND TIME(j.date_fin) > '13:00:00'))
           AND NOT EXISTS (SELECT 1 FROM session_piece sp WHERE sp.session_id = s.id AND sp.entite_id = :eid AND sp.type = :attendanceUpload)
@@ -1195,7 +1195,7 @@ final class DashboardController extends AbstractController
 
       ->andWhere('s.typeFinancement != :sousTraitance')
       ->andWhere('s.status NOT IN (:attendanceClosedStatuses)')
-      ->andWhere('EXISTS (SELECT aj.id FROM App\Entity\SessionJour aj WHERE aj.session = s AND aj.dateFin >= :attendanceNow)')
+      ->andWhere('s.emargementClotureAt IS NULL')
       ->andWhere('e.dateJour <= :attendanceNow')
       ->andWhere('NOT EXISTS (SELECT asp.id FROM App\Entity\SessionPiece asp WHERE asp.session = s AND asp.entite = :e AND asp.type = :attendanceUpload)')
       ->setParameter('attendanceUpload', \App\Enum\SessionPieceType::EMARGEMENT_SIGNE)

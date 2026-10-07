@@ -1065,7 +1065,9 @@ final class SessionController extends AbstractController
                         return $line('<i class="bi bi-file-earmark-check me-1"></i> ' . $label,
                             $badge($total === 0 ? 'bg-warning-subtle text-warning' : ($validated === $total ? 'bg-success-subtle text-success' : 'bg-info-subtle text-info'), $state));
                     };
-                    $emargLine = $documentLine('Émargements signés', [SessionPieceType::EMARGEMENT_SIGNE]);
+                    $emargLine = $s->getEmargementClotureAt()
+                        ? $line('Émargements signés', $badge('bg-light text-muted', 'Suivi clôturé'))
+                        : $documentLine('Émargements signés', [SessionPieceType::EMARGEMENT_SIGNE]);
                     $reportLines = $documentLine('Compte rendu formateur', [SessionPieceType::COMPTE_RENDU_FORMATEUR])
                         . $documentLine('Compte(s) rendu(s) stagiaires', [SessionPieceType::COMPTE_RENDU_STAGIAIRE, SessionPieceType::SATISFACTION_STAGIAIRE]);
                 }
@@ -1967,6 +1969,25 @@ final class SessionController extends AbstractController
         ]);
     }
 
+
+    #[Route('/{id}/suivi-emargements', name: 'app_administrateur_session_attendance_tracking', methods: ['POST'])]
+    public function attendanceTracking(Entite $entite, Session $session, Request $request, EntityManagerInterface $em): Response
+    {
+        if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if (!$this->isCsrfTokenValid('attendance_tracking_'.$session->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Formulaire expiré. Rechargez la session.');
+        }
+        $action = $request->request->get('action');
+        if (!in_array($action, ['close', 'reopen'], true)) return new Response('Action inconnue.', 400);
+        if ($action === 'close') {
+            $session->cloturerEmargements((string) $this->getUser()->getUserIdentifier());
+        } else {
+            $session->rouvrirEmargements();
+        }
+        $em->flush();
+        $this->addFlash('success', $action === 'close' ? 'Le suivi des émargements est clôturé. Les signatures et documents sont conservés.' : 'La clôture manuelle des émargements a été levée.');
+        return $this->redirectToRoute('app_administrateur_session_show', ['entite' => $entite->getId(), 'id' => $session->getId()]);
+    }
 
     #[Route('/{id}', name: 'app_administrateur_session_show', methods: ['GET'])]
     public function show(

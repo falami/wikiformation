@@ -38,7 +38,7 @@ final class TrainerSessionFollowUp
             }
         }
         $expected = [];
-        if ($session->isEmargementRequis()) foreach ($periods as $day => $halves) foreach ($halves as $half => $_) {
+        if ($session->isEmargementEnAttenteRequis()) foreach ($periods as $day => $halves) foreach ($halves as $half => $_) {
             foreach ($people as $key => $_person) $expected[$day.':'.$half.':'.$key] = true;
             $u = $trainer->getUtilisateur();
             if ($u && $session->isFormateurUtilisateurSurPeriode($u, new \DateTimeImmutable($day), $half)) {

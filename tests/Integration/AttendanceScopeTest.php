@@ -108,7 +108,7 @@ final class AttendanceScopeTest extends KernelTestCase
                 self::assertStringContainsString('>OK</span>', $html);
                 self::assertStringNotContainsString('Conventions', $html);
                 self::assertStringNotContainsString('Factures', $html);
-                self::assertStringNotContainsString('À compléter', $html);
+                self::assertStringNotContainsString('À compléter', $result['data'][0]['dossier']);
                 self::assertStringNotContainsString('Émargements: 0/', $html);
             }
         }
@@ -127,13 +127,8 @@ final class AttendanceScopeTest extends KernelTestCase
 
     public function testClosedSessionsHaveNoDashboardAttendanceAlertsAndKeepTheirRecords(): void
     {
-        foreach ([StatusSession::CANCELED, StatusSession::DONE, StatusSession::DRAFT] as $status) {
+        foreach ([StatusSession::CANCELED, StatusSession::DONE] as $status) {
             $this->internal->setStatus($status);
-            if ($status === StatusSession::DRAFT) {
-                foreach ($this->internal->getJours() as $jour) {
-                    $jour->setDateDebut(new \DateTimeImmutable('yesterday 08:30'))->setDateFin(new \DateTimeImmutable('yesterday 17:00'));
-                }
-            }
             $this->em->flush();
             $client = $this->client();
             $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
@@ -142,6 +137,30 @@ final class AttendanceScopeTest extends KernelTestCase
             self::assertSame(0, json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements']);
             self::assertSame(3, $this->em->getRepository(Emargement::class)->count([]));
         }
+    }
+
+    public function testPastInProgressSessionKeepsMissingAttendanceVisible(): void
+    {
+        $this->internal->setStatus(StatusSession::IN_PROGRESS);
+        foreach ($this->internal->getJours() as $index => $jour) {
+            $day = $index === 0 ? 'yesterday' : '-2 days';
+            $jour->setDateDebut(new \DateTimeImmutable($day.' 08:30'))->setDateFin(new \DateTimeImmutable($day.' 17:00'));
+        }
+        $this->em->flush();
+        self::assertTrue($this->internal->isEmargementEnAttenteRequis());
+        $client = $this->client();
+        $client->request('POST', $this->url('app_administrateur_session_ajax'), ['length' => 10]);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $result = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        $row = array_values(array_filter($result['data'], fn ($row) => str_contains(implode(' ', $row), 'SES-INTERNAL')))[0];
+        $html = implode(' ', $row);
+        self::assertStringNotContainsString('Suivi clôturé', $html);
+        self::assertStringContainsString('0/4 signés', $html);
+        $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
+        $alerts = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements'];
+        self::assertSame(['missing', 'missing', 'missing', 'unsigned'], array_column($alerts, 'type'));
+        $client->request('GET', $this->url('app_administrateur_dashboard_kpis'));
+        self::assertSame(1, json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['unsignedEmargements']);
     }
 
     public function testSubcontractedChecklistRequiresReportsButNeverConventionsOrInvoices(): void
@@ -180,7 +199,35 @@ final class AttendanceScopeTest extends KernelTestCase
         $html = implode(' ', $result['data'][0]);
         self::assertStringContainsString('Session annulée', $html);
         self::assertStringContainsString('Aucun document attendu', $html);
-        self::assertStringNotContainsString('À compléter', $html);
+        self::assertStringNotContainsString('À compléter', $result['data'][0]['dossier']);
+    }
+
+    public function testManualClosureRequiresCsrfAndCanBeReopened(): void
+    {
+        $client = $this->client();
+        $id = $this->internal->getId();
+        $url = self::getContainer()->get('router')->generate('app_administrateur_session_attendance_tracking', ['entite' => $this->entite->getId(), 'id' => $id]);
+        $client->catchExceptions(true);
+        $client->request('POST', $url, ['action' => 'close', '_token' => 'invalid']);
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+        $crawler = $client->request('GET', self::getContainer()->get('router')->generate('app_administrateur_session_show', ['entite' => $this->entite->getId(), 'id' => $id]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $token = $crawler->filter('#suivi-emargements input[name="_token"]')->attr('value');
+        $client->request('POST', $url, ['action' => 'close', '_token' => $token]);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $session = $this->em->find(Session::class, $id);
+        self::assertNotNull($session->getEmargementClotureAt());
+        self::assertSame('attendance-admin@example.test', $session->getEmargementCloturePar());
+        self::assertFalse($session->isEmargementEnAttenteRequis());
+        self::assertSame(StatusSession::DRAFT, $session->getStatus());
+        $client->request('GET', $this->url('app_administrateur_dashboard_todo'));
+        self::assertSame([], json_decode($client->getResponse()->getContent(), true)['unsignedEmargements']);
+        $client->request('POST', $url, ['action' => 'reopen', '_token' => $token]);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $session = $this->em->find(Session::class, $id);
+        self::assertNull($session->getEmargementClotureAt());
+        self::assertTrue($session->isEmargementEnAttenteRequis());
+        self::assertSame(3, $this->em->getRepository(Emargement::class)->count([]));
     }
 
     private function piece(Session $session, SessionPieceType $type): void

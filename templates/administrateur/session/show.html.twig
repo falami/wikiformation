@@ -834,6 +834,20 @@ body{ overflow-x:hidden; }
           
         </div>
         <div class="p-3 p-md-4">
+          <div id="suivi-emargements" class="border rounded-4 p-3 mb-4 bg-light">
+            <h3 class="h6 fw-bold">Suivi des émargements</h3>
+            {% if session.emargementClotureAt %}
+              <span class="badge bg-secondary mb-2">Clôturé manuellement</span>
+              <p class="small text-muted">Le {{ session.emargementClotureAt|date('d/m/Y à H:i', 'Europe/Paris') }} par {{ session.emargementCloturePar }}.</p>
+            {% else %}
+              <p class="small text-muted">Clôturer arrête les rappels et retire les émargements des éléments manquants, même si des signatures restent à recueillir. Les signatures, documents et accès de signature sont conservés. Le statut de la session et les appréciations ne changent pas.</p>
+            {% endif %}
+            <form method="post" action="{{ path('app_administrateur_session_attendance_tracking', {entite: entite.id, id: session.id}) }}">
+              <input type="hidden" name="_token" value="{{ csrf_token('attendance_tracking_' ~ session.id) }}">
+              <input type="hidden" name="action" value="{{ session.emargementClotureAt ? 'reopen' : 'close' }}">
+              <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-{{ session.emargementClotureAt ? 'unlock' : 'lock' }} me-1"></i>{{ session.emargementClotureAt ? 'Rouvrir le suivi' : 'Clôturer le suivi des émargements' }}</button>
+            </form>
+          </div>
           {% if session.jours|length > 0 %}
             <div class="timeline">
               {% for j in session.jours %}
@@ -879,6 +893,8 @@ body{ overflow-x:hidden; }
                     Émargements :
                     {% if session.status.value == 'canceled' %}
                       <span>non requis — session annulée</span>
+                    {% elseif session.emargementClotureAt %}
+                      <span>suivi clôturé manuellement</span>
                     {% elseif session.sousTraitance %}
                       <span>feuilles signées à déposer dans les documents</span>
                     {% elseif not session.emargementEnAttenteRequis %}

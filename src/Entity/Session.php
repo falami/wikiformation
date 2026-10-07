@@ -1012,10 +1012,30 @@ class Session
         return $this->status === StatusSession::DONE || ($fin !== null && $fin < ($now ?? new \DateTimeImmutable()));
     }
 
-    /** Les pièces conservées restent consultables, même lorsque les alertes cessent. */
+    /** Une date de fin dépassée ne clôture pas le suivi des signatures. */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $emargementClotureAt = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $emargementCloturePar = null;
+
+    public function getEmargementClotureAt(): ?\DateTimeImmutable { return $this->emargementClotureAt; }
+    public function getEmargementCloturePar(): ?string { return $this->emargementCloturePar; }
+    public function cloturerEmargements(string $actor): void
+    {
+        if ($this->emargementClotureAt !== null) return;
+        $this->emargementClotureAt = new \DateTimeImmutable();
+        $this->emargementCloturePar = $actor;
+    }
+    public function rouvrirEmargements(): void
+    {
+        $this->emargementClotureAt = null;
+        $this->emargementCloturePar = null;
+    }
+
     public function isEmargementEnAttenteRequis(): bool
     {
-        return $this->isEmargementRequis() && !$this->isTerminee();
+        return $this->isEmargementRequis() && $this->status !== StatusSession::DONE && $this->emargementClotureAt === null;
     }
 
     /** @return Collection<int, SessionPiece> */
