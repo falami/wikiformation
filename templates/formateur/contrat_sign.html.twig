@@ -90,6 +90,21 @@
     .sig-helper{
       font-size:.85rem; color:var(--muted);
     }
+
+    .hero-sign { background:#203442; border-left:5px solid #e7b82e; box-shadow:0 8px 30px rgba(22,41,57,.07); padding:28px; }
+    .hero-sign h1 { font-size:1.55rem; font-weight:750; }
+    .section-card { box-shadow:0 5px 24px rgba(22,41,57,.04); border-color:#e2e8ef; overflow:hidden; }
+    .section-card .card-header { background:#fff; }
+    .section-title { font-weight:750; letter-spacing:-.02em; }
+    .contract-eyebrow { display:block; color:#8c712c; font-size:.68rem; letter-spacing:.1em; font-weight:750; margin-bottom:9px; }
+    .contract-document-note { padding:14px 24px; font-size:.8rem; color:#526b7c; background:#f6f9fc; border-bottom:1px solid #e2e8ef; }
+    .contract-document-frame { display:block; width:100%; height:920px; border:0; background:#eef2f6; }
+    .contract-sign-intro { font-size:.9rem; line-height:1.6; }
+    .contract-signed-image { max-height:150px; width:100%; object-fit:contain; padding:16px; background:#fff; }
+    .contract-signature-column .alert-info .d-flex { flex-wrap:wrap; gap:12px; }
+    .contract-signature-column .sig-helper { line-height:1.6; font-size:.8rem; }
+    @media(max-width:1199px){ .contract-document-frame {height:700px;} }
+    @media(max-width:575px){ .hero-sign {padding:22px;} .contract-document-frame {height:520px;} }
   </style>
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
@@ -101,7 +116,7 @@
   <div class="hero-sign mb-4">
     <div class="row align-items-center g-3">
       <div class="col-12 col-lg-8">
-        <h1 class="h4 mb-1">Signature du contrat formateur</h1>
+        <h1 class="h4 mb-1">Votre contrat formateur</h1>
         <p class="mb-0">
           Contrat <strong>{{ contrat.numero }}</strong> avec l’entité
           <strong>{{ entite.nom ?? '-' }}</strong>.
@@ -126,155 +141,28 @@
   </div>
 
   <div class="row g-4">
-    {# ===== Partie texte contrat ===== #}
-    <div class="col-12 col-lg-7">
-      <div class="section-card h-100 mb-3">
-        <div class="card-header px-3 py-3">
-          <h5 class="section-title mb-0">Synthèse de la mission</h5>
+    <div class="col-12 col-xl-8">
+      <section class="section-card mb-4" aria-labelledby="contract-document-title">
+        <div class="card-header p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div><span class="contract-eyebrow">LETTRE DE MISSION · VERSION {{ contrat.versionNumero }}</span>
+            <h2 class="section-title h5 mb-1" id="contract-document-title">Votre contrat en intégralité</h2>
+            <p class="small text-muted mb-0">Parties, mission, calendrier, rémunération, clauses et programme.</p>
+          </div>
+          {% if documentAvailable %}<a class="btn btn-outline-secondary btn-sm" href="{{ path('app_formateur_contrat_document', {entite: entite.id, contrat: contrat.id}) }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i> Ouvrir le PDF<span class="visually-hidden"> (nouvel onglet)</span></a>{% endif %}
         </div>
-        <div class="card-body p-3 p-md-4">
-          {% set session = contrat.session %}
-          {% if session %}
-            {% set joursFormateur = session.joursPourFormateur(contrat.formateur) %}
-            {# Formation / client / lieu #}
-            <div class="mb-3">
-              <div class="small text-muted text-uppercase mb-1">Formation</div>
-              <div class="fw-semibold">
-                {{ session.formationLabel }}
-              </div>
-              {% if session.clientEntreprise is defined and session.clientEntreprise %}
-                <div class="small text-muted">
-                  Client : <strong>{{ session.clientEntreprise.nom }}</strong>
-                </div>
-              {% endif %}
-            </div>
-
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <div class="small text-muted text-uppercase">Début de votre intervention</div>
-                <div>
-                  {{ joursFormateur|length ? (joursFormateur|first).dateDebut|date('d/m/Y H\\hi') : '-' }}
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="small text-muted text-uppercase">Fin de votre intervention</div>
-                <div>
-                  {{ joursFormateur|length ? (joursFormateur|last).dateFin|date('d/m/Y H\\hi') : '-' }}
-                </div>
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <div class="small text-muted text-uppercase">Lieu de la formation</div>
-              <div>
-                {{ session.lieu ?? session.site.nom ?? '-' }}
-              </div>
-            </div>
-
-            {# Calendrier détaillé jour par jour #}
-            <div class="mb-3">
-              <div class="small text-muted text-uppercase mb-1">Vos créneaux d’intervention</div>
-              {% if joursFormateur|length > 0 %}
-                <ul class="list-unstyled small mb-0">
-                  {% for jour in joursFormateur %}
-                    <li class="d-flex justify-content-between">
-                      <span>
-                        • {{ jour.dateDebut|date('d/m/Y') }}
-                      </span>
-                      <span class="text-muted">
-                        {{ jour.dateDebut|date('H\\hi') }}
-                        → {{ jour.dateFin|date('H\\hi') }}
-                      </span>
-                    </li>
-                  {% endfor %}
-                </ul>
-              {% else %}
-                <div class="small text-muted">Les jours de session seront précisés ultérieurement.</div>
-              {% endif %}
-            </div>
-
-            {# Stagiaires éventuellement #}
-            {% if session.inscriptions is defined and session.inscriptions|length > 0 %}
-              <div class="mb-3">
-                <div class="small text-muted text-uppercase mb-1">
-                  Stagiaires ({{ session.inscriptions|length }})
-                </div>
-                <ul class="small mb-0">
-                  {% for ins in session.inscriptions|slice(0, 5) %}
-                    <li>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}</li>
-                  {% endfor %}
-                  {% if session.inscriptions|length > 5 %}
-                    <li>… et {{ session.inscriptions|length - 5 }} autre(s)</li>
-                  {% endif %}
-                </ul>
-              </div>
-            {% endif %}
-
-            <hr class="my-3">
-
-            {# Bloc financier détaillé #}
-            {% set honoraires = (contrat.montantPrevuCents ?? 0) / 100 %}
-            {% set frais = (contrat.fraisMissionCents ?? 0) / 100 %}
-            {% set totalHt = honoraires + frais %}
-            {% set tva = (contrat.assujettiTva and contrat.tauxTva) ? (totalHt * contrat.tauxTva / 100) : 0 %}
-            {% set totalTtc = totalHt + tva %}
-
-            <div class="mb-2">
-              <div class="small text-muted text-uppercase mb-1">Conditions financières</div>
-              <div class="small">
-                <div>Honoraires pédagogiques : <strong>{{ honoraires|number_format(2, ',', ' ') }} € HT</strong></div>
-                <div>Frais de mission : <strong>{{ frais|number_format(2, ',', ' ') }} € HT</strong></div>
-                <div class="mt-1">
-                  Total HT : <strong>{{ totalHt|number_format(2, ',', ' ') }} €</strong>
-                </div>
-                {% if contrat.assujettiTva and contrat.tauxTva %}
-                  <div>
-                    TVA ({{ contrat.tauxTva|number_format(2, ',', ' ') }} %) :
-                    <strong>{{ tva|number_format(2, ',', ' ') }} €</strong>
-                  </div>
-                  <div>
-                    Total TTC : <strong>{{ totalTtc|number_format(2, ',', ' ') }} €</strong>
-                  </div>
-                {% else %}
-                  <div>TVA : <strong>Non applicable / exonéré</strong></div>
-                {% endif %}
-              </div>
-              {% if contrat.conditionsParticulieres %}
-                <div class="small text-muted mt-1">
-                  Conditions particulières : {{ contrat.conditionsParticulieres|raw }}
-                </div>
-              {% endif %}
-            </div>
-
-            {# Mini résumé des conditions du contrat #}
-            <div class="alert alert-light border small mb-0">
-              <div class="fw-semibold mb-1">Conditions principales du contrat</div>
-              <ul class="mb-0 ps-3">
-                <li>Mission d’animation de la formation décrite ci-dessus aux dates et horaires indiqués.</li>
-                <li>Respect des procédures Qualiopi de l’organisme (émargements, évaluations, bilan…).</li>
-                <li>Respect du règlement intérieur et des consignes de sécurité du lieu d’intervention.</li>
-                <li>Confidentialité sur les données des stagiaires, du client et de l’organisme.</li>
-                <li>Le formateur atteste être couvert par une assurance responsabilité civile professionnelle.</li>
-                <li>En cas de modification majeure (dates, lieu, contenu), un avenant pourra être établi.</li>
-              </ul>
-              <div class="mt-2 text-muted">
-                Le détail complet des conditions figure dans le contrat PDF joint.
-              </div>
-            </div>
-          {% else %}
-            <p class="text-muted mb-0">
-              Aucune session liée au contrat.
-            </p>
-          {% endif %}
-        </div>
-
-      </div>
-
+        {% if documentAvailable %}
+          <div class="contract-document-note"><i class="bi bi-file-earmark-check me-2"></i>{{ documentFrozen ? 'Document conservé : cette version fait foi pour les informations de votre contrat.' : 'Document complet préparé à partir des mêmes informations que le PDF à signer.' }}</div>
+          <iframe class="contract-document-frame" title="Contrat complet {{ contrat.numero }} — version {{ contrat.versionNumero }}" src="{{ path('app_formateur_contrat_document', {entite: entite.id, contrat: contrat.id}) }}#view=FitH"></iframe>
+          <p class="small text-muted px-4 py-3 mb-0">Si le document ne s’affiche pas sur votre appareil, utilisez « Ouvrir le PDF » pour consulter toutes ses pages.</p>
+        {% else %}
+          <div class="p-4"><div class="alert alert-warning mb-0">Le PDF conservé n’est pas disponible. Contactez votre organisme pour obtenir l’original du contrat.</div></div>
+        {% endif %}
+      </section>
     </div>
 
     {# ===== Partie signature ===== #}
-    <div class="col-12 col-lg-5">
-      <div class="section-card h-100">
+    <div class="col-12 col-xl-4 contract-signature-column">
+      <div class="section-card">
         <div class="card-header px-3 py-3 d-flex justify-content-between align-items-center">
           <h5 class="section-title mb-0">Signature électronique</h5>
           <a href="{{ path('app_formateur_contrats', { entite: entite.id }) }}"
@@ -284,7 +172,7 @@
         </div>
 
         <div class="card-body p-3 p-md-4">
-          {% if contrat.signatureDataUrl and contrat.status.name|lower == 'signe' %}
+          {% if contrat.signatureAt or contrat.signatureDataUrl %}
             <p class="text-success fw-semibold mb-2">
               <i class="bi bi-check-circle"></i>
               Ce contrat a déjà été signé le
@@ -295,12 +183,14 @@
               <div class="sig-helper mb-1">
                 Aperçu de votre signature enregistrée :
               </div>
-              <img src="{{ contrat.signatureDataUrl }}"
+              {% if contrat.signatureDataUrl %}<img src="{{ contrat.signatureDataUrl }}"
                    alt="Signature enregistrée"
-                   class="img-fluid border rounded">
+                   class="img-fluid border rounded contract-signed-image">{% endif %}
             </div>
           {% endif %}
 
+          {% if canSign and documentAvailable %}
+            <div class="contract-sign-intro mb-4"><span class="contract-eyebrow">DERNIÈRE ÉTAPE</span><p class="mb-0">Consultez l’intégralité du contrat avant de valider votre signature.</p></div>
           <form
               method="post"
               action="{{ path('app_formateur_contrat_sign_post', { entite: entite.id, contrat: contrat.id }) }}"
@@ -357,19 +247,13 @@
                 Valider ma signature
               </button>
             </form>
+          {% elseif not contrat.signatureAt and not contrat.signatureDataUrl %}
+            <p class="text-muted">La signature n’est pas disponible pour ce contrat.</p>
+          {% endif %}
 
         </div>
 
-        {% if contrat.pdfPath %}
-          <div class="card-footer d-flex justify-content-between align-items-center px-3 py-3">
-            <span class="text-muted small">
-              Un PDF est disponible pour ce contrat.
-            </span>
-            <a href="{{ asset(contrat.pdfPath) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-              <i class="bi bi-file-earmark-pdf"></i> Ouvrir le PDF
-            </a>
-          </div>
-        {% endif %}
+
       </div>
     </div>
   </div>

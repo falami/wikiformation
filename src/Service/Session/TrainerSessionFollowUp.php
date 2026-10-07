@@ -51,6 +51,14 @@ final class TrainerSessionFollowUp
             $key = $e->getUtilisateur() ? (in_array($e->getRole(), ['trainer', 'formateur'], true) ? 'trainer:' : 'user:').$e->getUtilisateur()->getId() : $e->getParticipantAccess()?->getSourceKey();
             unset($expected[$e->getDateJour()->format('Y-m-d').':'.$e->getPeriode()->value.':'.$key]);
         }
+        foreach ($session->getInscriptions() as $inscription) {
+            if ($inscription->getEntite() !== $session->getEntite()) continue;
+            foreach ($inscription->getPresencesManuelles() as $key => $record) {
+                if (in_array($record['status'] ?? '', ['paper', 'absent'], true)) {
+                    unset($expected[$key.':user:'.$inscription->getStagiaire()?->getId()]);
+                }
+            }
+        }
         $remaining = $people;
         foreach ($session->getSatisfactionAssignments() as $a) {
             if (!$a->getAttempt()?->isSubmitted()) continue;

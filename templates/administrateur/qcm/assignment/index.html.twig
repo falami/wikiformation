@@ -10,6 +10,28 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 
   <style>
+    .qcm-filters .form-label{font-size:.75rem;letter-spacing:.04em;color:#64748b!important;}
+    .qcm-filters .form-select,.qcm-filters .form-control,.qcm-filters .ts-control{min-height:46px;border:1px solid #dce3eb;border-radius:12px;background:#fff;padding:12px;}
+    .qcm-filters{background:#f8fafc!important;border:1px solid #e2e8f0;box-shadow:none!important;}
+    .qcm-filters{padding:0!important;background:#fff!important;overflow:visible;border-radius:22px;box-shadow:0 8px 30px #23334206!important;}
+    .qcm-filter-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 28px;border-bottom:1px solid #edf0f4;}
+    .qcm-filter-heading-title{display:flex;align-items:center;gap:14px;}
+    .qcm-filter-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:#fff7dd;color:#967218;font-size:20px;flex-shrink:0;}
+    .qcm-filter-heading h2{font-size:1.1rem;font-weight:750;color:#233342;margin:0 0 5px;}
+    .qcm-filter-heading p{font-size:.85rem;color:#7b8898;margin:0;}
+    .qcm-filter-reset{border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;background:white;color:#526477;font-size:.82rem;font-weight:600;white-space:nowrap;transition:background .15s;}
+    .qcm-filter-reset:hover{background:#f4f6f9;color:#233342;}
+    .qcm-filter-grid{display:grid;grid-template-columns:2fr 1.6fr 1fr 1.2fr 1.4fr;gap:16px;padding:24px 28px;align-items:start;}
+    .qcm-filter-grid label{display:block;font-size:.75rem;font-weight:650;color:#64748b;margin-bottom:9px;}
+    .qcm-filter-grid .form-control,.qcm-filter-grid .form-select,.qcm-filter-grid .ts-control{height:48px;min-height:48px;font-size:.85rem;padding:12px 14px;border-radius:11px;background-color:#fafbfd;}
+    .qcm-filter-grid .ts-wrapper{padding:0;border:0;}
+    .qcm-filter-grid .form-select{padding-right:30px;}
+    .qcm-filter-grid input:focus,.qcm-filter-grid select:focus{border-color:#b19a54;box-shadow:0 0 0 3px #ffc10718;background-color:#fff;}
+    .qcm-search-input{position:relative;}.qcm-search-input>i{position:absolute;left:15px;top:14px;color:#8997a7;}.qcm-search-input input.form-control{padding-left:40px;}
+    .qcm-filter-footer{display:flex;align-items:start;justify-content:space-between;gap:20px;padding:14px 28px;background:#f8fafc;border-top:1px solid #edf0f4;border-radius:0 0 22px 22px;color:#7b8898;font-size:.78rem;}
+    .qcm-filter-footer details{max-width:650px;text-align:right;}.qcm-filter-footer summary{cursor:pointer;}.qcm-filter-footer details p{margin:12px 0 0;text-align:left;line-height:1.6;}
+    @media(max-width:1200px){.qcm-filter-grid{grid-template-columns:repeat(4,minmax(0,1fr));}.qcm-search-field{grid-column:1/-1;}}
+    @media(max-width:600px){.qcm-filter-grid{grid-template-columns:1fr 1fr;padding:20px;}.qcm-filter-heading{padding:20px;align-items:start;flex-direction:column;}.qcm-filter-footer{padding:14px 20px;flex-direction:column;}.qcm-filter-footer details{text-align:left;}}
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
@@ -339,56 +361,30 @@
   </div>
 
   {# ✅ Filtres (premium filterbar) #}
-  <div class="filterbar p-3 mb-3">
-    <div class="fw-bold mb-2"><i class="bi bi-funnel"></i> Filtres</div>
-
-    <div class="row g-2 align-items-end">
-      <div class="col-12 col-md-4">
-        <label class="form-label small text-muted fw-bold">Session</label>
-        <select id="sessionFilter" class="form-select form-select-sm js-tomselect" data-placeholder="Toutes">
-          <option value="all">Toutes</option>
-          {% for s in sessions %}
-            <option value="{{ s.id }}">{{ s.code is defined and s.code ? s.code : ('Session #'~s.id) }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-6 col-md-2">
-        <label class="form-label small text-muted fw-bold">Phase</label>
-        <select id="phaseFilter" class="form-select form-select-sm js-tomselect" data-placeholder="Toutes">
-          <option value="all">Toutes</option>
-          <option value="pre">PRE</option>
-          <option value="post">POST</option>
-        </select>
-      </div>
-
-      <div class="col-6 col-md-3">
-        <label class="form-label small text-muted fw-bold">Statut</label>
-        <select id="statusFilter" class="form-select form-select-sm js-tomselect" data-placeholder="Tous">
-          <option value="all">Tous</option>
-          <option value="assigned">Assigné</option>
-          <option value="started">En cours</option>
-          <option value="submitted">Soumis</option>
-          <option value="review_required">À relire</option>
-          <option value="validated">Validé</option>
-        </select>
-      </div>
-
-      <div class="col-12 col-md-3">
-        <label class="form-label small text-muted fw-bold">Stagiaire (texte)</label>
-        <input id="stagiaireFilter" class="form-control form-control-sm" placeholder="Nom / prénom / email">
-      </div>
-
-      <div class="col-12 col-md-2 ms-auto">
-        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold w-100" type="button">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset
-        </button>
-      </div>
+  <section class="filterbar qcm-filters mb-4" data-list-filters="dt" aria-labelledby="qcm-filter-title">
+    <div class="qcm-filter-heading">
+      <div class="qcm-filter-heading-title"><span class="qcm-filter-icon"><i class="bi bi-sliders2"></i></span><div><h2 id="qcm-filter-title">Rechercher une affectation</h2><p>Retrouvez un participant, une session ou un questionnaire.</p></div></div>
+      <button id="btnReset" class="qcm-filter-reset" type="button"><i class="bi bi-arrow-counterclockwise"></i> Effacer les filtres</button>
     </div>
-  </div>
+    <div class="qcm-filter-grid">
+      <div class="qcm-search-field"><label for="qcmSearch">Recherche globale</label><div class="qcm-search-input"><i class="bi bi-search" aria-hidden="true"></i><input id="qcmSearch" data-list-search type="search" class="form-control" placeholder="Nom, e-mail, questionnaire…" autocomplete="off"></div></div>
+      <div><label for="sessionFilter">Session</label><select data-wf-single id="sessionFilter" class="form-select js-tomselect"><option value="all">Toutes les sessions</option>{% for s in sessions %}<option value="{{ s.id }}">{{ s.code ?: ('Session #' ~ s.id) }}</option>{% endfor %}</select></div>
+      <div><label for="phaseFilter">Phase</label><select data-wf-single id="phaseFilter" class="form-select"><option value="all">Toutes les phases</option><option value="pre">PRE · Début</option><option value="post">POST · Fin</option></select></div>
+      <div><label for="statusFilter">Statut</label><select data-wf-single id="statusFilter" class="form-select"><option value="all">Tous les statuts</option><option value="assigned">Assigné</option><option value="started">En cours</option><option value="submitted">Soumis</option><option value="review_required">À relire</option><option value="validated">Validé</option></select></div>
+      <div><label for="stagiaireFilter">Stagiaire</label><input id="stagiaireFilter" class="form-control" placeholder="Nom ou e-mail"></div>
+    </div>
+    <div class="qcm-filter-footer"><span id="qcmFilterSummary" aria-live="polite">Aucun filtre actif</span><details><summary><i class="bi bi-info-circle"></i> Comprendre les statuts</summary><p>PRE : diagnostic initial soumis. POST : validé si le score ne régresse pas par rapport au PRE ; sinon, à relire. La validation ne correspond pas à un seuil de réussite.</p></details></div>
+  </section>
 
   {# ✅ Table (premium table-card) #}
   <div class="table-card p-2">
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3 bg-light rounded-4 mb-3">
+      <label class="me-2"><input type="checkbox" id="selectQcmPage" class="form-check-input me-2">Sélectionner la page</label>
+      <span id="qcmSelectionCount" class="small text-muted me-auto" aria-live="polite">0 sélectionnée</span>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="batchAttempt" disabled>Créer les tentatives</button>
+      <button type="button" class="btn btn-outline-danger btn-sm" id="batchRemove" disabled>Retirer les affectations</button>
+    </div>
+    <div id="qcmBatchFeedback" role="status" class="px-3 mb-2"></div>
     <table id="dt" class="table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
@@ -401,12 +397,24 @@
           <th>Statut</th>
           <th>Assigné</th>
           <th>Soumis</th>
-          <th class="action-column text-end"></th>
+          <th>Taux de réussite</th><th class="action-column text-end">Actions</th>
         </tr>
       </thead>
     </table>
   </div>
 
+<div class="modal fade" id="qcmBatchModal" data-token="{{ csrf_token('qcm_batch_' ~ entite.id) }}" tabindex="-1" aria-labelledby="qcmBatchTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content rounded-4 border-0 shadow">
+    <div class="modal-header"><h2 class="modal-title h5 fw-bold" id="qcmBatchTitle"></h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+    <div class="modal-body p-4">
+      <p id="qcmBatchDescription"></p>
+      <ul id="qcmBatchItems" class="bg-light rounded-3 p-4" style="max-height:240px;overflow:auto"></ul>
+      <div id="qcmBatchWarning" class="alert alert-warning" hidden>Des tentatives existent déjà. Leurs réponses et résultats seront également supprimés. Cette action est irréversible.</div>
+      <div id="qcmBatchError" class="text-danger" role="alert"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-light" type="button" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger" type="button" id="qcmBatchConfirm">Confirmer</button></div>
+  </div></div>
+</div>
 {% endblock %}
 
 {% block javascripts %}
@@ -436,6 +444,7 @@
       }
 
       function init(){
+        if (dt) return;
         initTomSelect();
 
         // init hero clock au chargement
@@ -470,7 +479,7 @@
               }
             },
             columns: [
-              { data: 'id', width:'70px' },
+              { data: 'id', width:'100px', render: (value, type, row) => type === 'display' ? `<input type="checkbox" class="form-check-input js-qcm-select me-2" value="${Number(row.assignmentId)}" aria-label="Sélectionner l’affectation ${Number(row.assignmentId)}">${value}` : value },
               { data: 'stagiaire' },
               { data: 'email' },
               { data: 'session' },
@@ -479,11 +488,12 @@
               { data: 'status', orderable:false, searchable:false },
               { data: 'assignedAt' },
               { data: 'submittedAt' },
+              { data: 'result', orderable:false, searchable:false, className:'text-center' },
               { data: 'actions', orderable:false, searchable:false, className:'action-column text-end' },
             ],
             columnDefs: [
               { targets: [0,5,6,7,8], className: 'text-center' },
-              { targets: 9, className: 'action-column text-end' }
+              { targets: 10, className: 'action-column text-end' }
             ],
             language: { url: "https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json" }
           });
@@ -538,7 +548,12 @@
           }, true);
         })();
 
-        const refresh = ()=> dt.ajax.reload(null, false);
+        function updateFilterSummary(){
+          const count = ['sessionFilter','phaseFilter','statusFilter'].filter(id => document.getElementById(id).value !== 'all').length
+            + Number(!!document.getElementById('stagiaireFilter').value.trim()) + Number(!!document.getElementById('qcmSearch').value.trim());
+          document.getElementById('qcmFilterSummary').textContent = count ? `${count} filtre${count > 1 ? 's' : ''} actif${count > 1 ? 's' : ''}` : 'Aucun filtre actif';
+        }
+        const refresh = ()=> { updateFilterSummary(); dt.ajax.reload(null, true); };
         const oldRefresh = refresh;
         const refreshWithHero = ()=>{
           const el = document.getElementById('hero-last-refresh');
@@ -553,6 +568,13 @@
           document.getElementById(id)?.addEventListener('change', refreshWithHero);
         });
 
+        let searchTimer;
+        document.getElementById('qcmSearch').addEventListener('input', e => {
+          clearTimeout(searchTimer);
+          const value = e.target.value;
+          updateFilterSummary();
+          searchTimer = setTimeout(() => dt.search(value).draw(), 250);
+        });
         let t;
         document.getElementById('stagiaireFilter')?.addEventListener('input', ()=>{
           clearTimeout(t);
@@ -560,6 +582,10 @@
         });
 
         document.getElementById('btnReset')?.addEventListener('click', ()=>{
+          clearTimeout(t);
+          clearTimeout(searchTimer);
+          document.getElementById('qcmSearch').value = '';
+          dt.search('');
           document.getElementById('sessionFilter').value = 'all';
           document.getElementById('phaseFilter').value = 'all';
           document.getElementById('statusFilter').value = 'all';
@@ -615,32 +641,77 @@
           }
         });
 
-        // delegation actions (force attempt)
-        document.addEventListener('click', async (e)=>{
-          const btn = e.target.closest('.js-force-attempt');
-          if (!btn) return;
-
+        const selected = new Set();
+        const modalEl = document.getElementById('qcmBatchModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        const confirmButton = document.getElementById('qcmBatchConfirm');
+        let pending = null;
+        let busy = false;
+        const plain = value => { const doc = new DOMParser().parseFromString(value || '', 'text/html'); return doc.body.textContent || ''; };
+        function updateSelection() {
+          const boxes = [...document.querySelectorAll('#dt .js-qcm-select')];
+          boxes.forEach(box => box.checked = selected.has(Number(box.value)));
+          const all = document.getElementById('selectQcmPage');
+          all.checked = boxes.length > 0 && boxes.every(box => box.checked);
+          all.indeterminate = boxes.some(box => box.checked) && !all.checked;
+          document.getElementById('qcmSelectionCount').textContent = `${selected.size} affectation(s) sélectionnée(s)`;
+          document.getElementById('batchAttempt').disabled = !selected.size;
+          document.getElementById('batchRemove').disabled = !selected.size;
+        }
+        dt.on('draw', () => { selected.clear(); updateSelection(); });
+        document.getElementById('selectQcmPage').addEventListener('change', e => {
+          selected.clear();
+          if (e.target.checked) document.querySelectorAll('#dt .js-qcm-select').forEach(box => selected.add(Number(box.value)));
+          updateSelection();
+        });
+        document.addEventListener('change', e => {
+          if (!e.target.matches('.js-qcm-select')) return;
+          const id = Number(e.target.value);
+          if (e.target.checked) selected.add(id); else selected.delete(id);
+          updateSelection();
+        });
+        function openBatch(action, ids) {
+          if (busy || !ids.length) return;
+          const rows = dt.rows().data().toArray().filter(row => ids.includes(Number(row.assignmentId)));
+          if (rows.length !== ids.length) return;
+          pending = {action, ids};
+          const removing = action === 'remove';
+          document.getElementById('qcmBatchTitle').textContent = removing ? 'Retirer les affectations' : 'Créer les tentatives';
+          document.getElementById('qcmBatchDescription').textContent = removing
+            ? `${ids.length} affectation(s) seront retirées. Les modèles restent disponibles et ces affectations ne seront pas recréées automatiquement.`
+            : `${ids.length} affectation(s) sélectionnée(s). Seules les tentatives absentes seront créées ; les tentatives existantes seront conservées.`;
+          const list = document.getElementById('qcmBatchItems'); list.replaceChildren();
+          rows.forEach(row => { const li = document.createElement('li'); li.textContent = `${plain(row.stagiaire)} · ${plain(row.qcm)} · ${plain(row.phase)} · Session ${plain(row.session)}`; list.append(li); });
+          document.getElementById('qcmBatchWarning').hidden = !removing || !rows.some(row => row.hasAttempt);
+          document.getElementById('qcmBatchError').textContent = '';
+          confirmButton.className = removing ? 'btn btn-danger' : 'btn btn-primary';
+          confirmButton.textContent = removing ? 'Confirmer le retrait' : 'Créer les tentatives';
+          confirmButton.disabled = false;
+          modal.show();
+        }
+        document.getElementById('batchAttempt').addEventListener('click', () => openBatch('attempt', [...selected]));
+        document.getElementById('batchRemove').addEventListener('click', () => openBatch('remove', [...selected]));
+        document.addEventListener('click', e => {
+          const button = e.target.closest('.js-remove-assignment, .js-force-attempt');
+          if (!button) return;
           e.preventDefault();
-          if (!confirm('Créer la tentative ?')) return;
-
-          const url = btn.getAttribute('data-url');
-          if (!url) return;
-
-          const old = btn.innerHTML;
-          btn.disabled = true;
-          btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-
-          try{
-            await postForm(url, {});
-            refreshWithHero();
-          }catch(err){
-            console.error(err);
-            alert(err?.message || 'Action impossible');
-          }finally{
-            btn.disabled = false;
-            btn.innerHTML = old;
-          }
+          openBatch(button.matches('.js-remove-assignment') ? 'remove' : 'attempt', [Number(button.dataset.id)]);
         }, true);
+        modalEl.addEventListener('hide.bs.modal', e => { if (busy) e.preventDefault(); });
+        confirmButton.addEventListener('click', async () => {
+          if (!pending || busy) return;
+          busy = true; confirmButton.disabled = true;
+          try {
+            const result = await postForm({{ path('app_administrateur_qcm_assignment_batch', {entite: entite.id})|json_encode|raw }}, {
+              _token: modalEl.dataset.token, action: pending.action, ids: JSON.stringify(pending.ids)
+            });
+            document.getElementById('qcmBatchFeedback').textContent = `${result.changed} ${pending.action === 'remove' ? 'affectation(s) retirée(s)' : 'tentative(s) créée(s)'}.`;
+            busy = false; modal.hide(); pending = null; selected.clear(); refreshWithHero();
+          } catch (error) {
+            document.getElementById('qcmBatchError').textContent = 'Action impossible. Rechargez la liste puis réessayez.';
+          } finally { busy = false; confirmButton.disabled = false; }
+        });
+
       }
 
       document.addEventListener('DOMContentLoaded', init);

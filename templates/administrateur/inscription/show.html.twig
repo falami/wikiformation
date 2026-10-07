@@ -3,6 +3,7 @@
 {% block title %}Inscription #{{ ins.id }}{% endblock %}
 
 {% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('dist/css/paper-attendance.css') }}">
   {{ parent() }}
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -433,6 +434,50 @@
     </div>
   </div>
 
+  <section id="presences-papier" class="panel mb-4 paper-attendance">
+    <div class="panel-hd"><h2 class="panel-title h5"><i class="bi bi-journal-check"></i> Présences & émargements papier</h2>
+      <span class="badge-soft">{{ ins.session.sousTraitance ? 'Suivi de l’organisme principal' : (ins.tauxAssiduite is not null ? ins.tauxAssiduite ~ ' %' : 'Assiduité non calculée') }}</span>
+    </div>
+    <div class="panel-bd">
+      {% if ins.session.sousTraitance %}
+        <div class="alert alert-info">Session en sous-traitance : passer à « Terminé » ou clôturer ne calcule pas l’assiduité et ne génère pas d’attestation automatiquement. L’attestation relève de l’organisme principal.</div>
+      {% endif %}
+      <p class="text-muted">Renseignez les présences à partir des feuilles papier déposées dans les documents de la session. Un dépôt seul ne permet pas de déduire les présences individuelles. Une saisie papier ne crée pas de signature électronique.</p>
+      <form method="post" action="{{ path('app_administrateur_inscription_paper_attendance', {entite: entite.id, id: ins.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('paper_attendance_' ~ ins.id) }}">
+        <div class="table-responsive"><table class="table align-middle">
+          <thead><tr><th>Demi-journée</th><th>Présence</th><th>Référence de la feuille / motif</th></tr></thead>
+          <tbody>
+          {% for key, period in presencePeriods %}
+            {% set record = ins.presencesManuelles[key]|default(null) %}
+            {% set future = period.date > 'now'|date('Y-m-d', 'Europe/Paris') %}
+            <tr><td class="text-nowrap">{{ period.date|date('d/m/Y') }} · {{ period.label }}</td><td>
+              {% if presenceOnline[key]|default(false) %}<span class="badge bg-success">Signé en ligne</span>
+              {% elseif future %}<span class="text-muted">À venir</span>
+              {% else %}
+                <select name="presence[{{ key }}]" class="form-select" aria-label="Présence du {{ period.date }} {{ period.label }}">
+                  <option value="unknown" {{ record.status|default('unknown') == 'unknown' ? 'selected' : '' }}>Non renseigné</option>
+                  <option value="paper" {{ record.status|default('') == 'paper' ? 'selected' : '' }}>Présent — émargement papier</option>
+                  <option value="absent" {{ record.status|default('') == 'absent' ? 'selected' : '' }}>Absent</option>
+                </select>
+              {% endif %}
+            </td><td>
+              {% if not presenceOnline[key]|default(false) and not future %}
+                <input name="reference[{{ key }}]" class="form-control" maxlength="500" value="{{ record.reference|default('') }}" placeholder="Ex. feuille signée du 07/10 déposée dans la session" aria-label="Justificatif du {{ period.date }} {{ period.label }}">
+              {% endif %}
+              {% if record %}<small class="text-muted d-block mt-1">Saisi le {{ record.at|date('d/m/Y H:i', 'Europe/Paris') }} par {{ record.actorName }}.</small>
+                {% if record.history|default([])|length %}<details class="small text-muted"><summary>Historique des corrections</summary>{% for change in record.history %}<div>{{ change.at|date('d/m/Y H:i', 'Europe/Paris') }} · {{ change.actorName }} · {{ change.status == 'paper' ? 'Présent — papier' : (change.status == 'absent' ? 'Absent' : 'Non renseigné') }} · {{ change.reference }}</div>{% endfor %}</details>{% endif %}
+              {% endif %}
+            </td></tr>
+          {% else %}<tr><td colspan="3">Aucune demi-journée planifiée.</td></tr>{% endfor %}
+          </tbody>
+        </table></div>
+        {% if presencePeriods|length %}<button class="btn btn-primary" type="submit">Enregistrer les présences</button>{% endif %}
+        <p class="small text-muted mt-3 mb-0">Hors sous-traitance, le taux est calculé quand toutes les demi-journées sont renseignées. Après une correction, clôturez à nouveau pour mettre à jour l’attestation.</p>
+      </form>
+    </div>
+  </section>
+
   {# ===== Main grid ===== #}
   <div class="row g-3">
 
@@ -695,14 +740,14 @@
                 <div class="v mono">
                   {{ ins.tauxAssiduite is not null ? (ins.tauxAssiduite|number_format(1, ',', ' ') ~ '%') : '-' }}
                 </div>
-                <div class="small text-muted mt-1">Calculée sur les émargements</div>
+                <div class="small text-muted mt-1">{{ ins.session.sousTraitance ? "Non calculée automatiquement en sous-traitance" : "Signatures en ligne et présences papier renseignées" }}</div>
               </div>
             </div>
 
             <div class="col-md-4">
               <div class="info">
                 <div class="k">Quiz</div>
-                <div class="v mono">{{ ins.quizAttempts|length }}</div>
+                <div class="v mono">{{ ins.qcmAssignments|filter(a => a.attempt is not null)|length }}</div>
                 <div class="small text-muted mt-1">Tentatives</div>
               </div>
             </div>

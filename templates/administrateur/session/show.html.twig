@@ -1687,6 +1687,16 @@ body{ overflow-x:hidden; }
                           <i class="fa fa-check"></i>
                         </a>
                       {% endif %}
+
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                          data-bs-toggle="modal" data-bs-target="#removeQcmAssignmentModal"
+                          data-url="{{ path('app_administrateur_qcm_assignment_remove', {entite: entite.id, id: a.id}) }}"
+                          data-token="{{ csrf_token('remove_qcm_assignment_' ~ a.id) }}"
+                          data-questionnaire="{{ a.qcm.titre }}"
+                          data-phase="{{ a.phase.value|upper }}"
+                          data-stagiaire="{{ a.inscription.stagiaire ? a.inscription.stagiaire.prenom ~ ' ' ~ a.inscription.stagiaire.nom : 'Stagiaire' }}"
+                          data-has-attempt="{{ a.attempt ? '1' : '0' }}"
+                          aria-label="Retirer cette affectation"><i class="fa fa-trash" aria-hidden="true"></i></button>
                     </div>
                   </div>
                 {% endfor %}
@@ -1732,6 +1742,15 @@ body{ overflow-x:hidden; }
                           <i class="fa fa-check"></i>
                         </a>
                       {% endif %}
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                          data-bs-toggle="modal" data-bs-target="#removeQcmAssignmentModal"
+                          data-url="{{ path('app_administrateur_qcm_assignment_remove', {entite: entite.id, id: a.id}) }}"
+                          data-token="{{ csrf_token('remove_qcm_assignment_' ~ a.id) }}"
+                          data-questionnaire="{{ a.qcm.titre }}"
+                          data-phase="{{ a.phase.value|upper }}"
+                          data-stagiaire="{{ a.inscription.stagiaire ? a.inscription.stagiaire.prenom ~ ' ' ~ a.inscription.stagiaire.nom : 'Stagiaire' }}"
+                          data-has-attempt="{{ a.attempt ? '1' : '0' }}"
+                          aria-label="Retirer cette affectation"><i class="fa fa-trash" aria-hidden="true"></i></button>
                     </div>
                   </div>
                 {% endfor %}
@@ -2641,6 +2660,67 @@ body{ overflow-x:hidden; }
 
 
 
+
+<div class="modal fade" id="removeQcmAssignmentModal" tabindex="-1" aria-labelledby="removeQcmAssignmentTitle" aria-describedby="removeQcmAssignmentDescription" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content confirmx">
+      <form method="post" id="removeQcmAssignmentForm">
+        <div class="modal-header border-0 pb-0">
+          <div class="d-flex align-items-start gap-3">
+            <div class="confirmx-ico"><i class="fa fa-clipboard-question" aria-hidden="true"></i></div>
+            <div>
+              <h2 class="confirmx-title h5" id="removeQcmAssignmentTitle">Retirer cette affectation</h2>
+              <div class="confirmx-sub">{{ session.code }} · Test de niveau</div>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="confirmx-card mb-3">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <strong data-qcm-title></strong><span class="badge badge-soft" data-qcm-phase></span>
+            </div>
+            <div class="text-muted"><i class="fa fa-user me-2" aria-hidden="true"></i><span data-qcm-stagiaire></span></div>
+          </div>
+          <p class="small text-muted mb-0" id="removeQcmAssignmentDescription">Seule cette affectation sera supprimée. Le modèle du questionnaire reste disponible. Ce test ne sera plus réaffecté automatiquement à ce stagiaire pour cette phase ; une affectation manuelle restera possible.</p>
+          <div class="alert alert-warning mt-3 mb-0" data-qcm-warning hidden>Une tentative existe déjà. Ses réponses et résultats seront également supprimés. Cette action est irréversible.</div>
+          <input type="hidden" name="_token">
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger" disabled><i class="fa fa-trash me-2" aria-hidden="true"></i>Confirmer le retrait</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('removeQcmAssignmentModal');
+  const form = document.getElementById('removeQcmAssignmentForm');
+  if (!modal || !form) return;
+  const submit = form.querySelector('[type="submit"]');
+  modal.addEventListener('show.bs.modal', event => {
+    const trigger = event.relatedTarget;
+    submit.disabled = true;
+    form.removeAttribute('action');
+    form.querySelector('[name="_token"]').value = '';
+    if (!trigger?.dataset.url || !trigger.dataset.token) { event.preventDefault(); return; }
+    form.action = trigger.dataset.url;
+    form.querySelector('[name="_token"]').value = trigger.dataset.token;
+    modal.querySelector('[data-qcm-title]').textContent = trigger.dataset.questionnaire;
+    modal.querySelector('[data-qcm-phase]').textContent = trigger.dataset.phase;
+    modal.querySelector('[data-qcm-stagiaire]').textContent = trigger.dataset.stagiaire;
+    modal.querySelector('[data-qcm-warning]').hidden = trigger.dataset.hasAttempt !== '1';
+    submit.disabled = false;
+  });
+  form.addEventListener('submit', event => {
+    if (!form.getAttribute('action') || submit.disabled) { event.preventDefault(); return; }
+    submit.disabled = true;
+    submit.textContent = 'Retrait en cours…';
+  });
+});
+</script>
 
 <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">

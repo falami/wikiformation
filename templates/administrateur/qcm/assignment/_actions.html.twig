@@ -8,7 +8,7 @@
   {# ✅ Bouton principal = Voir tentative (ou disabled) #}
   {% if a.hasAttempt and a.showUrl %}
     <a class="btn btn-light qcm-main"
-       href="{{ a.showUrl }}"
+       href="{{ a.showUrl }}" data-turbo="false"
        data-bs-toggle="tooltip" title="Voir la tentative">
       <i class="bi bi-eye"></i>
     </a>
@@ -31,7 +31,7 @@
     <li>
       <button class="dropdown-item d-flex align-items-center js-force-attempt"
               type="button"
-              data-url="{{ a.forceUrl }}">
+              data-url="{{ a.forceUrl }}" data-id="{{ a.id }}">
         <i class="bi bi-magic me-2"></i> Créer la tentative
       </button>
     </li>
@@ -40,11 +40,12 @@
       <li><hr class="dropdown-divider"></li>
       <li>
         <a class="dropdown-item d-flex align-items-center"
-           href="{{ a.showUrl }}">
+           href="{{ a.showUrl }}" data-turbo="false">
           <i class="bi bi-eye me-2"></i> Voir la tentative
         </a>
       </li>
     {% endif %}
 
+    <li><button type="button" class="dropdown-item text-danger js-remove-assignment" data-id="{{ a.id }}"><i class="bi bi-trash me-2"></i> Retirer l’affectation</button></li>
   </ul>
 </div>

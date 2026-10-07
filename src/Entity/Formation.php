@@ -235,6 +235,19 @@ class Formation
         $this->publicHosts = new ArrayCollection();
     }
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Qcm $qcmPre = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Qcm $qcmPost = null;
+
+    public function getQcmPre(): ?Qcm { return $this->qcmPre; }
+    public function setQcmPre(?Qcm $qcm): static { $this->qcmPre = $qcm; return $this; }
+    public function getQcmPost(): ?Qcm { return $this->qcmPost; }
+    public function setQcmPost(?Qcm $qcm): static { $this->qcmPost = $qcm; return $this; }
+
     public function getId(): ?int
     {
         return $this->id;

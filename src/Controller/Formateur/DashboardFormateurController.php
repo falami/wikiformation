@@ -1300,7 +1300,8 @@ class DashboardFormateurController extends AbstractController
     #[Route('/contrat/{contrat}/sign', name: 'contrat_sign', methods: ['GET'])]
     public function signForm(
         Entite $entite,
-        ContratFormateur $contrat
+        ContratFormateur $contrat,
+        \App\Service\Pdf\ContratFormateurDocument $document
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -1320,10 +1321,31 @@ class DashboardFormateurController extends AbstractController
             'entite' => $entite,
             'contrat' => $contrat,
             'hasSavedSignature' => $hasSavedSignature,
+            'canSign' => !$contrat->getSignatureAt() && !$contrat->getSignatureDataUrl() && in_array($contrat->getStatus(), [ContratFormateurStatus::BROUILLON, ContratFormateurStatus::ENVOYE], true),
+            'documentAvailable' => !$document->isFrozen($contrat) || $document->storedPath($contrat) !== null,
+            'documentFrozen' => $document->isFrozen($contrat),
 
         ]);
     }
 
+
+    #[Route('/contrat/{contrat}/document', name: 'contrat_document', methods: ['GET'])]
+    public function contratDocument(Entite $entite, ContratFormateur $contrat, \App\Service\Pdf\ContratFormateurDocument $document): Response
+    {
+        $formateur = $this->getUser()->getFormateur();
+        if (!$formateur || $contrat->getFormateur()?->getId() !== $formateur->getId()) throw $this->createAccessDeniedException();
+        if ($contrat->getEntite()?->getId() !== $entite->getId() || $formateur->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if ($document->isFrozen($contrat)) {
+            $stored = $document->storedPath($contrat);
+            if (!$stored) return new Response('Le document conservé est introuvable. Contactez votre organisme.', 409);
+            $response = $this->file($stored, 'contrat-'.$contrat->getId().'.pdf', \Symfony\Component\HttpFoundation\ResponseHeaderBag::DISPOSITION_INLINE);
+        } else {
+            $html = $this->renderView('pdf/contrat_formateur.html.twig', $document->templateData($contrat));
+            $response = new Response($this->pdfManager->createPortraitBytes($html), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="contrat-'.$contrat->getId().'.pdf"']);
+        }
+        $response->headers->set('Cache-Control', 'private, no-store');
+        return $response;
+    }
 
     #[Route('/contrat/{contrat}/sign', name: 'contrat_sign_post', methods: ['POST'])]
     public function signSubmit(

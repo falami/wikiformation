@@ -70,6 +70,11 @@ class DocumentPdfController extends AbstractController
             $em->flush();
         }
 
+        if ($pct === null) {
+            $this->addFlash('warning', $id->getSession()->isSousTraitance() ? 'L’attestation relève de l’organisme principal pour cette session en sous-traitance.' : 'Renseignez toutes les présences et absences avant de générer l’attestation.');
+            return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
+        }
+
         // 3. Message d’alerte si assiduité non complète
         if ($pct < 100) {
             $this->addFlash(

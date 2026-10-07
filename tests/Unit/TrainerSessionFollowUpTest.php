@@ -59,6 +59,11 @@ final class TrainerSessionFollowUpTest extends TestCase
         $pending = $service->summarize($session, $trainer, $today);
         self::assertSame(4, $pending['attendance']);
         self::assertSame(1, $pending['satisfaction']);
+        $inscription = $session->getInscriptions()->first();
+        $inscription->enregistrerPresenceManuelle('2026-10-05:AM', 'paper', 'Feuille papier', $teacher);
+        $inscription->enregistrerPresenceManuelle('2026-10-05:PM', 'absent', 'Absence signalée', $teacher);
+        self::assertSame(2, $service->summarize($session, $trainer, $today)['attendance']);
+
         self::assertNull($service->summarize($session, $trainer, new \DateTimeImmutable('2026-10-05')));
         self::assertNull($service->summarize($session, new Formateur(), $today));
         $session->setStatus(StatusSession::DONE);

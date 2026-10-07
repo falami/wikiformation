@@ -52,7 +52,7 @@ class InscriptionController extends AbstractController
 
         return $this->render('administrateur/inscription/index.html.twig', [
             'entite' => $entite,
-
+            'statuses' => StatusInscription::cases(),
         ]);
     }
 
@@ -291,8 +291,37 @@ class InscriptionController extends AbstractController
             'ins' => $ins,
             'entite' => $entite,
             'conventions' => $conventions,
+            'presencePeriods' => $this->assiduiteCalculator->periods($ins),
+            'presenceOnline' => $this->assiduiteCalculator->online($ins),
 
         ]);
+    }
+
+    #[Route('/{id}/presences-papier', name: 'paper_attendance', methods: ['POST'])]
+    public function paperAttendance(Entite $entite, Inscription $ins, Request $request, EM $em): Response
+    {
+        if ($ins->getEntite()?->getId() !== $entite->getId() || $ins->getSession()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if (!$this->isCsrfTokenValid('paper_attendance_'.$ins->getId(), $request->request->get('_token'))) throw $this->createAccessDeniedException('Formulaire expiré.');
+        $periods = $this->assiduiteCalculator->periods($ins);
+        $online = $this->assiduiteCalculator->online($ins);
+        $submitted = $request->request->all('presence');
+        $references = $request->request->all('reference');
+        $today = (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris')))->format('Y-m-d');
+        foreach ($submitted as $key => $status) {
+            $reference = $references[$key] ?? '';
+            if (!isset($periods[$key]) || isset($online[$key]) || $periods[$key]['date'] > $today
+                || !is_string($status) || !in_array($status, ['unknown', 'paper', 'absent'], true)
+                || !is_string($reference) || mb_strlen($reference) > 500
+                || ($status !== 'unknown' && trim($reference) === '')) {
+                $this->addFlash('danger', 'Présences non enregistrées : indiquez une référence de feuille papier ou un motif pour chaque présence ou absence renseignée. Seules les demi-journées passées ou du jour peuvent être saisies.');
+                return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $ins->getId(), '_fragment' => 'presences-papier']);
+            }
+        }
+        foreach ($submitted as $key => $status) $ins->enregistrerPresenceManuelle($key, $status, trim($references[$key] ?? ''), $this->getUser());
+        $this->assiduiteCalculator->computeForInscription($ins);
+        $em->flush();
+        $this->addFlash('success', 'Présences enregistrées. Les signatures électroniques et attestations existantes sont conservées.');
+        return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $ins->getId(), '_fragment' => 'presences-papier']);
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
@@ -337,24 +366,48 @@ class InscriptionController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/cloturer', name: 'close', methods: ['POST'])]
-    public function close(Entite $entite, Inscription $ins, Request $req, EM $em): Response
+    #[Route('/actions-groupees', name: 'batch', methods: ['POST'])]
+    public function batch(Entite $entite, Request $request, EM $em): JsonResponse
     {
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
-
-
-        if (!$this->isCsrfTokenValid('close' . $ins->getId(), (string) $req->request->get('_token'))) {
-            $this->addFlash('danger', 'Token CSRF invalide.');
-            return $this->redirectToRoute('app_administrateur_inscription_show', [
-                'id' => $ins->getId(),
-                'entite' => $entite->getId(),
-            ]);
+        if (!$this->isCsrfTokenValid('inscription_batch_'.$entite->getId(), $request->request->get('_token'))) {
+            return $this->json(['ok' => false, 'message' => 'Formulaire expiré. Rechargez la page.'], 403);
         }
+        $ids = json_decode((string) $request->request->get('ids', '[]'), true);
+        $action = $request->request->get('action');
+        $status = StatusInscription::tryFrom((string) $request->request->get('status', ''));
+        if (!is_array($ids) || !$ids || count($ids) > 500 || !in_array($action, ['status', 'close', 'delete'], true) || ($action === 'status' && !$status)) {
+            return $this->json(['ok' => false, 'message' => 'Sélection ou statut invalide.'], 400);
+        }
+        foreach ($ids as $id) {
+            if (!is_int($id) || $id <= 0) return $this->json(['ok' => false, 'message' => 'Sélection invalide.'], 400);
+        }
+        $ids = array_values(array_unique($ids));
+        $items = $em->getRepository(Inscription::class)->findBy(['id' => $ids, 'entite' => $entite]);
+        if (count($items) !== count($ids)) return $this->json(['ok' => false, 'message' => 'Une inscription est indisponible. Rechargez la liste.'], 404);
+        foreach ($items as $item) {
+            if ($item->getSession()?->getEntite()?->getId() !== $entite->getId()) return $this->json(['ok' => false, 'message' => 'Inscription indisponible.'], 404);
+        }
+        $em->wrapInTransaction(function () use ($items, $action, $status, $entite, $em): void {
+            foreach ($items as $item) {
+                if ($action === 'delete') $em->remove($item);
+                elseif ($action === 'close') $this->closeInscription($item, $entite, $this->getUser(), $em);
+                else $item->setStatus($status);
+            }
+        });
+        return $this->json(['ok' => true, 'changed' => count($items)]);
+    }
 
+    private function closeInscription(Inscription $ins, Entite $entite, Utilisateur $user, EM $em): ?float
+    {
+        $ins->setStatus(StatusInscription::TERMINE);
+        if ($ins->getSession()->isSousTraitance()) {
+            $em->flush();
+            return null;
+        }
         // 1) Calcul et stockage de l’assiduité
         $pct = $this->assiduiteCalculator->computeForInscription($ins);
         $ins->setTauxAssiduite($pct);
+        if ($pct === null) { $em->flush(); return null; }
 
         // 2) Clôture + règle métier "réussi"
         $ins->setStatus(StatusInscription::TERMINE);
@@ -368,6 +421,7 @@ class InscriptionController extends AbstractController
             $attestation->setCreateur($user);
             $attestation->setEntite($entite);
             $attestation->setInscription($ins);
+            $ins->setAttestation($attestation);
             $attestation->setDateDelivrance(new \DateTimeImmutable());
 
             // Les horaires du planning comprennent parfois la pause du midi.
@@ -399,10 +453,31 @@ class InscriptionController extends AbstractController
 
         $em->flush();
 
+        return $pct;
+    }
+
+    #[Route('/{id}/cloturer', name: 'close', methods: ['POST'])]
+    public function close(Entite $entite, Inscription $ins, Request $req, EM $em): Response
+    {
+        /** @var Utilisateur $user */
+        $user = $this->getUser();
+
+
+        if (!$this->isCsrfTokenValid('close' . $ins->getId(), (string) $req->request->get('_token'))) {
+            $this->addFlash('danger', 'Token CSRF invalide.');
+            return $this->redirectToRoute('app_administrateur_inscription_show', [
+                'id' => $ins->getId(),
+                'entite' => $entite->getId(),
+            ]);
+        }
+
+        if ($ins->getEntite()?->getId() !== $entite->getId() || $ins->getSession()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        $pct = $this->closeInscription($ins, $entite, $user, $em);
+
         // 5) Feedback
         $this->addFlash(
             'success',
-            sprintf('Inscription clôturée (assiduité %.1f%%). Attestation générée.', $pct)
+            ($ins->getSession()->isSousTraitance() ? 'Inscription terminée en sous-traitance : aucun calcul d’assiduité ni attestation automatique.' : ($pct === null ? 'Inscription terminée. Présences à compléter avant le calcul de l’assiduité et la génération de l’attestation.' : sprintf('Inscription clôturée (assiduité %.1f%%). Attestation générée.', $pct)))
         );
 
         return $this->redirectToRoute('app_administrateur_inscription_show', [

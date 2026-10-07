@@ -44,6 +44,20 @@ class FormationType extends AbstractType
 
         $habilitationCurrent = $b->getData()?->getHabilitationTemplate()?->getId();
 
+        foreach (['qcmPre' => 'Test de niveau — début de formation (pré)', 'qcmPost' => 'Test de niveau — fin de formation (post)'] as $field => $label) {
+            $current = $b->getData()?->{'get'.ucfirst($field)}()?->getId();
+            $b->add($field, EntityType::class, [
+                'class' => \App\Entity\Qcm::class, 'required' => false,
+                'label' => $label, 'placeholder' => 'Aucun test de niveau', 'choice_label' => 'titre',
+                'attr' => ['class' => 'form-select js-ts'],
+                'help' => 'Facultatif. Sans sélection, aucun test ne sera affecté automatiquement pour cette phase. Les affectations existantes se retirent depuis la session.',
+                'query_builder' => static fn (EntityRepository $er) => $er->createQueryBuilder('q')
+                    ->where('q.entite = :tenant')->setParameter('tenant', $entite)
+                    ->andWhere('q.isActive = true OR q.id = :current')->setParameter('current', $current ?? 0)
+                    ->orderBy('q.titre', 'ASC'),
+            ]);
+        }
+
         $b
             ->add('titre', TextType::class, [
                 'label' => '*Titre',
@@ -136,7 +150,7 @@ class FormationType extends AbstractType
 
             ->add('tauxTva', \Symfony\Component\Form\Extension\Core\Type\NumberType::class, [
                 'label' => 'TVA (%)', 'scale' => 2, 'html5' => true,
-                'attr' => ['min' => 0, 'max' => 100, 'step' => '0.01'],
+                'attr' => ['min' => 0, 'max' => 100, 'step' => '0.01', 'class' => 'form-control'],
                 'help' => 'Taux du tarif catalogue. 0 pour une formation exonérée.',
             ])
             ->add('prixBaseCents', TextType::class, [

@@ -1,0 +1,40 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Présences papier · {{ session.code }}{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/paper-attendance.css') }}">
+{% endblock %}
+{% block body %}
+<div class="paper-workspace">
+<a class="btn btn-outline-secondary mb-3" href="{{ path('app_formateur_session_show', {entite:entite.id,id:session.id}) }}">← Retour à la session</a>
+<header class="paper-hero"><div class="small mb-2">{{ session.code }} · SUIVI DES PRÉSENCES</div><h1 class="h3 fw-bold">Émargements papier</h1><p class="mb-0">Déposez la feuille signée, puis renseignez les présences de chaque participant.</p></header>
+{% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+<section class="paper-attendance mb-4"><div class="panel-hd"><h2 class="h5 mb-0">01 · Les feuilles justificatives</h2></div><div class="panel-bd">
+<form method="post" enctype="multipart/form-data" class="row g-3 align-items-end"><input type="hidden" name="_token" value="{{ csrf_token('trainer_paper_' ~ session.id) }}"><input type="hidden" name="action" value="upload"><div class="col-md-8"><label for="paper-file">Feuille signée · PDF, JPG ou PNG · 15 Mo maximum</label><input id="paper-file" type="file" name="file" required accept="application/pdf,image/jpeg,image/png" class="form-control"></div><div class="col-md-4"><button class="btn btn-primary">Déposer la feuille</button></div></form>
+{% for piece in pieces %}<div class="d-flex justify-content-between border-top mt-3 pt-3"><span>Feuille #{{ piece.id }} · déposée le {{ piece.uploadedAt|date('d/m/Y H:i') }}</span><a href="{{ path('app_formateur_paper_document', {entite:entite.id,id:session.id,piece:piece.id}) }}">Télécharger</a></div>{% endfor %}
+</div></section>
+{% if session.sousTraitance %}<div class="alert alert-info">Sous-traitance : le relevé est conservé sans calcul automatique d’assiduité ni génération d’attestation.</div>{% endif %}
+{% if pieces is empty %}<p class="text-muted">Déposez une feuille pour commencer le relevé des présences.</p>{% else %}
+<h2 class="h4 mb-3">02 · Présences par participant</h2><p class="text-muted">Seuls vos créneaux passés ou du jour sont modifiables. « Présent » confirme une signature sur papier, sans créer de signature électronique.</p>
+{% for row in rows %}
+<section class="paper-attendance mb-4"><div class="panel-hd"><h3 class="h5 mb-0">{{ row.ins.stagiaire.prenom }} {{ row.ins.stagiaire.nom }}</h3></div><div class="panel-bd">
+<form method="post"><input type="hidden" name="_token" value="{{ csrf_token('trainer_paper_' ~ session.id) }}"><input type="hidden" name="inscription" value="{{ row.ins.id }}"><label for="piece-{{ row.ins.id }}">Feuille justificative utilisée pour ce relevé</label><select id="piece-{{ row.ins.id }}" name="piece" class="form-select" required><option value="">Choisir une feuille déposée</option>{% for piece in pieces %}<option value="{{ piece.id }}">Feuille #{{ piece.id }} · {{ piece.uploadedAt|date('d/m/Y H:i') }}</option>{% endfor %}</select>
+<div class="table-responsive"><table class="table"><thead><tr><th>Demi-journée</th><th>Présence</th><th>Dernière saisie</th></tr></thead><tbody>
+{% for key,period in row.periods %}{% set record = row.ins.presencesManuelles[key]|default(null) %}<tr><td>{{ period.date|date('d/m/Y') }} · {{ period.label }}</td><td>{% if row.online[key]|default(false) %}<span class="badge bg-success">Signé en ligne</span>{% elseif period.date > 'now'|date('Y-m-d', 'Europe/Paris') %}À venir{% else %}<select class="form-select" name="presence[{{ key }}]" aria-label="Présence {{ period.date }} {{ period.label }}">{% for value,label in {'unknown':'Non renseigné','paper':'Présent — signé sur papier','absent':'Absent'} %}<option value="{{ value }}" {{ record.status|default('unknown') == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}</select>{% endif %}</td><td class="small text-muted">{% if record %}{{ record.actorName }} · {{ record.at|date('d/m/Y H:i') }}<br>{{ record.reference }}{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="3">Aucun créneau attribué.</td></tr>{% endfor %}
+</tbody></table></div><button class="btn btn-primary">Enregistrer ce participant</button></form></div></section>
+{% endfor %}{% endif %}</div>
+{% endblock %}

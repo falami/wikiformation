@@ -1,128 +1,30 @@
 {% extends 'base_admin.html.twig' %}
-{% block title %}{{ title }}{% endblock %}
-
+{% block title %}Résultats du questionnaire{% endblock %}
 {% block stylesheets %}
-  {{ parent() }}
-  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <style>
-    :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-    }
-    .cardx{ background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 12px 30px rgba(0,0,0,.06); overflow:hidden; }
-    .cardx .cardx-h{ padding:.9rem 1rem; border-bottom:1px solid rgba(0,0,0,.06); font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:.75rem; background: linear-gradient(180deg, rgba(0,0,0,.015), transparent); }
-    .cardx .cardx-b{ padding:1rem; }
-    pre.jsonbox{ background: #0b1020; color:#d6e1ff; border-radius:14px; padding:14px; overflow:auto; max-height: 560px; }
-    .meta{ display:flex; flex-wrap:wrap; gap:.5rem; }
-    .chip{ display:inline-flex; align-items:center; gap:.4rem; border-radius:999px; padding:.35rem .6rem; border:1px solid rgba(0,0,0,.08); background:rgba(0,0,0,.03); font-size:.82rem; font-weight:700; white-space: nowrap; }
-    .badge-phase{ font-weight:900; letter-spacing:.03em; }
-  </style>
+{{ parent() }}
+<style>
+.qcm-results{max-width:1250px;margin:auto;padding:32px 16px;color:#233342}.qcm-results .result-hero{background:#233342;color:white;border-left:6px solid #ffc107;padding:32px;border-radius:22px;margin-bottom:24px}.qcm-results .result-card{background:white;border:1px solid #e2e8f0;border-radius:18px;padding:24px;margin-bottom:18px}.qcm-results .score{font-size:2.5rem;font-weight:800}.qcm-results .answer-option{padding:12px 16px;border:1px solid #e2e8f0;border-radius:10px;margin-top:8px;display:flex;justify-content:space-between;gap:16px}.qcm-results .answer-correct{background:#edf9f3;border-color:#b5ddc7}.qcm-results .answer-wrong{background:#fff1f2;border-color:#fecdd3}
+</style>
 {% endblock %}
-
 {% block body %}
-<div class="container-fluid px-3 py-3">
-
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <div>
-      <h2 class="fw-bold mb-1">{{ title }}</h2>
-      <div class="text-muted">Détails d’une tentative (réponses JSON)</div>
-
-      <div class="meta mt-2">
-
-        <span class="chip">
-          <i class="bi bi-person"></i>
-          {{ stagiaire ? (stagiaire.prenom ~ ' ' ~ stagiaire.nom) : '—' }}
-        </span>
-
-        <span class="chip">
-          <i class="bi bi-envelope"></i>
-          {{ stagiaire and stagiaire.email ? stagiaire.email : '—' }}
-        </span>
-
-        <span class="chip">
-          <i class="bi bi-calendar3"></i>
-          Session #{{ session.id }}
-          {% if session.code is defined and session.code %} — {{ session.code }}{% endif %}
-        </span>
-
-        <span class="chip">
-          <i class="bi bi-mortarboard"></i>
-          {{ session.formation ? session.formation.titre : '—' }}
-        </span>
-
-        <span class="chip">
-          <i class="bi bi-ui-checks"></i>
-          {{ qcm ? qcm.titre : '—' }}
-        </span>
-
-        <span class="chip">
-          <i class="bi bi-flag"></i>
-          {% if phase %}
-            {% if phase.value == 'pre' %}
-              <span class="badge bg-info-subtle text-info border badge-phase">PRE</span>
-              <span class="ms-1">Début</span>
-            {% else %}
-              <span class="badge bg-warning-subtle text-warning border badge-phase">POST</span>
-              <span class="ms-1">Fin</span>
-            {% endif %}
-          {% else %}
-            —
-          {% endif %}
-        </span>
-
-        <span class="chip"><i class="bi bi-calendar-check"></i> Créé : {{ attempt.createdAt ? attempt.createdAt|date('d/m/Y H:i') : '—' }}</span>
-        <span class="chip"><i class="bi bi-play"></i> Début : {{ attempt.startedAt ? attempt.startedAt|date('d/m/Y H:i') : '—' }}</span>
-        <span class="chip"><i class="bi bi-check2-circle"></i> Soumis : {{ attempt.submittedAt ? attempt.submittedAt|date('d/m/Y H:i') : '—' }}</span>
-
-      </div>
-    </div>
-
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary fw-semibold"
-         href="{{ path('app_administrateur_qcm_assignment_index', { entite: entite.id }) }}">
-        <i class="bi bi-arrow-left"></i> Retour aux affectations
-      </a>
-
-      {# Optionnel : lien action corrective si tu veux #}
-      {# <a class="btn btn-outline-warning fw-semibold"
-         href="{{ path('app_administrateur_qcm_followup_edit', { entite: entite.id, id: assignment.id }) }}">
-        <i class="bi bi-clipboard2-pulse"></i> Action corrective
-      </a> #}
-    </div>
-  </div>
-
-  <div class="cardx">
-    <div class="cardx-h">
-      <span><i class="bi bi-braces"></i> Answers (JSON)</span>
-      <span class="text-muted small">lecture seule</span>
-    </div>
-    <div class="cardx-b">
-
-      {# ✅ On tente plusieurs conventions de nommage pour être robuste #}
-      {% set answers =
-        attempt.answers is defined ? attempt.answers :
-        (attempt.answersJson is defined ? attempt.answersJson :
-        (attempt.data is defined ? attempt.data : null))
-      %}
-
-      {% if answers is empty %}
-        <div class="alert alert-light border mb-0">
-          Aucune réponse enregistrée.
-        </div>
-      {% else %}
-        {# answers peut être déjà array/objet, ou string JSON #}
-        {% if answers is iterable %}
-          <pre class="jsonbox" id="jsonbox">{{ answers|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
-        {% else %}
-          {# string json brute #}
-          <pre class="jsonbox" id="jsonbox">{{ answers }}</pre>
-        {% endif %}
-      {% endif %}
-
-    </div>
-  </div>
-
+<div class="qcm-results">
+<a class="btn btn-outline-secondary mb-3" href="{{ path('app_administrateur_qcm_assignment_index', {entite:entite.id}) }}">← Retour aux affectations</a>
+<header class="result-hero"><div class="small mb-2">{{ session.code }} · {{ phase.value == 'pre' ? 'Diagnostic initial · PRE' : 'Évaluation finale · POST' }}</div><h1 class="h3 fw-bold">{{ qcm.titre }}</h1><p class="mb-0">{{ stagiaire.prenom }} {{ stagiaire.nom }} · {{ session.formation ? session.formation.titre : 'Formation' }}</p></header>
+<div class="row g-3">
+<div class="col-md-4"><section class="result-card h-100"><div class="text-muted">Taux de réussite</div><div class="score">{{ attempt.submittedAt and attempt.maxPoints > 0 ? (attempt.scorePercent|number_format(1, ',', ' ') ~ ' %') : '—' }}</div><div>{{ attempt.submittedAt ? (attempt.scorePoints ~ ' / ' ~ attempt.maxPoints ~ ' points') : 'Tentative non soumise' }}</div></section></div>
+<div class="col-md-8"><section class="result-card h-100"><h2 class="h6 fw-bold">{{ assignment.status.label }}</h2><p class="small text-muted">{% if phase.value == 'pre' %}Le test PRE mesure le niveau initial : « Soumis » signifie que les réponses sont enregistrées. Il n’est pas soumis à la validation de progression du POST.{% else %}La validation vérifie la progression par rapport au PRE. Elle ne correspond pas à un seuil de réussite.{% endif %}</p><div class="small">Début : {{ attempt.startedAt|date('d/m/Y H:i') }}<br>Soumis : {{ attempt.submittedAt ? attempt.submittedAt|date('d/m/Y H:i') : 'En attente' }}</div></section></div>
+</div>
+<h2 class="h4 fw-bold mt-4 mb-3">Détail des réponses</h2>
+<p class="text-muted small">Les bonnes réponses sont indiquées en vert. Les questions à choix multiples peuvent attribuer des points partiels. Le score ci-dessus est celui enregistré lors de la soumission ; le corrigé ci-dessous utilise le modèle actuel.</p>
+{% for question in qcm.questions %}
+{% set answer = attempt.answers|filter(a => a.question.id == question.id)|first %}
+{% set selected = answer ? answer.selectedOptionIds : [] %}
+<section class="result-card"><div class="d-flex justify-content-between gap-3"><h3 class="h6 fw-bold">{{ loop.index }}. {{ question.enonce }}</h3><span class="small text-muted text-nowrap">{{ question.pointsMax }} point(s)</span></div>
+{% for option in question.options %}
+<div class="answer-option {{ option.correct ? 'answer-correct' : (option.id in selected ? 'answer-wrong' : '') }}"><span>{{ option.label }}</span><span class="small text-nowrap">{{ option.id in selected ? '✓ Choisie' : '' }}{{ option.correct ? ' · Bonne réponse' : '' }}</span></div>
+{% endfor %}
+{% if selected is empty %}<p class="small text-muted mt-3 mb-0">Aucune réponse enregistrée.</p>{% endif %}
+</section>
+{% else %}<div class="result-card">Aucune question disponible.</div>{% endfor %}
 </div>
 {% endblock %}

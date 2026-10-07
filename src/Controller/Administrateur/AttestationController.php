@@ -91,6 +91,11 @@ class AttestationController extends AbstractController
             $em->flush();
         }
 
+        if ($pct === null) {
+            $this->addFlash('warning', $insc->getSession()->isSousTraitance() ? 'L’attestation relève de l’organisme principal pour cette session en sous-traitance.' : 'Renseignez toutes les présences et absences avant de générer l’attestation.');
+            return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $insc->getId()]);
+        }
+
         // 3. Synchroniser éventuellement l'état "réussi" sur l'attestation
         if ($a->isReussi() !== $insc->isReussi()) {
             $a->setReussi($insc->isReussi());

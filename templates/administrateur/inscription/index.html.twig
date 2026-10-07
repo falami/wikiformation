@@ -537,6 +537,14 @@
 
   {# ===== TABLE ===== #}
   <div class="table-card mb-4 p-3">
+    <div class="d-flex flex-wrap align-items-center gap-3 p-3 mb-3 bg-light rounded-3">
+      <label class="mb-0"><input id="selectInscriptionPage" type="checkbox" class="form-check-input me-2">Sélectionner la page</label>
+      <span id="inscriptionSelectionCount" class="text-muted me-auto" aria-live="polite">0 inscription sélectionnée</span>
+      <button type="button" class="btn btn-outline-primary btn-sm js-inscription-batch" data-action="status" disabled>Changer le statut</button>
+      <button type="button" class="btn btn-outline-success btn-sm js-inscription-batch" data-action="close" disabled>Clôturer</button>
+      <button type="button" class="btn btn-outline-danger btn-sm js-inscription-batch" data-action="delete" disabled>Supprimer</button>
+    </div>
+    <div id="inscriptionBatchFeedback" role="status" class="mb-2"></div>
     <table id="tableauInscriptions" class="table table-hover align-middle mb-0" style="width:100%">
       <thead>
         <tr>
@@ -553,6 +561,24 @@
     </table>
   </div>
 
+</div>
+<div class="modal fade" id="inscriptionBatchModal" tabindex="-1" aria-labelledby="inscriptionBatchTitle" aria-hidden="true" data-token="{{ csrf_token('inscription_batch_' ~ entite.id) }}">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4">
+    <div class="modal-header"><h2 id="inscriptionBatchTitle" class="modal-title h5 fw-bold"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+    <div class="modal-body">
+      <p id="inscriptionBatchDescription"></p>
+      <div id="inscriptionBatchStatusField" class="mb-3">
+        <label for="inscriptionBatchStatus" class="form-label">Nouveau statut</label>
+        <select id="inscriptionBatchStatus" class="form-select">
+          <option value="">Choisir un statut</option>
+          {% for status in statuses %}<option value="{{ status.value }}">{{ status.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <ul id="inscriptionBatchItems" class="bg-light rounded-3 p-4" style="max-height:240px;overflow:auto"></ul>
+      <div id="inscriptionBatchError" class="text-danger" role="alert"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button><button type="button" id="inscriptionBatchConfirm" class="btn btn-primary">Confirmer</button></div>
+  </div></div>
 </div>
 <script>
 $(function () {
@@ -635,7 +661,7 @@ $(function () {
     lengthMenu: [[10,25,50,100,500],[10,25,50,100,500]],
     pageLength: 100,
     columns: [
-      { data:'id' },
+      { data:'id', render: (id, type) => type === 'display' ? `<input type="checkbox" class="form-check-input me-2 js-inscription-select" value="${Number(id)}" aria-label="Sélectionner l'inscription ${Number(id)}">${Number(id)}` : id },
       { data:'session' },
       { data:'stagiaire' },
       { data:'status' },
@@ -693,6 +719,74 @@ $(function () {
     }
   });
 
+
+  const selectedInscriptions = new Set();
+  const batchModalElement = document.getElementById('inscriptionBatchModal');
+  const batchModal = bootstrap.Modal.getOrCreateInstance(batchModalElement);
+  const batchConfirm = document.getElementById('inscriptionBatchConfirm');
+  let batchPending = null;
+  let batchBusy = false;
+  function updateInscriptionSelection() {
+    const boxes = [...document.querySelectorAll('#tableauInscriptions .js-inscription-select')];
+    boxes.forEach(box => box.checked = selectedInscriptions.has(Number(box.value)));
+    const master = document.getElementById('selectInscriptionPage');
+    master.checked = boxes.length > 0 && boxes.every(box => box.checked);
+    master.indeterminate = boxes.some(box => box.checked) && !master.checked;
+    document.getElementById('inscriptionSelectionCount').textContent = `${selectedInscriptions.size} inscription(s) sélectionnée(s)`;
+    document.querySelectorAll('.js-inscription-batch').forEach(button => button.disabled = !selectedInscriptions.size);
+  }
+  table.on('draw.dt', () => { selectedInscriptions.clear(); updateInscriptionSelection(); });
+  document.getElementById('selectInscriptionPage').addEventListener('change', event => {
+    selectedInscriptions.clear();
+    if (event.target.checked) document.querySelectorAll('#tableauInscriptions .js-inscription-select').forEach(box => selectedInscriptions.add(Number(box.value)));
+    updateInscriptionSelection();
+  });
+  $('#tableauInscriptions').on('change', '.js-inscription-select', function () {
+    if (this.checked) selectedInscriptions.add(Number(this.value)); else selectedInscriptions.delete(Number(this.value));
+    updateInscriptionSelection();
+  });
+  document.querySelectorAll('.js-inscription-batch').forEach(button => button.addEventListener('click', () => {
+    if (batchBusy || !selectedInscriptions.size) return;
+    const action = button.dataset.action;
+    const ids = [...selectedInscriptions];
+    batchPending = {action, ids};
+    document.getElementById('inscriptionBatchTitle').textContent = {status: 'Changer le statut', close: 'Clôturer les inscriptions', delete: 'Supprimer les inscriptions'}[action];
+    document.getElementById('inscriptionBatchDescription').textContent = `${ids.length} inscription(s) concernée(s). ` + {
+      status: 'Seul le statut sera modifié. Pour calculer l’assiduité et générer les attestations, utilisez « Clôturer ».',
+      close: 'Les inscriptions seront marquées « Terminé ». Hors sous-traitance, l’assiduité et l’attestation seront mises à jour uniquement si toutes les présences sont renseignées. En sous-traitance : aucun calcul ni attestation automatique.',
+      delete: 'Les inscriptions et leurs données liées seront supprimées définitivement. Cette action est irréversible.'
+    }[action];
+    document.getElementById('inscriptionBatchStatusField').hidden = action !== 'status';
+    document.getElementById('inscriptionBatchStatus').value = '';
+    document.getElementById('inscriptionBatchError').textContent = '';
+    const list = document.getElementById('inscriptionBatchItems'); list.replaceChildren();
+    table.rows().data().toArray().filter(row => ids.includes(Number(row.id))).forEach(row => {
+      const li = document.createElement('li'); li.textContent = `${row.stagiaire} · ${row.session}`; list.append(li);
+    });
+    batchConfirm.className = action === 'delete' ? 'btn btn-danger' : 'btn btn-primary';
+    batchConfirm.disabled = false;
+    batchModal.show();
+  }));
+  batchModalElement.addEventListener('hide.bs.modal', event => { if (batchBusy) event.preventDefault(); });
+  batchConfirm.addEventListener('click', async () => {
+    if (batchBusy || !batchPending) return;
+    const status = document.getElementById('inscriptionBatchStatus').value;
+    if (batchPending.action === 'status' && !status) {
+      document.getElementById('inscriptionBatchError').textContent = 'Choisissez le nouveau statut.'; return;
+    }
+    batchBusy = true; batchConfirm.disabled = true; batchConfirm.textContent = 'Traitement en cours…';
+    try {
+      const response = await fetch({{ path('app_administrateur_inscription_batch', {entite: entite.id})|json_encode|raw }}, {
+        method: 'POST', credentials: 'same-origin', headers: {'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({_token: batchModalElement.dataset.token, action: batchPending.action, ids: JSON.stringify(batchPending.ids), status})
+      });
+      const payload = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
+      if (!response.ok || !payload?.ok) throw new Error(payload?.message || 'Le résultat de l’action n’a pas pu être confirmé. Rechargez la liste pour vérifier les inscriptions.');
+      document.getElementById('inscriptionBatchFeedback').textContent = `${payload.changed} inscription(s) ${batchPending.action === 'delete' ? 'supprimée(s)' : batchPending.action === 'close' ? 'clôturée(s)' : 'mise(s) à jour'}.`;
+      batchBusy = false; batchModal.hide(); batchPending = null; selectedInscriptions.clear(); table.ajax.reload(null, false);
+    } catch (error) { document.getElementById('inscriptionBatchError').textContent = error.message; }
+    finally { batchBusy = false; batchConfirm.disabled = false; batchConfirm.textContent = 'Confirmer'; }
+  });
 
   // ✅ Dropdown actions inscriptions : menu "flottant" hors du scroll DT
   (function enableInscriptionActionsFloatingDropdown(){

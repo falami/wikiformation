@@ -1,0 +1,39 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Retirer une affectation de test de niveau{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+{% endblock %}
+{% block body %}
+<section class="card border-0 shadow-sm rounded-4 my-4 mx-auto" style="max-width:760px">
+  <div class="card-body p-4 p-md-5">
+    <h1 class="h3 fw-bold">Retirer cette affectation</h1>
+    <p class="text-muted">{{ assignment.session.code }} · {{ assignment.session.formationLabel }}</p>
+    <div class="bg-light rounded-4 p-3 mb-4">
+      <strong>{{ assignment.qcm.titre }}</strong> · {{ assignment.phase.value|upper }}
+      <div>{{ assignment.inscription.stagiaire.prenom }} {{ assignment.inscription.stagiaire.nom }}</div>
+    </div>
+    <p>Seule cette affectation sera supprimée. Le modèle du questionnaire reste disponible. Ce test ne sera plus réaffecté automatiquement à ce stagiaire pour cette phase ; une affectation manuelle restera possible.</p>
+    {% if assignment.attempt %}<div class="alert alert-warning">Une tentative existe déjà. La suppression retirera également ses réponses et résultats. Cette action est irréversible.</div>{% endif %}
+    <form method="post">
+      <input type="hidden" name="_token" value="{{ csrf_token('remove_qcm_assignment_' ~ assignment.id) }}">
+      <div class="d-flex flex-wrap gap-2 mt-4">
+        <a class="btn btn-light" href="{{ path('app_administrateur_session_show', {entite: entite.id, id: assignment.session.id}) }}">Annuler</a>
+        <button class="btn btn-danger" type="submit">Confirmer le retrait</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

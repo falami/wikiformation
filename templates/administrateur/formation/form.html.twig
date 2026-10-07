@@ -284,6 +284,40 @@
       border-color: rgba(255,255,255,.55);
       color:#fff;
     }
+
+    /* Shared creation/editing form: quieter surfaces and consistent field rhythm. */
+    .formation-editor { --stroke: #e3e8ef; --ink: #203442; }
+    .formation-editor .cardx { border-radius:20px; box-shadow:0 4px 20px rgba(27,47,67,.035); }
+    .formation-editor .cardx-h { padding:22px 26px; background:transparent; border-radius:20px 20px 0 0; }
+    .formation-editor .cardx-title { font-size:1.08rem; font-weight:750; color:var(--ink); }
+    .formation-editor .cardx-title > i { color:#aa8221!important; font-size:1.15rem; }
+    .formation-editor .cardx .p-md-4 { padding:26px!important; }
+    .formation-editor .row.g-3 { --bs-gutter-y:1.4rem; }
+    .formation-editor label:not(.form-check-label) { display:block; margin-bottom:8px; font-size:.875rem; font-weight:650; color:var(--ink); }
+    .formation-editor .form-control, .formation-editor .form-select { min-height:46px; border-radius:10px; box-shadow:none; font-size:.94rem; background-color:#fff; }
+    .formation-editor .form-text, .formation-editor [id$="_help"] { margin-top:7px; font-size:.8rem; line-height:1.55; color:#667789; font-weight:400; }
+    .formation-editor .ts-wrapper .ts-control { min-height:46px; border-radius:10px!important; box-shadow:none; font-size:.94rem; align-items:center; }
+    .formation-editor .ts-dropdown { border-radius:12px; box-shadow:0 12px 32px rgba(32,52,66,.12); overflow:hidden; }
+    .formation-editor .section-description { font-size:.84rem; color:#667789; margin:7px 0 0; line-height:1.5; }
+    .formation-editor .evaluation-group { padding-bottom:26px; margin-bottom:26px; border-bottom:1px solid #e8edf2; }
+    .formation-editor .evaluation-group:last-child { padding-bottom:0; border-bottom:0; }
+    .formation-editor .evaluation-heading { display:flex; align-items:flex-start; gap:12px; margin-bottom:20px; }
+    .formation-editor .evaluation-icon { display:grid; place-items:center; width:36px; height:36px; flex:none; color:#8b6a17; background:#fff6dd; border-radius:10px; }
+    .formation-editor .evaluation-heading h3 { margin:0 0 5px; font-size:.97rem; color:var(--ink); font-weight:700; line-height:1.5; }
+    .formation-editor .evaluation-heading p { margin:0; color:#667789; font-size:.82rem; line-height:1.5; }
+    .formation-editor .optional-label { margin-left:8px; color:#667789; background:#f0f3f7; padding:3px 8px; border-radius:6px; font-size:.7rem; font-weight:500; }
+    .formation-editor .phase-panel { height:100%; padding:20px; background:#f8fafc; border:1px solid #e3e8ef; border-radius:14px; }
+    .formation-editor .phase-panel .mb-3 { margin-bottom:0!important; }
+    .formation-editor .phase-label { display:block; margin-bottom:14px; color:#667789; letter-spacing:.09em; font-size:.65rem; font-weight:750; }
+    .formation-editor .evaluation-note { display:flex; gap:9px; margin:16px 0 0; color:#667789; font-size:.8rem; line-height:1.65; }
+    .formation-editor .evaluation-link { display:inline-flex; align-items:center; gap:8px; margin-top:14px; color:#294f6a; font-size:.84rem; font-weight:600; text-underline-offset:4px; }
+    .formation-editor .formation-summary .cardx { background:#fbfcfe; }
+    .formation-editor .formation-summary [id^="resume-"] { overflow-wrap:anywhere; }
+    @media(max-width:767px){
+      .formation-editor .cardx-h, .formation-editor .cardx .p-md-4 { padding:20px!important; }
+      .formation-editor .cardx-h { flex-wrap:wrap; gap:10px; }
+      .formation-editor .phase-panel { padding:16px; }
+    }
   </style>
 {% endblock %}
 
@@ -345,7 +379,7 @@
 
   {{ form_start(form, {
     action: actionPath,
-    attr: { id: form.vars.id, novalidate: 'novalidate', name: 'formation_administrateur' }
+    attr: { id: form.vars.id, novalidate: 'novalidate', name: 'formation_administrateur', class: 'formation-editor' }
   }) }}
 
   {{ form_errors(form) }}
@@ -361,7 +395,7 @@
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-info-circle text-warning"></i> Informations</h5>
-          <span class="chip">Étape 1</span>
+          <span class="chip">Identification</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -372,7 +406,7 @@
             </div>
 
 
-            <div class="col-md-1Z">
+            <div class="col-12">
               {{ form_row(form.note) }}
             </div>
 
@@ -400,25 +434,45 @@
               {{ form_row(form.categorie) }}
             </div>
 
-            <div class="col-md-6">
-              {{ form_row(form.satisfactionTemplate) }}
-              {{ form_row(form.habilitationTemplate) }}
-              <a href="{{ path('app_habilitation_templates', {entite: entite.id}) }}" target="_blank" rel="noopener"><i class="bi bi-lightning-charge"></i> Créer ou modifier les modèles d’habilitation</a>
-            </div>
-
-            <div class="col-md-6">
-              {{ form_row(form.formateurSatisfactionTemplate) }}
-            </div>
-
           </div>
         </div>
       </div>
+
+      <section class="cardx mb-4" id="formation-evaluations" aria-labelledby="evaluations-title">
+        <div class="cardx-h">
+          <div><h2 class="cardx-title h5" id="evaluations-title"><i class="bi bi-clipboard-check"></i> Évaluations & questionnaires</h2>
+          <p class="section-description">Choisissez les outils de suivi adaptés à cette formation.</p></div>
+          <span class="chip">Pédagogie</span>
+        </div>
+        <div class="p-3 p-md-4">
+          <div class="evaluation-group">
+            <div class="evaluation-heading"><span class="evaluation-icon"><i class="bi bi-chat-square-heart"></i></span><div><h3>Appréciations</h3><p>Recueillez le retour des stagiaires et du formateur.</p></div></div>
+            <div class="row g-4">
+              <div class="col-md-6">{{ form_row(form.satisfactionTemplate, {label: 'Appréciation stagiaire'}) }}</div>
+              <div class="col-md-6">{{ form_row(form.formateurSatisfactionTemplate, {label: 'Appréciation formateur'}) }}</div>
+            </div>
+          </div>
+          <div class="evaluation-group">
+            <div class="evaluation-heading"><span class="evaluation-icon"><i class="bi bi-bar-chart"></i></span><div><h3>Tests de niveau <span class="optional-label">Facultatifs</span></h3><p>Mesurez la progression entre le début et la fin de la formation.</p></div></div>
+            <div class="row g-3">
+              <div class="col-md-6"><div class="phase-panel"><span class="phase-label">01 · AVANT LA FORMATION</span>{{ form_row(form.qcmPre, {label: 'Test initial', help: false}) }}</div></div>
+              <div class="col-md-6"><div class="phase-panel"><span class="phase-label">02 · APRÈS LA FORMATION</span>{{ form_row(form.qcmPost, {label: 'Test final', help: false}) }}</div></div>
+            </div>
+            <p class="evaluation-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Laissez « Aucun test de niveau » pour ne pas attribuer de test à cette phase. Les affectations déjà créées se gèrent depuis les sessions.</span></p>
+          </div>
+          <div class="evaluation-group mb-0">
+            <div class="evaluation-heading"><span class="evaluation-icon"><i class="bi bi-lightning-charge"></i></span><div><h3>Habilitation électrique</h3><p>À renseigner uniquement pour les formations concernées.</p></div></div>
+            {{ form_row(form.habilitationTemplate, {label: 'Modèle d’évaluation', help: 'Utilisé pour préparer les évaluations individuelles. Les dossiers existants conservent leur version.'}) }}
+            <a class="evaluation-link" href="{{ path('app_habilitation_templates', {entite: entite.id}) }}" target="_blank" rel="noopener">Gérer les modèles d’habilitation <i class="bi bi-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (nouvel onglet)</span></a>
+          </div>
+        </div>
+      </section>
 
       {# ================== TARIFICATION ================== #}
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-euro-sign text-warning"></i> Tarification</h5>
-          <span class="chip">Étape 2</span>
+          <span class="chip">Tarifs</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -479,7 +533,7 @@
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa-solid fa-house text-warning"></i> Adresse de rendez-vous</h5>
-          <span class="chip">Étape 3</span>
+          <span class="chip">Lieu</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -629,12 +683,12 @@
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-money-bill-wave text-warning"></i> Financements - éligibilité</h5>
-          <span class="chip">Switches</span>
+          <span class="chip">Éligibilité</span>
         </div>
 
         <div class="p-3 p-md-4">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <div class="small text-muted">Indique les modes de financement possibles pour cette formation.</div>
+            <div class="small text-muted">Indiquez les modes de financement possibles pour cette formation.</div>
 
             <div class="btn-group btn-group-sm">
               <button type="button" class="btn btn-outline-secondary" id="btn-financement-uncheck">
@@ -670,7 +724,7 @@
                 <div class="switch-row">
                   <div class="flex-grow-1">
                     <div class="title">CPF</div>
-                    <div class="desc">Éligible au CPF (si applicable à ton organisme / action).</div>
+                    <div class="desc">Éligible au CPF (si applicable à votre organisme / action).</div>
                   </div>
                   <div class="form-check form-switch">
                     {{ form_widget(form.financementCpf, {
@@ -762,7 +816,7 @@
     </div>
 
     {# ===== COL RIGHT (petit résumé + sticky) ===== #}
-    <div class="col-lg-4">
+    <div class="col-lg-4 formation-summary">
 
       <div class="cardx mb-4">
         <div class="cardx-h">
@@ -771,7 +825,7 @@
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Vérifiez les informations avant d’enregistrer.</div>
 
           <div class="border rounded-4 p-3 mb-3" style="border-color: var(--stroke); background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
             <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -826,7 +880,7 @@
       <div class="sticky-actions d-none d-lg-block">
         <div class="d-flex align-items-center justify-content-between">
           <div class="small text-muted">
-            <strong class="text-dark">Astuce :</strong> tu peux réordonner la galerie avant d’enregistrer.
+            <strong class="text-dark">Astuce :</strong> vous pouvez réordonner la galerie avant d’enregistrer.
           </div>
           <span class="badge rounded-pill"
                 style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">

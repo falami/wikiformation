@@ -24,6 +24,55 @@ use App\Security\Permission\TenantPermission;
 #[IsGranted(TenantPermission::QCM_ASSIGNMENT_MANAGE, subject: 'entite')]
 final class QcmAssignmentController extends AbstractController
 {
+  #[Route('/{id}/retirer', name: 'remove', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
+  public function remove(Entite $entite, QcmAssignment $assignment, Request $request, EM $em): Response
+  {
+    if ($assignment->getEntite()?->getId() !== $entite->getId()
+        || $assignment->getSession()?->getEntite()?->getId() !== $entite->getId()
+        || $assignment->getInscription()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    if ($request->isMethod('POST')) {
+      if (!$this->isCsrfTokenValid('remove_qcm_assignment_'.$assignment->getId(), $request->request->get('_token'))) throw $this->createAccessDeniedException();
+      $sessionId = $assignment->getSession()->getId();
+      $assignment->getInscription()->excludeAutomaticQcm($assignment->getPhase());
+      $em->remove($assignment);
+      $em->flush();
+      $this->addFlash('success', 'Affectation retirée. Elle ne sera plus recréée automatiquement pour ce stagiaire et cette phase.');
+      return $this->redirectToRoute('app_administrateur_session_show', ['entite' => $entite->getId(), 'id' => $sessionId]);
+    }
+    return $this->render('administrateur/qcm/assignment/remove.html.twig', ['entite' => $entite, 'assignment' => $assignment]);
+  }
+
+  #[Route('/actions-groupees', name: 'batch', methods: ['POST'])]
+  public function batch(Entite $entite, Request $request, EM $em): JsonResponse
+  {
+    if (!$this->isCsrfTokenValid('qcm_batch_'.$entite->getId(), $request->request->get('_token'))) return $this->json(['ok' => false, 'message' => 'Formulaire expiré. Rechargez la page.'], 403);
+    $ids = json_decode((string) $request->request->get('ids', '[]'), true);
+    $action = $request->request->get('action');
+    if (!is_array($ids) || !$ids || count($ids) > 500 || !in_array($action, ['remove', 'attempt'], true)) return $this->json(['ok' => false, 'message' => 'Sélection invalide.'], 400);
+    foreach ($ids as $id) if (!is_int($id) || $id <= 0) return $this->json(['ok' => false, 'message' => 'Identifiant invalide.'], 400);
+    $ids = array_values(array_unique($ids));
+    $count = $em->wrapInTransaction(function () use ($ids, $entite, $action, $em): int {
+      $items = $em->getRepository(QcmAssignment::class)->findBy(['id' => $ids, 'entite' => $entite]);
+      if (count($items) !== count($ids)) throw $this->createNotFoundException('Une affectation est indisponible. Rechargez la liste.');
+      foreach ($items as $item) {
+        if ($item->getSession()?->getEntite()?->getId() !== $entite->getId() || $item->getInscription()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+      }
+      $changed = 0;
+      foreach ($items as $item) {
+        if ($action === 'remove') {
+          $item->getInscription()->excludeAutomaticQcm($item->getPhase());
+          $em->remove($item);
+          ++$changed;
+        } elseif (!$item->getAttempt()) {
+          $this->assigner->ensureAttempt($item, $this->getUser(), $entite);
+          ++$changed;
+        }
+      }
+      return $changed;
+    });
+    return $this->json(['ok' => true, 'changed' => $count]);
+  }
+
   public function __construct(
     private UtilisateurEntiteManager $uem,
     private QcmAssigner $assigner,
@@ -150,12 +199,13 @@ final class QcmAssignmentController extends AbstractController
         s.id AS sid,
         q.id AS qid,
         q.titre AS qtitre,
-        (SELECT id FROM qcm_attempt t WHERE t.assignment_id = a.id LIMIT 1) AS attempt_id
+        t.id AS attempt_id, t.submitted_at AS attempt_submitted_at, t.score_points, t.max_points, t.score_percent
       FROM qcm_assignment a
       INNER JOIN session s ON s.id = a.session_id
       INNER JOIN inscription i ON i.id = a.inscription_id
       INNER JOIN utilisateur u ON u.id = i.stagiaire_id
       INNER JOIN qcm q ON q.id = a.qcm_id
+      LEFT JOIN qcm_attempt t ON t.assignment_id = a.id
       WHERE $where
       ORDER BY $orderBy $orderDir
       LIMIT :lim OFFSET :off
@@ -214,6 +264,8 @@ final class QcmAssignmentController extends AbstractController
 
 
       return [
+        'assignmentId' => $id,
+        'hasAttempt' => (bool) $attemptId,
         'id' => '<span class="mini-chip"><i class="bi bi-hash"></i> ' . $id . '</span>',
         'stagiaire' => htmlspecialchars(trim(($r['prenom'] ?? '') . ' ' . ($r['nom'] ?? '')) ?: '—', ENT_QUOTES),
         'email' => htmlspecialchars((string)($r['email'] ?? '—'), ENT_QUOTES),
@@ -221,6 +273,9 @@ final class QcmAssignmentController extends AbstractController
         'qcm' => htmlspecialchars((string)($r['qtitre'] ?? ''), ENT_QUOTES),
         'phase' => $phaseHtml,
         'status' => $statusHtml,
+        'result' => $r['attempt_submitted_at'] && (int)$r['max_points'] > 0
+          ? '<strong>' . number_format((float)$r['score_percent'], 1, ',', ' ') . ' %</strong><div class="small text-muted">' . (int)$r['score_points'] . ' / ' . (int)$r['max_points'] . ' points</div>'
+          : '<span class="text-muted">' . ($r['attempt_submitted_at'] ? 'Non noté' : 'À compléter') . '</span>',
         'assignedAt' => $r['assigned_at'] ? (new \DateTimeImmutable($r['assigned_at']))->format('d/m/Y H:i') : '—',
         'submittedAt' => $r['submitted_at'] ? (new \DateTimeImmutable($r['submitted_at']))->format('d/m/Y H:i') : '—',
         'actions' => $actionsHtml,

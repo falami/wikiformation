@@ -16,6 +16,23 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_session_stagiaire', columns: ['session_id', 'stagiaire_id'])]
 class Inscription
 {
+    /** Présences papier distinctes des signatures électroniques, avec historique des corrections. */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $presencesManuelles = null;
+
+    public function getPresencesManuelles(): array { return $this->presencesManuelles ?? []; }
+
+    public function enregistrerPresenceManuelle(string $key, string $status, string $reference, Utilisateur $actor): void
+    {
+        $previous = $this->presencesManuelles[$key] ?? null;
+        if (($previous['status'] ?? 'unknown') === $status && ($previous['reference'] ?? '') === $reference) return;
+        $history = $previous['history'] ?? [];
+        if ($previous) { unset($previous['history']); $history[] = $previous; }
+        $this->presencesManuelles[$key] = ['status' => $status, 'reference' => $reference,
+            'actor' => $actor->getId(), 'actorName' => $actor->getEmail(),
+            'at' => (new \DateTimeImmutable())->format(DATE_ATOM), 'history' => $history];
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -147,6 +164,18 @@ class Inscription
         $this->dateCreation = new \DateTimeImmutable();
         $this->entrepriseDocuments = new ArrayCollection();
         $this->satisfactionAssignments = new ArrayCollection();
+    }
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $qcmAutoExcludedPhases = null;
+
+    public function excludeAutomaticQcm(\App\Enum\QcmPhase $phase): void
+    {
+        $this->qcmAutoExcludedPhases = array_values(array_unique([...($this->qcmAutoExcludedPhases ?? []), $phase->value]));
+    }
+    public function isAutomaticQcmExcluded(\App\Enum\QcmPhase $phase): bool
+    {
+        return in_array($phase->value, $this->qcmAutoExcludedPhases ?? [], true);
     }
 
     public function getId(): ?int

@@ -98,9 +98,8 @@ final class TrainerContractSignatureTest extends KernelTestCase
         $url = $this->url('app_formateur_contrat_sign');
         $crawler = $client->request('GET', $url);
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        self::assertStringContainsString('Mission sur mesure', $crawler->text());
-        self::assertStringContainsString('13h30', $crawler->text());
-        self::assertStringNotContainsString('09h00', $crawler->text());
+        self::assertCount(1, $crawler->filter('iframe.contract-document-frame'));
+        self::assertStringContainsString($this->url('app_formateur_contrat_document'), $crawler->filter('iframe')->attr('src'));
         $token = $crawler->filter('form#form-signature input[name="_token"]')->attr('value');
         self::assertNotEmpty($token);
         foreach ([[], ['_token' => 'invalid']] as $parameters) {
@@ -133,6 +132,26 @@ final class TrainerContractSignatureTest extends KernelTestCase
         self::assertStringContainsString('Mission sur mesure', $html);
         self::assertStringContainsString('13h30', $html);
         self::assertStringNotContainsString('09h00', $html);
+    }
+
+    public function testInlineDocumentUsesCanonicalTemplateAndTenantChecks(): void
+    {
+        $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
+        $pdf->expects(self::once())->method('createPortraitBytes')->with(self::callback(static fn(string $html): bool => str_contains($html, 'Mission sur mesure') && str_contains($html, '13h30') && !str_contains($html, '09h00')))->willReturn('%PDF-test');
+        self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
+        $client = $this->client();
+        $client->request('GET', $this->url('app_formateur_contrat_document'));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame('application/pdf', $client->getResponse()->headers->get('Content-Type'));
+        self::assertStringContainsString('inline', $client->getResponse()->headers->get('Content-Disposition'));
+        $this->contract = $this->em->find(ContratFormateur::class, $this->contract->getId());
+        $this->contract->setSignatureAt(new \DateTimeImmutable())->setStatus(ContratFormateurStatus::SIGNE);
+        $this->em->flush();
+        $crawler = $client->request('GET', $this->url('app_formateur_contrat_sign'));
+        self::assertCount(0, $crawler->filter('#form-signature'));
+        self::assertCount(0, $crawler->filter('#signatureCanvas'));
+        $client->request('GET', $this->url('app_formateur_contrat_document'));
+        self::assertSame(409, $client->getResponse()->getStatusCode());
     }
 
     public function testMissionPdfUsesTheDeclaredConventionCountWithoutStudentAccounts(): void
