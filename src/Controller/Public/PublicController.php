@@ -51,11 +51,17 @@ final class PublicController extends AbstractController
         $host = $this->publicContext->getPublicHost();
 
         if ($host instanceof \App\Entity\PublicHost) {
-            if ($host->getHomeUrl()) {
-                return $this->redirect($host->getHomeUrl());
+            // homeUrl is an explicit navigation link, never the host landing page.
+            if ($host->isCalendarEnabled()) {
+                return $this->redirectToRoute('app_public_formation');
             }
-
-            return $this->redirectToRoute('app_public_formation');
+            if ($host->isCatalogueEnabled()) {
+                return $this->redirectToRoute('app_public_catalogue');
+            }
+            if ($host->isElearningEnabled() && $host->getEntite()) {
+                return $this->redirectToRoute('app_public_catalogue_elearning', ['entite' => $host->getEntite()->getId()]);
+            }
+            throw $this->createNotFoundException('Aucun module public disponible sur ce domaine.');
         }
 
         $user = $this->getUser();

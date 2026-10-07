@@ -2,6 +2,8 @@
 
 namespace App\Controller\Super;
 
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+
 use App\Entity\Billing\EntiteSubscription;
 use App\Entity\Entite;
 use App\Entity\Utilisateur;
@@ -29,7 +31,7 @@ final class SuperAdminController extends AbstractController
   ) {}
   #[Route('/console', name: 'console', methods: ['GET'])]
   public function console(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     Request $request,
     EntiteRepository $entiteRepo,
     UtilisateurRepository $userRepo,
@@ -60,8 +62,8 @@ final class SuperAdminController extends AbstractController
    */
   #[Route('/entites/{e}/trial', name: 'entite_trial', methods: ['GET', 'POST'], requirements: ['e' => '\d+'])]
   public function grantEntiteTrial(
-    Entite $entite,
-    Entite $e,
+    #[MapEntity(id: 'entite')] Entite $entite,
+    #[MapEntity(id: 'e')] Entite $e,
     Request $request,
     EntityManagerInterface $em,
     EntiteSubscriptionRepository $subRepo,
@@ -94,14 +96,14 @@ final class SuperAdminController extends AbstractController
       $em->flush();
 
       $this->addFlash('success', sprintf('Essai offert à %s : +%d jours.', $e->getNom(), $days));
-      return $this->redirectToRoute('app_super_admin_console', ['tab' => 'entites']);
+      return $this->redirectToRoute('app_super_admin_console', ['tab' => 'entites', 'entite' => $entite->getId()]);
     }
 
     return $this->render('super/console/grant_trial.html.twig', [
       'entite' => $entite,
       'sub' => $sub,
       'form' => $form->createView(),
-      'entite' => $entite,
+      'targetEntite' => $e,
 
 
     ]);
@@ -112,7 +114,7 @@ final class SuperAdminController extends AbstractController
    */
   #[Route('/assign', name: 'assign', methods: ['GET', 'POST'])]
   public function assign(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     Request $request,
     EntityManagerInterface $em,
     UtilisateurEntiteRepository $ueRepo,
@@ -157,7 +159,7 @@ final class SuperAdminController extends AbstractController
 
     return $this->render('super/console/assign.html.twig', [
       'form' => $form->createView(),
-      'entite' => $entite,
+      'targetEntite' => $e,
 
 
     ]);
@@ -168,8 +170,8 @@ final class SuperAdminController extends AbstractController
    */
   #[Route('/links/{id}/delete', name: 'link_delete', methods: ['POST'], requirements: ['id' => '\d+'])]
   public function deleteLink(
-    Entite $entite,
-    UtilisateurEntite $ue,
+    #[MapEntity(id: 'entite')] Entite $entite,
+    #[MapEntity(id: 'id')] UtilisateurEntite $ue,
     Request $request,
     EntityManagerInterface $em
   ): RedirectResponse {

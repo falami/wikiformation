@@ -3,6 +3,8 @@
 
 namespace App\Controller\Super\Billing;
 
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+
 use App\Entity\{Entite, Utilisateur};
 use App\Entity\Billing\EntiteSubscription;
 use App\Form\Super\Billing\EntiteSubscriptionType;
@@ -25,7 +27,7 @@ final class SuperBillingController extends AbstractController
   ) {}
   #[Route('/subscription', name: 'subscription_show', methods: ['GET'])]
   public function show(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     EntiteSubscriptionRepository $subRepo,
     PlanRepository $planRepo,
   ): Response {
@@ -47,7 +49,7 @@ final class SuperBillingController extends AbstractController
 
   #[Route('/subscription/new', name: 'subscription_new', methods: ['GET', 'POST'])]
   public function new(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     Request $request,
     EntityManagerInterface $em,
     EntiteSubscriptionRepository $subRepo,
@@ -81,7 +83,7 @@ final class SuperBillingController extends AbstractController
 
       $this->addFlash('success', 'Abonnement créé.');
       return $this->redirectToRoute('app_super_billing_subscription_show', [
-        'entite' => $entite,
+        'entite' => $entite->getId(),
 
       ]);
     }
@@ -98,8 +100,8 @@ final class SuperBillingController extends AbstractController
 
   #[Route('/subscription/{id}/edit', name: 'subscription_edit', methods: ['GET', 'POST'])]
   public function edit(
-    Entite $entite,
-    EntiteSubscription $sub,
+    #[MapEntity(id: 'entite')] Entite $entite,
+    #[MapEntity(id: 'id')] EntiteSubscription $sub,
     Request $request,
     EntityManagerInterface $em,
   ): Response {
@@ -143,8 +145,8 @@ final class SuperBillingController extends AbstractController
    */
   #[Route('/subscription/{id}/grant-trial', name: 'subscription_grant_trial', methods: ['POST'])]
   public function grantTrial(
-    Entite $entite,
-    EntiteSubscription $sub,
+    #[MapEntity(id: 'entite')] Entite $entite,
+    #[MapEntity(id: 'id')] EntiteSubscription $sub,
     Request $request,
     EntityManagerInterface $em,
   ): RedirectResponse {
@@ -158,7 +160,7 @@ final class SuperBillingController extends AbstractController
     if (!$this->isCsrfTokenValid('grant_trial_' . $sub->getId(), $token)) {
       $this->addFlash('danger', 'Token CSRF invalide.');
       return $this->redirectToRoute('app_super_billing_subscription_show', [
-        'entite' => $entite,
+        'entite' => $entite->getId(),
 
       ]);
     }
@@ -185,8 +187,8 @@ final class SuperBillingController extends AbstractController
 
   #[Route('/subscription/{id}/cancel-local', name: 'subscription_cancel_local', methods: ['POST'])]
   public function cancelLocal(
-    Entite $entite,
-    EntiteSubscription $sub,
+    #[MapEntity(id: 'entite')] Entite $entite,
+    #[MapEntity(id: 'id')] EntiteSubscription $sub,
     Request $request,
     EntityManagerInterface $em,
   ): RedirectResponse {

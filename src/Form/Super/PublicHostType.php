@@ -199,7 +199,7 @@ final class PublicHostType extends AbstractType
                     'class' => 'form-control',
                     'placeholder' => 'https://itforyou.fr',
                 ],
-                'help' => 'Si renseigné, le lien "Accueil" renverra vers ce site externe.',
+                'help' => 'Le lien « Accueil » renvoie vers ce site externe. Le sous-domaine ouvre directement le calendrier ou le catalogue activé, sans redirection vers cette URL.',
             ]);
     }
 

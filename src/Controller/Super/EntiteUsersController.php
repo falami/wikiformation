@@ -2,6 +2,8 @@
 
 namespace App\Controller\Super;
 
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+
 use App\Entity\{Entite, Utilisateur};
 use App\Entity\UtilisateurEntite;
 use App\Form\Super\UtilisateurEntiteType;
@@ -23,7 +25,7 @@ final class EntiteUsersController extends AbstractController
   ) {}
   #[Route('/users', name: 'index', methods: ['GET'])]
   public function index(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     Request $request,
     UtilisateurEntiteRepository $ueRepo,
   ): Response {
@@ -42,7 +44,7 @@ final class EntiteUsersController extends AbstractController
 
   #[Route('/users/new', name: 'new', methods: ['GET', 'POST'])]
   public function new(
-    Entite $entite,
+    #[MapEntity(id: 'entite')] Entite $entite,
     Request $request,
     EntityManagerInterface $em,
   ): Response {
@@ -77,8 +79,8 @@ final class EntiteUsersController extends AbstractController
 
   #[Route('/users/{id}/edit', name: 'edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
   public function edit(
-    Entite $entite,
-    UtilisateurEntite $ue,
+    #[MapEntity(id: 'entite')] Entite $entite,
+    #[MapEntity(id: 'id')] UtilisateurEntite $ue,
     Request $request,
     EntityManagerInterface $em,
   ): Response {
@@ -113,8 +115,8 @@ final class EntiteUsersController extends AbstractController
 
   #[Route('/users/{id}/delete', name: 'delete', methods: ['POST'], requirements: ['id' => '\d+'])]
   public function delete(
-    Entite $entite,
-    UtilisateurEntite $ue,
+    #[MapEntity(id: 'entite')] Entite $entite,
+    #[MapEntity(id: 'id')] UtilisateurEntite $ue,
     Request $request,
     EntityManagerInterface $em,
   ): RedirectResponse {
