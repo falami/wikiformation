@@ -80,35 +80,103 @@ final class DelegationPortalTest extends KernelTestCase
         $this->em->flush();
         return $g;
     }
+    public function testRoleRoutesResolveToDedicatedControllers(): void
+    {
+        $routes = self::getContainer()->get('router')->getRouteCollection();
+        foreach (['commercial' => \App\Controller\Commercial\DossierController::class, 'opco' => \App\Controller\Opco\DossierController::class] as $space => $controller) {
+            foreach (['dashboard', 'list', 'show', 'pdf'] as $action) {
+                $route = $routes->get('app_' . $space . '_' . $action);
+                self::assertNotNull($route);
+                self::assertSame($controller . '::' . $action, $route->getDefault('_controller'));
+                self::assertStringContainsString('/' . $space . '/{entite}', $route->getPath());
+            }
+        }
+        foreach (['new', 'delete', 'compose', 'activity', 'edit_document', 'schedule'] as $action) {
+            self::assertNull($routes->get('app_opco_' . $action));
+            self::assertNotNull($routes->get('app_commercial_' . $action));
+        }
+    }
+
+    public function testOpcoCanOnlyReadAndDownloadAssignedDocuments(): void
+    {
+        $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
+        $pdf->method('createPortrait')->willReturnCallback(fn($html, $name) => new \Symfony\Component\HttpFoundation\Response($html));
+        self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
+        $company = $this->company('Client financement');
+        $this->grant('entreprises', $company->getId());
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'factures']));
+        $form = $page->filter('form[name="document"]')->form();
+        $form['document[company]']->select((string) $company->getId());
+        $form['document[lines][0][label]'] = 'Prestation financée';
+        $form['document[lines][0][price]'] = '150';
+        $this->client->submit($form);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $invoice = $this->em->getRepository(Facture::class)->findOneBy(['entite' => $this->entite]);
+        $membership = $this->em->find(UtilisateurEntite::class, $this->membership->getId());
+        $membership->setRoles([UtilisateurEntite::TENANT_OPCO]);
+        $this->em->flush();
+        $base = '/fr/opco/' . $this->entite->getId();
+        $url = $base . '/dossiers/factures/' . $invoice->getId();
+        $this->client->request('GET', $base . '/dossiers/factures');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString($invoice->getNumero(), $this->client->getResponse()->getContent());
+        $page = $this->client->request('GET', $url . '?espace=commercial');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame(0, $page->filter('form')->count());
+        self::assertStringNotContainsString('RELATION COMMERCIALE', $this->client->getResponse()->getContent());
+        $this->client->click($page->selectLink('Télécharger le PDF')->link());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Prestation financée', $this->client->getResponse()->getContent());
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', $url, ['dossier' => ['note' => 'Interdit']]);
+        self::assertSame(405, $this->client->getResponse()->getStatusCode());
+        $this->client->request('POST', $url . '/supprimer');
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
+        $this->client->request('GET', '/fr/commercial/' . $this->entite->getId() . '/dashboard?espace=opco');
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $grant = $this->em->getRepository(DossierDelegation::class)->findOneBy(['membership' => $membership, 'module' => 'factures', 'recordId' => $invoice->getId()]);
+        $this->em->remove($grant);
+        $this->em->flush();
+        foreach ([$url, $url . '/pdf'] as $denied) {
+            $this->client->request('GET', $denied);
+            self::assertSame(404, $this->client->getResponse()->getStatusCode());
+        }
+        $other = (new Entite())->setNom('Autre organisme')->setCreateur($this->em->find(Utilisateur::class, $this->admin->getId()))->setPublic(false);
+        $this->em->persist($other);
+        $this->em->flush();
+        $this->client->request('GET', '/fr/opco/' . $other->getId() . '/dossiers/factures/' . $invoice->getId() . '/pdf');
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
     public function testCommercialOnlySeesAssignedRecordsAndCanUpdateThem(): void
     {
         $assigned = $this->prospect('Visible');
         $hidden = $this->prospect('Confidentiel');
         $grant = $this->grant('prospects', $assigned->getId());
-        $this->client->request('GET', $this->url('app_portail_commercial_dashboard'));
+        $this->client->request('GET', $this->url('app_commercial_dashboard'));
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
-        $this->client->request('GET', $this->url('app_portail_list', ['module' => 'prospects']));
+        $this->client->request('GET', $this->url('app_commercial_list', ['module' => 'prospects']));
         self::assertStringContainsString('Visible', $this->client->getResponse()->getContent());
         self::assertStringNotContainsString('Confidentiel', $this->client->getResponse()->getContent());
-        $page = $this->client->request('GET', $this->url('app_portail_show', ['module' => 'prospects', 'id' => $assigned->getId()]));
+        $page = $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'prospects', 'id' => $assigned->getId()]));
         $form = $page->filter('form[name="dossier"]')->form();
         $form['dossier[nom]'] = 'Modifié';
         $this->client->submit($form);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertSame('Modifié', $this->em->getConnection()->fetchOne('SELECT nom FROM prospect WHERE id = ?', [$assigned->getId()]));
         $this->client->catchExceptions(true);
-        $this->client->request('GET', $this->url('app_portail_show', ['module' => 'prospects', 'id' => $hidden->getId()]));
+        $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'prospects', 'id' => $hidden->getId()]));
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
         $this->client->request('GET', '/fr/administrateur/' . $this->entite->getId() . '/utilisateur');
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
         $this->em->remove($this->em->find(DossierDelegation::class, $grant->getId()));
         $this->em->flush();
-        $this->client->request('GET', $this->url('app_portail_show', ['module' => 'prospects', 'id' => $assigned->getId()]));
+        $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'prospects', 'id' => $assigned->getId()]));
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
     }
     public function testCommercialCanCreateAssignedProspectAndCannotForgeRole(): void
     {
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'prospects']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'prospects']));
         $form = $page->filter('form[name="dossier"]')->form();
         $form['dossier[prenom]'] = 'Nouveau';
         $form['dossier[nom]'] = 'Prospect';
@@ -117,7 +185,7 @@ final class DelegationPortalTest extends KernelTestCase
         $record = $this->em->getRepository(Prospect::class)->findOneBy(['nom' => 'Prospect']);
         self::assertNotNull($record);
         self::assertNotNull($this->em->getRepository(DossierDelegation::class)->findOneBy(['membership' => $this->membership, 'module' => 'prospects', 'recordId' => $record->getId()]));
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'clients']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'clients']));
         $form = $page->filter('form[name="dossier"]')->form();
         $form['dossier[prenom]'] = 'Client';
         $form['dossier[nom]'] = 'Test';
@@ -134,24 +202,24 @@ final class DelegationPortalTest extends KernelTestCase
         $this->em->flush();
         $this->grant('entreprises', $company->getId(), 'read');
         $this->client->catchExceptions(true);
-        $this->client->request('POST', $this->url('app_portail_show', ['module' => 'entreprises', 'id' => $company->getId()]), ['dossier' => ['raisonSociale' => 'Interdit']]);
+        $this->client->request('POST', $this->url('app_commercial_show', ['module' => 'entreprises', 'id' => $company->getId()]), ['dossier' => ['raisonSociale' => 'Interdit']]);
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
         $other = (new Entite())->setNom('Autre entité')->setCreateur($this->admin)->setPublic(false);
         $this->em->persist($other);
         $this->em->flush();
-        $this->client->request('GET', $this->url('app_portail_dashboard', ['entite' => $other->getId()]));
+        $this->client->request('GET', $this->url('app_commercial_dashboard', ['entite' => $other->getId()]));
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
         $membership = $this->em->find(UtilisateurEntite::class, $this->membership->getId());
         $membership->setRoles([UtilisateurEntite::TENANT_OPCO]);
         $this->em->flush();
-        $this->client->request('GET', $this->url('app_portail_opco_dashboard', ['espace' => 'opco']));
+        $this->client->request('GET', $this->url('app_opco_dashboard', ['espace' => 'opco']));
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertStringNotContainsString('Nouveau prospect', $this->client->getResponse()->getContent());
-        $this->client->request('GET', $this->url('app_portail_list', ['espace' => 'opco', 'module' => 'prospects']));
+        $this->client->request('GET', $this->url('app_opco_list', ['espace' => 'opco', 'module' => 'prospects']));
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
-        $this->client->request('GET', $this->url('app_portail_new', ['espace' => 'opco', 'module' => 'factures']));
-        self::assertSame(403, $this->client->getResponse()->getStatusCode());
-        $this->client->request('GET', $this->url('app_portail_dashboard'));
+        $this->client->request('GET', '/fr/opco/' . $this->entite->getId() . '/dossiers/factures/nouveau');
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
+        $this->client->request('GET', $this->url('app_commercial_dashboard'));
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
     }
     public function testAdminCanAssignAndRevokeWithoutGivingAdministrativeRights(): void
@@ -175,7 +243,7 @@ final class DelegationPortalTest extends KernelTestCase
     public function testOperationalModulesCreateAndExposeNoOtherTenantChoices(): void
     {
         foreach (['sites' => ['nom' => 'Site commercial'], 'formations' => ['titre' => 'Formation commerciale', 'duree' => '2'], 'entreprises' => ['raisonSociale' => 'Entreprise commerciale']] as $module => $fields) {
-            $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => $module]));
+            $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => $module]));
             $form = $page->filter('form[name="dossier"]')->form();
             foreach ($fields as $field => $value) {
                 $form['dossier[' . $field . ']'] = $value;
@@ -185,7 +253,7 @@ final class DelegationPortalTest extends KernelTestCase
             $this->client->followRedirect();
             self::assertSame(200, $this->client->getResponse()->getStatusCode());
         }
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'sessions']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'sessions']));
         $form = $page->filter('form[name="dossier"]')->form();
         $site = $this->em->getRepository(\App\Entity\Site::class)->findOneBy(['nom' => 'Site commercial']);
         $formation = $this->em->getRepository(\App\Entity\Formation::class)->findOneBy(['titre' => 'Formation commerciale']);
@@ -210,19 +278,19 @@ final class DelegationPortalTest extends KernelTestCase
         $this->em->flush();
         $this->grant('sessions', $session->getId());
         $this->grant('clients', $this->membership->getId());
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'formateurs']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'formateurs']));
         $form = $page->filter('form[name="dossier"]')->form();
         $form['dossier[utilisateur]']->select((string) $this->sales->getId());
         $this->client->submit($form);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'inscriptions']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'inscriptions']));
         $form = $page->filter('form[name="dossier"]')->form();
         $form['dossier[session]']->select((string) $session->getId());
         $form['dossier[stagiaire]']->select((string) $this->sales->getId());
         $this->client->submit($form);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertSame(1, $this->em->getRepository(\App\Entity\DossierInscription::class)->count([]));
-        $page = $this->client->request('GET', $this->url('app_portail_schedule', ['id' => $session->getId()]));
+        $page = $this->client->request('GET', $this->url('app_commercial_schedule', ['id' => $session->getId()]));
         $form = $page->filter('form[name="form"]')->form();
         $form['form[dateDebut]'] = '2026-12-01T08:30';
         $form['form[dateFin]'] = '2026-12-01T17:00';
@@ -238,7 +306,7 @@ final class DelegationPortalTest extends KernelTestCase
         $this->em->flush();
         $this->grant('entreprises', $company->getId());
         foreach (['devis' => Devis::class, 'factures' => Facture::class] as $module => $class) {
-            $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => $module]));
+            $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => $module]));
             self::assertSame(200, $this->client->getResponse()->getStatusCode());
             $form = $page->filter('form[name="document"]')->form();
             $form['document[company]']->select((string) $company->getId());
@@ -274,7 +342,7 @@ final class DelegationPortalTest extends KernelTestCase
             $this->grant($module, $record->getId());
         }
         foreach (['conventions', 'devis', 'factures'] as $module) {
-            $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => $module]));
+            $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => $module]));
             $form = $page->filter('form[name="document"]')->form();
             $form['document[company]']->select((string) $company->getId());
             if ($module === 'conventions') {
@@ -297,17 +365,17 @@ final class DelegationPortalTest extends KernelTestCase
         $hidden = (new Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Non attribuée');
         $this->em->persist($hidden);
         $this->em->flush();
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'factures']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'factures']));
         $form = $page->filter('form[name="document"]')->form();
         $values = $form->getPhpValues();
         $values['document']['company'] = $hidden->getId();
         $values['document']['lines'][0]['label'] = 'Interdit';
-        $this->client->request('POST', $this->url('app_portail_new', ['module' => 'factures']), $values);
+        $this->client->request('POST', $this->url('app_commercial_new', ['module' => 'factures']), $values);
         self::assertSame(422, $this->client->getResponse()->getStatusCode());
         self::assertSame(0, $this->em->getRepository(Facture::class)->count([]));
         $this->grant('entreprises', $hidden->getId());
         $values['document']['_token'] = 'invalid';
-        $this->client->request('POST', $this->url('app_portail_new', ['module' => 'factures']), $values);
+        $this->client->request('POST', $this->url('app_commercial_new', ['module' => 'factures']), $values);
         self::assertSame(422, $this->client->getResponse()->getStatusCode());
         self::assertSame(0, $this->em->getRepository(Facture::class)->count([]));
     }
@@ -316,18 +384,18 @@ final class DelegationPortalTest extends KernelTestCase
         $this->client->loginUser($this->admin);
         $hidden = $this->prospect('Dossier sans attribution');
         foreach (['commercial', 'opco'] as $space) {
-            $this->client->request('GET', $this->url('app_portail_dashboard', ['espace' => $space]));
+            $this->client->request('GET', $this->url('app_' . $space . '_dashboard', ['espace' => $space]));
             self::assertSame(200, $this->client->getResponse()->getStatusCode());
         }
         $this->client->request('GET', $this->url('app_administrateur_delegation_index'));
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         $this->client->catchExceptions(true);
-        $this->client->request('GET', $this->url('app_portail_show', ['module' => 'prospects', 'id' => $hidden->getId()]));
+        $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'prospects', 'id' => $hidden->getId()]));
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
         $adminMembership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $this->admin->getId(), 'entite' => $this->entite->getId()]);
         $adminMembership->setStatus(UtilisateurEntite::STATUS_SUSPENDED);
         $this->em->flush();
-        $this->client->request('GET', $this->url('app_portail_dashboard'));
+        $this->client->request('GET', $this->url('app_commercial_dashboard'));
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
     }
     private function company(string $name): Entreprise
@@ -352,14 +420,14 @@ final class DelegationPortalTest extends KernelTestCase
         $access = self::getContainer()->get(DossierAccess::class);
         self::assertSame('edit', $access->grant($this->membership, 'devis', $quote->getId())->getAccessLevel());
         self::assertCount(1, $access->rows($this->membership, 'devis'));
-        $page = $this->client->request('GET', $this->url('app_portail_show', ['module' => 'entreprises', 'id' => $company->getId()]));
+        $page = $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'entreprises', 'id' => $company->getId()]));
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertStringContainsString('DEV-OWN', $page->text());
         self::assertStringNotContainsString('DEV-HIDDEN', $page->text());
         $this->em->remove($this->em->find(DossierDelegation::class, $companyGrant->getId()));
         $this->em->flush();
         $this->client->catchExceptions(true);
-        $this->client->request('GET', $this->url('app_portail_show', ['module' => 'devis', 'id' => $quote->getId()]));
+        $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'devis', 'id' => $quote->getId()]));
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
     }
     public function testSharedSessionIsReadOnlyAndTrainerContractDoesNotLeak(): void
@@ -382,7 +450,7 @@ final class DelegationPortalTest extends KernelTestCase
         self::assertCount(0, $access->rows($this->membership, 'inscriptions'));
         self::assertCount(0, $access->rows($this->membership, 'contrats-formateurs'));
         $this->client->catchExceptions(true);
-        $this->client->request('POST', $this->url('app_portail_show', ['module' => 'sessions', 'id' => $session->getId()]), ['dossier' => ['capacite' => 99]]);
+        $this->client->request('POST', $this->url('app_commercial_show', ['module' => 'sessions', 'id' => $session->getId()]), ['dossier' => ['capacite' => 99]]);
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
     }
     public function testDraftQuoteEditDeletionAndIssuedInvoiceProtection(): void
@@ -397,7 +465,7 @@ final class DelegationPortalTest extends KernelTestCase
             $this->em->persist($r);
         }
         $this->em->flush();
-        $page = $this->client->request('GET', $this->url('app_portail_edit_document', ['module' => 'devis', 'id' => $quote->getId()]));
+        $page = $this->client->request('GET', $this->url('app_commercial_edit_document', ['module' => 'devis', 'id' => $quote->getId()]));
         $form = $page->filter('form[name="document"]')->form();
         $form['document[lines][0][price]'] = '250';
         $form['document[lines][0][label]'] = 'Modifié';
@@ -419,7 +487,7 @@ final class DelegationPortalTest extends KernelTestCase
         $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
         $pdf->method('createPortrait')->willReturnCallback(fn($html, $name) => new \Symfony\Component\HttpFoundation\Response($html));
         self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'formateurs']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'formateurs']));
         $form = $page->filter('form[name="dossier"]')->form();
         $form['dossier[prenom]'] = 'Nouveau';
         $form['dossier[nom]'] = 'Formateur';
@@ -436,7 +504,7 @@ final class DelegationPortalTest extends KernelTestCase
             $this->em->persist($r);
         }
         $this->em->flush();
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'contrats-formateurs']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'contrats-formateurs']));
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         $form = $page->filter('form[name="contrat_formateur"]')->form();
         $form['contrat_formateur[session]']->select((string) $session->getId());
@@ -448,14 +516,14 @@ final class DelegationPortalTest extends KernelTestCase
         $this->client->click($page->selectLink('Télécharger le PDF')->link());
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertStringContainsString('Nouveau', $this->client->getResponse()->getContent());
-        $page = $this->client->request('GET', $this->url('app_portail_activity', ['module' => 'entreprises', 'id' => $company->getId()]));
+        $page = $this->client->request('GET', $this->url('app_commercial_activity', ['module' => 'entreprises', 'id' => $company->getId()]));
         $form = $page->filter('form[name="form"]')->form();
         $form['form[title]'] = 'Appeler le client';
         $form['form[content]'] = 'Préparer son projet';
         $form['form[dueAt]'] = '2026-12-01T09:00';
         $this->client->submit($form);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
-        $page = $this->client->request('GET', $this->url('app_portail_dashboard'));
+        $page = $this->client->request('GET', $this->url('app_commercial_dashboard'));
         self::assertStringContainsString('Appeler le client', $page->text());
     }
     public function testEmailUsesClientAddressAndPdfAndDoesNotResend(): void
@@ -473,7 +541,7 @@ final class DelegationPortalTest extends KernelTestCase
         $invoice = (new Facture())->setEntite($this->entite)->setCreateur($this->admin)->setMontantTtcCents(12000)->setMontantHtCents(10000)->setMontantTvaCents(2000)->setNumero('F-MAIL')->setEntrepriseDestinataire($company);
         $this->em->persist($invoice);
         $this->em->flush();
-        $url = $this->url('app_portail_compose', ['module' => 'factures', 'id' => $invoice->getId()]);
+        $url = $this->url('app_commercial_compose', ['module' => 'factures', 'id' => $invoice->getId()]);
         $page = $this->client->request('GET', $url);
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         $form = $page->filter('form[name="form"]')->form();
@@ -488,7 +556,7 @@ final class DelegationPortalTest extends KernelTestCase
     {
         $company = $this->company('Portefeuille stagiaires');
         $this->grant('entreprises', $company->getId());
-        $page = $this->client->request('GET', $this->url('app_portail_new', ['module' => 'clients']));
+        $page = $this->client->request('GET', $this->url('app_commercial_new', ['module' => 'clients']));
         $form = $page->filter('form[name="dossier"]')->form();
         $form['dossier[prenom]'] = 'Alice';
         $form['dossier[nom]'] = 'Apprenante';
@@ -499,7 +567,7 @@ final class DelegationPortalTest extends KernelTestCase
         $userId = $user->getId();
         $learner = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $user]);
         $learnerId = $learner->getId();
-        $url = $this->url('app_portail_company_learners', ['id' => $company->getId()]);
+        $url = $this->url('app_commercial_company_learners', ['id' => $company->getId()]);
         foreach (['attach', 'detach'] as $operation) {
             $page = $this->client->request('GET', $url);
             self::assertSame(200, $this->client->getResponse()->getStatusCode());
@@ -512,7 +580,7 @@ final class DelegationPortalTest extends KernelTestCase
             self::assertCount($operation === 'attach' ? 1 : 0, $this->em->find(Utilisateur::class, $userId)->getEntreprisesAssociees());
         }
         $this->client->catchExceptions(true);
-        $this->client->request('GET', $this->url('app_portail_show', ['module' => 'clients', 'id' => $learnerId]));
+        $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'clients', 'id' => $learnerId]));
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
     }
     public function testEmptySessionCanBeEditedAndDeletedButCsrfIsMandatory(): void
@@ -529,16 +597,16 @@ final class DelegationPortalTest extends KernelTestCase
         $this->em->flush();
         $sessionId = $session->getId();
         $dayId = $day->getId();
-        $page = $this->client->request('GET', $this->url('app_portail_schedule_edit', ['id' => $sessionId, 'dayId' => $dayId]));
+        $page = $this->client->request('GET', $this->url('app_commercial_schedule_edit', ['id' => $sessionId, 'dayId' => $dayId]));
         $form = $page->filter('form[name="form"]')->form();
         $form['form[dateFin]'] = '2026-12-01T16:00';
         $this->client->submit($form);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertSame('16:00', $this->em->find(\App\Entity\SessionJour::class, $dayId)->getDateFin()->format('H:i'));
         $this->client->catchExceptions(true);
-        $this->client->request('POST', $this->url('app_portail_delete', ['module' => 'sessions', 'id' => $sessionId]), ['_token' => 'invalid']);
+        $this->client->request('POST', $this->url('app_commercial_delete', ['module' => 'sessions', 'id' => $sessionId]), ['_token' => 'invalid']);
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
-        $page = $this->client->request('GET', $this->url('app_portail_show', ['module' => 'sessions', 'id' => $sessionId]));
+        $page = $this->client->request('GET', $this->url('app_commercial_show', ['module' => 'sessions', 'id' => $sessionId]));
         $this->client->submit($page->selectButton('Confirmer la suppression')->form());
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertNull($this->em->find(\App\Entity\Session::class, $sessionId));

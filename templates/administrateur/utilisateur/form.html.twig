@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 
+  <link rel="stylesheet" href="{{ asset('dist/css/client-address.css') }}">
   <style>
     :root{
     --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
@@ -552,17 +553,28 @@
       
 
       {# ===== Coordonnées ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4 client-address" data-client-address data-address-id="{{ form.adresse.vars.id }}" data-postal-id="{{ form.codePostal.vars.id }}" data-city-id="{{ form.ville.vars.id }}" data-google-key="{{ googleMapsBrowserKey|default('') }}">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-geo-alt text-warning"></i> Coordonnées</h5>
           <span class="chip">Étape 4</span>
         </div>
         <div class="p-3 p-md-4">
+          <div class="client-address-search mb-4">
+            <div class="fw-semibold mb-2" id="client-address-search-label"><i class="bi bi-search me-2" aria-hidden="true"></i>Rechercher une adresse avec Google</div>
+            <div data-address-search aria-labelledby="client-address-search-label"></div>
+            <p class="small text-muted mt-2 mb-0" data-address-status role="status">Chargement des suggestions d’adresse…</p>
+          </div>
           <div class="row g-3">
             <div class="col-12">{{ form_row(form.adresse) }}</div>
             <div class="col-12">{{ form_row(form.complement) }}</div>
             <div class="col-12 col-md-4">{{ form_row(form.codePostal) }}</div>
             <div class="col-12 col-md-8">{{ form_row(form.ville) }}</div>
+          </div>
+          <div class="client-address-plan mt-4">
+            <div class="d-flex justify-content-between align-items-center gap-3 p-3 border-bottom"><span class="fw-semibold"><i class="bi bi-map me-2" aria-hidden="true"></i>Localisation</span><button type="button" class="btn btn-sm btn-outline-secondary" data-address-locate>Actualiser le plan</button></div>
+            <div data-address-map class="client-address-map" hidden aria-label="Carte de l’adresse du client"></div>
+            <div data-address-empty class="client-address-empty"><i class="bi bi-geo-alt" aria-hidden="true"></i><p class="mb-0">Sélectionnez une adresse pour la situer sur le plan.</p></div>
+            <p class="small text-muted px-3 py-2 mb-0" data-address-caption>Vous pouvez aussi renseigner ou corriger les coordonnées manuellement.</p>
           </div>
         </div>
       </div>
@@ -958,4 +970,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
+{% endblock %}
+
+{% block javascripts_bottom %}
+  {{ parent() }}
+  <script src="{{ asset('dist/js/client-address.js') }}"></script>
 {% endblock %}

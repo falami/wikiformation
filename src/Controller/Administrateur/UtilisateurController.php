@@ -477,6 +477,7 @@ final class UtilisateurController extends AbstractController
       ->findOneBy(['entite' => $entite, 'utilisateur' => $utilisateur]);
 
     return $this->render('administrateur/utilisateur/form.html.twig', [
+      'googleMapsBrowserKey' => $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),
       'entite'            => $entite,
       'utilisateur'       => $utilisateur,
       'modeEdition'       => $isEdit,

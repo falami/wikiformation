@@ -66,6 +66,6 @@ final class DelegationController extends AbstractController
         $grants = $em->createQueryBuilder()->select('d', 'm', 'u')->from(DossierDelegation::class, 'd')->join('d.membership', 'm')->join('m.utilisateur', 'u')->where('m.entite = :entite')->andWhere('d.module = :module')->setParameter('entite', $entite)->setParameter('module', $module)->orderBy('d.id', 'DESC')->getQuery()->getResult();
         $labels = array_column($choices, 'title', 'id');
         $modules = DossierRegistry::MODULES;
-        return $this->render('portail/delegations.html.twig', compact('entite', 'module', 'config', 'modules', 'members', 'choices', 'grants', 'labels'));
+        return $this->render('administrateur/delegations/index.html.twig', compact('entite', 'module', 'config', 'modules', 'members', 'choices', 'grants', 'labels'));
     }
 }

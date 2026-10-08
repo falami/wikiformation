@@ -1,7 +1,7 @@
 <?php
 
 declare (strict_types=1);
-namespace App\Controller\Portail;
+namespace App\Controller\Commercial;
 
 use App\Entity\{Entite, Utilisateur, UtilisateurEntite, AuditLog, Formation, Site, Session, Inscription, Formateur};
 use App\Service\Delegation\{DossierAccess, DossierRegistry, DossierForm};
@@ -15,8 +15,8 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
-#[Route('/{espace}/{entite}', name: 'app_portail_', requirements: ['espace' => 'commercial|opco', 'entite' => '\d+'])]
-final class DossierPortalController extends AbstractController
+#[Route('/commercial/{entite}', name: 'app_commercial_', defaults: ['espace' => 'commercial'], requirements: ['entite' => '\d+'])]
+final class DossierController extends AbstractController
 {
     public function __construct(private readonly DossierAccess $access, private readonly DossierRegistry $registry, private readonly DossierForm $forms, private readonly EntityManagerInterface $em, private readonly EntitlementService $entitlements, private readonly \App\Service\Delegation\CommercialRules $rules, private readonly \App\Service\Delegation\PortfolioScope $scope, private readonly \App\Service\Delegation\TrainerContracts $trainerContracts, private readonly \App\Service\Sequence\ContratFormateurNumberGenerator $trainerNumbers)
     {
@@ -27,7 +27,7 @@ final class DossierPortalController extends AbstractController
         if (!$user instanceof Utilisateur) {
             throw $this->createAccessDeniedException();
         }
-        $membership = $this->access->membership($user, $entite, $espace === 'commercial' ? UtilisateurEntite::TENANT_COMMERCIAL : UtilisateurEntite::TENANT_OPCO);
+        $membership = $this->access->membership($user, $entite, UtilisateurEntite::TENANT_COMMERCIAL);
         if (!$this->entitlements->isEntiteActive($entite)) {
             throw $this->createAccessDeniedException('L’abonnement de cet organisme doit être renouvelé par son administrateur.');
         }
@@ -35,7 +35,7 @@ final class DossierPortalController extends AbstractController
     }
     private function modules(string $espace): array
     {
-        return $espace === 'commercial' ? DossierRegistry::MODULES : array_intersect_key(DossierRegistry::MODULES, array_flip(DossierRegistry::PARTNER_MODULES));
+        return DossierRegistry::MODULES;
     }
     private function checkModule(string $espace, string $module): void
     {
@@ -43,8 +43,6 @@ final class DossierPortalController extends AbstractController
             throw $this->createNotFoundException();
         }
     }
-    #[Route('/dashboard', name: 'commercial_dashboard', defaults: ['espace' => 'commercial'], requirements: ['espace' => 'commercial'], methods: ['GET'])]
-    #[Route('/dashboard', name: 'opco_dashboard', defaults: ['espace' => 'opco'], requirements: ['espace' => 'opco'], methods: ['GET'])]
     #[Route('/dashboard', name: 'dashboard', methods: ['GET'])]
     public function dashboard(
         #[MapEntity(id: 'entite')]
@@ -58,33 +56,31 @@ final class DossierPortalController extends AbstractController
         foreach ($modules as $key => $config) {
             $counts[$key] = count($this->access->rows($membership, $key));
         }
-        $companies = $espace === 'commercial' ? $this->access->rows($membership, 'entreprises') : [];
+        $companies = $this->access->rows($membership, 'entreprises');
         $reminders = [];
         $quotesTotal = 0;
         $invoiceTotal = 0;
-        if ($espace === 'commercial') {
-            foreach ($this->access->rows($membership, 'devis') as $quote) {
-                if ($quote->getStatus() === \App\Enum\DevisStatus::DRAFT || $quote->getStatus() === \App\Enum\DevisStatus::SENT) {
-                    $quotesTotal += $quote->getMontantHtCents();
-                }
-            }
-            foreach ($this->access->rows($membership, 'factures') as $invoice) {
-                if ($invoice->getStatus() !== \App\Enum\FactureStatus::CANCELED) {
-                    $invoiceTotal += $invoice->getMontantHtCents();
-                }
-            }
-            foreach ($this->em->getRepository(\App\Entity\CommercialActivity::class)->findBy(['entite' => $entite, 'completedAt' => null], ['dueAt' => 'ASC']) as $activity) {
-                if (!$activity->getDueAt()) {
-                    continue;
-                }
-                try {
-                    $this->access->grant($membership, $activity->getModule(), $activity->getRecordId());
-                    $reminders[] = $activity;
-                } catch (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
-                }
+        foreach ($this->access->rows($membership, 'devis') as $quote) {
+            if ($quote->getStatus() === \App\Enum\DevisStatus::DRAFT || $quote->getStatus() === \App\Enum\DevisStatus::SENT) {
+                $quotesTotal += $quote->getMontantHtCents();
             }
         }
-        return $this->render('portail/dashboard.html.twig', compact('entite', 'espace', 'membership', 'modules', 'counts', 'companies', 'reminders', 'quotesTotal', 'invoiceTotal'));
+        foreach ($this->access->rows($membership, 'factures') as $invoice) {
+            if ($invoice->getStatus() !== \App\Enum\FactureStatus::CANCELED) {
+                $invoiceTotal += $invoice->getMontantHtCents();
+            }
+        }
+        foreach ($this->em->getRepository(\App\Entity\CommercialActivity::class)->findBy(['entite' => $entite, 'completedAt' => null], ['dueAt' => 'ASC']) as $activity) {
+            if (!$activity->getDueAt()) {
+                continue;
+            }
+            try {
+                $this->access->grant($membership, $activity->getModule(), $activity->getRecordId());
+                $reminders[] = $activity;
+            } catch (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+            }
+        }
+        return $this->render('commercial/dashboard.html.twig', compact('entite', 'espace', 'membership', 'modules', 'counts', 'companies', 'reminders', 'quotesTotal', 'invoiceTotal'));
     }
     #[Route('/dossiers/{module}', name: 'list', methods: ['GET'])]
     public function list(
@@ -100,7 +96,7 @@ final class DossierPortalController extends AbstractController
         $config = $this->registry->config($module);
         $query = mb_substr(trim($request->query->getString('q')), 0, 150);
         $companyId = $request->query->getInt('company');
-        $companies = $espace === 'commercial' ? $this->access->rows($membership, 'entreprises') : [];
+        $companies = $this->access->rows($membership, 'entreprises');
         $rows = [];
         foreach ($this->access->rows($membership, $module) as $record) {
             if ($companyId && !array_filter($this->scope->companies($record), fn($c) => $c->getId() === $companyId)) {
@@ -117,7 +113,7 @@ final class DossierPortalController extends AbstractController
         $page = max(1, $request->query->getInt('page', 1));
         $rows = array_slice($rows, ($page - 1) * 25, 25);
         $canCreate = $espace === 'commercial';
-        return $this->render('portail/list.html.twig', compact('entite', 'espace', 'module', 'config', 'query', 'rows', 'total', 'page', 'canCreate', 'companies', 'companyId'));
+        return $this->render('commercial/list.html.twig', compact('entite', 'espace', 'module', 'config', 'query', 'rows', 'total', 'page', 'canCreate', 'companies', 'companyId'));
     }
     #[Route('/dossiers/{module}/nouveau', name: 'new', methods: ['GET', 'POST'])]
     public function create(
@@ -182,11 +178,11 @@ final class DossierPortalController extends AbstractController
                     $email = mb_strtolower(trim((string) $form->get('email')->getData()));
                     if (!$email || !trim((string) $form->get('prenom')->getData()) || !trim((string) $form->get('nom')->getData())) {
                         $form->addError(new FormError('Choisissez un compte existant ou renseignez le prénom, le nom et l’e-mail du nouveau compte.'));
-                        return $this->render('portail/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $config, 'title' => 'Créer un compte', 'form' => $form]);
+                        return $this->render('commercial/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $config, 'title' => 'Créer un compte', 'form' => $form]);
                     }
                     if ($this->em->getRepository(Utilisateur::class)->findByCanonicalEmail(['email' => $email])) {
                         $form->addError(new FormError('Cette adresse est déjà utilisée. Demandez à votre administrateur de rattacher et attribuer le compte existant.'));
-                        return $this->render('portail/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $config, 'title' => 'Nouveau client', 'form' => $form]);
+                        return $this->render('commercial/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $config, 'title' => 'Nouveau client', 'form' => $form]);
                     }
                     $billing->assertCanTransitionUtilisateurEntite($entite, [], UtilisateurEntite::STATUS_INVITED, [$module === 'formateurs' ? UtilisateurEntite::TENANT_FORMATEUR : UtilisateurEntite::TENANT_STAGIAIRE], UtilisateurEntite::STATUS_ACTIVE);
                     $user = (new Utilisateur())->setEntite($entite)->setCreateur($this->getUser())->setEmail($email)->setPrenom($form->get('prenom')->getData())->setNom($form->get('nom')->getData())->setPassword(password_hash(bin2hex(random_bytes(32)), PASSWORD_BCRYPT));
@@ -232,13 +228,13 @@ final class DossierPortalController extends AbstractController
                         $this->audit($membership, $module, $record->getId(), 'created');
                     });
                     $this->addFlash('success', 'Dossier créé et ajouté à votre portefeuille.');
-                    return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $record->getId()]);
+                    return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $record->getId()]);
                 }
             } catch (BillingQuotaExceededException $e) {
                 $form->addError(new FormError($e->getMessage()));
             }
         }
-        return $this->render('portail/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $config, 'title' => 'Nouveau dossier', 'form' => $form]);
+        return $this->render('commercial/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $config, 'title' => 'Nouveau dossier', 'form' => $form]);
     }
     #[Route('/dossiers/{module}/{id}', name: 'show', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function show(
@@ -273,7 +269,7 @@ final class DossierPortalController extends AbstractController
                 $this->audit($membership, $module, $id, 'updated');
                 $this->em->flush();
                 $this->addFlash('success', 'Modifications enregistrées.');
-                return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
+                return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
             }
         } elseif ($request->isMethod('POST')) {
             throw $this->createAccessDeniedException();
@@ -295,7 +291,7 @@ final class DossierPortalController extends AbstractController
         }
         $days = $record instanceof Session ? $record->getJours() : [];
         $modules = $this->modules($espace);
-        return $this->render('portail/show.html.twig', compact('entite', 'espace', 'module', 'id', 'config', 'title', 'details', 'form', 'grant', 'canEdit', 'canManage', 'editBlock', 'deleteBlock', 'activities', 'related', 'modules', 'days'));
+        return $this->render('commercial/show.html.twig', compact('entite', 'espace', 'module', 'id', 'config', 'title', 'details', 'form', 'grant', 'canEdit', 'canManage', 'editBlock', 'deleteBlock', 'activities', 'related', 'modules', 'days'));
     }
     #[Route('/sessions/{id}/creneau/{dayId}', name: 'schedule_edit', requirements: ['id' => '\d+', 'dayId' => '\d+'], methods: ['GET', 'POST'])]
     #[Route('/sessions/{id}/creneau', name: 'schedule', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
@@ -337,10 +333,10 @@ final class DossierPortalController extends AbstractController
                 $this->audit($membership, 'sessions', $id, 'schedule_added');
                 $this->em->flush();
                 $this->addFlash('success', 'Créneau ajouté au planning.');
-                return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => 'sessions', 'id' => $id]);
+                return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => 'sessions', 'id' => $id]);
             }
         }
-        return $this->render('portail/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => 'sessions', 'config' => $this->registry->config('sessions'), 'title' => ($dayId ? 'Modifier le créneau · ' : 'Ajouter un créneau · ') . $record->getCode(), 'form' => $form, 'submitLabel' => $dayId ? 'Enregistrer le créneau' : 'Ajouter le créneau']);
+        return $this->render('commercial/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => 'sessions', 'config' => $this->registry->config('sessions'), 'title' => ($dayId ? 'Modifier le créneau · ' : 'Ajouter un créneau · ') . $record->getCode(), 'form' => $form, 'submitLabel' => $dayId ? 'Enregistrer le créneau' : 'Ajouter le créneau']);
     }
     private function issueDocument(Entite $entite, UtilisateurEntite $membership, string $module, Request $request, \App\Service\Delegation\CommercialDocuments $documents, ?object $existing = null): Response
     {
@@ -365,7 +361,7 @@ final class DossierPortalController extends AbstractController
                 }
             }
             if (!$form->isValid()) {
-                return $this->render('portail/document.html.twig', ['entite' => $entite, 'espace' => 'commercial', 'module' => $module, 'config' => $this->registry->config($module), 'form' => $form, 'editing' => $existing !== null]);
+                return $this->render('commercial/document.html.twig', ['entite' => $entite, 'espace' => 'commercial', 'module' => $module, 'config' => $this->registry->config($module), 'form' => $form, 'editing' => $existing !== null]);
             }
             if ($error = $documents->validate($data, $module)) {
                 $form->addError(new FormError($error));
@@ -381,11 +377,11 @@ final class DossierPortalController extends AbstractController
                         return $record;
                     });
                     $this->addFlash('success', $existing ? 'Document mis à jour.' : 'Document créé. Vous pouvez télécharger son PDF.');
-                    return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => 'commercial', 'module' => $module, 'id' => $record->getId()]);
+                    return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => 'commercial', 'module' => $module, 'id' => $record->getId()]);
                 }
             }
         }
-        return $this->render('portail/document.html.twig', ['entite' => $entite, 'espace' => 'commercial', 'module' => $module, 'config' => $this->registry->config($module), 'form' => $form, 'editing' => $existing !== null]);
+        return $this->render('commercial/document.html.twig', ['entite' => $entite, 'espace' => 'commercial', 'module' => $module, 'config' => $this->registry->config($module), 'form' => $form, 'editing' => $existing !== null]);
     }
     #[Route('/dossiers/{module}/{id}/pdf', name: 'pdf', requirements: ['id' => '\d+', 'module' => 'devis|factures|conventions|contrats-formateurs'], methods: ['GET'])]
     public function pdf(
@@ -394,32 +390,14 @@ final class DossierPortalController extends AbstractController
         string $espace,
         string $module,
         int $id,
-        \App\Service\Pdf\PdfManager $pdf,
-        \App\Service\Convention\ConventionDocument $conventions,
-        \App\Service\Pdf\ContratFormateurDocument $trainerDocument
+        \App\Service\Delegation\DossierDocumentResponse $documents
     ): Response
     {
         $membership = $this->context($entite, $espace);
         $this->checkModule($espace, $module);
         $this->access->grant($membership, $module, $id);
         $record = $this->access->record($entite, $module, $id);
-        if ($module === 'contrats-formateurs') {
-            if ($trainerDocument->isFrozen($record)) {
-                $path = $trainerDocument->storedPath($record);
-                if (!$path) {
-                    throw $this->createNotFoundException('Le document signé doit être restauré par un administrateur.');
-                }
-                return new \Symfony\Component\HttpFoundation\BinaryFileResponse($path, 200, ['Cache-Control' => 'private, no-store']);
-            }
-            return $pdf->createPortrait($this->renderView('pdf/contrat_formateur.html.twig', $trainerDocument->templateData($record)), 'Contrat-' . $record->getNumero());
-        }
-        if ($module === 'conventions') {
-            return $conventions->response($record);
-        }
-        $name = $module === 'devis' ? 'devis' : 'facture';
-        $response = $pdf->createPortrait($this->renderView('pdf/' . $name . '.html.twig', ['entite' => $entite, $name => $record]), $name . '-' . $record->getNumero());
-        $response->headers->set('Cache-Control', 'private, no-store');
-        return $response;
+        return $documents->response($entite, $module, $record);
     }
     #[Route('/dossiers/{module}/{id}/modifier', name: 'edit_document', requirements: ['id' => '\d+', 'module' => 'devis|conventions|contrats-formateurs'], methods: ['GET', 'POST'])]
     public function editDocument(
@@ -464,10 +442,10 @@ final class DossierPortalController extends AbstractController
                     $this->audit($membership, 'contrats-formateurs', $record->getId(), $new ? 'created' : 'updated');
                 });
                 $this->addFlash('success', 'Contrat formateur enregistré.');
-                return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => 'commercial', 'module' => 'contrats-formateurs', 'id' => $record->getId()]);
+                return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => 'commercial', 'module' => 'contrats-formateurs', 'id' => $record->getId()]);
             }
         }
-        return $this->render('portail/edit.html.twig', ['entite' => $entite, 'espace' => 'commercial', 'module' => 'contrats-formateurs', 'config' => $this->registry->config('contrats-formateurs'), 'title' => $new ? 'Préparer un contrat formateur' : 'Modifier le contrat ' . $record->getNumero(), 'form' => $form, 'submitLabel' => 'Enregistrer le contrat']);
+        return $this->render('commercial/edit.html.twig', ['entite' => $entite, 'espace' => 'commercial', 'module' => 'contrats-formateurs', 'config' => $this->registry->config('contrats-formateurs'), 'title' => $new ? 'Préparer un contrat formateur' : 'Modifier le contrat ' . $record->getNumero(), 'form' => $form, 'submitLabel' => 'Enregistrer le contrat']);
     }
     private function requireManagement(UtilisateurEntite $member, string $space, string $module, int $id): void
     {
@@ -493,7 +471,7 @@ final class DossierPortalController extends AbstractController
         $record = $this->access->record($entite, $module, $id);
         if ($reason = $this->rules->deleteBlock($record)) {
             $this->addFlash('warning', $reason);
-            return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
+            return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
         }
         $this->em->wrapInTransaction(function () use ($record, $membership, $module, $id) {
             $this->audit($membership, $module, $id, 'deleted');
@@ -503,7 +481,7 @@ final class DossierPortalController extends AbstractController
             $this->em->remove($record);
         });
         $this->addFlash('success', 'Dossier supprimé.');
-        return $this->redirectToRoute('app_portail_list', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module]);
+        return $this->redirectToRoute('app_commercial_list', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module]);
     }
     #[Route('/dossiers/{module}/{id}/ecrire', name: 'compose', requirements: ['id' => '\d+', 'module' => 'entreprises|prospects|factures|devis'], methods: ['GET', 'POST'])]
     public function compose(
@@ -526,12 +504,12 @@ final class DossierPortalController extends AbstractController
             try {
                 $sent = $mail->send($record, $module, $this->getUser(), $data['subject'], $data['body'], $data['sendKey']);
                 $this->addFlash('success', $sent ? 'Message envoyé et ajouté à l’historique.' : 'Ce message a déjà été pris en charge.');
-                return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
+                return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
             } catch (\DomainException $e) {
                 $form->addError(new FormError($e->getMessage()));
             }
         }
-        return $this->render('portail/compose.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'id' => $id, 'title' => $this->registry->title($record), 'recipient' => $recipient, 'form' => $form]);
+        return $this->render('commercial/compose.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'id' => $id, 'title' => $this->registry->title($record), 'recipient' => $recipient, 'form' => $form]);
     }
     #[Route('/dossiers/{module}/{id}/suivi', name: 'activity', requirements: ['id' => '\d+', 'module' => 'entreprises|prospects'], methods: ['GET', 'POST'])]
     public function activity(
@@ -551,9 +529,9 @@ final class DossierPortalController extends AbstractController
             $this->em->persist($activity);
             $this->em->flush();
             $this->addFlash('success', 'Suivi ajouté.');
-            return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
+            return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $module, 'id' => $id]);
         }
-        return $this->render('portail/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $this->registry->config($module), 'title' => 'Ajouter un suivi commercial', 'form' => $form, 'submitLabel' => 'Enregistrer le suivi']);
+        return $this->render('commercial/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => $module, 'config' => $this->registry->config($module), 'title' => 'Ajouter un suivi commercial', 'form' => $form, 'submitLabel' => 'Enregistrer le suivi']);
     }
     #[Route('/suivi/{id}/terminer', name: 'activity_done', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function completeActivity(
@@ -575,7 +553,7 @@ final class DossierPortalController extends AbstractController
         }
         $activity->complete();
         $this->em->flush();
-        return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $activity->getModule(), 'id' => $activity->getRecordId()]);
+        return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => $activity->getModule(), 'id' => $activity->getRecordId()]);
     }
     #[Route('/entreprises/{id}/stagiaires', name: 'company_learners', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function companyLearners(
@@ -611,9 +589,9 @@ final class DossierPortalController extends AbstractController
             $this->audit($member, 'entreprises', $id, 'learner_' . $data['operation']);
             $this->em->flush();
             $this->addFlash('success', 'Rattachement mis à jour. Les inscriptions et les documents existants sont conservés.');
-            return $this->redirectToRoute('app_portail_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => 'entreprises', 'id' => $id]);
+            return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => $espace, 'module' => 'entreprises', 'id' => $id]);
         }
-        return $this->render('portail/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => 'entreprises', 'config' => $this->registry->config('entreprises'), 'title' => 'Gérer les stagiaires · ' . $company->getRaisonSociale(), 'form' => $form, 'submitLabel' => 'Enregistrer le rattachement']);
+        return $this->render('commercial/edit.html.twig', ['entite' => $entite, 'espace' => $espace, 'module' => 'entreprises', 'config' => $this->registry->config('entreprises'), 'title' => 'Gérer les stagiaires · ' . $company->getRaisonSociale(), 'form' => $form, 'submitLabel' => 'Enregistrer le rattachement']);
     }
     private function audit(UtilisateurEntite $membership, string $module, int $id, string $action): void
     {
