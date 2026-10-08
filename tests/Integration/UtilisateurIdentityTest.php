@@ -57,6 +57,24 @@ final class UtilisateurIdentityTest extends KernelTestCase
         }
     }
 
+    public function testRolesCanBeAddedToVerifiedEnrolledAccount(): void
+    {
+        $this->learner->setIsVerified(true); $this->em->flush();
+        $id = $this->learner->getId(); $client = $this->client();
+        $page = $client->request('GET', $this->editUrl($id));
+        $form = $page->filter('form[name="utilisateur"]')->form();
+        $roles = [UtilisateurEntite::TENANT_STAGIAIRE, UtilisateurEntite::TENANT_ENTREPRISE,
+            UtilisateurEntite::TENANT_COMMERCIAL, UtilisateurEntite::TENANT_OPCO, UtilisateurEntite::TENANT_OF];
+        $form['utilisateur[ueRoles]']->select($roles);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $this->em->clear();
+        $saved = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur'=>$id, 'entite'=>$this->entite->getId()]);
+        self::assertEqualsCanonicalizing($roles, $saved->getRoles());
+        self::assertFalse($saved->isTenantAdmin());
+        self::assertCount(2, $saved->getUtilisateur()->getInscriptions());
+    }
+
     public function testMultipleCompanyAssociationsCanBeSavedWithoutChangingPrimary(): void
     {
         $companies = [];

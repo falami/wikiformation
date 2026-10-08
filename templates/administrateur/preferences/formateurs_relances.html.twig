@@ -1,0 +1,38 @@
+{% extends 'administrateur/preferences/formateurs_contrat.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}Préférences · Relances formateurs{% endblock %}
+{% block body %}
+{% set section = 'relances' %}
+<div class="preferences">
+  <header class="pref-hero"><div class="eyebrow">{{ entite.nom }} · Automatisation</div><h1>Un suivi régulier, sans relances inutiles.</h1><p>Choisissez les rappels envoyés à vos formateurs et adaptez leur rythme à votre organisme.</p></header>
+  {% include 'flagMessage.html.twig' %}
+  <div class="pref-layout">{% include 'account/_navigation.html.twig' %}<main>
+    {{ form_start(form) }}
+    {{ form_errors(form) }}
+    <section class="pref-panel mb-4">
+      <h2 class="h4"><i class="bi bi-pen me-2"></i>Contrats à signer</h2>
+      <p class="text-muted">Le passage d’un contrat au statut « Envoyé » le met à disposition pour signature. L’e-mail est envoyé automatiquement au prochain passage du service de relance. Les brouillons ne déclenchent aucun message.</p>
+      {{ form_row(form.contractNotice) }}
+      {{ form_row(form.contractReminder) }}
+      {{ form_row(form.contractDelay) }}
+      <p class="small text-muted">Le délai démarre après l’envoi effectif du premier e-mail. Une nouvelle version du contrat démarre un nouveau cycle.</p>
+    </section>
+    <section class="pref-panel mb-4">
+      <h2 class="h4"><i class="bi bi-clipboard-check me-2"></i>Après la formation</h2>
+      <div class="pref-two"><div>{{ form_row(form.attendanceReminder) }}{{ form_row(form.attendanceDelay) }}</div><div>{{ form_row(form.satisfactionReminder) }}{{ form_row(form.satisfactionDelay) }}</div></div>
+      <p class="small text-muted">Les délais commencent à la fin de la dernière journée de la session. Les présences papier renseignées et les absences sont prises en compte ; déposer une feuille seule ne valide pas les présences individuelles. Un compte rendu stagiaire ou une appréciation papier validés dans les documents de session arrêtent les rappels d’appréciations.</p>
+    </section>
+    <section class="pref-panel mb-4">
+      <h2 class="h4"><i class="bi bi-clock-history me-2"></i>Rythme des relances</h2>
+      <div class="pref-two">{{ form_row(form.repeatDays) }}{{ form_row(form.maxReminders) }}</div>
+      <div class="alert alert-light border rounded-3 mb-3"><strong>Arrêt automatique</strong><br>Les rappels cessent dès que les éléments concernés sont complétés, ou si la session est terminée ou annulée. Le statut « Complet » lié au nombre de places n’arrête pas le suivi administratif.</div>
+      <p class="small text-muted">En activant une catégorie, les dossiers existants encore incomplets deviennent éligibles. Le service n’envoie qu’un rappel par sujet à chaque échéance, sans rattrapage en rafale.</p>
+      <button type="submit" class="btn btn-dark rounded-3 px-4 py-2"><i class="bi bi-check2 me-2"></i>Enregistrer les paramètres</button>
+    </section>
+    {{ form_end(form) }}
+    <section class="pref-panel mb-4"><h2 class="h5">Canaux d’envoi</h2><p><span class="badge text-bg-success me-2">E-mail</span>Utilise la messagerie déjà configurée sur la plateforme.</p><p class="text-muted mb-0"><span class="badge text-bg-light border me-2">SMS indisponibles</span>Aucun service SMS gratuit n’est configuré. Aucun SMS ni frais SMS ne sera engagé.</p></section>
+    <section class="pref-panel"><h2 class="h4">Derniers envois</h2><p class="text-muted small">Les 30 derniers messages de cet organisme. « À vérifier » indique un résultat d’envoi incertain : contrôlez la messagerie avant toute reprise pour éviter les doublons.</p><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Date</th><th>Message</th><th>Destinataire</th><th>État</th></tr></thead><tbody>{% for delivery in deliveries %}<tr><td class="text-nowrap">{{ delivery.createdAt|date('d/m/Y H:i', 'Europe/Paris') }}</td><td>{{ delivery.subject }}</td><td>{{ delivery.recipient }}</td><td><span class="badge {{ delivery.status == 'sent' ? 'text-bg-success' : 'text-bg-warning' }}">{{ delivery.status == 'sent' ? 'Envoyé' : 'À vérifier' }}</span></td></tr>{% else %}<tr><td colspan="4" class="text-muted py-4">Aucun e-mail automatique envoyé pour le moment.</td></tr>{% endfor %}</tbody></table></div></section>
+  </main></div>
+</div>
+{% endblock %}
+{% block javascripts_bottom %}{% endblock %}

@@ -318,23 +318,14 @@ final class UtilisateurController extends AbstractController
           $currentStatus = $ue->getStatus();
 
           $rolesFromForm = (array) ($form->has('ueRoles') ? $form->get('ueRoles')->getData() : []);
-          if (!$canSetHighRoles) {
-              $rolesFromForm = array_values(array_filter(
-                  $rolesFromForm,
-                  fn($r) => !$this->isStaffRole((string) $r)
-              ));
-          }
-
-          if ($locked) {
-              $staffOrig    = array_values(array_filter($origTenantRoles, fn($r) => $this->isStaffRole((string) $r)));
-              $safeNonStaff = array_values(array_filter($rolesFromForm, fn($r) => !$this->isStaffRole((string) $r)));
-
-              $rolesFinal = array_values(array_unique(array_merge($safeNonStaff, $staffOrig)));
-          } else {
-              $rolesFinal = $rolesFromForm;
-          }
-
-          $rolesFinal = $rolesFinal ?: ["ROLE_USER"];
+          // Identity protection must not freeze tenant permissions. Only a
+          // director / platform administrator can change privileged roles.
+          $protectedRoles = [UtilisateurEntite::TENANT_ADMIN, UtilisateurEntite::TENANT_DIRIGEANT];
+          $rolesFinal = $canSetHighRoles ? $rolesFromForm : array_values(array_unique(array_merge(
+              array_diff($rolesFromForm, $protectedRoles),
+              array_intersect($origTenantRoles, $protectedRoles),
+          )));
+          $rolesFinal = $rolesFinal ?: [UtilisateurEntite::TENANT_STAGIAIRE];
 
           // si tu as un champ status plus tard dans le form, remplace ici
           $futureStatus = UtilisateurEntite::STATUS_ACTIVE;

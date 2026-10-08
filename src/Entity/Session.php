@@ -242,6 +242,13 @@ class Session
 
 
 
+    #[ORM\ManyToOne(targetEntity: Entreprise::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Entreprise $entrepriseCliente = null;
+
+    public function getEntrepriseCliente(): ?Entreprise { return $this->entrepriseCliente; }
+    public function setEntrepriseCliente(?Entreprise $entreprise): static { $this->entrepriseCliente = $entreprise; return $this; }
+
     public function __construct()
     {
         $this->reservations = new ArrayCollection();

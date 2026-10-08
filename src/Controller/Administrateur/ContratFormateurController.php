@@ -467,6 +467,26 @@ class ContratFormateurController extends AbstractController
     return $this->render('administrateur/formateur/contrat/form.html.twig', ['entite' => $entite, 'form' => $form->createView(), 'contrat' => $contrat, 'is_edit' => true], new Response(status: $form->isSubmitted() ? 422 : 200));
   }
 
+  #[Route('/{id}/pret-a-signer', name: 'ready', requirements: ['id' => '\\d+'], methods: ['POST'])]
+  public function ready(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request, ContratFormateurVersioning $versions): Response
+  {
+    $this->assertContractTenant($entite, $contrat);
+    if (!$this->isCsrfTokenValid('ready_contrat_' . $contrat->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Formulaire expiré.');
+    try {
+      $versions->assertCurrent($contrat, $request->request->getInt('versionAttendue'));
+      if ($contrat->getStatus() !== ContratFormateurStatus::BROUILLON || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl()) throw new \DomainException('Seul un brouillon non signé peut être mis à disposition.');
+      if (!$contrat->getSession()?->hasFormateur($contrat->getFormateur())) throw new \DomainException('Affectez ce formateur au planning avant de mettre le contrat à disposition.');
+      $contrat->setStatus(ContratFormateurStatus::ENVOYE);
+      $this->em->flush();
+      $this->addFlash('success', $entite->getPreferences()?->getTrainerReminders()['contractNotice'] ? 'Contrat prêt à signer. La notification sera envoyée automatiquement au prochain passage du service de relance.' : 'Contrat prêt à signer. Activez les notifications dans Paramètres → Relances formateurs pour prévenir le formateur automatiquement.');
+    } catch (\DomainException $e) {
+      $this->addFlash('warning', $e->getMessage());
+    } catch (OptimisticLockException $e) {
+      return new Response('Ce contrat a été modifié entre-temps. Rechargez la page.', 409);
+    }
+    return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
+  }
+
   #[Route('/{id}/nouvelle-version', name: 'revise', requirements: ['id' => '\d+'], methods: ['POST'])]
   public function revise(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request, ContratFormateurVersioning $versions): Response
   {

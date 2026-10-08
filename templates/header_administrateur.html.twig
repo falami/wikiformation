@@ -187,6 +187,9 @@
 
 
 
+        {% if is_granted('ENTITE_COMMERCIAL', entite) %}<li class="nav-item"><a class="nav-link" href="{{ path('app_portail_commercial_dashboard', {entite:entite.id}) }}"><i class="bi bi-briefcase"></i> Commercial</a></li>{% endif %}
+        {% if is_granted('ENTITE_OPCO', entite) %}<li class="nav-item"><a class="nav-link" href="{{ path('app_portail_opco_dashboard', {entite:entite.id}) }}"><i class="bi bi-bank"></i> OPCO</a></li>{% endif %}
+        {% if is_granted('ENTITE_OF', entite) and app.user.entreprise %}<li class="nav-item"><a class="nav-link" href="{{ path('app_of_dashboard', {entite:entite.id}) }}"><i class="bi bi-building"></i> OF</a></li>{% endif %}
 		    {% if is_granted('ENTITE_FORMATEUR', entite) %}
         {# ===== FORMATEUR ===== #}
         <li class="nav-item dropdown">
@@ -255,98 +258,6 @@
         {% include '_locale_switcher_admin.html.twig' %}
       </li>
 
-        {#<div class="dropdown dropstart d-none d-lg-block mx-0">
-            <a href="{{ path('app_adherent_boutique_cart', { entite: entite.id }) }}"
-                id="btn-cart-desktop"
-                class="btn position-relative"
-                title="{{ 'navbar.cart'|trans }}">
-                <i class="fa fa-shopping-cart"></i>
-                <span id="cartCount" data-cart-count
-                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                {{ cart_count() }}
-                </span>
-            </a>
-        </div>
-
-        <div class="d-lg-none mx-1">
-            <a href="{{ path('app_adherent_boutique_cart', { entite: entite.id }) }}"
-                id="btn-cart-mobile"
-                class="btn position-relative"
-                title="{{ 'navbar.cart'|trans }}">
-                <i class="fa fa-shopping-cart"></i>
-                <span id="cartCountMobile" data-cart-count
-                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                {{ cart_count() }}
-                </span>
-            </a>
-        </div>
-
-
-      <div class="dropdown dropstart d-none d-lg-block mx-1">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false" title="{{ 'navbar.search'|trans }}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-          <li><a class="dropdown-item" href="{{ path('app_utilisateur_carnet_filtrer', {'entite': entite.id}) }}">{{ 'navbar.search_logbook'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_utilisateur_site_filtrer', {'entite': entite.id}) }}">{{ 'navbar.search_site'|trans }}</a></li>
-          <li><hr class="dropdown-divider border-white"></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_recherche_periode_utilisation_utilisateur', {'entite': entite.id}) }}">{{ 'navbar.search_user'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_recherche_periode_utilisation_materiel', {'entite': entite.id}) }}">{{ 'navbar.search_gear'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_recherche_periode_utilisation_sortie', {'entite': entite.id}) }}">{{ 'navbar.search_outing'|trans }}</a></li>
-        </ul>
-      </div>
-
-      <div class="dropdown dropend d-lg-none mx-1">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false" title="{{ 'navbar.search'|trans }}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-          <li><a class="dropdown-item" href="{{ path('app_utilisateur_carnet_filtrer', {'entite': entite.id}) }}">{{ 'navbar.search_logbook'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_utilisateur_site_filtrer', {'entite': entite.id}) }}">{{ 'navbar.search_site'|trans }}</a></li>
-          <li><hr class="dropdown-divider border-white"></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_recherche_periode_utilisation_utilisateur', {'entite': entite.id}) }}">{{ 'navbar.search_user'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_recherche_periode_utilisation_materiel', {'entite': entite.id}) }}">{{ 'navbar.search_gear'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_recherche_periode_utilisation_sortie', {'entite': entite.id}) }}">{{ 'navbar.search_outing'|trans }}</a></li>
-        </ul>
-      </div>
-
-      <div class="dropdown dropstart d-none d-lg-block mx-1" id="notificationDropdownDesktop">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none position-relative" id="dropdownNotifDesktop" data-bs-toggle="dropdown" aria-expanded="false" title="{{ 'navbar.notifications'|trans }}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-chat-dots" viewBox="0 0 16 16">
-            <path d="M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0m4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
-            <path d="m2.165 15.803.02-.004c1.83-.363 2.948-.842 3.468-1.105A9 9 0 0 0 8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6a10.4 10.4 0 0 1-.524 2.318l-.003.011a11 11 0 0 1-.244.637c-.079.186.074.394.273.362a22 22 0 0 0 .693-.125m.8-3.108a1 1 0 0 0-.287-.801C1.618 10.83 1 9.468 1 8c0-3.192 3.004-6 7-6s7 2.808 7 6-3.004 6-7 6a8 8 0 0 1-2.088-.272 1 1 0 0 0-.711.074c-.387.196-1.24.57-2.634.893a11 11 0 0 0 .398-2"/>
-            </svg>
-          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notif-count-desktop" style="display:none;">0</span>
-        </a>
-        <ul class="dropdown-menu shadow border-0 p-2" style="width:320px;max-height:400px;overflow-y:auto;">
-          <li class="px-3 py-2 border-bottom">
-            <h6 class="mb-0">📬 {{ 'navbar.messages.new'|trans }}</h6>
-          </li>
-          <li id="notif-messages-desktop"><span class="dropdown-item text-muted">{{ 'navbar.messages.none'|trans }}</span></li>
-          <li class="border-top mt-2">
-            <a class="dropdown-item text-center text-primary" href="{{ path('app_adherent_message', {'entite': entite.id}) }}">{{ 'navbar.messages.all'|trans }}</a>
-          </li>
-        </ul>
-      </div>
-
-      <div class="dropdown dropend d-lg-none mx-1" id="notificationDropdownMobile">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none position-relative" id="dropdownNotifMobile" data-bs-toggle="dropdown" aria-expanded="false" title="{{ 'navbar.notifications'|trans }}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-chat-dots" viewBox="0 0 16 16">
-            <path d="M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0m4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
-            <path d="m2.165 15.803.02-.004c1.83-.363 2.948-.842 3.468-1.105A9 9 0 0 0 8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6a10.4 10.4 0 0 1-.524 2.318l-.003.011a11 11 0 0 1-.244.637c-.079.186.074.394.273.362a22 22 0 0 0 .693-.125m.8-3.108a1 1 0 0 0-.287-.801C1.618 10.83 1 9.468 1 8c0-3.192 3.004-6 7-6s7 2.808 7 6-3.004 6-7 6a8 8 0 0 1-2.088-.272 1 1 0 0 0-.711.074c-.387.196-1.24.57-2.634.893a11 11 0 0 0 .398-2"/>
-            </svg>
-          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notif-count-mobile" style="display:none;">0</span>
-        </a>
-        <ul class="dropdown-menu shadow border-0 p-2" style="width:320px;max-height:400px;overflow-y:auto;">
-          <li class="px-3 py-2 border-bottom">
-            <h6 class="mb-0">📬 {{ 'navbar.messages.new'|trans }}</h6>
-          </li>
-          <li id="notif-messages-mobile"><span class="dropdown-item text-muted">{{ 'navbar.messages.none'|trans }}</span></li>
-          <li class="border-top mt-2">
-            <a class="dropdown-item text-center text-primary" href="{{ path('app_adherent_message', {'entite': entite.id}) }}">{{ 'navbar.messages.all'|trans }}</a>
-          </li>
-        </ul>
-      </div>#}
       {% if is_granted('ENTITE_ADMIN', entite) %}
       <div class="dropdown dropstart d-none d-lg-block mx-1">
         <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser3" data-bs-toggle="dropdown" aria-expanded="false">

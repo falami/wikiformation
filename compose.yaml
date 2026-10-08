@@ -12,6 +12,18 @@ services:
       database:
         condition: service_healthy
 
+  trainer-reminders:
+    build:
+      context: .
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      database:
+        condition: service_healthy
+    command: ["sh", "-c", "while true; do php bin/console app:trainer-reminders:run --execute --no-interaction; sleep 60; done"]
+
   database:
     image: mysql:8.0
     container_name: wikiformation_db

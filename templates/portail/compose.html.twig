@@ -1,0 +1,7 @@
+{% extends 'portail/layout.html.twig' %}
+{% block title %}Écrire au client — {{ entite.nom }}{% endblock %}
+{% block portal %}
+<a class="rp-back" href="{{ path('app_portail_show',{entite:entite.id,espace:espace,module:module,id:id}) }}"><i class="bi bi-arrow-left"></i> Retour au dossier</a>
+<header class="rp-hero"><div><div class="rp-eyebrow">RELATION CLIENT · {{ entite.nom }}</div><h1>{{ title }}</h1><p>Préparez votre message et vérifiez le destinataire avant l’envoi.</p></div><span class="rp-icon"><i class="bi bi-envelope-paper"></i></span></header>
+<div class="rp-workspace"><section class="rp-panel">{{ form_start(form) }}{{ form_errors(form) }}{{ form_row(form.subject) }}{{ form_row(form.body,{attr:{rows:12}}) }}<button class="rp-button primary mt-4" type="submit"><i class="bi bi-send"></i> Envoyer le message</button>{{ form_end(form) }}</section><aside class="rp-panel"><div class="rp-eyebrow">DESTINATAIRE</div><h2 class="mt-3">{{ recipient|default('Adresse à renseigner') }}</h2><p class="rp-muted mt-3">L’adresse provient de la fiche du client. Les réponses seront adressées à votre e-mail.</p>{% if module in ['factures','devis'] %}<div class="rp-notice"><i class="bi bi-paperclip"></i> Le PDF du document sera joint au message.</div>{% endif %}<p class="rp-muted">L’envoi sera enregistré dans l’historique du dossier.</p></aside></div>
+{% endblock %}

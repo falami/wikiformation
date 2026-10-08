@@ -19,6 +19,8 @@ final class MembershipHomeRoute
         $routes = [
             UtilisateurEntite::TENANT_DIRIGEANT => 'app_administrateur_dashboard_index',
             UtilisateurEntite::TENANT_ADMIN => 'app_administrateur_dashboard_index',
+            UtilisateurEntite::TENANT_COMMERCIAL => 'app_portail_commercial_dashboard',
+            UtilisateurEntite::TENANT_OPCO => 'app_portail_opco_dashboard',
             UtilisateurEntite::TENANT_OF => 'app_of_dashboard',
             UtilisateurEntite::TENANT_FORMATEUR => 'app_formateur_dashboard',
             UtilisateurEntite::TENANT_ENTREPRISE => 'app_entreprise_dashboard',

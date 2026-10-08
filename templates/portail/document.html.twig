@@ -1,0 +1,16 @@
+{% extends 'portail/form_layout.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% import 'portail/_form_fields.html.twig' as fields %}
+{% block title %}{{ editing|default(false) ? 'Modifier le document' : 'Nouveau document' }} — {{ config[1] }}{% endblock %}
+{% block portal %}
+<div class="pf-workspace">
+<a class="rp-back" href="{{ path('app_portail_list',{entite:entite.id,espace:espace,module:module}) }}"><i class="bi bi-arrow-left"></i> {{ config[1] }}</a>
+<header class="pf-header"><div><div class="pf-eyebrow">{{ entite.nom }} <span> / </span> {{ config[1] }}</div><h1>{{ editing|default(false) ? 'Modifier le document' : 'Préparer un nouveau document' }}</h1><p>Sélectionnez votre destinataire, précisez les conditions et détaillez les prestations.</p></div><span class="pf-header-icon"><i class="bi bi-{{ config[2] }}" aria-hidden="true"></i></span></header>
+{{ form_start(form, {attr:{class:'pf-form', 'data-portal-form':''}}) }}
+{{ form_errors(form) }}
+<section class="pf-card"><div class="pf-card-heading"><span class="pf-step">01</span><div><h2>Destinataire & conditions</h2><p>Les coordonnées et les échéances de votre document.</p></div></div><div class="pf-card-body"><div class="row g-4">{% for field in form %}{% if field.vars.name not in ['_token','lines'] %}{{ fields.field(field) }}{% endif %}{% endfor %}</div><div class="pf-help"><i class="bi bi-info-circle" aria-hidden="true"></i> Choisissez soit une entreprise, soit un client de votre portefeuille.</div></div></section>
+<section class="pf-card"><div class="pf-card-heading"><span class="pf-step">02</span><div><h2>Prestations</h2><p>Détaillez les quantités, tarifs et taux de TVA applicables.</p></div></div><div class="pf-card-body">{{ form_errors(form.lines) }}<div id="document-lines" data-prototype="{{ fields.line(form.lines.vars.prototype)|e('html_attr') }}" data-index="{{ form.lines|length }}">{% for line in form.lines %}{{ fields.line(line) }}{% endfor %}</div>{% do form.lines.setRendered %}<p class="pf-empty" data-lines-empty hidden>Ajoutez une première prestation pour compléter votre document.</p><button type="button" id="add-document-line" class="btn pf-add"><i class="bi bi-plus-lg"></i> Ajouter une prestation</button></div></section>
+<div class="pf-help"><i class="bi bi-info-circle" aria-hidden="true"></i> La création attribue un numéro au document. Vérifiez le destinataire, les prestations et la TVA avant de confirmer. Aucun e-mail n’est envoyé automatiquement.</div>
+<div class="pf-actions"><span>Les montants seront calculés à partir des prestations saisies.</span><div><a class="btn pf-cancel" href="{{ path('app_portail_list',{entite:entite.id,espace:espace,module:module}) }}">Annuler</a><button type="submit" class="btn pf-submit"><i class="bi bi-file-earmark-check"></i> {{ editing|default(false) ? 'Enregistrer les modifications' : 'Créer le document' }}</button></div></div>
+{{ form_end(form) }}</div>
+{% endblock %}

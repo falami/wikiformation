@@ -15,6 +15,20 @@ class EntitePreferences
     #[ORM\Column]
     private ?int $id = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $trainerReminders = null;
+
+    public function getTrainerReminders(): array
+    {
+        return array_replace(\App\Service\TrainerReminder\ReminderSettings::DEFAULTS, $this->trainerReminders ?? []);
+    }
+
+    public function setTrainerReminders(array $settings): static
+    {
+        $this->trainerReminders = array_intersect_key($settings, \App\Service\TrainerReminder\ReminderSettings::DEFAULTS);
+        return $this;
+    }
+
     // =========================
     //   LIEN ENTITE + META
     // =========================

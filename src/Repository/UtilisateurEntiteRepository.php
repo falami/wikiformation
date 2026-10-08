@@ -158,7 +158,7 @@ class UtilisateurEntiteRepository extends ServiceEntityRepository
     public function canSetHighRoles(Utilisateur $actor, Entite $entite): bool
     {
         // seul le DIRIGEANT de l'entité peut définir ADMIN/DIRIGEANT
-        return $this->hasRoleInEntite($actor, $entite, UtilisateurEntite::TENANT_DIRIGEANT);
+        return $actor->isSuperAdmin() || $this->hasRoleInEntite($actor, $entite, UtilisateurEntite::TENANT_DIRIGEANT);
     }
 
 

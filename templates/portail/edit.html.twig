@@ -1,0 +1,19 @@
+{% extends 'portail/form_layout.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% import 'portail/_form_fields.html.twig' as fields %}
+{% set names = {prospects:'Nouveau prospect',sessions:'Nouvelle session',inscriptions:'Nouvelle inscription',formateurs:'Nouveau formateur',entreprises:'Nouvelle entreprise',clients:'Nouveau stagiaire ou contact',formations:'Nouvelle formation',sites:'Nouveau site'} %}
+{% set pageTitle = title == 'Nouveau dossier' ? names[module]|default(title) : title %}
+{% block title %}{{ pageTitle }} — {{ config[1] }}{% endblock %}
+{% block portal %}
+<div class="pf-workspace">
+<a class="rp-back" href="{{ path('app_portail_list',{entite:entite.id,espace:espace,module:module}) }}"><i class="bi bi-arrow-left"></i> {{ config[1] }}</a>
+<header class="pf-header"><div><div class="pf-eyebrow">{{ entite.nom }} <span> / </span> {{ config[1] }}</div><h1>{{ pageTitle }}</h1><p>Les informations essentielles, réunies dans un dossier clair et complet.</p></div><span class="pf-header-icon"><i class="bi bi-{{ config[2] }}" aria-hidden="true"></i></span></header>
+{{ form_start(form, {attr:{class:'pf-form', 'data-portal-form':''}}) }}
+{{ form_errors(form) }}
+<div class="row g-4 align-items-start"><div class="col-12 col-xl-9">
+<section class="pf-card"><div class="pf-card-heading"><span class="pf-step">01</span><div><h2>Informations du dossier</h2><p>Complétez les champs ci-dessous. Les champs marqués * sont obligatoires.</p></div></div><div class="pf-card-body"><div class="row g-4">{% for field in form %}{% if 'hidden' not in field.vars.block_prefixes %}{{ fields.field(field) }}{% endif %}{% endfor %}</div></div></section>
+</div><aside class="col-12 col-xl-3"><div class="pf-summary"><span class="pf-eyebrow">Avant d’enregistrer</span><h2>Votre dossier</h2><dl><dt>Organisme</dt><dd>{{ entite.nom }}</dd><dt>Catégorie</dt><dd>{{ config[1] }}</dd></dl><p class="pf-progress-label" data-completion aria-live="polite">Complétez les informations obligatoires.</p><div class="progress" aria-hidden="true"><div class="progress-bar" data-completion-bar></div></div><p class="pf-summary-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Vérifiez les coordonnées et les rattachements avant de valider.</p></div></aside></div>
+<div class="pf-actions"><span><i class="bi bi-check2-circle" aria-hidden="true"></i> Prêt à enregistrer votre dossier ?</span><div><a class="btn pf-cancel" href="{{ path('app_portail_list',{entite:entite.id,espace:espace,module:module}) }}">Annuler</a><button type="submit" class="btn pf-submit"><i class="bi bi-check2" aria-hidden="true"></i> {{ submitLabel|default('Créer le dossier') }}</button></div></div>
+{{ form_end(form) }}
+</div>
+{% endblock %}

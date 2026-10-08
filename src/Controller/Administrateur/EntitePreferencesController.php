@@ -21,6 +21,26 @@ class EntitePreferencesController extends AbstractController
         private EntityManagerInterface $em,
     ) {}
 
+    #[Route('/formateurs/relances', name: 'formateurs_relances', methods: ['GET', 'POST'])]
+    public function formateursRelances(Entite $entite, Request $request): Response
+    {
+        /** @var Utilisateur $user */
+        $user = $this->getUser();
+        $prefs = $this->getOrCreatePreferences($entite, $user);
+        $form = $this->createForm(\App\Form\Administrateur\TrainerReminderSettingsType::class, $prefs->getTrainerReminders());
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $prefs->setTrainerReminders($form->getData())->setUpdatedBy($user);
+            $this->em->flush();
+            $this->addFlash('success', 'Les paramètres de relance des formateurs ont été enregistrés.');
+            return $this->redirectToRoute('app_administrateur_preferences_formateurs_relances', ['entite' => $entite->getId()]);
+        }
+        return $this->render('administrateur/preferences/formateurs_relances.html.twig', [
+            'entite' => $entite, 'form' => $form->createView(),
+            'deliveries' => $this->em->getRepository(\App\Entity\TrainerReminderDelivery::class)->findBy(['entite' => $entite], ['id' => 'DESC'], 30),
+        ]);
+    }
+
     #[Route('/formateurs/contrat', name: 'formateurs_contrat', methods: ['GET', 'POST'])]
     public function formateursContrat(Entite $entite, Request $request): Response
     {

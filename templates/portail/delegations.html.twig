@@ -1,0 +1,31 @@
+{% extends 'portail/layout.html.twig' %}
+{% block title %}Attribution des dossiers — {{ entite.nom }}{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+ 
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="{{ asset('dist/css/delegations.css') }}">
+{% endblock %}
+{% block javascripts_bottom %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+  <script src="{{ asset('dist/js/delegations.js') }}"></script>
+{% endblock %}
+{% block portal %}
+<header class="rp-hero"><div><div class="rp-eyebrow">{{ entite.nom }} · Équipe & accès</div><h1>Attribution des dossiers</h1><p>Attribuez une entreprise au commercial : ses devis, conventions, sessions et inscriptions suivent automatiquement le portefeuille. Les attributions individuelles restent disponibles pour les dossiers indépendants.</p></div><a class="rp-button primary" href="{{ path('app_administrateur_utilisateur_ajouter',{entite:entite.id}) }}"><i class="bi bi-person-plus"></i> Créer un compte</a></header>
+<form method="get" class="rp-panel rp-filter"><div><label class="form-label" for="delegation-module">Catégorie de dossiers</label><select class="form-select delegation-select" id="delegation-module" name="module">{% for key,cfg in modules %}<option value="{{ key }}" {{ key==module ? 'selected' : '' }}>{{ cfg[1] }}</option>{% endfor %}</select></div><button class="rp-button">Afficher les dossiers</button></form>
+<section class="rp-panel"><h2 class="mb-4">Attribuer un dossier · {{ config[1] }}</h2>{% if members and choices %}<form method="post"><input type="hidden" name="_token" value="{{ csrf_token('delegation_' ~ entite.id) }}"><input type="hidden" name="action" value="assign"><div class="rp-form-grid"><div><label class="form-label" for="delegation-member">Compte commercial ou OPCO</label><select class="form-select delegation-select" id="delegation-member" name="membership" required><option value="">Sélectionner un compte</option>{% for m in members %}<option value="{{ m.id }}" data-title="{{ m.utilisateur.prenom }} {{ m.utilisateur.nom }}" data-detail="{{ m.utilisateur.email }}" data-badge="{{ m.hasRole('TENANT_COMMERCIAL') ? 'Commercial' : 'OPCO' }}">{{ m.utilisateur.prenom }} {{ m.utilisateur.nom }} · {{ m.hasRole('TENANT_COMMERCIAL') ? 'Commercial' : 'OPCO' }}</option>{% endfor %}</select></div><div><label class="form-label" for="delegation-record">Dossier</label><select class="form-select delegation-select" id="delegation-record" name="record" required><option value="">Sélectionner un dossier</option>{% for row in choices %}<option value="{{ row.id }}" data-title="{{ row.title }}" data-detail="{{ config[1] }} · Dossier #{{ row.id }}">#{{ row.id }} · {{ row.title }}</option>{% endfor %}</select></div><div><label class="form-label" for="delegation-level">Niveau d’accès</label><select class="form-select delegation-select" id="delegation-level" name="level"><option value="read" data-detail="Consulter les dossiers attribués">Consultation</option><option value="edit" data-detail="Gérer les dossiers selon les droits du compte">Consultation et gestion commerciale</option></select></div></div><p class="rp-notice">Les comptes OPCO consultent uniquement les inscriptions, conventions et factures qui leur sont confiées. Les commerciaux gèrent les dossiers de leurs entreprises ; les factures émises et documents signés sont conservés.</p><button class="rp-button primary">Enregistrer l’attribution</button></form>{% else %}<p class="rp-muted">{{ members ? 'Aucun dossier dans cette catégorie.' : 'Créez un compte avec le rôle Commercial ou OPCO pour commencer.' }}</p>{% endif %}</section>
+<section class="rp-panel"><h2 class="mb-4">Accès accordés</h2><div class="table-responsive"><table class="rp-table"><thead><tr><th>Dossier</th><th>Collaborateur</th><th>Accès</th><th>Action</th></tr></thead><tbody>{% for grant in grants %}<tr><td>{{ labels[grant.recordId]|default('Dossier supprimé') }}<div class="rp-muted">#{{ grant.recordId }}</div></td><td>{{ grant.membership.utilisateur.prenom }} {{ grant.membership.utilisateur.nom }}</td><td><span class="rp-badge">{{ grant.accessLevel=='edit' ? 'Gestion' : 'Consultation' }}</span></td><td><form method="post"><input type="hidden" name="_token" value="{{ csrf_token('delegation_' ~ entite.id) }}"><input type="hidden" name="action" value="revoke"><input type="hidden" name="grant" value="{{ grant.id }}"><button class="btn btn-outline-danger btn-sm">Retirer l’accès</button></form></td></tr>{% else %}<tr><td colspan="4" class="text-center rp-muted">Aucun accès accordé dans cette catégorie.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

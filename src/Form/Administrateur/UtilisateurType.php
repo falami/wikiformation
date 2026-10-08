@@ -48,9 +48,10 @@ final class UtilisateurType extends AbstractType
             'Commercial'     => UtilisateurEntite::TENANT_COMMERCIAL,
         ];
 
-        if (($o['can_set_high_roles'] ?? false) === true) {
-            $choices['Administrateur'] = UtilisateurEntite::TENANT_ADMIN;
-            $choices['Dirigeant']      = UtilisateurEntite::TENANT_DIRIGEANT;
+        foreach (['Administrateur' => UtilisateurEntite::TENANT_ADMIN, 'Dirigeant' => UtilisateurEntite::TENANT_DIRIGEANT] as $label => $role) {
+            if ($o['can_set_high_roles'] || in_array($role, $o['ueRoles'], true)) {
+                $choices[$label] = $role;
+            }
         }
 
         $b
