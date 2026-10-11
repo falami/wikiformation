@@ -41,6 +41,7 @@ class ProspectInteractionRepository extends ServiceEntityRepository
                 OR
                 (uDirect = :user AND ue.id IS NOT NULL)
             ')
+            ->andWhere('i.entite = :entite')
             ->orderBy('i.occurredAt', 'DESC')
             ->setMaxResults($limit);
 

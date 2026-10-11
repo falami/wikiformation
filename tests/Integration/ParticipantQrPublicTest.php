@@ -57,6 +57,25 @@ final class ParticipantQrPublicTest extends KernelTestCase
         $this->guest = $roster[1];
     }
 
+    public function testMailHistoryRecordsRecipientStatusAndNeverSecrets(): void
+    {
+        $history = self::getContainer()->get(\App\Service\Email\EmailHistoryRecorder::class);
+        $message = (new \Symfony\Component\Mime\Email())->to($this->learner->getEmail())->subject('Relance')
+            ->html('<a href="https://example.test/secret-token">Signer</a>');
+        $log = $history->prepare($this->entite, $message);
+        self::assertSame($log, $history->prepare($this->entite, $message));
+        $history->finish($log, 'SENT');
+        self::assertSame($this->learner, $log->getToUser());
+        self::assertSame($this->entite, $log->getEntite());
+        self::assertNull($log->getBodyHtmlSnapshot());
+        self::assertSame('SENT', $log->getStatus());
+        self::assertSame(1, $this->em->getRepository(\App\Entity\EmailLog::class)->count([]));
+        $failed = $history->prepare($this->entite, $message);
+        $history->finish($failed, 'FAILED');
+        self::assertSame('FAILED', $failed->getStatus());
+        self::assertNotNull($failed->getErrorMessage());
+    }
+
     public function testAttendanceReminderContainsPersonalDayLinkAndInlinePngAndSkipsCompletedDay(): void
     {
         $messages = [];

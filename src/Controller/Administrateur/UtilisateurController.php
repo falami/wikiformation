@@ -673,6 +673,12 @@ final class UtilisateurController extends AbstractController
 
     $interactions = $this->interactionRepo->findForUtilisateurInEntite($entite, $utilisateur, 500);
 
+    $emailHistory = $this->em->getRepository(\App\Entity\EmailLog::class)->createQueryBuilder('mail')
+      ->leftJoin('mail.prospect', 'mailProspect')
+      ->andWhere('mail.entite = :entite')->setParameter('entite', $entite)
+      ->andWhere('mail.toUser = :user OR mailProspect.linkedUser = :user')->setParameter('user', $utilisateur)
+      ->orderBy('mail.sentAt', 'DESC')->setMaxResults(500)->getQuery()->getResult();
+
     $interaction = new ProspectInteraction();
     $interaction->setCreateur($user);
     $interaction->setEntite($entite);
@@ -743,6 +749,7 @@ final class UtilisateurController extends AbstractController
       'u'                 => $utilisateur,
       'linkedProspect'    => $linkedProspect,
       'interactions'      => $interactions,
+      'emailHistory' => $emailHistory,
       'emailTemplates' => $tpls,
       'interactionForm'   => $form->createView(),
       'kpis' => $kpis,

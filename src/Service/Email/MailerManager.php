@@ -19,7 +19,7 @@ final class MailerManager
     private Environment $twig;
     private UrlGeneratorInterface $url;
 
-    public function __construct(MailerInterface $mailer, Environment $twig, UrlGeneratorInterface $url)
+    public function __construct(MailerInterface $mailer, Environment $twig, UrlGeneratorInterface $url, private ?EmailHistoryRecorder $history = null)
     {
         $this->mailer = $mailer;
         $this->twig   = $twig;
@@ -35,7 +35,7 @@ final class MailerManager
         $from = $this->resolveFromAddress($entite);
         $email = (new Email())->from($from)->replyTo($from)->to($to)->subject($subject)->html($html)->text($text);
         foreach ($images as $cid => $png) $email->embed($png, $cid, 'image/png');
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $entite);
     }
 
     public function sendMailContext(string $from, string $to, string $subject, string $template, array $context)
@@ -47,7 +47,7 @@ final class MailerManager
             ->htmlTemplate($template)
             ->context($context);
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $context['entite'] ?? null);
 
         return null;
     }
@@ -62,7 +62,7 @@ final class MailerManager
             ->context($context)
             ->text($text);
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $context['entite'] ?? null);
 
         return null;
     }
@@ -75,7 +75,7 @@ final class MailerManager
             ->subject($subject)
             ->htmlTemplate($template);
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, null);
 
         return null;
     }
@@ -153,7 +153,7 @@ final class MailerManager
             $email->text($text);
         }
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $entite);
     }
 
     /* =========================================================================
@@ -230,7 +230,7 @@ final class MailerManager
                 'expiresAt' => $user->getResetTokenExpiresAt(),
             ]);
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $entite);
     }
 
     /**
@@ -284,7 +284,7 @@ final class MailerManager
         // ✅ pièce jointe “en mémoire”
         $email->attach($attachmentContent, $filename, $mime);
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $entite);
     }
 
     /**
@@ -318,7 +318,7 @@ final class MailerManager
 
         $email->attachFromPath($filePath, $filename, $mime);
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $entite);
     }
 
 
@@ -353,6 +353,17 @@ final class MailerManager
                 'expiresAt' => $user->getResetTokenExpiresAt(),
             ]);
 
-        $this->mailer->send($email);
+        $this->sendRecorded($email, $entite);
+    }
+    private function sendRecorded(Email $email, ?Entite $entite): void
+    {
+        $log = $entite ? $this->history?->prepare($entite, $email) : null;
+        try {
+            $this->mailer->send($email);
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            $this->history?->finish($log, 'FAILED');
+            throw $e;
+        }
+        $this->history?->finish($log, 'SENT');
     }
 }
