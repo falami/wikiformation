@@ -84,6 +84,38 @@ final class ParticipantQrPublicTest extends KernelTestCase
         self::assertSame(['sent'=>0, 'skipped'=>1, 'failed'=>0], $service->send($this->session, $date));
     }
 
+    public function testDashboardAppreciationsExcludeSubcontractCancelledAndSubmitted(): void
+    {
+        $jour = $this->session->getJours()->first();
+        $jour->setDateDebut(new \DateTimeImmutable('yesterday 08:00'))->setDateFin(new \DateTimeImmutable('yesterday 17:00'));
+        $this->em->flush();
+        $service = new \App\Service\Session\PendingLearnerAppreciations($this->em);
+        self::assertCount(1, $service->find($this->entite));
+        $this->session->setTypeFinancement(TypeFinancement::OUI); $this->em->flush();
+        self::assertCount(0, $service->find($this->entite));
+        $this->session->setTypeFinancement(TypeFinancement::NON)->setStatus(StatusSession::CANCELED); $this->em->flush();
+        self::assertCount(0, $service->find($this->entite));
+        $this->session->setStatus(StatusSession::DONE);
+        $assignment = (new SatisfactionAssignment())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setStagiaire($this->learner)->setInscription($this->inscription)->setTemplate($this->template);
+        $attempt = (new SatisfactionAttempt())->setEntite($this->entite)->setCreateur($this->admin)->setAssignment($assignment)->setSubmittedAt(new \DateTimeImmutable());
+        $this->em->persist($assignment); $this->em->persist($attempt); $this->em->flush();
+        self::assertCount(0, $service->find($this->entite));
+    }
+
+    public function testReminderTargetsOnlyTheRequestedHalfDay(): void
+    {
+        $messages = [];
+        $transport = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::once())->method('send')->willReturnCallback(function ($email) use (&$messages) { $messages[] = $email; });
+        $router = self::getContainer()->get('router'); $twig = self::getContainer()->get('twig');
+        $service = new \App\Service\Session\AttendanceReminder($this->em, $this->qr, $router,
+            new \App\Service\Email\MailerManager($transport, $twig, $router), $twig);
+        $date = $this->session->getJours()->first()->getDateDebut()->format('Y-m-d');
+        $service->send($this->session, $date, $this->inscription->getId(), 'attendance', 'PM');
+        self::assertStringContainsString('Après-midi', $messages[0]->getTextBody());
+        self::assertStringNotContainsString('Matin', $messages[0]->getTextBody());
+    }
+
     public function testIndividualCombinedReminderAndSubmittedSatisfactionAreHandled(): void
     {
         $messages = [];

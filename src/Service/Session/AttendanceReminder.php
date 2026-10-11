@@ -16,10 +16,11 @@ final class AttendanceReminder
     public function __construct(private EntityManagerInterface $em, private ParticipantQrAccess $access,
         private UrlGeneratorInterface $router, private MailerManager $mailer, private Environment $twig) {}
 
-    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance'): array
+    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance', ?string $period = null): array
     {
         if (!in_array($kind, ['attendance', 'satisfaction', 'both'], true)) throw new \DomainException('Type de relance invalide.');
         if ($inscriptionId !== null && !$this->em->getRepository(Inscription::class)->findOneBy(['id' => $inscriptionId, 'session' => $session, 'entite' => $session->getEntite()])) throw new \DomainException('Stagiaire étranger à cette session.');
+        if ($period !== null && !in_array($period, ['AM', 'PM'], true)) throw new \DomainException('Demi-journée invalide.');
         $periods = [];
         foreach ($session->getJours() as $jour) {
             $start = $jour->getDateDebut(); $end = $jour->getDateFin();
@@ -27,6 +28,7 @@ final class AttendanceReminder
             if ($start->format('H:i') < '13:00') $periods['AM'] = 'Matin';
             if ($end->format('H:i') > '13:00') $periods['PM'] = 'Après-midi';
         }
+        if ($period !== null) $periods = array_intersect_key($periods, [$period => true]);
         if ($kind !== 'satisfaction' && (!$periods || $date > (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris')))->format('Y-m-d'))) {
             throw new \DomainException('Choisissez une journée planifiée, passée ou aujourd’hui.');
         }
