@@ -11,6 +11,7 @@ final class TrainerSessionFollowUp
     public function summarize(Session $session, Formateur $trainer, \DateTimeImmutable $today, iterable $conventions = []): ?array
     {
         if (!$session->hasFormateur($trainer) || $session->getEntite() !== $trainer->getEntite()
+            || $session->isSousTraitance()
             || in_array($session->getStatus(), [StatusSession::DONE, StatusSession::CANCELED], true)) return null;
         $periods = []; $last = null;
         foreach ($session->getJours() as $jour) {

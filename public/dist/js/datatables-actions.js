@@ -74,6 +74,12 @@
         group.append(toggle, menu);
       }
     }
+    cell.querySelectorAll('.wf-row-actions').forEach(group => {
+      const controls = [...group.children].filter(node => node.matches('.btn, form'));
+      controls.forEach(node => node.classList.remove('wf-action-first', 'wf-action-last'));
+      controls[0]?.classList.add('wf-action-first');
+      controls.at(-1)?.classList.add('wf-action-last');
+    });
     cell.querySelectorAll('.dropdown-menu').forEach(menu => menu.classList.add('wf-action-menu'));
     cell.dataset.wfCompact = 'true';
   }
@@ -82,6 +88,9 @@
     const headers = [...(table.tHead?.rows[table.tHead.rows.length - 1]?.cells || [])];
     const indices = headers.flatMap((th, index) => /^(actions?|opérations?)$/i.test(th.textContent.trim()) || th.matches('.action-column, .actions-column, [data-table-actions]') ? [index] : []);
     indices.forEach(index => {
+      // DataTables 2 puts explicit widths on <col>, independently of cell CSS.
+      const column = table.querySelectorAll(':scope > colgroup > col')[index];
+      if (column) column.style.setProperty('width', '1%', 'important');
       for (const row of table.rows) {
         const cell = row.cells[index];
         if (cell && cell.colSpan === 1) cell.classList.add('wf-table-actions');

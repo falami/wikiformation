@@ -3,6 +3,8 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/trainer-filters.css') }}?v=4">
+  <script defer src="{{ asset('dist/js/trainer-filters.js') }}?v=4"></script>
   <style>
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
@@ -228,76 +230,6 @@
     }
 
 
-    /* =========================================================
-      ACTIONS SESSION — SPLIT BUTTON PREMIUM
-      ========================================================= */
-
-    #tableauSessions td.action-column .btn-group{
-      display: inline-flex;
-      vertical-align: middle;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(16, 24, 40, .06);
-    }
-
-    /* Bouton principal : arrondi uniquement à GAUCHE */
-    #tableauSessions td.action-column .btn-group > .btn:first-child{
-      border-radius: 12px 0 0 12px !important;
-      margin-right: 0 !important;
-    }
-
-    /* Bouton flèche : arrondi uniquement à DROITE */
-    #tableauSessions td.action-column .btn-group > .btn.dropdown-toggle,
-    #tableauSessions td.action-column .btn-group > .dropdown-toggle-split{
-      border-radius: 0 12px 12px 0 !important;
-      margin-left: -1px !important;
-    }
-
-    /* Supprime les arrondis parasites de Bootstrap */
-    #tableauSessions td.action-column .btn-group > .btn:not(:first-child):not(:last-child){
-      border-radius: 0 !important;
-    }
-
-    /* Aspect plus premium */
-    #tableauSessions td.action-column .btn-group > .btn{
-      min-height: 36px;
-      border-color: #d9e0e7;
-      background: #fff;
-      color: #344054;
-      font-weight: 600;
-      box-shadow: none !important;
-      transition:
-        background-color .15s ease,
-        border-color .15s ease,
-        color .15s ease;
-    }
-
-    #tableauSessions td.action-column .btn-group > .btn:first-child{
-      padding-left: .85rem;
-      padding-right: .85rem;
-    }
-
-    #tableauSessions td.action-column .btn-group > .dropdown-toggle-split{
-      width: 38px;
-      padding-left: .55rem;
-      padding-right: .55rem;
-    }
-
-    #tableauSessions td.action-column .btn-group > .btn:hover{
-      background: #f8fafc;
-      border-color: #cfd6df;
-      color: #101828;
-    }
-
-    /* Évite une double bordure au milieu */
-    #tableauSessions td.action-column .btn-group > .btn + .btn{
-      margin-left: -1px;
-    }
-
-    /* Centre proprement le groupe dans la colonne */
-    #tableauSessions td.action-column{
-      white-space: nowrap;
-      vertical-align: middle;
-    }
   </style>
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -421,44 +353,16 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ===== TOOLBAR ===== #}
-  <div class="toolbar mb-3">
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
-        <span class="chip">
-          <i class="bi bi-funnel"></i>
-          Statut
-          <select id="sessionStateFilter" class="form-select form-select-sm ms-2" style="width:auto">
+  <section class="filterbar trainer-filters mb-3" aria-label="Filtres de la liste">
+    <div class="trainer-filter-grid" data-list-filter-controls><div class="trainer-filter-field"><label for="sessionStateFilter">Statut de la session</label><select data-wf-multi id="sessionStateFilter" class="form-select form-select-sm">
             <option value="all">Toutes</option>
             <option value="upcoming">À venir</option>
             <option value="ongoing">En cours</option>
             <option value="done">Terminées</option>
-          </select>
-        </span>
+          </select></div><button id="btnReset" class="btn btn-outline-secondary trainer-filter-reset" type="button" title="Réinitialiser les filtres"><i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser</button><div class="dropdown trainer-filter-export"><button class="btn btn-warning dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-download me-2"></i>Export</button><ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul></div></div>
+    <div class="trainer-filter-summary" aria-live="polite"></div>
+  </section>
 
-        <span class="hint d-none d-lg-inline">
-          Recherche : code, formation, site.
-        </span>
-      </div>
-
-      <div class="d-flex gap-2 align-items-center">
-        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset
-        </button>
-
-        <div class="dropdown">
-          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-download"></i> Export
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu">
-            {# rempli par DataTables #}
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# ===== TABLE ===== #}
   <div class="table-card mb-4 p-3">
     <table id="tableauSessions" class="table table-hover align-middle mb-0" style="width:100%">
       <thead>

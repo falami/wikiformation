@@ -3,6 +3,11 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/trainer-filters.css') }}?v=4">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/fr.js"></script>
+  <script defer src="{{ asset('dist/js/trainer-filters.js') }}?v=4"></script>
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
@@ -256,53 +261,18 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ===== TOOLBAR ===== #}
-  <div class="toolbar mb-3">
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
-        <span class="chip">
-          <i class="bi bi-calendar3"></i>
-          Du
-          <input id="dateFrom" type="date" class="form-control form-control-sm ms-2" style="width:auto">
-          au
-          <input id="dateTo" type="date" class="form-control form-control-sm ms-2" style="width:auto">
-        </span>
-
-        <span class="chip">
-          <i class="bi bi-chat-left-text"></i>
-          Commentaires
-          <select id="hasCommentaires" class="form-select form-select-sm ms-2" style="width:auto">
+  <section class="filterbar trainer-filters mb-3" aria-label="Filtres de la liste">
+    <div class="trainer-filter-grid" data-list-filter-controls><div class="trainer-filter-field"><label for="dateFrom">Soumis à partir du</label><input id="dateFrom" type="date" class="form-control form-control-sm"></div><div class="trainer-filter-field"><label for="dateTo">Soumis jusqu’au</label><input id="dateTo" type="date" class="form-control form-control-sm"></div><div class="trainer-filter-field"><label for="hasCommentaires">Commentaires</label><select data-wf-multi id="hasCommentaires" class="form-select form-select-sm">
             <option value="all">Tous</option>
             <option value="yes">Avec</option>
             <option value="no">Sans</option>
-          </select>
-        </span>
-
-        <span class="chip">
-          <i class="bi bi-ui-checks-grid"></i>
-          Critères
-          <select id="hasCriteres" class="form-select form-select-sm ms-2" style="width:auto">
+          </select></div><div class="trainer-filter-field"><label for="hasCriteres">Critères</label><select data-wf-multi id="hasCriteres" class="form-select form-select-sm">
             <option value="all">Tous</option>
             <option value="yes">Avec</option>
             <option value="no">Sans</option>
-          </select>
-        </span>
-      </div>
-
-      <div class="d-flex gap-2 align-items-center">
-        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset
-        </button>
-
-        <div class="dropdown">
-          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-download"></i> Export
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul>
-        </div>
-      </div>
-    </div>
-  </div>
+          </select></div><button id="btnReset" class="btn btn-outline-secondary trainer-filter-reset" type="button" title="Réinitialiser les filtres"><i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser</button><div class="dropdown trainer-filter-export"><button class="btn btn-warning dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-download me-2"></i>Export</button><ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul></div></div>
+    <div class="trainer-filter-summary" aria-live="polite"></div>
+  </section>
 
   {# ===== TABLE ===== #}
   <div class="table-card mb-4 p-3">

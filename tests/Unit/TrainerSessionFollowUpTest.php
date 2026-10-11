@@ -69,8 +69,10 @@ final class TrainerSessionFollowUpTest extends TestCase
         $session->setStatus(StatusSession::DONE);
         self::assertNull($service->summarize($session, $trainer, $today));
         $session->setStatus(StatusSession::PUBLISHED)->setTypeFinancement(TypeFinancement::OUI);
-        self::assertSame(0, $service->summarize($session, $trainer, $today)['attendance']);
+        // Subcontracted sessions require neither attendance nor learner feedback follow-up.
+        self::assertNull($service->summarize($session, $trainer, $today));
         $session->setTypeFinancement(TypeFinancement::NON);
+        self::assertSame(1, $service->summarize($session, $trainer, $today)['satisfaction']);
         foreach ([$teacher, $learner] as $u) foreach ([DemiJournee::AM, DemiJournee::PM] as $period) {
             $session->addEmargement((new Emargement())->setUtilisateur($u)->setRole($u === $teacher ? 'formateur' : 'stagiaire')->setDateJour(new \DateTimeImmutable('2026-10-05'))->setPeriode($period)->setSignedAt(new \DateTimeImmutable()));
         }

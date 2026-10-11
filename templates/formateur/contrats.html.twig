@@ -5,6 +5,8 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/trainer-filters.css') }}?v=4">
+  <script defer src="{{ asset('dist/js/trainer-filters.js') }}?v=4"></script>
   <style>
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
@@ -345,44 +347,16 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ===== TOOLBAR ===== #}
-  <div class="toolbar mb-3">
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
-        <span class="chip">
-          <i class="bi bi-funnel"></i>
-          Statut
-          <select id="contratStatusFilter" class="form-select form-select-sm ms-2" style="width:auto">
+  <section class="filterbar trainer-filters mb-3" aria-label="Filtres de la liste">
+    <div class="trainer-filter-grid" data-list-filter-controls><div class="trainer-filter-field"><label for="contratStatusFilter">Statut du contrat</label><select data-wf-multi id="contratStatusFilter" class="form-select form-select-sm">
             <option value="all">Tous</option>
             <option value="brouillon">Brouillon</option>
             <option value="envoye">À signer</option>
             <option value="signe">Signé</option>
-          </select>
-        </span>
+          </select></div><button id="btnReset" class="btn btn-outline-secondary trainer-filter-reset" type="button" title="Réinitialiser les filtres"><i class="bi bi-arrow-counterclockwise me-2"></i>Réinitialiser</button><div class="dropdown trainer-filter-export"><button class="btn btn-warning dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-download me-2"></i>Export</button><ul class="dropdown-menu dropdown-menu-end" id="exportMenu"></ul></div></div>
+    <div class="trainer-filter-summary" aria-live="polite"></div>
+  </section>
 
-        <span class="hint d-none d-lg-inline">
-          Recherche : numéro, statut, dates.
-        </span>
-      </div>
-
-      <div class="d-flex gap-2 align-items-center">
-        <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset
-        </button>
-
-        <div class="dropdown">
-          <button class="btn btn-warning btn-sm fw-semibold dropdown-toggle" type="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-download"></i> Export
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end" id="exportMenu">
-            {# rempli par DataTables #}
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# ===== TABLE ===== #}
   <div class="table-card mb-4 p-3">
     <table id="tableauContrats" class="table table-hover align-middle mb-0" style="width:100%">
       <thead>
@@ -392,7 +366,7 @@
           <th>Créé le</th>
           <th>Statut</th>
           <th>Signé le</th>
-          <th class="text-end" style="width:280px">Actions</th>
+          <th class="action-column text-end" style="width:1%">Actions</th>
         </tr>
       </thead>
       <tbody><tr><td colspan="6"></td></tr></tbody>
@@ -443,7 +417,7 @@ $(function () {
       { data:'createdAt' },
       { data:'status' },
       { data:'signedAt' },
-      { data:'actions' }
+      { data:'actions', width:'1%' }
     ],
 
     columnDefs: [

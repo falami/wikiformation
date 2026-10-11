@@ -145,11 +145,14 @@ final class PositioningFormateurController extends AbstractController
       ->andWhere('(q.entite = :e OR sess.entite = :e OR sessIns.entite = :e)')->setParameter('e', $entite);
 
     // filtre conclusion
+        \App\Service\Filter\ChoiceFilter::any($qb, $conclusionFilter, static function ($qb, $conclusionFilter) {
     if ($conclusionFilter === 'done') {
       $qb->andWhere('a.formateurConclusion IS NOT NULL AND a.formateurConclusion <> \'\'');
     } elseif ($conclusionFilter === 'todo') {
       $qb->andWhere('a.formateurConclusion IS NULL OR a.formateurConclusion = \'\'');
     }
+
+        });
 
     // filtre stagiaire (champ)
     if ($stagiaireFilter !== '') {

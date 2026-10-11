@@ -256,6 +256,7 @@ class FormateurEspaceController extends AbstractController
         // Filtre état via HAVING sur agrégats
         $now = new \DateTimeImmutable();
 
+        \App\Service\Filter\ChoiceFilter::any($qb, $stateFilter, static function ($qb, $stateFilter) use ($now) {
         if ($stateFilter === 'upcoming') {
             $qb->andWhere('(SELECT MIN(j2.dateDebut) FROM App\Entity\SessionJour j2 WHERE j2.session = s) > :now');
             $qb->setParameter('now', $now);
@@ -268,6 +269,8 @@ class FormateurEspaceController extends AbstractController
             $qb->setParameter('now', $now);
         }
 
+
+        });
 
         // recordsFiltered : idem (IDs distincts puis count)
         $recordsFiltered = (int)(clone $qb)
@@ -329,7 +332,7 @@ class FormateurEspaceController extends AbstractController
     }
 
     #[Route('/sessions/kpis', name: 'sessions_kpis', methods: ['GET'])]
-    public function sessionsKpis(Entite $entite, EntityManagerInterface $em): JsonResponse
+    public function sessionsKpis(Entite $entite, EntityManagerInterface $em, Request $request): JsonResponse
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -351,6 +354,16 @@ class FormateurEspaceController extends AbstractController
             ->getQuery()
             ->getArrayResult();
 
+        $selectedStates = \App\Service\Filter\ChoiceFilter::values($request->query->get('stateFilter', 'all'));
+        if ($selectedStates !== null) {
+            $rows = array_filter($rows, static function (array $row) use ($selectedStates, $now): bool {
+                if (!$row['minStart'] || !$row['maxEnd']) return false;
+                $start = $row['minStart'] instanceof \DateTimeInterface ? $row['minStart'] : new \DateTimeImmutable($row['minStart']);
+                $end = $row['maxEnd'] instanceof \DateTimeInterface ? $row['maxEnd'] : new \DateTimeImmutable($row['maxEnd']);
+                $state = $now < $start ? 'upcoming' : ($now > $end ? 'done' : 'ongoing');
+                return in_array($state, $selectedStates, true);
+            });
+        }
         $count = count($rows);
         $upcoming = 0;
         $ongoing = 0;

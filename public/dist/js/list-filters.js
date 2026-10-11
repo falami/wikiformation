@@ -204,7 +204,7 @@
   }
 
   function bridge(select, allowedIds) {
-    if (!allowedIds.has(select.id) || bridges.has(select) || !multiIds.has(select.id) || select.hasAttribute('data-wf-single') || select.closest('.modal, .wf-filter-menu')) return;
+    if (!allowedIds.has(select.id) || bridges.has(select) || (!multiIds.has(select.id) && !select.hasAttribute('data-wf-multi')) || select.hasAttribute('data-wf-single') || select.closest('.modal, .wf-filter-menu')) return;
     const label = select.labels?.[0]?.textContent.trim()
       || select.closest('.filter-control, .filter-field, [class*="fcol-"]')?.querySelector('.form-label, label')?.textContent.trim()
       || ({ statusFilter:'Statut', sourceFilter:'Source', activeFilter:'Activation', nextFilter:'Relance', enginFilter:'Engin', siteFilter:'Site', categorieFilter:'Catégorie', sousCategorieFilter:'Sous-catégorie', niveauFilter:'Niveau', rolesFilter:'Rôles', verifiedFilter:'Vérification', lockedFilter:'Verrouillage', sessionFilter:'Session', formateurFilter:'Formateur', stagiaireFilter:'Stagiaire', requiredFilter:'Obligation', phaseFilter:'Phase', submittedFilter:'Réponse', publishedFilter:'Publication', dossierFilter:'Dossier', sessionFormationFilter:'Formation', sessionStatusFilter:'Statut', periodTypeFilter:'Période', yearFilter:'Année', monthFilter:'Mois', quarterFilter:'Trimestre', factureStatusFilter:'Statut', devisStatusFilter:'Statut', payModeFilter:'Mode de paiement', reservationStatusFilter:'Statut', inscriptionStatusFilter:'Statut', sessionStateFilter:'Période', contratStatusFilter:'Statut', periodYear:'Année', periodMonth:'Mois', periodQuarter:'Trimestre', tvaOnly:'TVA déductible', 'filter-state':'État' }[select.id])
@@ -437,6 +437,7 @@
         endpoint = endpoint?.replace(/^elearning\/\d+\/inscriptions$/, 'elearning/course/inscriptions');
         (endpointFilters[endpoint] || '').split(' ').filter(Boolean).forEach(id => allowedIds.add(id));
       });
+      document.querySelectorAll('.trainer-filters select[data-wf-multi]').forEach(select => allowedIds.add(select.id));
       if (allowedIds.size) document.querySelectorAll(roots).forEach(root => root.classList.add('wf-filters-theme'));
       document.querySelectorAll(selectFilters).forEach(select => bridge(select, allowedIds));
       normalizePanels();

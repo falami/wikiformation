@@ -11,7 +11,7 @@ body .content table :is(th, td).wf-table-actions {
   right: 0 !important;
   z-index: 6;
   min-width: 82px !important;
-  width: 82px;
+  width: 1% !important;
   padding: .7rem .65rem !important;
   text-align: right !important;
   white-space: nowrap !important;
@@ -48,9 +48,24 @@ body .wf-table-actions .wf-row-actions > .btn:focus-visible { outline: 3px solid
 body .wf-table-actions .wf-row-actions > .dropdown-toggle-split {
   min-width: 26px; padding-inline: .4rem !important; border-left: 0 !important;
 }
-body .wf-table-actions .wf-row-actions > .btn:first-child { border-radius: 10px 0 0 10px; }
-body .wf-table-actions .wf-row-actions > .btn:last-of-type { border-radius: 0 10px 10px 0; }
-body .wf-table-actions .wf-row-actions > .btn:only-child { border-radius: 10px; }
+/* Explicit positions avoid :last-of-type matching both an <a> and a <button>. */
+body .wf-table-actions .wf-row-actions > .btn {
+  border-radius: 0 !important;
+  display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+  line-height: 1.25; white-space: nowrap;
+}
+body .wf-table-actions .wf-row-actions > .wf-action-first,
+body .wf-table-actions .wf-row-actions > form:first-child > .btn {
+  border-radius: 10px 0 0 10px !important;
+}
+body .wf-table-actions .wf-row-actions > .wf-action-last {
+  border-radius: 0 10px 10px 0 !important;
+}
+body .wf-table-actions .wf-row-actions > .wf-action-first.wf-action-last,
+body .wf-table-actions .wf-row-actions > form:only-child > .btn {
+  border-radius: 10px !important;
+}
+body .wf-table-actions .wf-row-actions > form { display: inline-flex; margin: 0; }
 body .wf-action-menu {
   border: 1px solid #dce2e9 !important; border-radius: 14px !important;
   background: #fff !important; box-shadow: 0 16px 48px rgba(24, 42, 60, .2) !important;

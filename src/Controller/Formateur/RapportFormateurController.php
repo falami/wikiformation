@@ -211,17 +211,22 @@ class RapportFormateurController extends AbstractController
             }
         }
 
+        \App\Service\Filter\ChoiceFilter::any($qb, $hasCom, static function ($qb, $hasCom) {
         if ($hasCom === 'yes') {
             $qb->andWhere('r.commentaires IS NOT NULL AND r.commentaires <> \'\'');
         } elseif ($hasCom === 'no') {
             $qb->andWhere('(r.commentaires IS NULL OR r.commentaires = \'\')');
         }
 
+        });
+
+        \App\Service\Filter\ChoiceFilter::any($qb, $hasCrit, static function ($qb, $hasCrit) {
         if ($hasCrit === 'yes') {
             $qb->andWhere('r.criteres IS NOT NULL');
         } elseif ($hasCrit === 'no') {
             $qb->andWhere('r.criteres IS NULL');
         }
+        });
     }
 
     private function countQb(QueryBuilder $qb): QueryBuilder

@@ -496,10 +496,6 @@ class DashboardFormateurController extends AbstractController
             // Capacité
             $capacite = method_exists($s, 'getCapacite') ? $s->getCapacite() : null;
 
-            // Financement (enum)
-            $fin = method_exists($s, 'getTypeFinancement') ? $s->getTypeFinancement() : null;
-            $finLabel = $fin ? $fin->name : null; // ou ->value si tu as des values
-
             // Statut (enum)
             $st = method_exists($s, 'getStatus') ? $s->getStatus() : null;
             $stLabel = $st?->label();
@@ -508,15 +504,20 @@ class DashboardFormateurController extends AbstractController
             $chips = [];
 
             if ($siteNom) {
+                $site = $s->getSite();
+                $destination = implode(', ', array_filter([
+                    trim((string) $site->getAdresse()),
+                    trim((string) $site->getCodePostal().' '.(string) $site->getVille()),
+                    trim((string) $site->getPays()),
+                ], static fn(string $part): bool => $part !== ''));
+                if ($site->getLatitude() !== null && $site->getLongitude() !== null) {
+                    $destination = $site->getLatitude().','.$site->getLongitude();
+                }
+                $mapsUrl = 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($destination ?: $siteNom);
                 $chips[] = sprintf(
-                    '<span class="dt-chip-sm"><i class="bi bi-geo-alt"></i> %s</span>',
+                    '<a class="dt-chip-sm" href="%s" target="_blank" rel="noopener noreferrer" title="Ouvrir le lieu dans Google Maps (nouvel onglet)"><i class="bi bi-geo-alt" aria-hidden="true"></i> %s <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>',
+                    htmlspecialchars($mapsUrl, ENT_QUOTES),
                     htmlspecialchars($siteNom, ENT_QUOTES)
-                );
-            }
-            if ($finLabel) {
-                $chips[] = sprintf(
-                    '<br /><span class="dt-chip-sm dt-chip-muted"><i class="bi bi-cash-coin"></i> %s</span>',
-                    htmlspecialchars($finLabel, ENT_QUOTES)
                 );
             }
             if ($stLabel) {
@@ -756,6 +757,12 @@ class DashboardFormateurController extends AbstractController
             ->select('COUNT(c.id)')
             ->andWhere('c.entite = :e')->setParameter('e', $entite)
             ->andWhere('c.formateur = :f')->setParameter('f', $formateur);
+
+        $statusFilter = $request->query->get('statusFilter', 'all');
+        \App\Service\Filter\ChoiceFilter::any($qb, $statusFilter, static function ($qb, $value) {
+            $status = ['brouillon'=>'BROUILLON', 'envoye'=>'ENVOYE', 'signe'=>'SIGNE'][$value] ?? null;
+            if ($status) $qb->andWhere('c.status = :chosenStatus')->setParameter('chosenStatus', $status);
+        });
 
         $count = (int)(clone $qb)->select('COUNT(c.id)')->getQuery()->getSingleScalarResult();
 
@@ -1228,16 +1235,10 @@ class DashboardFormateurController extends AbstractController
         ')->setParameter('s', '%' . $searchV . '%');
         }
 
-        // Filtre statut (enum)
-        $enum = match ($statusFilter) {
-            'brouillon' => ContratFormateurStatus::BROUILLON,
-            'envoye'    => ContratFormateurStatus::ENVOYE,
-            'signe'     => ContratFormateurStatus::SIGNE,
-            default     => null,
-        };
-        if ($enum) {
-            $qb->andWhere('c.status = :st')->setParameter('st', $enum);
-        }
+        \App\Service\Filter\ChoiceFilter::any($qb, $statusFilter, static function ($qb, $value) {
+            $status = ['brouillon'=>'BROUILLON', 'envoye'=>'ENVOYE', 'signe'=>'SIGNE'][$value] ?? null;
+            if ($status) $qb->andWhere('c.status = :chosenStatus')->setParameter('chosenStatus', $status);
+        });
 
         // recordsFiltered
         $recordsFiltered = (int)(clone $qb)
