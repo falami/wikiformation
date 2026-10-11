@@ -390,6 +390,22 @@ class DashboardFormateurController extends AbstractController
         // 2) Récupère en 1 requête le nb de stagiaires par session via INSCRIPTION, en excluant le formateur
         $sessionIds = array_map(fn(Session $s) => $s->getId(), $list);
 
+        // Only the connected trainer's contractual fee, never the session's selling price.
+        $feesBySession = [];
+        $contracts = $em->getRepository(ContratFormateur::class)->createQueryBuilder('contract')
+            ->innerJoin('contract.session', 'feeSession')
+            ->andWhere('contract.entite = :entite AND feeSession.entite = :entite')
+            ->andWhere('contract.formateur = :trainer')
+            ->andWhere('feeSession.id IN (:sessions)')
+            ->andWhere('contract.status != :terminated')
+            ->setParameter('entite', $entite)->setParameter('trainer', $formateur)
+            ->setParameter('sessions', $sessionIds)->setParameter('terminated', 'RESILIE')
+            ->orderBy('contract.id', 'DESC')->getQuery()->getResult();
+        foreach ($contracts as $contract) {
+            $feesBySession[$contract->getSession()->getId()] ??= $contract->getMontantPrevuCents();
+        }
+
+
         $counts = $em->createQueryBuilder()
             ->select('IDENTITY(i.session) AS sid, COUNT(i.id) AS c')
             ->from(Inscription::class, 'i')
@@ -493,11 +509,10 @@ class DashboardFormateurController extends AbstractController
             $siteNom = $s->getSite()?->getNom();
             $orgNom  = $s->getOrganismeFormation()?->getRaisonSociale(); // Entreprise
 
-            // Prix (si tu veux l’afficher)
-            $prix = null;
-            if (method_exists($s, 'getMontantCents') && $s->getMontantCents() !== null) {
-                $prix = number_format($s->getMontantCents() / 100, 2, ',', ' ') . ' €';
-            }
+            $fee = $feesBySession[$s->getId()] ?? null;
+            $prix = $fee !== null
+                ? 'Votre prestation : ' . number_format($fee / 100, 2, ',', ' ') . ' € HT · hors frais'
+                : 'Prestation non renseignée';
 
             // Capacité
             $capacite = method_exists($s, 'getCapacite') ? $s->getCapacite() : null;
