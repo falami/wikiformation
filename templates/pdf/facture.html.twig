@@ -1,7 +1,13 @@
 {# templates/pdf/facture.html.twig #}
 {% import _self as m %}
-{# Automated invoices share their calculation with payment reminders and PDF delivery. #}
-{% if invoiceTotals is not defined and facture.meta.workflow_billing is defined %}
+{% set issued = invoice_snapshot(facture) %}
+{% if issued %}
+  {% set invoiceTotals = issued.totals %}
+  {% set entite = issued.issuer %}
+  {% set facture = issued.invoice|merge({lignes: issued.lines}) %}
+{% endif %}
+{# Newly issued invoices retain their monetary calculation; historical PDF behavior is preserved. #}
+{% if invoiceTotals is not defined and (facture.issuedTotals is not null or facture.meta.workflow_billing is defined) %}
   {% set invoiceTotals = invoice_totals(facture) %}
 {% endif %}
 
@@ -179,7 +185,9 @@
       <tr>
         <td class="left">
           <div class="brand-left">
-            {% if entite.logo %}
+            {% if issued and entite.logoDataUri %}
+              <img class="logo" src="{{ entite.logoDataUri }}" alt="Logo {{ entite.nom }}">
+            {% elseif entite.logo %}
               <img class="logo" src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom }}">
             {% else %}
               <div class="brand-name">{{ entite.nom }}</div>
@@ -199,6 +207,7 @@
               {% if entite.telephone %}<p>{{ entite.telephone }}</p>{% endif %}
               {% if entite.email %}<p>{{ entite.email }}</p>{% endif %}
               {% if entite.siret %}<p>SIRET : {{ entite.siret }}</p>{% endif %}
+              {% if entite.numeroTva %}<p>TVA : {{ entite.numeroTva }}</p>{% endif %}
             </div>
           </div>
         </td>
@@ -242,14 +251,12 @@
             <br>
 
             Paiement dû :
-            {{ facture.dateEmission|date_modify(meta.echeance ?? '+30 days')|date('d/m/Y') }}<br>
+            {% if issued %}{{ issued.terms.dueDate ? issued.terms.dueDate|date('d/m/Y') : 'Non renseigné' }}{% else %}{{ facture.dateEmission|date_modify(meta.echeance ?? '+30 days')|date('d/m/Y') }}{% endif %}<br>
 
-            Modalité paiement : {{ meta.modalite ?? 'Virement' }}<br>
-            {% if facture.inscriptions is defined and facture.inscriptions|length > 0 %}
-              {% set datePresta = meta.datePrestation|default(null) %}
-              {% if datePresta %}
-                Date prestation : {{ datePresta|date('d/m/Y') }}<br>
-              {% endif %}
+            Modalité paiement : {{ issued ? (issued.terms.paymentMeans ?: 'Non renseigné') : (meta.modalite ?? 'Virement') }}<br>
+            {% set datePresta = issued ? issued.terms.serviceDate : meta.datePrestation|default(null) %}
+            {% if datePresta %}
+              Date prestation : {{ datePresta|date('d/m/Y') }}<br>
             {% endif %}
 
             {% if facture.inscriptions is defined and facture.inscriptions|length > 0 %}
@@ -279,6 +286,8 @@
             {% if e.ville is defined and e.ville %}{% set cp_ville = cp_ville|merge([e.ville]) %}{% endif %}
             {% if cp_ville is not empty %}{{ cp_ville|join(' ') }}<br>{% endif %}
             {% if e.pays is defined and e.pays %}{{ e.pays }}<br>{% endif %}
+            {% if e.siret is defined and e.siret %}SIRET : {{ e.siret }}<br>{% endif %}
+            {% if e.numeroTva is defined and e.numeroTva %}TVA : {{ e.numeroTva }}<br>{% endif %}
             {% if e.emailFacturation is defined and e.emailFacturation %}{{ e.emailFacturation }}{% elseif e.email is defined and e.email %}{{ e.email }}{% endif %}
           {% elseif u %}
             {% set nom_aff = (u.civilite is defined ? u.civilite : '') ~ ' ' ~ (u.prenom is defined ? u.prenom : '') ~ ' ' ~ (u.nom is defined ? u.nom : '') %}
@@ -329,7 +338,7 @@
 
           {% set tva_rate = l.tva ?? 0 %}
           {% set line_tva = (line_ht_net * tva_rate / 100)|round(0, 'floor') %}
-          {% if invoiceTotals is defined %}{% set line_tva = l.totalTvaCents %}{% endif %}
+          {% if invoiceTotals is defined %}{% set line_tva = invoiceTotals.lines[loop.index0].tvaCents ?? l.totalTvaCents %}{% endif %}
 
           {% set total_ht_brut = total_ht_brut + line_ht %}
           {% set total_remises_lignes = total_remises_lignes + line_remise %}
@@ -447,6 +456,10 @@
       {% set total_a_payer_display = invoiceTotals.ttcCents %}
     {% endif %}
 
+    {% if invoiceTotals is defined and remise_globale > 0 %}
+      <p class="note">La remise globale est répartie sur les lignes. Les montants de TVA tiennent compte de cette remise.</p>
+    {% endif %}
+
     {# ===== TOTAUX ===== #}
     <table class="totaux" cellspacing="0" cellpadding="0">
       <tr>
@@ -520,6 +533,19 @@
         <td class="val total titre">{{ m.eur(total_a_payer_display) }}</td>
       </tr>
     </table>
+    {% if issued %}
+      <div class="note">
+        {% if issued.terms.legalIdentity %}<p>{{ issued.terms.legalIdentity|nl2br }}</p>{% endif %}
+        {% if issued.terms.purchaseOrderReference %}<p>Bon de commande : {{ issued.terms.purchaseOrderReference }}</p>{% endif %}
+        {% if issued.terms.vatExemptionReason %}<p>{{ issued.terms.vatExemptionReason|nl2br }}</p>{% endif %}
+        {% if issued.terms.vatOnDebits %}<p>TVA acquittée d’après les débits.</p>{% endif %}
+        {% if issued.terms.earlyPaymentDiscount %}<p>Escompte : {{ issued.terms.earlyPaymentDiscount }}</p>{% endif %}
+        {% if issued.customer.type == 'company' %}
+          {% if issued.terms.latePaymentPenalty %}<p>Pénalités de retard : {{ issued.terms.latePaymentPenalty }}</p>{% endif %}
+          {% if issued.terms.recoveryCompensationCents is not null %}<p>Indemnité forfaitaire de recouvrement : {{ m.eur(issued.terms.recoveryCompensationCents) }}.</p>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
 </div>
 
@@ -548,7 +574,7 @@
             {% if entite.iban %}<strong>IBAN :</strong> {{ entite.iban }}<br>{% endif %}
             {% if entite.bic %}<strong>BIC :</strong> {{ entite.bic }}<br>{% endif %}
             {% if entite.siret %}<strong>SIRET :</strong> {{ entite.siret }}{% endif %}
-            {% if entite.numeroTva %}<br><strong>TVA :</strong> {{ entite.numeroTva }}{% endif %}
+
           </td>
         </tr>
       </table>

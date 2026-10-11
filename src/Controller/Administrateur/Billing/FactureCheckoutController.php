@@ -10,6 +10,7 @@ use App\Entity\Billing\FactureCheckout;
 use App\Entity\Billing\StripeCustomerMap;
 use App\Enum\ModePaiement;
 use App\Enum\FactureStatus;
+use App\Service\Billing\InvoiceTotals;
 use App\Repository\Billing\FactureCheckoutRepository;
 use App\Repository\Billing\StripeCustomerMapRepository;
 use App\Security\Permission\TenantPermission;
@@ -42,11 +43,12 @@ final class FactureCheckoutController extends AbstractController
             throw $this->createAccessDeniedException('CSRF invalide.');
         }
 
-        $paidCents = 0;
-        foreach ($facture->getPaiements() as $p) $paidCents += (int) $p->getMontantCents();
+        if ($facture->isCanceled()) {
+            $this->addFlash('warning', 'Une facture annulée ne peut pas être réglée.');
+            return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
+        }
 
-        $totalCents = (int) $facture->getTtcTotalCents();
-        $remainingCents = max(0, $totalCents - $paidCents);
+        $remainingCents = InvoiceTotals::outstanding($facture);
 
         if ($remainingCents <= 0) {
             $this->addFlash('info', 'Cette facture est déjà réglée.');
@@ -74,10 +76,23 @@ final class FactureCheckoutController extends AbstractController
             ]);
         }
 
-        // ✅ évite de recréer des sessions en boucle
+        $stripe = new \Stripe\StripeClient($this->stripeSecretKey);
         $existing = $this->checkoutRepo->findLatestCreatedForFactureSince($facture, new \DateTimeImmutable('-2 hours'));
         if ($existing && $existing->getCheckoutUrl()) {
-            return new RedirectResponse($existing->getCheckoutUrl());
+            if ($existing->getFactureAmountCents() === $remainingCents
+                && $existing->getAmountTotalCents() === $remainingCents) {
+                return new RedirectResponse($existing->getCheckoutUrl());
+            }
+            // An already published link must be expired at the provider before replacing it.
+            try {
+                if (!$existing->getStripeCheckoutSessionId()) throw new \RuntimeException('Identifiant de paiement manquant.');
+                $stripe->checkout->sessions->expire($existing->getStripeCheckoutSessionId(), [], ['stripe_account' => $connectedAccountId]);
+            } catch (\Throwable $error) {
+                $this->addFlash('warning', 'Le montant à régler a changé. Le précédent lien de paiement doit être désactivé avant d’en créer un nouveau. Réessayez dans quelques instants.');
+                return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
+            }
+            $existing->setStatus(FactureCheckout::STATUS_EXPIRED);
+            $this->em->flush();
         }
 
         /** @var Utilisateur|null $actor */
@@ -108,8 +123,6 @@ final class FactureCheckoutController extends AbstractController
 
         $cancelUrl = $request->getSchemeAndHttpHost()
             . $this->generateUrl('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
-
-        $stripe = new \Stripe\StripeClient($this->stripeSecretKey);
 
         // ✅ base session params
         $sessionParams = [
@@ -361,13 +374,16 @@ final class FactureCheckoutController extends AbstractController
 
     private function recomputeFactureStatus(Facture $facture): void
     {
+        if ($facture->isCanceled()) return;
         $paidCents = 0;
         foreach ($facture->getPaiements() as $p) $paidCents += (int)$p->getMontantCents();
 
-        $totalCents = (int)$facture->getTtcTotalCents();
-        $remaining = max(0, $totalCents - $paidCents);
+        $creditsCents = 0;
+        foreach ($facture->getAvoirs() as $credit) $creditsCents += $credit->getMontantTtcCents();
+        $netPayableCents = max(0, InvoiceTotals::totalTtc($facture) - $creditsCents);
 
-        if ($remaining <= 0 && $totalCents > 0) {
+        // A credit note settles a balance but is not evidence of an actual payment.
+        if ($paidCents > 0 && $netPayableCents > 0 && InvoiceTotals::outstanding($facture) === 0) {
             $facture->setStatus(FactureStatus::PAID);
         } elseif ($paidCents > 0) {
             $facture->setStatus(FactureStatus::PARTIALLY_PAID);

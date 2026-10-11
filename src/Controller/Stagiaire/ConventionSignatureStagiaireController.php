@@ -10,6 +10,8 @@ use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Security\Permission\TenantPermission;
+use App\Service\Convention\ConventionPortalSignature;
+use App\Security\DossierDocumentAccess;
 
 
 
@@ -21,6 +23,7 @@ class ConventionSignatureStagiaireController extends AbstractController
   public function __construct(
     private readonly EM $em,
     private readonly ConventionContratRepository $conventionRepo,
+    private readonly ConventionPortalSignature $signatures,
   ) {}
 
   #[Route('/inscription/{id}/convention/signature-stagiaire', name: 'convention_sign', methods: ['POST'])]
@@ -28,6 +31,7 @@ class ConventionSignatureStagiaireController extends AbstractController
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
+    DossierDocumentAccess::inscription($entite, $inscription);
 
     // CSRF (fortement recommandé)
     if (!$this->isCsrfTokenValid('sign_convention_' . $inscription->getId(), (string) $request->request->get('_token'))) {
@@ -81,9 +85,12 @@ class ConventionSignatureStagiaireController extends AbstractController
       ]);
     }
 
-    $convention->setDateSignatureStagiaire(new \DateTimeImmutable());
-    $convention->setPdfPath(null);
-    $this->em->flush();
+    try {
+      $this->signatures->sign($convention, $user, 'stagiaire', null, $request->getSession()->get('convention_reviewed_'.$convention->getId()));
+    } catch (\DomainException $error) {
+      $this->addFlash('danger', $error->getMessage());
+      return $this->redirectToRoute('app_stagiaire_dossier_edit', ['entite' => $entite->getId(), 'id' => $inscription->getId()]);
+    }
 
     $this->addFlash('success', 'Vous avez signé la convention.');
 
@@ -99,6 +106,7 @@ class ConventionSignatureStagiaireController extends AbstractController
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
+    DossierDocumentAccess::inscription($entite, $inscription);
 
     // mêmes sécurités que dans signByStagiaire()
     if ($inscription->getStagiaire() !== $user) {
@@ -114,7 +122,7 @@ class ConventionSignatureStagiaireController extends AbstractController
       return new Response('PDF introuvable', 404);
     }
 
-    return $document->response($convention);
+    return $this->signatures->preview($convention, $request);
   }
 
   #[Route('/inscription/{id}/convention/esign', name: 'convention_esign', methods: ['POST'])]
@@ -122,6 +130,7 @@ class ConventionSignatureStagiaireController extends AbstractController
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
+    DossierDocumentAccess::inscription($entite, $inscription);
 
     if (!$this->isCsrfTokenValid('esign_convention_' . $inscription->getId(), (string)$request->request->get('_token'))) {
       return new JsonResponse(['success' => false, 'message' => 'CSRF invalide'], 403);
@@ -152,16 +161,17 @@ class ConventionSignatureStagiaireController extends AbstractController
     if (!$convention->getPdfPath()) return new JsonResponse(['success' => false, 'message' => 'Générez le document avant signature.'], 400);
 
     $sig = (string)$request->request->get('signatureData', '');
-    if (!str_starts_with($sig, 'data:image/png;base64,')) {
-      return new JsonResponse(['success' => false, 'message' => 'Signature invalide'], 400);
+    try {
+      ConventionPortalSignature::validateSignature($sig);
+    } catch (\DomainException $error) {
+      return new JsonResponse(['success' => false, 'message' => $error->getMessage()], 400);
     }
 
-    // 👉 il te faut un champ pour stocker l’image (dans ConventionContrat)
-    $convention->setSignatureDataUrlStagiaire($sig);
-    $convention->setDateSignatureStagiaire(new \DateTimeImmutable());
-    $convention->setPdfPath(null);
-
-    $this->em->flush();
+    try {
+      $this->signatures->sign($convention, $user, 'stagiaire', $sig, $request->getSession()->get('convention_reviewed_'.$convention->getId()));
+    } catch (\DomainException $error) {
+      return new JsonResponse(['success' => false, 'message' => $error->getMessage()], 409);
+    }
 
     return new JsonResponse(['success' => true]);
   }

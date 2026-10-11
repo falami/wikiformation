@@ -278,25 +278,12 @@ final class FinanceDataTableController extends AbstractController
           // ⚠️ si tu as une route PDF dédiée, utilise-la, sinon show
           $urlPdf  = $this->generateUrl('app_administrateur_facture_pdf', ['entite' => $entite->getId(), 'id' => $fa->getId()]);
 
-          $urlDel  = $this->generateUrl('app_administrateur_facture_delete', ['entite' => $entite->getId(), 'id' => $fa->getId()]);
-          $token = $this->container->get('security.csrf.token_manager')->getToken('facture_delete_'.$fa->getId())->getValue();
-
-          $label = $fa->getNumero() ?: ('Facture #'.$fa->getId());
-
+          $urlCredit = $this->generateUrl('app_administrateur_avoir_new', ['entite' => $entite->getId()]);
           return sprintf(
-            '<div class="btn-group btn-group-sm" role="group">
-              %s
-              %s
-              <button type="button" class="btn btn-danger-soft js-dt-delete"
-                data-url="%s" data-token="%s" data-label="%s" title="Supprimer">
-                <i class="bi bi-trash3"></i>
-              </button>
-            </div>',
+            '<div class="btn-group btn-group-sm" role="group">%s %s %s</div>',
             $this->btn($urlShow, 'bi bi-eye', 'Voir'),
-            $this->btn($urlPdf,  'bi bi-file-earmark-pdf', 'PDF', 'btn btn-light', ['target' => '_blank']),
-            $this->esc($urlDel),
-            $this->esc($token),
-            $this->esc($label)
+            $this->btn($urlPdf, 'bi bi-file-earmark-pdf', 'PDF', 'btn btn-light', ['target' => '_blank']),
+            $this->btn($urlCredit, 'bi bi-file-earmark-minus', 'Établir un avoir')
           );
         })(),
       ];

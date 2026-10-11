@@ -19,12 +19,14 @@ class EntiteConnectType extends AbstractType
             ])
             ->add('feePercentBp', IntegerType::class, [
                 'required' => false,
-                'label' => 'Frais de service (%) en basis points (ex: 250 = 2.50%)',
+                'label' => 'Commission plateforme proportionnelle (250 = 2,50 %)',
+                'help' => 'Prélevée sur l’encaissement de l’organisme, sans supplément pour le client.',
                 'attr' => ['min' => 0],
             ])
             ->add('feeFixedCents', IntegerType::class, [
                 'required' => false,
-                'label' => 'Frais fixes (cents) (ex: 30 = 0.30€)',
+                'label' => 'Commission plateforme fixe en centimes (30 = 0,30 €)',
+                'help' => 'Prélevée sur l’encaissement de l’organisme, sans supplément pour le client.',
                 'attr' => ['min' => 0],
             ]);
     }

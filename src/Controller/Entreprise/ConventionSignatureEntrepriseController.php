@@ -12,19 +12,22 @@ use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Security\Permission\TenantPermission;
+use App\Security\DossierDocumentAccess;
+use App\Service\Convention\ConventionPortalSignature;
 
 
 #[Route('/entreprise/{entite}', name: 'app_entreprise_', requirements: ['entite' => '\d+'])]
 #[IsGranted(TenantPermission::CONVENTION_SIGNATURE_ENTREPRISE_MANAGE, subject: 'entite')]
 class ConventionSignatureEntrepriseController extends AbstractController
 {
-  public function __construct(private EM $em) {}
+  public function __construct(private EM $em, private ConventionPortalSignature $signatures) {}
 
   #[Route('/inscription/{id}/convention/signature-entreprise', name: 'convention_sign', methods: ['POST'])]
   public function signByEntreprise(Entite $entite, Inscription $inscription, Request $request): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
+    DossierDocumentAccess::inscription($entite, $inscription);
 
     // (Optionnel mais recommandé) sécurité multi-tenant : empêcher de signer une inscription d'une autre entité
     if ($inscription->getEntite()?->getId() !== $entite->getId()) {
@@ -56,9 +59,12 @@ class ConventionSignatureEntrepriseController extends AbstractController
     }
 
     if (!$convention->getPdfPath()) throw $this->createAccessDeniedException('Générez le document avant signature.');
-    $convention->setDateSignatureEntreprise(new \DateTimeImmutable());
-    $convention->setPdfPath(null);
-    $this->em->flush();
+    try {
+      $this->signatures->sign($convention, $user, 'entreprise', null, $request->getSession()->get('convention_reviewed_'.$convention->getId()));
+    } catch (\DomainException $error) {
+      $this->addFlash('danger', $error->getMessage());
+      return $this->redirectToRoute('app_entreprise_dashboard', ['entite' => $entite->getId()]);
+    }
 
     $this->addFlash('success', 'Vous avez signé la convention pour l’entreprise.');
     return $this->redirectToRoute('app_entreprise_dashboard', [

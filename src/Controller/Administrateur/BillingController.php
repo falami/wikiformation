@@ -27,6 +27,7 @@ final class BillingController extends AbstractController
     AddonRepository $addons,
     EntiteUsageYearRepository $usageRepo,
     EntitlementService $entitlement,
+    \App\Service\EInvoicing\EInvoiceUsageBilling $eInvoiceUsage,
   ): Response {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
@@ -68,6 +69,7 @@ final class BillingController extends AbstractController
 
     return $this->render('administrateur/billing/index.html.twig', [
       'sub' => $sub,
+      'eInvoiceUsage' => $eInvoiceUsage->summary($entite),
       'plans' => $plans->findPublicOffers(),
       'addons' => $addons->findActiveOrdered(),
       'limits' => $limits,

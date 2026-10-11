@@ -170,6 +170,11 @@ class SessionType extends AbstractType
                 'label' => 'Capacité',
                 'attr' => ['class' => 'form-control', 'min' => 1],
             ])
+            ->add('tauxDistanciel', \Symfony\Component\Form\Extension\Core\Type\NumberType::class, [
+                'label' => 'Enseignement à distance (%)', 'required' => false, 'html5' => true, 'scale' => 2,
+                'help' => 'Part de la durée totale des enseignements : 0 pour le présentiel, 100 pour le tout à distance. Laissez vide uniquement si cette donnée reste à vérifier ; elle figure sur la convention.',
+                'attr' => ['min' => 0, 'max' => 100, 'step' => '0.01', 'placeholder' => 'Non renseigné'],
+            ])
             ->add('status', EnumType::class, [
                 'class' => StatusSession::class,
                 'label' => 'Statut',

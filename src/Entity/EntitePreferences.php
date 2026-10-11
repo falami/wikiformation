@@ -16,6 +16,12 @@ class EntitePreferences
     private ?int $id = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $invoicePreferences = null;
+
+    public function getInvoicePreferences(): ?array { return $this->invoicePreferences; }
+    public function setInvoicePreferences(?array $settings): static { $this->invoicePreferences = $settings; return $this; }
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $trainerReminders = null;
 
     public function getTrainerReminders(): array
@@ -26,6 +32,17 @@ class EntitePreferences
     public function setTrainerReminders(array $settings): static
     {
         $this->trainerReminders = array_intersect_key($settings, \App\Service\TrainerReminder\ReminderSettings::DEFAULTS);
+        return $this;
+    }
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $trainerTravel = null;
+
+    public function getTrainerTravel(): ?array { return $this->trainerTravel; }
+
+    public function setTrainerTravel(array $settings): static
+    {
+        $this->trainerTravel = array_intersect_key($settings, array_flip(['rate', 'returnTrip', 'frequency']));
         return $this;
     }
 

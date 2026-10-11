@@ -27,6 +27,7 @@ final class WorkflowBillingTest extends TestCase
     protected function setUp(): void
     {
         $this->em = $this->createMock(EntityManagerInterface::class);
+        $this->em->method('isOpen')->willReturn(true);
         $this->em->method('wrapInTransaction')->willReturnCallback(static fn(callable $f) => $f());
         $numbers = $this->createMock(FactureNumberGenerator::class);
         $numbers->method('nextForEntite')->willReturn('FAC-TEST-1');
@@ -36,10 +37,13 @@ final class WorkflowBillingTest extends TestCase
         $mailer = new MailerManager($transport, $twig, $this->createMock(UrlGeneratorInterface::class));
         $this->billing = new WorkflowBilling($this->em, $numbers, $mailer, $this->createMock(PdfManager::class), $twig);
 
-        $entity = (new Entite())->setNom('Organisme test');
+        $entity = (new Entite())->setNom('Organisme test')->setSiret('12345678900012')->setNumeroTva('FR12345678901')->setAdresse('1 rue Test')->setCodePostal('75001')->setVille('Paris')->setPays('France');
         (new \ReflectionProperty($entity, 'id'))->setValue($entity, 1);
-        $creator = (new Utilisateur())->setEmail('admin@example.test');
+        $creator = (new Utilisateur())->setEmail('admin@example.test')->setPrenom('Client')->setNom('Test')->setAdresse('1 rue Client')->setCodePostal('75001')->setVille('Paris')->setPays('France');
+        $entity->setPreferences((new \App\Entity\EntitePreferences())->setInvoicePreferences(['confirmed' => true, 'dueDays' => 30, 'paymentMeans' => 'Virement', 'earlyPaymentDiscount' => 'Aucun', 'legalIdentity' => 'Identité juridique test', 'vatCategory' => 'S', 'vatOnDebits' => false]));
         $this->quote = (new Devis())->setEntite($entity)->setDevise('EUR')->setRemiseGlobalePourcent(10)
+            ->setDestinataire($creator)
+            ->setMeta(['invoice_terms' => ['serviceDate' => '2026-10-07']])
             ->setMontantHtCents(9000)->setMontantTvaCents(1800)->setMontantTtcCents(10800)
             ->addLigne((new LigneDevis())->setLabel('Formation')->setQte(1)->setPuHtCents(10000)->setTva(20));
         $convention = (new ConventionContrat())->setEntite($entity)->setDevis($this->quote)->setDateSignatureEntreprise(new \DateTimeImmutable());
@@ -73,6 +77,17 @@ final class WorkflowBillingTest extends TestCase
         $this->quote->setDevise('USD');
         $this->em->expects(self::never())->method('persist');
         self::assertSame('blocked', $this->billing->handle($this->task('invoice'))['status']);
+    }
+
+    public function testMissingServiceDateBlocksAutomationBeforePersistence(): void
+    {
+        $this->quote->setMeta([]);
+        $this->em->expects(self::never())->method('persist');
+        $this->em->expects(self::never())->method('wrapInTransaction');
+        $result = $this->billing->handle($this->task('invoice'));
+        self::assertSame('blocked', $result['status']);
+        self::assertStringContainsString('Date de prestation', $result['detail']);
+        self::assertNull($this->workflow->getFacture());
     }
 
     public function testNonEuroInvoiceIsNotSentWithAnEuroPdf(): void

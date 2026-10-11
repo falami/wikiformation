@@ -496,6 +496,13 @@
         </div>
       </div>
 
+      <details class="cardx mb-4">
+        <summary class="cardx-h fw-semibold">Préparer la facturation de ce devis</summary>
+        <div class="cardx-b p-3">
+          <p class="text-muted">Les conditions de votre organisme sont reprises automatiquement. Complétez la date de prestation et les éventuelles conditions particulières avant de convertir ce devis en facture. Les informations manquantes bloquent uniquement l’émission de la facture.</p>
+          <div class="row g-3">{% for field in form.invoiceTerms %}<div class="col-md-6">{{ form_row(field) }}</div>{% endfor %}</div>
+        </div>
+      </details>
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-gradient">
           <i class="fa fa-check"></i> Enregistrer
@@ -847,13 +854,16 @@ document.addEventListener('DOMContentLoaded', function(){
   initTomSelect(idDevise);
   initTomSelect(idStatus);
   initTomSelect(idEntreprise, { allowEmptyOption:true });
+  document.querySelectorAll('select.delegation-select').forEach(el => initTomSelect('#' + CSS.escape(el.id), {plugins: {clear_button: {title: 'Effacer la sélection'}}}));
 
   /* =========================================================
      Flatpickr FR
   ========================================================= */
   if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
   document.querySelectorAll('.flatpickr-date').forEach(el => {
-    if (!el._fp) flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
+    if (!el._flatpickr) flatpickr(el, el.type === 'date'
+      ? {dateFormat:'Y-m-d', altInput:true, altFormat:'d/m/Y', allowInput:true}
+      : {dateFormat:'d/m/Y', allowInput:true});
   });
 
   const emissionInput = document.querySelector(idDate);

@@ -1934,6 +1934,7 @@ final class SessionController extends AbstractController
             $em->persist($j);
         }
         $copy->setCapacite($session->getCapacite());
+        $copy->setTauxDistanciel($session->getTauxDistanciel());
         $copy->setMontantCents($session->getMontantCents());
         $copy->setStatus($session->getStatus());
 
@@ -2038,8 +2039,8 @@ final class SessionController extends AbstractController
         $serverKey  = (string) $this->getParameter('GOOGLE_MAPS_SERVER_KEY');  // Routes API (server)
         $browserKey = (string) $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'); // Maps Embed (browser)
 
-        // tarif km (mets ce que tu veux) : 0.40€ / km par exemple
-        $kmRate = (float) ($this->getParameter('KM_RATE_EUR') ?? 0.40);
+        $travelSettings = \App\Service\Travel\TrainerTravel::settings($entite->getPreferences(), (float) $this->getParameter('KM_RATE_EUR'));
+        $kmRate = (float) $travelSettings['rate'];
 
         // adresse destination = site session
         $destAddress = null;
@@ -2050,7 +2051,7 @@ final class SessionController extends AbstractController
                 trim(($site->getCodePostal() ?? '') . ' ' . ($site->getVille() ?? '')),
                 $site->getPays(),
             ]);
-            $destAddress = implode(', ', $destParts);
+            $destAddress = trim($site->getAdresse() ?? '') !== '' && trim($site->getVille() ?? '') !== '' ? implode(', ', $destParts) : null;
         }
 
         $travelByFormateurId = [];
@@ -2070,7 +2071,7 @@ final class SessionController extends AbstractController
         };
 
         $formatKm = static function (?int $meters): ?string {
-            if (!$meters) return null;
+            if ($meters === null) return null;
             $km = $meters / 1000;
             return ($km < 10)
                 ? number_format($km, 1, ',', ' ') . ' km'
@@ -2085,6 +2086,8 @@ final class SessionController extends AbstractController
 
             try {
                 $resp = $http->request('POST', 'https://routes.googleapis.com/directions/v2:computeRoutes', [
+                    'timeout' => 8,
+                    'max_duration' => 10,
                     'headers' => [
                         'Content-Type'       => 'application/json',
                         'X-Goog-Api-Key'     => $serverKey,
@@ -2104,7 +2107,7 @@ final class SessionController extends AbstractController
                 $data = $resp->toArray(false);
                 $route = $data['routes'][0] ?? null;
 
-                if (!$route) {
+                if (!$route || !isset($route['distanceMeters']) || !is_numeric($route['distanceMeters']) || $route['distanceMeters'] < 0) {
                     return ['ok' => false, 'error' => $data['error']['message'] ?? 'Aucune route trouvée'];
                 }
 
@@ -2126,25 +2129,17 @@ final class SessionController extends AbstractController
             $fid = $f->getId();
             $u = $f->getUtilisateur();
 
-            // Construis l'adresse du formateur depuis Utilisateur (adapte les getters si besoin)
-            $originParts = [];
-            if ($u) {
-                // ⚠️ adapte si tes champs s'appellent autrement
-                if (method_exists($u, 'getAdresse') && $u->getAdresse()) $originParts[] = $u->getAdresse();
-                $cpVille = trim(
-                    (method_exists($u, 'getCodePostal') ? ($u->getCodePostal() ?? '') : '')
-                        . ' ' .
-                        (method_exists($u, 'getVille') ? ($u->getVille() ?? '') : '')
-                );
-                if ($cpVille !== '') $originParts[] = $cpVille;
-
-                if (method_exists($u, 'getPays') && $u->getPays()) $originParts[] = $u->getPays();
-            }
-
-            $originAddress = implode(', ', array_filter($originParts));
+            $professional = trim($f->getAdresse() ?? '') !== '' && trim($f->getVille() ?? '') !== '';
+            $addressOwner = $professional ? $f : $u;
+            $originAddress = $addressOwner && trim($addressOwner->getAdresse() ?? '') !== '' && trim($addressOwner->getVille() ?? '') !== ''
+                ? implode(', ', array_filter([$addressOwner->getAdresse(), trim(($addressOwner->getCodePostal() ?? '') . ' ' . ($addressOwner->getVille() ?? '')), $addressOwner->getPays()]))
+                : '';
 
             $travelByFormateurId[$fid] = [
                 'originAddress' => $originAddress ?: null,
+                'originSource' => $professional ? 'Adresse professionnelle' : 'Coordonnées personnelles',
+                'estimate' => null,
+                'returnTrip' => $travelSettings['returnTrip'],
                 'destAddress'   => $destAddress ?: null,
                 'distanceText'  => null,
                 'durationText'  => null,
@@ -2164,14 +2159,13 @@ final class SessionController extends AbstractController
             $r = $computeRoutes($originAddress, $destAddress);
             if ($r['ok'] ?? false) {
                 $meters = (int) ($r['distanceMeters'] ?? 0);
-                $km = $meters > 0 ? ($meters / 1000) : 0;
 
                 $travelByFormateurId[$fid]['distanceText'] = $formatKm($meters);
                 $travelByFormateurId[$fid]['durationText'] = $r['durationText'] ?? null;
 
-                // frais : aller simple (si tu veux A/R => $km*2)
-                $cost = $km * $kmRate;
-                $travelByFormateurId[$fid]['costText'] = number_format($cost, 2, ',', ' ') . ' €';
+                $estimate = \App\Service\Travel\TrainerTravel::estimate($session, $f, $meters, $travelSettings);
+                $travelByFormateurId[$fid]['estimate'] = $estimate;
+                if ($estimate !== null) $travelByFormateurId[$fid]['costText'] = number_format($estimate['amount'], 2, ',', ' ') . ' €';
             } else {
                 $travelByFormateurId[$fid]['gmapsError'] = $r['error'] ?? 'Erreur Routes API';
             }

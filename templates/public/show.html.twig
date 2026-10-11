@@ -830,9 +830,9 @@
             <div class="col-md-4">
               <div class="benefit-card">
                 <div class="benefit-icon"><i class="bi bi-mortarboard"></i></div>
-                <div class="benefit-title">Parcours certifiant</div>
+                <div class="benefit-title">Objectifs pédagogiques</div>
                 <div class="benefit-text">
-                  Une formation alignée avec les exigences Qualiopi et les besoins des financeurs.
+                  Consultez le programme, les prérequis et les modalités d’évaluation de cette formation.
                 </div>
               </div>
             </div>
@@ -879,13 +879,13 @@
 
 
             <div class="hero-price-help">
-              Annulation gratuite jusqu’à 14 jours avant le début de la formation.
+              Les conditions d’annulation et de rétractation figurent dans les documents contractuels remis par l’organisme.
             </div>
 
             <ul class="hero-price-list">
               {% if formation.codeQualiopi %}
                 <li><i class="bi bi-check-circle-fill"></i>
-                  Certification Qualiopi : {{ formation.codeQualiopi }}
+                  Référence de formation : {{ formation.codeQualiopi }}
                 </li>
               {% endif %}
               {% if formation.duree %}
@@ -1014,6 +1014,17 @@
       </div>
     </div>
 
+
+    <section class="card-premium p-4 p-lg-5 mb-4" aria-labelledby="public-information-title">
+      <h2 class="h4 fw-bold mb-4" id="public-information-title">Informations pratiques et résultats</h2>
+      <div class="row g-4">
+        {% if formation.objectifs %}<div class="col-12"><h3 class="h6 fw-bold">Objectifs</h3><div>{{ formation.objectifs|striptags|nl2br }}</div></div>{% endif %}
+        {% for key, title in {accessDelay: 'Modalités et délais d’accès', handicap: 'Accessibilité et accompagnement du handicap', contact: 'Contact de l’organisme', recognition: 'Reconnaissance à l’issue de la formation', results: 'Résultats et méthode de calcul'} %}
+          <div class="col-12 col-md-6"><h3 class="h6 fw-bold">{{ title }}</h3><p class="text-body-secondary mb-0">{{ formation.publicInformation[key]|default('Information à demander à l’organisme avant votre inscription.')|nl2br }}</p></div>
+        {% endfor %}
+        <div class="col-12"><small class="text-body-secondary">Les possibilités de financement sont soumises à l’éligibilité de la formation, à votre situation et à l’accord du financeur. Elles ne garantissent pas une prise en charge.</small></div>
+      </div>
+    </section>
 
     {# ===== Sessions ===== #}
     <div class="col-lg-12 px-0 mb-4">

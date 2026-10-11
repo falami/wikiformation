@@ -62,6 +62,18 @@ class Formation
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $codeQualiopi = null;
 
+    /** Public, factual information supplied by the training provider. */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $publicInformation = null;
+
+    public function getPublicInformation(): array { return $this->publicInformation ?? []; }
+    public function setPublicInformation(?array $information): static
+    {
+        $this->publicInformation = array_intersect_key($information ?? [], array_flip(['accessDelay', 'handicap', 'contact', 'recognition', 'results']));
+        return $this;
+    }
+
+
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $conditionPrealable = null;
 

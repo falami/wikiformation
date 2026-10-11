@@ -18,11 +18,13 @@ final class CommercialDocuments
     public function form(UtilisateurEntite $membership, string $module, ?object $existing = null): FormInterface
     {
         $initial = $existing ? $this->initial($existing, $membership) : ['date' => new \DateTimeImmutable(), 'validity' => new \DateTimeImmutable('+30 days'), 'lines' => [['quantity' => 1, 'price' => 0, 'vat' => 20]]];
+        if (in_array($module, ['devis', 'factures'], true)) $initial['invoiceTerms'] = array_replace(\App\Service\Billing\InvoicePreferences::defaults($membership->getEntite()), $existing?->getMeta()['invoice_terms'] ?? []);
         $builder = $this->factory->createNamedBuilder('document', FormType::class, $initial, ['csrf_token_id' => 'issue_' . $membership->getId() . '_' . $module]);
         foreach (['company' => ['entreprises', 'Entreprise destinataire'], 'learner' => ['clients', 'Client destinataire']] as $field => [$related, $label]) {
             $builder->add($field, ChoiceType::class, ['label' => $label, 'choices' => $this->access->editableRows($membership, $related), 'choice_value' => fn($r) => $r?->getId(), 'choice_label' => fn($r) => $this->registry->title($r), 'required' => false, 'placeholder' => 'Sélectionner un dossier attribué']);
         }
         $builder->add('date', DateType::class, ['label' => 'Date d’émission', 'widget' => 'single_text', 'input' => 'datetime_immutable', 'constraints' => [new Assert\NotNull()]]);
+        if (in_array($module, ['devis', 'factures'], true)) $builder->add('invoiceTerms', \App\Form\Administrateur\InvoiceTermsType::class, ['label' => 'Mentions de facturation']);
         if ($module === 'devis') {
             $builder->add('discountPercent', NumberType::class, ['label' => 'Remise globale (%)', 'required' => false, 'constraints' => [new Assert\Range(min: 0, max: 100)]])->add('discountAmount', MoneyType::class, ['label' => 'Ou remise globale HT (€)', 'required' => false, 'divisor' => 100, 'input' => 'integer', 'constraints' => [new Assert\Range(min: 0, max: 2000000000)]]);
             $builder->add('validity', DateType::class, ['label' => 'Date de validité', 'widget' => 'single_text', 'input' => 'datetime_immutable', 'constraints' => [new Assert\NotNull()]]);
@@ -108,7 +110,7 @@ final class CommercialDocuments
                 $record->removeLigne($previous);
                 $this->em->remove($previous);
             }
-            $number = $existing?->getNumero() ?? ($module === 'devis' ? $this->quotes->nextForEntite($entite->getId(), $year) : $this->invoices->nextForEntite($entite->getId(), $year));
+            $number = $existing?->getNumero() ?? ($module === 'devis' ? $this->quotes->nextForEntite($entite->getId(), $year) : '');
             $record->setEntite($entite)->setCreateur($existing?->getCreateur() ?? $actor)->setNumero($number)->setDateEmission($data['date'])->setDevise('EUR')->setEntrepriseDestinataire($data['company'])->setDestinataire($data['learner']?->getUtilisateur())->setMontantHtCents($ht)->setMontantTvaCents($vat)->setMontantTtcCents($ht + $vat);
             if ($record instanceof Devis) {
                 $record->setDateValidite($data['validity'])->setRemiseGlobalePourcent($data['discountPercent'] ?? null)->setRemiseGlobaleMontantCents($data['discountAmount'] ?? null);
@@ -142,8 +144,13 @@ final class CommercialDocuments
             }
             $record->setMontantHtCents($ht)->setMontantTvaCents($vat)->setMontantTtcCents($ht + $vat);
         }
-        $this->em->persist($record);
-        $this->em->flush();
+        if ($record instanceof Facture || $record instanceof Devis) $record->setMeta(array_replace($record->getMeta() ?? [], ['invoice_terms' => $data['invoiceTerms'] ?? []]));
+        if ($record instanceof Facture) {
+            \App\Service\Billing\InvoiceIssuer::persist($this->em, $this->invoices, $record);
+        } else {
+            $this->em->persist($record);
+            $this->em->flush();
+        }
         $this->access->assign($membership, $module, $record->getId(), 'edit', $actor);
         return $record;
     }

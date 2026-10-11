@@ -30,6 +30,14 @@ final class MailerManager
      * ✅ TES FONCTIONS (inchangées)
      * ========================================================================= */
 
+    public function sendParticipantReminder(Entite $entite, string $to, string $subject, string $html, string $text, array $images): void
+    {
+        $from = $this->resolveFromAddress($entite);
+        $email = (new Email())->from($from)->replyTo($from)->to($to)->subject($subject)->html($html)->text($text);
+        foreach ($images as $cid => $png) $email->embed($png, $cid, 'image/png');
+        $this->mailer->send($email);
+    }
+
     public function sendMailContext(string $from, string $to, string $subject, string $template, array $context)
     {
         $email = (new TemplatedEmail())

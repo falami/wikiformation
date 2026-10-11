@@ -57,6 +57,79 @@ final class ParticipantQrPublicTest extends KernelTestCase
         $this->guest = $roster[1];
     }
 
+    public function testAttendanceReminderContainsPersonalDayLinkAndInlinePngAndSkipsCompletedDay(): void
+    {
+        $messages = [];
+        $transport = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::once())->method('send')->willReturnCallback(function ($email) use (&$messages) { $messages[] = $email; });
+        $router = self::getContainer()->get('router');
+        $twig = self::getContainer()->get('twig');
+        $mailer = new \App\Service\Email\MailerManager($transport, $twig, $router);
+        $service = new \App\Service\Session\AttendanceReminder($this->em, $this->qr, $router, $mailer, $twig);
+        $date = $this->session->getJours()->first()->getDateDebut()->format('Y-m-d');
+        self::assertSame(['sent'=>1, 'skipped'=>0, 'failed'=>0], $service->send($this->session, $date));
+        self::assertSame('qr-member@example.test', $messages[0]->getTo()[0]->getAddress());
+        self::assertStringContainsString('date='.$date, $messages[0]->getTextBody());
+        self::assertStringContainsString('/presence-participant/', $messages[0]->getTextBody());
+        self::assertStringContainsString('cid:attendance-qr', $messages[0]->getHtmlBody());
+        self::assertSame('inline', $messages[0]->getAttachments()[0]->getDisposition());
+        self::assertStringStartsWith("\x89PNG", base64_decode($messages[0]->getAttachments()[0]->bodyToString()));
+        foreach ([DemiJournee::AM, DemiJournee::PM] as $half) {
+            $e = (new Emargement())->setEntite($this->entite)->setSession($this->session)->setCreateur($this->admin)
+                ->setUtilisateur($this->learner)->setRole('stagiaire')->setDateJour(new \DateTimeImmutable($date))
+                ->setPeriode($half)->setSignedAt(new \DateTimeImmutable())->setSignaturePath('fixture.png');
+            $this->em->persist($e);
+        }
+        $this->em->flush();
+        self::assertSame(['sent'=>0, 'skipped'=>1, 'failed'=>0], $service->send($this->session, $date));
+    }
+
+    public function testIndividualCombinedReminderAndSubmittedSatisfactionAreHandled(): void
+    {
+        $messages = [];
+        $transport = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::once())->method('send')->willReturnCallback(function ($email) use (&$messages) { $messages[] = $email; });
+        $router = self::getContainer()->get('router'); $twig = self::getContainer()->get('twig');
+        $service = new \App\Service\Session\AttendanceReminder($this->em, $this->qr, $router,
+            new \App\Service\Email\MailerManager($transport, $twig, $router), $twig);
+        $date = $this->session->getJours()->first()->getDateDebut()->format('Y-m-d');
+        self::assertSame(1, $service->send($this->session, $date, $this->inscription->getId(), 'both')['sent']);
+        self::assertCount(2, $messages[0]->getAttachments());
+        self::assertStringContainsString('/presence-participant/', $messages[0]->getTextBody());
+        self::assertStringContainsString('/appreciation-participant/', $messages[0]->getTextBody());
+        $assignment = (new SatisfactionAssignment())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setStagiaire($this->learner)->setInscription($this->inscription)->setTemplate($this->template);
+        $attempt = (new SatisfactionAttempt())->setEntite($this->entite)->setCreateur($this->admin)->setAssignment($assignment)->setSubmittedAt(new \DateTimeImmutable());
+        $this->em->persist($assignment); $this->em->persist($attempt); $this->em->flush();
+        self::assertSame(0, $service->send($this->session, '', $this->inscription->getId(), 'satisfaction')['sent']);
+        $this->expectException(\DomainException::class);
+        $service->send($this->session, $date, 999999, 'both');
+    }
+
+    public function testPaperAttendanceAndAbsenceDoNotTriggerEmail(): void
+    {
+        $transport = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::never())->method('send');
+        $router = self::getContainer()->get('router'); $twig = self::getContainer()->get('twig');
+        $service = new \App\Service\Session\AttendanceReminder($this->em, $this->qr, $router,
+            new \App\Service\Email\MailerManager($transport, $twig, $router), $twig);
+        $date = $this->session->getJours()->first()->getDateDebut()->format('Y-m-d');
+        $this->inscription->enregistrerPresenceManuelle($date.':AM', 'paper', 'Feuille signée', $this->admin);
+        $this->inscription->enregistrerPresenceManuelle($date.':PM', 'absent', 'Absence déclarée', $this->admin);
+        $this->em->flush();
+        self::assertSame(['sent'=>0, 'skipped'=>1, 'failed'=>0], $service->send($this->session, $date));
+    }
+
+    public function testAttendanceReminderRejectsUnscheduledDateWithoutSending(): void
+    {
+        $transport = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::never())->method('send');
+        $router = self::getContainer()->get('router'); $twig = self::getContainer()->get('twig');
+        $service = new \App\Service\Session\AttendanceReminder($this->em, $this->qr, $router,
+            new \App\Service\Email\MailerManager($transport, $twig, $router), $twig);
+        $this->expectException(\DomainException::class);
+        $service->send($this->session, '2099-01-01');
+    }
+
     protected function tearDown(): void
     {
         parent::tearDown();

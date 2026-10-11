@@ -124,12 +124,7 @@ class FactureController extends AbstractController
     // remaining/paid/overpaid basés sur TTC total
     // =========================
     $paidExpr    = 'COALESCE(p.paid_cents,0)';
-    $htExpr  = 'COALESCE(hd.ht_hd_cents,0)';   // ✅ HT hors débours
-    $tvaExpr = 'COALESCE(hd.tva_hd_cents,0)';  // ✅ TVA hors débours
-    $deboursExpr = 'COALESCE(deb.debours_ttc_cents,0)';   // affichage seulement
-
-    // ✅ IMPORTANT : ne pas rajouter les débours au TTC
-    $ttcExpr = '(' . $htExpr . ' + ' . $tvaExpr . ' + ' . $deboursExpr . ')';
+    [$htExpr, $tvaExpr, $deboursExpr, $ttcExpr] = $this->issuedAmountExpressions();
     $remainingExpr = 'GREATEST(0, ' . $ttcExpr . ' - ' . $paidExpr . ')';
     $overpaidExpr  = '(' . $paidExpr . ' - ' . $ttcExpr . ')';
 
@@ -243,7 +238,7 @@ class FactureController extends AbstractController
                             ELSE 0
                           END
                     )
-                    * (COALESCE(tva_bp, 0) / 10000)
+                    * (COALESCE(tva_bp, 0) / 10000.0)
                 )
             ),0) AS debours_ttc_cents
         FROM ligne_facture
@@ -283,7 +278,7 @@ class FactureController extends AbstractController
                           ELSE 0
                         END
                   )
-                  * (COALESCE(tva_bp, 0) / 10000)
+                  * (COALESCE(tva_bp, 0) / 10000.0)
               )
           ),0) AS tva_hd_cents
       FROM ligne_facture
@@ -526,7 +521,7 @@ class FactureController extends AbstractController
               ELSE 0
             END
           )
-          * (COALESCE(tva_bp, 0) / 10000)
+          * (COALESCE(tva_bp, 0) / 10000.0)
         )
       ),0) AS debours_ttc_cents
     FROM ligne_facture
@@ -558,7 +553,7 @@ class FactureController extends AbstractController
               WHEN COALESCE(remise_pourcent, 0) > 0 THEN ROUND((qte * pu_ht_cents) * (remise_pourcent / 100))
               ELSE 0
             END
-          ) * (COALESCE(tva_bp, 0) / 10000)
+          ) * (COALESCE(tva_bp, 0) / 10000.0)
         )
       ),0) AS tva_hd_cents
     FROM ligne_facture
@@ -567,7 +562,7 @@ class FactureController extends AbstractController
   ";
 
     $paidExpr = 'COALESCE(p.paid_cents,0)';
-    $ttcExpr = '(COALESCE(hd.ht_hd_cents,0) + COALESCE(hd.tva_hd_cents,0) + COALESCE(deb.debours_ttc_cents,0))';
+    [, , , $ttcExpr] = $this->issuedAmountExpressions();
     $remainingExpr = 'GREATEST(0, ' . $ttcExpr . ' - ' . $paidExpr . ')';
     $where = ['f.entite_id = :entiteId'];
     $params = ['entiteId' => $entite->getId()];
@@ -593,7 +588,7 @@ class FactureController extends AbstractController
     $sql = "
     SELECT
       COUNT(DISTINCT f.id) AS count,
-      COALESCE(SUM(COALESCE(hd.ht_hd_cents,0) + COALESCE(hd.tva_hd_cents,0) + COALESCE(deb.debours_ttc_cents,0)),0) AS ttc_cents,
+      COALESCE(SUM($ttcExpr),0) AS ttc_cents,
       COALESCE(SUM($paidExpr),0) AS paid_cents,
       COALESCE(SUM($remainingExpr),0) AS remaining_cents
     FROM facture f
@@ -718,23 +713,18 @@ class FactureController extends AbstractController
 
       // Optionnel : exclusivité destinataire / entrepriseDestinataire
 
-      if (!$facture->getNumero()) {
-        $year = (int) $facture->getDateEmission()->format('Y');
-        $facture->setNumero($factureGen->nextForEntite($entite->getId(), $year));
+      try {
+        \App\Service\Billing\InvoiceIssuer::persist($em, $factureGen, $facture);
+      } catch (\DomainException $error) {
+        $form->addError(new \Symfony\Component\Form\FormError($error->getMessage()));
+        return $this->render('administrateur/facture/form.html.twig', ['form' => $form, 'title' => 'Nouvelle facture', 'entite' => $entite]);
       }
-
-
-
-
-
-
-      $em->persist($facture);
-      $em->flush();
 
       // ✅ sync montants sur inscriptions liées à cette facture
       $this->inscSync->syncMany($facture->getInscriptions()->toArray());
 
       $this->addFlash('success', 'Facture créée.');
+      foreach (\App\Service\Billing\InvoiceReadiness::issues($facture) as $issue) $this->addFlash('warning', $issue);
 
       return $this->redirectToRoute('app_administrateur_facture_index', [
         'entite' => $entite->getId(),
@@ -756,59 +746,14 @@ class FactureController extends AbstractController
     Request $req,
     EM $em,
   ): Response {
-    /** @var Utilisateur $user */
-    $user = $this->getUser();
-
-    // ✅ sécurité entité
     if ($facture->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
     }
-    $before = $facture->getInscriptions()->toArray();
-    $form = $this->createForm(FactureType::class, $facture, [
-      'entite' => $entite,
-    ])->handleRequest($req);
 
-    if ($form->isSubmitted() && $form->isValid()) {
-
-      // recalcul serveur
-      $this->recalcFacture($facture);
-
-
-      foreach ($facture->getLignes() as $ligne) {
-        if (!$ligne->getCreateur()) {
-          $ligne->setCreateur($user);
-        }
-        if (!$ligne->getEntite()) {
-          $ligne->setEntite($entite);
-        }
-        // (optionnel) sécurité : rattacher la facture si jamais
-        if ($ligne->getFacture() !== $facture) {
-          $ligne->setFacture($facture);
-        }
-      }
-
-      $em->flush();
-
-      $after = $facture->getInscriptions()->toArray();
-      $affected = array_merge($before, $after);
-
-      // ✅ sync
-      $this->inscSync->syncMany($affected);
-
-      $this->addFlash('success', 'Facture mise à jour.');
-
-      return $this->redirectToRoute('app_administrateur_facture_index', [
-        'entite' => $entite->getId(),
-      ]);
-    }
-
-    // ✅ ton template
-    return $this->render('administrateur/facture/form.html.twig', [
-      'form' => $form,
-      'title' => 'Éditer facture',
-      'entite' => $entite,
-
-    ]);
+    // Facture has no draft state: a persisted invoice is already numbered and issued.
+    // Keep this legacy URL safe even when an old form or bookmark posts to it.
+    $this->addFlash('warning', 'Une facture émise ne peut plus être modifiée. Établissez un avoir lié à cette facture, puis une nouvelle facture si nécessaire.');
+    return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
   }
 
   #[Route('/{id}/payer', name: 'pay', methods: ['POST'])]
@@ -851,58 +796,21 @@ class FactureController extends AbstractController
     return $this->pdf->createPortrait($html, $fileName);
   }
 
-  /**
-   * Recalcule HT/TVA/TTC depuis les lignes (sécurité serveur).
-   * ⚠️ Adapte si ton puHtCents est en CENTIMES (recommandé) ou en EUROS.
-   * Ici on suppose : puHtCents = centimes, montants = centimes.
-   */
-  /**
-   * Recalcule HT/TVA/TTC depuis les lignes.
-   * ✅ TTC inclut les débours (TTC = TTC hors débours + débours TTC).
-   */
-  /**
-   * Recalcule HT/TVA/TTC depuis les lignes (sécurité serveur).
-   * Règle voulue :
-   * - HT/TVA stockés = hors débours
-   * - TTC stocké = TTC hors débours + débours TTC
-   */
-  private function recalcFacture(Facture $f): void
+  /** Keep legacy invoices unchanged; new tables and KPIs use the issuance snapshot. */
+  private function issuedAmountExpressions(): array
   {
-    if (!method_exists($f, 'getLignes')) return;
-
-    $htHorsDebours  = 0;
-    $tvaHorsDebours = 0;
-    $deboursTtc     = 0;
-
-    foreach ($f->getLignes() as $l) {
-      $lineHt  = (int) $l->getTotalHtNetCents();
-      $lineTva = (int) $l->getTotalTvaCents();
-
-      if ($l->isDebours()) {
-        $deboursTtc += max(0, $lineHt + $lineTva);
-        continue;
-      }
-
-      $htHorsDebours  += max(0, $lineHt);
-      $tvaHorsDebours += max(0, $lineTva);
-    }
-
-
-    // ✅ stocke hors débours
-    $f->setMontantHtCents($htHorsDebours);
-    $f->setMontantTvaCents($tvaHorsDebours);
-
-    // ✅ ton modèle : montantTtcCents = TTC hors débours (et les débours sont à part)
-    $f->setMontantTtcCents($htHorsDebours + $tvaHorsDebours);
-
-    // Si tu as un champ dédié débours TTC sur Facture, set-le ici aussi.
-    // ex: $f->setMontantDeboursTtcCents($deboursTtc);
+    $issued = "JSON_EXTRACT(f.meta, '$.invoice_totals.version') = 1";
+    $ht = "CASE WHEN $issued THEN f.montant_ht_cents - COALESCE(JSON_EXTRACT(f.meta, '$.invoice_totals.values.deboursHtCents'), 0) ELSE COALESCE(hd.ht_hd_cents,0) END";
+    $vat = "CASE WHEN $issued THEN f.montant_tva_cents - COALESCE(JSON_EXTRACT(f.meta, '$.invoice_totals.values.deboursTvaCents'), 0) ELSE COALESCE(hd.tva_hd_cents,0) END";
+    $debours = "CASE WHEN $issued THEN COALESCE(JSON_EXTRACT(f.meta, '$.invoice_totals.values.deboursTtcCents'), 0) ELSE COALESCE(deb.debours_ttc_cents,0) END";
+    $ttc = "CASE WHEN $issued THEN f.montant_ttc_cents ELSE (COALESCE(hd.ht_hd_cents,0) + COALESCE(hd.tva_hd_cents,0) + COALESCE(deb.debours_ttc_cents,0)) END";
+    return [$ht, $vat, $debours, $ttc];
   }
 
-
-
-
-
+  private function recalcFacture(Facture $f): void
+  {
+    \App\Service\Billing\InvoiceTotals::finalizeNewInvoice($f);
+  }
 
   #[Route('/{id}/send', name: 'send', methods: ['POST'])]
   public function factureSend(
@@ -1108,54 +1016,11 @@ class FactureController extends AbstractController
       throw $this->createAccessDeniedException('CSRF invalide.');
     }
 
-    // ✅ on garde la liste des inscriptions impactées avant modif/suppression
-    $affected = [];
-    if (method_exists($facture, 'getInscriptions') && $facture->getInscriptions()) {
-      $affected = $facture->getInscriptions()->toArray();
-    }
-
-    // ✅ si paiements => on n’efface pas, on annule (meilleure pratique)
-    $hasPayments = method_exists($facture, 'getPaiements') && $facture->getPaiements() && $facture->getPaiements()->count() > 0;
-
-    if ($hasPayments) {
-      // Annulation “soft delete”
-      if (method_exists($facture, 'setStatus')) {
-        $facture->setStatus(FactureStatus::CANCELED);
-      }
-
-      $em->flush();
-
-      // ✅ sync montants inscriptions liées
-      if (!empty($affected)) {
-        $this->inscSync->syncMany($affected);
-      }
-
-      $this->addFlash('warning', "Facture non supprimée car elle contient des paiements : elle a été annulée.");
-      return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);
-    }
-
-    // ✅ sinon suppression réelle
-    // optionnel : détacher les inscriptions si tu as une relation ManyToMany/OneToMany
-    // (utile si tes FK ne sont pas en cascade ou si tu veux garder les inscriptions)
-    if (method_exists($facture, 'getInscriptions') && method_exists($facture, 'removeInscription')) {
-      foreach ($facture->getInscriptions() as $insc) {
-        $facture->removeInscription($insc);
-      }
-    }
-
-    $em->remove($facture);
-    $em->flush();
-
-    // ✅ sync inscriptions impactées (elles ne sont plus rattachées à la facture)
-    if (!empty($affected)) {
-      $this->inscSync->syncMany($affected);
-    }
-
-    $this->addFlash('success', 'Facture supprimée.');
-    return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);
+    // Neither an unpaid invoice nor a paid invoice can disappear from the sequence.
+    // Cancellation requires a separate credit note; it must not erase the original debt or payments.
+    $this->addFlash('warning', 'Cette facture émise est conservée. Pour corriger ou annuler son montant, établissez un avoir lié à la facture.');
+    return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
   }
-
-
 
   #[Route('/{id}/pdf-acquittee', name: 'pdf_acquittee', methods: ['GET'])]
   public function facturePdfAcquittee(Entite $entite, Facture $facture): Response
@@ -1166,6 +1031,11 @@ class FactureController extends AbstractController
 
       if ($facture->getEntite()?->getId() !== $entite->getId()) {
           throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
+      }
+
+      if ($facture->getStatus() === FactureStatus::CANCELED) {
+          $this->addFlash('warning', 'Une facture annulée ne peut pas être présentée comme acquittée.');
+          return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
       }
 
       $paiements = $facture->getPaiements()->toArray();

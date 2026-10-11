@@ -255,7 +255,7 @@ final class DashboardEntrepriseController extends AbstractController
         'sessionId' => $c->getSession()?->getId(),
         'uploadedAt' => $c->getDateCreation()?->format('d/m/Y') ?? '',
         'signedAt' => $c->getDateSignatureEntreprise()?->format('d/m/Y') ?? null,
-        'url' => $basePath . '/uploads/conventions/' . $c->getPdfPath(), // adapte à ton storage réel
+        'url' => $this->generateUrl('app_entreprise_documents_convention_pdf', ['entite' => $entite->getId(), 'id' => $c->getId()]),
         'signUrl' => null, // (tu as déjà signatureDataUrlEntreprise dans ConventionContrat)
       ];
     }
@@ -283,7 +283,7 @@ final class DashboardEntrepriseController extends AbstractController
         'sessionId' => null,
         'uploadedAt' => $d->getDateEmission()->format('d/m/Y'),
         'signedAt' => null,
-        'url' => $basePath . '/uploads/devis/' . $d->getPdfPath(), // adapte
+        'url' => $this->generateUrl('app_entreprise_documents_devis_pdf', ['entite' => $entite->getId(), 'id' => $d->getId()]),
         'signUrl' => null,
       ];
     }

@@ -26,33 +26,19 @@
 {% set preferences = entite.preferences ?? null %}
 
 {% set a = attestation is defined and attestation ? attestation : (insc.attestation ?? null) %}
-{% set taux = tauxAssiduite is defined and tauxAssiduite is not null ? tauxAssiduite : (insc.tauxAssiduite ?? null) %}
 {% set numeroLocal = a and a.numeroOrNull ? a.numeroOrNull : '-' %}
 {% set dateDelivrance = (a and a.dateDelivrance) ? a.dateDelivrance : "now" %}
 {% set traineeName = ((stag.prenom ?? '') ~ ' ' ~ (stag.nom ?? ''))|trim %}
 
-{# Une durée attestée manuellement reste prioritaire sur le planning. #}
-{% set dureeLabel = null %}
-{% if a and attribute(a, 'dureeHeures') is defined and attribute(a, 'dureeHeures') %}
-  {% set dureeLabel = attribute(a, 'dureeHeures')|number_format(2, ',', ' ') ~ ' h' %}
-{% endif %}
-{% if dureeLabel is null and sess and sess.dureeFormationMinutes > 0 %}
-  {% set dureeLabel = sess.dureeFormationHeures|number_format(2, ',', ' ') ~ ' h' %}
-{% endif %}
-{% if dureeLabel is null and form and attribute(form, 'duree') is defined and attribute(form, 'duree') %}
-  {% set d = attribute(form, 'duree') %}
-  {% if d > 1 %}
-    {% set dureeLabel = d ~ ' jours' %}
-  {% else %}
-    {% set dureeLabel = d ~ ' jour' %}
-  {% endif %}
-{% endif %}
+{% set realisation = realisation_certificate(insc, a) %}
+{% set dureeLabel = realisation.hours is not null ? (realisation.hours|number_format(2, ',', ' ') ~ ' h') : null %}
+{% set titreDocument = realisation.ready ? 'Certificat de réalisation' : 'Projet de certificat — à vérifier' %}
 
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Certificat de réalisation - {{ numeroLocal }}</title>
+  <title>{{ titreDocument }} - {{ numeroLocal }}</title>
 
   <style>
     @page { margin: 4mm; size: A4 portrait; }
@@ -137,7 +123,7 @@
     .layer{ position:relative; z-index: 2; }
 
     /* ========= Header ========= */
-    .head{ width:100%; border-collapse: collapse; margin-bottom: 6pt !important; height: 150pt; }
+    .head{ width:100%; border-collapse: collapse; margin-bottom: 6pt !important; height: 80pt; }
     .hl{ width:63%; vertical-align: top; }
     .hr{ width:37%; vertical-align: top; text-align:right; }
 
@@ -191,6 +177,7 @@
 
     /* ========= Gold seal (less intrusive) ========= */
     .seal{
+      display: none;
       position:absolute;
       left: 12pt;
       top: 120pt;
@@ -208,7 +195,7 @@
     .seal .r{ margin: 6pt auto 0; width: 34pt; height: 6pt; border-radius: 999pt; background: {{ brand.gold2 }}; }
 
     /* ========= Diploma title ========= */
-    .title{ text-align:center; margin: 4pt 0 45pt; }
+    .title{ text-align:center; margin: 4pt 0 12pt; }
     .kicker{
       font-size: 8.1pt;
       color: {{ brand.muted }};
@@ -348,7 +335,7 @@
     .sigBox{
       border-radius: 12pt;
       padding: 7pt 8pt;
-      height: 100pt;
+      height: 70pt;
       background: #ffffff !important;
       border: 1pt solid {{ brand.line }};
       text-align: center;
@@ -440,7 +427,7 @@
             </td>
 
             <td class="hr">
-              <div class="chip">Certificat de réalisation</div>
+              <div class="chip">{{ titreDocument }}</div>
               <div class="meta">
                 <div><b>N° :</b> {{ numeroLocal }}</div>
                 <div><b>Date :</b> {{ dateDelivrance|date('d/m/Y') }}</div>
@@ -452,22 +439,22 @@
 
         <div class="seal">
           <div class="y">{{ dateDelivrance|date('Y') }}</div>
-          <div class="t">CERTIFIÉ</div>
+          <div class="t">{{ realisation.ready ? 'RÉALISATION' : 'PROJET' }}</div>
           <div class="r"></div>
         </div>
 
         <div class="title">
           <div class="kicker">Attestation de fin de formation</div>
-          <div class="h1">Certificat de réalisation</div>
+          <div class="h1">{{ titreDocument }}</div>
           <div class="orn"></div>
           <div class="orn2"></div>
           <div class="sub">
-            Document officiel attestant de la participation et de la réalisation de l’action de formation.
+            Document établi par l’organisme à partir des justificatifs de participation. Il ne constitue ni un diplôme, ni une certification professionnelle.
           </div>
         </div>
 
         <div class="recipient">
-          <div class="label">Décerné à</div>
+          <div class="label">Bénéficiaire</div>
           <div class="name">{{ traineeName ?: '-' }}</div>
           <div class="meta2">{% if stag.email %}{{ stag.email }}{% endif %}</div>
         </div>
@@ -479,22 +466,18 @@
                 <h3>Action de formation</h3>
                 <div class="kv"><span class="k"><span class="bullet">›</span>Intitulé</span><div class="v">{{ form ? (form.titre ?? '-') : '-' }}</div></div>
                 <div class="kv"><span class="k"><span class="bullet">›</span>Session</span><div class="v">{{ sess ? (sess.code ?? '-') : '-' }}</div></div>
-                <div class="kv"><span class="k"><span class="bullet">›</span>Durée</span><div class="v">{{ dureeLabel ?? '-' }}</div></div>
-                <div class="kv"><span class="k"><span class="bullet">›</span>Assiduité</span><div class="v">{{ taux is not null ? (taux|number_format(1, ',', ' ') ~ ' %') : 'Non calculé' }}</div></div>
+                <div class="kv"><span class="k"><span class="bullet">›</span>Durée effectivement suivie</span><div class="v">{{ dureeLabel ?? '-' }}</div></div>
+                <div class="kv"><span class="k"><span class="bullet">›</span>Période réalisée</span><div class="v">{{ realisation.start ? realisation.start|date('d/m/Y') : 'À préciser' }} — {{ realisation.end ? realisation.end|date('d/m/Y') : 'À préciser' }}</div></div>
               </div>
             </td>
 
             <td>
               <div class="card">
-                <h3>Validation</h3>
+                <h3>Réalisation</h3>
                 <div class="kv">
                   <span class="k">Statut</span>
                   <div class="v">
-                    {% if insc.reussi %}
-                      <span class="badge badge-ok">Validée</span>
-                    {% else %}
-                      <span class="badge badge-bad">Non validée</span>
-                    {% endif %}
+                    <span class="badge {{ realisation.ready ? 'badge-ok' : 'badge-bad' }}">{{ realisation.ready ? 'Participation justifiée' : 'À vérifier' }}</span>
                   </div>
                 </div>
                 <div class="kv"><span class="k"><span class="bullet">›</span>Lieu</span><div class="v">{{ ent.ville ?? '-' }}</div></div>
@@ -506,16 +489,20 @@
         </table>
 
         <div class="statement">
-          Je soussigné(e) <strong>{{ ent.nom ?? 'Organisme de formation' }}</strong>,
-          atteste que <strong>{{ traineeName ?: 'le bénéficiaire' }}</strong>
-          a réalisé l’action de formation intitulée <strong>{{ form ? (form.titre ?? '—') : '—' }}</strong>
-          {% if dureeLabel %}d’une durée de <strong>{{ dureeLabel }}</strong>{% endif %}
-          {% if sess and sess.jours is defined and sess.jours|length > 0 %}
-            , conformément aux modalités prévues, sur la base des feuilles d’émargement.
+          {% if realisation.ready %}
+            Je soussigné(e) <strong>{{ preferences and preferences.signatureOrganismeNom ? preferences.signatureOrganismeNom : '[Nom du responsable à compléter]' }}</strong>,
+            {% if preferences and preferences.signatureOrganismeFonction %}{{ preferences.signatureOrganismeFonction }},{% endif %}
+            représentant <strong>{{ ent.nom }}</strong>, atteste que <strong>{{ traineeName }}</strong>
+            {% if insc.entreprise %}(entreprise : {{ insc.entreprise.raisonSociale }}){% endif %}
+            a suivi l’action de formation <strong>{{ form ? form.titre : sess.intituleLibre }}</strong>,
+            du <strong>{{ realisation.start|date('d/m/Y') }}</strong> au <strong>{{ realisation.end|date('d/m/Y') }}</strong>,
+            pour une durée effectivement réalisée de <strong>{{ dureeLabel }}</strong>, hors pauses.
+            <br><span class="muted small">Les pièces justifiant la réalisation de cette action sont conservées par l’organisme et tenues à disposition du financeur lors d’un contrôle.</span>
           {% else %}
-            .
+            <strong>Projet non utilisable comme justificatif de réalisation.</strong>
+            {% for issue in realisation.issues %}<br>{{ issue }}{% endfor %}
           {% endif %}
-          <br><span class="muted small">Ce document est valable sans signature manuscrite, sauf mention contraire.</span>
+          <br><span class="muted small">À valider et signer par le responsable habilité de l’organisme.</span>
         </div>
 
         <table class="sig">
@@ -534,10 +521,10 @@
 
                 {% if preferences and preferences.signatureOrganismePath %}
                   <div style="margin-top:3pt;">
-                    <img class="sig-img" src="{{ absolute_url(asset(preferences.signatureOrganismePath|trim('/'))) }}" alt="Signature">
+                    <img class="sig-img" src="{{ private_document_image(preferences.signatureOrganismePath) }}" alt="Signature">
                   </div>
                   <div class="sig-meta">
-                    {{ preferences.signatureOrganismeAt ? ('Signé le ' ~ preferences.signatureOrganismeAt|date('d/m/Y')) : 'Signature configurée' }}
+                    Signature de l’organisme · document établi le {{ dateDelivrance|date('d/m/Y') }}
                   </div>
                 {% else %}
                   <div class="sig-meta">Signature & cachet</div>

@@ -149,6 +149,7 @@ final class DevisConventionTest extends KernelTestCase
     public function testConfirmingInscriptionCreatesQcmAssignmentsOnce(): void
     {
         $qcm = (new \App\Entity\Qcm())->setEntite($this->entite)->setCreateur($this->user)->setTitre('Évaluation');
+        $this->session->getFormation()->setQcmPre($qcm)->setQcmPost($qcm); // Seuls les QCM choisis pour cette formation sont affectés.
         $this->em->persist($qcm);
         $convention = $this->creator->create($this->devis, $this->session, [$this->user], $this->user, null);
         $inscription = $convention->getInscriptions()->first();

@@ -1040,7 +1040,7 @@ body{ overflow-x:hidden; }
 
                           <div class="travel-badges mt-2 d-flex gap-2 flex-wrap">
                             {% if travel.distanceText %}
-                              <span class="badge text-bg-light">{{ travel.distanceText }}</span>
+                              <span class="badge text-bg-light">{{ travel.distanceText }} aller</span>
                             {% endif %}
                             {% if travel.durationText %}
                               <span class="badge text-bg-light">{{ travel.durationText }}</span>
@@ -1048,11 +1048,19 @@ body{ overflow-x:hidden; }
                             {% if travel.costText %}
                               <span class="badge text-bg-light">
                                 Frais estimés : <strong>{{ travel.costText }}</strong>
-                                <span class="text-muted">({{ kmRate|number_format(2, ',', ' ') }} €/km)</span>
+                                <span class="text-muted">({{ kmRate|number_format(3, ',', ' ') }} €/km)</span>
                               </span>
                             {% endif %}
                           </div>
 
+                          <div class="small text-muted mt-3">
+                            {{ travel.originSource }} · Péages, stationnement et hébergement exclus.
+                            {% if travel.estimate %}
+                              <div>{{ travel.estimate.days }} jour(s) d’intervention · {{ travel.estimate.journeys }} déplacement(s) {{ travel.returnTrip ? 'aller-retour' : 'aller simple' }} · {{ travel.estimate.kilometers|number_format(1, ',', ' ') }} km au total.</div>
+                              {% if travel.returnTrip %}<div>Retour estimé à la même distance que l’aller.</div>{% endif %}
+                            {% elseif travel.distanceText %}<div>Estimation en attente de créneaux d’intervention datés.</div>{% endif %}
+                            {% if is_granted('ENTITE_PREFERENCE_MANAGE', entite) %}<a href="{{ path('app_administrateur_preferences_formateurs_deplacements', {entite: entite.id}) }}">Paramétrer les frais de déplacement</a>{% endif %}
+                          </div>
                           {% if travel.gmapsError and travel.originAddress and travel.destAddress %}
                             <div class="small text-muted mt-2">
                               Le calcul de l’itinéraire n’est pas disponible pour le moment.
@@ -1115,6 +1123,34 @@ body{ overflow-x:hidden; }
   {% set pourcentageComplets = inscriptionsAvecPieces > 0 ? (dossiersComplets / inscriptionsAvecPieces * 100) : 0 %}
 
   {# ================== PARTICIPANTS / DOSSIERS ================== #}
+  {% set reminderDays = [] %}
+  {% for jour in session.jours %}
+    {% set reminderDay = jour.dateDebut|date('Y-m-d') %}
+    {% if reminderDay <= 'now'|date('Y-m-d', 'Europe/Paris') and reminderDay not in reminderDays %}{% set reminderDays = reminderDays|merge([reminderDay]) %}{% endif %}
+  {% endfor %}
+  {% set reminderDays = reminderDays|sort %}
+  <section class="cardx mb-4 p-4 reminder-panel" id="session-reminders">
+    <div class="d-flex align-items-center gap-3 mb-4"><span class="reminder-icon"><i class="bi bi-envelope-paper"></i></span><div><div class="small text-uppercase text-muted fw-semibold">Suivi des participants</div><h2 class="h4 mb-0">Relances & émargements</h2></div></div>
+    <div class="row g-4 align-items-center">
+      <div class="col-lg-5"><div id="reminder-calendar" data-days="{{ reminderDays|json_encode|e('html_attr') }}" aria-label="Journée à émarger"></div></div>
+      <div class="col-lg-7">
+        <span class="badge bg-light text-dark border mb-3">Liens personnels · QR codes inclus</span>
+        <h3 class="h5">Une relance ciblée, au bon moment</h3>
+        <p class="text-muted">Sélectionnez une journée pour les émargements. Sous chaque stagiaire, vous pouvez relancer les signatures, les appréciations ou les deux dans un seul mail.</p>
+        <p class="small text-muted">Les éléments déjà complétés, les présences papier et les absences renseignées sont exclus des relances.</p>
+        {% if reminderDays and session.emargementEnAttenteRequis %}
+        <form method="post" action="{{ path('app_administrateur_session_attendance_reminder', {entite: entite.id, id: session.id}) }}" data-reminder-form>
+          <input type="hidden" name="_token" value="{{ csrf_token('attendance_reminder_' ~ session.id) }}">
+          <input type="hidden" name="date" value="{{ reminderDays|last }}" data-reminder-date>
+          <p class="fw-semibold"><i class="bi bi-calendar-check me-2"></i><span data-reminder-label>{{ reminderDays|last|date('d/m/Y') }}</span></p>
+          <button class="btn btn-dark rounded-pill px-4 py-2" type="submit"><i class="bi bi-send me-2"></i>Relancer les émargements de la journée</button>
+        </form>
+        {% else %}<p class="small text-muted">Aucune journée ouverte à la relance d’émargement.</p>{% endif %}
+      </div>
+    </div>
+  </section>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-reminders.css') }}">
+  <script src="{{ asset('dist/js/session-reminders.js') }}" defer></script>
   <div class="row g-3 mb-4">
     <div class="col-12">
       <div class="cardx mb-3">
@@ -1184,6 +1220,28 @@ body{ overflow-x:hidden; }
                         {% if s %}
                           <strong>{{ s.prenom }} {{ s.nom }}</strong><br>
                           <span class="text-muted small">{{ s.email }}</span>
+                          {% if s.email and ins.status.value not in ['annule', 'absent'] %}
+                          <details class="mt-2 text-start">
+                            <summary class="btn btn-sm btn-outline-dark rounded-pill"><i class="bi bi-envelope me-1"></i>Relancer ce stagiaire</summary>
+                            <form method="post" action="{{ path('app_administrateur_session_attendance_reminder', {entite:entite.id,id:session.id}) }}" class="reminder-person mt-2 p-3 border rounded-3 bg-light" data-reminder-form>
+                              <input type="hidden" name="_token" value="{{ csrf_token('attendance_reminder_' ~ session.id) }}">
+                              <input type="hidden" name="inscription" value="{{ ins.id }}">
+                              <input type="hidden" name="date" value="{{ reminderDays ? reminderDays|last : '' }}" data-reminder-date>
+                              <fieldset><legend class="small fw-semibold">Que souhaitez-vous relancer ?</legend>
+                              {% if reminderDays and session.emargementEnAttenteRequis %}
+                                <label class="d-block small mb-2"><input class="form-check-input me-2" type="radio" name="kind" value="attendance" checked>Émargements</label>
+                              {% endif %}
+                              <label class="d-block small mb-2"><input class="form-check-input me-2" type="radio" name="kind" value="satisfaction" {% if not reminderDays or not session.emargementEnAttenteRequis %}checked{% endif %}>Appréciations</label>
+                              {% if reminderDays and session.emargementEnAttenteRequis %}
+                                <label class="d-block small mb-2"><input class="form-check-input me-2" type="radio" name="kind" value="both">Les deux</label>
+                                <p class="small text-muted mb-2">Émargements du <span data-reminder-label>{{ reminderDays|last|date('d/m/Y') }}</span> · <a href="#session-reminders">Changer de journée</a></p>
+                              {% endif %}
+                              </fieldset>
+                              <button class="btn btn-dark btn-sm rounded-pill" type="submit"><i class="bi bi-send me-1"></i>Envoyer à {{ s.prenom }}</button>
+                            </form>
+                          </details>
+                          {% endif %}
+
                           {% if entreprise and entreprise.raisonSociale %}
                             <div class="small text-muted mt-1">
                               <i class="fa fa-building me-1"></i>{{ entreprise.raisonSociale }}

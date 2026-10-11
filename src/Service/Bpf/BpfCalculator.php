@@ -22,27 +22,37 @@ final class BpfCalculator
    */
   public function computeForYear(Entite $entite, int $year): array
   {
-    $start = new \DateTimeImmutable(sprintf('%d-01-01 00:00:00', $year));
-    $end   = new \DateTimeImmutable(sprintf('%d-12-31 23:59:59', $year));
+    return $this->computeForPeriod($entite, new \DateTimeImmutable(sprintf('%d-01-01', $year)), new \DateTimeImmutable(sprintf('%d-12-31', $year)));
+  }
 
+  /** Données de rapprochement : jamais une déclaration réglementaire automatique. */
+  public function computeForPeriod(Entite $entite, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+  {
+    $start = $start->setTime(0, 0);
+    $end = $end->setTime(23, 59, 59);
+    $year = (int) $end->format('Y');
+    $cutoff = min($end, new \DateTimeImmutable());
     // Même durée pédagogique que les documents, avec les pauses retirées.
     // On conserve le périmètre annuel par créneau, y compris pour une session
     // répartie sur deux années ; aucune formule SQL indépendante du planning.
     $jours = $this->em->createQueryBuilder()
       ->select('j', 's', 'f')->from(SessionJour::class, 'j')
-      ->join('j.session', 's')->join('s.formation', 'f')
+      ->join('j.session', 's')->leftJoin('s.formation', 'f')
       ->where('s.entite = :entite')
-      ->andWhere('j.dateDebut <= :end AND j.dateFin >= :start')
+      ->andWhere('j.dateFin <= :cutoff AND j.dateFin >= :start AND j.dateDebut <= :end')
+      ->andWhere('s.status NOT IN (:excluded)')
+      ->setParameter('excluded', [\App\Enum\StatusSession::DRAFT, \App\Enum\StatusSession::CANCELED])
+      ->setParameter('cutoff', $cutoff)
       ->setParameter('entite', $entite)->setParameter('start', $start)->setParameter('end', $end)
       ->getQuery()->toIterable();
     $rows = [];
     foreach ($jours as $jour) {
       $session = $jour->getSession();
       $sid = (int) $session->getId();
-      $rows[$sid] ??= ['session_id' => $sid, 'formation_id' => $session->getFormation()->getId(),
-        'formation_titre' => $session->getFormation()->getTitre(), 'minutes_total' => 0];
+      $rows[$sid] ??= ['session_id' => $sid, 'formation_id' => $session->getFormation()?->getId() ?? -$sid, 'code' => $session->getCode(), 'subcontract' => $session->isSousTraitance(),
+        'formation_titre' => $session->getFormation()?->getTitre() ?? $session->getFormationIntituleLibre() ?? 'Formation sans intitulé', 'minutes_total' => 0];
       foreach ($jour->getDureeFormationMinutesParDate() as $date => $minutes) {
-        if (substr($date, 0, 4) === (string) $year) $rows[$sid]['minutes_total'] += $minutes;
+        if ($date >= $start->format('Y-m-d') && $date <= $cutoff->format('Y-m-d')) $rows[$sid]['minutes_total'] += $minutes;
       }
     }
 
@@ -77,13 +87,11 @@ final class BpfCalculator
     }
 
     $sessionIds = array_keys($sessionHours);
-    if (!$sessionIds) {
-      return $this->emptyBpf($year, $start, $end);
-    }
+    // La facturation existe même sans session enregistrée dans la période.
+    if (!$sessionIds) $sessionIds = [0];
 
     // 2) Inscriptions éligibles
     $eligible = [
-      StatusInscription::PREINSCRIT,
       StatusInscription::CONFIRME,
       StatusInscription::EN_COURS,
       StatusInscription::TERMINE,
@@ -103,6 +111,7 @@ final class BpfCalculator
       ->getQuery()
       ->getArrayResult();
 
+    $split = ['direct' => ['count' => 0, 'hours' => 0.0], 'subcontract' => ['count' => 0, 'hours' => 0.0]];
     $nbInscriptions   = 0;
     $stagiaires       = []; // set stagiaireId
     $heuresStagiaires = 0.0;
@@ -118,6 +127,9 @@ final class BpfCalculator
       $sid      = (int)$r['sessionId'];
       $hSession = (float)($sessionHours[$sid] ?? 0.0);
 
+      $bucket = $rows[$sid]['subcontract'] ? 'subcontract' : 'direct';
+      ++$split[$bucket]['count'];
+      $split[$bucket]['hours'] += $hSession;
       $nbInscriptions++;
       $stagiaires[(int)$r['stagiaireId']] = true;
       $heuresStagiaires += $hSession;
@@ -144,6 +156,8 @@ final class BpfCalculator
       ->addSelect('COALESCE(SUM(fa.montantTvaCents),0) as tva')
       ->where('fa.entite = :entite')
       ->andWhere('fa.dateEmission BETWEEN :start AND :end')
+      ->andWhere('fa.status != :canceled')->setParameter('canceled', \App\Enum\FactureStatus::CANCELED)
+      ->andWhere('fa.devise = :currency')->setParameter('currency', 'EUR')
       ->setParameter('entite', $entite)
       ->setParameter('start', $start)
       ->setParameter('end', $end)
@@ -168,24 +182,9 @@ final class BpfCalculator
       ->getSingleResult();
 
 
-    // 5) Charges formateurs (optionnel)
-    $chargesFormateurs = 0;
-    try {
-      $cf = $this->em->createQueryBuilder()
-        ->from('App\Entity\ContratFormateur', 'c')
-        ->select('COALESCE(SUM(c.montantPrevuCents + c.fraisMissionCents),0) as charges')
-        ->where('c.entite = :entite')
-        ->andWhere('c.dateCreation BETWEEN :start AND :end')
-        ->setParameter('entite', $entite)
-        ->setParameter('start', $start)
-        ->setParameter('end', $end)
-        ->getQuery()
-        ->getSingleResult();
-
-      $chargesFormateurs = (int)($cf['charges'] ?? 0);
-    } catch (\Throwable) {
-      $chargesFormateurs = 0;
-    }
+    $credits = $this->em->createQueryBuilder()->select('COALESCE(SUM(a.montantTtcCents), 0)')
+      ->from('App\Entity\Avoir', 'a')->where('a.entite = :entite')->andWhere('a.dateEmission BETWEEN :start AND :end')
+      ->setParameter('entite', $entite)->setParameter('start', $start)->setParameter('end', $end)->getQuery()->getSingleScalarResult();
 
     // Tri formations par titre
     $formations = array_values($formations);
@@ -213,10 +212,13 @@ final class BpfCalculator
       ],
 
       'charges' => [
-        'formateursCents' => $chargesFormateurs,
+        'formateursCents' => null,
       ],
 
       'formations' => $formations,
+      'sessions' => array_values($rows),
+      'split' => $split,
+      'creditsTtcCents' => (int) $credits,
     ];
   }
 
@@ -250,36 +252,4 @@ final class BpfCalculator
     return StatusInscription::tryFrom((string)$value);
   }
 
-  private function emptyBpf(int $year, \DateTimeImmutable $start, \DateTimeImmutable $end): array
-  {
-    $fin = $this->initFinancementBuckets();
-
-    return [
-      'year'  => $year,
-      'start' => $start,
-      'end'   => $end,
-
-      'nbSessions'      => 0,
-      'heuresFormation' => 0.0,
-
-      'nbInscriptions'   => 0,
-      'nbStagiaires'     => 0,
-      'heuresStagiaires' => 0.0,
-
-      'financement' => $fin,
-
-      'produits' => [
-        'ttcCents'           => 0,
-        'htCents'            => 0,
-        'tvaCents'           => 0,
-        'encaissementsCents' => 0,
-      ],
-
-      'charges' => [
-        'formateursCents' => 0,
-      ],
-
-      'formations' => [],
-    ];
-  }
 }

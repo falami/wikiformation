@@ -17,6 +17,7 @@ use Symfony\Component\HttpFoundation\{
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Security\Permission\TenantPermission;
+use App\Security\DossierDocumentAccess;
 
 
 #[Route('/administrateur/{entite}/session/{session}/stagiaire-piece', name: 'app_administrateur_session_stagiaire_piece_', requirements: ['entite' => '\d+', 'session' => '\d+'])]
@@ -59,6 +60,16 @@ final class SessionStagiairePieceController extends AbstractController
       return $this->json(['ok' => false, 'message' => 'Inscription invalide'], 404);
     }
 
+    // Do not allow executable or active content through this AJAX upload route.
+    $extensions = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+    $mime = $file instanceof UploadedFile && $file->isValid() ? $file->getMimeType() : null;
+    $extension = $extensions[$mime ?? ''] ?? null;
+    if (!$extension || $file->getSize() > 10 * 1024 * 1024) {
+      return $this->json(['ok' => false, 'message' => 'Choisissez un PDF, JPG, PNG, WEBP ou GIF de 10 Mo maximum.'], 422);
+    }
+
+    DossierDocumentAccess::inscription($entite, $ins);
+    if ($ins->getDossier()) DossierDocumentAccess::dossier($entite, $ins->getDossier(), $ins);
     // ✅ dossier auto-create si absent (comme ton edit)
     $dossier = $ins->getDossier();
     if (!$dossier) {
@@ -77,13 +88,13 @@ final class SessionStagiairePieceController extends AbstractController
 
     @mkdir($this->uploadDir, 0775, true);
 
-    $ext  = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'bin';
-    $name = uniqid('piece_', true) . '.' . $ext;
+    $name = 'piece_' . bin2hex(random_bytes(16)) . '.' . $extension;
     $file->move($this->uploadDir, $name);
 
     $piece = new PieceDossier();
     $piece->setType($type);
     $piece->setFilename($name);
+    $piece->setMimeType($mime);
     $piece->setUploadedAt(new \DateTimeImmutable());
     $piece->setValide(false);
     $piece->setCommentaireControle(null);
@@ -134,7 +145,7 @@ final class SessionStagiairePieceController extends AbstractController
       return $this->json(['ok' => false, 'message' => 'Session invalide'], 404);
     }
 
-    $ins = $piece->getInscription();
+    $ins = DossierDocumentAccess::piece($entite, $piece);
     if (!$ins || $ins->getSession()?->getId() !== $session->getId() || $ins->getEntite()?->getId() !== $entite->getId()) {
       return $this->json(['ok' => false, 'message' => 'Pièce invalide'], 404);
     }
@@ -161,33 +172,37 @@ final class SessionStagiairePieceController extends AbstractController
   #[Route('/piece/{piece}/view', name: 'view', methods: ['GET'])]
   public function view(Entite $entite, Session $session, PieceDossier $piece): Response
   {
-    $ins = $piece->getInscription();
+    $ins = DossierDocumentAccess::piece($entite, $piece);
     if (!$ins || $ins->getEntite()?->getId() !== $entite->getId() || $ins->getSession()?->getId() !== $session->getId()) {
       throw $this->createNotFoundException();
     }
 
-    $filePath = rtrim($this->uploadDir, '/') . '/' . $piece->getFilename();
+    $filePath = DossierDocumentAccess::filePath($this->uploadDir, $piece->getFilename());
     if (!is_file($filePath)) throw $this->createNotFoundException('Fichier introuvable.');
 
     $resp = new BinaryFileResponse($filePath);
     // inline = preview dans iframe
     $resp->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, $piece->getFilename());
+    $resp->headers->set('Cache-Control', 'private, no-store');
+    $resp->headers->set('X-Content-Type-Options', 'nosniff');
     return $resp;
   }
 
   #[Route('/piece/{piece}/download', name: 'download', methods: ['GET'])]
   public function download(Entite $entite, Session $session, PieceDossier $piece): Response
   {
-    $ins = $piece->getInscription();
+    $ins = DossierDocumentAccess::piece($entite, $piece);
     if (!$ins || $ins->getEntite()?->getId() !== $entite->getId() || $ins->getSession()?->getId() !== $session->getId()) {
       throw $this->createNotFoundException();
     }
 
-    $filePath = rtrim($this->uploadDir, '/') . '/' . $piece->getFilename();
+    $filePath = DossierDocumentAccess::filePath($this->uploadDir, $piece->getFilename());
     if (!is_file($filePath)) throw $this->createNotFoundException('Fichier introuvable.');
 
     $resp = new BinaryFileResponse($filePath);
     $resp->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $piece->getFilename());
+    $resp->headers->set('Cache-Control', 'private, no-store');
+    $resp->headers->set('X-Content-Type-Options', 'nosniff');
     return $resp;
   }
 }

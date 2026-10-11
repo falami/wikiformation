@@ -191,7 +191,7 @@ final class PublicController extends AbstractController
 
         $contentTree = $rootNodes;
 
-        $metaTitle = $formation->getTitre() . ' — Formations voile';
+        $metaTitle = $formation->getTitre() . ' — ' . $formation->getEntite()?->getNom();
 
         $rawDesc  = (string) $formation->getDescription();
         $metaDesc = strip_tags($rawDesc);
@@ -206,11 +206,10 @@ final class PublicController extends AbstractController
             /** @var Utilisateur $user */
             $reservationDemande->setUtilisateur($user);
             $reservationDemande->setCreateur($user);
-            $reservationDemande->setEntite($user->getEntite());
+            $reservationDemande->setEntite($formation->getEntite());
         } else {
-            $user = $this->utilisateurManager->getRepository()->findOneBy(['id' => 1]);
-            $reservationDemande->setCreateur($user);
-            $reservationDemande->setEntite($user->getEntite());
+            $reservationDemande->setCreateur($formation->getCreateur());
+            $reservationDemande->setEntite($formation->getEntite());
         }
 
         $formReservationDemande = $this->createForm(ReservationType::class, $reservationDemande);

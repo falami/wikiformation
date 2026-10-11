@@ -1,0 +1,23 @@
+{% extends 'administrateur/preferences/formateurs_contrat.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}Préférences · Facturation{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css"><link rel="stylesheet" href="{{ asset('dist/css/delegations.css') }}">{% endblock %}
+{% block body %}
+{% set section = 'facturation' %}
+<div class="preferences">
+  <header class="pref-hero"><div class="eyebrow">{{ entite.nom }} · Préférences</div><h1>Une facturation cohérente, dès l’émission.</h1><p>Validez les mentions de votre organisme une fois pour les réutiliser sur vos prochaines factures.</p></header>
+  {% include 'flagMessage.html.twig' %}
+  <div class="pref-layout">{% include 'account/_navigation.html.twig' %}<main>
+    {{ form_start(form) }}{{ form_errors(form) }}
+    <section class="pref-panel mb-4"><h2 class="h4">Règlement et identité juridique</h2><p class="text-muted">Les coordonnées, le SIRET et le numéro de TVA proviennent de la fiche de votre organisme. La date de prestation reste propre à chaque facture.</p>
+      <div class="row g-3">{% for name in ['legalIdentity','paymentMeans','dueDays','earlyPaymentDiscount','latePaymentPenalty','recoveryCompensationCents'] %}<div class="col-lg-6">{{ form_row(attribute(form,name)) }}</div>{% endfor %}</div>
+    </section>
+    <section class="pref-panel mb-4"><h2 class="h4">Mentions fiscales</h2><p class="text-muted">Le taux de chaque prestation reste défini sur ses lignes. Une exemption nécessite un motif applicable à votre organisme.</p>
+      {{ form_row(form.vatCategory) }}{{ form_row(form.vatExemptionReason) }}{{ form_row(form.vatOnDebits) }}
+    </section>
+    <section class="pref-panel">{{ form_row(form.confirmed) }}<button class="btn btn-dark rounded-3 px-4 py-2" type="submit"><i class="bi bi-check2 me-2"></i>Enregistrer les préférences</button></section>
+    {{ form_end(form) }}
+  </main></div>
+</div>
+{% endblock %}
+{% block javascripts_bottom %}<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script><script src="{{ asset('dist/js/delegations.js') }}"></script>{% endblock %}

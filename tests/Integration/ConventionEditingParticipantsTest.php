@@ -387,7 +387,7 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         self::getContainer()->set(\App\Service\Sequence\ConventionContratNumberGenerator::class, new \App\Service\Sequence\ConventionContratNumberGenerator($sequence));
         $base = '/fr/administrateur/'.$this->entity->getId().'/conventions';
         $page = $this->client->request('GET', $base.'/liste');
-        self::assertCount(1, $page->filter('a[href="'.$base.'/nouvelle"]'));
+        self::assertGreaterThanOrEqual(1, $page->filter('a[href="'.$base.'/nouvelle"]')->count()); // Le menu et la page peuvent proposer la même action.
         $page = $this->client->request('GET', $base.'/nouvelle');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         $values = $page->filter('form[name="convention_contrat"]')->form()->getPhpValues();

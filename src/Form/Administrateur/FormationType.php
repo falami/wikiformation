@@ -203,8 +203,10 @@ class FormationType extends AbstractType
                 'required' => true,
             ])
 
+            ->add('publicInformation', FormationPublicInformationType::class, ['label' => false, 'required' => false])
             ->add('codeQualiopi', TextType::class, [
-                'label' => 'Code Qualiopi',
+                'label' => 'Référence interne de formation',
+                'help' => 'Ancien champ « Code Qualiopi ». Une référence interne ne prouve ni une certification Qualiopi ni un enregistrement RNCP/RS.',
                 'required' => false,
                 'attr' => ['class' => 'form-control'],
             ])

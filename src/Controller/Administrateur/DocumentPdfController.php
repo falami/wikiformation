@@ -47,6 +47,7 @@ class DocumentPdfController extends AbstractController
         Entite $entite,
         Inscription $id,
         AssiduiteCalculator $assiduiteCalculator,
+        \App\Service\Document\RealisationCertificate $certificate,
         EM $em
     ): Response {
         // 1. L’inscription doit être clôturée
@@ -72,6 +73,12 @@ class DocumentPdfController extends AbstractController
 
         if ($pct === null) {
             $this->addFlash('warning', $id->getSession()->isSousTraitance() ? 'L’attestation relève de l’organisme principal pour cette session en sous-traitance.' : 'Renseignez toutes les présences et absences avant de générer l’attestation.');
+            return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
+        }
+
+        $realisation = $certificate->data($id, $id->getAttestation());
+        if (!$realisation['ready']) {
+            $this->addFlash('warning', implode(' ', $realisation['issues']));
             return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
         }
 

@@ -20,6 +20,7 @@ use Symfony\Component\HttpFoundation\{
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use App\Security\Permission\TenantPermission;
+use App\Security\DossierDocumentAccess;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Doctrine\DBAL\Exception\NotNullConstraintViolationException;
 
@@ -130,13 +131,13 @@ final class SessionPieceController extends AbstractController
 
     $this->assertEntiteSession($entite, $session);
 
-    if ($piece->getSession()?->getId() !== $session->getId()) {
+    if ($piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
     }
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
-    $filePath = $this->uploadDir . '/' . $piece->getFilename();
+    $filePath = DossierDocumentAccess::filePath($this->uploadDir, $piece->getFilename());
     if (!is_file($filePath)) {
       throw $this->createNotFoundException('Fichier introuvable.');
     }
@@ -147,6 +148,8 @@ final class SessionPieceController extends AbstractController
       $piece->getFilename()
     );
 
+    $response->headers->set('Cache-Control', 'private, no-store');
+    $response->headers->set('X-Content-Type-Options', 'nosniff');
     return $response;
   }
 
@@ -156,7 +159,7 @@ final class SessionPieceController extends AbstractController
 
     $this->assertEntiteSession($entite, $session);
 
-    if ($piece->getSession()?->getId() !== $session->getId()) {
+    if ($piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
     }
 
@@ -166,7 +169,7 @@ final class SessionPieceController extends AbstractController
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
-    $filePath = $this->uploadDir . '/' . $piece->getFilename();
+    $filePath = DossierDocumentAccess::filePath($this->uploadDir, $piece->getFilename());
 
     $em->remove($piece);
     $em->flush();
@@ -189,7 +192,7 @@ final class SessionPieceController extends AbstractController
 
     $this->assertEntiteSession($entite, $session);
 
-    if ($piece->getSession()?->getId() !== $session->getId()) {
+    if ($piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
     }
 
@@ -217,7 +220,7 @@ final class SessionPieceController extends AbstractController
 
     $this->assertEntiteSession($entite, $session);
 
-    if ($piece->getSession()?->getId() !== $session->getId()) {
+    if ($piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
     }
 
@@ -246,11 +249,11 @@ final class SessionPieceController extends AbstractController
 
     $this->assertEntiteSession($entite, $session);
 
-    if ($piece->getSession()?->getId() !== $session->getId()) {
+    if ($piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
     }
 
-    $filePath = $this->uploadDir . '/' . $piece->getFilename();
+    $filePath = DossierDocumentAccess::filePath($this->uploadDir, $piece->getFilename());
     if (!is_file($filePath) || !is_readable($filePath)) {
       throw $this->createNotFoundException('Fichier introuvable.');
     }
@@ -270,6 +273,8 @@ final class SessionPieceController extends AbstractController
     // (optionnel) cache léger
     $response->headers->set('X-Content-Type-Options', 'nosniff');
 
+    $response->headers->set('Cache-Control', 'private, no-store');
+    $response->headers->set('X-Content-Type-Options', 'nosniff');
     return $response;
   }
 
@@ -279,7 +284,7 @@ final class SessionPieceController extends AbstractController
 
     $this->assertEntiteSession($entite, $session);
 
-    if ($piece->getSession()?->getId() !== $session->getId()) {
+    if ($piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
     }
 

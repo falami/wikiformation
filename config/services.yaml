@@ -179,5 +179,15 @@ services:
       $projectDir: "%kernel.project_dir%"
       $publicHostLogoDir: "%public_host_logo_dir%"
 
+  # OAuth credentials and invoice payloads must never enter the profiler, nor be retried on POST.
+  app.einvoice.http_client:
+    class: Symfony\Contracts\HttpClient\HttpClientInterface
+    factory: ['Symfony\Component\HttpClient\HttpClient', 'create']
+    autoconfigure: false
+
+  App\Service\EInvoicing\SuperPdpClient:
+    arguments:
+      $httpClient: '@app.einvoice.http_client'
+
   # add more service definitions when explicit configuration is needed
   # please note that last definitions always *replace* previous ones

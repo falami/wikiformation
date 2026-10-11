@@ -16,6 +16,7 @@ use Symfony\Component\HttpFoundation\{
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Security\Permission\TenantPermission;
+use App\Security\DossierDocumentAccess;
 
 
 #[Route('/administrateur/{entite}/dossier', name: 'app_administrateur_dossier_', requirements: ['entite' => '\d+'])]
@@ -32,7 +33,9 @@ class DossierInscriptionController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
+        DossierDocumentAccess::inscription($entite, $id);
         $dossier = $id->getDossier();
+        if ($dossier) DossierDocumentAccess::dossier($entite, $dossier, $id);
 
         // ✅ crée le dossier si absent
         if (!$dossier) {
@@ -42,8 +45,7 @@ class DossierInscriptionController extends AbstractController
             $dossier->setInscription($id);
             $id->setDossier($dossier); // inverse side
 
-            $em->persist($dossier);
-            $em->flush(); // si tu veux absolument un id dossier
+            // Reading a form must not create an empty dossier in the database.
         } else {
             // ✅ sécurise un dossier existant (cas legacy)
             if (!$dossier->getCreateur()) {
@@ -125,13 +127,8 @@ class DossierInscriptionController extends AbstractController
     #[Route('/piece/{piece}/download', name: 'piece_download', methods: ['GET'])]
     public function download(Entite $entite, PieceDossier $piece): Response
     {
-        // (Optionnel) sécuriser en vérifiant que la pièce appartient bien à l’entité
-        // $inscription = $piece->getDossier()->getInscription();
-        // if ($inscription->getSession()->getEntite() !== $entite) {
-        //     throw $this->createAccessDeniedException();
-        // }
-
-        $filePath = $this->uploadDir . '/' . $piece->getFilename();
+        DossierDocumentAccess::piece($entite, $piece);
+        $filePath = DossierDocumentAccess::filePath($this->uploadDir, $piece->getFilename());
 
         if (!is_file($filePath)) {
             throw $this->createNotFoundException('Fichier introuvable.');
@@ -143,23 +140,21 @@ class DossierInscriptionController extends AbstractController
             $piece->getFilename()
         );
 
+        $response->headers->set('Cache-Control', 'private, no-store');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
         return $response;
     }
 
     #[Route('/piece/{piece}/toggle-valid', name: 'piece_toggle_valid', methods: ['POST'])]
     public function toggleValid(Entite $entite, PieceDossier $piece, Request $request, EM $em): Response
     {
+        DossierDocumentAccess::piece($entite, $piece);
         if (!$this->isCsrfTokenValid('toggle_piece' . $piece->getId(), $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
 
         $dossier = $piece->getDossier();
         $inscription = $dossier->getInscription();
-
-        // Sécurité optionnelle comme plus haut :
-        // if ($inscription->getSession()->getEntite() !== $entite) {
-        //     throw $this->createAccessDeniedException();
-        // }
 
         $piece->setValide(!$piece->isValide());
         $em->flush();
@@ -183,6 +178,7 @@ class DossierInscriptionController extends AbstractController
     #[Route('/piece/{piece}/delete', name: 'piece_delete', methods: ['POST'])]
     public function delete(Entite $entite, PieceDossier $piece, Request $request, EM $em): Response
     {
+        DossierDocumentAccess::piece($entite, $piece);
         if (!$this->isCsrfTokenValid('del_piece' . $piece->getId(), $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Token CSRF invalide.');
         }
@@ -191,7 +187,7 @@ class DossierInscriptionController extends AbstractController
         $inscription = $dossier->getInscription();
 
         $filename = $piece->getFilename();
-        $filePath = $this->uploadDir . '/' . $filename;
+        $filePath = DossierDocumentAccess::filePath($this->uploadDir, $filename);
 
         $em->remove($piece);
         $em->flush();

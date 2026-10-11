@@ -21,24 +21,23 @@ class AttestationType extends AbstractType
         $b
             ->add('inscription', EntityType::class, [
                 'class' => Inscription::class,
-                'required' => false,
+                'required' => true,
+                'query_builder' => fn(\App\Repository\InscriptionRepository $repo) => $repo->createQueryBuilder('ins')->andWhere('ins.entite = :entite')->setParameter('entite', $opt['entite']),
                 'choice_label' => fn(Inscription $i) => sprintf(
                     '#%d - %s - %s',
                     $i->getId(),
                     $i->getSession()?->getCode(),
                     trim(($i->getStagiaire()?->getPrenom() ?? '') . ' ' . ($i->getStagiaire()?->getNom() ?? '')) ?: '-'
                 ),
-                'choice_attr' => function (Inscription $i) {
-                    $heures = $i->getSession()?->getDureeFormationHeures() ?? 0.0;
-                    return ['data-heures' => (string) $heures];
-                },
-                'label' => 'Rattachée à l’inscription (optionnel)',
+                'label' => 'Inscription concernée',
                 'placeholder' => 'Lier une inscription',
                 'attr' => ['class' => 'form-select'],
             ])
 
             ->add('dureeHeures', NumberType::class, [
-                'label' => 'Durée de formation hors pauses (heures)',
+                'label' => 'Durée réellement suivie (heures)',
+                'disabled' => true,
+                'help' => 'Le PDF reprend la durée justifiée par les présences et les créneaux, hors pauses. Le taux de présence seul ne suffit pas.',
                 'html5' => true, 'scale' => 2,
                 'constraints' => [new Assert\PositiveOrZero()],
                 'attr'  => ['class' => 'form-control', 'min' => 0, 'step' => '0.01', 'placeholder' => '0'],
@@ -70,5 +69,7 @@ class AttestationType extends AbstractType
         $r->setDefaults([
             'data_class' => Attestation::class,
         ]);
+        $r->setRequired('entite');
+        $r->setAllowedTypes('entite', \App\Entity\Entite::class);
     }
 }

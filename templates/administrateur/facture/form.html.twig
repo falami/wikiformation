@@ -449,7 +449,7 @@
             </div>
 
             <div class="col-md-12">
-              <div class="form-text">Tu peux choisir une <strong>entreprise</strong> et/ou une <strong>personne</strong>.</div>
+              <div class="form-text">Choisissez un seul destinataire : une <strong>entreprise</strong> ou une <strong>personne</strong>.</div>
             </div>
 
             <div class="col-md-12">
@@ -463,6 +463,16 @@
             <div class="col-md-12">
               {{ form_row(form.note) }}
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cardx mb-4">
+        <div class="cardx-h"><h5 class="cardx-title"><i class="fa fa-file-contract text-warning"></i> Mentions de facturation</h5></div>
+        <div class="cardx-b p-4">
+          <p class="text-muted">Les conditions de votre organisme sont reprises automatiquement. Complétez les mentions applicables avant émission : les informations manquantes empêchent la création d’une facture numérotée. Une fois émise, ses informations sont conservées.</p>
+          <div class="row g-3">
+            {% for field in form.invoiceTerms %}<div class="col-md-6">{{ form_row(field) }}</div>{% endfor %}
           </div>
         </div>
       </div>
@@ -1008,13 +1018,16 @@ document.addEventListener('DOMContentLoaded', function(){
   initTomSelect(idDevise);
   initTomSelect(idStatus);
   initTomSelect(idEntreprise, { allowEmptyOption:true });
+  document.querySelectorAll('select.delegation-select').forEach(el => initTomSelect('#' + CSS.escape(el.id), {plugins: {clear_button: {title: 'Effacer la sélection'}}}));
 
   /* =========================================================
      Flatpickr FR
   ========================================================= */
   if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
   document.querySelectorAll('.flatpickr-date').forEach(el => {
-    if (!el._fp) flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
+    if (!el._flatpickr) flatpickr(el, el.type === 'date'
+      ? {dateFormat:'Y-m-d', altInput:true, altFormat:'d/m/Y', allowInput:true}
+      : {dateFormat:'d/m/Y', allowInput:true});
   });
 
   /* =========================================================
@@ -1205,54 +1218,27 @@ document.addEventListener('DOMContentLoaded', function(){
     const items = Array.from(document.querySelectorAll('#lignes-collection .ligne-item'));
     const linesAll = items.map(readLine).filter(l => l.qte > 0 || l.puCents > 0 || l.label);
 
-    // ✅ On sépare : débours / non débours
-    const lines = linesAll.filter(l => !l.isDebours);      // <-- celles qui comptent dans HT/TVA/TTC
-    const debours = linesAll.filter(l => l.isDebours);     // <-- info interne si tu veux l’afficher
-
-    // Base HT net (sans débours)
-    const baseNetHt = lines.reduce((s,l)=> s + l.netHtCents, 0);
-
-    // ✅ Remise globale appliquée uniquement sur les lignes NON débours
+    // Same largest-remainder allocation as InvoiceTotals: every discount cent is used.
+    const baseNetHt = linesAll.reduce((sum, line) => sum + line.netHtCents, 0);
     const globalDiscount = clamp(computeGlobalDiscountCents(baseNetHt), 0, baseNetHt);
-
-    // Prorata de remise globale (sur lignes non débours)
-    const proratables = lines.filter(l => l.netHtCents > 0);
-    const totalProratable = proratables.reduce((s,l)=> s + l.netHtCents, 0);
-
-    let remaining = globalDiscount;
-    const prorataMap = new Map();
-
-    if (globalDiscount > 0 && totalProratable > 0){
-      proratables.forEach((l, idx) => {
-        let share = (idx === proratables.length - 1)
-          ? remaining
-          : Math.round(globalDiscount * (l.netHtCents / totalProratable));
-
-        share = clamp(share, 0, remaining);
-        prorataMap.set(l, share);
-        remaining -= share;
-      });
-    }
-
-    // Totaux HT/TVA/TTC (sur lignes NON débours)
-    let totalHtFinalSansDebours = 0;
-    let totalTvaSansDebours = 0;
-
-    lines.forEach(l => {
-      const share = prorataMap.get(l) || 0;
-      const htAfterGlobal = clamp(l.netHtCents - share, 0, l.netHtCents);
-
-      const tvaCents = Math.round(htAfterGlobal * (l.tva / 100));
-      totalHtFinalSansDebours += htAfterGlobal;
-      totalTvaSansDebours += tvaCents;
+    const allocation = linesAll.map((line, index) => {
+      const exact = BigInt(globalDiscount) * BigInt(line.netHtCents);
+      const base = BigInt(baseNetHt || 1);
+      return {line, index, share: baseNetHt ? Number(exact / base) : 0, remainder: baseNetHt ? Number(exact % base) : 0};
+    });
+    let remaining = globalDiscount - allocation.reduce((sum, item) => sum + item.share, 0);
+    [...allocation].sort((a, b) => b.remainder - a.remainder || a.index - b.index).forEach(item => {
+      if (remaining > 0 && item.share < item.line.netHtCents) { item.share++; remaining--; }
     });
 
-    // ✅ Total débours HT (net, sans remise globale)
-    const totalDeboursHt = debours.reduce((s, l) => s + l.netHtCents, 0);
-
-    const totalDeboursTva = debours.reduce((s, l) => {
-        return s + Math.round(l.netHtCents * (l.tva / 100));
-    }, 0);
+    let totalHtFinalSansDebours = 0, totalTvaSansDebours = 0;
+    let totalDeboursHt = 0, totalDeboursTva = 0;
+    allocation.forEach(({line, share}) => {
+      const ht = line.netHtCents - share;
+      const vat = Math.round(ht * Math.round(line.tva * 100) / 10000);
+      if (line.isDebours) { totalDeboursHt += ht; totalDeboursTva += vat; }
+      else { totalHtFinalSansDebours += ht; totalTvaSansDebours += vat; }
+    });
 
     // ✅ Totaux facture = AVEC débours
     const totalHtFacture = totalHtFinalSansDebours + totalDeboursHt;

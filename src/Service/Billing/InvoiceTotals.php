@@ -6,9 +6,34 @@ namespace App\Service\Billing;
 
 use App\Entity\{Devis, Facture};
 
-/** Monetary calculations for automated invoices, expressed in integer cents. */
+/** Shared monetary calculations, expressed in integer cents. */
 final class InvoiceTotals
 {
+    /** Fix the calculation used at issuance; never recalculate an already persisted invoice. */
+    public static function finalizeNewInvoice(Facture $invoice): void
+    {
+        if ($invoice->getId() !== null) {
+            throw new \LogicException('Une facture émise ne peut pas être recalculée.');
+        }
+        $totals = self::calculate($invoice);
+        $invoice->setMontantHtCents($totals['htCents'])
+            ->setMontantTvaCents($totals['tvaCents'])
+            ->setMontantTtcCents($totals['ttcCents'])
+            ->setMeta(array_replace($invoice->getMeta() ?? [], [
+                'invoice_totals' => ['version' => 1, 'values' => $totals],
+            ]));
+    }
+
+    /** Outstanding invoice principal; platform fees are separate and never credited as payments twice. */
+    public static function outstanding(Facture $invoice): int
+    {
+        if ($invoice->isCanceled()) return 0;
+        $settled = 0;
+        foreach ($invoice->getPaiements() as $payment) $settled += $payment->getMontantCents() ?? 0;
+        foreach ($invoice->getAvoirs() as $credit) $settled += $credit->getMontantTtcCents();
+        return max(0, self::totalTtc($invoice) - $settled);
+    }
+
     public static function totalTtc(Facture $invoice): int
     {
         // Imported invoices can have a stored total without any itemized lines.
@@ -17,12 +42,14 @@ final class InvoiceTotals
             : self::calculate($invoice)['ttcCents'];
     }
 
-    /** @return array{brutHtCents:int,lineDiscountCents:int,netBeforeGlobalCents:int,globalDiscountCents:int,htCents:int,tvaCents:int,ttcCents:int,deboursTtcCents:int,rates:array<string,array{htCents:int,tvaCents:int}>} */
+    /** @return array{brutHtCents:int,lineDiscountCents:int,netBeforeGlobalCents:int,globalDiscountCents:int,htCents:int,tvaCents:int,ttcCents:int,deboursTtcCents:int,deboursHtCents:int,deboursTvaCents:int,lines:array,rates:array<string,array{htCents:int,tvaCents:int}>} */
     public static function calculate(Facture|Devis $invoice): array
     {
+        if ($invoice instanceof Facture && ($snapshot = $invoice->getIssuedTotals()) !== null) return $snapshot;
+
         $totals = ['brutHtCents' => 0, 'lineDiscountCents' => 0, 'netBeforeGlobalCents' => 0,
             'globalDiscountCents' => 0, 'htCents' => 0, 'tvaCents' => 0, 'ttcCents' => 0,
-            'deboursTtcCents' => 0, 'rates' => []];
+            'deboursTtcCents' => 0, 'deboursHtCents' => 0, 'deboursTvaCents' => 0, 'lines' => [], 'rates' => []];
         if ($invoice->getLignes()->isEmpty()) {
             $totals['brutHtCents'] = $totals['netBeforeGlobalCents'] = $totals['htCents'] = max(0, $invoice->getMontantHtCents());
             $totals['tvaCents'] = max(0, $invoice->getMontantTvaCents());
@@ -65,7 +92,12 @@ final class InvoiceTotals
             $totals['htCents'] += $ht;
             $totals['tvaCents'] += $vat;
             // Reimbursements are already itemized; never add them again to the total.
-            if ($line->isDebours()) $totals['deboursTtcCents'] += $ht + $vat;
+            $totals['lines'][$index] = ['htCents' => $ht, 'tvaCents' => $vat, 'globalDiscountCents' => $shares[$index]];
+            if ($line->isDebours()) {
+                $totals['deboursHtCents'] += $ht;
+                $totals['deboursTvaCents'] += $vat;
+                $totals['deboursTtcCents'] += $ht + $vat;
+            }
         }
         $totals['ttcCents'] = $totals['htCents'] + $totals['tvaCents'];
         return $totals;

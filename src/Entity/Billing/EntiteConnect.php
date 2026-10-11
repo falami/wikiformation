@@ -36,8 +36,8 @@ class EntiteConnect
     #[ORM\Column(options: ['default' => true])]
     private bool $onlinePaymentEnabled = true;
 
-    // Frais de service (plateforme) répercutés au payeur
-    // ex: 2.9% + 0.30€ => tu peux mettre 0 si tu ne veux pas
+    // Commission plateforme prélevée sur l’encaissement de l’organisme
+    // Elle ne majore jamais le montant dû par le client.
     #[ORM\Column(type: 'integer', options: ['default' => 0])]
     private int $feeFixedCents = 0;
 
@@ -92,7 +92,7 @@ class EntiteConnect
     }
 
 
-    /** Frais répercutés (service fee), calculés sur un montant TTC en cents */
+    /** Commission retenue sur l’encaissement, plafonnée au montant encaissé. */
     public function computeServiceFeeCents(int $amountCents): int
     {
         $amountCents = max(0, $amountCents);
@@ -102,7 +102,7 @@ class EntiteConnect
         // amount * (bp/10000)
         $percentFee = (int) round($amountCents * ($pct / 10000));
 
-        return max(0, $fixed + $percentFee);
+        return min($amountCents, max(0, $fixed + $percentFee));
     }
 
     public function isReadyForCheckout(): bool

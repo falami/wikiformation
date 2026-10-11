@@ -24,6 +24,6 @@ class FactureListener
             throw new \LogicException('Impossible de générer le numéro de facture : émetteur manquant.');
         }
 
-        $f->setNumero($this->generator->nextForEntite($entite->getId()));
+        $f->setNumero($this->generator->nextForEntite($entite->getId(), (int) $f->getDateEmission()->format('Y')));
     }
 }

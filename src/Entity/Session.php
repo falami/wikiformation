@@ -51,6 +51,19 @@ class Session
     #[Assert\Positive]
     private int $capacite = 8;
 
+    /** Part des heures d'enseignement dispensées à distance ; null signifie non renseigné. */
+    #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 100)]
+    private ?float $tauxDistanciel = null;
+
+    public function getTauxDistanciel(): ?float { return $this->tauxDistanciel; }
+
+    public function setTauxDistanciel(?float $tauxDistanciel): static
+    {
+        $this->tauxDistanciel = $tauxDistanciel;
+        return $this;
+    }
+
     #[ORM\Column(enumType: StatusSession::class)]
     private StatusSession $status = StatusSession::DRAFT;
 

@@ -42,14 +42,22 @@ final class TrainingWorkflowTest extends KernelTestCase
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->admin = (new Utilisateur())->setEmail('admin-workflow@example.test')->setPassword('unused')->setPrenom('Admin')->setNom('Test');
-        $this->entity = (new Entite())->setNom('Organisme test')->setEmail('of@example.test')->setPublic(false)->setCreateur($this->admin);
+        $this->entity = (new Entite())->setNom('Organisme test')->setEmail('of@example.test')->setPublic(false)->setCreateur($this->admin)
+            ->setSiret('12345678900012')->setNumeroTva('FR12345678901')->setAdresse('1 rue Organisme')->setCodePostal('75001')->setVille('Paris')->setPays('France');
+        $preferences = (new \App\Entity\EntitePreferences())->setEntite($this->entity)->setCreateur($this->admin)->setInvoicePreferences([
+            'confirmed' => true, 'dueDays' => 30, 'paymentMeans' => 'Virement', 'earlyPaymentDiscount' => 'Aucun escompte',
+            'latePaymentPenalty' => 'Taux contractuel vérifié', 'recoveryCompensationCents' => 4000,
+            'legalIdentity' => 'Identité juridique test', 'vatCategory' => 'S', 'vatOnDebits' => false,
+        ]);
+        $this->entity->setPreferences($preferences); $this->em->persist($preferences);
         foreach ([$this->admin,$this->entity] as $e) $this->em->persist($e);
         $this->em->flush(); $this->admin->setEntite($this->entity);
         $this->em->persist((new UtilisateurEntite())->setEntite($this->entity)->setUtilisateur($this->admin)->setCreateur($this->admin)->setRoles([UtilisateurEntite::TENANT_ADMIN]));
         $plan = (new Plan())->setName('Test')->setCode('WORKFLOW_TEST'); $this->em->persist($plan);
         $this->em->persist((new EntiteSubscription())->setEntite($this->entity)->setPlan($plan)->setStatus('active'));
         $f = (new Formation())->setEntite($this->entity)->setCreateur($this->admin)->setTitre('SST MAC')->setSlug('sst-test');
-        $company = (new Entreprise())->setEntite($this->entity)->setCreateur($this->admin)->setRaisonSociale('Entreprise test');
+        $company = (new Entreprise())->setEntite($this->entity)->setCreateur($this->admin)->setRaisonSociale('Entreprise test')
+            ->setSiret('98765432100012')->setAdresse('2 rue Client')->setCodePostal('69001')->setVille('Lyon')->setPays('France');
         $site = (new Site())->setEntite($this->entity)->setCreateur($this->admin)->setNom('Nîmes')->setSlug('nimes-test');
         $trainer = (new Formateur())->setEntite($this->entity)->setCreateur($this->admin)->setUtilisateur($this->admin);
         foreach ([$f,$company,$site,$trainer] as $e) $this->em->persist($e);
@@ -160,7 +168,8 @@ final class TrainingWorkflowTest extends KernelTestCase
         $w=$this->create(); $handler=self::getContainer()->get(WorkflowBilling::class);
         $task=(new WorkflowTask())->setWorkflow($w)->setAction('invoice');
         self::assertSame('blocked',$handler->handle($task)['status']);
-        $w->getConvention()->setDateSignatureEntreprise(new \DateTimeImmutable()); $this->em->flush();
+        $w->getConvention()->setDateSignatureEntreprise(new \DateTimeImmutable());
+        $w->getConvention()->getDevis()->setMeta(['invoice_terms' => ['serviceDate' => '2026-10-07']]); $this->em->flush();
         self::assertSame('done',$handler->handle($task)['status']); $id=$w->getFacture()->getId();
         self::assertSame('done',$handler->handle($task)['status']); self::assertSame($id,$w->getFacture()->getId());
         self::assertSame(1,$this->em->getRepository(Facture::class)->count([])); self::assertSame(132000,$w->getFacture()->getMontantTtcCents());
@@ -311,7 +320,8 @@ final class TrainingWorkflowTest extends KernelTestCase
 
     public function testInvoiceReminderDateKeepsNineAmParisAfterReload(): void
     {
-        $w = $this->create(); $w->getConvention()->setDateSignatureEntreprise(new \DateTimeImmutable()); $this->em->flush();
+        $w = $this->create(); $w->getConvention()->setDateSignatureEntreprise(new \DateTimeImmutable());
+        $w->getConvention()->getDevis()->setMeta(['invoice_terms' => ['serviceDate' => '2026-10-07']]); $this->em->flush();
         self::getContainer()->get(WorkflowBilling::class)->handle((new WorkflowTask())->setWorkflow($w)->setAction('invoice'));
         $w->getFacture()->setDateEmission(new \DateTimeImmutable('2027-03-10')); $this->em->flush(); $id = $w->getId(); $this->em->clear();
         $schedule = self::getContainer()->get(WorkflowPlanner::class)->schedule($this->em->find(TrainingWorkflow::class, $id));

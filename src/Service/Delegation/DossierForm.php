@@ -62,6 +62,13 @@ final class DossierForm
         if ($record instanceof Inscription) {
             $builder->add('status', EnumType::class, ['class' => StatusInscription::class, 'choices' => [StatusInscription::PREINSCRIT, StatusInscription::CONFIRME, StatusInscription::EN_COURS, StatusInscription::ANNULE, StatusInscription::ABSENT], 'choice_label' => fn($s) => $s->label(), 'label' => 'Statut']);
         }
+        if ($record instanceof Session) {
+            $builder->add('tauxDistanciel', \Symfony\Component\Form\Extension\Core\Type\NumberType::class, [
+                'label' => 'Enseignement à distance (%)', 'required' => false, 'html5' => true, 'scale' => 2,
+                'help' => '0 pour le présentiel, 100 pour le tout à distance. Cette proportion des heures est reprise sur les conventions.',
+                'attr' => ['min' => 0, 'max' => 100, 'step' => '0.01', 'placeholder' => 'Non renseigné'],
+            ]);
+        }
         if ($new && $record instanceof Session) {
             $builder->add('start', DateTimeType::class, ['mapped' => false, 'label' => 'Début du premier créneau', 'widget' => 'single_text', 'input' => 'datetime_immutable', 'constraints' => [new Assert\NotNull()]])->add('end', DateTimeType::class, ['mapped' => false, 'label' => 'Fin du premier créneau', 'widget' => 'single_text', 'input' => 'datetime_immutable', 'constraints' => [new Assert\NotNull()]]);
         }

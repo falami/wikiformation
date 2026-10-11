@@ -41,14 +41,15 @@ final class PedagogicalDurationDocumentsTest extends KernelTestCase
         self::assertStringNotContainsString('25,50', $html);
         $html = $twig->render('pdf/convocation.html.twig', ['session' => $session, 'entite' => $entite, 'stagiaire' => $user]);
         self::assertStringContainsString('21,00 heures de formation, hors pauses', $html);
-        $inscription = (new Inscription())->setSession($session)->setStagiaire($user);
+        $inscription = (new Inscription())->setSession($session)->setStagiaire($user)->setStatus(\App\Enum\StatusInscription::TERMINE);
+        foreach ($session->getJours() as $day) foreach (['AM', 'PM'] as $period) $inscription->enregistrerPresenceManuelle($day->getDateDebut()->format('Y-m-d').':'.$period, 'paper', 'Feuille test', $user);
         $data = ['inscription' => $inscription, 'session' => $session, 'entite' => $entite, 'stagiaire' => $user];
         $html = $twig->render('pdf/attestation.html.twig', $data);
         self::assertStringContainsString('21,00 h', $html);
         $attestation = (new Attestation())->setNumero('ATT-HOURS')->setDureeHeures(3.5)->setDateDelivrance(new \DateTimeImmutable())->setReussi(true);
         $html = $twig->render('pdf/attestation.html.twig', $data + ['attestation' => $attestation]);
-        self::assertStringContainsString('3,50 h', $html);
-        self::assertStringNotContainsString('21,00 h', $html);
+        self::assertStringNotContainsString('3,50 h', $html);
+        self::assertStringContainsString('21,00 h', $html); // Seules les présences justifiées déterminent le certificat.
         $convention->setDureeFormation('Durée adaptée : 18 heures');
         self::assertSame('Durée adaptée : 18 heures', $convention->getDureeFormationEffective());
     }
@@ -64,6 +65,16 @@ final class PedagogicalDurationDocumentsTest extends KernelTestCase
         // Un même créneau historique peut franchir le changement d’année.
         $session->addJour($this->slot('2025-12-31 08:30', '2026-01-01 17:00'));
         foreach ($session->getJours() as $jour) $jour->setCreateur($user)->setEntite($entite);
+        $em->flush();
+        // Le BPF rapproche uniquement les créneaux passés et les inscriptions confirmées.
+        $session->setStatus(\App\Enum\StatusSession::DONE);
+        $inscription->setStatus(\App\Enum\StatusInscription::CONFIRME);
+        foreach ($session->getJours() as $jour) {
+            if ($jour->getDateDebut()->format('m') === '10') {
+                $jour->setDateDebut($jour->getDateDebut()->modify('-1 month'));
+                $jour->setDateFin($jour->getDateFin()->modify('-1 month'));
+            }
+        }
         $em->flush();
         $bpf = self::getContainer()->get(BpfCalculator::class)->computeForYear($entite, 2026);
         self::assertSame(1, $bpf['nbSessions']);
@@ -89,7 +100,8 @@ final class PedagogicalDurationDocumentsTest extends KernelTestCase
         self::assertStringNotContainsString('Pause : 150 min', $html);
         $html = $twig->render('pdf/convocation.html.twig', ['session' => $session, 'entite' => $entite, 'stagiaire' => $user]);
         self::assertStringContainsString('24,00 heures de formation, hors pauses', $html);
-        $inscription = (new Inscription())->setSession($session)->setStagiaire($user);
+        $inscription = (new Inscription())->setSession($session)->setStagiaire($user)->setStatus(\App\Enum\StatusInscription::TERMINE);
+        foreach ($session->getJours() as $day) foreach (['AM', 'PM'] as $period) $inscription->enregistrerPresenceManuelle($day->getDateDebut()->format('Y-m-d').':'.$period, 'paper', 'Feuille test', $user);
         $html = $twig->render('pdf/attestation.html.twig', ['inscription' => $inscription, 'session' => $session, 'entite' => $entite, 'stagiaire' => $user]);
         self::assertStringContainsString('24,00 h', $html);
         $trainer = (new Formateur())->setUtilisateur($user)->setEntite($entite);
@@ -108,7 +120,7 @@ final class PedagogicalDurationDocumentsTest extends KernelTestCase
         $formation = (new Formation())->setEntite($entite)->setCreateur($user)->setTitre('Formation test')->setDuree(99)->setSlug('formation-duree');
         $site = (new Site())->setEntite($entite)->setCreateur($user)->setNom('Salle durée')->setSlug('salle-duree');
         $session = (new Session())->setEntite($entite)->setCreateur($user)->setFormation($formation)->setSite($site)->setCode('SES-HOURS');
-        foreach (['07', '08', '09'] as $day) $session->addJour($this->slot("2026-10-$day 08:30", "2026-10-$day 17:00"));
+        foreach (['07', '08', '09'] as $day) $session->addJour($this->slot("2026-09-$day 08:30", "2026-09-$day 17:00"));
         return [$session, $user, $entite, $formation, $site];
     }
 

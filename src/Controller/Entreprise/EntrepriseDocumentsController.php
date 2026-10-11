@@ -1095,7 +1095,7 @@ final class EntrepriseDocumentsController extends AbstractController
   // PDF Convention/Contrat sécurisé (proxy)
   // ==========================================================
   #[Route('/convention/{id}/pdf', name: 'convention_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
-  public function conventionPdf(Entite $entite, ConventionContrat $cc, EM $em, \App\Service\Convention\ConventionDocument $document): Response
+  public function conventionPdf(Entite $entite, ConventionContrat $cc, EM $em, Request $request, \App\Service\Convention\ConventionPortalSignature $signatures): Response
   {
     $entreprise = $this->getEntrepriseUserOrFail();
 
@@ -1116,7 +1116,7 @@ final class EntrepriseDocumentsController extends AbstractController
     }
     if (!$allowed) throw $this->createAccessDeniedException();
 
-    return $document->response($cc);
+    return $signatures->preview($cc, $request);
   }
 
   // ==========================================================

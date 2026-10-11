@@ -156,21 +156,21 @@ final class FinanceNavigationTest extends KernelTestCase
         }
     }
 
-    public function testUnimplementedRolePortalsHaveASafeLandingAndInactiveMembershipCannotSwitch(): void
+    public function testRolePortalsHaveTheirOwnLandingAndInactiveMembershipCannotSwitch(): void
     {
         $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur' => $this->admin]);
         $home = self::getContainer()->get(\App\Security\MembershipHomeRoute::class);
         $request = new \Symfony\Component\HttpFoundation\Request();
         $request->setSession(new \Symfony\Component\HttpFoundation\Session\Session(new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage()));
-        foreach ([UtilisateurEntite::TENANT_OPCO, UtilisateurEntite::TENANT_COMMERCIAL] as $role) {
+        foreach ([UtilisateurEntite::TENANT_OPCO => 'app_opco_dashboard', UtilisateurEntite::TENANT_COMMERCIAL => 'app_commercial_dashboard'] as $role => $route) {
             $membership->setRoles([$role]);
             $this->em->flush();
-            self::assertNull($home->forMembership($membership));
+            self::assertSame($route, $home->forMembership($membership));
             $response = self::getContainer()->get(\App\Security\RedirectAfterLogin::class)->redirect($request, $this->admin);
-            self::assertSame(self::getContainer()->get('router')->generate('app_workspace'), $response->getTargetUrl());
+            self::assertSame(self::getContainer()->get('router')->generate($route, ['entite' => $this->entite->getId()]), $response->getTargetUrl());
         }
         $membership->setRoles([UtilisateurEntite::TENANT_COMMERCIAL, UtilisateurEntite::TENANT_FORMATEUR]);
-        self::assertSame('app_formateur_dashboard', $home->forMembership($membership));
+        self::assertSame('app_commercial_dashboard', $home->forMembership($membership));
         $membership->setRoles(['TENANT_ADMIN']);
         $this->em->flush();
         $client = $this->client();

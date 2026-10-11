@@ -229,6 +229,11 @@ final class DevisType extends AbstractType
             ])
         ;
 
+        $b->add('invoiceTerms', InvoiceTermsType::class, ['label' => false, 'mapped' => false, 'data' => array_replace(\App\Service\Billing\InvoicePreferences::defaults($b->getData()?->getEntite()), $b->getData()?->getMeta()['invoice_terms'] ?? [])]);
+        $b->addEventListener(\Symfony\Component\Form\FormEvents::POST_SUBMIT, static function (\Symfony\Component\Form\FormEvent $event): void {
+            $quote = $event->getData();
+            if ($quote instanceof Devis) $quote->setMeta(array_replace($quote->getMeta() ?? [], ['invoice_terms' => $event->getForm()->get('invoiceTerms')->getData() ?? []]));
+        });
         $b->get('dateEmission')->addModelTransformer($this->dateFr);
         $b->get('dateValidite')->addModelTransformer($this->dateFr);
         $b->addEventListener(\Symfony\Component\Form\FormEvents::PRE_SET_DATA, static function (\Symfony\Component\Form\FormEvent $event): void {

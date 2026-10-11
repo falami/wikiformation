@@ -27,9 +27,13 @@ class AssiduiteCalculator
     {
         $signed = [];
         foreach ($this->em->getRepository(Emargement::class)->findBy([
-            'session' => $inscription->getSession(), 'utilisateur' => $inscription->getStagiaire(), 'entite' => $inscription->getEntite(),
+            'session' => $inscription->getSession(), 'entite' => $inscription->getEntite(),
         ]) as $e) {
             if (in_array($e->getRole(), ['trainer', 'formateur'], true)) continue;
+            $linked = $e->getParticipantAccess()?->getInscription();
+            $sameUser = $e->getUtilisateur() && $e->getUtilisateur()->getId() === $inscription->getStagiaire()?->getId();
+            $sameInscription = $linked && $linked->getId() === $inscription->getId();
+            if (!$sameUser && !$sameInscription) continue;
             if ($e->getSignedAt() || $e->getSignaturePath() || $e->getSignatureDataUrl()) {
                 $signed[$e->getDateJour()->format('Y-m-d').':'.$e->getPeriode()->value] = true;
             }

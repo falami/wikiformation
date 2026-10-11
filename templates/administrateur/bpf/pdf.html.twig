@@ -1,113 +1,37 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <style>
-    body{ font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color:#111; }
-    h1{ font-size: 16px; margin: 0 0 6px 0; }
-    h2{ font-size: 13px; margin: 14px 0 6px 0; }
-    .muted{ color:#666; }
-    .kpi{ width:100%; border-collapse: collapse; margin-top:10px; }
-    .kpi td{ padding:6px 8px; border:1px solid #ddd; }
-    table{ width:100%; border-collapse: collapse; margin-top:6px; }
-    th, td{ border:1px solid #ddd; padding:6px 8px; }
-    th{ background:#f2f2f2; }
-    .right{ text-align:right; }
-  </style>
-</head>
-<body>
-
-  <h1>Bilan Pédagogique & Financier (BPF) — {{ year }}</h1>
-  <div class="muted">
-    Exercice : {{ bpf.start|date('d/m/Y') }} → {{ bpf.end|date('d/m/Y') }}
-  </div>
-
-  <table class="kpi">
-    <tr>
-      <td><b>Sessions réalisées</b><br>{{ bpf.nbSessions }}</td>
-      <td><b>Heures de formation</b><br>{{ bpf.heuresFormation|number_format(2, ',', ' ') }}</td>
-      <td><b>Heures-stagiaires</b><br>{{ bpf.heuresStagiaires|number_format(2, ',', ' ') }}</td>
-    </tr>
-    <tr>
-      <td><b>Stagiaires distincts</b><br>{{ bpf.nbStagiaires }}</td>
-      <td><b>Inscriptions</b><br>{{ bpf.nbInscriptions }}</td>
-      <td><b>Produits TTC facturés</b><br>{{ (bpf.produits.ttcCents / 100)|number_format(2, ',', ' ') }} €</td>
-    </tr>
-  </table>
-
-  <h2>Activité par formation</h2>
-  {% if bpf.formations is empty %}
-    <div class="muted">Néant sur l’exercice.</div>
-  {% else %}
-    <table>
-      <thead>
-        <tr>
-          <th>Formation</th>
-          <th class="right">Sessions</th>
-          <th class="right">Heures</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in bpf.formations %}
-          <tr>
-            <td><b>{{ f.titre }}</b></td>
-            <td class="right">{{ f.sessions }}</td>
-            <td class="right">{{ f.heures|number_format(2, ',', ' ') }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% endif %}
-
-  <h2>Financements (répartition)</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Catégorie</th>
-        <th class="right">Stagiaires</th>
-        <th class="right">Heures-stagiaires</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for k, v in bpf.financement %}
-        <tr>
-          <td>{{ k }}</td>
-          <td class="right">{{ v.stagiaires }}</td>
-          <td class="right">{{ v.heuresStagiaires|number_format(2, ',', ' ') }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <h2>Bilan financier (extrait)</h2>
-  <table>
-    <tbody>
-      <tr>
-        <td>Produits HT</td>
-        <td class="right">{{ (bpf.produits.htCents / 100)|number_format(2, ',', ' ') }} €</td>
-      </tr>
-      <tr>
-        <td>TVA</td>
-        <td class="right">{{ (bpf.produits.tvaCents / 100)|number_format(2, ',', ' ') }} €</td>
-      </tr>
-      <tr>
-        <td><b>Produits TTC</b></td>
-        <td class="right"><b>{{ (bpf.produits.ttcCents / 100)|number_format(2, ',', ' ') }} €</b></td>
-      </tr>
-      <tr>
-        <td>Encaissements</td>
-        <td class="right">{{ (bpf.produits.encaissementsCents / 100)|number_format(2, ',', ' ') }} €</td>
-      </tr>
-      <tr>
-        <td>Charges formateurs (contrats)</td>
-        <td class="right">{{ (bpf.charges.formateursCents / 100)|number_format(2, ',', ' ') }} €</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="muted" style="margin-top:10px;">
-    Document interne d’aide à la saisie BPF (DREETS). Les rubriques officielles peuvent demander des ventilations supplémentaires selon ton activité.
-  </div>
-
-</body>
-</html>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
+@page{margin:30px 34px 40px}body{font-family:DejaVu Sans,sans-serif;font-size:9px;color:#203647}h1{font-size:21px;margin:6px 0 10px}h2{font-size:12px;margin:15px 0 5px}.eyebrow{font-size:8px;letter-spacing:1px;color:#79612e;text-transform:uppercase}.meta{color:#526679;font-size:9px}.notice{border-left:3px solid #d9b760;background:#faf6ed;padding:10px;margin:12px 0}.section{margin-top:12px}table{width:100%;border-collapse:collapse;table-layout:fixed}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border-bottom:1px solid #dfe5eb;padding:5px 6px;vertical-align:top;word-wrap:break-word}thead th{background:#edf2f6;color:#526679;font-size:8px;text-align:left}td.value{text-align:right;width:25%;font-weight:bold}td.label{width:75%}.total{background:#edf2f6;font-weight:bold}.muted{color:#687c8e}.page{page-break-after:always}.page:last-child{page-break-after:auto}.footer{position:fixed;bottom:-25px;left:0;right:0;font-size:7px;color:#687c8e;border-top:1px solid #dde3e9;padding-top:6px}.pagenum:before{content:counter(page)}.notes{white-space:pre-wrap;word-wrap:break-word}a{color:#203647}.small{font-size:8px}
+</style></head><body><div class="footer">{{ entite.nom }} · Préparation interne BPF · Non transmis · Version {{ draft.version }} <span style="float:right">Page <span class="pagenum"></span></span></div>
+{% for group in [['A','B'], ['C','D'], ['E','F1','F2'], ['F3','F4'], ['G','H']] %}
+<div class="page">
+  <div class="eyebrow">{{ entite.nom }} · Exercice {{ start|date('d/m/Y') }} au {{ end|date('d/m/Y') }}</div>
+  <h1>{{ loop.first ? 'Préparation du BPF' : 'Bilan pédagogique et financier' }}</h1>
+  <div class="meta">Structure du Cerfa 10443*17 · Notice 50199#17 · Enregistré le {{ draft.updatedAt|date('d/m/Y à H:i', 'Europe/Paris') }}</div>
+  {% if loop.first %}<div class="notice"><strong>Document de travail - ne vaut ni Cerfa signé, ni preuve de dépôt.</strong><br>Reportez les données vérifiées dans Mon Activité Formation. Les valeurs ci-dessous sont celles enregistrées par votre organisme. Une case « Non renseigné » n’est pas un zéro.</div>{% endif %}
+  {% for code in group %}{% set section = attribute(sections, code) %}
+    <div class="section"><h2>{{ code }} · {{ section.title }}</h2><p class="muted small">{{ section.help }}</p>
+      {% if code in data._generated.incompleteSections|default([]) %}<div class="notice"><strong>Préremplissage partiel.</strong> Des données ou classifications restent à compléter pour ce cadre. Vérifiez les contrôles et justificatifs avant toute déclaration.</div>{% endif %}
+      {% if code == 'B' %}<p><strong>Exercice comptable :</strong> {{ start|date('d/m/Y') }} au {{ end|date('d/m/Y') }}</p>{% endif %}
+      <table>
+      {% if section.rows is defined %}
+        <thead><tr><th style="width:62%">Catégorie</th><th style="width:18%">{{ code == 'E' ? 'Personnes' : 'Stagiaires / apprentis' }}</th><th style="width:20%">{{ code == 'E' ? 'Heures dispensées' : 'Heures suivies' }}</th></tr></thead><tbody>
+        {% for key, label in section.rows %}<tr><td>{{ label }}{% if code == 'F4' and key != 'f4_other' %}<br><span class="muted">{{ data[key ~ '_code'] ?? '—' }} · {{ data[key ~ '_label'] ?? '—' }}</span>{% endif %}</td><td class="value">{{ data[key ~ '_count'] ?? 'Non renseigné' }}</td><td class="value">{{ data[key ~ '_hours'] ?? 'Non renseigné' }}</td></tr>{% endfor %}
+        {% if code in ['F1','F3','F4'] %}<tr class="total"><td>Total {{ code }}</td><td class="value">{{ totals[code|lower ~ '_count'] ?? 'À compléter' }}</td><td class="value">{{ totals[code|lower ~ '_hours'] ?? 'À compléter' }}</td></tr>{% endif %}
+        </tbody>
+      {% else %}<tbody>{% for key, spec in section.fields %}{% set value = data[key] ?? null %}<tr><td class="label">{{ spec[0] }}</td><td class="value">{% if value is null or value is same as('') %}Non renseigné{% elseif spec[1] == 'yesno' %}{{ value == 'yes' ? 'Oui' : 'Non' }}{% elseif spec[1] == 'money' %}{{ value|number_format(0, ',', ' ') }} €{% elseif spec[1] == 'date' %}{{ value|date('d/m/Y') }}{% else %}{{ value }}{% endif %}</td></tr>{% endfor %}</tbody>{% endif %}
+      {% if code == 'C' %}<tbody><tr class="total"><td>Total ligne 2 · Organismes gestionnaires</td><td class="value">{{ totals.c_2 ?? 'À compléter' }} € HT</td></tr><tr class="total"><td>Total des produits · Lignes 1 à 11</td><td class="value">{{ totals.c_total ?? 'À compléter' }} € HT</td></tr></tbody>{% endif %}
+      </table>
+    </div>
+  {% endfor %}
+  {% if loop.first %}<h2>Contrôles de préparation</h2>{% if issues %}<ul>{% for issue in issues %}<li>{{ issue }}</li>{% endfor %}</ul>{% else %}<p>Champs renseignés et contrôles arithmétiques satisfaits. Les justificatifs restent à vérifier avant le dépôt.</p>{% endif %}<h2>Références officielles</h2><p><a href="https://www.formulaires.service-public.fr/gf/cerfa_10443.do">Cerfa 10443*17</a> · <a href="https://www.formulaires.service-public.fr/gf/getNotice.do?cerfaNotice=50199&amp;cerfaFormulaire=10443">Notice 50199#17</a><br><a href="https://www.monactiviteformation.emploi.gouv.fr/mon-activite-formation/">Mon Activité Formation</a><br>Références vérifiées le 08/10/2026. Consultez les consignes de la campagne au moment du dépôt.</p>{% endif %}
+  {% if loop.last %}<h2>Notes de rapprochement</h2><div class="notes">{{ data.notes|default('Aucune note enregistrée.', true) }}</div>{% endif %}
+</div>
+{% endfor %}
+{% if data._generated.evidence|default([]) or data._generated.classifications|default([]) %}
+<div class="page">
+  <div class="eyebrow">{{ entite.nom }} · Justificatifs du calcul enregistré</div><h1>Annexe de rapprochement</h1>
+  <p class="meta">Calcul du {{ data._generated.at|date('d/m/Y à H:i', 'Europe/Paris') }} · Exercice {{ start|date('d/m/Y') }} au {{ end|date('d/m/Y') }}.<br>Les corrections manuelles éventuelles sont celles des cadres précédents. Cette liste décrit le préremplissage au moment de sa génération.</p>
+  {% if data._generated.evidence|default([]) %}<h2>Pièces et présences prises en compte</h2><table><thead><tr><th style="width:15%">Source</th><th style="width:35%">Référence</th><th>Montant / activité retenue</th></tr></thead><tbody>{% for item in data._generated.evidence %}<tr><td>{{ item.kind }}</td><td>{{ item.label }}</td><td>{{ item.detail }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+  {% if data._generated.classifications|default([]) %}<h2>Correspondances enregistrées</h2><table><thead><tr><th>Élément</th><th>Classification</th></tr></thead><tbody>{% for item in data._generated.classifications %}<tr><td>{{ item.label }}</td><td>{{ item.value }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+</div>
+{% endif %}
+</body></html>

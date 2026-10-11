@@ -45,10 +45,11 @@ final class UtilisateurFactureController extends AbstractController
       throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
     }
 
-    // ✅ Adapte selon ton modèle : facture->getUtilisateur() / getDestinataireUser() etc.
-    if (method_exists($facture, 'getUtilisateur') && $facture->getDestinataire()?->getId() !== $u->getId()) {
-      throw $this->createAccessDeniedException('Cette facture n’est pas rattachée à cet utilisateur.');
+    if ($facture->getDestinataire()?->getId() === $u->getId()) return;
+    foreach ($facture->getInscriptions() as $inscription) {
+      if ($inscription->getEntite()?->getId() === $entite->getId() && $inscription->getStagiaire()?->getId() === $u->getId()) return;
     }
+    throw $this->createAccessDeniedException('Cette facture n’est pas rattachée à cet utilisateur.');
   }
 
   private function idemKey(): string
@@ -72,6 +73,7 @@ final class UtilisateurFactureController extends AbstractController
       'entite'   => $entite,
       'u'        => $u,
       'docType'  => 'facture',
+      'csrfTokenId' => 'user_facture_send_' . $u->getId() . '_' . $facture->getId(),
       'docId'    => $facture->getId(),
       'docLabel' => 'Facture',
       'docNumber' => $facture->getNumero() ?: ('#' . $facture->getId()),
@@ -130,6 +132,12 @@ final class UtilisateurFactureController extends AbstractController
   {
     $this->guardEntite($entite, $u);
     $this->assertFactureForUser($entite, $u, $facture);
+    if (!$this->isCsrfTokenValid('user_facture_send_' . $u->getId() . '_' . $facture->getId(), (string) $request->request->get('_token'))) {
+      return $this->json(['ok' => false, 'error' => 'La session du formulaire a expiré. Rouvrez le formulaire.'], 403);
+    }
+    if ($facture->isCanceled()) {
+      return $this->json(['ok' => false, 'error' => 'Une facture annulée ne peut pas être envoyée.'], 409);
+    }
     /** @var Utilisateur $user */
     $user = $this->getUser();
 

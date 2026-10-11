@@ -48,6 +48,7 @@ final class WorkflowActionHandlerTest extends TestCase
             $twig, $router, new WorkflowPortal($router, 'test-secret'), $this->numbers, new \App\Service\Automation\WorkflowCertificateStorage(sys_get_temp_dir() . '/no-workflow-certificates-test'), new \App\Service\Qcm\QcmAssigner($this->em));
 
         $entity = $this->id((new Entite())->setNom('Organisme test')->setEmail('of@example.test'), 1);
+        $entity->setPreferences((new \App\Entity\EntitePreferences())->setSignatureOrganismeNom('Responsable test')->setSignatureOrganismePath('signature-test.png'));
         $user = $this->id((new Utilisateur())->setEmail('learner@example.test')->setNom('Test')->setPrenom('Camille'), 3);
         $formation = $this->id((new Formation())->setEntite($entity)->setTitre('Formation test'), 4);
         $session = $this->id((new Session())->setEntite($entity)->setFormation($formation), 5);
@@ -56,6 +57,7 @@ final class WorkflowActionHandlerTest extends TestCase
         $convention = $this->id((new ConventionContrat())->setEntite($entity)->setSession($session), 6);
         $this->inscription = $this->id((new Inscription())->setEntite($entity)->setSession($session)->setStagiaire($user), 7);
         $convention->addInscription($this->inscription);
+        foreach (['AM', 'PM'] as $period) $this->inscription->enregistrerPresenceManuelle('2025-01-01:'.$period, 'paper', 'Feuille test', $user);
         $this->workflow = $this->id((new TrainingWorkflow())->setEntite($entity)->setSession($session)->setConvention($convention)
             ->setCreateur($user)->setContactEmail('client@example.test'), 8);
     }
@@ -86,13 +88,31 @@ final class WorkflowActionHandlerTest extends TestCase
     public function testIssuingAttestationPreservesFailureAndUsesNetAttendanceHours(): void
     {
         $this->inscription->setStatus(StatusInscription::TERMINE)->setTauxAssiduite(50);
-        $this->em->expects(self::once())->method('persist')->with(self::callback(static fn($a) => $a instanceof Attestation && !$a->isReussi() && $a->getDureeHeures() === 3.5));
+        $this->em->expects(self::once())->method('persist')->with(self::callback(static fn($a) => $a instanceof Attestation && !$a->isReussi() && $a->getDureeHeures() === 7.0));
         $this->transport->expects(self::once())->method('send');
         $result = $this->handler->handle($this->task('attestation'));
         self::assertSame('sent', $result['status']);
         self::assertFalse($this->inscription->getAttestation()->isReussi());
         self::assertFalse($this->inscription->isReussi());
         self::assertSame(hash('sha256', '%PDF-1.4 test'), $result['snapshot']['sha256']);
+    }
+
+    public function testStoredAttendancePercentageCannotReplaceMissingProof(): void
+    {
+        $this->inscription->setStatus(StatusInscription::TERMINE)->setTauxAssiduite(100);
+        $this->inscription->enregistrerPresenceManuelle('2025-01-01:PM', 'unknown', '', $this->workflow->getCreateur());
+        $this->transport->expects(self::never())->method('send');
+        $this->em->expects(self::never())->method('persist');
+        self::assertSame('blocked', $this->handler->handle($this->task('attestation'))['status']);
+    }
+
+    public function testAutomaticCertificateRequiresTheOrganismSignatory(): void
+    {
+        $this->inscription->setStatus(StatusInscription::TERMINE)->setTauxAssiduite(100);
+        $this->workflow->getEntite()->getPreferences()->setSignatureOrganismePath(null);
+        $this->transport->expects(self::never())->method('send');
+        $this->em->expects(self::never())->method('persist');
+        self::assertSame('blocked', $this->handler->handle($this->task('attestation'))['status']);
     }
 
     public function testExistingAttestationIsNeverReissuedOrChanged(): void

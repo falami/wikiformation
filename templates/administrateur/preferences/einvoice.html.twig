@@ -1,0 +1,58 @@
+{% extends 'administrateur/preferences/formateurs_contrat.html.twig' %}
+{% block title %}Facturation électronique · {{ entite.nom }}{% endblock %}
+{% block body %}
+{% set section = 'einvoice' %}
+<div class="preferences">
+  <header class="pref-hero"><div class="eyebrow">{{ entite.nom }} · Préférences</div><h1>Vos factures, transmises et suivies.</h1><p>Connectez votre organisme à SUPER PDP pour automatiser les transmissions éligibles et retrouver vos factures reçues.</p></header>
+  {% include 'flagMessage.html.twig' %}
+  <div class="pref-layout">{% include 'account/_navigation.html.twig' %}<main class="min-w-0">
+    <div class="d-flex flex-wrap gap-2 mb-4" role="navigation" aria-label="Environnement de connexion">
+      {% for key, label in {'production':'Production','sandbox':'Espace de test'} %}<a class="btn rounded-pill {{ mode == key ? 'btn-dark' : 'btn-outline-secondary' }}" href="{{ path('app_administrateur_einvoice', {entite:entite.id,mode:key}) }}" {% if mode == key %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+    </div>
+    <section class="pref-panel mb-4">
+      <div class="d-flex align-items-start justify-content-between gap-3 mb-3"><div><div class="text-muted small text-uppercase mb-2">Connexion de l’organisme</div><h2 class="h4 mb-1">{{ connection and connection.verified ? connection.companyName : entite.nom }}</h2><p class="text-muted mb-0">{{ mode == 'sandbox' ? 'Compte fictif, réservé à la recette technique.' : 'Identification par le SIREN de votre organisme.' }}</p></div><span class="badge rounded-pill {{ connection and connection.verified ? 'text-bg-success' : 'text-bg-light border' }} p-2">{{ connection and connection.verified ? 'Connecté' : 'À connecter' }}</span></div>
+      {% if not configured %}<div class="alert alert-light border rounded-3">Le raccordement API doit être configuré avant la connexion de votre organisme. Vos factures restent accessibles dans WikiFormation.</div>{% endif %}
+      {% if connection and connection.lastError %}<div class="alert alert-warning">{{ connection.lastError }}</div>{% endif %}
+      <div class="d-flex flex-wrap align-items-center gap-3">
+        <form method="post" action="{{ path('app_administrateur_einvoice_connect', {entite:entite.id}) }}" data-turbo="false"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="_token" value="{{ csrf_token('einvoice-connect-' ~ entite.id ~ '-' ~ mode) }}"><button class="btn btn-dark rounded-3 px-4" {{ not configured ? 'disabled' : '' }}><i class="bi bi-link-45deg me-2" aria-hidden="true"></i>{{ connection and connection.verified ? 'Renouveler la connexion' : 'Connecter mon organisme' }}</button></form>
+        {% if connection and connection.verified %}<form method="post" action="{{ path('app_administrateur_einvoice_disconnect', {entite:entite.id}) }}" data-turbo="false"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="_token" value="{{ csrf_token('einvoice-disconnect-' ~ entite.id ~ '-' ~ mode) }}"><button class="btn btn-outline-secondary rounded-3">Déconnecter</button></form>{% endif %}
+      </div>
+      {% if connection and connection.lastSyncAt %}<p class="small text-muted mt-3 mb-0">Dernière synchronisation : {{ connection.lastSyncAt|date('d/m/Y à H:i') }}</p>{% endif %}
+    </section>
+    {% if mode == 'production' %}
+    <section class="pref-panel mb-4">
+      <div class="d-flex justify-content-between gap-3 mb-3"><h2 class="h4">Transmission automatique</h2><span class="badge rounded-pill p-2 {{ connection and connection.automatic ? 'text-bg-success' : 'text-bg-light border' }}">{{ connection and connection.automatic ? 'Activée' : 'Désactivée' }}</span></div>
+      <p>Les nouvelles factures éligibles sont contrôlées puis transmises sans ressaisie. Les pièces incomplètes apparaissent dans le suivi avec les informations à corriger.</p>
+      <div class="rounded-3 border p-3 mb-3 bg-light"><strong>{{ (usage.unitPriceCents / 100)|number_format(2, ',', ' ') }} € HT par facture transmise</strong><p class="small text-muted mb-0 mt-1">Facturation à l’usage, ajoutée à votre abonnement. Chaque facture prise en charge par la plateforme est comptée une seule fois, même si elle est rejetée lors d’un contrôle ultérieur. Les essais et les factures bloquées avant transmission ne sont pas facturés. Aucun quota inclus.</p></div>
+      <div class="d-flex justify-content-between align-items-center border rounded-3 p-3 mb-3"><div><strong>{{ usage.quantity }} facture{{ usage.quantity != 1 ? 's' : '' }}</strong><div class="small text-muted">Consommation de {{ usage.period }}</div></div><strong class="fs-4">{{ (usage.amountCents / 100)|number_format(2, ',', ' ') }} € <small class="fs-6 text-muted">HT</small></strong></div>
+      {% if connection and connection.verified %}
+      <form method="post" action="{{ path('app_administrateur_einvoice_automatic', {entite:entite.id}) }}" data-turbo="false">
+        <input type="hidden" name="mode" value="production"><input type="hidden" name="_token" value="{{ csrf_token('einvoice-automatic-' ~ entite.id ~ '-production') }}"><input type="hidden" name="enable" value="{{ connection.automatic ? '0' : '1' }}">
+        {% if not connection.automatic %}<div class="form-check mb-3"><input class="form-check-input" id="accept-einvoice-price" type="checkbox" name="accept_price" value="1" required><label class="form-check-label" for="accept-einvoice-price">J’accepte le tarif de {{ (usage.unitPriceCents / 100)|number_format(2, ',', ' ') }} € HT par facture transmise, en supplément de l’abonnement de {{ entite.nom }}.</label></div>{% endif %}
+        <button class="btn {{ connection.automatic ? 'btn-outline-secondary' : 'btn-dark' }} rounded-3 px-4" {% if not connection.automatic and not is_granted('ENTITE_BILLING_MANAGE', entite) %}disabled{% endif %}>{{ connection.automatic ? 'Désactiver les envois automatiques' : 'Accepter et activer' }}</button>
+      </form>
+      {% else %}<p class="text-muted mb-0">Connectez d’abord votre organisme. L’activation nécessite un abonnement Stripe actif et un accès à sa gestion.</p>{% endif %}
+    </section>
+    {% endif %}
+    <section class="pref-panel mb-4">
+      <h2 class="h4 mb-3">Périmètre du connecteur</h2>
+      <p>Transmission des factures en euros entre entreprises établies en France, avec TVA, après activation. Les anciennes factures ne sont pas envoyées automatiquement.</p>
+      <p class="text-muted mb-3">Les avoirs, les opérations exonérées, les clients particuliers, l’international, le secteur public et les déclarations d’encaissement nécessitent encore leur traitement dans la plateforme agréée. Le suivi d’une transmission ne constitue pas une déclaration fiscale ni une preuve de paiement.</p>
+      <a class="btn btn-outline-secondary rounded-3" href="{{ path('app_administrateur_preferences_facturation', {entite:entite.id}) }}">Vérifier les mentions de mes factures <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i></a>
+    </section>
+    <section class="pref-panel mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h4 mb-0">Suivi des transmissions</h2><span class="small text-muted">50 dernières</span></div>
+      {% set statuses = {'queued':'À transmettre','blocked':'À compléter','submitting':'Transmission en cours','submitted':'Prise en charge','uncertain':'À rapprocher','rejected':'Refus technique'} %}
+      {% for item in transmissions %}<article class="border rounded-3 p-3 mb-3"><div class="d-flex flex-wrap justify-content-between gap-2"><strong>{{ item.facture.numero }}</strong><span class="badge text-bg-light border">{{ statuses[item.status]|default(item.status) }}</span></div><p class="small text-muted mt-2 mb-0">{{ item.createdAt|date('d/m/Y H:i') }}{% if item.providerId %} · Référence plateforme {{ item.providerId }}{% endif %}</p>
+        {% if item.issues %}<ul class="small mt-2 mb-0">{% for issue in item.issues %}<li>{{ issue }}</li>{% endfor %}</ul>{% endif %}
+        {% if item.events %}<details class="small mt-2"><summary>Historique de la plateforme</summary><ul class="mt-2 mb-0">{% for event in item.events %}<li>{{ event.created_at }} · {{ event.status_code }}</li>{% endfor %}</ul></details>{% endif %}
+      </article>{% else %}<div class="text-center py-4 text-muted"><i class="bi bi-send fs-2 d-block mb-2" aria-hidden="true"></i>Aucune transmission pour cet environnement.</div>{% endfor %}
+    </section>
+    <section class="pref-panel">
+      <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h4 mb-0">Factures reçues</h2><span class="small text-muted">50 dernières</span></div>
+      {% for item in received %}<div class="d-flex justify-content-between align-items-center gap-3 border-bottom py-3"><div><strong>Facture {{ item.summary.number|default(item.providerId) }}</strong><div class="small text-muted">Reçue le {{ item.receivedAt|date('d/m/Y H:i') }}</div></div><a class="btn btn-sm btn-outline-secondary rounded-3" href="{{ path('app_administrateur_einvoice_download', {entite:entite.id,id:item.id}) }}">Télécharger <i class="bi bi-download ms-2" aria-hidden="true"></i></a></div>{% else %}<p class="text-muted py-3 mb-0">Les factures reçues apparaîtront après synchronisation.</p>{% endfor %}
+    </section>
+  </main></div>
+</div>
+{% endblock %}
+{% block javascripts_bottom %}{% endblock %}

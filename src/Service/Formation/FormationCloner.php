@@ -32,6 +32,7 @@ final class FormationCloner
       ->setPrixBaseCents($src->getPrixBaseCents())
       ->setPrixReduitCents($src->getPrixReduitCents())
       ->setCodeQualiopi($src->getCodeQualiopi())
+      ->setPublicInformation($src->getPublicInformation())
       ->setConditionPrealable($src->getConditionPrealable())
       ->setPedagogie($src->getPedagogie())
       ->setObjectifs($src->getObjectifs())

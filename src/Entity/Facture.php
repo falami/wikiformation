@@ -680,8 +680,18 @@ class Facture
     }
 
 
+    /** Monetary snapshot for invoices issued by the shared calculator. Legacy invoices stay unchanged. */
+    public function getIssuedTotals(): ?array
+    {
+        $snapshot = $this->meta['invoice_totals'] ?? null;
+        return ($snapshot['version'] ?? null) === 1 && is_array($snapshot['values'] ?? null)
+            ? $snapshot['values'] : null;
+    }
+
     public function getMontantHtHorsDeboursCents(): int
     {
+        if (($totals = $this->getIssuedTotals()) !== null) return $totals['htCents'] - $totals['deboursHtCents'];
+
         $sum = 0;
 
         foreach ($this->lignes as $l) {
@@ -697,6 +707,8 @@ class Facture
 
     public function getMontantTvaHorsDeboursCents(): int
     {
+        if (($totals = $this->getIssuedTotals()) !== null) return $totals['tvaCents'] - $totals['deboursTvaCents'];
+
         $sum = 0;
 
         foreach ($this->lignes as $l) {
@@ -714,6 +726,8 @@ class Facture
 
     public function getMontantDeboursHtCents(): int
     {
+        if (($totals = $this->getIssuedTotals()) !== null) return $totals['deboursHtCents'];
+
         $sum = 0;
 
         foreach ($this->lignes as $l) {
@@ -729,6 +743,8 @@ class Facture
 
     public function getMontantDeboursTvaCents(): int
     {
+        if (($totals = $this->getIssuedTotals()) !== null) return $totals['deboursTvaCents'];
+
         $sum = 0;
 
         foreach ($this->lignes as $l) {
@@ -749,6 +765,8 @@ class Facture
 
     public function getTtcTotalCents(): int
     {
+        if (($totals = $this->getIssuedTotals()) !== null) return $totals['ttcCents'];
+
         return max(
             0,
             $this->getMontantTtcHorsDeboursCents()

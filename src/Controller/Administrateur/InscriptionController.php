@@ -29,6 +29,7 @@ class InscriptionController extends AbstractController
         private UtilisateurEntiteManager $utilisateurEntiteManager,
         private AssiduiteCalculator $assiduiteCalculator,
         private PdfManager $pdf,
+        private \App\Service\Document\RealisationCertificate $realisationCertificate,
         private string $projectDir = '',
         private string $publicDir  = '',
     ) {}
@@ -411,7 +412,9 @@ class InscriptionController extends AbstractController
 
         // 2) Clôture + règle métier "réussi"
         $ins->setStatus(StatusInscription::TERMINE);
-        $ins->setReussi($pct >= 75); // à adapter si besoin
+        // La présence ne prouve pas la réussite : conserver la décision pédagogique saisie.
+        $realisation = $this->realisationCertificate->data($ins, $ins->getAttestation());
+        if (!$realisation['ready']) { $em->flush(); return $pct; }
 
         // 3) Création / mise à jour de l’attestation liée
         $attestation = $ins->getAttestation();
@@ -425,12 +428,13 @@ class InscriptionController extends AbstractController
             $attestation->setDateDelivrance(new \DateTimeImmutable());
 
             // Les horaires du planning comprennent parfois la pause du midi.
-            $attestation->setDureeHeures($ins->getSession()?->getDureeFormationHeures() ?? 0.0);
+            $attestation->setDureeHeures($realisation['hours']);
             $attestation->setReussi($ins->isReussi());
             $em->persist($attestation);
             $em->flush(); // ⚠ pour que le numéro soit généré (attestation_sequence)
         } else {
-            // Si l’attestation existe déjà, on la synchronise
+            // Recalcul explicite lors de la clôture : uniquement les heures justifiées.
+            $attestation->setDureeHeures($realisation['hours']);
             $attestation->setReussi($ins->isReussi());
             $attestation->setDateDelivrance(new \DateTimeImmutable());
         }
@@ -477,7 +481,7 @@ class InscriptionController extends AbstractController
         // 5) Feedback
         $this->addFlash(
             'success',
-            ($ins->getSession()->isSousTraitance() ? 'Inscription terminée en sous-traitance : aucun calcul d’assiduité ni attestation automatique.' : ($pct === null ? 'Inscription terminée. Présences à compléter avant le calcul de l’assiduité et la génération de l’attestation.' : sprintf('Inscription clôturée (assiduité %.1f%%). Attestation générée.', $pct)))
+            ($ins->getSession()->isSousTraitance() ? 'Inscription terminée en sous-traitance : aucun calcul d’assiduité ni attestation automatique.' : ($pct === null ? 'Inscription terminée. Présences à compléter avant le calcul de l’assiduité et la génération de l’attestation.' : sprintf('Inscription clôturée (assiduité %.1f%%). %s', $pct, $this->realisationCertificate->data($ins, $ins->getAttestation())['ready'] ? 'Attestation générée.' : 'Précisez les durées justifiées avant la génération du certificat.')))
         );
 
         return $this->redirectToRoute('app_administrateur_inscription_show', [

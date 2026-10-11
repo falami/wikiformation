@@ -371,11 +371,16 @@ final class DossierController extends AbstractController
                 if ($this->access->grant($membership, $recipientModule, $recipient->getId())->getAccessLevel() !== 'edit') {
                     $form->addError(new FormError('Votre administrateur doit vous accorder la gestion du destinataire pour émettre un document.'));
                 } else {
-                    $record = $this->em->wrapInTransaction(function () use ($documents, $membership, $module, $data, $existing) {
-                        $record = $documents->issue($membership, $module, $data, $this->getUser(), $existing);
-                        $this->audit($membership, $module, $record->getId(), $existing ? 'updated' : 'issued');
-                        return $record;
-                    });
+                    try {
+                        $record = $this->em->wrapInTransaction(function () use ($documents, $membership, $module, $data, $existing) {
+                            $record = $documents->issue($membership, $module, $data, $this->getUser(), $existing);
+                            $this->audit($membership, $module, $record->getId(), $existing ? 'updated' : 'issued');
+                            return $record;
+                        });
+                    } catch (\DomainException $error) {
+                        $form->addError(new FormError($error->getMessage()));
+                        return $this->render('commercial/document.html.twig', ['entite' => $entite, 'espace' => 'commercial', 'module' => $module, 'config' => $this->registry->config($module), 'form' => $form, 'editing' => $existing !== null]);
+                    }
                     $this->addFlash('success', $existing ? 'Document mis à jour.' : 'Document créé. Vous pouvez télécharger son PDF.');
                     return $this->redirectToRoute('app_commercial_show', ['entite' => $entite->getId(), 'espace' => 'commercial', 'module' => $module, 'id' => $record->getId()]);
                 }

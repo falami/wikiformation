@@ -5,6 +5,7 @@ namespace App\Service\Stripe;
 
 use App\Entity\Billing\FactureCheckout;
 use App\Entity\Facture;
+use App\Service\Billing\InvoiceTotals;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class FactureCheckoutManager
@@ -33,14 +34,13 @@ final class FactureCheckoutManager
             throw new \RuntimeException('Compte Stripe non prêt (onboarding incomplet).');
         }
 
-        // ✅ montant TTC facture (adapte si besoin)
-        $factureAmountCents = (int) $facture->getTtcTotalCents();
-        if ($factureAmountCents <= 0) {
-            throw new \RuntimeException('Montant facture invalide.');
+        $factureAmountCents = InvoiceTotals::outstanding($facture);
+        if (!$facture->canBePaid() || $factureAmountCents <= 0) {
+            throw new \RuntimeException('Cette facture ne présente plus de montant à régler.');
         }
 
         $serviceFeeCents = $connect->computeServiceFeeCents($factureAmountCents);
-        $grandTotalCents = $factureAmountCents + $serviceFeeCents;
+        $grandTotalCents = $factureAmountCents;
 
         $stripe = $this->stripeFactory->client();
 
@@ -63,20 +63,6 @@ final class FactureCheckoutManager
                 ],
             ],
         ];
-
-        if ($serviceFeeCents > 0) {
-            $lineItems[] = [
-                'quantity' => 1,
-                'price_data' => [
-                    'currency' => $currency,
-                    'unit_amount' => $serviceFeeCents,
-                    'product_data' => [
-                        'name' => 'Frais de service',
-                        'description' => 'Frais de traitement',
-                    ],
-                ],
-            ];
-        }
 
         $session = $stripe->checkout->sessions->create([
             'mode' => 'payment',

@@ -35,7 +35,14 @@ final class DelegationPortalTest extends KernelTestCase
         $this->em->persist($this->admin);
         $this->sales = (new Utilisateur())->setEmail('sales@delegation.test')->setNom('Commercial')->setPrenom('Test')->setPassword('unused');
         $this->em->persist($this->sales);
-        $this->entite = (new Entite())->setNom('Organisme commercial')->setCreateur($this->admin)->setPublic(false);
+        $this->entite = (new Entite())->setNom('Organisme commercial')->setCreateur($this->admin)->setPublic(false)
+            ->setSiret('12345678900012')->setNumeroTva('FR12345678901')->setAdresse('1 rue Organisme')->setCodePostal('75001')->setVille('Paris')->setPays('France');
+        $preferences = (new \App\Entity\EntitePreferences())->setEntite($this->entite)->setCreateur($this->admin)->setInvoicePreferences([
+            'confirmed' => true, 'dueDays' => 30, 'paymentMeans' => 'Virement', 'earlyPaymentDiscount' => 'Aucun escompte',
+            'latePaymentPenalty' => 'Taux contractuel vérifié', 'recoveryCompensationCents' => 4000,
+            'legalIdentity' => 'Identité juridique test', 'vatCategory' => 'S', 'vatOnDebits' => false,
+        ]);
+        $this->entite->setPreferences($preferences); $this->em->persist($preferences);
         $this->em->persist($this->entite);
         $this->em->flush();
         $this->sales->setEntite($this->entite);
@@ -109,6 +116,7 @@ final class DelegationPortalTest extends KernelTestCase
         $form['document[company]']->select((string) $company->getId());
         $form['document[lines][0][label]'] = 'Prestation financée';
         $form['document[lines][0][price]'] = '150';
+        $form['document[invoiceTerms][serviceDate]'] = '2026-10-07';
         $this->client->submit($form);
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         $invoice = $this->em->getRepository(Facture::class)->findOneBy(['entite' => $this->entite]);
@@ -301,7 +309,7 @@ final class DelegationPortalTest extends KernelTestCase
     }
     public function testFinancialIssueUsesAssignedRecipientAndCalculatesAmounts(): void
     {
-        $company = (new Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Client attribué');
+        $company = $this->company('Client attribué');
         $this->em->persist($company);
         $this->em->flush();
         $this->grant('entreprises', $company->getId());
@@ -314,8 +322,9 @@ final class DelegationPortalTest extends KernelTestCase
             $form['document[lines][0][quantity]'] = '2';
             $form['document[lines][0][price]'] = '150';
             $form['document[lines][0][vat]']->select('20');
+            $form['document[invoiceTerms][serviceDate]'] = '2026-10-07';
             $this->client->submit($form);
-            self::assertSame(302, $this->client->getResponse()->getStatusCode(), $this->client->getResponse()->getContent());
+            self::assertSame(302, $this->client->getResponse()->getStatusCode(), 'The assigned recipient and completed billing data must permit issuance.');
             $record = $this->em->getRepository($class)->findOneBy(['entite' => $this->entite]);
             self::assertSame(30000, $record->getMontantHtCents());
             self::assertSame(36000, $record->getMontantTtcCents());
@@ -329,7 +338,7 @@ final class DelegationPortalTest extends KernelTestCase
         $pdf->method('createPortrait')->willReturnCallback(fn($html, $name) => new \Symfony\Component\HttpFoundation\Response($html));
         $pdf->method('streamPdfFromHtml')->willReturnCallback(fn($html, $name) => new \Symfony\Component\HttpFoundation\Response($html));
         self::getContainer()->set(\App\Service\Pdf\PdfManager::class, $pdf);
-        $company = (new Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Destinataire');
+        $company = $this->company('Destinataire');
         $site = (new \App\Entity\Site())->setEntite($this->entite)->setCreateur($this->admin)->setNom('Site')->setSlug('site');
         $formation = (new \App\Entity\Formation())->setEntite($this->entite)->setCreateur($this->admin)->setTitre('Formation')->setSlug('formation');
         $session = (new \App\Entity\Session())->setEntite($this->entite)->setCreateur($this->admin)->setSite($site)->setCode('TEST-CONVENTION')->setFormation($formation);
@@ -351,6 +360,7 @@ final class DelegationPortalTest extends KernelTestCase
             }
             $form['document[lines][0][label]'] = 'Prestation de formation';
             $form['document[lines][0][price]'] = '500';
+            if ($module !== 'conventions') $form['document[invoiceTerms][serviceDate]'] = '2026-10-07';
             $result = $this->client->submit($form);
             self::assertSame(302, $this->client->getResponse()->getStatusCode(), $result->filter('form')->count() ? $result->filter('form')->text() : '');
             $page = $this->client->followRedirect();
@@ -400,7 +410,8 @@ final class DelegationPortalTest extends KernelTestCase
     }
     private function company(string $name): Entreprise
     {
-        $company = (new Entreprise())->setEntite($this->em->find(Entite::class, $this->entite->getId()))->setCreateur($this->em->find(Utilisateur::class, $this->admin->getId()))->setRaisonSociale($name)->setEmail('client@portfolio.test');
+        $company = (new Entreprise())->setEntite($this->em->find(Entite::class, $this->entite->getId()))->setCreateur($this->em->find(Utilisateur::class, $this->admin->getId()))->setRaisonSociale($name)->setEmail('client@portfolio.test')
+            ->setSiret('98765432100012')->setAdresse('2 rue Client')->setCodePostal('69001')->setVille('Lyon')->setPays('France');
         $this->em->persist($company);
         $this->em->flush();
         return $company;

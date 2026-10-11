@@ -493,7 +493,7 @@
                 <p>
                   {% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}
                   {% if entite.siret and entite.numeroDeclarant is defined and entite.numeroDeclarant %} · {% endif %}
-                  {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %}NDA : {{ entite.numeroDeclarant }}{% endif %}
+                  {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %}Déclaration d’activité enregistrée sous le numéro {{ entite.numeroDeclarant }}. Cet enregistrement ne vaut pas agrément de l’État.{% endif %}
                 </p>
               {% endif %}
             </div>
@@ -720,6 +720,13 @@
         {{ formation.modalitesEvaluation ? formation.modalitesEvaluation|nl2br : '-' }}
       </div>
     </div>
+
+    {% set informations = formation.publicInformation %}
+    {% for key, label in {accessDelay: 'Modalités et délais d’accès', handicap: 'Accessibilité et handicap', contact: 'Contact pédagogique', recognition: 'Sanction et reconnaissance de la formation', results: 'Résultats et indicateurs'} %}
+      {% if informations[key] is defined and informations[key] %}
+        <div class="card"><div class="section-head"><h2 class="section-title">{{ label }}</h2><div class="section-rule"></div></div><div class="info-content">{{ informations[key]|nl2br }}</div></div>
+      {% endif %}
+    {% endfor %}
 
     <div class="card card-soft">
       <div class="section-head">

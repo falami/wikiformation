@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/administrateur/{entite}/facture/{id}/paiement', name: 'app_administrateur_facture_paiement_')]
-#[IsGranted('ROLE_USER')]
+#[IsGranted(\App\Security\Permission\TenantPermission::FACTURE_MANAGE, subject: 'entite')]
 final class FacturePaymentController extends AbstractController
 {
     #[Route('/checkout', name: 'checkout', methods: ['POST'])]
@@ -27,7 +27,7 @@ final class FacturePaymentController extends AbstractController
         }
 
         // ✅ garde-fou : facture déjà payée (adapte selon ton modèle)
-        if (!$facture->canBePaid()) {
+        if (!$facture->canBePaid() || \App\Service\Billing\InvoiceTotals::outstanding($facture) === 0) {
             $this->addFlash('info', $facture->isCanceled()
                 ? 'Cette facture est annulée.'
                 : 'Cette facture est déjà payée.'

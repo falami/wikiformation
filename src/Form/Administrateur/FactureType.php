@@ -31,6 +31,11 @@ class FactureType extends AbstractType
 
     public function buildForm(FormBuilderInterface $b, array $opt): void
     {
+        $b->add('invoiceTerms', InvoiceTermsType::class, ['label' => false, 'mapped' => false, 'data' => array_replace(\App\Service\Billing\InvoicePreferences::defaults($b->getData()?->getEntite()), $b->getData()?->getMeta()['invoice_terms'] ?? [])]);
+        $b->addEventListener(\Symfony\Component\Form\FormEvents::POST_SUBMIT, static function (\Symfony\Component\Form\FormEvent $event): void {
+            $invoice = $event->getData();
+            if ($invoice instanceof Facture) $invoice->setMeta(array_replace($invoice->getMeta() ?? [], ['invoice_terms' => $event->getForm()->get('invoiceTerms')->getData() ?? []]));
+        });
         $b
             ->add('destinataire', EntityType::class, [
                 'class' => Utilisateur::class,
@@ -139,6 +144,7 @@ class FactureType extends AbstractType
 
             ->add('devise', CurrencyType::class, [
                 'label' => '*Devise',
+                'choices' => ['Euro' => 'EUR'],
                 'data' => 'EUR',
                 'attr' => ['class' => 'form-select'],
             ])
@@ -164,7 +170,8 @@ class FactureType extends AbstractType
 
             ->add('status', ChoiceType::class, [
                 'label' => '*Statut',
-                'choices' => FactureStatus::cases(),
+                'choices' => [FactureStatus::DUE],
+                'help' => 'L’état de paiement est calculé à partir des encaissements. Une correction de montant nécessite un avoir.',
                 'choice_label' => fn(FactureStatus $s) => $s->label(),
                 'choice_value' => fn(?FactureStatus $s) => $s?->value,
                 'attr' => ['class' => 'form-select'],

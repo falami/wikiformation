@@ -1,0 +1,20 @@
+<?php
+declare(strict_types=1);
+namespace DoctrineMigrations;
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+
+final class Version20261008200000 extends AbstractMigration
+{
+    public function getDescription(): string { return 'Connexions PA isolées par organisme, transmissions durables, réception et consentement tarifaire ; aucun envoi ni reprise historique'; }
+    public function up(Schema $schema): void
+    {
+        $this->addSql("CREATE TABLE einvoice_connection (id INT AUTO_INCREMENT NOT NULL, entite_id INT NOT NULL, environment VARCHAR(16) NOT NULL, credentials LONGTEXT DEFAULT NULL, company_id VARCHAR(40) DEFAULT NULL, company_number VARCHAR(100) DEFAULT NULL, company_name VARCHAR(255) DEFAULT NULL, verified TINYINT(1) NOT NULL, automatic TINYINT(1) NOT NULL, enabled_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', connected_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', last_sync_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', last_error VARCHAR(255) DEFAULT NULL, incoming_cursor VARCHAR(40) DEFAULT NULL, discovery_cursor INT DEFAULT NULL, outgoing_cursor VARCHAR(40) DEFAULT NULL, worker_token VARCHAR(64) DEFAULT NULL, worker_until DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', billing_consent_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', billing_consent_by INT DEFAULT NULL, unit_price_cents INT DEFAULT NULL, version INT DEFAULT 1 NOT NULL, INDEX idx_einvoice_entite (entite_id), UNIQUE INDEX uniq_einvoice_tenant_mode (entite_id, environment), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB");
+        $this->addSql("CREATE TABLE einvoice_transmission (id INT AUTO_INCREMENT NOT NULL, connection_id INT NOT NULL, facture_id INT NOT NULL, external_id VARCHAR(36) NOT NULL, status VARCHAR(24) NOT NULL, provider_id VARCHAR(40) DEFAULT NULL, issues JSON NOT NULL, events JSON NOT NULL, usage_terms JSON DEFAULT NULL, payload LONGTEXT DEFAULT NULL, sha256 VARCHAR(64) DEFAULT NULL, created_at DATETIME NOT NULL COMMENT '(DC2Type:datetime_immutable)', attempted_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', accepted_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', synchronized_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)', version INT DEFAULT 1 NOT NULL, INDEX idx_einvoice_transmission_connection (connection_id), INDEX idx_einvoice_transmission_facture (facture_id), UNIQUE INDEX uniq_einvoice_connection_facture (connection_id, facture_id), UNIQUE INDEX uniq_einvoice_external (external_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB");
+        $this->addSql("CREATE TABLE einvoice_received (id INT AUTO_INCREMENT NOT NULL, connection_id INT NOT NULL, provider_id VARCHAR(40) NOT NULL, summary JSON NOT NULL, received_at DATETIME NOT NULL COMMENT '(DC2Type:datetime_immutable)', INDEX idx_einvoice_received_connection (connection_id), UNIQUE INDEX uniq_einvoice_received_provider (connection_id, provider_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB");
+        $this->addSql('ALTER TABLE einvoice_connection ADD CONSTRAINT fk_einvoice_entite FOREIGN KEY (entite_id) REFERENCES entite (id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE einvoice_transmission ADD CONSTRAINT fk_einvoice_transmission_connection FOREIGN KEY (connection_id) REFERENCES einvoice_connection (id) ON DELETE RESTRICT, ADD CONSTRAINT fk_einvoice_transmission_facture FOREIGN KEY (facture_id) REFERENCES facture (id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE einvoice_received ADD CONSTRAINT fk_einvoice_received_connection FOREIGN KEY (connection_id) REFERENCES einvoice_connection (id) ON DELETE RESTRICT');
+    }
+    public function down(Schema $schema): void { $this->throwIrreversibleMigrationException('Conserver les preuves de transmission et les connexions : aucune suppression automatique.'); }
+}

@@ -38,6 +38,16 @@ DirectoryIndex index.php
     RewriteCond %{ENV:REDIRECT_STATUS} ^$
     RewriteRule ^index\.php(?:/(.*)|$) /$1 [R=301,L]
 
+    # Personal dossier and attendance evidence must use authenticated controllers.
+    # Keep this before the existing-file shortcut, including for legacy files.
+    RewriteRule ^uploads/(pieces|session/pieces)(/|$) - [R=404,L,NC]
+
+    # Never execute uploaded PHP or other server-side scripts, whatever their directory.
+    RewriteRule ^uploads/.*\.(php[0-9]?|phtml|phar|cgi|pl|shtml)(\.|/|$) - [R=404,L,NC]
+
+    # Existing links remain usable, but confidential files require application authorization.
+    RewriteRule ^uploads/(emargements|proofs|depense|signatures/organisme|tampons/organisme|entreprise/docs|pdf|devis|conventions)/ /index.php [L,NC]
+
     # Assets existants
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]

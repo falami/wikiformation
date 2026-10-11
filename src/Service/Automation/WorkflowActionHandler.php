@@ -31,6 +31,7 @@ final class WorkflowActionHandler
         private readonly WorkflowCertificateStorage $certificates,
         private readonly QcmAssigner $qcmAssigner,
         private readonly ?WorkflowParticipantImporter $participantImporter = null,
+        private readonly ?\App\Service\Document\RealisationCertificate $realisationCertificate = null,
     ) {}
 
     public function handle(WorkflowTask $task): array
@@ -215,8 +216,13 @@ final class WorkflowActionHandler
         if ($i->getStatus() !== StatusInscription::TERMINE || $i->getTauxAssiduite() === null || $i->getTauxAssiduite() <= 0 || $i->getTauxAssiduite() > 100) return $this->blocked('Validez la fin de l’inscription et le taux d’assiduité avant de délivrer une attestation.');
         $attestation = $i->getAttestation();
         if ($attestation && $attestation->getEntite()?->getId() !== $w->getEntite()->getId()) return $this->blocked('L’attestation appartient à un autre organisme.');
+        $certificate = $this->realisationCertificate ?? new \App\Service\Document\RealisationCertificate(new \App\Service\AssiduiteCalculator($this->em));
+        $realisation = $certificate->data($i, $attestation);
+        if (!$realisation['ready']) return $this->blocked(implode(' ', $realisation['issues']));
+        $preferences = $w->getEntite()->getPreferences();
+        if (!$preferences?->getSignatureOrganismeNom() || !$preferences?->getSignatureOrganismePath()) return $this->blocked('Configurez le responsable habilité et la signature de l’organisme avant l’envoi automatique du certificat de réalisation.');
         if (!$attestation) {
-            $hours = $w->getSession()->getDureeFormationHeures() * $i->getTauxAssiduite() / 100;
+            $hours = $realisation['hours'];
             if ($hours <= 0) return $this->blocked('La durée pédagogique de la session doit être renseignée.');
             $attestation = (new Attestation())->setEntite($w->getEntite())->setCreateur($w->getCreateur())->setInscription($i)
                 ->setNumero($this->numbers->nextForEntite($w->getEntite()->getId()))->setDureeHeures(round($hours, 2))

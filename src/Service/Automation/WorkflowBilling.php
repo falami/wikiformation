@@ -20,11 +20,7 @@ final class WorkflowBilling
 
     public static function outstanding(Facture $invoice): int
     {
-        if ($invoice->isCanceled()) return 0;
-        $paid = 0;
-        foreach ($invoice->getPaiements() as $payment) $paid += $payment->getMontantCents() ?? 0;
-        foreach ($invoice->getAvoirs() as $credit) $paid += $credit->getMontantTtcCents();
-        return max(0, InvoiceTotals::totalTtc($invoice) - $paid);
+        return InvoiceTotals::outstanding($invoice);
     }
 
     public function handle(WorkflowTask $task): array
@@ -36,7 +32,11 @@ final class WorkflowBilling
             $quote = $w->getConvention()->getDevis();
             if ($quote->getDevise() !== 'EUR') return $this->blocked('La facturation automatique est disponible uniquement pour les devis en EUR.');
             if (!$quote->getFactureCreee() && !$this->quoteTotalsMatch($quote)) return $this->blocked('Les montants du devis ne correspondent plus à ses lignes et remises. Vérifiez le devis avant de facturer.');
-            $invoice = $this->createInvoice($w);
+            try { $invoice = $this->createInvoice($w); }
+            catch (\DomainException $error) {
+                if (!$this->em->isOpen()) throw $error;
+                return $this->blocked($error->getMessage());
+            }
             return ['status' => 'done', 'detail' => 'Facture ' . $invoice->getNumero() . ' rattachée.', 'snapshot' => ['invoiceId' => $invoice->getId()]];
         }
         $invoice = $w->getFacture();
@@ -140,6 +140,14 @@ final class WorkflowBilling
 
     public function createInvoice(TrainingWorkflow $w): Facture
     {
+        $quote = $w->getConvention()->getDevis();
+        if (!$quote->getFactureCreee()) {
+            $draft = $this->invoiceDraft($w);
+            \App\Service\Billing\InvoicePreferences::apply($draft);
+            if ($issues = \App\Service\Billing\InvoiceReadiness::issues($draft)) {
+                throw new \DomainException('Complétez les informations avant d’émettre la facture : ' . implode(' ', $issues));
+            }
+        }
         return $this->em->wrapInTransaction(function () use ($w) {
             $quote = $w->getConvention()->getDevis();
             $this->em->refresh($quote, LockMode::PESSIMISTIC_WRITE);
@@ -149,22 +157,31 @@ final class WorkflowBilling
                 $w->setFacture($quote->getFactureCreee()); return $quote->getFactureCreee();
             }
             if ($quote->getDevise() !== 'EUR' || !$this->quoteTotalsMatch($quote)) throw new \DomainException('Vérifiez la devise et les montants du devis avant de facturer.');
-            $f = (new Facture())->setEntite($w->getEntite())->setCreateur($w->getCreateur())->setNumero($this->numbers->nextForEntite($w->getEntite()->getId()))
-                ->setDateEmission(new \DateTimeImmutable())->setStatus(FactureStatus::DUE)->setDevise($quote->getDevise())
-                ->setDestinataire($quote->getDestinataire())->setEntrepriseDestinataire($quote->getEntrepriseDestinataire())->setFormation($quote->getFormation())
-                ->setRemiseGlobalePourcent($quote->getRemiseGlobalePourcent())->setRemiseGlobaleMontantCents($quote->getRemiseGlobaleMontantCents())
-                ->setMontantHtCents($quote->getMontantHtCents())->setMontantTvaCents($quote->getMontantTvaCents())->setMontantTtcCents($quote->getMontantTtcCents());
-            foreach ($quote->getLignes() as $line) $f->addLigne((new LigneFacture())->setEntite($w->getEntite())->setCreateur($w->getCreateur())
-                ->setLabel($line->getLabel())->setQte($line->getQte())->setPuHtCents($line->getPuHtCents())->setTva($line->getTva())->setIsDebours($line->isDebours())
-                ->setRemisePourcent($line->getRemisePourcent())->setRemiseMontantCents($line->getRemiseMontantCents()));
-            $totals = InvoiceTotals::calculate($f);
-            $f->setMontantHtCents($totals['htCents'])->setMontantTvaCents($totals['tvaCents'])->setMontantTtcCents($totals['ttcCents'])
-                ->setMeta(['workflow_billing' => ['version' => 1, 'quoteId' => $quote->getId(), 'createdTotals' => $totals, 'currency' => $f->getDevise()]]);
-            foreach ($quote->getInscriptions() as $i) $f->addInscription($i);
-            $quote->setFactureCreee($f)->setStatus(DevisStatus::INVOICED);
-            $w->setFacture($f);
-            $this->em->persist($f);
+            $f = $this->invoiceDraft($w);
+            \App\Service\Billing\InvoiceIssuer::persist($this->em, $this->numbers, $f, function () use ($quote, $f, $w) {
+                $quote->setFactureCreee($f)->setStatus(DevisStatus::INVOICED);
+                $w->setFacture($f);
+            });
             return $f;
         });
+    }
+    private function invoiceDraft(TrainingWorkflow $w): Facture
+    {
+        $quote = $w->getConvention()->getDevis();
+        $f = (new Facture())->setEntite($w->getEntite())->setCreateur($w->getCreateur())
+            ->setDateEmission(new \DateTimeImmutable())->setStatus(FactureStatus::DUE)->setDevise($quote->getDevise())
+            ->setDestinataire($quote->getDestinataire())->setEntrepriseDestinataire($quote->getEntrepriseDestinataire())->setFormation($quote->getFormation())
+            ->setRemiseGlobalePourcent($quote->getRemiseGlobalePourcent())->setRemiseGlobaleMontantCents($quote->getRemiseGlobaleMontantCents())
+            ->setMontantHtCents($quote->getMontantHtCents())->setMontantTvaCents($quote->getMontantTvaCents())->setMontantTtcCents($quote->getMontantTtcCents());
+        foreach ($quote->getLignes() as $line) $f->addLigne((new LigneFacture())->setEntite($w->getEntite())->setCreateur($w->getCreateur())
+            ->setLabel($line->getLabel())->setQte($line->getQte())->setPuHtCents($line->getPuHtCents())->setTva($line->getTva())->setIsDebours($line->isDebours())
+            ->setRemisePourcent($line->getRemisePourcent())->setRemiseMontantCents($line->getRemiseMontantCents()));
+        InvoiceTotals::finalizeNewInvoice($f);
+        $totals = InvoiceTotals::calculate($f);
+        $f->setMontantHtCents($totals['htCents'])->setMontantTvaCents($totals['tvaCents'])->setMontantTtcCents($totals['ttcCents'])
+            ->setMeta(array_replace($f->getMeta() ?? [], ['workflow_billing' => ['version' => 1, 'quoteId' => $quote->getId(), 'createdTotals' => $totals, 'currency' => $f->getDevise()]]));
+        foreach ($quote->getInscriptions() as $i) $f->addInscription($i);
+        $f->setMeta(array_replace($f->getMeta() ?? [], ['invoice_terms' => $quote->getMeta()['invoice_terms'] ?? []]));
+        return $f;
     }
 }

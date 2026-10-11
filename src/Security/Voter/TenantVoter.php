@@ -213,6 +213,7 @@ final class TenantVoter extends Voter
     TenantPermission::ELEARNING_COURSE_MANAGE,
     TenantPermission::ELEARNING_ENROLLMENT_MANAGE,
     TenantPermission::BPF_MANAGE,
+    TenantPermission::QUALITY_MANAGE,
     TenantPermission::CATEGORIE_MANAGE,
     TenantPermission::CHARGE_MANAGE,
     TenantPermission::ADMIN_DASHBOARD_MANAGE,

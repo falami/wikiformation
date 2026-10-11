@@ -22,6 +22,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use App\Repository\ConventionContratRepository;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Security\Permission\TenantPermission;
+use App\Security\DossierDocumentAccess;
+use Symfony\Component\Form\FormError;
 
 
 #[Route('/stagiaire/{entite}/dossier', name: 'app_stagiaire_dossier_', requirements: ['entite' => '\d+'])]
@@ -42,6 +44,9 @@ class DossierInscriptionStagiaireController extends AbstractController
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
+    DossierDocumentAccess::inscription($entite, $id);
+    if ($id->getDossier()) DossierDocumentAccess::dossier($entite, $id->getDossier(), $id);
+
     // 🔐 Sécurité : l’inscription doit être celle du stagiaire connecté
     if ($id->getStagiaire() !== $user) {
       throw $this->createAccessDeniedException('Vous ne pouvez modifier que votre propre dossier.');
@@ -53,8 +58,25 @@ class DossierInscriptionStagiaireController extends AbstractController
     }
 
     $dossier = $id->getDossier() ?? (new DossierInscription())->setCreateur($user)->setEntite($entite);
-    // 👉 Tu peux créer un DossierInscriptionStagiaireType si tu veux cacher certains champs (ex: "valide")
+    $dossier->setInscription($id);
+    $protected = [];
+    foreach ($dossier->getPieces() as $piece) {
+      DossierDocumentAccess::piece($entite, $piece);
+      if ($piece->isValide()) $protected[$piece->getId()] = [$piece, $piece->getType()];
+    }
     $form = $this->createForm(DossierInscriptionStagiaireType::class, $dossier)->handleRequest($req);
+
+    if ($form->isSubmitted()) {
+      foreach ($protected as [$original, $type]) {
+        $changed = !$dossier->getPieces()->contains($original) || $original->getType() !== $type;
+        foreach ($form->get('pieces') as $entry) {
+          if ($entry->getData() === $original && $entry->get('filename')->getData()) $changed = true;
+        }
+        if ($changed) {
+          $form->addError(new FormError('Une pièce validée ne peut pas être modifiée ou supprimée. Contactez votre organisme.'));
+        }
+      }
+    }
 
     if ($form->isSubmitted() && $form->isValid()) {
 
@@ -82,8 +104,12 @@ class DossierInscriptionStagiaireController extends AbstractController
 
         // Assure le lien inverse
         $piece->setDossier($dossier);
+        $piece->setInscription($id);
+        $piece->setEntite($entite);
+        if (!$piece->getCreateur()) $piece->setCreateur($user);
       }
 
+      $id->setDossier($dossier);
       $em->persist($dossier);
       $em->flush();
 
@@ -164,7 +190,7 @@ class DossierInscriptionStagiaireController extends AbstractController
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
-    $inscription = $piece->getDossier()->getInscription();
+    $inscription = DossierDocumentAccess::piece($entite, $piece);
 
     // 🔐 La pièce doit appartenir à l’inscription du stagiaire
     if ($inscription->getStagiaire() !== $user) {
@@ -175,7 +201,7 @@ class DossierInscriptionStagiaireController extends AbstractController
       throw $this->createAccessDeniedException();
     }
 
-    $filePath = $this->uploadDir . '/' . $piece->getFilename();
+    $filePath = DossierDocumentAccess::filePath($this->uploadDir, $piece->getFilename());
     if (!is_file($filePath)) {
       throw $this->createNotFoundException('Fichier introuvable.');
     }
@@ -186,6 +212,8 @@ class DossierInscriptionStagiaireController extends AbstractController
       $piece->getFilename()
     );
 
+    $response->headers->set('Cache-Control', 'private, no-store');
+    $response->headers->set('X-Content-Type-Options', 'nosniff');
     return $response;
   }
 
@@ -200,7 +228,7 @@ class DossierInscriptionStagiaireController extends AbstractController
     }
 
     $dossier     = $piece->getDossier();
-    $inscription = $dossier->getInscription();
+    $inscription = DossierDocumentAccess::piece($entite, $piece);
 
     // 🔐 Toujours les mêmes vérifications
     if ($inscription->getStagiaire() !== $user) {
@@ -220,7 +248,7 @@ class DossierInscriptionStagiaireController extends AbstractController
     }
 
     $filename = $piece->getFilename();
-    $filePath = $this->uploadDir . '/' . $filename;
+    $filePath = DossierDocumentAccess::filePath($this->uploadDir, $filename);
 
     $em->remove($piece);
     $em->flush();

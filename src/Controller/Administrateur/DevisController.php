@@ -188,11 +188,11 @@ class DevisController extends AbstractController
     $f->setEntite($entite);
     $f->setCreateur($user);
     $f->setDateEmission(new \DateTimeImmutable());
-    $f->setNumero($factureGen->nextForEntite($entite->getId()));
     $f->setStatus(FactureStatus::DUE);
 
     // ----- NOUVELLES DONNÉES / ALIGNEMENT -----
     $f->setDevise($devis->getDevise());
+    $f->setMeta(['invoice_terms' => $devis->getMeta()['invoice_terms'] ?? []]);
 
     // Destinataire : personne OU entreprise
     // (tu as ajouté entrepriseDestinataire, donc on copie les deux)
@@ -247,16 +247,22 @@ class DevisController extends AbstractController
       $f->setFormation($devis->getFormation());
     }
 
-    // 8) lier devis -> facture + statut
-    $devis->setFactureCreee($f);
-    $devis->setStatus(DevisStatus::INVOICED);
+    \App\Service\Billing\InvoiceTotals::finalizeNewInvoice($f);
 
-    $em->persist($f);
-    $em->flush();
+    try {
+      \App\Service\Billing\InvoiceIssuer::persist($em, $factureGen, $f, function () use ($em, $devis, $f) {
+        $em->refresh($devis, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+        if ($devis->getFactureCreee()) throw new \DomainException('Ce devis a déjà été transformé en facture.');
+        $devis->setFactureCreee($f)->setStatus(DevisStatus::INVOICED);
+      });
+    } catch (\DomainException $error) {
+      $this->addFlash('warning', $error->getMessage());
+      return $this->redirectToRoute('app_administrateur_devis_index', ['entite' => $entite->getId()]);
+    }
 
     $this->addFlash('success', 'Devis transformé en facture.');
 
-    return $this->redirectToRoute('app_administrateur_facture_edit', [
+    return $this->redirectToRoute('app_administrateur_facture_show', [
       'entite' => $entite->getId(),
       'id' => $f->getId(),
     ]);

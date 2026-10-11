@@ -357,7 +357,7 @@
               {% if entite.siret or entite.numeroDeclarant %}
                 <p>
                   {% if entite.siret %}SIRET : {{ entite.siret }}{% endif %}
-                  {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %} - N° NDA : {{ entite.numeroDeclarant }}{% endif %}
+                  {% if entite.numeroDeclarant is defined and entite.numeroDeclarant %}<br>Déclaration d’activité enregistrée sous le numéro {{ entite.numeroDeclarant }} auprès du préfet de région de {{ entite.region ?: '[région à compléter]' }}.<br>Cet enregistrement ne vaut pas agrément de l’État.{% endif %}
                 </p>
               {% endif %}
             </div>
@@ -401,10 +401,8 @@
           {{ entite.nom|default('Nom de l’organisme de formation') }},
           dont le siège social est situé {{ entite.adresse|default('Adresse') }}
           {{ entite.codePostal|default('CP') }} {{ entite.ville|default('Ville') }},
-          SIRET {{ entite.siret|default('XXXXXXXXXXXXX') }},
-          {% if entite.createur is defined and entite.createur %}
-            dûment représenté par {{ entite.createur.civilite|default('') }} {{ entite.createur.prenom|default('') }} {{ entite.createur.nom|default('') }},
-          {% endif %}
+          SIRET {{ entite.siret ?: '[à compléter]' }},
+          {% if preferences and preferences.signatureOrganismeNom %}représenté par {{ preferences.signatureOrganismeNom }}{% if preferences.signatureOrganismeFonction %}, {{ preferences.signatureOrganismeFonction }}{% endif %},{% endif %}
           ci-après dénommé « l’organisme de formation ».
         </div>
       </div>
@@ -477,6 +475,10 @@
                 </div>
               </div>
             {% endif %}
+            <div class="info-block">
+              <span class="info-label">Enseignement à distance</span>
+              <div class="info-content">{% if session and session.tauxDistanciel is not null %}{{ session.tauxDistanciel|number_format(2, ',', ' ') }} % de la durée totale des enseignements{% else %}À préciser avant signature : proportion de la durée dispensée à distance (0 % si intégralement en présentiel).{% endif %}</div>
+            </div>
             {% if convention and convention.montantHtCents is not null %}
               <div class="info-block mb-0">
                 <span class="info-label">Montant de la convention</span>
@@ -552,6 +554,26 @@
           <span class="info-label">Public visé</span>
           <div class="info-content">
             - {{ formation.public }}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="info-block">
+        <span class="info-label">Prérequis</span>
+        <div class="info-content">{{ formation and formation.conditionPrealable ? formation.conditionPrealable|nl2br : 'À préciser avant signature (indiquer explicitement si aucun prérequis).' }}</div>
+      </div>
+      <div class="info-block">
+        <span class="info-label">Moyens de suivi et documents de fin de formation</span>
+        <div class="info-content">Présences justifiées par les émargements et, le cas échéant, par les traces d’activité à distance. Un certificat de réalisation mentionne la durée effectivement suivie. Une éventuelle certification professionnelle et ses conditions d’obtention doivent être précisées dans le programme.</div>
+      </div>
+      {% if session %}
+        <div class="info-block">
+          <span class="info-label">Intervenants et références professionnelles</span>
+          <div class="info-content">
+            {% for intervenant in session.formateursEffectifs %}
+              {{ intervenant.utilisateur ? intervenant.utilisateur.prenom ~ ' ' ~ intervenant.utilisateur.nom : 'Intervenant à identifier' }} :
+              {{ intervenant.certifications ?: 'titres, diplômes ou références à préciser avant signature' }}<br>
+            {% else %}Intervenants et références à préciser avant signature.{% endfor %}
           </div>
         </div>
       {% endif %}
@@ -732,6 +754,16 @@
       {% endif %}
     </div>
 
+    {% if stagiaire and not entreprise %}
+      <div class="card">
+        <div class="section-title">Dispositions applicables au financement individuel</div>
+        <p>Lorsque le bénéficiaire finance personnellement sa formation, le contrat est conclu avant son inscription définitive et avant tout règlement (articles L. 6353-3 à L. 6353-7 du Code du travail).</p>
+        <p>Le bénéficiaire dispose de dix jours à compter de la signature pour se rétracter par lettre recommandée avec avis de réception adressée à l’organisme aux coordonnées figurant au présent contrat. Aucun paiement ne peut être exigé avant l’expiration de ce délai. Le premier versement ne peut ensuite dépasser 30 % du prix convenu ; le solde est échelonné au fur et à mesure du déroulement de la formation, selon l’échéancier convenu.</p>
+        <p>En cas de force majeure dûment reconnue empêchant le stagiaire de poursuivre la formation, le contrat peut être rompu et seules les prestations effectivement dispensées sont dues au prorata de leur valeur contractuelle.</p>
+        <p class="mb-0">Ces dispositions impératives prévalent sur toute condition financière contraire. Pour un contrat conclu à distance ou hors établissement avec un consommateur, les droits supplémentaires décrits dans l’annexe de rétractation s’appliquent également.</p>
+      </div>
+    {% endif %}
+
     {# ===== Conditions financières (si dispo) ===== #}
     {% if convention and convention.conditionsFinancieres %}
       <div class="card card-highlight">
@@ -741,6 +773,8 @@
         </div>
         <p class="mb-0">{{ convention.conditionsFinancieres|nl2br }}</p>
       </div>
+    {% else %}
+      <div class="card"><div class="section-title">Conditions financières à compléter avant signature</div><p class="mb-0">Préciser les modalités et l’échéancier de paiement ainsi que les conditions financières en cas d’abandon ou d’interruption de la formation.</p></div>
     {% endif %}
 
     {# ===== Engagements ===== #}
@@ -801,7 +835,7 @@
                 <div class="sig-box {% if preferences and preferences.signatureOrganismePath %}is-filled{% endif %}">
                   {% if preferences and preferences.signatureOrganismePath %}
                     <img class="sig-img"
-                         src="{{ absolute_url(asset(preferences.signatureOrganismePath|trim('/'))) }}"
+                         src="{{ private_document_image(preferences.signatureOrganismePath) }}"
                          alt="Signature organisme">
                     <div class="sig-meta">
                       {% if preferences.signatureOrganismeAt %}
@@ -849,6 +883,9 @@
       </table>
     </div>
 
+    {% if stagiaire and not entreprise %}
+      {% include 'pdf/_retractation_individuelle.html.twig' %}
+    {% endif %}
   </div>
 </body>
 </html>

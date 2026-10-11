@@ -1,0 +1,17 @@
+{% extends 'base_admin.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}Identité réglementaire · {{ entite.nom }}{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/quality.css') }}">{% endblock %}
+{% block body %}
+<div class="container-fluid py-4 quality-workspace">
+  <a class="d-inline-block mb-3" href="{{ path('app_administrateur_quality_index', {entite: entite.id}) }}">← Qualité & conformité</a>
+  <header class="quality-heading mb-4"><div><span class="quality-kicker">À renseigner une fois · {{ entite.nom }}</span><h1>Identité réglementaire</h1><p>Les mêmes informations alimentent vos nouveaux documents de formation et vos prochaines préparations BPF.</p></div></header>
+  <div class="quality-note mb-4"><i class="bi bi-info-circle" aria-hidden="true"></i><div>Vérifiez les données avec vos justificatifs. Vous pouvez enregistrer une fiche partielle et y revenir : une information inconnue doit rester vide. Les documents déjà signés et les préparations BPF enregistrées ne sont pas modifiés.</div></div>
+  {{ form_start(form) }}{{ form_errors(form) }}
+  {% for title, fields in {'Identification de l’organisme': ['nom','formeJuridique','siret','numeroDeclarant'], 'Coordonnées utilisées dans les documents': ['adresse','complement','codePostal','ville','region','pays','email'], 'Représentant de l’organisme': ['prenomRepresentant','nomRepresentant','fonction']} %}
+  <section class="quality-card quality-form mb-4"><header><h2>{{ title }}</h2></header><div class="row g-4 p-4">{% for name in fields %}<div class="col-12 col-lg-6">{{ form_row(form[name]) }}</div>{% endfor %}</div></section>
+  {% endfor %}
+  <div class="d-flex justify-content-end gap-3"><a class="btn btn-outline-dark" href="{{ path('app_administrateur_quality_index', {entite: entite.id}) }}">Annuler</a><button type="submit" class="btn btn-dark">Enregistrer l’identité</button></div>
+  {{ form_end(form) }}
+</div>
+{% endblock %}

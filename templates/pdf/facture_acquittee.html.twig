@@ -1,4 +1,9 @@
 {% import _self as m %}
+{% set issued = invoice_snapshot(facture) %}
+{% if issued %}
+  {% set entite = issued.issuer %}
+  {% set facture = issued.invoice|merge({lignes: issued.lines}) %}
+{% endif %}
 
 {% macro eur(cents) %}{{ ((cents ?? 0) / 100)|number_format(2, ',', ' ') }} €{% endmacro %}
 {% macro pct(v) %}{{ (v ?? 0)|number_format(2, ',', ' ') }} %{% endmacro %}
@@ -244,7 +249,9 @@
     <table class="header" cellspacing="0" cellpadding="0">
       <tr>
         <td class="left">
-          {% if entite.logo %}
+          {% if issued and entite.logoDataUri %}
+            <img class="logo" src="{{ entite.logoDataUri }}" alt="Logo {{ entite.nom }}">
+          {% elseif entite.logo %}
             <img class="logo" src="{{ absolute_url(asset('uploads/photos/entite/logo/' ~ entite.logo)) }}" alt="Logo {{ entite.nom }}">
           {% else %}
             <div class="brand-name">{{ entite.nom }}</div>
@@ -297,7 +304,7 @@
             N° client :
             {% if e %}ENT-{{ e.id ?? '-' }}{% elseif u %}CLI-{{ u.id ?? '-' }}{% else %}-{% endif %}
             <br>
-            Modalité paiement : {{ meta.modalite ?? 'Virement' }}<br>
+            Modalité paiement : {{ issued ? (issued.terms.paymentMeans ?: 'Non renseignée') : (meta.modalite ?? 'Virement') }}<br>
             Date de paiement : {{ datePaiement ? datePaiement|date('d/m/Y') : '—' }}<br>
           </p>
         </td>
@@ -361,6 +368,11 @@
           {% set line_remise = l.remiseCents ?? 0 %}
           {% set line_ht_net = l.totalHtNetCents ?? (line_ht - line_remise) %}
           {% set line_tva = l.totalTvaCents ?? 0 %}
+          {% if issued %}
+            {% set line_remise = line_remise + l.globalDiscountCents %}
+            {% set line_ht_net = l.htCents %}
+            {% set line_tva = l.tvaCents %}
+          {% endif %}
 
           {% set total_ht_brut = total_ht_brut + line_ht %}
           {% set total_remises_lignes = total_remises_lignes + line_remise %}
@@ -406,6 +418,12 @@
     </table>
 
     {% set total_ttc = total_ht_net + total_tva %}
+    {% if issued %}
+      {% set total_ht_net = issued.totals.htCents %}
+      {% set total_tva = issued.totals.tvaCents %}
+      {% set total_ttc = issued.totals.ttcCents %}
+      {% set total_remises_lignes = issued.totals.lineDiscountCents + issued.totals.globalDiscountCents %}
+    {% endif %}
 
     <table class="totaux" cellspacing="0" cellpadding="0">
       <tr>
@@ -417,7 +435,7 @@
       {% if total_remises_lignes > 0 %}
         <tr>
           <td style="border:none"></td>
-          <td class="label">Remises lignes</td>
+          <td class="label">{{ issued ? 'Remises' : 'Remises lignes' }}</td>
           <td class="val">-{{ m.eur(total_remises_lignes) }}</td>
         </tr>
       {% endif %}
@@ -461,11 +479,7 @@
               <div class="proof-title">Tampon organisme</div>
 
               {% if tamponPath %}
-                {% if tamponPath starts with '/' %}
-                  <img class="tampon-img" src="{{ absolute_url(tamponPath) }}" alt="Tampon organisme">
-                {% else %}
-                  <img class="tampon-img" src="{{ absolute_url(asset(tamponPath)) }}" alt="Tampon organisme">
-                {% endif %}
+                <img class="tampon-img" src="{{ private_document_image(tamponPath) }}" alt="Tampon organisme">
               {% else %}
                 <div class="muted">Aucun tampon configuré.</div>
               {% endif %}
@@ -477,11 +491,7 @@
               <div class="proof-title">Signature organisme</div>
 
               {% if signaturePath %}
-                {% if signaturePath starts with '/' %}
-                  <img class="signature-image" src="{{ absolute_url(signaturePath) }}" alt="Signature organisme">
-                {% else %}
-                  <img class="signature-image" src="{{ absolute_url(asset(signaturePath)) }}" alt="Signature organisme">
-                {% endif %}
+                <img class="signature-image" src="{{ private_document_image(signaturePath) }}" alt="Signature organisme">
               {% else %}
                 <div class="muted">Aucune signature configurée.</div>
               {% endif %}

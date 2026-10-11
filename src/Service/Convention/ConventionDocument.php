@@ -20,6 +20,18 @@ final class ConventionDocument
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {}
 
+    public function fingerprint(ConventionContrat $convention): string
+    {
+        if ($convention->isSigned()) {
+            $response = $this->response($convention);
+            return hash_file('sha256', $response->getFile()->getPathname());
+        }
+        return hash('sha256', $this->twig->render('pdf/convention_contrat.html.twig', [
+            'entite' => $convention->getEntite(), 'convention' => $convention,
+            'session' => $convention->getSession(),
+        ]));
+    }
+
     public function response(ConventionContrat $convention): Response
     {
         if ($convention->isSigned()) {

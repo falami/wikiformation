@@ -21,6 +21,23 @@ class EntitePreferencesController extends AbstractController
         private EntityManagerInterface $em,
     ) {}
 
+    #[Route('/formateurs/deplacements', name: 'formateurs_deplacements', methods: ['GET', 'POST'])]
+    public function formateursDeplacements(Entite $entite, Request $request): Response
+    {
+        $user = $this->getUser();
+        $prefs = $this->getOrCreatePreferences($entite, $user);
+        $settings = \App\Service\Travel\TrainerTravel::settings($prefs, (float) $this->getParameter('KM_RATE_EUR'));
+        $form = $this->createForm(\App\Form\Administrateur\TrainerTravelSettingsType::class, $settings);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $prefs->setTrainerTravel($form->getData())->setUpdatedBy($user);
+            $this->em->flush();
+            $this->addFlash('success', 'Les préférences de déplacement ont été enregistrées pour votre organisme.');
+            return $this->redirectToRoute('app_administrateur_preferences_formateurs_deplacements', ['entite' => $entite->getId()]);
+        }
+        return $this->render('administrateur/preferences/formateurs_deplacements.html.twig', ['entite' => $entite, 'form' => $form->createView()]);
+    }
+
     #[Route('/formateurs/relances', name: 'formateurs_relances', methods: ['GET', 'POST'])]
     public function formateursRelances(Entite $entite, Request $request): Response
     {

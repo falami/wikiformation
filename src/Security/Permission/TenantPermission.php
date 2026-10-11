@@ -127,6 +127,7 @@ final class TenantPermission
   public const ELEARNING_COURSE_MANAGE = 'ELEARNING_COURSE_MANAGE';
   public const ELEARNING_ENROLLMENT_MANAGE = 'ELEARNING_ENROLLMENT_MANAGE';
   public const BPF_MANAGE = 'BPF_MANAGE';
+  public const QUALITY_MANAGE = 'QUALITY_MANAGE';
   public const CATEGORIE_MANAGE = 'CATEGORIE_MANAGE';
   public const CHARGE_MANAGE = 'CHARGE_MANAGE';
 
@@ -245,6 +246,7 @@ final class TenantPermission
     self::ELEARNING_COURSE_MANAGE,
     self::ELEARNING_ENROLLMENT_MANAGE,
     self::BPF_MANAGE,
+    self::QUALITY_MANAGE,
     self::CATEGORIE_MANAGE,
     self::CHARGE_MANAGE,
 

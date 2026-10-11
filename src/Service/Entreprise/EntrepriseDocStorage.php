@@ -24,13 +24,15 @@ final class EntrepriseDocStorage
     $dir = $this->projectDir . '/public/uploads/entreprise/docs';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
 
+    $mime = $file->getMimeType();
+    $size = (int) $file->getSize();
     $file->move($dir, $name);
 
     return [
       'filename' => $name,
       'originalName' => $orig,
-      'mimeType' => $file->getClientMimeType(),
-      'size' => (int)$file->getSize(),
+      'mimeType' => $mime,
+      'size' => $size,
       'publicUrl' => '/uploads/entreprise/docs/' . $name,
     ];
   }

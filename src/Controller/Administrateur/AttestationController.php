@@ -25,6 +25,7 @@ class AttestationController extends AbstractController
     public function __construct(
         private PdfManager $pdf,
         private AssiduiteCalculator $assiduiteCalculator,
+        private \App\Service\Document\RealisationCertificate $realisationCertificate,
         private string $projectDir = '',
         private string $publicDir  = ''
     ) {}
@@ -69,6 +70,10 @@ class AttestationController extends AbstractController
             ]);
         }
 
+        if ($insc->getEntite()?->getId() !== $entite->getId() || $insc->getSession()?->getEntite()?->getId() !== $entite->getId()) {
+            throw $this->createNotFoundException('Inscription indisponible.');
+        }
+
         // 1. L’inscription doit être clôturée
         if ($insc->getStatus() !== StatusInscription::TERMINE) {
             $this->addFlash(
@@ -84,6 +89,12 @@ class AttestationController extends AbstractController
             ]);
         }
 
+        $realisation = $this->realisationCertificate->data($insc, $a);
+        if (!$realisation['ready']) {
+            $this->addFlash('warning', implode(' ', $realisation['issues']));
+            return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $insc->getId()]);
+        }
+
         // 2. Calcul / mise à jour du taux d’assiduité si besoin
         $pct = $insc->getTauxAssiduite();
         if ($pct === null) {
@@ -95,6 +106,8 @@ class AttestationController extends AbstractController
             $this->addFlash('warning', $insc->getSession()->isSousTraitance() ? 'L’attestation relève de l’organisme principal pour cette session en sous-traitance.' : 'Renseignez toutes les présences et absences avant de générer l’attestation.');
             return $this->redirectToRoute('app_administrateur_inscription_show', ['entite' => $entite->getId(), 'id' => $insc->getId()]);
         }
+
+        $a->setDureeHeures($realisation['hours']);
 
         // 3. Synchroniser éventuellement l'état "réussi" sur l'attestation
         if ($a->isReussi() !== $insc->isReussi()) {
@@ -138,6 +151,7 @@ class AttestationController extends AbstractController
         $form = $sess?->getFormation();
 
         return [
+            'attestation'     => $a,
             'inscription'      => $insc,
             'stagiaire'        => $stag,
             'session'          => $sess,
@@ -302,7 +316,7 @@ class AttestationController extends AbstractController
         $a->setCreateur($user);
         $a->setDateDelivrance(new \DateTimeImmutable());
 
-        $form = $this->createForm(AttestationType::class, $a)->handleRequest($request);
+        $form = $this->createForm(AttestationType::class, $a, ['entite' => $entite])->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
 
             // Si une inscription est liée, on synchronise déjà "reussi"
@@ -310,13 +324,13 @@ class AttestationController extends AbstractController
                 $a->setReussi($a->getInscription()->isReussi());
             }
 
-            $em->persist($a);
-            $em->flush(); // -> id + numero généré via listener
-
             // Vérification conditions (inscription terminée / assiduité)
             if ($resp = $this->checkInscriptionBeforeGenerate($entite, $a, $em)) {
                 return $resp;
             }
+
+            $em->persist($a);
+            $em->flush(); // -> id + numero généré via listener
 
             // Génère le PDF + set pdfPath
             $this->generateAndPersistPdf($a, $entite, $em);
@@ -340,15 +354,13 @@ class AttestationController extends AbstractController
         $this->assertSameEntite($entite, $attestation);
         /** @var Utilisateur $user */
         $user = $this->getUser();
-        $form = $this->createForm(AttestationType::class, $attestation)->handleRequest($request);
+        $form = $this->createForm(AttestationType::class, $attestation, ['entite' => $entite])->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
 
             // resynchroniser éventuellement avec l’inscription
             if ($attestation->getInscription() instanceof Inscription) {
                 $attestation->setReussi($attestation->getInscription()->isReussi());
             }
-
-            $em->flush();
 
             // Vérification avant regénération
             if ($resp = $this->checkInscriptionBeforeGenerate($entite, $attestation, $em)) {
@@ -380,19 +392,10 @@ class AttestationController extends AbstractController
             return $resp;
         }
 
-        $public = $this->publicDir ?: rtrim($this->projectDir, '/') . '/public';
-        $fs = new Filesystem();
-
-        // Génère si non présent
-        if (
-            !$attestation->getPdfPath() ||
-            !$fs->exists($public . '/' . ltrim($attestation->getPdfPath(), '/'))
-        ) {
-            $this->generateAndPersistPdf($attestation, $entite, $em);
-        }
-
-        $abs = $public . '/' . ltrim($attestation->getPdfPath(), '/');
-        return $this->file($abs, pathinfo($abs, PATHINFO_BASENAME), ResponseHeaderBag::DISPOSITION_INLINE);
+        $html = $this->renderView('pdf/attestation.html.twig', $this->buildPdfVars($attestation, $entite));
+        $response = $this->pdf->streamPdfFromHtml($html, $attestation->getNumero() . '.pdf');
+        $response->headers->set('Cache-Control', 'private, no-store');
+        return $response;
     }
 
     #[Route('/{id}/regenerer', name: 'regenerate_pdf', methods: ['POST'], requirements: ['id' => '\d+'])]

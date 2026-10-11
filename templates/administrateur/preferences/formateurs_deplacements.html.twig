@@ -1,0 +1,26 @@
+{% extends 'administrateur/preferences/formateurs_contrat.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}Préférences · Déplacements formateurs{% endblock %}
+{% block body %}
+{% set section = 'deplacements' %}
+<div class="preferences">
+  <header class="pref-hero"><div class="eyebrow">{{ entite.nom }} · Préférences</div><h1>Des déplacements mieux anticipés.</h1><p>Adaptez l’estimation des frais aux pratiques de votre organisme.</p></header>
+  {% include 'flagMessage.html.twig' %}
+  <div class="pref-layout">{% include 'account/_navigation.html.twig' %}<main>
+    {{ form_start(form) }}{{ form_errors(form) }}
+    <section class="pref-panel mb-4">
+      <h2 class="h4"><i class="bi bi-car-front me-2"></i>Votre règle de calcul</h2>
+      <p class="text-muted">Ces préférences s’appliquent aux estimations affichées dans les sessions de {{ entite.nom }}.</p>
+      {{ form_row(form.rate) }}{{ form_row(form.returnTrip) }}{{ form_row(form.frequency) }}
+      <button class="btn btn-dark rounded-3 px-4 py-2" type="submit"><i class="bi bi-check2 me-2"></i>Enregistrer les préférences</button>
+    </section>{{ form_end(form) }}
+    <section class="pref-panel">
+      <h2 class="h5">Une estimation transparente</h2>
+      <p>Distance routière aller × nombre de trajets × taux kilométrique.</p>
+      <p class="text-muted">Un matin et un après-midi le même jour comptent pour un seul déplacement. Seules les journées confiées au formateur sont retenues. L’aller-retour est estimé à deux fois la distance aller.</p>
+      <p class="text-muted mb-0">La fiche professionnelle du formateur fournit l’adresse de départ, à défaut ses coordonnées personnelles. Péages, stationnement, repas et hébergement sont à prévoir séparément. Cette estimation ne modifie pas les montants des contrats ou des factures.</p>
+    </section>
+  </main></div>
+</div>
+{% endblock %}
+{% block javascripts_bottom %}{% endblock %}
