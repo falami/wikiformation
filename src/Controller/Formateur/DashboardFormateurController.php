@@ -390,22 +390,6 @@ class DashboardFormateurController extends AbstractController
         // 2) Récupère en 1 requête le nb de stagiaires par session via INSCRIPTION, en excluant le formateur
         $sessionIds = array_map(fn(Session $s) => $s->getId(), $list);
 
-        // Only the connected trainer's contractual fee, never the session's selling price.
-        $feesBySession = [];
-        $contracts = $em->getRepository(ContratFormateur::class)->createQueryBuilder('contract')
-            ->innerJoin('contract.session', 'feeSession')
-            ->andWhere('contract.entite = :entite AND feeSession.entite = :entite')
-            ->andWhere('contract.formateur = :trainer')
-            ->andWhere('feeSession.id IN (:sessions)')
-            ->andWhere('contract.status != :terminated')
-            ->setParameter('entite', $entite)->setParameter('trainer', $formateur)
-            ->setParameter('sessions', $sessionIds)->setParameter('terminated', 'RESILIE')
-            ->orderBy('contract.id', 'DESC')->getQuery()->getResult();
-        foreach ($contracts as $contract) {
-            $feesBySession[$contract->getSession()->getId()] ??= $contract->getMontantPrevuCents();
-        }
-
-
         $counts = $em->createQueryBuilder()
             ->select('IDENTITY(i.session) AS sid, COUNT(i.id) AS c')
             ->from(Inscription::class, 'i')
@@ -509,11 +493,6 @@ class DashboardFormateurController extends AbstractController
             $siteNom = $s->getSite()?->getNom();
             $orgNom  = $s->getOrganismeFormation()?->getRaisonSociale(); // Entreprise
 
-            $fee = $feesBySession[$s->getId()] ?? null;
-            $prix = $fee !== null
-                ? 'Votre prestation : ' . number_format($fee / 100, 2, ',', ' ') . ' € HT · hors frais'
-                : 'Prestation non renseignée';
-
             // Capacité
             $capacite = method_exists($s, 'getCapacite') ? $s->getCapacite() : null;
 
@@ -561,13 +540,6 @@ class DashboardFormateurController extends AbstractController
                         (int)$capacite
                     );
             }
-            if ($prix) {
-                $chips[] = sprintf(
-                    '<br /><span class="dt-chip-sm"><i class="bi bi-tag"></i> %s</span>',
-                    htmlspecialchars($prix, ENT_QUOTES)
-                );
-            }
-
             // Sous-ligne organisme formation (si présent)
             $sub = $orgNom
                 ? '<div class="dt-formation-sub"><i class="bi bi-building"></i> ' . htmlspecialchars($orgNom, ENT_QUOTES) . '</div>'
