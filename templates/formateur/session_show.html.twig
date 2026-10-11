@@ -1,6 +1,7 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Session {{ session.code }} - Formateur{% endblock %}
 {% block stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 {{ parent() }}
 <style>
 :root{
@@ -11,7 +12,7 @@
 }
 </style>
 <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-<link rel="stylesheet" href="{{ asset('dist/css/trainer-session.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/trainer-session.css') }}?v=2">
 {% endblock %}
 
 {% block body %}
@@ -129,23 +130,60 @@
 </div>
 {% endblock %}
 
-{% block javascripts %}
+{% block javascripts_bottom %}
 {{ parent() }}
 
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@5.0.4/dist/signature_pad.umd.min.js">  const dayPicker = document.getElementById('attendance-day');
-  function selectDay(){
-    document.querySelectorAll('.ts-day-content').forEach(section => {
-      section.hidden = section.dataset.day !== dayPicker.value;
-    });
-    signatureResizers.forEach(resize => resize());
-  }
-  if (dayPicker) { dayPicker.addEventListener('change', selectDay); selectDay(); }
-</script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/fr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@5.0.4/dist/signature_pad.umd.min.js"></script>
 <script>
+(() => {
+  const signatureResizers = [];
+  const dayPicker = document.getElementById('attendance-day');
+  if (dayPicker) {
+    const days = Array.from(dayPicker.options, option => option.value);
+    const calendarInput = document.createElement('input');
+    calendarInput.type = 'text';
+    calendarInput.className = 'form-control ts-calendar-input';
+    calendarInput.setAttribute('aria-label', 'Journée affichée');
+    const previous = document.createElement('button');
+    const next = document.createElement('button');
+    [previous, next].forEach(button => { button.type = 'button'; button.className = 'btn btn-outline-secondary ts-day-nav'; });
+    previous.innerHTML = '<i class="bi bi-chevron-left" aria-hidden="true"></i>';
+    next.innerHTML = '<i class="bi bi-chevron-right" aria-hidden="true"></i>';
+    previous.setAttribute('aria-label', 'Jour de formation précédent');
+    next.setAttribute('aria-label', 'Jour de formation suivant');
+    dayPicker.before(previous);
+    dayPicker.after(next);
+    let calendar;
+    function selectDay() {
+      document.querySelectorAll('.ts-day-content').forEach(section => { section.hidden = section.dataset.day !== dayPicker.value; });
+      const index = days.indexOf(dayPicker.value);
+      previous.disabled = index <= 0;
+      next.disabled = index >= days.length - 1;
+      calendar?.setDate(dayPicker.value, false);
+      requestAnimationFrame(() => signatureResizers.forEach(resize => resize()));
+    }
+    previous.onclick = () => { dayPicker.selectedIndex--; selectDay(); };
+    next.onclick = () => { dayPicker.selectedIndex++; selectDay(); };
+    dayPicker.addEventListener('change', selectDay);
+    if (window.flatpickr && days.length) {
+      dayPicker.after(calendarInput);
+      dayPicker.hidden = true;
+      calendarInput.id = 'attendance-calendar';
+      document.querySelector('label[for="attendance-day"]').htmlFor = calendarInput.id;
+      calendar = flatpickr(calendarInput, {
+        locale: 'fr', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y',
+        enable: days, defaultDate: dayPicker.value, disableMobile: true,
+        onChange: (_, value) => { if (days.includes(value)) { dayPicker.value = value; selectDay(); } }
+      });
+    }
+    selectDay();
+  }
   // Upload
   const form = document.getElementById('upload-form');
   const status = document.getElementById('upload-status');
-  form.addEventListener('submit', async (e)=>{
+  form?.addEventListener('submit', async (e)=>{
     e.preventDefault();
     status.textContent = 'Envoi en cours…';
     const fd = new FormData(form);
@@ -155,7 +193,6 @@
     if (json.ok) location.reload();
   });
 
-  const signatureResizers = [];
   document.querySelectorAll('.trainer-signature').forEach(block => {
     const canvas = block.querySelector('canvas');
     const pad = new SignaturePad(canvas, { backgroundColor:'#fff', penColor:'#111' });
@@ -194,13 +231,6 @@
       }
     };
   });
-  const dayPicker = document.getElementById('attendance-day');
-  function selectDay(){
-    document.querySelectorAll('.ts-day-content').forEach(section => {
-      section.hidden = section.dataset.day !== dayPicker.value;
-    });
-    signatureResizers.forEach(resize => resize());
-  }
-  if (dayPicker) { dayPicker.addEventListener('change', selectDay); selectDay(); }
+})();
 </script>
 {% endblock %}

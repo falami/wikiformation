@@ -17,6 +17,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Enum\ContratFormateurStatus;
+use App\Enum\StatusSession;
 use App\Service\Pdf\PdfManager;
 use App\Security\Permission\TenantPermission;
 
@@ -521,11 +522,20 @@ class DashboardFormateurController extends AbstractController
                 );
             }
             if ($stLabel) {
-                // tu peux affiner selon tes statuts réels
-                $cls = in_array($stLabel, ['PUBLISHED', 'ACTIVE', 'VALIDEE'], true) ? 'dt-chip-ok' : 'dt-chip-warn';
+                [$cls, $icon] = match ($st) {
+                    StatusSession::DONE => ['bg-success text-white', 'bi-check-circle-fill'],
+                    StatusSession::CANCELED => ['bg-danger text-white', 'bi-x-circle-fill'],
+                    StatusSession::DRAFT => ['bg-secondary text-white', 'bi-pencil'],
+                    StatusSession::PUBLISHED => ['bg-primary text-white', 'bi-calendar-check'],
+                    StatusSession::IN_PROGRESS => ['bg-info text-dark', 'bi-play-circle-fill'],
+                    StatusSession::FULL => ['bg-warning text-dark', 'bi-people-fill'],
+                    StatusSession::ON_HOLD => ['bg-warning text-dark', 'bi-hourglass-split'],
+                    StatusSession::MISSING_DOCUMENTS => ['bg-warning text-dark', 'bi-exclamation-triangle-fill'],
+                };
                 $chips[] = sprintf(
-                    '<br /><span class="dt-chip-sm %s"><i class="bi bi-shield-check"></i> %s</span>',
+                    '<br /><span class="badge rounded-pill my-1 %s"><i class="bi %s me-1" aria-hidden="true"></i>%s</span>',
                     $cls,
+                    $icon,
                     htmlspecialchars($stLabel, ENT_QUOTES)
                 );
             }

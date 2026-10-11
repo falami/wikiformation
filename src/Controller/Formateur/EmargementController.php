@@ -73,7 +73,8 @@ class EmargementController extends AbstractController
         if (!$this->dayBelongsToSession($session, $date)) {
             return new JsonResponse([
                 'date'         => $date->format('Y-m-d'),
-                'sessionLabel' => trim(($session->getCode() ?: '') . ' — ' . ($session->getFormation()?->getTitre() ?: 'Session')),
+                'sessionDetails' => \App\Service\Session\AttendanceSessionDetails::forDay($session, $date),
+            'sessionLabel' => trim(($session->getCode() ?: '') . ' — ' . ($session->getFormation()?->getTitre() ?: ($session->getFormationIntituleLibre() ?: 'Session'))),
                 'outOfSession' => true,
                 'allowedDays'  => $allowedDays,
                 'trainer'      => null,
@@ -203,7 +204,8 @@ class EmargementController extends AbstractController
 
         return new JsonResponse([
             'date'         => $date->format('Y-m-d'),
-            'sessionLabel' => trim(($session->getCode() ?: '') . ' — ' . ($session->getFormation()?->getTitre() ?: 'Session')),
+            'sessionDetails' => \App\Service\Session\AttendanceSessionDetails::forDay($session, $date),
+            'sessionLabel' => trim(($session->getCode() ?: '') . ' — ' . ($session->getFormation()?->getTitre() ?: ($session->getFormationIntituleLibre() ?: 'Session'))),
             'outOfSession' => false,
             'allowedDays'  => $allowedDays,
             'trainer'      => $trainer,

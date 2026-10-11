@@ -1027,6 +1027,7 @@ html, body{
   .actions-wrap{ justify-content:flex-end; }
 }
 </style>
+<link rel="stylesheet" href="{{ asset('dist/css/attendance-modal.css') }}?v=1">
 {% endblock %}
 
 {% block body %}
@@ -1527,7 +1528,7 @@ html, body{
 </div>
 
 {# ===== MODAL ÉMARGEMENTS (premium) ===== #}
-<div class="modal fade" id="emargementModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="emargementModal" tabindex="-1" aria-hidden="true" aria-labelledby="ema-modal-title">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content section-card">
 
@@ -1535,7 +1536,7 @@ html, body{
         <div class="w-100">
           <div class="d-flex align-items-start justify-content-between gap-3">
             <div>
-              <h5 class="section-title mb-1">
+              <h5 id="ema-modal-title" class="section-title mb-1">
                 <i class="bi bi-clipboard-check me-1"></i>
                 Feuille de présence
                 <span class="badge bg-light text-dark ms-2">Formateur</span>
@@ -1547,15 +1548,23 @@ html, body{
               </div>
             </div>
 
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <button type="button" class="btn-close" aria-label="Fermer" data-bs-dismiss="modal"></button>
           </div>
         </div>
       </div>
 
       <div class="modal-body p-3 p-lg-4">
+        <section id="ema-details" class="ema-details" aria-label="Détails de la formation" hidden>
+          <div class="ema-eyebrow"><i class="bi bi-mortarboard" aria-hidden="true"></i> Votre formation</div>
+          <h3 id="ema-detail-title"></h3>
+          <div class="ema-detail-grid">
+            <div class="ema-detail-item"><span class="ema-detail-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span><div><span class="ema-detail-label">Lieu de formation</span><strong id="ema-detail-site"></strong><div id="ema-detail-address"></div></div></div>
+            <div class="ema-detail-item"><span class="ema-detail-icon"><i class="bi bi-clock" aria-hidden="true"></i></span><div><span class="ema-detail-label">Horaires de la journée</span><strong id="ema-detail-hours"></strong></div></div>
+          </div>
+        </section>
         <div class="modal-toolbar mb-3">
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <span class="pill"><i class="bi bi-calendar-week"></i> Date</span>
+            <label for="ema-date-input" class="ema-date-label"><i class="bi bi-calendar-week" aria-hidden="true"></i> Journée</label>
             <input type="text" id="ema-date-input" class="fp-input form-control form-control-sm"
                    placeholder="Choisir une date" style="max-width:220px">
             <button class="btn btn-sm btn-outline-secondary" id="ema-refresh">
@@ -1564,7 +1573,7 @@ html, body{
           </div>
 
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <span class="pill"><i class="bi bi-info-circle"></i> Astuce</span>
+            <i class="bi bi-pen text-muted" aria-hidden="true"></i>
             <span class="small text-muted">Clique sur <strong>Signer</strong> puis valide ta signature.</span>
           </div>
         </div>
@@ -2038,6 +2047,13 @@ $(function(){
           }
         }
 
+        if (j?.sessionDetails) {
+          $('#ema-detail-title').text(j.sessionDetails.title);
+          $('#ema-detail-site').text(j.sessionDetails.site);
+          $('#ema-detail-address').text(j.sessionDetails.address);
+          $('#ema-detail-hours').text(j.sessionDetails.hours);
+          $('#ema-details').prop('hidden', false);
+        }
         if (j?.sessionLabel) STATE.sessionLabel = j.sessionLabel;
         setHeader();
 
@@ -2080,6 +2096,7 @@ $(function(){
   window.__openEma = ({ sessionId, sessionLabel, date, periode })=>{
     if(!sessionId){ alert('ID session manquant'); return; }
 
+    $('#ema-details').prop('hidden', true);
     STATE.sessionId = String(sessionId);
     STATE.sessionLabel = sessionLabel || STATE.sessionLabel;
     if(date) STATE.date = String(date);

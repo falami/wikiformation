@@ -125,7 +125,8 @@ class StagiaireEmargementController extends AbstractController
 
         return new JsonResponse([
             'date'         => $date->format('Y-m-d'),
-            'sessionLabel' => trim(($session->getCode() ?: '') . ' — ' . ($session->getFormation()?->getTitre() ?: 'Session')),
+            'sessionDetails' => \App\Service\Session\AttendanceSessionDetails::forDay($session, $date),
+            'sessionLabel' => trim(($session->getCode() ?: '') . ' — ' . ($session->getFormation()?->getTitre() ?: ($session->getFormationIntituleLibre() ?: 'Session'))),
             'trainer'      => $trainer,
             'me'           => $meBlock,
         ]);
