@@ -371,7 +371,12 @@
 </head>
 
 <body>
-  <div class="page">
+  {% set originalMeta = meta %}
+  {% set originalLines = linesByDate %}
+  {% for sheet in individualSheets|default([null], true) %}
+  {% set meta = sheet ? originalMeta|merge({joursList: [sheet.day]}) : originalMeta %}
+  {% set linesByDate = sheet ? sheet.lines : originalLines %}
+  <div class="page"{% if not loop.first %} style="page-break-before: always;"{% endif %}>
   {% set preferences = entite and entite.preferences is defined ? entite.preferences : null %}
 
 
@@ -465,7 +470,7 @@
 {# ===== Participants (table cassable) ===== #}
 <div class="card breakable" style="padding:6pt 8pt; margin-bottom:6pt;">
   <div class="section-title" style="margin-bottom:5pt; padding-bottom:4pt;">
-    Liste des participants par jour
+    {% if sheet %}Stagiaire : {{ sheet.name }} · {{ sheet.day.label }}{% else %}Liste des participants par jour{% endif %}
     <div class="section-title-accent"></div>
   </div>
 
@@ -593,6 +598,8 @@
     </div>
 
   </div>
+
+  {% endfor %}
 
   {# ✅ Page number Dompdf #}
   <div class="page-number">

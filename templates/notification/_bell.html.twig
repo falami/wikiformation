@@ -1,0 +1,10 @@
+{% if app.user and entite is defined and entite.id and is_granted('ENTITE_ACCESS', entite) and (is_granted('ENTITE_ADMIN', entite) or is_granted('ENTITE_FORMATEUR', entite) or is_granted('ENTITE_STAGIAIRE', entite) or is_granted('ENTITE_ENTREPRISE', entite) or is_granted('ENTITE_OF', entite)) %}
+<div class="wf-notifications" data-notification-root data-feed="{{ path('app_notifications_feed', {entite:entite.id}) }}" data-state-url="{{ path('app_notifications_state', {entite:entite.id}) }}" data-center-url="{{ path('app_notifications_index', {entite:entite.id}) }}" data-csrf="{{ csrf_token('notifications_' ~ entite.id) }}">
+  <button type="button" class="wn-bell" aria-label="Ouvrir les notifications" aria-expanded="false" aria-controls="wn-popover"><i class="bi bi-bell" aria-hidden="true"></i><span class="wn-count" hidden>0</span></button>
+  <section id="wn-popover" class="wn-popover" aria-label="Notifications" hidden>
+    <header><div><span class="wn-eyebrow">VOTRE ACTIVITÉ</span><h2>Notifications</h2></div><button type="button" data-mark-all>Tout lire</button></header>
+    <div class="wn-preview" aria-live="polite"><p class="wn-empty">Chargement…</p></div>
+    <footer><a href="{{ path('app_notifications_index', {entite:entite.id}) }}">Ouvrir le centre de suivi <i class="bi bi-arrow-right" aria-hidden="true"></i></a></footer>
+  </section>
+</div>
+{% endif %}

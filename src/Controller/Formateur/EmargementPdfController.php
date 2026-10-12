@@ -33,7 +33,8 @@ class EmargementPdfController extends AbstractController
         Entite $entite,
         Request $request,
         EntityManagerInterface $em,
-        PdfManager $pdf
+        PdfManager $pdf,
+        \App\Service\Attendance\IndividualAttendanceSheets $individualSheets
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -82,6 +83,7 @@ class EmargementPdfController extends AbstractController
         $emargements = $em->getRepository(Emargement::class)
             ->createQueryBuilder('e')
             ->andWhere('e.session = :s')
+            ->andWhere('e.entite = :tenant')->setParameter('tenant', $entite)
             ->andWhere('e.dateJour IN (:ds)')
             ->setParameter('s', $session)
             ->setParameter('ds', $allDates)
@@ -164,7 +166,7 @@ class EmargementPdfController extends AbstractController
         // --- Métadonnées pour le template
         $meta = [
             'entite'        => $entite,
-            'titre'         => $session->getFormation()?->getTitre() ?? 'Formation',
+            'titre'         => $session->getFormation()?->getTitre() ?: ($session->getFormationIntituleLibre() ?: 'Formation'),
             'code'          => (string) ($session->getCode() ?? ''),
             'site'          => $session->getSite()?->getNom() ?? null,
             'adresse'       => $adresse,
@@ -177,15 +179,20 @@ class EmargementPdfController extends AbstractController
             'formateurId'   => null,
         ];
 
+        $individual = $request->query->get('format') === 'individual';
+        $sheets = $individual ? $individualSheets->build($session, $joursList, $linesByDate, $em->getRepository(\App\Entity\SessionParticipantAccess::class)->findBy(['session'=>$session, 'entite'=>$entite])) : null;
+        if ($individual && !$sheets) throw $this->createNotFoundException('Aucun stagiaire à inclure dans les feuilles individuelles.');
+
         // --- Rendu HTML
         $html = $this->renderView('pdf/emargement_sheet.html.twig', [
             'meta'        => $meta,
+            'individualSheets' => $sheets,
             'linesByDate' => $linesByDate,
             'preferences' => $entite->getPreferences(),
         ]);
 
         $filename = sprintf(
-            'EMARGEMENT_%s_%s',
+            $individual ? 'EMARGEMENTS_SEPARES_%s_%s' : 'EMARGEMENT_%s_%s',
             $meta['code'] ?: 'session',
             date('Ymd')
         );

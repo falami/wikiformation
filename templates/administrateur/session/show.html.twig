@@ -2345,6 +2345,7 @@ body{ overflow-x:hidden; }
         </div>
         <div class="p-3 p-md-4">
           <div class="row g-3">
+            {% if not session.sousTraitance %}
             <div class="col-md-4">
               <h6 class="mb-2"><i class="fa fa-file-pen me-1 text-theme-secondaire"></i> Émargements</h6>
               <p class="small text-muted mb-2">
@@ -2354,11 +2355,13 @@ body{ overflow-x:hidden; }
                 <a href="{{ path('app_formateur_emargement_pdf', {entite: entite.id}) ~ '?session=' ~ session.id }}"
                   class="btn btn-outline-primary btn-sm"
                   target="_blank">
-                  <i class="fa fa-file-pdf"></i> Feuille d’émargement (synthèse)
+                  <i class="fa fa-file-pdf"></i> Tous les émargements (synthèse)
                 </a>
+                <a href="{{ path('app_formateur_emargement_pdf', {entite: entite.id, session: session.id, format: 'individual'}) }}" target="_blank" rel="noopener" class="btn btn-outline-primary w-100 mt-2"><i class="bi bi-files"></i> Émargements séparés par stagiaire</a>
               </div>
             </div>
 
+            {% endif %}
             <div class="col-md-4">
               <h6 class="mb-2"><i class="fa fa-file-signature me-1 text-theme-secondaire"></i> Convention & contrats</h6>
               <p class="small text-muted mb-2">

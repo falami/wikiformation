@@ -1,0 +1,98 @@
+/* Keep the shared header readable with every role enabled and the sidebar open. */
+.adminTopNav .adminTopNav-tools {
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+.adminTopNav .adminTopNav-tools .wf-notifications { margin: 0 4px; }
+.adminTopNav .adminTopNav-tools .wn-bell { width: 36px; height: 36px; border-radius: 11px; font-size: 18px; }
+.adminTopNav .adminTopNav-tools > .dropdown > a { min-height: 36px; }
+.adminTopNav .adminTopNav-tools .bi-gear { width: 23px; height: 23px; }
+
+@media (min-width: 992px) {
+  .adminTopNav { padding-top: 8px; padding-bottom: 8px; }
+  .adminTopNav > .container-fluid { gap: 10px; flex-wrap: nowrap; }
+  .adminTopNav #navbarSupportedContent { flex: 1 1 0; min-width: 0; }
+  .adminTopNav #navbarSupportedContent > .navbar-nav {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 3px;
+    margin-bottom: 0 !important;
+  }
+  .adminTopNav .navbar-nav > .nav-item { flex: 0 0 auto; }
+  .adminTopNav .navbar-nav > .nav-item > .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    padding: 9px 7px;
+    border-radius: 8px;
+    color: #526171;
+  }
+  .adminTopNav .navbar-nav > .nav-item > .nav-link > i { font-size: 15px; flex-shrink: 0; }
+  .adminTopNav .navbar-nav > .nav-item > .dropdown-toggle::after { margin-left: 2px; }
+  .adminTopNav .navbar-nav > .nav-item > .nav-link:hover,
+  .adminTopNav .navbar-nav > .nav-item > .nav-link[aria-expanded="true"] { background: #f0f4f8; color: #233342; }
+  .adminTopNav .navbar-nav > .nav-item > .nav-link:focus-visible { outline: 2px solid #bf921d; outline-offset: 2px; }
+  .adminTopNav .dropdown-menu { font-size: 14px; }
+  .adminTopNav .dropdown-item { padding-top: 7px; padding-bottom: 7px; }
+}
+
+/* Tool menus open below the whole header, including when navigation wraps. */
+.adminTopNav { position: relative; z-index: 1030; }
+.adminTopNav .adminTopNav-tools,
+.adminTopNav .adminTopNav-tools > .dropdown,
+.adminTopNav .adminTopNav-tools .wf-notifications { position: static; }
+.adminTopNav .adminTopNav-tools .wf-notifications { z-index: auto; }
+.adminTopNav .adminTopNav-tools > .dropdown > .dropdown-menu {
+  position: absolute !important;
+  inset: calc(100% + 8px) 12px auto auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  z-index: 1060;
+  min-width: 220px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  border-radius: 12px;
+  padding: 8px;
+  border: 1px solid #46525e;
+  box-shadow: 0 14px 40px #172b4d26;
+}
+.adminTopNav .adminTopNav-tools .dropdown-item { white-space: normal; border-radius: 6px; }
+.adminTopNav .adminTopNav-tools > .dropdown > a[id^="dropdownUser"]::after,
+.adminTopNav .adminTopNav-tools > .dropdown > a[id^="dropdownUser"]::before { display: none; }
+.adminTopNav .adminTopNav-tools .wn-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 12px;
+  left: auto;
+  width: min(420px, calc(100vw - 24px));
+  z-index: 1060;
+}
+
+/* Reserve real layout space for the sidebar: padding alone paints the header
+   background over its logo when the header has a higher stacking level. */
+@media (min-width: 769px) {
+  .adminTopNav {
+    margin-left: 250px;
+    width: calc(100% - 250px);
+    padding-left: 0;
+  }
+  .adminTopNav.full-width {
+    margin-left: 0;
+    width: 100%;
+    padding-left: 40px;
+  }
+}
+@media (max-width: 768px) {
+  .adminTopNav,
+  .adminTopNav.full-width {
+    margin-left: 0;
+    width: 100%;
+    padding-left: 0;
+  }
+}

@@ -1,0 +1,28 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Notifications et suivi des dossiers{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block body %}
+<div class="wn-center" data-notification-center data-space="{{ space }}">
+  <section class="wn-hero"><div><span class="wn-eyebrow">SUIVI DES DOSSIERS</span><h1>Chaque étape, au bon moment.</h1><p>Documents, signatures et actions attendues : retrouvez l’avancement de vos dossiers au même endroit.</p></div><label>Votre espace<select id="wn-space">{% for key,label in spaces %}<option value="{{ key }}" {{ key == space ? 'selected' }}>{{ label }}</option>{% endfor %}</select></label></section>
+  <div class="wn-stats"><button data-filter="action"><i class="bi bi-lightning-charge"></i><strong data-count="action">—</strong><span>À traiter</span></button><button data-filter="unread"><i class="bi bi-bell"></i><strong data-count="unread">—</strong><span>Non lues</span></button><button data-filter="info"><i class="bi bi-clock-history"></i><strong data-count="info">—</strong><span>Activité & états</span></button></div>
+  <section class="wn-inbox"><div class="wn-tools"><div class="wn-tabs" role="group" aria-label="Filtrer les notifications"><button data-filter="all" class="active">Tout</button><button data-filter="action">À traiter</button><button data-filter="unread">Non lues</button><button data-filter="info">Activité</button><button data-filter="archived">Archivées</button></div><button class="wn-text-button" data-center-mark-all>Tout marquer comme lu</button></div>
+  <div class="wn-search"><label><i class="bi bi-search" aria-hidden="true"></i><input id="wn-search" type="search" placeholder="Rechercher une personne, un dossier…" aria-label="Rechercher dans les notifications"></label><select id="wn-category" aria-label="Type de notification"><option value="">Toutes les catégories</option value="contracts">Contrats</option><option value="attendance">Émargements</option><option value="documents">Documents</option><option value="feedback">Appréciations & comptes rendus</option><option value="invoices">Factures</option><option value="progress">Avancement</option></select></div>
+  <div id="wn-list" aria-live="polite"><p class="wn-empty">Chargement de votre suivi…</p></div>
+  <footer class="wn-pagination"><span id="wn-total"></span><div><button id="wn-prev" type="button">Précédent</button><span id="wn-page"></span><button id="wn-next" type="button">Suivant</button></div></footer></section>
+  <p class="wn-note">Les éléments à traiter sont recalculés à partir des dossiers. « Lu » ou « Archivé » ne signifie pas « Complété ». L’activité récente conserve les 1 000 derniers événements de votre périmètre ; les pièces et signatures existantes restent accessibles dans leurs dossiers.</p>
+</div>
+{% endblock %}

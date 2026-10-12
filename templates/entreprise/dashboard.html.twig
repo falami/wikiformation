@@ -1071,7 +1071,9 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
       window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' });
     });
 
-    $(document).on('click', '.js-open-session-detail', function(){
+    const notificationSession = new URLSearchParams(window.location.search).get('session');
+  if (notificationSession && /^\d+$/.test(notificationSession)) openSessionDetail(notificationSession);
+  $(document).on('click', '.js-open-session-detail', function(){
       const sid = this.dataset.session || '';
       if (!sid) return;
       openSessionDetail(sid);
