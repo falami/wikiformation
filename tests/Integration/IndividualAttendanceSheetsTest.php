@@ -71,8 +71,15 @@ final class IndividualAttendanceSheetsTest extends \Symfony\Bundle\FrameworkBund
         }
         $this->em->flush();
         $days=[['ymd'=>'2026-10-01','label'=>'01/10/2026','horaires'=>['09:00 à 17:00']]];
+        foreach ([2,3] as $day) {
+            $date=sprintf('2026-10-%02d',$day);
+            $this->session->addJour((new SessionJour())->setEntite($this->entite)->setCreateur($this->user)->setDateDebut(new \DateTimeImmutable($date.' 09:00'))->setDateFin(new \DateTimeImmutable($date.' 17:00')));
+            $days[]=['ymd'=>$date,'label'=>sprintf('%02d/10/2026',$day),'horaires'=>['09:00 à 17:00']];
+        }
         $sheets=(new \App\Service\Attendance\IndividualAttendanceSheets())->build($this->session,$days,[]);
         self::assertCount(2,$sheets);
+        self::assertCount(3,$sheets[0]['days']);
+        self::assertCount(3,$sheets[0]['lines']);
         foreach($sheets as $index=>$sheet) {
             $rows=$sheet['lines']['2026-10-01'];
             self::assertCount(2,$rows);
@@ -80,7 +87,7 @@ final class IndividualAttendanceSheetsTest extends \Symfony\Bundle\FrameworkBund
             self::assertTrue($rows[1]['isTrainer']);
             self::assertSame('Camille Test',$rows[1]['name']);
         }
-        $meta=['entite'=>$this->entite,'titre'=>'Formation de démonstration','code'=>'SES-TEST','adresse'=>'Salle de formation','dateDebut'=>'01/10/2026','dateFin'=>'01/10/2026','jours'=>1,'joursList'=>$days,'formateurName'=>'Camille Test'];
+        $meta=['entite'=>$this->entite,'titre'=>'Formation de démonstration','code'=>'SES-TEST','adresse'=>'Salle de formation','dateDebut'=>'01/10/2026','dateFin'=>'03/10/2026','jours'=>3,'joursList'=>$days,'formateurName'=>'Camille Test'];
         $html=self::getContainer()->get('twig')->render('pdf/emargement_sheet.html.twig',['meta'=>$meta,'linesByDate'=>[],'individualSheets'=>$sheets]);
         $pdf=new \Dompdf\Dompdf();$pdf->setPaper('A4','landscape');$pdf->loadHtml($html);$pdf->render();
         self::assertSame(2,$pdf->getCanvas()->get_page_count());

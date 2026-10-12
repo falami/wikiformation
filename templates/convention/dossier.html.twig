@@ -1,0 +1,34 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Dossier · {{ c.numero }}{% endblock %}
+{% block body %}
+<div class="container-fluid py-4" style="max-width:1200px">
+  <div class="rounded-4 p-4 mb-4 text-white" style="background:#233d4b;border-top:3px solid #e4b94d">
+    <small class="text-uppercase" style="letter-spacing:.14em;color:#f4cf78">Documents de fin de formation</small>
+    <h1 class="h3 mt-2">{{ c.intituleFormationEffectif }}</h1>
+    <p class="mb-0">{{ c.numero }} · {{ c.entreprise.raisonSociale }} · {{ c.session.code }}</p>
+  </div>
+  {% for type, messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+  <div class="row g-4">
+    <div class="col-lg-8"><div class="card border-0 shadow-sm rounded-4 p-4">
+      <h2 class="h5">Le dossier à télécharger</h2><p class="text-muted">Une archive ZIP, avec un PDF par stagiaire pour ses émargements et les signatures de ses formateurs.</p>
+      <ul class="list-group list-group-flush mb-3">
+        <li class="list-group-item px-0"><i class="bi bi-file-earmark-pdf me-2"></i>Convention {{ c.signed ? 'signée' : '(non signée)' }}</li>
+        {% if not c.session.sousTraitance %}<li class="list-group-item px-0"><i class="bi bi-pen me-2"></i>Émargements individuels des participants rattachés</li><li class="list-group-item px-0"><i class="bi bi-chat-square-text me-2"></i>Appréciations stagiaires déjà soumises</li>{% endif %}
+        <li class="list-group-item px-0"><i class="bi bi-list-check me-2"></i>Inventaire des documents et points à vérifier</li>
+      </ul>
+      <div class="d-flex flex-wrap gap-2 mb-3">{% for name in inventory.people %}<span class="badge bg-light text-dark border rounded-pill px-3 py-2">{{ name }}</span>{% endfor %}</div>
+      <p class="small text-muted">Les signatures absentes restent visibles sous forme de cases vides. Les appréciations non soumises ne sont pas ajoutées.</p>
+      {% for warning in inventory.warnings %}<div class="alert alert-warning py-2 small">{{ warning }}</div>{% endfor %}
+      {% if c.session.sousTraitance %}<p class="text-muted">Session en sous-traitance : émargements et appréciations gérés par le donneur d’ordre.</p>{% endif %}
+      <a class="btn btn-outline-primary align-self-start" href="{{ path(admin ? 'app_administrateur_convention_dossier' : 'app_entreprise_documents_convention_dossier', {entite:entite.id,id:c.id,download:1}) }}"><i class="bi bi-download me-2"></i>Télécharger le dossier</a>
+    </div></div>
+    <div class="col-lg-4"><div class="card border-0 shadow-sm rounded-4 p-4">
+      {% if admin %}<h2 class="h5">Transmettre à l’entreprise</h2><p class="text-muted small">Le destinataire est l’adresse enregistrée sur l’entreprise de cette convention.</p><strong class="text-break mb-3">{{ recipient ?: 'Adresse email non renseignée' }}</strong>
+      {% if not inventory.finished %}<div class="alert alert-info small">L’envoi sera disponible à l’issue de la session.</div>{% endif %}
+      <form method="post"><input type="hidden" name="_token" value="{{ csrf_token('send_dossier_' ~ c.id) }}"><div class="form-check my-3"><input id="reviewed" class="form-check-input" type="checkbox" name="reviewed" value="1" required {{ not canSend ? 'disabled' : '' }}><label class="form-check-label small" for="reviewed">J’ai vérifié le dossier et le destinataire.</label></div><button class="btn btn-warning w-100" {{ not canSend ? 'disabled' : '' }}><i class="bi bi-send me-2"></i>Envoyer par email</button></form>
+      <p class="small text-muted mt-3 mb-0">L’email contient l’archive et un lien vers l’espace entreprise. Chaque envoi est journalisé.</p>
+      {% else %}<h2 class="h5">Vos documents, au même endroit</h2><p class="text-muted">Retrouvez à tout moment les documents disponibles de cette convention. Le dossier reflète les signatures et appréciations actuellement enregistrées.</p>{% endif %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

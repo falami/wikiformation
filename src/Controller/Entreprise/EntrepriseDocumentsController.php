@@ -57,6 +57,20 @@ final class EntrepriseDocumentsController extends AbstractController
     return $entreprise;
   }
 
+  #[Route('/convention/{id}/dossier', name: 'convention_dossier', methods: ['GET'], requirements: ['id'=>'\d+'])]
+  public function conventionDossier(Entite $entite, ConventionContrat $c, Request $request, \App\Service\Convention\ConventionDossier $dossier): Response
+  {
+    $company = $this->getEntrepriseUserOrFail();
+    if ($c->getEntite()?->getId() !== $entite->getId() || $company->getEntite()?->getId() !== $entite->getId()
+        || $c->getEntreprise()?->getId() !== $company->getId()) throw $this->createNotFoundException();
+    try { $inventory = $dossier->inventory($c); }
+    catch (\DomainException $e) { throw $this->createNotFoundException(); }
+    if ($request->query->getBoolean('download')) {
+      return new Response($dossier->archive($dossier->documents($c, $request)), 200, ['Content-Type'=>'application/zip','Content-Disposition'=>'attachment; filename="Dossier-convention-'.$c->getId().'.zip"','Cache-Control'=>'private, no-store']);
+    }
+    return $this->render('convention/dossier.html.twig', ['entite'=>$entite,'c'=>$c,'inventory'=>$inventory,'admin'=>false]);
+  }
+
   private function dtParams(Request $request): array
   {
     $draw   = $request->request->getInt('draw', 1);
@@ -335,7 +349,7 @@ final class EntrepriseDocumentsController extends AbstractController
               <a class="btn btn-sm btn-outline-secondary" href="%s" target="_blank"><i class="bi bi-filetype-pdf"></i> PDF</a>
             </div>',
           htmlspecialchars($pdfUrl, ENT_QUOTES)
-        ),
+        ) . ($cc->getEntreprise()?->getId() === $entreprise->getId() ? '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_convention_dossier', ['entite'=>$entite->getId(),'id'=>$cc->getId()]), ENT_QUOTES).'"><i class="bi bi-folder2-open"></i> Dossier</a>' : ''),
       ];
     }
 

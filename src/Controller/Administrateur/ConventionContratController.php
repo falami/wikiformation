@@ -36,6 +36,41 @@ final class ConventionContratController extends AbstractController
         private readonly ConventionContratNumberGenerator $ccNumber,
     ) {}
 
+    #[Route('/{id}/dossier', name: 'dossier', methods: ['GET', 'POST'], requirements: ['id'=>'\d+'])]
+    public function dossier(Entite $entite, ConventionContrat $c, Request $request,
+        \App\Service\Convention\ConventionDossier $dossier, \App\Service\Email\MailerManager $mailer): Response
+    {
+        if ($c->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        try { $inventory = $dossier->inventory($c); }
+        catch (\DomainException $e) { throw $this->createNotFoundException($e->getMessage()); }
+        $recipient = trim((string)$c->getEntreprise()->getEmail());
+        $validRecipient = filter_var($recipient, FILTER_VALIDATE_EMAIL) !== false;
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('send_dossier_'.$c->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Jeton invalide.');
+            if (!$inventory['finished'] || !$validRecipient || !$request->request->getBoolean('reviewed')) {
+                $this->addFlash('danger', 'Vérifiez le destinataire et le contenu du dossier. La session doit être achevée.');
+            } else {
+                try {
+                    $archive = $dossier->archive($dossier->documents($c, $request));
+                    if (strlen($archive) > 18 * 1024 * 1024) throw new \DomainException('Le dossier dépasse la taille autorisée pour un email (18 Mo). Téléchargez-le depuis cette page.');
+                    $portal = $this->generateUrl('app_entreprise_documents_convention_dossier', ['entite'=>$entite->getId(),'id'=>$c->getId()], \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL);
+                    $text = 'Bonjour, voici les documents disponibles pour la convention '.$c->getNumero().'. L’archive contient les documents disponibles et un inventaire des éléments à vérifier. Vous pouvez également retrouver ce dossier dans votre espace entreprise : '.$portal;
+                    $mailer->sendHtmlWithAttachment($entite, $recipient, 'Dossier de formation — '.$c->getNumero(), $this->renderView('emails/convention_dossier.html.twig', ['c'=>$c,'portal'=>$portal]), $text, $archive, 'Dossier-convention-'.$c->getId().'.zip', 'application/zip');
+                    $this->addFlash('success', 'Le dossier a été transmis à '.$recipient.'. L’envoi est enregistré dans l’historique des emails.');
+                } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+                    $this->addFlash('danger', 'La messagerie a refusé l’envoi. Le dossier reste disponible au téléchargement.');
+                } catch (\DomainException|\RuntimeException $e) {
+                    $this->addFlash('danger', 'Envoi impossible : '.$e->getMessage());
+                }
+            }
+            return $this->redirectToRoute('app_administrateur_convention_dossier', ['entite'=>$entite->getId(),'id'=>$c->getId()]);
+        }
+        if ($request->query->getBoolean('download')) {
+            return new Response($dossier->archive($dossier->documents($c, $request)), 200, ['Content-Type'=>'application/zip', 'Content-Disposition'=>'attachment; filename="Dossier-convention-'.$c->getId().'.zip"', 'Cache-Control'=>'private, no-store']);
+        }
+        return $this->render('convention/dossier.html.twig', ['entite'=>$entite,'c'=>$c,'inventory'=>$inventory,'recipient'=>$recipient,'canSend'=>$inventory['finished'] && $validRecipient,'admin'=>true]);
+    }
+
     #[Route('/liste', name: 'index', methods: ['GET'])]
     public function index(Entite $entite): Response
     {
