@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Enum\ModePaiement;
+use App\Service\Finance\RevenueQueries;
 use App\Enum\FactureStatus;
 use App\Enum\DevisStatus;
 use App\Security\Permission\TenantPermission;
@@ -179,12 +180,7 @@ final class FinanceDashboardController extends AbstractController
 
 
     // --- Factures
-    $facBase = $em->createQueryBuilder()
-      ->from(Facture::class, 'fa')
-      ->andWhere('fa.entite = :e')->setParameter('e', $entite)
-      ->andWhere('fa.dateEmission BETWEEN :start AND :end')
-      ->setParameter('start', $f['start'])
-      ->setParameter('end', $f['end']);
+    $facBase = RevenueQueries::invoices($em, $entite, $f['start'], $f['end']);
 
     if ($f['devise']) $facBase->andWhere('fa.devise = :dev')->setParameter('dev', $f['devise']);
     if ($f['factureStatus']) $facBase->andWhere('fa.status = :st')->setParameter('st', $f['factureStatus']);
@@ -249,12 +245,7 @@ final class FinanceDashboardController extends AbstractController
       ->getQuery()->getArrayResult();
 
     // --- Paiements
-    $payBase = $em->createQueryBuilder()
-      ->from(Paiement::class, 'pa')
-      ->andWhere('pa.entite = :e')->setParameter('e', $entite)
-      ->andWhere('pa.datePaiement BETWEEN :start AND :end')
-      ->setParameter('start', $f['start'])
-      ->setParameter('end', $f['end']);
+    $payBase = RevenueQueries::payments($em, $entite, $f['start'], $f['end']);
 
     if ($f['devise']) $payBase->andWhere('pa.devise = :dev')->setParameter('dev', $f['devise']);
     if ($f['payMode']) $payBase->andWhere('pa.mode = :m')->setParameter('m', $f['payMode']);

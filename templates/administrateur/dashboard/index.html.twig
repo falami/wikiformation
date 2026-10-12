@@ -1127,6 +1127,7 @@
 {% endblock %}
 
 {% block javascripts %}
+<script src="{{ asset('dist/js/dashboard-reminders.js') }}" defer></script>
   {{ parent() }}
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -1147,7 +1148,7 @@
 <div class="of-dashboard">
 
   {# ================= HERO ================= #}
-  <section class="of-hero">
+  <section class="of-hero mb-4">
     <div class="of-hero__content">
       <div class="d-flex align-items-start justify-content-between gap-4 flex-wrap">
         <div class="flex-grow-1">
@@ -1180,18 +1181,14 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ================= FILTRES ================= #}
-  <div class="filterbar">
+  <div class="filterbar dashboard-filters">
     <div class="filterbar__top">
       <div class="filter-icon"><i class="bi bi-sliders2"></i></div>
       <div>
         <div class="filterbar__title">Périmètre d'analyse</div>
         <div class="filterbar__hint">Filtrez l'activité par formation, formateur, statut ou période.</div>
       </div>
-      <div class="ms-auto">
-        <button class="btn btn-sm btn-outline-secondary fw-semibold" id="btnReset" type="button">
-          <i class="bi bi-arrow-counterclockwise me-1"></i> Réinitialiser
-        </button>
-      </div>
+
     </div>
 
     <div class="filterbar__body">
@@ -1200,7 +1197,7 @@
           <div class="form-label">Formation</div>
           <div class="filterbox"><div class="filterrow">
             <div class="filter-icon"><i class="bi bi-journal-bookmark"></i></div>
-            <select id="formationFilter" class="form-select form-select-sm">
+            <select id="formationFilter" data-wf-multi class="form-select form-select-sm">
               <option value="all">Toutes</option>
             </select>
           </div></div>
@@ -1210,7 +1207,7 @@
           <div class="form-label">Formateur</div>
           <div class="filterbox"><div class="filterrow">
             <div class="filter-icon"><i class="bi bi-person-badge"></i></div>
-            <select id="formateurFilter" class="form-select form-select-sm">
+            <select id="formateurFilter" data-wf-multi class="form-select form-select-sm">
               <option value="all">Tous</option>
             </select>
           </div></div>
@@ -1220,11 +1217,14 @@
           <div class="form-label">Statut session</div>
           <div class="filterbox"><div class="filterrow">
             <div class="filter-icon"><i class="bi bi-flag"></i></div>
-            <select id="sessionStatusFilter" class="form-select form-select-sm">
+            <select id="sessionStatusFilter" data-wf-multi class="form-select form-select-sm">
               <option value="all">Tous</option>
               <option value="draft">Brouillon</option>
               <option value="published">Publié</option>
               <option value="full">Complet</option>
+              <option value="in_progress">En cours</option>
+              <option value="on_hold">En attente</option>
+              <option value="missing_documents">Documents manquants</option>
               <option value="canceled">Annulé</option>
               <option value="done">Terminée</option>
             </select>
@@ -1235,7 +1235,7 @@
           <div class="form-label">Statut inscription</div>
           <div class="filterbox"><div class="filterrow">
             <div class="filter-icon"><i class="bi bi-person-check"></i></div>
-            <select id="inscriptionStatusFilter" class="form-select form-select-sm">
+            <select id="inscriptionStatusFilter" data-wf-multi class="form-select form-select-sm">
               <option value="all">Tous</option>
               <option value="preinscrit">Préinscrit</option>
               <option value="confirme">Confirmé</option>
@@ -1256,6 +1256,11 @@
             <input type="hidden" id="dateTo">
           </div></div>
         </div>
+      <div class="filter-control fcol-actions">
+        <button class="btn btn-sm btn-outline-secondary fw-semibold" id="btnReset" type="button">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> Réinitialiser
+        </button>
+      </div>
       </div>
     </div>
   </div>
@@ -1298,7 +1303,7 @@
         </div>
         <div class="metric__label">Taux de réussite</div>
         <div class="metric__value" id="kpi-reussite">—</div>
-        <div class="metric__sub"><strong id="kpi-reussis">—</strong> réussite(s) enregistrée(s).</div>
+        <div class="metric__sub"><strong id="kpi-reussis">—</strong> réussite(s) sur <strong id="kpi-evaluated">—</strong> inscription(s) avec QCM soumis.</div>
       </article>
 
       <article class="metric metric--gold">
@@ -1360,22 +1365,22 @@
       <div class="of-section-head mb-0">
         <div>
           <div class="section-eyebrow"><i class="bi bi-cash-stack"></i> Pilotage financier</div>
-          <h2 class="section-title">Facturation et encaissements liés aux formations</h2>
-          <div class="section-subtitle">Suivez ce qui est facturé, encaissé et ce qu'il reste à recouvrer.</div>
+          <h2 class="section-title">Chiffre d’affaires et encaissements</h2>
+          <div class="section-subtitle">Montants HT hors débours, comme dans l’analyse comptable. La période porte sur les dates de facturation et de paiement ; les filtres pédagogiques limitent les factures liées aux inscriptions correspondantes.</div>
         </div>
       </div>
 
       <div class="finance-grid">
         <div class="finance-stat">
-          <div class="finance-stat__label">Chiffre d'affaires facturé</div>
+          <div class="finance-stat__label">Chiffre d'affaires facturé HT</div>
           <div class="finance-stat__value" id="kpi-facture">—</div>
         </div>
         <div class="finance-stat">
-          <div class="finance-stat__label">Encaissements</div>
+          <div class="finance-stat__label">Encaissements HT</div>
           <div class="finance-stat__value" id="kpi-encaisse">—</div>
         </div>
         <div class="finance-stat">
-          <div class="finance-stat__label">Reste à encaisser</div>
+          <div class="finance-stat__label">Écart facturé / encaissé HT</div>
           <div class="finance-stat__value" id="kpi-reste">—</div>
         </div>
         <div class="finance-stat">
@@ -1497,7 +1502,7 @@
           <div class="of-panel__head">
             <h3 class="of-panel__title">
               <span class="of-panel__icon"><i class="bi bi-currency-euro"></i></span>
-              Encaissements par mois
+              Encaissements HT par mois
             </h3>
             <span class="of-panel__count">Trésorerie</span>
           </div>
@@ -1571,23 +1576,27 @@
               <i class="bi bi-pen"></i> Émargements à régulariser
               <span class="table-pro__count" id="tblUnsignedCount">—</span>
             </h3>
+
             <div class="table-pro__tools">
               <div class="table-pro__search">
                 <i class="bi bi-search"></i>
                 <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblUnsigned">
               </div>
             </div>
+            <button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblUnsigned" disabled>Relancer (0)</button>
           </div>
+
           <div class="table-pro__body">
             <div class="table-responsive">
               <table class="table table-sm table-pro__table w-100" id="tblUnsigned">
-                <thead><tr><th>Session</th><th>Personne</th><th>Date</th><th>Période</th><th>Relance</th></tr></thead>
+                <thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblUnsigned" aria-label="Sélectionner les émargements affichés"></th><th>Session</th><th>Personne</th><th>Date</th><th>Période</th><th>Relance</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
           </div>
+
           <div class="table-pro__foot">
-            <div class="text-muted small" id="tblUnsignedInfo">—</div>
+            <div class="small" data-reminder-feedback="tblUnsigned" role="status"></div><div class="text-muted small" id="tblUnsignedInfo">—</div>
             <div class="text-muted small">Top 20</div>
           </div>
         </div>
@@ -1600,9 +1609,9 @@
   <div class="table-pro__head"><h3 class="table-pro__title"><i class="bi bi-chat-square-heart"></i> Appréciations à compléter <span class="table-pro__count">{{ pendingAppreciations|length > 300 ? '300+' : pendingAppreciations|length }}</span></h3>
   <input class="form-control form-control-sm" style="max-width:260px" placeholder="Rechercher un stagiaire…" aria-label="Rechercher une appréciation" data-plain-search="#tblAppreciations"></div>
   <p class="text-muted small px-3 mt-3">Sessions achevées, hors sous-traitance et annulations. Les questionnaires non commencés ou non soumis sont inclus ; les inscriptions annulées et absences sont exclues.</p>
-  <div class="table-responsive"><table class="table table-pro__table" id="tblAppreciations"><thead><tr><th>Session</th><th>Formation</th><th>Stagiaire</th><th>État</th><th>Action</th></tr></thead><tbody>
+  <div class="px-3 pb-3"><button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblAppreciations" disabled>Relancer la sélection (0)</button><span class="small ms-3" data-reminder-feedback="tblAppreciations" role="status"></span><span class="small text-muted ms-3">La case d’en-tête sélectionne les lignes affichées.</span></div><div class="table-responsive"><table class="table table-pro__table" id="tblAppreciations"><thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblAppreciations" aria-label="Sélectionner les appréciations affichées"></th><th>Session</th><th>Formation</th><th>Stagiaire</th><th>État</th><th>Action</th></tr></thead><tbody>
   {% for ins in pendingAppreciations|slice(0,300) %}
-  <tr><td><a href="{{ path('app_administrateur_session_show',{entite:entite.id,id:ins.session.id}) }}">{{ ins.session.code }}</a></td><td>{{ ins.session.formation.titre|default('—') }}</td><td>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}<div class="small text-muted">{{ ins.stagiaire.email }}</div></td>
+  <tr><td>{% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}<input type="checkbox" class="form-check-input" data-reminder-row aria-label="Sélectionner {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}">{% endif %}</td><td><a href="{{ path('app_administrateur_session_show',{entite:entite.id,id:ins.session.id}) }}">{{ ins.session.code }}</a></td><td>{{ ins.session.formation.titre|default('—') }}</td><td>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}<div class="small text-muted">{{ ins.stagiaire.email }}</div></td>
   <td><span class="badge-pro badge-pro--warn">Non renseignée / non soumise</span></td><td>
   {% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}
   <form method="post" action="{{ path('app_administrateur_session_attendance_reminder',{entite:entite.id,id:ins.session.id}) }}">
@@ -1611,7 +1620,7 @@
   </form>
   {% else %}<span class="small text-muted">Ouvrir la session</span>{% endif %}
   </td></tr>
-  {% else %}<tr><td colspan="5" class="text-center text-muted p-4">Aucune appréciation en attente sur les sessions concernées.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="6" class="text-center text-muted p-4">Aucune appréciation en attente sur les sessions concernées.</td></tr>{% endfor %}
   </tbody></table></div>
   {% if pendingAppreciations|length > 300 %}<p class="small text-muted px-3">Affichage limité aux 300 premières inscriptions en attente.</p>{% endif %}
 </section>
@@ -1823,6 +1832,14 @@
 
 
 
+  function resetPeriod(){
+    const year = new Date().getFullYear();
+    const from = `${year}-01-01`, to = `${year}-12-31`;
+    document.getElementById('dateFrom').value = from;
+    document.getElementById('dateTo').value = to;
+    fpRange?.setDate([`${year}-01-01`, `${year}-12-31`], false, 'Y-m-d');
+  }
+
   function initFlatpickr(){
 
     fpRange?.destroy?.();
@@ -1845,9 +1862,9 @@
 
       onClose: function(selectedDates){
 
-        const from = selectedDates[0] ? selectedDates[0].toISOString().slice(0,10) : '';
+        const from = selectedDates[0] ? fpRange.formatDate(selectedDates[0], 'Y-m-d') : '';
 
-        const to   = selectedDates[1] ? selectedDates[1].toISOString().slice(0,10) : '';
+        const to   = selectedDates[1] ? fpRange.formatDate(selectedDates[1], 'Y-m-d') : '';
 
         document.getElementById('dateFrom').value = from;
 
@@ -1943,7 +1960,8 @@
 
     setTxt('kpi-inscriptions', k.inscriptions);
 
-    setTxt('kpi-reussite', (k.tauxReussite ?? 0) + '%');
+    setTxt('kpi-reussite', k.tauxReussite == null ? '—' : k.tauxReussite + '%');
+    setTxt('kpi-evaluated', k.evaluated);
 
     setTxt('kpi-reussis', k.reussis);
 
@@ -2777,6 +2795,8 @@
 
         tr.innerHTML = `
 
+          <td>${r.reminder ? '<input type="checkbox" class="form-check-input" data-reminder-row aria-label="Sélectionner cette relance">' : ''}</td>
+
           <td>${escapeHtml(r.sessionLabel ?? '—')}</td>
 
           <td>${escapeHtml(r.userLabel ?? '—')}</td>
@@ -3211,17 +3231,7 @@
 
 
 
-    fpRange?.clear();
-
-    document.getElementById('dateRange')?.setAttribute('value','');
-
-    const df = document.getElementById('dateFrom');
-
-    const dt = document.getElementById('dateTo');
-
-    if (df) df.value = '';
-
-    if (dt) dt.value = '';
+    resetPeriod();
 
     refreshAll();
 
@@ -3238,6 +3248,7 @@
   initTomSelect();
 
   initFlatpickr();
+  resetPeriod();
 
   loadMeta().then(refreshAll);
 

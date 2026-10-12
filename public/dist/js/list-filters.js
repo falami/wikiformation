@@ -437,7 +437,7 @@
         endpoint = endpoint?.replace(/^elearning\/\d+\/inscriptions$/, 'elearning/course/inscriptions');
         (endpointFilters[endpoint] || '').split(' ').filter(Boolean).forEach(id => allowedIds.add(id));
       });
-      document.querySelectorAll('.trainer-filters select[data-wf-multi]').forEach(select => allowedIds.add(select.id));
+      document.querySelectorAll('.trainer-filters select[data-wf-multi], .dashboard-filters select[data-wf-multi]').forEach(select => allowedIds.add(select.id));
       if (allowedIds.size) document.querySelectorAll(roots).forEach(root => root.classList.add('wf-filters-theme'));
       document.querySelectorAll(selectFilters).forEach(select => bridge(select, allowedIds));
       normalizePanels();

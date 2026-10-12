@@ -26,13 +26,16 @@ final class AttendanceReminderController extends AbstractController
         if ($target !== null && (!is_string($target) || !ctype_digit($target) || (int) $target < 1)) throw $this->createNotFoundException();
         $inscriptionId = $target === null ? null : (int) $target;
         $key = ($period ?? 'day').'_'.$kind.'_'.($inscriptionId ?? 'all').'_attendance_reminder_'.$session->getId().'_'.$date;
+        $feedback = ['sent'=>0, 'skipped'=>0, 'failed'=>0];
         if ($request->getSession()->get($key, 0) > time() - 60) {
+            $feedback['skipped'] = 1;
             $this->addFlash('warning', 'Une relance vient d’être demandée pour cette journée. Patientez une minute avant un nouvel envoi.');
         } else {
             $request->getSession()->set($key, time());
             try {
                 $reasons = [];
                 $result = $reminder->send($session, $date, $inscriptionId, $kind, $period, $reasons);
+                $feedback = $result;
                 $em->persist((new AuditLog())->setEntite($entite)->setActor($this->getUser())->setCreateur($this->getUser())->setEvent('ATTENDANCE_REMINDER_SENT')->setCreatedAt(new \DateTimeImmutable())->setPayload(['session' => $session->getId(), 'date' => $date, 'kind' => $kind, 'period' => $period, 'inscription' => $inscriptionId] + $result));
                 $em->flush();
                 $message = sprintf('%d mail(s) confié(s) au service d’envoi, %d échec(s).', $result['sent'], $result['failed']);
@@ -40,7 +43,11 @@ final class AttendanceReminderController extends AbstractController
                     if ($reasons[$reason] ?? 0) $message .= sprintf(' %d %s.', $reasons[$reason], $label);
                 }
                 $this->addFlash(($result['failed'] || !$result['sent']) ? 'warning' : 'success', $message);
-            } catch (\DomainException $e) { $this->addFlash('warning', $e->getMessage()); }
+            } catch (\DomainException $e) { $feedback['skipped'] = 1; $this->addFlash('warning', $e->getMessage()); }
+        }
+        if ($request->isXmlHttpRequest()) {
+            $messages = $request->getSession()->getFlashBag()->all();
+            return $this->json($feedback + ['messages'=>$messages]);
         }
         if ($request->request->get('return') === 'dashboard') return $this->redirectToRoute('app_administrateur_dashboard_index', ['entite' => $entite->getId()]);
         return $this->redirectToRoute('app_administrateur_session_show', ['entite' => $entite->getId(), 'id' => $session->getId()]);

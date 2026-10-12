@@ -15,6 +15,8 @@ use App\Enum\{LabelledEnum, PieceType, StatusSession, StatusInscription, Facture
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use App\Security\Permission\TenantPermission;
+use App\Service\Filter\ChoiceFilter;
+use App\Service\Finance\RevenueQueries;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
 use Symfony\Component\Routing\Attribute\Route;
@@ -129,20 +131,9 @@ final class DashboardController extends AbstractController
         ";
 
     $params = ['eid' => $entite->getId()];
-    if ($formationId !== 'all') {
-      $sqlBaseSess .= " AND s.formation_id = :fid";
-      $params['fid'] = (int) $formationId;
-    }
-
-    if ($formateurId !== 'all') {
-      $sqlBaseSess .= " AND s.formateur_id = :foid";
-      $params['foid'] = (int) $formateurId;
-    }
-
-    if ($sessionStatus !== 'all') {
-      $sqlBaseSess .= " AND s.status = :sst";
-      $params['sst'] = $sessionStatus;
-    }
+    $this->sqlChoices($sqlBaseSess, $params, $formationId, 's.formation_id', 'fid');
+    $this->sqlChoices($sqlBaseSess, $params, $formateurId, 's.formateur_id', 'foid');
+    $this->sqlChoices($sqlBaseSess, $params, $sessionStatus, 's.status', 'sst');
 
     if ($from) {
       $sqlBaseSess .= " AND j.date_debut >= :from";
@@ -246,13 +237,7 @@ final class DashboardController extends AbstractController
 
 
 
-    if ($inscriptionStatus !== 'all') {
-
-      $qbIns->andWhere('i.status = :ist')
-
-        ->setParameter('ist', StatusInscription::from($inscriptionStatus));
-
-    }
+    ChoiceFilter::equals($qbIns, $inscriptionStatus, 'i.status', 'ist');
 
 
 
@@ -268,7 +253,7 @@ final class DashboardController extends AbstractController
 
     $qbReussi = $this->em->createQueryBuilder()
 
-      ->select('COALESCE(SUM(CASE WHEN i.reussi = true THEN 1 ELSE 0 END), 0) AS ok')
+      ->select('COUNT(DISTINCT i.id)')
 
       ->from(Inscription::class, 'i')
 
@@ -280,21 +265,21 @@ final class DashboardController extends AbstractController
 
 
 
+    $qbReussi->join('i.qcmAssignments', 'qa')->join('qa.attempt', 'qt')
+      ->andWhere('qa.entite = :e AND qa.session = s AND qt.entite = :e')
+      ->andWhere('qt.submittedAt IS NOT NULL');
+
     $this->applySessionFilters($qbReussi, $from, $to, $formationId, $formateurId, $sessionStatus);
 
 
 
-    if ($inscriptionStatus !== 'all') {
-
-      $qbReussi->andWhere('i.status = :ist')->setParameter('ist', StatusInscription::from($inscriptionStatus));
-
-    }
+    ChoiceFilter::equals($qbReussi, $inscriptionStatus, 'i.status', 'ist');
 
 
 
-    $reussis = (int) ($qbReussi->getQuery()->getSingleScalarResult() ?? 0);
-
-    $tauxReussite = $inscriptionsCount > 0 ? round(($reussis / $inscriptionsCount) * 100, 1) : 0.0;
+    $evaluated = (int) $qbReussi->getQuery()->getSingleScalarResult();
+    $reussis = (int) (clone $qbReussi)->andWhere('i.reussi = true')->getQuery()->getSingleScalarResult();
+    $tauxReussite = $evaluated > 0 ? round(($reussis / $evaluated) * 100, 1) : null;
 
 
 
@@ -308,121 +293,12 @@ final class DashboardController extends AbstractController
 
 
 
-    // CA facturé (toutes factures)
-
-    $sqlCa = "
-
-  SELECT COALESCE(SUM(x.montant_ttc_cents), 0) AS cents
-
-  FROM (
-
-    SELECT DISTINCT f.id, f.montant_ttc_cents
-
-    FROM facture f
-
-    INNER JOIN facture_inscription fi ON fi.facture_id = f.id
-
-    INNER JOIN inscription i ON i.id = fi.inscription_id
-
-    INNER JOIN session s ON s.id = i.session_id
-
-    LEFT JOIN session_jour j ON j.session_id = s.id
-
-    WHERE s.entite_id = :eid
-
-  ) x
-
-";
-
-    $params = ['eid' => $entite->getId()];
-
-
-
-    // 👉 applique ici tes filtres formation/formateur/status/from/to exactement comme dans charts SQL
-
-    // (même logique que ton $sqlBaseSess)
-
-
-
-    $caFactureCents = (int) $conn->executeQuery($sqlCa, $params)->fetchOne();
-
-
-
-
-
-
-
-    /**
-     * Encaissements
-     *
-     * IMPORTANT :
-     * On ne joint pas directement paiement -> facture -> inscriptions dans la
-     * requête principale, car une facture liée à plusieurs inscriptions ferait
-     * apparaître le même paiement plusieurs fois dans le SUM().
-     *
-     * EXISTS sert uniquement à vérifier que la facture du paiement appartient
-     * bien à une session de l'entité courante et respecte les filtres.
-     * Chaque ligne de paiement n'est donc sommée qu'une seule fois.
-     */
-    $sqlPaid = "
-        SELECT COALESCE(SUM(p.montant_cents), 0) AS cents
-        FROM paiement p
-        WHERE EXISTS (
-            SELECT 1
-            FROM facture_inscription fi
-            INNER JOIN inscription i ON i.id = fi.inscription_id
-            INNER JOIN session s ON s.id = i.session_id
-            WHERE fi.facture_id = p.facture_id
-              AND s.entite_id = :paid_eid
-    ";
-
-    $paidParams = [
-      'paid_eid' => $entite->getId(),
-    ];
-
-    if ($formationId !== 'all') {
-      $sqlPaid .= " AND s.formation_id = :paid_fid";
-      $paidParams['paid_fid'] = (int) $formationId;
-    }
-
-    if ($formateurId !== 'all') {
-      $sqlPaid .= " AND s.formateur_id = :paid_foid";
-      $paidParams['paid_foid'] = (int) $formateurId;
-    }
-
-    if ($sessionStatus !== 'all') {
-      $sqlPaid .= " AND s.status = :paid_sst";
-      $paidParams['paid_sst'] = $sessionStatus;
-    }
-
-    // Pour les KPI globaux, on conserve la logique actuelle du dashboard :
-    // la période filtre les jours de session.
-    if ($from || $to) {
-      $sqlPaid .= "
-          AND EXISTS (
-              SELECT 1
-              FROM session_jour sj_paid
-              WHERE sj_paid.session_id = s.id
-      ";
-
-      if ($from) {
-        $sqlPaid .= " AND sj_paid.date_debut >= :paid_from";
-        $paidParams['paid_from'] = $from->format('Y-m-d H:i:s');
-      }
-
-      if ($to) {
-        $sqlPaid .= " AND sj_paid.date_debut <= :paid_to";
-        $paidParams['paid_to'] = $to->format('Y-m-d H:i:s');
-      }
-
-      $sqlPaid .= " )";
-    }
-
-    $sqlPaid .= " )";
-
-    $encaisseCents = (int) $conn
-      ->executeQuery($sqlPaid, $paidParams)
-      ->fetchOne();
+    $invoices = RevenueQueries::invoices($this->em, $entite, $from, $to);
+    $payments = RevenueQueries::payments($this->em, $entite, $from, $to);
+    $this->scopeRevenue($invoices, 'fa', $formationId, $formateurId, $sessionStatus, $inscriptionStatus);
+    $this->scopeRevenue($payments, 'pa.facture', $formationId, $formateurId, $sessionStatus, $inscriptionStatus);
+    $caFactureCents = RevenueQueries::billed($invoices);
+    $encaisseCents = RevenueQueries::received($payments);
 
     $resteCents = max(0, $caFactureCents - $encaisseCents);
 
@@ -430,65 +306,9 @@ final class DashboardController extends AbstractController
 
     // Factures en attente de paiement (DUE)
 
-    $qbDueCount = $this->em->createQueryBuilder()
-
-      ->select('COUNT(DISTINCT f.id)')
-
-      ->from(Facture::class, 'f')
-
-      ->join('f.inscriptions', 'i')
-
-      ->join('i.session', 's')
-
-      ->where('s.entite = :e')
-
-      ->andWhere('f.status = :st')
-
-      ->setParameter('e', $entite)
-
-      ->setParameter('st', FactureStatus::DUE);
-
-
-
-    $this->applySessionFilters($qbDueCount, $from, $to, $formationId, $formateurId, $sessionStatus);
-
-    $facturesEnAttente = (int) $qbDueCount->getQuery()->getSingleScalarResult();
-
-
-
-    // somme des factures DUE (ton JS attend facturesDueCents)
-
-    $sqlDue = "
-
-  SELECT COALESCE(SUM(x.montant_ttc_cents), 0) AS cents
-
-  FROM (
-
-    SELECT DISTINCT f.id, f.montant_ttc_cents
-
-    FROM facture f
-
-    INNER JOIN facture_inscription fi ON fi.facture_id = f.id
-
-    INNER JOIN inscription i ON i.id = fi.inscription_id
-
-    INNER JOIN session s ON s.id = i.session_id
-
-    LEFT JOIN session_jour j ON j.session_id = s.id
-
-    WHERE s.entite_id = :eid
-
-      AND f.status = :due
-
-  ) x
-
-";
-
-    $params = ['eid' => $entite->getId(), 'due' => FactureStatus::DUE->value /* ou ->name selon ton mapping */];
-
-
-
-    $facturesDueCents = (int) $conn->executeQuery($sqlDue, $params)->fetchOne();
+    $due = (clone $invoices)->andWhere('fa.status = :due')->setParameter('due', FactureStatus::DUE);
+    $facturesEnAttente = (int) (clone $due)->select('COUNT(fa.id)')->getQuery()->getSingleScalarResult();
+    $facturesDueCents = RevenueQueries::billed($due);
 
 
 
@@ -609,6 +429,7 @@ final class DashboardController extends AbstractController
       'inscriptions' => $inscriptionsCount,
 
       'reussis' => $reussis,
+      'evaluated' => $evaluated,
 
       'tauxReussite' => $tauxReussite,
 
@@ -1640,6 +1461,36 @@ final class DashboardController extends AbstractController
 
 
 
+  private function sqlChoices(string &$sql, array &$params, mixed $raw, string $field, string $key): void
+  {
+    $values = ChoiceFilter::values($raw);
+    if ($values === null) return;
+    if (!$values) { $sql .= ' AND 1 = 0'; return; }
+    $slots = [];
+    foreach ($values as $index => $value) {
+      $name = $key . '_' . $index;
+      $slots[] = ':' . $name;
+      $params[$name] = $value;
+    }
+    $sql .= ' AND ' . $field . ' IN (' . implode(',', $slots) . ')';
+  }
+
+  private function scopeRevenue(\Doctrine\ORM\QueryBuilder $qb, string $invoice, string $formation, string $trainer, string $sessionStatus, string $inscriptionStatus): void
+  {
+    if (ChoiceFilter::values($formation) === null && ChoiceFilter::values($trainer) === null
+      && ChoiceFilter::values($sessionStatus) === null && ChoiceFilter::values($inscriptionStatus) === null) return;
+    // EXISTS avoids multiplying an invoice/payment by its number of participants.
+    $scope = $this->em->createQueryBuilder()->select('1')->from(Facture::class, 'scopeInvoice')
+      ->join('scopeInvoice.inscriptions', 'scopeIns')->join('scopeIns.session', 'scopeSession')
+      ->where('scopeInvoice = '.$invoice)->andWhere('scopeInvoice.entite = :e AND scopeSession.entite = :e AND scopeIns.entite = :e');
+    ChoiceFilter::equals($scope, $formation, 'scopeSession.formation', 'revFormation');
+    ChoiceFilter::equals($scope, $trainer, 'scopeSession.formateur', 'revTrainer');
+    ChoiceFilter::equals($scope, $sessionStatus, 'scopeSession.status', 'revSession');
+    ChoiceFilter::equals($scope, $inscriptionStatus, 'scopeIns.status', 'revInscription');
+    $qb->andWhere('EXISTS ('.$scope->getDQL().')');
+    foreach ($scope->getParameters() as $parameter) $qb->setParameter($parameter->getName(), $parameter->getValue());
+  }
+
   private function applySessionFilters($qb, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to, string $formationId, string $formateurId, string $sessionStatus): void
 
   {
@@ -1678,27 +1529,15 @@ final class DashboardController extends AbstractController
 
 
 
-    if ($formationId !== 'all') {
-
-      $qb->andWhere('s.formation = :f')->setParameter('f', (int) $formationId);
-
-    }
+    ChoiceFilter::equals($qb, $formationId, 's.formation', 'f');
 
 
 
-    if ($formateurId !== 'all') {
-
-      $qb->andWhere('s.formateur = :fo')->setParameter('fo', (int) $formateurId);
-
-    }
+    ChoiceFilter::equals($qb, $formateurId, 's.formateur', 'fo');
 
 
 
-    if ($sessionStatus !== 'all') {
-
-      $qb->andWhere('s.status = :ss')->setParameter('ss', StatusSession::from($sessionStatus));
-
-    }
+    ChoiceFilter::equals($qb, $sessionStatus, 's.status', 'ss');
 
   }
 
@@ -1732,7 +1571,7 @@ final class DashboardController extends AbstractController
 
     $qb = $this->em->createQueryBuilder()
 
-      ->select('i.status AS st, COUNT(i.id) AS n')
+      ->select('i.status AS st, COUNT(DISTINCT i.id) AS n')
 
       ->from(Inscription::class, 'i')
 
@@ -1752,11 +1591,7 @@ final class DashboardController extends AbstractController
 
 
 
-    if ($inscriptionStatus !== 'all') {
-
-      $qb->andWhere('i.status = :ist')->setParameter('ist', StatusInscription::from($inscriptionStatus));
-
-    }
+    ChoiceFilter::equals($qb, $inscriptionStatus, 'i.status', 'ist');
 
 
 
@@ -1790,71 +1625,17 @@ final class DashboardController extends AbstractController
 
 
 
-    // 2) Encaissements par mois
-    //
-    // Le montant est regroupé selon p.date_paiement.
-    // Chaque paiement est compté UNE SEULE FOIS.
-    // L'appartenance à l'entité courante est vérifiée avec EXISTS afin que
-    // facture_inscription / inscription ne puissent pas multiplier le SUM().
-    $conn = $this->em->getConnection();
-
-    $sql = "
-        SELECT
-            DATE_FORMAT(p.date_paiement, '%Y-%m') AS ym,
-            COALESCE(SUM(p.montant_cents), 0) AS cents
-        FROM paiement p
-        WHERE EXISTS (
-            SELECT 1
-            FROM facture_inscription fi
-            INNER JOIN inscription i ON i.id = fi.inscription_id
-            INNER JOIN session s ON s.id = i.session_id
-            WHERE fi.facture_id = p.facture_id
-              AND s.entite_id = :eid
-    ";
-
-    $params = [
-      'eid' => $entite->getId(),
-    ];
-
-    if ($formationId !== 'all') {
-      $sql .= " AND s.formation_id = :fid";
-      $params['fid'] = (int) $formationId;
+    // Same HT basis, payment dates and scope as the revenue KPI.
+    $payments = RevenueQueries::payments($this->em, $entite, $from, $to);
+    $this->scopeRevenue($payments, 'pa.facture', $formationId, $formateurId, $sessionStatus, $inscriptionStatus);
+    $monthly = [];
+    foreach ($payments->select('pa.datePaiement AS date, pa.ventilationHtHorsDeboursCents AS cents')->getQuery()->getArrayResult() as $payment) {
+      $month = $payment['date']->format('Y-m');
+      $monthly[$month] = ($monthly[$month] ?? 0) + (int) $payment['cents'];
     }
-
-    if ($formateurId !== 'all') {
-      $sql .= " AND s.formateur_id = :foid";
-      $params['foid'] = (int) $formateurId;
-    }
-
-    if ($sessionStatus !== 'all') {
-      $sql .= " AND s.status = :sst";
-      $params['sst'] = $sessionStatus;
-    }
-
-    // Fin du EXISTS d'appartenance à l'entité / filtres session.
-    $sql .= " )";
-
-    /**
-     * Pour un graphique intitulé « Encaissements par mois », la période doit
-     * porter sur la date d'encaissement, et non sur la date de la session.
-     * Le résultat correspond ainsi à la page Paiements pour le même mois.
-     */
-    if ($from) {
-      $sql .= " AND p.date_paiement >= :cash_from";
-      $params['cash_from'] = $from->format('Y-m-d 00:00:00');
-    }
-
-    if ($to) {
-      $sql .= " AND p.date_paiement <= :cash_to";
-      $params['cash_to'] = $to->format('Y-m-d 23:59:59');
-    }
-
-    $sql .= "
-        GROUP BY DATE_FORMAT(p.date_paiement, '%Y-%m')
-        ORDER BY ym ASC
-    ";
-
-    $cashRows = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+    ksort($monthly);
+    $cashRows = [];
+    foreach ($monthly as $month => $cents) $cashRows[] = ['ym' => $month, 'cents' => $cents];
 
     $cashLabels = [];
     $cashData = [];
