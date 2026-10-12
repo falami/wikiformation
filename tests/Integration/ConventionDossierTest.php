@@ -145,6 +145,16 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         $trainerAttempt=(new \App\Entity\FormateurSatisfactionAttempt())->setEntite($this->em->find(Entite::class,$this->entite->getId()))->setCreateur($this->em->find(Utilisateur::class,$this->user->getId()))->setAssignment($trainerAssignment)->setSubmittedAt(new \DateTimeImmutable())->setAnswers(['historique'=>'Bonne participation']);
         $trainerAssignment->setAttempt($trainerAttempt);$this->em->persist($trainerAttempt);$this->em->flush();
         $this->client->request('GET',$portal.'/documents/satisfaction/formateur/'.$trainerAssignment->getId());self::assertResponseIsSuccessful();self::assertSelectorTextContains('article','Bonne participation');
+        foreach ([
+            ['stagiaires', 'stagiaire', $appreciations[0]->getId()],
+            ['formateur', 'formateur', $trainerAssignment->getId()],
+        ] as [$endpoint, $detail, $assignmentId]) {
+            $this->client->request('POST', $portal.'/documents/satisfaction/'.$endpoint.'/ajax');
+            self::assertResponseIsSuccessful();
+            $rows = json_decode($this->client->getResponse()->getContent(), true)['data'];
+            self::assertCount(1, $rows);
+            self::assertStringContainsString('/documents/satisfaction/'.$detail.'/'.$assignmentId, $rows[0]['actions']);
+        }
         $reviewUrl=$portal.'/convention/'.$c->getId().'/signature';
         $this->client->request('GET',$reviewUrl);self::assertResponseIsSuccessful();
         $consentToken=$this->client->getCrawler()->filter('input[name="_token"]')->attr('value');

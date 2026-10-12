@@ -646,7 +646,7 @@ final class EntrepriseDocumentsController extends AbstractController
         'stagiaire' => htmlspecialchars($stagLabel ?: '—'),
         'submitted' => $pa->getSubmittedAt()?->format('d/m/Y H:i') ?? '—',
         'summary' => $summaryHtml,
-        'actions' => '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_satisfaction_stagiaire_show', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$sa->getId()]), ENT_QUOTES).'"><i class="bi bi-eye"></i> Voir</a>',
+        'actions' => '<span class="badge bg-light text-dark"><i class="bi bi-eye"></i> Voir</span>',
       ];
     }
 
@@ -870,7 +870,7 @@ final class EntrepriseDocumentsController extends AbstractController
         'notes' => $notes,
         'status' => $this->badgeSigned($submitted !== null),
         'actions' => ($submitted !== null)
-          ? '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_satisfaction_formateur_show', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$fsa->getId()]), ENT_QUOTES).'"><i class="bi bi-eye"></i> Voir</a>'
+          ? '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_satisfaction_stagiaire_show', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$sa->getId()]), ENT_QUOTES).'"><i class="bi bi-eye"></i> Voir</a>'
           : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass"></i> En attente</span>',
       ];
     }
@@ -957,7 +957,7 @@ final class EntrepriseDocumentsController extends AbstractController
         'summary' => '<span class="badge bg-light text-dark"><i class="bi bi-journal-text"></i> Rapport</span>',
         'status' => $this->badgeSigned($submitted !== null),
         'actions' => ($submitted !== null)
-          ? '<span class="badge bg-light text-dark"><i class="bi bi-eye"></i> Voir</span>'
+          ? '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_satisfaction_formateur_show', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$fsa->getId()]), ENT_QUOTES).'"><i class="bi bi-eye"></i> Voir</a>'
           : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass"></i> En attente</span>',
       ];
     }
