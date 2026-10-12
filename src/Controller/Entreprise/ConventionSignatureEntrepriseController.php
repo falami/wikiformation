@@ -20,7 +20,7 @@ use App\Service\Convention\ConventionPortalSignature;
 #[IsGranted(TenantPermission::CONVENTION_SIGNATURE_ENTREPRISE_MANAGE, subject: 'entite')]
 class ConventionSignatureEntrepriseController extends AbstractController
 {
-  public function __construct(private EM $em, private ConventionPortalSignature $signatures) {}
+  public function __construct(private EM $em, private ConventionPortalSignature $signatures, private \App\Service\Entreprise\EntreprisePortalContext $portal) {}
 
   #[Route('/inscription/{id}/convention/signature-entreprise', name: 'convention_sign', methods: ['POST'])]
   public function signByEntreprise(Entite $entite, Inscription $inscription, Request $request): Response
@@ -37,7 +37,7 @@ class ConventionSignatureEntrepriseController extends AbstractController
     if (!$this->isCsrfTokenValid('sign_convention_' . $inscription->getId(), (string) $request->request->get('_token'))) {
       throw $this->createAccessDeniedException('Token CSRF invalide.');
     }
-    $entreprise = $user->getEntreprise();
+    $entreprise = $this->portal->resolve($user, $entite);
     $candidates = $inscription->getConventionContrats()->filter(static fn(ConventionContrat $c) =>
       $entreprise && $c->getEntreprise() === $entreprise && $c->getEntite() === $entite
       && $c->getSession() === $inscription->getSession()

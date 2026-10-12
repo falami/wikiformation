@@ -8,7 +8,7 @@ use Symfony\Component\Routing\RouterInterface;
 /** Choose an implemented portal without granting a different tenant role. */
 final class MembershipHomeRoute
 {
-    public function __construct(private readonly RouterInterface $router) {}
+    public function __construct(private readonly RouterInterface $router, private readonly \App\Service\Entreprise\EntreprisePortalContext $portal) {}
 
     public function forMembership(UtilisateurEntite $membership): ?string
     {
@@ -30,8 +30,8 @@ final class MembershipHomeRoute
             if (!$membership->hasRole($role)) {
                 continue;
             }
-            if (in_array($role, [UtilisateurEntite::TENANT_OF, UtilisateurEntite::TENANT_ENTREPRISE], true)
-                && !$membership->getUtilisateur()?->getEntreprise()) {
+            if (($role === UtilisateurEntite::TENANT_OF && !$membership->getUtilisateur()?->getEntreprise())
+                || ($role === UtilisateurEntite::TENANT_ENTREPRISE && (!$membership->getUtilisateur() || !$this->portal->companies($membership->getUtilisateur(), $membership->getEntite())))) {
                 continue;
             }
             if ($this->router->getRouteCollection()->get($route)) {

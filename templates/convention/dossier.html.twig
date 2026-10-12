@@ -20,7 +20,7 @@
       <p class="small text-muted">Les signatures absentes restent visibles sous forme de cases vides. Les appréciations non soumises ne sont pas ajoutées.</p>
       {% for warning in inventory.warnings %}<div class="alert alert-warning py-2 small">{{ warning }}</div>{% endfor %}
       {% if c.session.sousTraitance %}<p class="text-muted">Session en sous-traitance : émargements et appréciations gérés par le donneur d’ordre.</p>{% endif %}
-      <a class="btn btn-outline-primary align-self-start" href="{{ path(admin ? 'app_administrateur_convention_dossier' : 'app_entreprise_documents_convention_dossier', {entite:entite.id,id:c.id,download:1}) }}"><i class="bi bi-download me-2"></i>Télécharger le dossier</a>
+      <a class="btn btn-outline-primary align-self-start" href="{{ path(admin ? 'app_administrateur_convention_dossier' : 'app_entreprise_documents_convention_dossier', {entite:entite.id,id:c.id,download:1}|merge(admin ? {} : {entreprise:c.entreprise.id})) }}"><i class="bi bi-download me-2"></i>Télécharger le dossier</a>
     </div></div>
     <div class="col-lg-4"><div class="card border-0 shadow-sm rounded-4 p-4">
       {% if admin %}<h2 class="h5">Transmettre à l’entreprise</h2><p class="text-muted small">Le destinataire est l’adresse enregistrée sur l’entreprise de cette convention.</p><strong class="text-break mb-3">{{ recipient ?: 'Adresse email non renseignée' }}</strong>

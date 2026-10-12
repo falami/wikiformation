@@ -53,7 +53,7 @@ final class ConventionPortalSignature
                 if (($role === 'stagiaire' && $convention->getDateSignatureStagiaire())
                     || ($role === 'entreprise' && $convention->getDateSignatureEntreprise())) return;
                 if (($role === 'stagiaire' && $convention->getStagiaire()?->getId() !== $actor->getId())
-                    || ($role === 'entreprise' && (!$actor->getEntreprise() || $convention->getEntreprise()?->getId() !== $actor->getEntreprise()->getId()))) {
+                    || ($role === 'entreprise' && !\App\Service\Entreprise\EntreprisePortalContext::canRepresent($actor, $convention->getEntreprise()))) {
                     throw new \DomainException('Ce document ne vous est pas destiné.');
                 }
                 if (!$convention->getPdfPath()) throw new \DomainException('Consultez le document avant de le signer.');

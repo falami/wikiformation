@@ -16,7 +16,6 @@ use App\Entity\{
   ConventionContrat
 };
 use App\Form\Entreprise\EntrepriseDocumentType;
-use App\Security\Voter\EntrepriseAccessVoter;
 use App\Service\FileUploader;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,6 +34,7 @@ final class DashboardEntrepriseController extends AbstractController
   public function __construct(
     private FileUploader $uploader,
     private UtilisateurEntiteManager $utilisateurEntiteManager,
+    private \App\Service\Entreprise\EntreprisePortalContext $portal,
   ) {}
 
   private function firstStart(Session $s): ?\DateTimeImmutable
@@ -57,34 +57,28 @@ final class DashboardEntrepriseController extends AbstractController
     return $last;
   }
 
-  private function getEntrepriseUserOrFail(): Entreprise
+  private function getEntrepriseUserOrFail(Entite $entite): Entreprise
   {
-    /** @var Utilisateur $user */
-    $user = $this->getUser();
-    $entreprise = $user->getEntreprise();
-    if (!$entreprise) {
-      throw $this->createAccessDeniedException('Aucune entreprise associée à ce compte.');
-    }
-    $this->denyAccessUnlessGranted(EntrepriseAccessVoter::VIEW_ENTREPRISE, $entreprise);
-    return $entreprise;
+    return $this->portal->resolve($this->getUser(), $entite);
   }
 
   #[Route('/dashboard', name: 'dashboard', methods: ['GET', 'POST'])]
   public function dashboard(Entite $entite, EM $em, Request $request): Response
   {
 
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     /** @var Utilisateur $user */
     $user = $this->getUser();
     // Form upload doc
     $doc = new EntrepriseDocument();
     $form = $this->createForm(EntrepriseDocumentType::class, $doc, [
-      'action' => $this->generateUrl('app_entreprise_document_upload', ['entite' => $entite->getId()]),
+      'action' => $this->generateUrl('app_entreprise_document_upload', ['entite' => $entite->getId(), 'entreprise' => $entreprise->getId()]),
     ]);
     $form->handleRequest($request);
 
     return $this->render('entreprise/dashboard.html.twig', [
       'entite' => $entite,
+      'entreprisesDisponibles' => $this->portal->companies($this->getUser(), $entite),
       'entreprise' => $entreprise,
       'formUpload' => $form->createView(),
 
@@ -96,7 +90,7 @@ final class DashboardEntrepriseController extends AbstractController
   #[Route('/inscriptions/ajax', name: 'inscriptions_ajax', methods: ['POST'])]
   public function inscriptionsAjax(Entite $entite, EM $em, Request $request): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     $rows = $em->createQueryBuilder()
       ->select('i, s, fo, u')
@@ -165,7 +159,7 @@ final class DashboardEntrepriseController extends AbstractController
   #[Route('/calendar/feed', name: 'calendar_feed', methods: ['GET'])]
   public function calendarFeed(Entite $entite, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     $sessions = $em->createQueryBuilder()
       ->select('DISTINCT s, j, fo')
@@ -201,7 +195,7 @@ final class DashboardEntrepriseController extends AbstractController
   #[Route('/documents/feed', name: 'documents_feed', methods: ['GET'])]
   public function documentsFeed(Entite $entite, EM $em, Request $request): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     $sessionId = $request->query->getInt('session', 0);
 
     // 1) Docs RH uploadés
@@ -231,7 +225,7 @@ final class DashboardEntrepriseController extends AbstractController
         'uploadedAt' => $d->getUploadedAt()->format('d/m/Y H:i'),
         'signedAt' => $d->getSignedAtEntreprise()?->format('d/m/Y H:i'),
         'url' => $basePath . '/uploads/entreprise/docs/' . $d->getFilename(),
-        'signUrl' => $this->generateUrl('app_entreprise_document_sign', ['entite' => $entite->getId(), 'id' => $d->getId()]),
+        'signUrl' => $this->generateUrl('app_entreprise_document_sign', ['entite' => $entite->getId(), 'entreprise' => $entreprise->getId(), 'id' => $d->getId()]),
       ];
     }
 
@@ -255,7 +249,7 @@ final class DashboardEntrepriseController extends AbstractController
         'sessionId' => $c->getSession()?->getId(),
         'uploadedAt' => $c->getDateCreation()?->format('d/m/Y') ?? '',
         'signedAt' => $c->getDateSignatureEntreprise()?->format('d/m/Y') ?? null,
-        'url' => $this->generateUrl('app_entreprise_documents_convention_pdf', ['entite' => $entite->getId(), 'id' => $c->getId()]),
+        'url' => $this->generateUrl('app_entreprise_documents_convention_pdf', ['entite' => $entite->getId(), 'entreprise' => $entreprise->getId(), 'id' => $c->getId()]),
         'signUrl' => null, // (tu as déjà signatureDataUrlEntreprise dans ConventionContrat)
       ];
     }
@@ -283,7 +277,7 @@ final class DashboardEntrepriseController extends AbstractController
         'sessionId' => null,
         'uploadedAt' => $d->getDateEmission()->format('d/m/Y'),
         'signedAt' => null,
-        'url' => $this->generateUrl('app_entreprise_documents_devis_pdf', ['entite' => $entite->getId(), 'id' => $d->getId()]),
+        'url' => $this->generateUrl('app_entreprise_documents_devis_pdf', ['entite' => $entite->getId(), 'entreprise' => $entreprise->getId(), 'id' => $d->getId()]),
         'signUrl' => null,
       ];
     }
@@ -318,7 +312,7 @@ final class DashboardEntrepriseController extends AbstractController
   #[Route('/documents/upload', name: 'document_upload', methods: ['POST'])]
   public function upload(Entite $entite, EM $em, Request $request): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     $doc = new EntrepriseDocument();
     $form = $this->createForm(EntrepriseDocumentType::class, $doc);
@@ -342,17 +336,17 @@ final class DashboardEntrepriseController extends AbstractController
       $em->persist($doc);
       $em->flush();
 
-      return $this->redirectToRoute('app_entreprise_dashboard', ['entite' => $entite->getId()]);
+      return $this->redirectToRoute('app_entreprise_dashboard', ['entite' => $entite->getId(), 'entreprise' => $entreprise->getId()]);
     }
 
-    return $this->redirectToRoute('app_entreprise_dashboard', ['entite' => $entite->getId()]);
+    return $this->redirectToRoute('app_entreprise_dashboard', ['entite' => $entite->getId(), 'entreprise' => $entreprise->getId()]);
   }
 
   /** Signature doc RH (AJAX) */
   #[Route('/documents/{id}/sign', name: 'document_sign', methods: ['POST'])]
   public function sign(Entite $entite, EntrepriseDocument $doc, EM $em, Request $request): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if ($doc->getEntite()?->getId() !== $entite->getId() || $doc->getEntreprise()?->getId() !== $entreprise->getId()) {
       return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
@@ -374,7 +368,7 @@ final class DashboardEntrepriseController extends AbstractController
   #[Route('/session/{session}/detail', name: 'session_detail_ajax', methods: ['GET'])]
   public function sessionDetailAjax(Entite $entite, Session $session, EM $em): JsonResponse
   {
-      $entreprise = $this->getEntrepriseUserOrFail();
+      $entreprise = $this->getEntrepriseUserOrFail($entite);
 
       if ($session->getEntite()?->getId() !== $entite->getId()) {
           return new JsonResponse([

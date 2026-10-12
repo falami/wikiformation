@@ -1,0 +1,14 @@
+<div class="card border-0 shadow-sm mb-4 p-3">
+  <form method="get" class="d-flex flex-wrap align-items-center gap-3">
+    <label for="portal-company" class="fw-bold mb-0"><i class="bi bi-building me-2"></i>Entreprise consultée</label>
+    <select id="portal-company" name="entreprise" class="form-select w-auto" onchange="this.form.submit()">
+      {% for company in entreprisesDisponibles %}
+        <option value="{{ company.id }}" {{ company.id == entreprise.id ? 'selected' : '' }}>{{ company.raisonSociale }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline-primary" type="submit">Afficher</button>
+    <span class="text-muted ms-auto">Organisme de formation : {{ entite.nom }}</span>
+    <a class="btn btn-outline-secondary" href="{{ path('app_entreprise_dashboard', {entite: entite.id, entreprise: entreprise.id}) }}">Salariés & sessions</a>
+    <a class="btn btn-outline-secondary" href="{{ path('app_entreprise_documents_index', {entite: entite.id, entreprise: entreprise.id}) }}">Documents</a>
+  </form>
+</div>

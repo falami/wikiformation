@@ -22,7 +22,6 @@ use App\Entity\{
 };
 use App\Enum\DemiJournee;
 use App\Enum\{DevisStatus, FactureStatus, QcmPhase};
-use App\Security\Voter\EntrepriseAccessVoter;
 use App\Service\Pdf\PdfManager;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -39,28 +38,19 @@ final class EntrepriseDocumentsController extends AbstractController
 {
   public function __construct(
     private UtilisateurEntiteManager $utilisateurEntiteManager,
+    private \App\Service\Entreprise\EntreprisePortalContext $portal,
     private ?PdfManager $pdf = null,
   ) {}
 
-  private function getEntrepriseUserOrFail(): Entreprise
+  private function getEntrepriseUserOrFail(Entite $entite): Entreprise
   {
-    /** @var Utilisateur $user */
-    $user = $this->getUser();
-    $entreprise = $user->getEntreprise();
-
-    if (!$entreprise) {
-      throw $this->createAccessDeniedException('Aucune entreprise associée à ce compte.');
-    }
-
-    $this->denyAccessUnlessGranted(EntrepriseAccessVoter::VIEW_ENTREPRISE, $entreprise);
-
-    return $entreprise;
+    return $this->portal->resolve($this->getUser(), $entite);
   }
 
   #[Route('/convention/{id}/dossier', name: 'convention_dossier', methods: ['GET'], requirements: ['id'=>'\d+'])]
   public function conventionDossier(Entite $entite, ConventionContrat $c, Request $request, \App\Service\Convention\ConventionDossier $dossier): Response
   {
-    $company = $this->getEntrepriseUserOrFail();
+    $company = $this->getEntrepriseUserOrFail($entite);
     if ($c->getEntite()?->getId() !== $entite->getId() || $company->getEntite()?->getId() !== $entite->getId()
         || $c->getEntreprise()?->getId() !== $company->getId()) throw $this->createNotFoundException();
     try { $inventory = $dossier->inventory($c); }
@@ -95,7 +85,8 @@ final class EntrepriseDocumentsController extends AbstractController
 
     return $this->render('entreprise/documents/index.html.twig', [
       'entite' => $entite,
-      'entreprise' => $this->getEntrepriseUserOrFail(),
+      'entreprisesDisponibles' => $this->portal->companies($this->getUser(), $entite),
+      'entreprise' => $this->getEntrepriseUserOrFail($entite),
 
 
     ]);
@@ -107,7 +98,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/devis/ajax', name: 'devis_ajax', methods: ['POST'])]
   public function devisAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $statusFilter = (string)$request->request->get('statusFilter', 'all');
@@ -157,7 +148,7 @@ final class EntrepriseDocumentsController extends AbstractController
     $data = [];
     foreach ($rows as $d) {
       $pdfUrl = $this->generateUrl('app_entreprise_documents_devis_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id' => $d->getId(),
       ]);
 
@@ -189,7 +180,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/factures/ajax', name: 'factures_ajax', methods: ['POST'])]
   public function facturesAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $statusFilter = (string)$request->request->get('statusFilter', 'all');
@@ -239,7 +230,7 @@ final class EntrepriseDocumentsController extends AbstractController
     $data = [];
     foreach ($rows as $f) {
       $pdfUrl = $this->generateUrl('app_entreprise_documents_facture_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id' => $f->getId(),
       ]);
 
@@ -271,7 +262,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/conventions/ajax', name: 'conventions_ajax', methods: ['POST'])]
   public function conventionsAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $signFilter = (string)$request->request->get('signFilter', 'all'); // all|signed|pending
@@ -328,7 +319,7 @@ final class EntrepriseDocumentsController extends AbstractController
     $data = [];
     foreach ($rows as $cc) {
       $pdfUrl = $this->generateUrl('app_entreprise_documents_convention_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id' => $cc->getId(),
       ]);
 
@@ -349,7 +340,7 @@ final class EntrepriseDocumentsController extends AbstractController
               <a class="btn btn-sm btn-outline-secondary" href="%s" target="_blank"><i class="bi bi-filetype-pdf"></i> PDF</a>
             </div>',
           htmlspecialchars($pdfUrl, ENT_QUOTES)
-        ) . ($cc->getEntreprise()?->getId() === $entreprise->getId() ? '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_convention_dossier', ['entite'=>$entite->getId(),'id'=>$cc->getId()]), ENT_QUOTES).'"><i class="bi bi-folder2-open"></i> Dossier</a>' : ''),
+        ) . ($cc->getEntreprise()?->getId() === $entreprise->getId() ? '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_convention_dossier', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$cc->getId()]), ENT_QUOTES).'"><i class="bi bi-folder2-open"></i> Dossier</a>' : ''),
       ];
     }
 
@@ -367,7 +358,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/emargements/ajax', name: 'emargements_ajax', methods: ['POST'])]
   public function emargementsAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $signedFilter = (string) $request->request->get('signedFilter', 'all'); // all|signed|missing
@@ -499,7 +490,7 @@ final class EntrepriseDocumentsController extends AbstractController
       $statusHtml = $this->badgeSigned($signedCount > 0);
 
       $pdfUrl = $this->generateUrl('app_entreprise_documents_emargement_sheet_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id'     => $session->getId(),
       ]);
 
@@ -535,7 +526,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/positionnement/ajax', name: 'positionnement_ajax', methods: ['POST'])]
   public function positionnementAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $stateFilter = (string)$request->request->get('stateFilter', 'all'); // all|submitted|started|pending
@@ -625,7 +616,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/qcm/ajax', name: 'qcm_ajax', methods: ['POST'])]
   public function qcmAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $phaseFilter = (string)$request->request->get('phaseFilter', 'all'); // all|pre|post
@@ -708,12 +699,12 @@ final class EntrepriseDocumentsController extends AbstractController
 
 
       $qcmQuestionnaireUrl = $this->generateUrl('app_entreprise_documents_qcm_questionnaire_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id' => $qa->getId(),
       ]);
 
       $qcmResultUrl = $this->generateUrl('app_entreprise_documents_qcm_result_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id' => $qa->getId(),
       ]);
 
@@ -753,7 +744,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/satisfaction/stagiaires/ajax', name: 'satisfaction_stagiaires_ajax', methods: ['POST'])]
   public function satisfactionStagiairesAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $stateFilter = (string)$request->request->get('stateFilter', 'all'); // all|submitted|pending
@@ -850,7 +841,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/satisfaction/formateur/ajax', name: 'satisfaction_formateur_ajax', methods: ['POST'])]
   public function satisfactionFormateurAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $stateFilter = (string)$request->request->get('stateFilter', 'all'); // all|submitted|pending
@@ -946,7 +937,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/assiduite/ajax', name: 'assiduite_ajax', methods: ['POST'])]
   public function assiduiteAjax(Entite $entite, Request $request, EM $em): JsonResponse
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
     [$draw, $start, $length, $searchV, $orderColIdx, $orderDir] = $this->dtParams($request);
 
     $stateFilter = (string)$request->request->get('stateFilter', 'all'); // all|ok|low|missing
@@ -1015,18 +1006,18 @@ final class EntrepriseDocumentsController extends AbstractController
           : '<span class="badge bg-success-subtle text-success">OK</span>');
 
       $pdfUrl = $this->generateUrl('app_entreprise_documents_assiduite_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id' => $ins->getId(),
       ]);
       $convocationUrl = $this->generateUrl('app_entreprise_documents_convocation_pdf', [
-        'entite' => $entite->getId(),
+        'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
         'id' => $ins->getId(),
       ]);
 
       $attestationBtn = '';
       if (method_exists($ins, 'getAttestation') && $ins->getAttestation()) {
         $attestationUrl = $this->generateUrl('app_entreprise_documents_attestation_pdf', [
-          'entite' => $entite->getId(),
+          'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
           'id' => $ins->getId(),
         ]);
         $attestationBtn = sprintf(
@@ -1072,7 +1063,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/devis/{id}/pdf', name: 'devis_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function devisPdf(Entite $entite, Devis $devis): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($devis->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
@@ -1090,7 +1081,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/facture/{id}/pdf', name: 'facture_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function facturePdf(Entite $entite, Facture $facture): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($facture->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
@@ -1111,7 +1102,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/convention/{id}/pdf', name: 'convention_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function conventionPdf(Entite $entite, ConventionContrat $cc, EM $em, Request $request, \App\Service\Convention\ConventionPortalSignature $signatures): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($cc->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
@@ -1139,7 +1130,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/assiduite/{id}/pdf', name: 'assiduite_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function assiduitePdf(Entite $entite, Inscription $inscription): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($inscription->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
@@ -1214,7 +1205,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/convocation/{id}/pdf', name: 'convocation_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function convocationPdf(Entite $entite, Inscription $inscription): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($inscription->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
@@ -1237,7 +1228,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/attestation/{id}/pdf', name: 'attestation_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function attestationPdf(Entite $entite, Inscription $inscription): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($inscription->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
@@ -1264,7 +1255,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/emargement/session/{id}/pdf', name: 'emargement_sheet_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function emargementSheetPdf(Entite $entite, Session $session, Request $request, EM $em): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
@@ -1446,7 +1437,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/qcm/{id}/questionnaire/pdf', name: 'qcm_questionnaire_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function qcmQuestionnairePdf(Entite $entite, QcmAssignment $qa, EM $em): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) {
       throw $this->createNotFoundException('Service PDF non disponible.');
@@ -1511,7 +1502,7 @@ final class EntrepriseDocumentsController extends AbstractController
   #[Route('/qcm/{id}/result/pdf', name: 'qcm_result_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
   public function qcmResultPdf(Entite $entite, QcmAssignment $qa): Response
   {
-    $entreprise = $this->getEntrepriseUserOrFail();
+    $entreprise = $this->getEntrepriseUserOrFail($entite);
 
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($qa->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();

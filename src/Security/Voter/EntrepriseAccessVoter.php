@@ -28,7 +28,7 @@ final class EntrepriseAccessVoter extends Voter
     /** @var Entreprise $entreprise */
     $entreprise = $subject;
 
-    // ✅ Autorise uniquement si l'utilisateur est rattaché à CETTE entreprise
-    return $user->getEntreprise()?->getId() === $entreprise->getId();
+    // Le rattachement principal et le mandat de représentant ouvrent cet espace.
+    return \App\Service\Entreprise\EntreprisePortalContext::canRepresent($user, $entreprise);
   }
 }

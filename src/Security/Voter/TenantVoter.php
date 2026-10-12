@@ -13,7 +13,8 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 final class TenantVoter extends Voter
 {
   public function __construct(
-    private readonly UtilisateurEntiteRepository $ueRepo
+    private readonly UtilisateurEntiteRepository $ueRepo,
+    private readonly \App\Service\Entreprise\EntreprisePortalContext $portal
   ) {}
 
   protected function supports(string $attribute, mixed $subject): bool
@@ -35,7 +36,7 @@ final class TenantVoter extends Voter
     // ✅ Super admin : tout OK SAUF ENTREPRISE (optionnel mais recommandé)
     if ($user->isSuperAdmin()) {
       if ($attribute === TenantPermission::ENTREPRISE) {
-        return $user->getEntreprise() !== null;
+        return count($this->portal->companies($user, $entite)) > 0;
       }
       return true;
     }
@@ -61,13 +62,13 @@ final class TenantVoter extends Voter
     // ✅ Cas spécial ENTREPRISE : rôle + entreprise liée
     if ($attribute === TenantPermission::ENTREPRISE) {
       return $membership->hasRole(UtilisateurEntite::TENANT_ENTREPRISE)
-        && $user->getEntreprise() !== null;
+        && count($this->portal->companies($user, $entite)) > 0;
     }
 
     // ✅ Extranet entreprise : uniquement si rôle entreprise + entreprise liée
     if (in_array($attribute, self::ENTREPRISE_ALLOWED, true)) {
       return $membership->hasRole(UtilisateurEntite::TENANT_ENTREPRISE)
-        && $user->getEntreprise() !== null;
+        && count($this->portal->companies($user, $entite)) > 0;
     }
 
 
