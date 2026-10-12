@@ -1,6 +1,71 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:11px;color:#233d4b}h1{font-size:23px}.document-header{border-bottom:3px solid #dab24d;padding-bottom:18px;margin-bottom:24px}.question{margin:0 0 18px;page-break-inside:avoid}.answer{padding:10px;background:#f3f6f9;white-space:pre-wrap}small{color:#607586}</style></head><body>
-<div class="document-header"><small>{{ convention.entite.nom }} · {{ convention.numero }}</small><h1>Appréciation stagiaire</h1><strong>{{ name }}</strong><p>{{ convention.intituleFormationEffectif }} · {{ convention.session.code }}</p><small>Soumise le {{ assignment.attempt.submittedAt|date('d/m/Y à H:i', 'Europe/Paris') }}</small></div>
-{% set lastChapter = null %}
-{% for answer in answers %}{% if answer.chapter != lastChapter %}<h2>{{ answer.chapter }}</h2>{% set lastChapter = answer.chapter %}{% endif %}
-<div class="question"><strong>{{ answer.question }}</strong><div class="answer">{{ answer.value }}</div></div>
-{% endfor %}</body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Appréciation stagiaire - {{ name }}</title>
+<style>
+@page { margin: 34pt 38pt 42pt; }
+body { font-family: DejaVu Sans, sans-serif; font-size: 9pt; line-height: 1.3; color: #253c4b; }
+.footer { position: fixed; bottom: -24pt; left: 0; right: 0; border-top: 1pt solid #dde5eb; padding-top: 7pt; font-size: 7pt; color: #6d7e8b; }
+.footer .page { float: right; }.page:after { content: counter(page); }
+.hero { background: #203747; color: #fff; padding: 17pt 22pt 15pt; border-radius: 10pt; border-top: 4pt solid #d4ab4b; }
+.eyebrow { font-size: 7pt; letter-spacing: 1.6pt; text-transform: uppercase; color: #e6c977; }
+h1 { font-size: 24pt; line-height: 1.2; margin: 7pt 0 6pt; font-weight: bold; }
+.subtitle { color: #dce6ec; font-size: 9pt; }
+.identity { width: 100%; border-collapse: collapse; margin: 17pt 0 8pt; }
+.identity td { vertical-align: top; padding: 0 0 10pt; }
+.identity .right { width: 37%; padding-left: 18pt; border-left: 1pt solid #e1e7eb; }
+.label { font-size: 7pt; letter-spacing: .8pt; text-transform: uppercase; color: #728390; margin-bottom: 3pt; }
+.name { font-size: 15pt; font-weight: bold; margin-bottom: 9pt; }
+.training { font-size: 10pt; font-weight: bold; padding-right: 17pt; }
+.reference { font-size: 8pt; margin-top: 5pt; color: #637987; }
+.status { color: #277260; font-size: 8pt; font-weight: bold; margin-bottom: 11pt; }
+.section-start { page-break-inside: avoid; }
+h2 { font-size: 12pt; margin: 11pt 0 6pt; padding-bottom: 6pt; border-bottom: 1pt solid #dce5eb; }
+.number { color: #ae8430; font-size: 9pt; margin-right: 9pt; }
+.row { width: 100%; border-collapse: collapse; margin-bottom: 4pt; page-break-inside: avoid; }
+.row td { background: #f3f6f8; padding: 5pt 10pt; vertical-align: middle; }
+.row .question { width: 79%; font-size: 8.5pt; }
+.row .value { text-align: right; font-weight: bold; color: #203747; font-size: 10pt; }
+.comment { padding: 9pt 11pt; margin-bottom: 5pt; background: #f6f8fa; border-left: 2pt solid #d5b359; }
+.comment-title { font-size: 8.5pt; font-weight: bold; margin-bottom: 5pt; page-break-after: avoid; }
+.comment-value { white-space: pre-wrap; overflow-wrap: anywhere; color: #435d6c; }
+.row .value.empty { color: #85939d; font-size: 8pt; font-weight: normal; }
+.end { margin-top: 18pt; padding-top: 8pt; border-top: 1pt solid #dce5eb; color: #728390; font-size: 7pt; }
+</style>
+</head>
+<body>
+<div class="footer"><span class="page">Page </span>{{ convention.entite.nom }} · {{ convention.numero }} · Appréciation stagiaire</div>
+<div class="hero">
+  <div class="eyebrow">{{ convention.entite.nom }} / Évaluation de la formation</div>
+  <h1>Appréciation stagiaire</h1>
+  <div class="subtitle">Retour d’expérience à l’issue de la formation</div>
+</div>
+<table class="identity"><tr><td>
+  <div class="label">Participant</div><div class="name">{{ name }}</div>
+  <div class="label">Formation suivie</div><div class="training">{{ convention.intituleFormationEffectif }}</div>
+  <div class="reference">Session {{ convention.session.code }}</div>
+</td><td class="right">
+  <div class="status">Questionnaire soumis</div>
+  <div class="label">Date de soumission</div>
+  <div>{{ assignment.attempt.submittedAt|date('d/m/Y à H:i', 'Europe/Paris') }}</div>
+  <div class="label" style="margin-top:10pt">Convention</div><div class="reference">{{ convention.numero }}</div>
+</td></tr></table>
+{% set lastChapter = null %}{% set chapterNumber = 0 %}
+{% for answer in answers %}
+  {% set newChapter = answer.chapter != lastChapter %}
+  {% if newChapter %}
+    {% set chapterNumber = chapterNumber + 1 %}
+    <div class="{{ answer.value|length < 500 ? 'section-start' : '' }}"><h2><span class="number">{{ '%02d'|format(chapterNumber) }}</span>{{ answer.chapter }}</h2>
+    {% set lastChapter = answer.chapter %}
+  {% endif %}
+  {% if answer.value|length <= 28 %}
+    <table class="row"><tr><td class="question">{{ answer.question }}</td><td class="value {{ answer.value == 'Non renseigné' ? 'empty' : '' }}">{{ answer.value }}</td></tr></table>
+  {% else %}
+    <div class="comment"><div class="comment-title">{{ answer.question }}</div><div class="comment-value">{{ answer.value }}</div></div>
+  {% endif %}
+  {% if newChapter %}</div>{% endif %}
+{% else %}<p>Aucune réponse disponible.</p>{% endfor %}
+<div class="end">Restitution des réponses du participant. Les mentions « Non renseigné » correspondent aux questions laissées sans réponse.</div>
+</body>
+</html>

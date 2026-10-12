@@ -250,7 +250,8 @@ final class DashboardEntrepriseController extends AbstractController
         'uploadedAt' => $c->getDateCreation()?->format('d/m/Y') ?? '',
         'signedAt' => $c->getDateSignatureEntreprise()?->format('d/m/Y') ?? null,
         'url' => $this->generateUrl('app_entreprise_documents_convention_pdf', ['entite' => $entite->getId(), 'entreprise' => $entreprise->getId(), 'id' => $c->getId()]),
-        'signUrl' => null, // (tu as déjà signatureDataUrlEntreprise dans ConventionContrat)
+        'reviewUrl' => $this->generateUrl('app_entreprise_convention_review', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$c->getId()]),
+        'signUrl' => null,
       ];
     }
 

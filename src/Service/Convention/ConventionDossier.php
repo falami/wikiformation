@@ -91,9 +91,9 @@ final class ConventionDossier
         } finally { @unlink($path); }
     }
 
-    private function answers(SatisfactionAssignment $assignment): array
+    public function answers(SatisfactionAssignment|\App\Entity\FormateurSatisfactionAssignment $assignment): array
     {
-        $values = $assignment->getAttempt()->getAnswers();
+        $values = $assignment->getAttempt()->getAnswers() ?? [];
         $rows = [];
         foreach ($assignment->getTemplate()?->getChapters() ?? [] as $chapter) foreach ($chapter->getQuestions() as $q) {
             $value = $values[$q->getId()] ?? null;

@@ -42,6 +42,12 @@ final class EntreprisePortalContextTest extends WebTestCase
                     $second = (new Utilisateur())->setEmail('second@portal.test')->setPassword('unused')->setPrenom('Second')->setNom('<Salarié>');
                     $secondRegistration = (new Inscription())->setEntite($tenant)->setCreateur($user)->setSession($session)->setStagiaire($second)->setEntreprise($company);
                     $em->persist($second); $em->persist($secondRegistration); $convention->addInscription($secondRegistration);
+                    $trainer = (new \App\Entity\Formateur())->setEntite($tenant)->setCreateur($user)->setUtilisateur($user); $em->persist($trainer); $session->setFormateur($trainer);
+                    foreach ([2,3] as $day) $session->addJour((new SessionJour())->setEntite($tenant)->setCreateur($user)->setDateDebut(new \DateTimeImmutable('2026-10-0'.$day.' 09:00'))->setDateFin(new \DateTimeImmutable('2026-10-0'.$day.' 17:00')));
+                    foreach ([$user,$learner,$second] as $signer) foreach ([1,2,3] as $day) foreach (\App\Enum\DemiJournee::cases() as $period) {
+                        $em->persist((new \App\Entity\Emargement())->setEntite($tenant)->setCreateur($user)->setSession($session)->setUtilisateur($signer)->setRole($signer === $user ? 'formateur' : 'stagiaire')->setDateJour(new \DateTimeImmutable('2026-10-0'.$day))->setPeriode($period)->setSignedAt(new \DateTimeImmutable()));
+                    }
+
                 }
                 $companies[] = $company;
             }
@@ -56,10 +62,14 @@ final class EntreprisePortalContextTest extends WebTestCase
             $client->request('GET', $base.'/calendar/feed?entreprise='.$companies[0]->getId()); self::assertResponseIsSuccessful();
             self::assertStringContainsString('Alpha', $client->getResponse()->getContent());
             self::assertStringNotContainsString('Beta', $client->getResponse()->getContent());
+            $client->request('POST', $base.'/documents/emargements/ajax?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
+            self::assertStringContainsString('18/18', json_decode($client->getResponse()->getContent(),true)['data'][0]['signatures']);
+            self::assertStringNotContainsString('108/108', $client->getResponse()->getContent());
             $client->request('POST', $base.'/documents/conventions/ajax?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             self::assertStringContainsString('CC-Beta', $client->getResponse()->getContent());
             $conventions = json_decode($client->getResponse()->getContent(), true);
             self::assertCount(1, $conventions['data']);
+            self::assertStringContainsString('Signer', $conventions['data'][0]['actions']);
             self::assertSame('Beta Salarié<br>Second &lt;Salarié&gt;', $conventions['data'][0]['stagiaire']);
             self::assertStringNotContainsString('CC-Alpha', $client->getResponse()->getContent());
             $client->request('GET', $base.'/documents?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();

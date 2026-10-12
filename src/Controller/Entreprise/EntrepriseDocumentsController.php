@@ -61,6 +61,33 @@ final class EntrepriseDocumentsController extends AbstractController
     return $this->render('convention/dossier.html.twig', ['entite'=>$entite,'c'=>$c,'inventory'=>$inventory,'admin'=>false]);
   }
 
+  #[Route('/satisfaction/stagiaire/{id}', name: 'satisfaction_stagiaire_show', methods: ['GET'])]
+  public function appreciationStagiaire(Entite $entite, SatisfactionAssignment $assignment, EM $em, \App\Service\Convention\ConventionDossier $dossier): Response
+  {
+    return $this->appreciation($entite, $assignment, $em, $dossier, false);
+  }
+
+  #[Route('/satisfaction/formateur/{id}', name: 'satisfaction_formateur_show', methods: ['GET'])]
+  public function appreciationFormateur(Entite $entite, FormateurSatisfactionAssignment $assignment, EM $em, \App\Service\Convention\ConventionDossier $dossier): Response
+  {
+    return $this->appreciation($entite, $assignment, $em, $dossier, true);
+  }
+
+  private function appreciation(Entite $entite, SatisfactionAssignment|FormateurSatisfactionAssignment $assignment, EM $em, \App\Service\Convention\ConventionDossier $dossier, bool $trainer): Response
+  {
+    $company = $this->getEntrepriseUserOrFail($entite);
+    $session = $assignment->getSession();
+    $attempt = $assignment->getAttempt();
+    if ($assignment->getEntite()?->getId() !== $entite->getId() || $session?->getEntite()?->getId() !== $entite->getId()
+      || !$attempt?->getSubmittedAt() || $attempt->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    $criteria = ['entite'=>$entite,'session'=>$session,'entreprise'=>$company];
+    if (!$trainer) $criteria['stagiaire'] = $assignment->getStagiaire();
+    if (!$em->getRepository(Inscription::class)->count($criteria)) throw $this->createNotFoundException();
+    $person = $trainer ? $assignment->getFormateur() : $assignment->getStagiaire();
+    return $this->render('entreprise/documents/appreciation.html.twig', ['entite'=>$entite,'entreprise'=>$company,'session'=>$session,
+      'person'=>$person,'trainer'=>$trainer,'attempt'=>$attempt,'answers'=>$dossier->answers($assignment)]);
+  }
+
   private function dtParams(Request $request): array
   {
     $draw   = $request->request->getInt('draw', 1);
@@ -345,13 +372,16 @@ final class EntrepriseDocumentsController extends AbstractController
       $session = $cc->getSession();
       $sessLabel = $session ? ($session->getCode() ?? ('Session #' . $session->getId())) : '—';
 
+      $reviewUrl = $this->generateUrl('app_entreprise_convention_review', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$cc->getId()]);
+      $reviewAction = $cc->getEntreprise()?->getId() === $entreprise->getId() && !$cc->getDateSignatureEntreprise()
+        ? '<a class="btn btn-sm btn-primary" href="'.htmlspecialchars($reviewUrl, ENT_QUOTES).'"><i class="bi bi-pen"></i> Signer</a>' : '';
       $data[] = [
         'created' => $cc->getDateCreation()?->format('d/m/Y') ?? '—',
         'numero' => $cc->getNumero() ?: ('CC #' . $cc->getId()),
         'session' => htmlspecialchars($sessLabel),
         'stagiaire' => $stagLabel,
         'signatures' => $this->badgeSignaturesConvention($cc),
-        'actions' => sprintf(
+        'actions' => $reviewAction . sprintf(
           '<div class="d-flex gap-2 justify-content-end">
               <a class="btn btn-sm btn-outline-secondary" href="%s" target="_blank"><i class="bi bi-filetype-pdf"></i> PDF</a>
             </div>',
@@ -446,11 +476,13 @@ final class EntrepriseDocumentsController extends AbstractController
     // --- QB Rows : on repart de baseQb, et on ajoute agrégats + dates calculées via jours
     $qb = (clone $baseQb)
       ->leftJoin('s.jours', 'j')
-      ->leftJoin(Emargement::class, 'emar', 'WITH', 'emar.session = s AND emar.entite = :entite')
+      ->leftJoin('s.formateur', 'trainer')
+      ->leftJoin(Emargement::class, 'emar', 'WITH', 'emar.session = s AND emar.entite = :entite AND (emar.utilisateur = ins.stagiaire OR emar.utilisateur = trainer.utilisateur)')
       ->addSelect('MIN(j.dateDebut) AS dateDebutSort')
       ->addSelect('MAX(j.dateFin) AS dateFinSort')
-      ->addSelect('COUNT(emar.id) AS totalEmar')
-      ->addSelect('SUM(CASE WHEN emar.signedAt IS NOT NULL THEN 1 ELSE 0 END) AS signedCount')
+      ->addSelect('COUNT(DISTINCT emar.id) AS totalEmar')
+      ->leftJoin(Emargement::class, 'signedEmar', 'WITH', 'signedEmar.id = emar.id AND signedEmar.signedAt IS NOT NULL')
+      ->addSelect('COUNT(DISTINCT signedEmar.id) AS signedCount')
       ->groupBy('s.id');
 
     // Tri
@@ -503,7 +535,7 @@ final class EntrepriseDocumentsController extends AbstractController
         $totalEmar
       );
 
-      $statusHtml = $this->badgeSigned($signedCount > 0);
+      $statusHtml = $totalEmar > 0 && $signedCount === $totalEmar ? '<span class="badge bg-success-subtle text-success">Complet</span>' : '<span class="badge bg-warning-subtle text-warning">À compléter</span>';
 
       $pdfUrl = $this->generateUrl('app_entreprise_documents_emargement_sheet_pdf', [
         'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
@@ -614,7 +646,7 @@ final class EntrepriseDocumentsController extends AbstractController
         'stagiaire' => htmlspecialchars($stagLabel ?: '—'),
         'submitted' => $pa->getSubmittedAt()?->format('d/m/Y H:i') ?? '—',
         'summary' => $summaryHtml,
-        'actions' => '<span class="badge bg-light text-dark"><i class="bi bi-eye"></i> Voir</span>',
+        'actions' => '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_satisfaction_stagiaire_show', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$sa->getId()]), ENT_QUOTES).'"><i class="bi bi-eye"></i> Voir</a>',
       ];
     }
 
@@ -838,7 +870,7 @@ final class EntrepriseDocumentsController extends AbstractController
         'notes' => $notes,
         'status' => $this->badgeSigned($submitted !== null),
         'actions' => ($submitted !== null)
-          ? '<span class="badge bg-light text-dark"><i class="bi bi-eye"></i> Voir</span>'
+          ? '<a class="btn btn-sm btn-outline-primary" href="'.htmlspecialchars($this->generateUrl('app_entreprise_documents_satisfaction_formateur_show', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$fsa->getId()]), ENT_QUOTES).'"><i class="bi bi-eye"></i> Voir</a>'
           : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass"></i> En attente</span>',
       ];
     }
@@ -867,7 +899,7 @@ final class EntrepriseDocumentsController extends AbstractController
       1 => 's.code',
     ];
 
-    $qb = $em->getRepository(FormateurSatisfactionAssignment::class)->createQueryBuilder('fsa')
+    $qb = $em->getRepository(FormateurSatisfactionAssignment::class)->createQueryBuilder('fsa')->distinct()
       ->innerJoin('fsa.session', 's')->addSelect('s')
       ->leftJoin('s.inscriptions', 'ins')
       ->andWhere('s.entite = :entite')->setParameter('entite', $entite)
@@ -883,12 +915,9 @@ final class EntrepriseDocumentsController extends AbstractController
         ->setParameter('s', '%' . $searchV . '%');
     }
 
-    // Si ton entity a un attempt ou submittedAt, on filtre.
-    if ($stateFilter !== 'all') {
-      if (method_exists(FormateurSatisfactionAssignment::class, 'getAttempt')) {
-        // pas exploitable ici (méthode static), on laisse le filtre côté SQL basique si champs existent.
-      }
-    }
+    $qb->leftJoin('fsa.attempt', 'attempt');
+    if ($stateFilter === 'submitted') $qb->andWhere('attempt.submittedAt IS NOT NULL');
+    elseif ($stateFilter === 'pending') $qb->andWhere('attempt.submittedAt IS NULL');
 
     $recordsFiltered = (int)(clone $qb)
       ->select('COUNT(DISTINCT fsa.id)')
@@ -916,13 +945,7 @@ final class EntrepriseDocumentsController extends AbstractController
         $formateurLabel = trim(($fo->getUtilisateur()->getPrenom() ?? '') . ' ' . ($fo->getUtilisateur()->getNom() ?? '')) ?: ('Formateur #' . $fo->getId());
       }
 
-      // statut "soumis" si fsa a submittedAt, sinon si attempt->submittedAt, sinon —
-      $submitted = null;
-      if (method_exists($fsa, 'getCreatedAt')) $submitted = $fsa->getCreatedAt();
-      if (!$submitted && method_exists($fsa, 'getAttempt') && $fsa->getAttempt() && method_exists($fsa->getAttempt(), 'getCreatedAt')) {
-        $submitted = $fsa->getAttempt()->getSubmittedAt();
-      }
-
+      $submitted = $fsa->getAttempt()?->getSubmittedAt();
 
       $created = null;
       if (method_exists($fsa, 'getCreatedAt')) $created = $fsa->getCreatedAt();

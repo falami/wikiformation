@@ -84,9 +84,11 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         $template->addChapter($chapter);$chapter->addQuestion($question);
         foreach ([$template,$chapter,$question] as $e) $this->em->persist($e);
         $this->em->flush();
+        $appreciations = [];
         foreach ($learners as $u) {
             $a=(new \App\Entity\SatisfactionAssignment())->setEntite($this->entite)->setCreateur($this->user)->setSession($this->session)->setStagiaire($u)->setTemplate($template);
             $attempt=(new \App\Entity\SatisfactionAttempt())->setEntite($this->entite)->setCreateur($this->user)->setAssignment($a)->setSubmittedAt(new \DateTimeImmutable())->setAnswers([$question->getId()=>'Très utile pour '.$u->getPrenom()]);
+            $appreciations[] = $a;
             $a->setAttempt($attempt);$this->em->persist($a);$this->em->persist($attempt);
         }
         $this->em->flush();
@@ -121,10 +123,38 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         $this->client->request('POST','/fr/entreprise/'.$this->entite->getId().'/documents/conventions/ajax');self::assertResponseIsSuccessful();
         self::assertStringContainsString('/dossier',json_decode($this->client->getResponse()->getContent(),true)['data'][0]['actions']);
         $this->client->request('POST','/fr/entreprise/'.$this->entite->getId().'/documents/devis/ajax');self::assertResponseIsSuccessful();
+        $portal='/fr/entreprise/'.$this->entite->getId();
+        $this->client->request('GET',$portal.'/documents/satisfaction/stagiaire/'.$appreciations[0]->getId());self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('article','Très utile pour Alice');
+        $this->client->request('GET',$portal.'/documents/satisfaction/stagiaire/'.$appreciations[1]->getId());self::assertResponseStatusCodeSame(404);
+        $this->client->request('GET',$portal.'/convention/'.$c->getId().'/signature');self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1','Consulter et signer');
+        $this->client->request('POST',$portal.'/convention/'.$c->getId().'/signature',['_token'=>'invalid','consent'=>'1']);self::assertResponseStatusCodeSame(403);
         $session=$this->em->find(Session::class,$this->session->getId());
         $convention=$this->em->find(\App\Entity\ConventionContrat::class,$c->getId());
         $session->setTypeFinancement(\App\Enum\TypeFinancement::OUI);
         self::assertCount(2,$service->documents($convention,\Symfony\Component\HttpFoundation\Request::create('/')));
+        $convention->setPdfPath('pending-test.pdf'); $this->em->flush();
+        $currentTenant=$this->em->find(Entite::class,$this->entite->getId());
+        $currentActor=$this->em->find(Utilisateur::class,$this->user->getId());
+        $trainerTemplate=(new \App\Entity\FormateurSatisfactionTemplate())->setEntite($currentTenant)->setCreateur($currentActor)->setTitre('Bilan formateur');
+        $trainerAssignment=(new \App\Entity\FormateurSatisfactionAssignment())->setEntite($currentTenant)->setCreateur($currentActor)->setSession($this->em->find(Session::class,$this->session->getId()))->setFormateur($currentActor)->setTemplate($trainerTemplate);
+        $this->em->persist($trainerTemplate);$this->em->persist($trainerAssignment);$this->em->flush();
+        $this->client->request('GET',$portal.'/documents/satisfaction/formateur/'.$trainerAssignment->getId());self::assertResponseStatusCodeSame(404);
+        $trainerAssignment=$this->em->find(\App\Entity\FormateurSatisfactionAssignment::class,$trainerAssignment->getId());
+        $trainerAttempt=(new \App\Entity\FormateurSatisfactionAttempt())->setEntite($this->em->find(Entite::class,$this->entite->getId()))->setCreateur($this->em->find(Utilisateur::class,$this->user->getId()))->setAssignment($trainerAssignment)->setSubmittedAt(new \DateTimeImmutable())->setAnswers(['historique'=>'Bonne participation']);
+        $trainerAssignment->setAttempt($trainerAttempt);$this->em->persist($trainerAttempt);$this->em->flush();
+        $this->client->request('GET',$portal.'/documents/satisfaction/formateur/'.$trainerAssignment->getId());self::assertResponseIsSuccessful();self::assertSelectorTextContains('article','Bonne participation');
+        $reviewUrl=$portal.'/convention/'.$c->getId().'/signature';
+        $this->client->request('GET',$reviewUrl);self::assertResponseIsSuccessful();
+        $consentToken=$this->client->getCrawler()->filter('input[name="_token"]')->attr('value');
+        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1']);self::assertResponseRedirects();
+        self::assertNull($this->em->find(\App\Entity\ConventionContrat::class,$c->getId())->getDateSignatureEntreprise());
+        $this->client->request('GET',$portal.'/documents/convention/'.$c->getId().'/pdf');self::assertResponseIsSuccessful();
+        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1']);self::assertResponseRedirects();
+        $signedConvention=$this->em->find(\App\Entity\ConventionContrat::class,$c->getId());self::assertNotNull($signedConvention->getDateSignatureEntreprise());
+        $signedFile=self::getContainer()->getParameter('kernel.project_dir').'/var/storage/conventions/'.substr($signedConvention->getPdfPath(),8);
+        if (is_file($signedFile)) unlink($signedFile);
         // Inconsistent roster fails closed rather than leaking another company's learner.
         $c->addInscription($inscriptions[1]);
         $this->expectException(\DomainException::class);$service->inventory($c);

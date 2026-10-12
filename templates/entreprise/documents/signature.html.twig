@@ -1,0 +1,14 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Signature · {{ c.numero }}{% endblock %}
+{% block body %}
+<div class="container py-4" style="max-width:1000px">
+<a href="{{ path('app_entreprise_documents_index',{entite:entite.id,entreprise:entreprise.id}) }}" class="btn btn-outline-secondary mb-4">Retour aux documents</a>
+<div class="p-4 rounded-4 text-white mb-4" style="background:#233e50;border-top:3px solid #dfba58"><small>CONVENTION DE FORMATION</small><h1 class="h3 mt-2">Consulter et signer</h1><p class="mb-0">{{ entreprise.raisonSociale }} · {{ c.numero }}</p></div>
+{% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+<section class="card rounded-4 p-4"><h2 class="h4">{{ c.intituleFormationEffectif }}</h2><p class="text-muted">Consultez la convention avant de confirmer votre accord au nom de {{ entreprise.raisonSociale }}.</p>
+<a class="btn btn-outline-primary align-self-start mb-4" target="_blank" rel="noopener" href="{{ path('app_entreprise_documents_convention_pdf',{entite:entite.id,entreprise:entreprise.id,id:c.id}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>Lire la convention PDF</a>
+{% if c.dateSignatureEntreprise %}<div class="alert alert-success mb-0">Signée par l’entreprise le {{ c.dateSignatureEntreprise|date('d/m/Y à H:i', 'Europe/Paris') }}.</div>
+{% elseif not c.pdfPath %}<div class="alert alert-info">La convention doit être générée par l’organisme avant de pouvoir être signée.</div>
+{% else %}<form method="post"><input type="hidden" name="_token" value="{{ csrf_token('company_convention_' ~ c.id) }}"><div class="form-check mb-4"><input class="form-check-input" id="consent" name="consent" type="checkbox" value="1" required><label class="form-check-label" for="consent">J’ai lu cette convention, j’en accepte les conditions et je confirme être habilité à signer pour {{ entreprise.raisonSociale }}.</label></div><button class="btn btn-primary px-4 py-3" type="submit"><i class="bi bi-pen me-2"></i>Signer la convention</button></form>{% endif %}
+</section></div>
+{% endblock %}

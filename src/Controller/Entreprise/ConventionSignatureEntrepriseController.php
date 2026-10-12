@@ -22,6 +22,26 @@ class ConventionSignatureEntrepriseController extends AbstractController
 {
   public function __construct(private EM $em, private ConventionPortalSignature $signatures, private \App\Service\Entreprise\EntreprisePortalContext $portal) {}
 
+  #[Route('/convention/{id}/signature', name: 'convention_review', methods: ['GET', 'POST'])]
+  public function review(Entite $entite, ConventionContrat $convention, Request $request): Response
+  {
+    $company = $this->portal->resolve($this->getUser(), $entite);
+    if ($convention->getEntite()?->getId() !== $entite->getId() || $convention->getEntreprise()?->getId() !== $company->getId()
+      || $convention->getSession()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    if ($request->isMethod('POST')) {
+      if (!$this->isCsrfTokenValid('company_convention_'.$convention->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException();
+      if (!$request->request->getBoolean('consent')) $this->addFlash('warning', 'Veuillez confirmer votre accord avant de signer.');
+      else {
+        try {
+          $this->signatures->sign($convention, $this->getUser(), 'entreprise', null, $request->getSession()->get('convention_reviewed_'.$convention->getId()));
+          $this->addFlash('success', 'La convention a été signée pour votre entreprise.');
+        } catch (\DomainException $error) { $this->addFlash('warning', $error->getMessage()); }
+      }
+      return $this->redirectToRoute('app_entreprise_convention_review', ['entite'=>$entite->getId(),'entreprise'=>$company->getId(),'id'=>$convention->getId()]);
+    }
+    return $this->render('entreprise/documents/signature.html.twig', ['entite'=>$entite,'entreprise'=>$company,'c'=>$convention]);
+  }
+
   #[Route('/inscription/{id}/convention/signature-entreprise', name: 'convention_sign', methods: ['POST'])]
   public function signByEntreprise(Entite $entite, Inscription $inscription, Request $request): Response
   {
