@@ -76,6 +76,48 @@ final class ParticipantQrPublicTest extends KernelTestCase
         self::assertNotNull($failed->getErrorMessage());
     }
 
+    public function testManualSatisfactionReminderRenewsOnlyItsLinkForOldCompletedSession(): void
+    {
+        foreach ($this->session->getJours() as $day) {
+            $day->setDateDebut(new \DateTimeImmutable('-180 days 08:30'))->setDateFin(new \DateTimeImmutable('-180 days 17:00'));
+        }
+        $this->session->setStatus(StatusSession::DONE);
+        $this->em->flush();
+        $access=$this->qr->forInscription($this->inscription);
+        $original=$this->qr->token($access,'satisfaction');
+        self::assertNull($this->qr->resolve($original,'satisfaction'));
+        $messages=[];
+        $transport=$this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::once())->method('send')->willReturnCallback(static function($email) use (&$messages) { $messages[]=$email; });
+        $router=self::getContainer()->get('router');$twig=self::getContainer()->get('twig');
+        $service=new \App\Service\Session\AttendanceReminder($this->em,$this->qr,$router,new \App\Service\Email\MailerManager($transport,$twig,$router),$twig);
+        self::assertSame(1,$service->send($this->session,'',$this->inscription->getId(),'satisfaction')['sent']);
+        preg_match('~/appreciation-participant/([^\s]+)~',$messages[0]->getTextBody(),$match);
+        $token=$match[1];
+        self::assertSame($access,$this->qr->resolve($token,'satisfaction'));
+        self::assertEqualsWithDelta(time()+7*86400,(int)explode('.',$token)[3],5);
+        self::assertNull($this->qr->resolve($token,'attendance'));
+        self::assertNull($this->qr->resolve($original,'satisfaction'));
+        // A normal dashboard/roster refresh must neither renew nor invalidate the reminder.
+        $this->qr->forInscription($this->inscription);
+        self::assertSame($access,$this->qr->resolve($token,'satisfaction'));
+        self::assertNull($this->qr->resolve($token.'0','satisfaction'));
+        $this->session->setStatus(StatusSession::CANCELED);
+        self::assertNull($this->qr->resolve($token,'satisfaction'));
+    }
+
+    public function testReminderExplainsInvalidEmailInsteadOfReportingSuccess(): void
+    {
+        $this->learner->setEmail('invalid');$this->em->flush();
+        $transport=$this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::never())->method('send');
+        $router=self::getContainer()->get('router');$twig=self::getContainer()->get('twig');
+        $service=new \App\Service\Session\AttendanceReminder($this->em,$this->qr,$router,new \App\Service\Email\MailerManager($transport,$twig,$router),$twig);
+        $reasons=[];
+        self::assertSame(0,$service->send($this->session,'',$this->inscription->getId(),'satisfaction',null,$reasons)['sent']);
+        self::assertSame(1,$reasons['email']);
+    }
+
     public function testAttendanceReminderContainsPersonalDayLinkAndInlinePngAndSkipsCompletedDay(): void
     {
         $messages = [];

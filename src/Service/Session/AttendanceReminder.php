@@ -16,7 +16,7 @@ final class AttendanceReminder
     public function __construct(private EntityManagerInterface $em, private ParticipantQrAccess $access,
         private UrlGeneratorInterface $router, private MailerManager $mailer, private Environment $twig) {}
 
-    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance', ?string $period = null): array
+    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance', ?string $period = null, ?array &$skipReasons = null): array
     {
         if (!in_array($kind, ['attendance', 'satisfaction', 'both'], true)) throw new \DomainException('Type de relance invalide.');
         if ($inscriptionId !== null && !$this->em->getRepository(Inscription::class)->findOneBy(['id' => $inscriptionId, 'session' => $session, 'entite' => $session->getEntite()])) throw new \DomainException('Stagiaire étranger à cette session.');
@@ -35,12 +35,13 @@ final class AttendanceReminder
         if (($kind === 'attendance' && !$session->isEmargementEnAttenteRequis()) || $session->getStatus() === StatusSession::CANCELED) {
             throw new \DomainException('Les relances sont indisponibles pour cette session : vérifiez le suivi des émargements.');
         }
+        $skipReasons = ['complete'=>0, 'email'=>0, 'access'=>0, 'inactive'=>0];
         $result = ['sent' => 0, 'skipped' => 0, 'failed' => 0];
         $seen = [];
         foreach ($this->em->getRepository(Inscription::class)->findBy(['session' => $session, 'entite' => $session->getEntite()]) as $i) {
             if ($inscriptionId !== null && $i->getId() !== $inscriptionId) continue;
             $user = $i->getStagiaire();
-            if (!$user || in_array($i->getStatus(), [StatusInscription::ANNULE, StatusInscription::ABSENT], true)) continue;
+            if (!$user || in_array($i->getStatus(), [StatusInscription::ANNULE, StatusInscription::ABSENT], true)) { ++$result['skipped']; ++$skipReasons['inactive']; continue; }
             if (isset($seen[$user->getId()])) continue;
             $seen[$user->getId()] = true;
             $missing = $kind !== 'satisfaction' && $session->isEmargementEnAttenteRequis() ? $periods : [];
@@ -54,13 +55,14 @@ final class AttendanceReminder
             foreach ($this->em->getRepository(SatisfactionAssignment::class)->findBy(['session' => $session, 'entite' => $session->getEntite(), 'stagiaire' => $user]) as $assignment) {
                 if ($assignment->getAttempt()?->isSubmitted()) $needsSatisfaction = false;
             }
-            if ((!$missing && !$needsSatisfaction) || !filter_var($user->getEmail(), FILTER_VALIDATE_EMAIL)) { ++$result['skipped']; continue; }
+            if (!$missing && !$needsSatisfaction) { ++$result['skipped']; ++$skipReasons['complete']; continue; }
+            if (!filter_var($user->getEmail(), FILTER_VALIDATE_EMAIL)) { ++$result['skipped']; ++$skipReasons['email']; continue; }
             $participant = $this->access->forInscription($i);
             $this->em->flush();
             $links = []; $images = [];
             foreach (['attendance' => (bool) $missing, 'satisfaction' => $needsSatisfaction] as $purpose => $needed) {
                 if (!$needed) continue;
-                $token = $this->access->token($participant, $purpose);
+                $token = $purpose === 'satisfaction' ? $this->access->satisfactionReminderToken($participant) : $this->access->token($participant, $purpose);
                 if (!$this->access->resolve($token, $purpose)) continue;
                 $params = ['token' => $token];
                 if ($purpose === 'attendance') $params['date'] = $date;
@@ -70,7 +72,7 @@ final class AttendanceReminder
                 $links[] = ['url' => $url, 'cid' => $cid, 'label' => $label];
                 $images[$cid] = (new PngWriter())->write(new QrCode(data: $url, size: 360, margin: 20))->getString();
             }
-            if (!$links) { ++$result['skipped']; continue; }
+            if (!$links) { ++$result['skipped']; ++$skipReasons['access']; continue; }
             $html = $this->twig->render('emails/attendance_reminder.html.twig', ['session' => $session, 'user' => $user, 'links' => $links]);
             $text = 'Bonjour '.$user->getPrenom().",\nMerci de compléter les éléments suivants pour ".$session->getCode().".\n";
             foreach ($links as $link) $text .= $link['label'].": ".$link['url']."\n";

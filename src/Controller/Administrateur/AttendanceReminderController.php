@@ -31,10 +31,15 @@ final class AttendanceReminderController extends AbstractController
         } else {
             $request->getSession()->set($key, time());
             try {
-                $result = $reminder->send($session, $date, $inscriptionId, $kind, $period);
+                $reasons = [];
+                $result = $reminder->send($session, $date, $inscriptionId, $kind, $period, $reasons);
                 $em->persist((new AuditLog())->setEntite($entite)->setActor($this->getUser())->setCreateur($this->getUser())->setEvent('ATTENDANCE_REMINDER_SENT')->setCreatedAt(new \DateTimeImmutable())->setPayload(['session' => $session->getId(), 'date' => $date, 'kind' => $kind, 'period' => $period, 'inscription' => $inscriptionId] + $result));
                 $em->flush();
-                $this->addFlash($result['failed'] ? 'warning' : 'success', sprintf('%d mail(s) confié(s) au service d’envoi, %d stagiaire(s) sans relance nécessaire ou sans accès/e-mail utilisable, %d échec(s).', $result['sent'], $result['skipped'], $result['failed']));
+                $message = sprintf('%d mail(s) confié(s) au service d’envoi, %d échec(s).', $result['sent'], $result['failed']);
+                foreach (['complete'=>'déjà complété(s)', 'email'=>'adresse(s) email absente(s) ou invalide(s)', 'access'=>'accès personnel(s) indisponible(s)', 'inactive'=>'inscription(s) inactive(s) ou sans stagiaire'] as $reason=>$label) {
+                    if ($reasons[$reason] ?? 0) $message .= sprintf(' %d %s.', $reasons[$reason], $label);
+                }
+                $this->addFlash(($result['failed'] || !$result['sent']) ? 'warning' : 'success', $message);
             } catch (\DomainException $e) { $this->addFlash('warning', $e->getMessage()); }
         }
         if ($request->request->get('return') === 'dashboard') return $this->redirectToRoute('app_administrateur_dashboard_index', ['entite' => $entite->getId()]);

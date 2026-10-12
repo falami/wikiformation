@@ -90,18 +90,29 @@ final class ParticipantQrAccess
         return $payload . '.' . hash_hmac('sha256', $purpose . ':' . $payload, $this->signingSecret);
     }
 
+    /** Only the authorized reminder workflow may issue this fresh satisfaction capability.
+     * Its independent expiry does not reopen attendance or extend existing QR links.
+     */
+    public function satisfactionReminderToken(SessionParticipantAccess $access): string
+    {
+        $payload = $access->getPublicId().'.'.$access->getVersion().'.'.(new \DateTimeImmutable('+7 days'))->getTimestamp();
+        return 'r.'.$payload.'.'.hash_hmac('sha256', 'satisfaction-reminder:'.$payload, $this->signingSecret);
+    }
+
     public function resolve(string $token, string $purpose): ?SessionParticipantAccess
     {
         $this->requirePurpose($purpose);
+        $reminder = $purpose === 'satisfaction' && str_starts_with($token, 'r.');
+        if ($reminder) $token = substr($token, 2);
         if (!preg_match('/^([a-f0-9]{48})\.([1-9][0-9]{0,8})\.([0-9]{1,12})\.([a-f0-9]{64})$/D', $token, $parts)) return null;
         [, $publicId, $version, $expiry, $mac] = $parts;
         $payload = $publicId . '.' . $version . '.' . $expiry;
-        if (!hash_equals(hash_hmac('sha256', $purpose . ':' . $payload, $this->signingSecret), $mac) || (int) $expiry <= time()) return null;
+        if (!hash_equals(hash_hmac('sha256', ($reminder ? 'satisfaction-reminder' : $purpose) . ':' . $payload, $this->signingSecret), $mac) || (int) $expiry <= time()) return null;
         $access = $this->em->getRepository(SessionParticipantAccess::class)->findOneBy(['publicId' => $publicId]);
-        if (!$access || !$access->isActive() || $access->getVersion() !== (int) $version || $access->getExpiresAt()->getTimestamp() < (int) $expiry) return null;
+        if (!$access || !$access->isActive() || $access->getVersion() !== (int) $version || (!$reminder && $access->getExpiresAt()->getTimestamp() < (int) $expiry)) return null;
         $session = $access->getSession();
         if (!$session || $session->getStatus() === StatusSession::CANCELED || !$session->getEntite() || $session->getEntite()->isActive() === false || $access->getEntite()?->getId() !== $session->getEntite()->getId()) return null;
-        if ($session->getStatus() === StatusSession::DONE && $session->getDateFin() && $session->getDateFin()->modify('+90 days')->getTimestamp() <= time()) return null;
+        if (!$reminder && $session->getStatus() === StatusSession::DONE && $session->getDateFin() && $session->getDateFin()->modify('+90 days')->getTimestamp() <= time()) return null;
         // The source is checked again on every anonymous visit: a convention edit revokes links immediately.
         if ($access->isGuest()) {
             $convention = $access->getConvention();
