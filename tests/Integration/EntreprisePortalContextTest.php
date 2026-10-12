@@ -38,6 +38,11 @@ final class EntreprisePortalContextTest extends WebTestCase
                 foreach ([$company, $learner, $session, $registration] as $record) $em->persist($record);
                 $convention = (new \App\Entity\ConventionContrat())->setEntite($tenant)->setCreateur($user)->setSession($session)->setEntreprise($company)->setNumero('CC-'.$name)->setIntituleFormation('Formation '.$name);
                 $convention->addInscription($registration); $em->persist($convention);
+                if ($name === 'Beta') {
+                    $second = (new Utilisateur())->setEmail('second@portal.test')->setPassword('unused')->setPrenom('Second')->setNom('<Salarié>');
+                    $secondRegistration = (new Inscription())->setEntite($tenant)->setCreateur($user)->setSession($session)->setStagiaire($second)->setEntreprise($company);
+                    $em->persist($second); $em->persist($secondRegistration); $convention->addInscription($secondRegistration);
+                }
                 $companies[] = $company;
             }
             $em->flush(); $client->loginUser($user);
@@ -47,12 +52,15 @@ final class EntreprisePortalContextTest extends WebTestCase
             self::assertCount(1, $data['data']); self::assertSame('SES-Alpha', $data['data'][0]['code']);
             $client->request('POST', $base.'/inscriptions/ajax?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             $data = json_decode($client->getResponse()->getContent(), true);
-            self::assertCount(1, $data['data']); self::assertSame('SES-Beta', $data['data'][0]['code']);
+            self::assertCount(2, $data['data']); self::assertSame('SES-Beta', $data['data'][0]['code']);
             $client->request('GET', $base.'/calendar/feed?entreprise='.$companies[0]->getId()); self::assertResponseIsSuccessful();
             self::assertStringContainsString('Alpha', $client->getResponse()->getContent());
             self::assertStringNotContainsString('Beta', $client->getResponse()->getContent());
             $client->request('POST', $base.'/documents/conventions/ajax?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             self::assertStringContainsString('CC-Beta', $client->getResponse()->getContent());
+            $conventions = json_decode($client->getResponse()->getContent(), true);
+            self::assertCount(1, $conventions['data']);
+            self::assertSame('Beta Salarié<br>Second &lt;Salarié&gt;', $conventions['data'][0]['stagiaire']);
             self::assertStringNotContainsString('CC-Alpha', $client->getResponse()->getContent());
             $client->request('GET', $base.'/documents?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             self::assertSelectorExists('#portal-company option[selected][value="'.$companies[1]->getId().'"]');

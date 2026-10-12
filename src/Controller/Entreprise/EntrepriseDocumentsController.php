@@ -275,6 +275,7 @@ final class EntrepriseDocumentsController extends AbstractController
     ];
 
     $qb = $em->getRepository(ConventionContrat::class)->createQueryBuilder('cc')
+      ->distinct()
       ->leftJoin('cc.session', 's')->addSelect('s')
       ->leftJoin('cc.stagiaire', 'u')->addSelect('u')
       ->leftJoin('cc.inscriptions', 'ins') // ManyToMany
@@ -323,8 +324,23 @@ final class EntrepriseDocumentsController extends AbstractController
         'id' => $cc->getId(),
       ]);
 
-      $stag = $cc->getStagiaire();
-      $stagLabel = $stag ? trim(($stag->getPrenom() ?? '') . ' ' . ($stag->getNom() ?? '')) : '—';
+      $participants = [];
+      foreach ($cc->getInscriptions() as $inscription) {
+        if ($inscription->getEntite()?->getId() !== $entite->getId()
+          || $inscription->getSession()?->getId() !== $cc->getSession()?->getId()
+          || $inscription->getEntreprise()?->getId() !== $entreprise->getId()) continue;
+        if ($stag = $inscription->getStagiaire()) {
+          $participants[$stag->getId()] = trim(($stag->getPrenom() ?? '') . ' ' . ($stag->getNom() ?? ''));
+        }
+      }
+      // Les conventions individuelles anciennes utilisent le lien direct.
+      if (!$participants && $cc->getEntreprise()?->getId() === $entreprise->getId() && ($stag = $cc->getStagiaire())) {
+        $participants[$stag->getId()] = trim(($stag->getPrenom() ?? '') . ' ' . ($stag->getNom() ?? ''));
+      }
+      natcasesort($participants);
+      $stagLabel = $participants
+        ? implode('<br>', array_map(static fn(string $name): string => htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), array_values($participants)))
+        : '—';
 
       $session = $cc->getSession();
       $sessLabel = $session ? ($session->getCode() ?? ('Session #' . $session->getId())) : '—';
@@ -333,7 +349,7 @@ final class EntrepriseDocumentsController extends AbstractController
         'created' => $cc->getDateCreation()?->format('d/m/Y') ?? '—',
         'numero' => $cc->getNumero() ?: ('CC #' . $cc->getId()),
         'session' => htmlspecialchars($sessLabel),
-        'stagiaire' => htmlspecialchars($stagLabel ?: '—'),
+        'stagiaire' => $stagLabel,
         'signatures' => $this->badgeSignaturesConvention($cc),
         'actions' => sprintf(
           '<div class="d-flex gap-2 justify-content-end">
