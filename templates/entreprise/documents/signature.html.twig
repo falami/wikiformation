@@ -20,8 +20,51 @@
 {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
 <section class="card rounded-4 p-4"><h2 class="h4">{{ c.intituleFormationEffectif }}</h2><p class="text-muted">Consultez la convention avant de confirmer votre accord au nom de {{ entreprise.raisonSociale }}.</p>
 <a class="btn btn-outline-primary align-self-start mb-4" target="_blank" rel="noopener" href="{{ path('app_entreprise_documents_convention_pdf',{entite:entite.id,entreprise:entreprise.id,id:c.id}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>Lire la convention PDF</a>
-{% if c.dateSignatureEntreprise %}<div class="alert alert-success mb-0">Signée par l’entreprise le {{ c.dateSignatureEntreprise|date('d/m/Y à H:i', 'Europe/Paris') }}.</div>
+{% if c.dateSignatureEntreprise and c.signatureDataUrlEntreprise %}<div class="alert alert-success mb-0">Signée par l’entreprise le {{ c.dateSignatureEntreprise|date('d/m/Y à H:i', 'Europe/Paris') }}.</div>
 {% elseif not c.pdfPath %}<div class="alert alert-info">La convention doit être générée par l’organisme avant de pouvoir être signée.</div>
-{% else %}<form method="post"><input type="hidden" name="_token" value="{{ csrf_token('company_convention_' ~ c.id) }}"><div class="form-check mb-4"><input class="form-check-input" id="consent" name="consent" type="checkbox" value="1" required><label class="form-check-label" for="consent">J’ai lu cette convention, j’en accepte les conditions et je confirme être habilité à signer pour {{ entreprise.raisonSociale }}.</label></div><button class="btn btn-primary px-4 py-3" type="submit"><i class="bi bi-pen me-2"></i>Signer la convention</button></form>{% endif %}
+{% else %}
+{% if c.dateSignatureEntreprise %}<div class="alert alert-info">Votre accord a été enregistré. Ajoutez votre signature visible pour compléter le PDF.</div>{% endif %}
+<form method="post" id="signature-form">
+<div class="mb-4"><label for="signature-canvas" class="form-label fw-bold">Votre signature</label>
+<p class="text-muted small">Maintenez le bouton de la souris enfoncé pour tracer votre signature (ou utilisez votre doigt sur écran tactile), ou importez une image PNG contenant votre signature, avec votre cachet si vous le souhaitez.</p>
+<canvas id="signature-canvas" width="900" height="260" aria-label="Zone pour tracer votre signature" style="width:100%;height:220px;border:1px solid #ccd8e2;border-radius:12px;touch-action:none;cursor:crosshair;user-select:none;background:white"></canvas>
+<div class="d-flex gap-3 flex-wrap mt-2"><button type="button" class="btn btn-outline-secondary" id="signature-clear">Effacer</button><label class="btn btn-outline-secondary mb-0">Importer un PNG<input id="signature-upload" type="file" accept="image/png" class="visually-hidden"></label></div>
+<p id="signature-error" class="text-danger mt-2" role="alert"></p>
+<input type="hidden" name="signatureData" id="signature-data"></div><input type="hidden" name="_token" value="{{ csrf_token('company_convention_' ~ c.id) }}"><div class="form-check mb-4"><input class="form-check-input" id="consent" name="consent" type="checkbox" value="1" required><label class="form-check-label" for="consent">J’ai lu cette convention, j’en accepte les conditions et je confirme être habilité à signer pour {{ entreprise.raisonSociale }}.</label></div><button class="btn btn-primary px-4 py-3" type="submit"><i class="bi bi-pen me-2"></i>Signer la convention</button></form>{% endif %}
 </section></div>
+{% endblock %}
+
+{% block javascripts_bottom %}
+{{ parent() }}
+<script>
+(function(){
+  const form = document.getElementById('signature-form');
+  if (!form) return;
+  const canvas = document.getElementById('signature-canvas'), ctx = canvas.getContext('2d');
+  const error = document.getElementById('signature-error');
+  let drawing = false, hasSignature = false;
+  ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#172e40';
+  function point(event){const r=canvas.getBoundingClientRect();return [(event.clientX-r.left)*canvas.width/r.width,(event.clientY-r.top)*canvas.height/r.height];}
+  canvas.addEventListener('pointerdown', event=>{if(event.button !== 0)return;event.preventDefault();drawing=true;canvas.setPointerCapture(event.pointerId);ctx.beginPath();ctx.moveTo(...point(event));});
+  canvas.addEventListener('pointermove', event=>{if(!drawing)return;ctx.lineTo(...point(event));ctx.stroke();hasSignature=true;error.textContent='';});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(type=>canvas.addEventListener(type,()=>{drawing=false;}));
+  document.getElementById('signature-clear').addEventListener('click',()=>{ctx.clearRect(0,0,canvas.width,canvas.height);hasSignature=false;document.getElementById('signature-data').value='';});
+  document.getElementById('signature-upload').addEventListener('change', event=>{
+    const file=event.target.files[0];if(!file)return;
+    if(file.type!=='image/png'||file.size>500000){error.textContent='Choisissez une image PNG de 500 Ko maximum.';return;}
+    const reader=new FileReader();reader.onload=()=>{
+      const image=new Image();image.onload=()=>{
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        const scale=Math.min(canvas.width/image.width,canvas.height/image.height);
+        ctx.drawImage(image,(canvas.width-image.width*scale)/2,(canvas.height-image.height*scale)/2,image.width*scale,image.height*scale);
+        hasSignature=true;error.textContent='';
+      };image.onerror=()=>{error.textContent='Image illisible.';};image.src=reader.result;
+    };reader.readAsDataURL(file);
+  });
+  form.addEventListener('submit',event=>{
+    if(!hasSignature){event.preventDefault();error.textContent='Tracez ou importez votre signature avant de confirmer.';return;}
+    document.getElementById('signature-data').value=canvas.toDataURL('image/png');
+  });
+})();
+</script>
 {% endblock %}

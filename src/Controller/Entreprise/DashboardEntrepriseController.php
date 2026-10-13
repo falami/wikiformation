@@ -63,7 +63,7 @@ final class DashboardEntrepriseController extends AbstractController
   }
 
   #[Route('/dashboard', name: 'dashboard', methods: ['GET', 'POST'])]
-  public function dashboard(Entite $entite, EM $em, Request $request): Response
+  public function dashboard(Entite $entite, EM $em, Request $request, \App\Service\Session\CompanySessionFollowUp $followUp): Response
   {
 
     $entreprise = $this->getEntrepriseUserOrFail($entite);
@@ -76,7 +76,31 @@ final class DashboardEntrepriseController extends AbstractController
     ]);
     $form->handleRequest($request);
 
+    $candidates = $em->createQueryBuilder()->select('DISTINCT s')->from(Session::class, 's')
+      ->innerJoin('s.inscriptions', 'i')
+      ->andWhere('s.entite = :tenant AND i.entite = :tenant AND i.entreprise = :company')
+      ->setParameter('tenant', $entite)->setParameter('company', $entreprise)->getQuery()->getResult();
+    // Signature requests also concern upcoming sessions and companies without registrations yet.
+    $pendingConventions = $em->createQueryBuilder()->select('c', 's')->from(ConventionContrat::class, 'c')
+      ->innerJoin('c.session', 's')
+      ->andWhere('c.entite = :tenant AND s.entite = :tenant AND c.entreprise = :company')
+      ->andWhere("(c.dateSignatureEntreprise IS NULL OR c.signatureDataUrlEntreprise IS NULL OR c.signatureDataUrlEntreprise = '')")
+      ->andWhere('s.status != :canceled')
+      ->setParameter('tenant', $entite)->setParameter('company', $entreprise)
+      ->setParameter('canceled', \App\Enum\StatusSession::CANCELED)
+      ->orderBy('c.dateCreation', 'ASC')->getQuery()->getResult();
+    $pendingSessions = [];
+    $today = new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris'));
+    foreach ($candidates as $session) {
+      $conventions = $em->getRepository(ConventionContrat::class)->findBy(['session'=>$session,'entite'=>$entite,'entreprise'=>$entreprise]);
+      $pending = $followUp->summarize($session, $entreprise, $today, $conventions);
+      if ($pending) $pendingSessions[] = $pending;
+    }
+    usort($pendingSessions, static fn($a,$b) => strcmp($b['lastDate'],$a['lastDate']));
+
     return $this->render('entreprise/dashboard.html.twig', [
+      'pendingSessions' => $pendingSessions,
+      'pendingConventions' => $pendingConventions,
       'entite' => $entite,
       'entreprisesDisponibles' => $this->portal->companies($this->getUser(), $entite),
       'entreprise' => $entreprise,
@@ -244,7 +268,7 @@ final class DashboardEntrepriseController extends AbstractController
       $out[] = [
         'kind' => 'CONVENTION',
         'id' => $c->getId(),
-        'label' => 'Convention / Contrat',
+        'label' => 'Convention',
         'name' => $c->getNumero(),
         'sessionId' => $c->getSession()?->getId(),
         'uploadedAt' => $c->getDateCreation()?->format('d/m/Y') ?? '',
@@ -262,9 +286,9 @@ final class DashboardEntrepriseController extends AbstractController
       ->andWhere('d.entite = :entite')->setParameter('entite', $entite)
       ->andWhere('d.entrepriseDestinataire = :e')->setParameter('e', $entreprise);
     if ($sessionId > 0) {
-      // via inscriptions -> session
-      $devisQb->andWhere(':sid MEMBER OF d.inscriptions')
-        ->setParameter('sid', $sessionId); // (si tu veux du 100% propre : fais une jointure Inscription)
+      $devisQb->innerJoin('d.inscriptions', 'di')->distinct()
+        ->andWhere('di.session = :sid AND di.entite = :entite')
+        ->setParameter('sid', $sessionId);
     }
 
     foreach ($devisQb->getQuery()->getResult() as $d) {
@@ -290,6 +314,12 @@ final class DashboardEntrepriseController extends AbstractController
       ->andWhere('f.entite = :entite')->setParameter('entite', $entite)
       ->andWhere('f.entrepriseDestinataire = :e')->setParameter('e', $entreprise);
 
+    if ($sessionId > 0) {
+      $factQb->innerJoin('f.inscriptions', 'fi')->distinct()
+        ->andWhere('fi.session = :sid AND fi.entite = :entite')
+        ->setParameter('sid', $sessionId);
+    }
+
     foreach ($factQb->getQuery()->getResult() as $f) {
       /** @var Facture $f */
       $out[] = [
@@ -300,7 +330,7 @@ final class DashboardEntrepriseController extends AbstractController
         'sessionId' => null,
         'uploadedAt' => $f->getDateEmission()->format('d/m/Y'),
         'signedAt' => null,
-        'url' => $basePath . '/factures/' . $f->getId() . '/pdf', // si tu as une route PDF
+        'url' => $this->generateUrl('app_entreprise_documents_facture_pdf', ['entite'=>$entite->getId(), 'entreprise'=>$entreprise->getId(), 'id'=>$f->getId()]),
         'signUrl' => null,
       ];
     }

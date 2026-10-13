@@ -17,6 +17,7 @@ final class ConventionPortalSignature
 {
     public function __construct(
         private readonly ConventionDocument $documents,
+        private readonly ConventionSignaturePdf $signaturePdf,
         private readonly EntityManagerInterface $em,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {}
@@ -45,13 +46,14 @@ final class ConventionPortalSignature
     public function sign(ConventionContrat $convention, Utilisateur $actor, string $role, ?string $signature = null, ?string $reviewDigest = null): void
     {
         if (!in_array($role, ['stagiaire', 'entreprise'], true)) throw new \InvalidArgumentException('Signataire invalide.');
+        if ($role === 'entreprise' && !$signature) throw new \DomainException('Veuillez tracer ou importer votre signature.');
         if ($signature !== null) self::validateSignature($signature);
         $path = null;
         try {
             $this->em->wrapInTransaction(function () use ($convention, $actor, $role, $signature, $reviewDigest, &$path): void {
                 $this->em->refresh($convention, LockMode::PESSIMISTIC_WRITE);
                 if (($role === 'stagiaire' && $convention->getDateSignatureStagiaire())
-                    || ($role === 'entreprise' && $convention->getDateSignatureEntreprise())) return;
+                    || ($role === 'entreprise' && $convention->getDateSignatureEntreprise() && $convention->getSignatureDataUrlEntreprise())) return;
                 if (($role === 'stagiaire' && $convention->getStagiaire()?->getId() !== $actor->getId())
                     || ($role === 'entreprise' && !\App\Service\Entreprise\EntreprisePortalContext::canRepresent($actor, $convention->getEntreprise()))) {
                     throw new \DomainException('Ce document ne vous est pas destiné.');
@@ -65,23 +67,25 @@ final class ConventionPortalSignature
                 $bytes = is_file($preview) ? file_get_contents($preview) : false;
                 if (!$bytes || !str_starts_with($bytes, '%PDF')) throw new \DomainException('Le document original est indisponible.');
 
-                // Preserve the exact bytes, including any earlier signature. Never re-render after consent.
+                // Archive the exact source in the revision and place visible consent in its client box.
+                $now = new \DateTimeImmutable();
+                $signedBytes = $role !== 'entreprise' || $signature === null ? $bytes : $this->signaturePdf->append($bytes, $convention, $actor, $role, $signature, $now);
                 $filename = 'portal-'.$convention->getId().'-'.bin2hex(random_bytes(16)).'.pdf';
                 $path = $this->projectDir.'/var/storage/conventions/'.$filename;
-                (new Filesystem())->dumpFile($path, $bytes);
+                (new Filesystem())->dumpFile($path, $signedBytes);
                 chmod($path, 0660);
-                $now = new \DateTimeImmutable();
                 if ($role === 'stagiaire') {
                     $convention->setDateSignatureStagiaire($now);
                     if ($signature !== null) $convention->setSignatureDataUrlStagiaire($signature);
                 } else {
                     $convention->setDateSignatureEntreprise($now);
+                    $convention->setSignatureDataUrlEntreprise($signature);
                 }
                 $convention->setPdfPath('private:'.$filename);
                 $this->em->persist(new ConventionRevision($convention, [
                     'event' => 'portal_signature', 'actorId' => $actor->getId(), 'role' => $role,
                     'signedAt' => $now->format(DATE_ATOM), 'sourceSha256' => hash('sha256', $bytes),
-                    'pdf' => $convention->getPdfPath(), 'method' => $signature === null ? 'authenticated_confirmation' : 'authenticated_png',
+                    'pdf' => $convention->getPdfPath(), 'signedPdfSha256' => hash('sha256', $signedBytes), 'method' => $signature === null ? 'authenticated_confirmation' : 'authenticated_png',
                     'signatureSha256' => $signature === null ? null : hash('sha256', $signature),
                 ], 'Signature '.$role.' — original conservé', trim($actor->getPrenom().' '.$actor->getNom()), $bytes, $now));
             });

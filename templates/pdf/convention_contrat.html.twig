@@ -17,7 +17,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Convention / Contrat de formation</title>
+  <title>Convention de formation</title>
 
   <style>
     
@@ -38,6 +38,8 @@
     .mt-8{ margin-top:8pt !important; }
     .mt-12{ margin-top:12pt !important; }
     .avoid-break{ page-break-inside: avoid; }
+    .card-flow{ page-break-inside: auto; }
+    .card-flow .info-block{ page-break-inside: avoid; }
 
     /* ===== Page padding ===== */
     .page{ padding: 0 1mm; }
@@ -364,7 +366,7 @@
           </td>
 
           <td class="header-right">
-            <div class="doc-badge">CONVENTION / CONTRAT</div>
+            <div class="doc-badge">CONVENTION</div>
             <div class="doc-meta">
               <div class="doc-meta-item"><strong>Numéro :</strong> {{ convention ? convention.numero : '-' }}</div>
               <div class="doc-meta-item"><strong>Date d’édition :</strong> {{ "now"|date('d/m/Y') }}</div>
@@ -416,6 +418,8 @@
               dont le siège est situé {{ entreprise.adresse }}
               {{ entreprise.codePostal|default('') }} {{ entreprise.ville|default('') }},
             {% endif %}
+            {% if entreprise.siret %}SIRET {{ entreprise.siret }},{% endif %}
+            {% if entreprise.representant %}représenté par {{ entreprise.representant.prenom }} {{ entreprise.representant.nom }},{% endif %}
             ci-après dénommé « le Client ».
           {% elseif stagiaire %}
             {{ stagiaire.civilite|default('') }} {{ stagiaire.prenom|default('') }} {{ stagiaire.nom|default('') }},
@@ -439,12 +443,16 @@
       </div>
       <p class="mb-0">
         La présente convention / le présent contrat a pour objet la réalisation d’une action de formation professionnelle continue,
-        conformément aux dispositions du Code du travail relatives à la formation professionnelle.
+        conformément aux dispositions du Code du travail relatives à la formation professionnelle{% if entreprise %}, notamment à l’article L. 6353-1{% endif %}.
       </p>
     </div>
 
+    {% if entreprise %}
+      <p class="text-small text-muted">La convention doit être retournée signée avant le début de la formation.</p>
+    {% endif %}
+
     {# ===== Descriptif formation ===== #}
-    <div class="card card-highlight">
+    <div class="card card-highlight card-flow">
       <div class="section-title">
         Descriptif de la formation
         <div class="section-title-accent"></div>
@@ -776,6 +784,35 @@
     {% else %}
       <div class="card"><div class="section-title">Conditions financières à compléter avant signature</div><p class="mb-0">Préciser les modalités et l’échéancier de paiement ainsi que les conditions financières en cas d’abandon ou d’interruption de la formation.</p></div>
     {% endif %}
+
+    <div class="card">
+      <div class="section-title">Règlement et frais annexes</div>
+      <p>Le règlement suit les modalités et l’échéancier indiqués dans les conditions financières ci-dessus ou dans le devis accepté auquel cette convention se réfère.</p>
+      <p>Les frais de déplacement, de restauration ou d’hébergement éventuellement facturés doivent être détaillés dans le devis ou les conditions financières. Leur prise en charge est à préciser avant signature si elle n’y figure pas.</p>
+      {% if entite.iban %}
+        <div class="info-block mb-0"><span class="info-label">Coordonnées pour un règlement par virement</span>
+          <div class="info-content">Bénéficiaire : {{ entite.nom }}<br>IBAN : {{ entite.iban }}{% if entite.bic %}<br>BIC : {{ entite.bic }}{% endif %}<br>Référence à rappeler : {{ convention ? convention.numero : '-' }}</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="section-title">Annulation, report et interruption</div>
+      <p>Toute demande d’annulation, de report ou toute interruption doit être signalée par écrit à l’organisme de formation, aux coordonnées figurant dans ce document.</p>
+      <p>Les délais de prévenance, les modalités de report et les éventuelles indemnités de dédit sont ceux expressément convenus dans les conditions financières ou le devis accepté. Les indemnités éventuelles sont distinctes du prix des prestations de formation effectivement réalisées.</p>
+      <p class="mb-0">En cas de force majeure, les parties se rapprochent pour déterminer les conséquences sur la poursuite ou le report de la formation et les sommes dues. Les dispositions spécifiques au financement individuel, lorsqu’elles s’appliquent, restent prioritaires.</p>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Inexécution de la prestation</div>
+      <p class="mb-0">En cas d’inexécution totale ou partielle de la prestation de formation, l’organisme rembourse au cocontractant les sommes indûment perçues au titre de la part non réalisée, conformément à l’article L. 6354-1 du Code du travail.</p>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Réclamations et règlement des différends</div>
+      <p>Le client peut adresser une réclamation écrite en précisant la référence de la convention et l’objet de sa demande{% if entite.email %} à {{ entite.email }}{% else %} à l’adresse de l’organisme figurant en tête du document{% endif %}.</p>
+      <p class="mb-0">Les parties recherchent une solution amiable. À défaut d’accord, le différend est porté devant la juridiction compétente selon les règles de droit applicables.</p>
+    </div>
 
     {# ===== Engagements ===== #}
     <div class="card">

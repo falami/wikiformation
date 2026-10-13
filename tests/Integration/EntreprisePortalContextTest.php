@@ -24,7 +24,7 @@ final class EntreprisePortalContextTest extends WebTestCase
             $em->persist($membership);
             $em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($tenant)->setStatus('active'));
             $site = (new Site())->setNom('Salle')->setSlug('portal-test')->setEntite($tenant)->setCreateur($user); $em->persist($site);
-            $companies = [];
+            $companies = []; $sessions = [];
             $primary = (new Entreprise())->setRaisonSociale('Entreprise principale')->setEntite($tenant)->setCreateur($user);
             $em->persist($primary); $user->setEntreprise($primary);
             foreach (['Alpha', 'Beta', 'Interdite'] as $name) {
@@ -37,6 +37,8 @@ final class EntreprisePortalContextTest extends WebTestCase
                 $registration = (new Inscription())->setEntite($tenant)->setCreateur($user)->setSession($session)->setStagiaire($learner)->setEntreprise($company);
                 foreach ([$company, $learner, $session, $registration] as $record) $em->persist($record);
                 $convention = (new \App\Entity\ConventionContrat())->setEntite($tenant)->setCreateur($user)->setSession($session)->setEntreprise($company)->setNumero('CC-'.$name)->setIntituleFormation('Formation '.$name);
+                $convention->setPdfPath('fixture-preview.pdf');
+                $sessions[] = $session;
                 $convention->addInscription($registration); $em->persist($convention);
                 if ($name === 'Beta') {
                     $second = (new Utilisateur())->setEmail('second@portal.test')->setPassword('unused')->setPrenom('Second')->setNom('<Salarié>');
@@ -72,10 +74,32 @@ final class EntreprisePortalContextTest extends WebTestCase
             self::assertStringContainsString('Signer', $conventions['data'][0]['actions']);
             self::assertSame('Beta Salarié<br>Second &lt;Salarié&gt;', $conventions['data'][0]['stagiaire']);
             self::assertStringNotContainsString('CC-Alpha', $client->getResponse()->getContent());
+            foreach ([
+                ['', 1],
+                ['&session='.$sessions[1]->getId(), 1],
+                ['&session='.$sessions[0]->getId(), 0],
+                ['&session='.$sessions[2]->getId(), 0],
+            ] as [$filter, $expectedCount]) {
+                $client->request('GET', $base.'/documents/feed?entreprise='.$companies[1]->getId().$filter);
+                self::assertResponseIsSuccessful();
+                $documents=json_decode($client->getResponse()->getContent(),true)['data'];
+                self::assertCount($expectedCount,$documents);
+                if ($expectedCount) self::assertSame('CC-Beta',$documents[0]['name']);
+            }
             $client->request('GET', $base.'/documents?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             self::assertSelectorExists('#portal-company option[selected][value="'.$companies[1]->getId().'"]');
             $client->request('GET', $base.'/dashboard?entreprise='.$companies[0]->getId()); self::assertResponseIsSuccessful();
             self::assertSelectorExists('#portal-company option[selected][value="'.$companies[0]->getId().'"]');
+            self::assertSelectorTextContains('#company-pending-sessions', 'SES-Alpha');
+            self::assertSelectorTextContains('#company-pending-sessions', 'Convention à signer');
+            self::assertSelectorCount(1, '#company-pending-sessions [data-pending-convention]');
+            self::assertSelectorTextContains('#company-pending-sessions [data-pending-convention] a', 'Consulter et signer');
+            self::assertSelectorTextContains('#company-pending-sessions', '1 appréciation stagiaire manquante');
+            self::assertStringNotContainsString('SES-Beta', $client->getCrawler()->filter('#company-pending-sessions')->text());
+            $client->request('GET', $base.'/dashboard?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
+            self::assertSelectorTextContains('#company-pending-sessions', '2 appréciations stagiaires manquantes');
+            self::assertStringNotContainsString('émargement manquant', $client->getCrawler()->filter('#company-pending-sessions')->text());
+
             $actor = $em->find(Utilisateur::class, $user->getId()); $actor->setEntreprise(null); $em->flush(); $client->loginUser($actor);
             $client->request('POST', $base.'/inscriptions/ajax?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             $actor = $em->find(Utilisateur::class, $user->getId());

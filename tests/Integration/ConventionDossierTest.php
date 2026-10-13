@@ -158,12 +158,48 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         $reviewUrl=$portal.'/convention/'.$c->getId().'/signature';
         $this->client->request('GET',$reviewUrl);self::assertResponseIsSuccessful();
         $consentToken=$this->client->getCrawler()->filter('input[name="_token"]')->attr('value');
-        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1']);self::assertResponseRedirects();
+        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1','signatureData'=>'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7mQAAAAASUVORK5CYII=']);self::assertResponseRedirects();
         self::assertNull($this->em->find(\App\Entity\ConventionContrat::class,$c->getId())->getDateSignatureEntreprise());
         $this->client->request('GET',$portal.'/documents/convention/'.$c->getId().'/pdf');self::assertResponseIsSuccessful();
-        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1']);self::assertResponseRedirects();
+        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1','signatureData'=>'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7mQAAAAASUVORK5CYII=']);self::assertResponseRedirects();
         $signedConvention=$this->em->find(\App\Entity\ConventionContrat::class,$c->getId());self::assertNotNull($signedConvention->getDateSignatureEntreprise());
         $signedFile=self::getContainer()->getParameter('kernel.project_dir').'/var/storage/conventions/'.substr($signedConvention->getPdfPath(),8);
+        self::assertNotNull($signedConvention->getSignatureDataUrlEntreprise());
+        $revision=$this->em->getRepository(\App\Entity\ConventionRevision::class)->findOneBy(['convention'=>$signedConvention],['id'=>'DESC']);
+        $reader=new \setasign\Fpdi\Fpdi();
+        $originalPages=$reader->setSourceFile(\setasign\Fpdi\PdfParser\StreamReader::createByString($revision->getPdf()));
+        self::assertSame($originalPages,$reader->setSourceFile($signedFile));
+        self::assertSame(hash_file('sha256',$signedFile),$revision->getDonnees()['signedPdfSha256']);
+        self::assertSame(hash('sha256',$revision->getPdf()),$revision->getDonnees()['sourceSha256']);
+        $savedBytes=file_get_contents($signedFile);
+        // A repeated submission must not modify the signature or change the signed PDF.
+        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1','signatureData'=>$signedConvention->getSignatureDataUrlEntreprise()]);
+        self::assertResponseRedirects();
+        self::assertSame($savedBytes,file_get_contents($signedFile));
+        // Previously confirmed conventions without an image can be completed explicitly.
+        $signedConvention=$this->em->find(\App\Entity\ConventionContrat::class,$c->getId());
+        $signature=$signedConvention->getSignatureDataUrlEntreprise();
+        $legacyFile=dirname($signedFile).'/legacy-confirmation-test.pdf';
+        file_put_contents($legacyFile,$revision->getPdf());
+        $signedConvention->setPdfPath('private:legacy-confirmation-test.pdf');
+        $signedConvention->setSignatureDataUrlEntreprise(null);$this->em->flush();
+        $this->client->request('GET',$reviewUrl);self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#signature-canvas');
+        $html=$this->client->getResponse()->getContent();
+        self::assertGreaterThan(strpos($html, 'id="signature-canvas"'), strpos($html, "const form = document.getElementById('signature-form')"), 'Signature script must execute after the canvas exists.');
+
+        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1']);
+        self::assertResponseRedirects();
+        self::assertNull($this->em->find(\App\Entity\ConventionContrat::class,$c->getId())->getSignatureDataUrlEntreprise());
+        $this->client->request('GET',$portal.'/documents/convention/'.$c->getId().'/pdf');self::assertResponseIsSuccessful();
+        $this->client->request('POST',$reviewUrl,['_token'=>$consentToken,'consent'=>'1','signatureData'=>$signature]);
+        self::assertResponseRedirects();
+        $completed=$this->em->find(\App\Entity\ConventionContrat::class,$c->getId());
+        self::assertSame($signature,$completed->getSignatureDataUrlEntreprise());
+        $completedFile=self::getContainer()->getParameter('kernel.project_dir').'/var/storage/conventions/'.substr($completed->getPdfPath(),8);
+        self::assertNotSame($signedFile,$completedFile);
+        if (is_file($completedFile)) unlink($completedFile);
+        unlink($legacyFile);
         if (is_file($signedFile)) unlink($signedFile);
         // Inconsistent roster fails closed rather than leaking another company's learner.
         $c->addInscription($inscriptions[1]);

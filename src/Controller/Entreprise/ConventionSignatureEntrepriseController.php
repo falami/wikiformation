@@ -33,7 +33,7 @@ class ConventionSignatureEntrepriseController extends AbstractController
       if (!$request->request->getBoolean('consent')) $this->addFlash('warning', 'Veuillez confirmer votre accord avant de signer.');
       else {
         try {
-          $this->signatures->sign($convention, $this->getUser(), 'entreprise', null, $request->getSession()->get('convention_reviewed_'.$convention->getId()));
+          $this->signatures->sign($convention, $this->getUser(), 'entreprise', (string)$request->request->get('signatureData', ''), $request->getSession()->get('convention_reviewed_'.$convention->getId()));
           $this->addFlash('success', 'La convention a été signée pour votre entreprise.');
         } catch (\DomainException $error) { $this->addFlash('warning', $error->getMessage()); }
       }
@@ -71,7 +71,7 @@ class ConventionSignatureEntrepriseController extends AbstractController
       throw $this->createAccessDeniedException('Choisissez une convention rattachée à votre entreprise et à cette inscription.');
     }
 
-    if ($convention->getDateSignatureEntreprise()) {
+    if ($convention->getDateSignatureEntreprise() && $convention->getSignatureDataUrlEntreprise()) {
       $this->addFlash('info', 'La convention est déjà signée par l’entreprise.');
       return $this->redirectToRoute('app_entreprise_dashboard', [
         'entite' => $entite->getId(),
@@ -80,7 +80,7 @@ class ConventionSignatureEntrepriseController extends AbstractController
 
     if (!$convention->getPdfPath()) throw $this->createAccessDeniedException('Générez le document avant signature.');
     try {
-      $this->signatures->sign($convention, $user, 'entreprise', null, $request->getSession()->get('convention_reviewed_'.$convention->getId()));
+      $this->signatures->sign($convention, $user, 'entreprise', (string)$request->request->get('signatureData', ''), $request->getSession()->get('convention_reviewed_'.$convention->getId()));
     } catch (\DomainException $error) {
       $this->addFlash('danger', $error->getMessage());
       return $this->redirectToRoute('app_entreprise_dashboard', ['entite' => $entite->getId()]);
