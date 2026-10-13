@@ -24,6 +24,28 @@ class EmargementController extends AbstractController
         private UtilisateurEntiteManager $utilisateurEntiteManager,
     ) {}
 
+    #[Route('/absence', name: 'absence', methods: ['POST'])]
+    public function absence(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\AssiduiteCalculator $calculator): JsonResponse
+    {
+        if (!$this->isCsrfTokenValid('trainer_absence_'.$entite->getId(), $request->request->get('_token'))) return $this->json(['error'=>'Formulaire expiré.'],403);
+        $ins = $em->find(Inscription::class, $request->request->getInt('inscription'));
+        $session = $ins?->getSession(); $actor = $this->getUser();
+        if (!$ins || $ins->getEntite()?->getId() !== $entite->getId() || $session?->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($actor)) return $this->json(['error'=>'Accès refusé.'],403);
+        $date = $request->request->getString('date'); $period = $request->request->getString('period'); $status = $request->request->getString('status');
+        if (!in_array($period,['AM','PM','DAY'],true) || !in_array($status,['absent','unknown'],true) || $ins->getStatus() === \App\Enum\StatusInscription::ANNULE) return $this->json(['error'=>'Choix invalide.'],422);
+        $periods = $calculator->periods($ins); $online = $calculator->online($ins); $keys = [];
+        foreach ($period === 'DAY' ? ['AM','PM'] : [$period] as $half) {
+            $key = $date.':'.$half;
+            if (!isset($periods[$key])) { if ($period === 'DAY') continue; return $this->json(['error'=>'Période non planifiée.'],422); }
+            if ($date > (new \DateTimeImmutable('today',new \DateTimeZone('Europe/Paris')))->format('Y-m-d') || !$session->isFormateurUtilisateurSurPeriode($actor,new \DateTimeImmutable($date),$half) || isset($online[$key]) || ($ins->getPresencesManuelles()[$key]['status'] ?? '') === 'paper') return $this->json(['error'=>'Cette période est déjà signée, documentée ou ne relève pas de votre intervention.'],409);
+            $keys[] = $key;
+        }
+        if (!$keys) return $this->json(['error'=>'Aucun créneau à cette date.'],422);
+        foreach ($keys as $key) $ins->enregistrerPresenceManuelle($key,$status,'Déclaration du formateur',$actor);
+        $calculator->computeForInscription($ins); $em->flush();
+        return $this->json(['ok'=>true]);
+    }
+
     // =========================================================
     // FEED pour le modal d’émargements (AM/PM)
     // =========================================================
@@ -174,6 +196,9 @@ class EmargementController extends AbstractController
 
             $trainees[] = [
                 'id'        => $u->getId(),
+                'inscription' => $inscription->getId(),
+                'absent_am' => ($inscription->getPresencesManuelles()[$dateStr.':AM']['status'] ?? '') === 'absent',
+                'absent_pm' => ($inscription->getPresencesManuelles()[$dateStr.':PM']['status'] ?? '') === 'absent',
                 'name'      => trim($u->getPrenom() . ' ' . $u->getNom()),
 
                 'signed_am' => (bool) $am['signed'],

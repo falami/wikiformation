@@ -10,6 +10,11 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 
 <style>
+.ema-training-calendar .flatpickr-day.ema-training-day{background:#fff1c7;border-color:#e8c46b;color:#634a15;font-weight:700}
+.ema-training-calendar .flatpickr-day.ema-training-day:hover{background:#f5d77d;border-color:#d5ad41}
+.ema-training-calendar .flatpickr-day.ema-training-day.selected{background:#233e50;border-color:#233e50;color:#fff}
+.ema-training-calendar .flatpickr-day.flatpickr-disabled{color:#b6bdc5}
+
 /* ================= THEME TOKENS ================= */
 :root{
 
@@ -1946,7 +1951,11 @@ $(function(){
     </div>`;
   }
 
-  function cellReadonly(info){
+  function cellReadonly(info, inscription, period){
+    if (inscription && !info?.signed) {
+      const absent = info?.absent;
+      return `<div class="ema-actioncell"><span class="badge ${absent ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}">${absent ? 'Absent' : 'Non signé'}</span><button type="button" class="btn btn-mini btn-outline-${absent ? 'secondary' : 'danger'} js-absence" data-inscription="${inscription}" data-period="${period}" data-status="${absent ? 'unknown' : 'absent'}">${absent ? 'Annuler l’absence' : 'Déclarer absent'}</button></div>`;
+    }
     if(!info?.signed){
       return `<div class="ema-actioncell"><span class="badge bg-secondary-subtle text-secondary">Non signé</span></div>`;
     }
@@ -1981,9 +1990,9 @@ $(function(){
 
       return `
         <tr>
-          <td><strong>${escapeHtml(r.name||'-')}</strong>${badge}</td>
-          <td class="text-center">${r.isTrainer ? cellTrainer(am,'AM') : cellReadonly(am)}</td>
-          <td class="text-center">${r.isTrainer ? cellTrainer(pm,'PM') : cellReadonly(pm)}</td>
+          <td><strong>${escapeHtml(r.name||'-')}</strong>${badge}${r.inscription && !am.signed && !pm.signed ? `<div class="mt-2"><button type="button" class="btn btn-mini btn-outline-danger js-absence" data-inscription="${r.inscription}" data-period="DAY" data-status="absent">Absent toute la journée</button></div>` : ''}</td>
+          <td class="text-center">${r.isTrainer ? cellTrainer(am,'AM') : cellReadonly(am,r.inscription,'AM')}</td>
+          <td class="text-center">${r.isTrainer ? cellTrainer(pm,'PM') : cellReadonly(pm,r.inscription,'PM')}</td>
         </tr>
       `;
     }).join('');
@@ -1991,6 +2000,31 @@ $(function(){
     $('#ema-tbody').html(html);
   }
 
+
+  let absenceChoice = null;
+  const confirmation = document.createElement('dialog');
+  confirmation.style.cssText = 'border:1px solid #dce5eb;border-radius:20px;padding:28px;max-width:520px;width:90%;color:#203b4a;box-shadow:0 24px 80px #0004';
+  confirmation.innerHTML = '<h2 class="h5 fw-bold">Confirmer la modification</h2><p class="my-3" id="absence-description"></p><p class="text-danger" id="absence-error" role="alert"></p><div class="d-flex justify-content-end gap-2"><button type="button" class="btn btn-light" id="absence-cancel">Annuler</button><button type="button" class="btn btn-primary" id="absence-confirm">Confirmer</button></div>';
+  document.getElementById('emargementModal').append(confirmation);
+  $('#ema-tbody').on('click','.js-absence',function(){
+    absenceChoice = {inscription:this.dataset.inscription,period:this.dataset.period,status:this.dataset.status,date:STATE.date};
+    const person = STATE.rows.find(row=>String(row.inscription)===this.dataset.inscription);
+    confirmation.querySelector('#absence-description').textContent = (absenceChoice.status==='absent' ? 'Déclarer absent : ' : 'Annuler l’absence : ') + person.name + ' · ' + toFr(STATE.date) + ' · ' + ({AM:'Matin',PM:'Après-midi',DAY:'Journée'}[absenceChoice.period]) + '. Vous pourrez corriger cette déclaration ensuite.';
+    confirmation.querySelector('#absence-error').textContent = '';
+    confirmation.showModal();
+  });
+  confirmation.querySelector('#absence-cancel').onclick=()=>confirmation.close();
+  confirmation.querySelector('#absence-confirm').onclick=async function(){
+    this.disabled=true;
+    try {
+      const body=new URLSearchParams({...absenceChoice,_token:{{ csrf_token('trainer_absence_' ~ entite.id)|json_encode|raw }}});
+      const response=await fetch("{{ path('app_formateur_emargement_absence',{entite:entite.id}) }}",{method:'POST',body});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error || 'Enregistrement impossible.');
+      confirmation.close();await loadEma();
+    }catch(error){confirmation.querySelector('#absence-error').textContent=error.message;}
+    finally{this.disabled=false;}
+  };
 
   function buildRows(payload){
     const out = [];
@@ -2006,10 +2040,10 @@ $(function(){
 
     (payload?.trainees || []).forEach(t=>{
       out.push({
-        isTrainer:false,
+        isTrainer:false, inscription:t.inscription,
         name: t.name || 'Stagiaire',
-        am: { signed: !!t.signed_am, url: t.signature_am_url || null, at: t.signed_at_am || null },
-        pm: { signed: !!t.signed_pm, url: t.signature_pm_url || null, at: t.signed_at_pm || null }
+        am: { absent:!!t.absent_am, signed: !!t.signed_am, url: t.signature_am_url || null, at: t.signed_at_am || null },
+        pm: { absent:!!t.absent_pm, signed: !!t.signed_pm, url: t.signature_pm_url || null, at: t.signed_at_pm || null }
       });
     });
 
@@ -2034,17 +2068,19 @@ $(function(){
 
         STATE.outOfSession = !!j.outOfSession;
 
-        if (j?.allowedDays && __fpEma) {
-          // ✅ n'autorise que les jours de formation
-          __fpEma.set('enable', j.allowedDays);
-
-          // si la date courante n'est pas autorisée, on ne force pas forcément,
-          // mais tu peux choisir de la remettre sur le 1er jour :
-          if (STATE.outOfSession && j.allowedDays.length) {
-            // optionnel : auto-repositionner sur le 1er jour valide
-            // STATE.date = j.allowedDays[0];
-            // __fpEma.setDate(STATE.date, true);
+        STATE.allowedDays = [...(j.allowedDays || [])].sort();
+        if (STATE.firstDayOnOpen) {
+          STATE.firstDayOnOpen = false;
+          const first = STATE.allowedDays[0];
+          if (first && first !== STATE.date) {
+            STATE.date = first;
+            setHeader();
+            return loadEma();
           }
+        }
+        if (__fpEma) {
+          __fpEma.set('enable', STATE.allowedDays);
+          __fpEma.redraw();
         }
 
         if (j?.sessionDetails) {
@@ -2081,7 +2117,17 @@ $(function(){
       altInput: true,
       altFormat: 'd/m/Y',
       defaultDate: STATE?.date || new Date(),
-      allowInput: true,
+      allowInput: false,
+      disableMobile: true,
+      enable: STATE.allowedDays || [],
+      onReady: function(dates, value, instance){ instance.calendarContainer.classList.add('ema-training-calendar'); },
+      onDayCreate: function(dates, value, instance, day){
+        if ((STATE.allowedDays || []).includes(instance.formatDate(day.dateObj, 'Y-m-d'))) {
+          day.classList.add('ema-training-day');
+          day.title = 'Jour de formation';
+          day.setAttribute('aria-label', day.getAttribute('aria-label') + ' — Jour de formation');
+        }
+      },
       onChange: function(selectedDates, dateStr){
         if(dateStr){
           STATE.date = dateStr;
@@ -2099,7 +2145,9 @@ $(function(){
     $('#ema-details').prop('hidden', true);
     STATE.sessionId = String(sessionId);
     STATE.sessionLabel = sessionLabel || STATE.sessionLabel;
-    if(date) STATE.date = String(date);
+    STATE.allowedDays = [];
+    STATE.firstDayOnOpen = !date;
+    STATE.date = date ? String(date) : (new Date()).toISOString().slice(0,10);
 
     // ✅ si on appelle depuis “Matin/Après-midi”
     STATE.autoPeriode = periode || null;
@@ -2139,8 +2187,7 @@ $(function(){
     e.preventDefault();
     const sid = this.dataset.sessionId;
     const label = this.dataset.sessionLabel || 'Session';
-    const today = (new Date()).toISOString().slice(0,10);
-    window.__openEma?.({ sessionId: sid, sessionLabel: label, date: today });
+    window.__openEma?.({ sessionId: sid, sessionLabel: label });
   });
 
   /* ===== Appréciation formation (formateur) ===== */

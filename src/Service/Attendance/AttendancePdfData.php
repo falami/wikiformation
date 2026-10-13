@@ -92,6 +92,18 @@ final class AttendancePdfData
             }
         }
 
+        foreach ($session->getInscriptions() as $ins) {
+            if ($ins->getEntite()?->getId() !== $entite->getId() || !$ins->getStagiaire()) continue;
+            $u = $ins->getStagiaire(); $uid = 'user:'.$u->getId();
+            foreach ($ins->getPresencesManuelles() as $key => $record) {
+                if (($record['status'] ?? '') !== 'absent') continue;
+                [$day,$half] = explode(':',$key)+[null,null];
+                if (!isset($linesByDate[$day]) || !in_array($half,['AM','PM'],true)) continue;
+                $linesByDate[$day][$uid] ??= ['id'=>$uid,'isTrainer'=>false,'name'=>trim($u->getPrenom().' '.$u->getNom()),'raisonSociale'=>$ins->getEntreprise()?->getRaisonSociale() ?? '—','naissance'=>$u->getDateNaissance()?->format('d/m/Y') ?? '—','am'=>['signed'=>false],'pm'=>['signed'=>false]];
+                $linesByDate[$day][$uid][strtolower($half)]['absent'] = true;
+            }
+        }
+
         // --- Tri (stagiaires alphabétiques, formateur en dernier)
         foreach ($linesByDate as $d => $map) {
             $arr = array_values($map);

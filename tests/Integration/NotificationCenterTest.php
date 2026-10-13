@@ -119,6 +119,37 @@ final class NotificationCenterTest extends \Symfony\Bundle\FrameworkBundle\Test\
         self::assertNotContains('Other tenant private',array_column($center->items($this->entite,$this->user,'admin'),'title'));
     }
 
+    public function testTrainerCanDeclareAndUndoAbsence(): void
+    {
+        $learner = (new Utilisateur())->setEmail('absent@example.test')->setPassword('unused')->setPrenom('Absent')->setNom('Test');
+        $ins = (new Inscription())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->user)->setStagiaire($learner);
+        $this->em->persist($learner); $this->em->persist($ins); $this->em->flush();
+        $this->client->loginUser($this->user);
+        $this->client->request('GET','/fr/formateur/'.$this->entite->getId().'/dashboard');
+        preg_match('/absenceChoice,_token:("[^"\n]+")/', $this->client->getResponse()->getContent(), $match);
+        $token = json_decode($match[1], true, flags: JSON_THROW_ON_ERROR);
+        $url = '/fr/formateur/'.$this->entite->getId().'/emargement/absence';
+        $data = ['_token'=>$token,'inscription'=>$ins->getId(),'date'=>'2026-10-01','period'=>'DAY','status'=>'absent'];
+        $this->client->request('POST',$url,$data);
+        self::assertResponseIsSuccessful();
+        $this->em = self::getContainer()->get('doctrine')->getManager();
+        $ins = $this->em->find(Inscription::class, $data['inscription']);
+        self::assertSame('absent',$ins->getPresencesManuelles()['2026-10-01:AM']['status']);
+        self::assertSame('absent',$ins->getPresencesManuelles()['2026-10-01:PM']['status']);
+        $pdfData = self::getContainer()->get(\App\Service\Attendance\AttendancePdfData::class)->build($ins->getSession(),new \Symfony\Component\HttpFoundation\Request());
+        $rows = $pdfData['linesByDate']['2026-10-01'];
+        self::assertTrue(array_values(array_filter($rows,fn($r)=>$r['id']==='user:'.$learner->getId()))[0]['am']['absent']);
+        $data['period']='AM'; $data['status']='unknown';
+        $this->client->request('POST',$url,$data);
+        self::assertResponseIsSuccessful();
+        $this->em = self::getContainer()->get('doctrine')->getManager();
+        $ins = $this->em->find(Inscription::class, $data['inscription']);
+        self::assertSame('unknown',$ins->getPresencesManuelles()['2026-10-01:AM']['status']);
+        self::assertCount(1,$ins->getPresencesManuelles()['2026-10-01:AM']['history']);
+        $data['_token']='invalid'; $this->client->request('POST',$url,$data);
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testActivityAuthorIsSeparateFromSubject(): void
     {
         $event = new \App\Entity\NotificationEvent();
