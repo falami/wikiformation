@@ -295,9 +295,14 @@ final class UtilisateurController extends AbstractController
     if ($form->isSubmitted() && $form->isValid()) {
       try {
           if ($locked) {
-              $utilisateur->setEmail((string) $origEmail);
               $utilisateur->setSociete($origSociete);
               $utilisateur->setIsVerified($origVerified);
+          }
+
+          if ($isEdit && $utilisateur->getEmail() !== $origEmail) {
+              $utilisateur->setIsVerified(false);
+              $utilisateur->setResetToken(null);
+              $utilisateur->setResetTokenExpiresAt(null);
           }
 
           $ue = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([

@@ -335,6 +335,17 @@ final class DashboardEntrepriseController extends AbstractController
       ];
     }
 
+    $criteria=['entite'=>$entite,'entreprise'=>$entreprise];
+    if ($sessionId>0) $criteria['session']=$sessionId;
+    foreach ($em->getRepository(Inscription::class)->findBy($criteria,['id'=>'DESC']) as $inscription) {
+      $session=$inscription->getSession();$person=$inscription->getStagiaire();
+      if (!$session || $session->getEntite()?->getId()!==$entite->getId() || !$person) continue;
+      $out[]=['kind'=>'CONVOCATION','id'=>$inscription->getId(),'label'=>'Convocation stagiaire',
+        'name'=>$person->getPrenom().' '.$person->getNom().' · '.$session->getCode(),
+        'sessionId'=>$session->getId(),'uploadedAt'=>'','signedAt'=>null,'signUrl'=>null,
+        'url'=>$this->generateUrl('app_entreprise_documents_convocation_pdf',['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$inscription->getId()])];
+    }
+
     // tri desc date (uploadAt string => pas parfait mais ok)
     return new JsonResponse(['data' => $out]);
   }

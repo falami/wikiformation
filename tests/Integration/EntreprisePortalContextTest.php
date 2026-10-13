@@ -75,8 +75,8 @@ final class EntreprisePortalContextTest extends WebTestCase
             self::assertSame('Beta Salarié<br>Second &lt;Salarié&gt;', $conventions['data'][0]['stagiaire']);
             self::assertStringNotContainsString('CC-Alpha', $client->getResponse()->getContent());
             foreach ([
-                ['', 1],
-                ['&session='.$sessions[1]->getId(), 1],
+                ['', 3],
+                ['&session='.$sessions[1]->getId(), 3],
                 ['&session='.$sessions[0]->getId(), 0],
                 ['&session='.$sessions[2]->getId(), 0],
             ] as [$filter, $expectedCount]) {
@@ -84,7 +84,15 @@ final class EntreprisePortalContextTest extends WebTestCase
                 self::assertResponseIsSuccessful();
                 $documents=json_decode($client->getResponse()->getContent(),true)['data'];
                 self::assertCount($expectedCount,$documents);
-                if ($expectedCount) self::assertSame('CC-Beta',$documents[0]['name']);
+                if ($expectedCount) {
+                    self::assertSame('CC-Beta',$documents[0]['name']);
+                    $invitations=array_values(array_filter($documents,fn($d)=>$d['kind']==='CONVOCATION'));
+                    self::assertCount(2,$invitations);
+                    $client->request('GET',$invitations[0]['url']);self::assertResponseIsSuccessful();
+                    self::assertStringStartsWith('%PDF',$client->getResponse()->getContent());
+                    $client->catchExceptions(true);
+                    $client->request('GET',str_replace('entreprise='.$companies[1]->getId(),'entreprise='.$companies[0]->getId(),$invitations[0]['url']));self::assertContains($client->getResponse()->getStatusCode(),[403,404]);
+                }
             }
             $client->request('GET', $base.'/documents?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             self::assertSelectorExists('#portal-company option[selected][value="'.$companies[1]->getId().'"]');

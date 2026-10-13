@@ -88,6 +88,18 @@ final class EntrepriseDocumentsController extends AbstractController
       'person'=>$person,'trainer'=>$trainer,'attempt'=>$attempt,'answers'=>$dossier->answers($assignment)]);
   }
 
+  #[Route('/convocation/{id}/pdf', name: 'convocation_pdf', methods: ['GET'], requirements: ['id'=>'\d+'])]
+  public function convocation(Entite $entite, Inscription $inscription): Response
+  {
+    $company=$this->getEntrepriseUserOrFail($entite);
+    $session=$inscription->getSession();
+    if ($inscription->getEntite()?->getId()!==$entite->getId() || $session?->getEntite()?->getId()!==$entite->getId() || $inscription->getEntreprise()?->getId()!==$company->getId()) throw $this->createNotFoundException();
+    $html=$this->renderView('pdf/convocation.html.twig',['entite'=>$entite,'inscription'=>$inscription,'session'=>$session,'formation'=>$session->getFormation(),'stagiaire'=>$inscription->getStagiaire()]);
+    $response=$this->pdf->createPortrait($html,'Convocation-'.$inscription->getId());
+    $response->headers->set('Cache-Control','private, no-store');
+    return $response;
+  }
+
   private function dtParams(Request $request): array
   {
     $draw   = $request->request->getInt('draw', 1);
@@ -105,7 +117,7 @@ final class EntrepriseDocumentsController extends AbstractController
   }
 
   #[Route('', name: 'index', methods: ['GET'])]
-  public function index(Entite $entite): Response
+  public function index(Entite $entite, EM $em): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -114,6 +126,7 @@ final class EntrepriseDocumentsController extends AbstractController
       'entite' => $entite,
       'entreprisesDisponibles' => $this->portal->companies($this->getUser(), $entite),
       'entreprise' => $this->getEntrepriseUserOrFail($entite),
+      'convocations' => $em->getRepository(Inscription::class)->findBy(['entite'=>$entite,'entreprise'=>$this->getEntrepriseUserOrFail($entite)],['id'=>'DESC']),
 
 
     ]);

@@ -34,7 +34,6 @@ final class EntrepriseType extends AbstractType
         $b
             ->add('raisonSociale', TextType::class, [
                 'label' => '*Raison sociale',
-                'disabled' => $locked,
                 'attr' => [
                     'class' => 'form-control',
                     'placeholder' => 'Ex : WIKI Formation',
@@ -43,7 +42,6 @@ final class EntrepriseType extends AbstractType
             ->add('siret', TextType::class, [
                 'label' => 'SIRET',
                 'required' => false,
-                'disabled' => $locked,
                 'attr' => [
                     'class' => 'form-control',
                     'placeholder' => '14 chiffres (sans espace)',
@@ -52,7 +50,6 @@ final class EntrepriseType extends AbstractType
             ->add('numeroTVA', TextType::class, [
                 'label' => 'N° TVA intracommunautaire',
                 'required' => false,
-                'disabled' => $locked,
                 'attr' => [
                     'class' => 'form-control',
                     'placeholder' => 'Ex : FRXX123456789',

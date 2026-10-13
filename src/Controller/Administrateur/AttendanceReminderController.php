@@ -25,7 +25,14 @@ final class AttendanceReminderController extends AbstractController
         $target = $request->request->get('inscription');
         if ($target !== null && (!is_string($target) || !ctype_digit($target) || (int) $target < 1)) throw $this->createNotFoundException();
         $inscriptionId = $target === null ? null : (int) $target;
-        $key = ($period ?? 'day').'_'.$kind.'_'.($inscriptionId ?? 'all').'_attendance_reminder_'.$session->getId().'_'.$date;
+        $selectedIds=null;
+        if ($request->request->get('scope')==='selected') {
+            $selectedIds=$request->request->all('inscriptions');
+            if (!$selectedIds || count($selectedIds)>500) throw $this->createNotFoundException();
+            foreach ($selectedIds as $value) if (!is_string($value) || !ctype_digit($value) || (int)$value<1) throw $this->createNotFoundException();
+            $selectedIds=array_values(array_unique(array_map('intval',$selectedIds)));sort($selectedIds);
+        }
+        $key = ($period ?? 'day').'_'.$kind.'_'.($selectedIds !== null ? hash('sha256',implode(',',$selectedIds)) : ($inscriptionId ?? 'all')).'_attendance_reminder_'.$session->getId().'_'.$date;
         $feedback = ['sent'=>0, 'skipped'=>0, 'failed'=>0];
         if ($request->getSession()->get($key, 0) > time() - 60) {
             $feedback['skipped'] = 1;
@@ -34,9 +41,9 @@ final class AttendanceReminderController extends AbstractController
             $request->getSession()->set($key, time());
             try {
                 $reasons = [];
-                $result = $reminder->send($session, $date, $inscriptionId, $kind, $period, $reasons);
+                $result = $reminder->send($session, $date, $inscriptionId, $kind, $period, $reasons, $selectedIds);
                 $feedback = $result;
-                $em->persist((new AuditLog())->setEntite($entite)->setActor($this->getUser())->setCreateur($this->getUser())->setEvent('ATTENDANCE_REMINDER_SENT')->setCreatedAt(new \DateTimeImmutable())->setPayload(['session' => $session->getId(), 'date' => $date, 'kind' => $kind, 'period' => $period, 'inscription' => $inscriptionId] + $result));
+                $em->persist((new AuditLog())->setEntite($entite)->setActor($this->getUser())->setCreateur($this->getUser())->setEvent('ATTENDANCE_REMINDER_SENT')->setCreatedAt(new \DateTimeImmutable())->setPayload(['session' => $session->getId(), 'date' => $date, 'kind' => $kind, 'period' => $period, 'inscription' => $inscriptionId, 'inscriptions'=>$selectedIds] + $result));
                 $em->flush();
                 $message = sprintf('%d mail(s) confié(s) au service d’envoi, %d échec(s).', $result['sent'], $result['failed']);
                 foreach (['complete'=>'déjà complété(s)', 'email'=>'adresse(s) email absente(s) ou invalide(s)', 'access'=>'accès personnel(s) indisponible(s)', 'inactive'=>'inscription(s) inactive(s) ou sans stagiaire'] as $reason=>$label) {

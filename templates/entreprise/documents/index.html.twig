@@ -131,6 +131,7 @@
               <i class="bi bi-receipt me-1"></i> Devis
             </button>
           </li>
+          <li class="nav-item" role="presentation"><button class="nav-link" id="tab-convocations" data-bs-toggle="pill" data-bs-target="#pane-convocations" type="button" role="tab"><i class="bi bi-calendar2-check me-1"></i> Convocations</button></li>
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-factures" data-bs-toggle="pill" data-bs-target="#pane-factures" type="button" role="tab">
               <i class="bi bi-file-earmark-text me-1"></i> Factures
@@ -183,6 +184,22 @@
     </div>
 
     <div class="tab-content p-3">
+      <div class="tab-pane fade" id="pane-convocations" role="tabpanel" aria-labelledby="tab-convocations">
+        <h5 class="titleX"><i class="bi bi-calendar2-check"></i> Convocations des stagiaires</h5>
+        <p class="text-muted mt-2 mb-4">Retrouvez les informations pratiques de chaque formation et téléchargez la convocation individuelle de vos salariés.</p>
+        <div class="row g-3">
+        {% for inscription in convocations %}
+          {% if inscription.stagiaire and inscription.session and inscription.session.entite.id == entite.id %}
+          <div class="col-12 col-xl-6"><article class="border rounded-4 p-4 h-100 d-flex flex-column gap-3" style="background:linear-gradient(145deg,#fff,#f7fafc)">
+            <div class="d-flex align-items-center gap-3"><span class="rounded-3 p-3" style="background:#fff4d8;color:#926c1f"><i class="bi bi-calendar2-check fs-4"></i></span><div><h6 class="fw-bold mb-1">{{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }}</h6><span class="small text-muted">{{ inscription.session.code }}</span></div></div>
+            <div class="fw-semibold">{{ inscription.session.formationLabel }}</div>
+            <div class="small text-muted">{% for jour in inscription.session.jours %}<div><i class="bi bi-clock me-1"></i>{{ jour.dateDebut|date('d/m/Y') }} · {{ jour.dateDebut|date('H:i') }} – {{ jour.dateFin|date('H:i') }}</div>{% else %}Planning à confirmer{% endfor %}</div>
+            <a class="btn btn-outline-primary rounded-3 mt-auto align-self-start" target="_blank" rel="noopener" href="{{ path('app_entreprise_documents_convocation_pdf',{entite:entite.id,entreprise:entreprise.id,id:inscription.id}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>Consulter la convocation</a>
+          </article></div>
+          {% endif %}
+        {% else %}<div class="col-12"><p class="text-muted p-4 border rounded-4">Aucune convocation disponible pour cette entreprise.</p></div>{% endfor %}
+        </div>
+      </div>
 
       {# ===================== DEVIS ===================== #}
       <div class="tab-pane fade show active" id="pane-devis" role="tabpanel" aria-labelledby="tab-devis">

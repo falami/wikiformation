@@ -407,7 +407,7 @@
           {% if identityLocked|default(false) %}
             <div class="alert alert-info" role="status"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Ce compte est géré par un autre organisme. Son identité doit être corrigée par son titulaire ou par l’organisme d’origine.</div>
           {% elseif locked %}
-            <div class="alert alert-light border" role="status"><i class="bi bi-person-check me-2" aria-hidden="true"></i>Vous pouvez corriger l’identité de cette personne. Ses inscriptions et son adresse de connexion sont conservées.</div>
+            <div class="alert alert-light border" role="status"><i class="bi bi-person-check me-2" aria-hidden="true"></i>Vous pouvez corriger l’identité de cette personne. Ses inscriptions sont conservées. Une correction de l’email met aussi à jour son adresse de connexion.</div>
           {% endif %}
           <div class="row g-3">
             <div class="col-12 col-md-3">{{ form_row(form.civilite) }}</div>
@@ -490,7 +490,8 @@
           {{ form_row(form.entreprise) }}
           {{ form_row(form.entreprisesAssociees) }}
           <div class="form-text">
-            Si tu crées une entreprise via le bloc “Informations entreprise”, tu peux laisser ce champ vide.
+            <button type="button" class="btn btn-outline-primary rounded-pill mt-2" data-bs-toggle="modal" data-bs-target="#new-company-modal"><i class="bi bi-building-add me-2"></i>Nouvelle entreprise</button>
+            <span id="new-company-success" class="d-block mt-2 text-success" role="status"></span>
           </div>
         </div>
       </div>
@@ -719,6 +720,72 @@
   {# important : garder le token CSRF #}
   {{ form_widget(form._token) }}
   {{ form_end(form, { render_rest: false }) }}
+
+<div class="modal fade" id="new-company-modal" tabindex="-1" aria-labelledby="new-company-title" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 rounded-4 shadow-lg">
+      <div class="modal-header p-4" style="background:#203b4a;color:white;border-radius:1rem 1rem 0 0">
+        <div><div class="small mb-2" style="color:#e0b955">VOTRE RÉPERTOIRE ENTREPRISES</div><h2 class="modal-title h4 fw-bold" id="new-company-title"><i class="bi bi-building-add me-2"></i>Nouvelle entreprise</h2></div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted">Créez l’entreprise, puis poursuivez la fiche du stagiaire. Elle sera sélectionnée automatiquement.</p>
+        {{ form_start(entrepriseForm, {attr: {id: 'new-company-form'}}) }}
+        <div id="new-company-error" class="alert alert-danger d-none" role="alert" tabindex="-1"></div>
+        <h3 class="h6 fw-bold mb-3">Identité de l’entreprise</h3>
+        {{ form_row(entrepriseForm.raisonSociale) }}
+        <div class="row g-3"><div class="col-md-6">{{ form_row(entrepriseForm.siret) }}</div><div class="col-md-6">{{ form_row(entrepriseForm.numeroTVA) }}</div></div>
+        <h3 class="h6 fw-bold mt-4 mb-3">Contact et adresse <span class="text-muted fw-normal">· facultatif</span></h3>
+        <div class="row g-3"><div class="col-md-6">{{ form_row(entrepriseForm.email) }}</div><div class="col-md-6">{{ form_row(entrepriseForm.emailFacturation) }}</div></div>
+        {{ form_row(entrepriseForm.adresse) }}
+        <div class="row g-3"><div class="col-md-4">{{ form_row(entrepriseForm.codePostal) }}</div><div class="col-md-8">{{ form_row(entrepriseForm.ville) }}</div></div>
+        {{ form_row(entrepriseForm.pays) }}
+        {{ form_widget(entrepriseForm._token) }}
+        {{ form_end(entrepriseForm, {render_rest: false}) }}
+        <p class="small text-muted mb-0 mt-3">L’entreprise est enregistrée dès sa création. Enregistrez ensuite la fiche du stagiaire pour confirmer le rattachement.</p>
+      </div>
+      <div class="modal-footer px-4 py-3"><button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Annuler</button><button id="new-company-submit" type="submit" form="new-company-form" class="btn btn-primary rounded-pill px-4"><i class="bi bi-check2 me-2"></i>Créer et sélectionner</button></div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const modal = document.getElementById('new-company-modal');
+  const companyForm = document.getElementById('new-company-form');
+  const submit = document.getElementById('new-company-submit');
+  const error = document.getElementById('new-company-error');
+  let busy = false;
+  modal.addEventListener('shown.bs.modal', () => companyForm.querySelector('input:not([type="hidden"])')?.focus());
+  modal.addEventListener('hide.bs.modal', event => { if (busy) event.preventDefault(); });
+  companyForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (busy) return;
+    busy = true; submit.disabled = true;
+    const original = submit.innerHTML; submit.textContent = 'Création en cours…';
+    error.classList.add('d-none');
+    try {
+      const response = await fetch(companyForm.action, {method:'POST', body:new FormData(companyForm), headers:{'X-Requested-With':'XMLHttpRequest'}});
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.errors?.join(' ') || data.message || 'La création a échoué. Réessayez.');
+      const primary = document.getElementById('{{ form.entreprise.vars.id }}');
+      const associated = document.getElementById('{{ form.entreprisesAssociees.vars.id }}');
+      [primary, associated].forEach(select => {
+        if (select.tomselect) select.tomselect.addOption({value:String(data.id), text:data.label});
+        else if (![...select.options].some(option => option.value === String(data.id))) select.add(new Option(data.label, data.id));
+      });
+      if (primary.tomselect) primary.tomselect.setValue(String(data.id));
+      else { primary.value = String(data.id); primary.dispatchEvent(new Event('change', {bubbles:true})); }
+      document.getElementById('new-company-success').textContent = data.label + ' — entreprise sélectionnée.';
+      companyForm.reset(); busy = false;
+      bootstrap.Modal.getInstance(modal)?.hide();
+      primary.tomselect?.focus();
+    } catch (exception) {
+      error.textContent = exception.message || 'Impossible de joindre le serveur. Réessayez.';
+      error.classList.remove('d-none'); error.focus();
+    } finally { busy = false; submit.disabled = false; submit.innerHTML = original; }
+  });
+});
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

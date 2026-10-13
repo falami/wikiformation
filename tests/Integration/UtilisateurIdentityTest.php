@@ -132,6 +132,27 @@ final class UtilisateurIdentityTest extends KernelTestCase
         }
     }
 
+    public function testCompanyModalCreatesCompanyFromLearnerEdit(): void
+    {
+        $client = $this->client();
+        $crawler = $client->request('GET', $this->editUrl($this->learner->getId()));
+        self::assertCount(1, $crawler->filter('#new-company-modal'));
+        $form = $crawler->filter('#new-company-form')->form();
+        $values = $form->getPhpValues();
+        $values['entreprise']['raisonSociale'] = 'Entreprise créée depuis la fiche';
+        $values['entreprise']['email'] = 'contact@example.test';
+        $client->request('POST', $form->getUri(), $values);
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $data = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['ok']);
+        $company = $this->em->find(\App\Entity\Entreprise::class, $data['id']);
+        self::assertSame($this->entite->getId(), $company->getEntite()->getId());
+        self::assertSame('contact@example.test', $company->getEmail());
+        $values['entreprise']['_token'] = 'invalid';
+        $client->request('POST', $form->getUri(), $values);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+    }
+
     public function testEnrolledVerifiedIdentityCanBeCorrectedWithoutChangingAccountOrEnrollments(): void
     {
         $this->learner->setIsVerified(true); $this->em->flush();
@@ -139,18 +160,18 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $client = $this->client(); $crawler = $client->request('GET', $this->editUrl($id));
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertNull($crawler->filter('#utilisateur_prenom')->attr('disabled'));
-        self::assertNotNull($crawler->filter('#utilisateur_email')->attr('disabled'));
+        self::assertNull($crawler->filter('#utilisateur_email')->attr('disabled'));
         $form = $crawler->filter('form[name="utilisateur"]')->form();
         $values = $form->getPhpValues();
         $values['utilisateur']['prenom'] = 'Jason';
-        // A forged disabled email must not detach the identity from its login.
+        // Correcting the email preserves the account and its enrollments.
         $values['utilisateur']['email'] = 'replacement@example.test';
         $client->request('POST', $this->editUrl($id), $values);
         self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
         $this->em->clear(); $saved = $this->em->find(Utilisateur::class, $id);
         self::assertSame('Jason', $saved->getPrenom());
-        self::assertSame('learner-identity@example.test', $saved->getEmail());
-        self::assertTrue($saved->isVerified());
+        self::assertSame('replacement@example.test', $saved->getEmail());
+        self::assertFalse($saved->isVerified());
         self::assertCount(2, $saved->getInscriptions());
         self::assertSame(2, $this->em->getRepository(Utilisateur::class)->count([]));
     }

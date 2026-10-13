@@ -33,7 +33,7 @@ final class UtilisateurType extends AbstractType
     {
         $locked = $o['locked'] ?? false;
         $identityLocked = $o['identity_locked'];
-        $emailLocked = $locked || $identityLocked;
+        $emailLocked = $identityLocked;
         $entite = $o['entite'] ?? null;
 
         /** @var Utilisateur $utilisateur */
@@ -71,7 +71,7 @@ final class UtilisateurType extends AbstractType
             ])
             ->add('email', EmailType::class, [
                 'disabled' => $emailLocked,
-                'help' => $emailLocked ? 'Adresse du compte protégé. La correction du nom ou du prénom ne change pas ses accès ni ses inscriptions.' : null,
+                'help' => $emailLocked ? 'Ce compte appartient à un autre organisme : son adresse est protégée.' : 'Cette adresse sera utilisée pour la connexion et les prochains emails. Les inscriptions sont conservées.',
                 'attr' => ['class' => 'form-control']
             ])
             ->add('photo', FileType::class, [
@@ -142,7 +142,7 @@ final class UtilisateurType extends AbstractType
             ])
             ->add('isVerified', CheckboxType::class, [
                 'required' => false,
-                'disabled' => $emailLocked,
+                'disabled' => $locked || $identityLocked,
             ])
             ->add('newsletter', CheckboxType::class, [
                 'required' => false,

@@ -16,8 +16,12 @@ final class AttendanceReminder
     public function __construct(private EntityManagerInterface $em, private ParticipantQrAccess $access,
         private UrlGeneratorInterface $router, private MailerManager $mailer, private Environment $twig) {}
 
-    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance', ?string $period = null, ?array &$skipReasons = null): array
+    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance', ?string $period = null, ?array &$skipReasons = null, ?array $selectedIds = null): array
     {
+        if ($selectedIds !== null) {
+            $allowed=array_map(fn($i)=>$i->getId(),$this->em->getRepository(Inscription::class)->findBy(['session'=>$session,'entite'=>$session->getEntite()]));
+            if (!$selectedIds || array_diff($selectedIds,$allowed)) throw new \DomainException('Sélection vide ou étrangère à cette session.');
+        }
         if (!in_array($kind, ['attendance', 'satisfaction', 'both'], true)) throw new \DomainException('Type de relance invalide.');
         if ($inscriptionId !== null && !$this->em->getRepository(Inscription::class)->findOneBy(['id' => $inscriptionId, 'session' => $session, 'entite' => $session->getEntite()])) throw new \DomainException('Stagiaire étranger à cette session.');
         if ($period !== null && !in_array($period, ['AM', 'PM'], true)) throw new \DomainException('Demi-journée invalide.');
@@ -40,6 +44,7 @@ final class AttendanceReminder
         $seen = [];
         foreach ($this->em->getRepository(Inscription::class)->findBy(['session' => $session, 'entite' => $session->getEntite()]) as $i) {
             if ($inscriptionId !== null && $i->getId() !== $inscriptionId) continue;
+            if ($selectedIds !== null && !in_array($i->getId(),$selectedIds,true)) continue;
             $user = $i->getStagiaire();
             if (!$user || in_array($i->getStatus(), [StatusInscription::ANNULE, StatusInscription::ABSENT], true)) { ++$result['skipped']; ++$skipReasons['inactive']; continue; }
             if (isset($seen[$user->getId()])) continue;
