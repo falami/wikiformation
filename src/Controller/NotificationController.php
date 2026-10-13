@@ -30,7 +30,7 @@ final class NotificationController extends AbstractController
         $counts=['unread'=>0,'action'=>0,'info'=>0,'archived'=>0];
         foreach ($items as $i) { if ($i['archived']) { ++$counts['archived']; continue; } ++$counts[$i['state']]; if (!$i['read']) ++$counts['unread']; }
         $state=$request->query->getString('state','all'); $category=$request->query->getString('category'); $search=mb_strtolower(trim($request->query->getString('q')));
-        $filtered=array_values(array_filter($items,static fn($i)=>($state==='archived'?$i['archived']:!$i['archived']) && ($state!=='unread'||!$i['read']) && (!in_array($state,['action','info'],true)||$i['state']===$state) && (!$category||$i['category']===$category) && (!$search||str_contains(mb_strtolower($i['title'].' '.$i['detail']),$search))));
+        $filtered=array_values(array_filter($items,static fn($i)=>($state==='archived'?$i['archived']:!$i['archived']) && ($state!=='unread'||!$i['read']) && (!in_array($state,['action','info'],true)||$i['state']===$state) && (!$category||$i['category']===$category) && (!$search||str_contains(mb_strtolower($i['title'].' '.$i['detail'].' '.($i['actor'] ?? '')),$search))));
         $page=max(1,$request->query->getInt('page',1)); $limit=min(50,max(1,$request->query->getInt('limit',25)));
         $response=$this->json(['items'=>array_slice($filtered,($page-1)*$limit,$limit),'total'=>count($filtered),'counts'=>$counts,'page'=>$page,'pages'=>(int)ceil(count($filtered)/$limit),'space'=>$space]);
         $response->headers->set('Cache-Control','private, no-store'); return $response;

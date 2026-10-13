@@ -119,6 +119,22 @@ final class NotificationCenterTest extends \Symfony\Bundle\FrameworkBundle\Test\
         self::assertNotContains('Other tenant private',array_column($center->items($this->entite,$this->user,'admin'),'title'));
     }
 
+    public function testActivityAuthorIsSeparateFromSubject(): void
+    {
+        $event = new \App\Entity\NotificationEvent();
+        $event->entite = $this->entite;
+        $event->session = $this->session;
+        $event->subject = $this->user;
+        $event->actor = 'Alex Administration';
+        $event->title = 'Dossier modifié';
+        $this->em->persist($event); $this->em->flush();
+        $items = self::getContainer()->get(\App\Service\Notification\NotificationCenter::class)->items($this->entite, $this->user, 'admin');
+        $item = array_values(array_filter($items, fn($item) => $item['key'] === 'event:'.$event->id))[0];
+        self::assertSame('Alex Administration', $item['actor']);
+        self::assertStringContainsString('Camille Test', $item['detail']);
+        self::assertStringNotContainsString('Alex Administration', $item['detail']);
+    }
+
     public function testCenterAndFeedRender(): void
     {
         $this->client->loginUser($this->user);

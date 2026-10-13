@@ -36,6 +36,12 @@
     const meta=el('div','wn-meta');meta.append(el('span','wn-status '+(item.state==='action'?'wn-action':''),item.state==='action'?'À traiter':'Information'));
     if(item.date) { const time=el('time','',new Intl.DateTimeFormat('fr-FR',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Paris'}).format(new Date(item.date)));time.dateTime=item.date;meta.append(time); }
     else meta.append(el('span','','État actuel du dossier'));
+    if (item.actor || item.key.startsWith('event:')) {
+      const author=el('span','wn-author');
+      const symbol=el('i','bi bi-person-circle');symbol.setAttribute('aria-hidden','true');
+      author.append(symbol,document.createTextNode(item.actor ? 'Action effectuée par '+item.actor : 'Auteur non identifié'));
+      meta.append(author);
+    }
     body.append(meta);article.append(icon,body);
     if(!compact) {
       const actions=el('div','wn-item-actions');

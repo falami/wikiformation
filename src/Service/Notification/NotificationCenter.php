@@ -174,7 +174,8 @@ final class NotificationCenter
                 } elseif ($event->category!=='contracts' && (!$s || !in_array($s->getId(),$sessionIds,true) || ($event->sourceType!=='Session' && !$this->personVisible($space,$user,$s,$event->subject,$tenant)))) continue;
             }
             $url=$s?$this->sessionUrl($tenant,$s,$space):$this->url('app_notifications_index',$tenant,['space'=>$space]);
-            $this->add($items,'event:'.$event->id,$event->category,'info',$event->title,($s?->getCode() ? $s->getCode().' · ' : '').($event->subject ? trim($event->subject->getPrenom().' '.$event->subject->getNom()).' · ' : '').$event->actor,$url,$event->occurredAt,$s?->getId());
+            $this->add($items,'event:'.$event->id,$event->category,'info',$event->title,trim(($s?->getCode() ? $s->getCode().' · ' : '').($event->subject ? trim($event->subject->getPrenom().' '.$event->subject->getNom()) : ''), ' ·'),$url,$event->occurredAt,$s?->getId());
+            $items['event:'.$event->id]['actor'] = $event->actor !== '' && $event->actor !== 'Traitement automatique ou accès personnel' ? $event->actor : null;
         }
         $receipts=$this->em->getConnection()->fetchAllAssociative('SELECT item_key, read_at, archived FROM notification_receipt WHERE entite_id = ? AND utilisateur_id = ?',[$tenant->getId(),$user->getId()]);
         foreach ($receipts as $r) if (isset($items[$r['item_key']])) { $items[$r['item_key']]['read']=(bool)$r['read_at']; $items[$r['item_key']]['archived']=(bool)$r['archived']; }
