@@ -43,8 +43,11 @@ final class NotificationController extends AbstractController
         if (!in_array($action,['read','unread','archive','restore','read_all'],true)) return $this->json(['error'=>'Action invalide'],400);
         /** @var Utilisateur $user */ $user=$this->getUser();
         $items=$center->items($entite,$user,(string)($data['space']??''));
-        $keys=[]; foreach($items as $item) if ($action==='read_all' || $item['key']===($data['key']??'')) $keys[]=$item['key'];
-        if (!$keys && $action!=='read_all') return $this->json(['error'=>'Notification indisponible'],404);
+        $requested=$data['keys'] ?? null;
+        if ($requested!==null && (!in_array($action,['read','archive'],true) || !is_array($requested) || !$requested || count($requested)>50 || count(array_filter($requested,'is_string'))!==count($requested))) return $this->json(['error'=>'Sélection invalide'],400);
+        $available=array_column($items,'key');
+        $keys=$requested!==null ? array_values(array_unique($requested)) : ($action==='read_all'?$available:[$data['key']??'']);
+        if (array_diff($keys,$available)) return $this->json(['error'=>'Notification indisponible'],404);
         $connection=$em->getConnection();
         $connection->transactional(function($db) use($keys,$action,$entite,$user) {
             foreach($keys as $key) {
