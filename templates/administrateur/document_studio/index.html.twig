@@ -1,0 +1,47 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Atelier de documents{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/document-studio.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block body %}
+<div class="studio">
+  <header class="studio-hero"><div><div class="studio-eyebrow">{{ entite.nom }} / ATELIER DOCUMENTAIRE</div><h1>Vos documents.<br>Votre signature visuelle.</h1><p>Créez vos modèles, personnalisez leurs contenus et choisissez la version utilisée dans vos prochains envois.</p></div><div class="studio-hero-note"><i class="bi bi-layers"></i><strong>{{ catalog|length }} familles de documents</strong><span>Les originaux restent disponibles.<br>Vos modifications commencent en brouillon.</span></div></header>
+  {% include 'flagMessage.html.twig' %}
+  <div class="studio-library-heading"><div><h2>Bibliothèque de modèles</h2><p>Dupliquez un original pour créer votre première version.</p></div><a class="studio-btn" href="{{ path('app_administrateur_preferences_formateurs_contrat',{entite:entite.id}) }}"><i class="bi bi-sliders"></i> Préférences de l’organisme</a></div>
+  <div class="studio-library-grid">
+  {% for kind, item in catalog %}
+    <article class="studio-model-card">
+      <div class="studio-card-top"><span class="studio-type-icon"><i class="bi bi-{{ item.icon }}"></i></span><span class="studio-tag">{{ item.group }}</span></div>
+      <h3>{{ item.label }}</h3>
+      <div class="studio-current"><span class="studio-dot {{ bindings[kind] is defined ? 'custom' : '' }}"></span>En utilisation : <strong>{{ bindings[kind] is defined ? bindings[kind].template.name : 'Modèle d’origine' }}</strong></div>
+      <form method="post" action="{{ path('app_administrateur_document_studio_create',{entite:entite.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('document_studio_'~entite.id) }}"><input type="hidden" name="kind" value="{{ kind }}"><button class="studio-btn studio-btn-dark w-100"><i class="bi bi-copy"></i> Dupliquer l’original</button></form>
+      <form method="post" class="mt-2" action="{{ path('app_administrateur_document_studio_create',{entite:entite.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('document_studio_'~entite.id) }}"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="base" value="blank"><button class="studio-btn w-100">Créer un modèle vierge</button></form>
+      <div class="studio-versions">
+      {% for model in models|filter(m => m.kind == kind) %}
+        <div class="studio-version-row"><a href="{{ path('app_administrateur_document_studio_edit',{entite:entite.id,id:model.id}) }}"><strong>{{ model.name }}</strong><small>{{ model.updatedAt|date('d/m/Y à H:i','Europe/Paris') }}{% if bindings[kind] is defined and bindings[kind].template.id == model.id %} · Version publiée{% else %} · Brouillon{% endif %}</small></a>
+          <form method="post" action="{{ path('app_administrateur_document_studio_create',{entite:entite.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('document_studio_'~entite.id) }}"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="source" value="{{ model.id }}"><button class="studio-icon-btn" title="Dupliquer {{ model.name }}" aria-label="Dupliquer {{ model.name }}"><i class="bi bi-copy"></i></button></form>
+        </div>
+      {% else %}<p class="studio-muted small mb-0">Aucune version personnalisée pour le moment.</p>{% endfor %}
+      </div>
+      {% if bindings[kind] is defined %}
+        <form method="post" action="{{ path('app_administrateur_document_studio_default',{entite:entite.id,kind:kind}) }}"><input type="hidden" name="_token" value="{{ csrf_token('document_studio_'~entite.id) }}"><button class="studio-link-btn">Revenir au modèle d’origine</button></form>
+      {% endif %}
+    </article>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}

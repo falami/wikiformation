@@ -1,0 +1,57 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}{{ model.name }} · Atelier de documents{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/document-studio.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block body %}
+{% set blank = model.config.base|default('original') == 'blank' %}
+<div class="studio studio-editor" id="document-studio"
+ data-save="{{ path('app_administrateur_document_studio_save',{entite:entite.id,id:model.id}) }}"
+ data-preview="{{ path('app_administrateur_document_studio_preview',{entite:entite.id,id:model.id}) }}"
+ data-publish="{{ path('app_administrateur_document_studio_publish',{entite:entite.id,id:model.id}) }}"
+ data-token="{{ csrf_token('document_studio_'~entite.id) }}">
+  <script type="application/json" id="studio-state">{{ {config:model.config,version:model.version,fields:fields,sections:sections}|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }}</script>
+  <div class="studio-topbar"><div><a class="studio-back" href="{{ path('app_administrateur_document_studio_index',{entite:entite.id}) }}"><i class="bi bi-arrow-left"></i> Bibliothèque</a><div class="studio-eyebrow text-secondary mt-2">{{ type.label }} / ÉDITION DU BROUILLON</div></div><div class="studio-actions"><span id="studio-status" role="status" aria-live="polite">Brouillon enregistré</span><button type="button" id="studio-save" class="studio-btn"><i class="bi bi-check2"></i> Enregistrer</button><button type="button" id="studio-publish" class="studio-btn studio-btn-gold"><i class="bi bi-send-check"></i> Utiliser ce modèle</button></div></div>
+  {% include 'flagMessage.html.twig' %}
+  <div class="studio-title-row"><input id="studio-name" aria-label="Nom du modèle" maxlength="160" value="{{ model.name }}"><span class="studio-tag">{{ binding and binding.template.id == model.id ? 'Une version de ce modèle est active' : 'Non utilisé dans les envois' }}</span></div>
+  <div class="studio-message" id="studio-message" role="alert" hidden></div>
+  <div class="studio-workspace">
+    <aside class="studio-panel studio-tools">
+      <h2>Composer</h2><p class="studio-muted small">Un bloc, une idée. Organisez votre document à votre rythme.</p>
+      <div class="studio-original"><i class="bi bi-shield-check"></i><div><strong>{{ blank ? 'Page vierge' : 'Document d’origine conservé' }}</strong><small>{{ blank ? 'Composez tout le contenu avec vos chapitres et champs dynamiques, y compris vos signatures.' : 'Identités, tableaux, calculs et signatures restent alimentés par vos dossiers.' }}</small></div></div>
+      <button class="studio-btn w-100 mt-3" id="studio-add"><i class="bi bi-plus-lg"></i> Ajouter un chapitre</button>
+      {% if sections is not empty and not blank %}<label class="studio-label mt-3" for="studio-section">Personnaliser une rubrique existante</label><select id="studio-section" class="studio-input"><option value="">Choisir une rubrique…</option>{% for item in sections %}<option>{{ item }}</option>{% endfor %}</select>{% endif %}
+      <div class="studio-divider"></div><h3>Identité visuelle</h3>
+      <div class="studio-color-row"><label for="studio-primary">Couleur principale</label><input id="studio-primary" type="color" value="{{ model.config.primary ?: '#233342' }}"></div>
+      <div class="studio-color-row"><label for="studio-accent">Couleur d’accent</label><input id="studio-accent" type="color" value="{{ model.config.accent ?: '#d8ad4a' }}"></div>
+      <label class="studio-label" for="studio-font">Typographie</label><select class="studio-input" id="studio-font"><option value="original">Conserver l’originale</option><option value="sans">Contemporaine · Sans serif</option><option value="serif">Éditoriale · Serif</option></select>
+      <button class="studio-link-btn" id="studio-reset-style">Rétablir les couleurs d’origine</button>
+      <div class="studio-divider"></div><h3>Champs dynamiques</h3><p class="studio-muted small">Cliquez dans votre texte, puis sur un champ pour l’insérer.</p>
+      <input id="studio-field-search" class="studio-input mb-2" placeholder="Rechercher un champ…" aria-label="Rechercher un champ">
+      <div id="studio-fields" class="studio-fields"></div>
+      <div class="studio-divider"></div><h3>Mes champs personnalisés</h3><p class="studio-muted small">Valeurs enregistrées avec ce modèle : contact, clause, référence…</p>
+      <div id="studio-custom-fields"></div><button class="studio-btn w-100" id="studio-add-field"><i class="bi bi-plus"></i> Créer un champ</button>
+    </aside>
+    <main class="studio-panel studio-content"><div class="studio-content-header"><div><h2>Votre contenu</h2><p class="studio-muted small mb-0">Mise en forme et données au même endroit.</p></div><span class="studio-tag" id="studio-block-count">0 bloc</span></div><div id="studio-blocks"></div><div id="studio-empty" class="studio-empty"><i class="bi bi-journal-richtext"></i><h3>{{ blank ? 'Créez votre document à partir de zéro' : 'Commencez avec votre modèle actuel' }}</h3><p>{{ blank ? 'Votre page est vide. Ajoutez votre premier chapitre puis insérez les champs nécessaires.' : 'Ajoutez un chapitre ou personnalisez une rubrique. Sans modification, votre copie produit le même document que l’original.' }}</p><button class="studio-btn studio-btn-dark" id="studio-first-block">Ajouter mon premier chapitre</button></div></main>
+    <aside class="studio-panel studio-preview"><div class="studio-content-header"><div><h2>Aperçu PDF</h2><p class="studio-muted small mb-0">Le moteur utilisé pour vos documents.</p></div><button id="studio-refresh" class="studio-icon-btn" title="Actualiser l’aperçu" aria-label="Actualiser l’aperçu"><i class="bi bi-arrow-clockwise"></i></button></div><label class="studio-label" for="studio-source">Données de prévisualisation</label><select id="studio-source" class="studio-input"><option value="0">Composition seule · Sans dossier</option>{% for source in sources %}<option value="{{ source.id }}">{{ source.label }}</option>{% endfor %}</select><p class="studio-muted small mt-2">Lecture seule : aucun envoi, aucune signature enregistrée.</p><div id="studio-preview-empty" class="studio-preview-empty">Choisissez un dossier puis actualisez l’aperçu.</div><iframe id="studio-frame" title="Prévisualisation du modèle PDF" hidden></iframe><a id="studio-download" class="studio-link-btn" download="Apercu-modele.pdf" hidden>Télécharger cet aperçu</a></aside>
+  </div>
+  <details class="studio-panel studio-history mt-4"><summary>Historique des versions publiées <span class="studio-tag">{{ model.history|length }}</span></summary><p class="studio-muted mt-3">Restaurer crée un brouillon. L’activation reste une action distincte.</p>{% for entry in model.history|reverse %}<div class="studio-version-row"><div><strong>{{ entry.name }}</strong><small>{{ entry.date|date('d/m/Y à H:i','Europe/Paris') }} · {{ entry.author }}</small></div><form method="post" action="{{ path('app_administrateur_document_studio_restore',{entite:entite.id,id:model.id,revision:model.history|length-loop.index}) }}"><input type="hidden" name="_token" value="{{ csrf_token('document_studio_'~entite.id) }}"><input type="hidden" name="version" value="{{ model.version }}"><button class="studio-btn">Restaurer en brouillon</button></form></div>{% else %}<p>Aucune publication. Vos brouillons ne modifient pas les envois.</p>{% endfor %}</details>
+  {% if model.history is empty and not (binding and binding.template.id == model.id) %}<form method="post" class="mt-4" action="{{ path('app_administrateur_document_studio_delete',{entite:entite.id,id:model.id}) }}" onsubmit="return confirm('Supprimer définitivement ce modèle inutilisé ?')"><input type="hidden" name="_token" value="{{ csrf_token('document_studio_'~entite.id) }}"><button class="studio-btn text-danger">Supprimer ce modèle inutilisé</button></form>{% else %}<p class="studio-muted mt-4">Ce modèle a déjà été activé : il est conservé dans votre historique.</p>{% endif %}
+  <dialog id="studio-publish-dialog" class="studio-dialog"><h2>Utiliser cette version ?</h2><p>Ce modèle sera utilisé pour les prochaines générations de <strong>{{ type.label|lower }}</strong>, y compris les PDF joints aux envois qui utilisent ce générateur.</p><p>Les originaux déjà conservés ou signés ne seront pas remplacés. Vous pourrez revenir au modèle d’origine depuis la bibliothèque.</p><div class="studio-actions"><button id="studio-publish-cancel" class="studio-btn">Continuer l’édition</button><button id="studio-publish-confirm" class="studio-btn studio-btn-gold">Activer pour les prochains documents</button></div></dialog>
+</div>
+{% endblock %}
+{% block javascripts_bottom %}{{ parent() }}<script src="{{ asset('dist/js/document-studio.js') }}" defer></script>{% endblock %}

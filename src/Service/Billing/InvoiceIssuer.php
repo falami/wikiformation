@@ -33,6 +33,13 @@ final class InvoiceIssuer
             if ($latest && substr($latest, 0, 10) > $invoice->getDateEmission()->format('Y-m-d')) throw new \DomainException('La date d’émission ne peut pas précéder celle de la dernière facture de cet organisme.');
             $invoice->setNumero($numbers->nextForEntite($invoice->getEntite()->getId(), (int) $invoice->getDateEmission()->format('Y')));
             InvoiceTotals::finalizeNewInvoice($invoice);
+            // Freeze the publication selected at issuance; historical invoices never adopt later edits.
+            $studio=[];
+            foreach (['facture','facture_acquittee'] as $kind) {
+                $binding=$em->getRepository(\App\Entity\DocumentTemplateBinding::class)->findOneBy(['entite'=>$invoice->getEntite(),'kind'=>$kind]);
+                if ($binding) $studio[$kind]=$binding->getConfig();
+            }
+            if ($studio) $invoice->setMeta(array_replace($invoice->getMeta() ?? [], ['document_studio'=>$studio]));
             InvoiceSnapshot::capture($invoice);
             $em->persist($invoice);
             return $invoice;
