@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css">
   <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
-  <link rel="stylesheet" href="{{ asset('dist/css/bpf.css') }}?v=2">
+  <link rel="stylesheet" href="{{ asset('dist/css/bpf.css') }}?v=3">
 {% endblock %}
 {% block body %}
 <div class="bpf-workspace">
@@ -107,7 +107,11 @@
           </ul><p class="small mt-2 mb-0">Cliquez sur un libellé pour accéder à la case. Saisissez 0 uniquement pour une rubrique numérique sans activité.</p></div>
         {% endif %}
         {% set warnings = controlNotices.warnings|filter(issue => 'champ(s) à renseigner' not in issue) %}
-        {% if warnings %}<ul class="bpf-issues">{% for issue in warnings %}<li>{{ issue }}</li>{% endfor %}</ul>{% elseif not missingFields %}<div class="alert alert-success">Aucune case obligatoire manquante ni incohérence arithmétique détectée. Vérifiez les justificatifs avant le dépôt.</div>{% endif %}
+        {% if warnings %}<ul class="bpf-issues">{% for issue in warnings %}{% set target = warningTargets[issue] %}<li>
+          {% if target.inscription is defined %}<a href="{{ path('app_administrateur_inscription_show', {entite: entite.id, id: target.inscription}) }}#presences-papier">{{ issue }}</a>
+          {% else %}<a data-bpf-field-link href="#{{ target.field is defined ? attribute(form, target.field).vars.id : 'bpf-' ~ target.section }}">{{ issue }}</a>{% endif %}
+          {% if target.compare is defined %} <a data-bpf-field-link class="small" href="#bpf-{{ target.compare }}">Comparer avec {{ target.compare }}</a>{% endif %}
+        </li>{% endfor %}</ul>{% elseif not missingFields %}<div class="alert alert-success">Aucune case obligatoire manquante ni incohérence arithmétique détectée. Vérifiez les justificatifs avant le dépôt.</div>{% endif %}
         {% if controlNotices.information %}<div class="alert alert-info mt-3"><strong>Informations et points de vérification</strong><ul class="mb-0 mt-2">{% for notice in controlNotices.information %}<li>{{ notice }}</li>{% endfor %}</ul></div>{% endif %}
         {{ form_row(form.notes) }}
       </div></section>
@@ -124,4 +128,4 @@
   </div>
 </div>
 {% endblock %}
-{% block javascripts_bottom %}{{ parent() }}<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script><script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}"></script><script defer src="{{ asset('dist/js/bpf.js') }}?v=2"></script>{% endblock %}
+{% block javascripts_bottom %}{{ parent() }}<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script><script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}"></script><script defer src="{{ asset('dist/js/bpf.js') }}?v=3"></script>{% endblock %}

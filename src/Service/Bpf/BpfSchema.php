@@ -127,6 +127,28 @@ final class BpfSchema
         return ['warnings' => array_values(array_unique($warnings)), 'information' => array_values($information)];
     }
 
+    /** Resolve legacy saved warning text against the current form, never a guessed field. */
+    public static function warningTarget(string $issue, array $rules): array
+    {
+        if (preg_match('/inscription #(\d+) : public non classé dans F1/', $issue, $match)) {
+            $key = 'rule_inscription_'.$match[1].'_public';
+            if (isset($rules[$key])) return ['field' => $key];
+        }
+        if (preg_match('/inscription #(\d+) : .*sans durée de présence vérifiable/', $issue, $match)) {
+            return ['inscription' => (int) $match[1]];
+        }
+        if (preg_match('/^Les (?:effectifs|heures-stagiaires) de (F[34]) ne correspondent pas à F1/', $issue, $match)) {
+            return ['section' => $match[1], 'compare' => 'F1'];
+        }
+        if (preg_match('/^Cadre ([A-H][1-4]?) incomplet/', $issue, $match)) return ['section' => $match[1]];
+        if (str_starts_with($issue, 'F2 dépasse')) return ['section' => 'F2', 'compare' => 'F1'];
+        if (str_contains($issue, 'RNCP')) return ['section' => 'F3'];
+        if (str_starts_with($issue, 'F4')) return ['section' => 'F4'];
+        if (str_contains($issue, 'total D')) return ['section' => 'D'];
+        if (str_contains($issue, 'rubrique de chiffre')) return ['field' => 'c_share'];
+        return ['section' => 'generation'];
+    }
+
     public static function checks(array $data, \DateTimeImmutable $end): array
     {
         $issues = [];

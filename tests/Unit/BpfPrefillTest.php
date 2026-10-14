@@ -6,6 +6,17 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 final class BpfPrefillTest extends TestCase
 {
+    public function testWarningLinksResolveCurrentFieldsAndComparisonSections(): void
+    {
+        $schema = \App\Service\Bpf\BpfSchema::class;
+        $warning = 'Session · inscription #1 : public non classé dans F1.';
+        self::assertSame(['field' => 'rule_inscription_1_public'], $schema::warningTarget($warning, ['rule_inscription_1_public' => []]));
+        self::assertSame(['section' => 'generation'], $schema::warningTarget($warning, []));
+        self::assertSame(['section' => 'F4', 'compare' => 'F1'], $schema::warningTarget('Les heures-stagiaires de F4 ne correspondent pas à F1.', []));
+        self::assertSame(['inscription' => 8], $schema::warningTarget('Session · inscription #8 : 3 créneau(x) sans durée de présence vérifiable.', []));
+        self::assertSame(['section' => 'F1'], $schema::warningTarget('Cadre F1 incomplet : valeurs partielles.', []));
+    }
+
     public function testRemoteModeUsesSessionRateNotAssessmentText(): void
     {
         $session = new \App\Entity\Session();

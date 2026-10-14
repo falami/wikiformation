@@ -116,5 +116,10 @@ document.querySelectorAll('[data-bpf-field-link]').forEach(link => link.addEvent
   }
   const target = field.tomselect?.control_input || field._flatpickr?.altInput || field;
   target.scrollIntoView({block: 'center', behavior: 'smooth'});
+  if (!target.matches('input, select, textarea, button, a, [tabindex]')) target.setAttribute('tabindex', '-1');
   target.focus({preventScroll: true});
+  document.querySelectorAll('.bpf-error-target').forEach(item => item.classList.remove('bpf-error-target'));
+  const highlight = field.tomselect?.wrapper || target;
+  highlight.classList.add('bpf-error-target');
+  setTimeout(() => highlight.classList.remove('bpf-error-target'), 4000);
 }));
