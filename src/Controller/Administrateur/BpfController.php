@@ -113,7 +113,9 @@ final class BpfController extends AbstractController
             }
         }
         $checksData = $form->isSubmitted() && $form->isValid() ? $form->getData() : $data;
+        $notices = BpfSchema::groupedNotices(array_merge(BpfSchema::checks($checksData, $end), $generation['issues'] ?? $preview['issues']));
         return $this->render('administrateur/bpf/index.html.twig', [
+            'missingFields' => BpfSchema::missingFields($checksData), 'controlNotices' => $notices,
             'entite' => $entite, 'start' => $start, 'end' => $end, 'draft' => $draft, 'form' => $form->createView(),
             'sections' => BpfSchema::sections(), 'totals' => BpfSchema::totals($checksData), 'issues' => array_merge(BpfSchema::checks($checksData, $end), $generation['issues'] ?? $preview['issues']),
             'generation' => $generation ?? ['baseline' => $preview['data'], 'issues' => $preview['issues'], 'evidence' => $preview['evidence'], 'incompleteSections' => $preview['incompleteSections'], 'at' => $preview['at']], 'classifications' => $preview['rules'],

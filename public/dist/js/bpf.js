@@ -106,3 +106,15 @@ document.addEventListener('DOMContentLoaded', () => {
   end.addEventListener('change', () => end._flatpickr?.altInput.setCustomValidity(''));
   validate();
 })();
+
+document.querySelectorAll('[data-bpf-field-link]').forEach(link => link.addEventListener('click', event => {
+  const field = document.getElementById(link.hash.slice(1));
+  if (!field) return;
+  event.preventDefault();
+  for (let parent = field.parentElement; parent; parent = parent.parentElement) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+  }
+  const target = field.tomselect?.control_input || field._flatpickr?.altInput || field;
+  target.scrollIntoView({block: 'center', behavior: 'smooth'});
+  target.focus({preventScroll: true});
+}));

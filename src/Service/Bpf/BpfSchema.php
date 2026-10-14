@@ -96,15 +96,42 @@ final class BpfSchema
         return $totals;
     }
 
+    /** Required fields, preserving explicit zero and negative answers. */
+    public static function missingFields(array $data): array
+    {
+        $missing = [];
+        foreach (self::fields() as $key => [$label, $type]) {
+            $required = !in_array($type, ['nsf', 'optional_text', 'notes'], true);
+            if (preg_match('/^(f4_[1-5])_(code|label)$/', $key, $match)) {
+                $required = ($data[$match[1].'_count'] ?? 0) > 0 || ($data[$match[1].'_hours'] ?? 0) > 0;
+            }
+            if ($required && (!isset($data[$key]) || $data[$key] === '')) {
+                $missing[$key] = ['label' => $label, 'section' => strtoupper(explode('_', $key)[0])];
+            }
+        }
+        return $missing;
+    }
+
+    public static function groupedNotices(array $issues): array
+    {
+        $warnings = []; $information = [];
+        foreach ($issues as $issue) {
+            if (str_contains($issue, 'les heures du cadre E sont proposées')) {
+                $information['trainer'] = 'Cadre E : les heures des formateurs sont proposées à partir des créneaux et présences documentées. Vérifiez les heures réellement dispensées, notamment en cas de présence partielle ou de coanimation.';
+            } elseif ($issue === 'Cet exercice n’est pas encore clos.' || str_starts_with($issue, 'F1 : confirmez') || str_starts_with($issue, 'Le code NAF,') || str_starts_with($issue, 'La part formation du chiffre')) {
+                $information[$issue] = $issue;
+            } else {
+                $warnings[] = $issue;
+            }
+        }
+        return ['warnings' => array_values(array_unique($warnings)), 'information' => array_values($information)];
+    }
+
     public static function checks(array $data, \DateTimeImmutable $end): array
     {
         $issues = [];
-        $missing = 0;
-        foreach (self::fields() as $key => [, $type]) {
-            if (in_array($type, ['nsf','optional_text','notes'], true)) continue;
-            if (!isset($data[$key]) || $data[$key] === '') ++$missing;
-        }
-        if ($missing) $issues[] = $missing.' champ(s) à renseigner. Saisissez explicitement 0 lorsque la rubrique est sans activité.';
+        $missing = self::missingFields($data);
+        if ($missing) $issues[] = count($missing).' champ(s) à renseigner : '.implode(' ; ', array_map(fn($field) => $field['section'].' · '.$field['label'], $missing)).'. Saisissez 0 uniquement pour les rubriques numériques sans activité.';
         if ($end->format('Y-m-d') >= (new \DateTimeImmutable('today'))->format('Y-m-d')) $issues[] = 'Cet exercice n’est pas encore clos.';
         $t = self::totals($data);
         foreach (['count' => 'effectifs', 'hours' => 'heures-stagiaires'] as $metric => $label) {

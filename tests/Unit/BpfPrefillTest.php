@@ -48,6 +48,23 @@ final class BpfPrefillTest extends TestCase
         self::assertSame([0, 0], $service->attendance($i, $days, [], true));
     }
 
+    public function testMissingFieldsAndGroupedReminders(): void
+    {
+        $data = [];
+        foreach (\App\Service\Bpf\BpfSchema::fields() as $key => $spec) $data[$key] = 0;
+        $data['h_name'] = '';
+        $missing = \App\Service\Bpf\BpfSchema::missingFields($data);
+        self::assertSame(['h_name'], array_keys($missing));
+        self::assertSame('H', $missing['h_name']['section']);
+        $result = \App\Service\Bpf\BpfSchema::groupedNotices([
+            'Session A : les heures du cadre E sont proposées par créneau',
+            'Session B : les heures du cadre E sont proposées par créneau',
+            'Intervenant manquant pour E.',
+        ]);
+        self::assertCount(1, $result['information']);
+        self::assertSame(['Intervenant manquant pour E.'], $result['warnings']);
+    }
+
     public function testRefreshPreservesManualCorrectionsAndZero(): void
     {
         $current = ['c_1' => 123, 'c_9' => 0, 'g_count' => 4, 'a_name' => ''];

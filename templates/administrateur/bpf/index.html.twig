@@ -101,7 +101,14 @@
         </section>
       {% endfor %}
       <section class="bpf-card" id="bpf-controls"><header><div class="bpf-letter"><i class="bi bi-check2-square"></i></div><div><h2>Contrôles de préparation</h2><p>Les contrôles portent sur les valeurs enregistrées. Ils ne constituent pas une validation par l’administration.</p></div></header><div class="bpf-card-body">
-        {% if issues %}<ul class="bpf-issues">{% for issue in issues %}<li>{{ issue }}</li>{% endfor %}</ul>{% else %}<div class="alert alert-success">Les champs sont renseignés et les contrôles arithmétiques sont satisfaits. Vérifiez les justificatifs avant de reporter ces données dans MAF.</div>{% endif %}
+        {% if missingFields %}
+          <div class="alert alert-warning"><strong>{{ missingFields|length }} case(s) à compléter</strong><ul class="mb-0 mt-2">
+          {% for key, field in missingFields %}<li><a data-bpf-field-link href="#{{ attribute(form, key).vars.id }}">Cadre {{ field.section }} · {{ field.label }}</a></li>{% endfor %}
+          </ul><p class="small mt-2 mb-0">Cliquez sur un libellé pour accéder à la case. Saisissez 0 uniquement pour une rubrique numérique sans activité.</p></div>
+        {% endif %}
+        {% set warnings = controlNotices.warnings|filter(issue => 'champ(s) à renseigner' not in issue) %}
+        {% if warnings %}<ul class="bpf-issues">{% for issue in warnings %}<li>{{ issue }}</li>{% endfor %}</ul>{% elseif not missingFields %}<div class="alert alert-success">Aucune case obligatoire manquante ni incohérence arithmétique détectée. Vérifiez les justificatifs avant le dépôt.</div>{% endif %}
+        {% if controlNotices.information %}<div class="alert alert-info mt-3"><strong>Informations et points de vérification</strong><ul class="mb-0 mt-2">{% for notice in controlNotices.information %}<li>{{ notice }}</li>{% endfor %}</ul></div>{% endif %}
         {{ form_row(form.notes) }}
       </div></section>
       <div class="bpf-save"><div><strong data-bpf-save-status>{{ draft ? 'Préparation enregistrée' : 'Préparation non enregistrée' }}</strong><small>{% if draft %}{{ draft.updatedAt|date('d/m/Y à H:i', 'Europe/Paris') }} · Version {{ draft.version }}{% if draft.updatedBy %} · {{ draft.updatedBy.prenom }} {{ draft.updatedBy.nom }}{% endif %}{% else %}Enregistrez pour conserver les valeurs et exporter le dossier.{% endif %}</small></div><div class="d-flex flex-wrap gap-2">{% if draft %}<a class="btn btn-outline-dark" data-bpf-export href="{{ path('app_administrateur_bpf_pdf', {entite: entite.id, start: start|date('Y-m-d'), end: end|date('Y-m-d')}) }}">Exporter la version enregistrée</a>{% endif %}<button type="submit" class="btn btn-dark"><i class="bi bi-check2 me-2"></i>Enregistrer la préparation</button></div></div>
