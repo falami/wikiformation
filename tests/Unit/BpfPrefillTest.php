@@ -34,6 +34,20 @@ final class BpfPrefillTest extends TestCase
         $i = new Inscription();
         self::assertSame([0,1], $service->attendance($i, [[$jour,'2025-10-01',390]], []));
     }
+    public function testExternalConfirmationUsesNetHoursAndPreservesExplicitAbsence(): void
+    {
+        $service = new BpfPrefill($this->createMock(EntityManagerInterface::class));
+        $jour = (new SessionJour())->setDateDebut(new \DateTimeImmutable('2025-10-01 09:00'))->setDateFin(new \DateTimeImmutable('2025-10-01 17:00'));
+        $days = [[$jour, '2025-10-01', 420]];
+        $i = new Inscription();
+        self::assertSame([0, 1], $service->attendance($i, $days, []));
+        self::assertSame([420, 0], $service->attendance($i, $days, [], true));
+        $actor = new \App\Entity\Utilisateur();
+        $i->enregistrerPresenceManuelle('2025-10-01:AM', 'absent', '', $actor);
+        $i->enregistrerPresenceManuelle('2025-10-01:PM', 'absent', '', $actor);
+        self::assertSame([0, 0], $service->attendance($i, $days, [], true));
+    }
+
     public function testRefreshPreservesManualCorrectionsAndZero(): void
     {
         $current = ['c_1' => 123, 'c_9' => 0, 'g_count' => 4, 'a_name' => ''];

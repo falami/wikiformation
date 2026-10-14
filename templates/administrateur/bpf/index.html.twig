@@ -17,7 +17,8 @@
 
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css">
-  <link rel="stylesheet" href="{{ asset('dist/css/bpf.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/bpf.css') }}?v=2">
 {% endblock %}
 {% block body %}
 <div class="bpf-workspace">
@@ -27,7 +28,27 @@
   </header>
   {% include 'flagMessage.html.twig' %}
   <section class="bpf-period">
-    <form method="get" class="d-flex flex-wrap align-items-end gap-3"><div><label class="form-label" for="bpf-start">Début de l’exercice comptable</label><input id="bpf-start" name="start" type="date" required class="form-control" value="{{ start|date('Y-m-d') }}"></div><div><label class="form-label" for="bpf-end">Fin de l’exercice comptable</label><input id="bpf-end" name="end" type="date" required class="form-control" value="{{ end|date('Y-m-d') }}"></div><button class="btn btn-dark" type="submit">Préparer cet exercice</button></form>
+    <div class="bpf-period-heading">
+      <div><div class="bpf-eyebrow">Période de déclaration</div><h2>Votre exercice comptable</h2></div>
+      <div class="bpf-year-navigation" aria-label="Changer d’exercice">
+        <button type="button" class="btn btn-light" data-bpf-shift="-1" aria-label="Exercice précédent"><i class="bi bi-chevron-left"></i></button>
+        <label class="visually-hidden" for="bpf-year">Année civile</label>
+        <select id="bpf-year" class="form-select">
+          <option value="">Période personnalisée</option>
+          {% set currentYear = 'now'|date('Y', 'Europe/Paris') %}
+          {% for year in range(min(start|date('Y'), currentYear - 10), max(end|date('Y'), currentYear + 2)) %}
+            <option value="{{ year }}" {{ start|date('m-d') == '01-01' and end|date('m-d') == '12-31' and start|date('Y') == year and end|date('Y') == year ? 'selected' : '' }}>Année {{ year }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-light" data-bpf-shift="1" aria-label="Exercice suivant"><i class="bi bi-chevron-right"></i></button>
+        <button type="button" class="btn btn-outline-secondary" data-bpf-current="{{ currentYear }}">Année en cours</button>
+      </div>
+    </div>
+    <form method="get" class="bpf-period-form">
+      <div><label class="form-label" for="bpf-start">Début de l’exercice</label><input id="bpf-start" name="start" type="date" required class="form-control" value="{{ start|date('Y-m-d') }}"></div>
+      <div><label class="form-label" for="bpf-end">Fin de l’exercice</label><input id="bpf-end" name="end" type="date" required class="form-control" value="{{ end|date('Y-m-d') }}"></div>
+      <button class="btn btn-dark" type="submit"><i class="bi bi-arrow-right-circle me-2"></i>Préparer cet exercice</button>
+    </form>
     <div class="small text-muted mt-3">Choisissez le dernier exercice comptable clos, même s’il ne correspond pas à l’année civile. La préparation est conservée séparément pour chaque période.</div>
     {% if history %}<div class="bpf-history mt-3"><span class="small text-muted">Dossiers enregistrés</span>{% for item in history %}<a href="{{ path('app_administrateur_bpf_index', {entite: entite.id, start: item.startDate|date('Y-m-d'), end: item.endDate|date('Y-m-d')}) }}">{{ item.startDate|date('d/m/Y') }} — {{ item.endDate|date('d/m/Y') }}</a>{% endfor %}</div>{% endif %}
   </section>
@@ -58,6 +79,22 @@
                 {% for key, spec in section.fields %}<div class="{{ code in ['C','D'] ? 'bpf-money-row' : 'col-12 col-md-6' }}">{{ form_row(attribute(form, key)) }}</div>{% endfor %}
               </div>
             {% endif %}
+            {% if code == 'G' %}
+              <div class="mt-4 p-3 rounded border bg-light">
+                <strong>Sessions en sous-traitance reçue</strong>
+                <p class="small text-muted mt-2">Le champ « Sous-traitance : Oui » affecte automatiquement la session au cadre G, hors cadres F. Les heures suivies sont des heures-stagiaires : 7 heures suivies par 3 stagiaires donnent 21 heures. Les heures planifiées ci-dessous servent au rapprochement.</p>
+                <div class="table-responsive"><table class="table small"><thead><tr><th>Session / formation</th><th class="text-end">Heures planifiées dans la période</th></tr></thead><tbody>
+                {% set subcontractTotal = 0 %}
+                {% for item in source.sessions|filter(item => item.subcontract) %}
+                  {% set subcontractTotal = subcontractTotal + item.minutes_total %}
+                  <tr><td><strong>{{ item.code }}</strong><br>{{ item.formation_titre }}</td><td class="text-end">{{ (item.minutes_total / 60)|number_format(2, ',', ' ') }} h</td></tr>
+                {% else %}<tr><td colspan="2">Aucune session en sous-traitance sur cette période.</td></tr>{% endfor %}
+                </tbody><tfoot><tr><th>Total des heures de sessions</th><th class="text-end">{{ (subcontractTotal / 60)|number_format(2, ',', ' ') }} h</th></tr></tfoot></table></div>
+                {% for row in generation.evidence|default([])|filter(row => row.kind == 'Sous-traitance reçue · G') %}<p class="small mb-2"><strong>{{ row.label }}</strong><br>{{ row.detail }}</p>{% endfor %}
+                <a href="#bpf-generation" class="btn btn-outline-dark btn-sm">Confirmer les présences et recalculer</a>
+                <p class="small text-muted mt-2 mb-0">Dans « Correspondances BPF », confirmez la présence complète selon les justificatifs du donneur d’ordre, puis générez le BPF. Les valeurs corrigées manuellement restent prioritaires.</p>
+              </div>
+            {% endif %}
             {% if code == 'C' %}<div class="bpf-financial-totals"><div><span>Ligne 2 · Organismes gestionnaires</span><strong><output data-bpf-total="c_2">{{ totals.c_2 ?? 'À compléter' }}</output> € HT</strong></div><div><span>Total des produits · Lignes 1 à 11</span><strong><output data-bpf-total="c_total">{{ totals.c_total ?? 'À compléter' }}</output> € HT</strong></div></div>{% endif %}
             {% if code not in ['A','B','H'] %}<button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-bpf-zero>Renseigner les cases numériques vides à zéro</button>{% endif %}
           </div>
@@ -80,4 +117,4 @@
   </div>
 </div>
 {% endblock %}
-{% block javascripts_bottom %}{{ parent() }}<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script><script defer src="{{ asset('dist/js/bpf.js') }}"></script>{% endblock %}
+{% block javascripts_bottom %}{{ parent() }}<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script><script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}"></script><script defer src="{{ asset('dist/js/bpf.js') }}?v=2"></script>{% endblock %}

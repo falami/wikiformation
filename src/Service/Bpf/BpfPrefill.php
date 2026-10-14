@@ -43,7 +43,7 @@ final class BpfPrefill
             ->where('s.entite = :entity')->andWhere('j.dateDebut <= :end AND j.dateFin >= :start')
             ->setParameter('entity', $entite)->setParameter('start', $start)->setParameter('end', $cutoff)->getQuery()->getResult();
         foreach ($sessions as $session) {
-            if ($session->getStatus() === StatusSession::DRAFT) continue;
+            if (in_array($session->getStatus(), [StatusSession::DRAFT, StatusSession::CANCELED], true)) continue;
             $sid = $session->getId();
             $formationLabel = $session->getFormation()?->getTitre() ?: ($session->getFormationIntituleLibre() ?: 'Formation sans intitulé');
             $label = $session->getCode().' · '.$formationLabel;
@@ -75,17 +75,24 @@ final class BpfPrefill
             $outsourced = $rule('rule_session_'.$sid.'_outsourced', $label.' · Activité confiée à un autre organisme (F2)', ['Aucune' => 'no', 'Intégralement confiée' => 'yes', 'Partiellement confiée : ajuster F2' => 'partial']);
             if (!$session->isSousTraitance() && !in_array($outsourced, ['no','yes'], true)) $incomplete['f2'] = true;
             if (!$session->isSousTraitance() && !in_array($outsourced, ['no','yes'], true)) $issues[] = $label.' : sous-traitance confiée à préciser pour F2 (ou ventiler manuellement si partielle).';
+            $externalAttendance = $session->isSousTraitance() && $rule(
+                'rule_session_'.$sid.'_external_attendance',
+                $label.' · Présences attestées par le donneur d’ordre (G)',
+                ['Utiliser les présences renseignées dans la plateforme' => 'local', 'Je confirme la présence complète des inscrits selon les justificatifs du donneur d’ordre' => 'complete'],
+                'local',
+                'La confirmation reprend les heures planifiées passées de cet exercice pour les inscrits actifs. Conservez les justificatifs. En cas de présence partielle, renseignez les présences réelles.'
+            ) === 'complete';
             $participations = 0; $actualMinutes = 0; $unknown = 0; $delivered = [];
             foreach ($session->getInscriptions() as $inscription) {
-                if ($inscription->getEntite()?->getId() !== $entite->getId() || !$inscription->getStagiaire()) continue;
-                [$minutes, $missing] = $this->attendance($inscription, $days, $signed[$inscription->getStagiaire()->getId()] ?? []);
+                if ($inscription->getEntite()?->getId() !== $entite->getId() || !$inscription->getStagiaire() || in_array($inscription->getStatus(), [StatusInscription::ANNULE, StatusInscription::ABSENT, StatusInscription::PREINSCRIT], true)) continue;
+                [$minutes, $missing] = $this->attendance($inscription, $days, $signed[$inscription->getStagiaire()->getId()] ?? [], $externalAttendance);
                 $unknown += $missing;
                 if ($missing) foreach ($session->isSousTraitance() ? ['g'] : ['f1', 'f2', 'f3', 'f4'] as $section) $incomplete[$section] = true;
-                if ($missing) $issues[] = $label.' · inscription #'.$inscription->getId().' : '.$missing.' créneau(x) sans durée de présence vérifiable. Complétez les émargements puis regénérez.';
+                if ($missing) $issues[] = $label.' · inscription #'.$inscription->getId().' : '.$missing.' créneau(x) sans durée de présence vérifiable. '.($session->isSousTraitance() ? 'Confirmez les présences attestées par le donneur d’ordre dans les correspondances BPF, ou renseignez les présences réelles.' : 'Complétez les émargements puis regénérez.');
                 if ($minutes <= 0) continue;
                 // A presence somewhere in the session is not evidence for its other dates.
                 foreach ($days as $index => $day) {
-                    [$attended] = $this->attendance($inscription, [$day], $signed[$inscription->getStagiaire()->getId()] ?? []);
+                    [$attended] = $this->attendance($inscription, [$day], $signed[$inscription->getStagiaire()->getId()] ?? [], $externalAttendance);
                     $delivered[$index] = max($delivered[$index] ?? 0, $attended);
                 }
                 ++$participations; $actualMinutes += $minutes;
@@ -120,7 +127,11 @@ final class BpfPrefill
                 $data['e_'.$type.'_hours'] += $minutes / 60;
             }
             if ($participations > 0) $issues[] = $label.' : les heures du cadre E sont proposées par créneau avec une présence stagiaire documentée, dans la limite de la durée suivie. Vérifiez les heures réellement dispensées par chaque intervenant (notamment les présences partielles et la coanimation).';
-            $evidence[] = ['kind' => 'Session', 'label' => $label, 'detail' => $participations.' participation(s), '.round($actualMinutes / 60, 2).' heures-stagiaires justifiées'.($unknown ? ' · présences incomplètes' : '')];
+            if ($session->isSousTraitance() && $session->getInscriptions()->isEmpty()) {
+                $incomplete['g'] = true;
+                $issues[] = $label.' : aucun stagiaire inscrit. Renseignez les inscriptions ou les effectifs et heures-stagiaires réels du cadre G ; la capacité de la session ne constitue pas un effectif.';
+            }
+            $evidence[] = ['kind' => $session->isSousTraitance() ? 'Sous-traitance reçue · G' : 'Session', 'label' => $label, 'detail' => $participations.' participation(s), '.round($actualMinutes / 60, 2).' heures-stagiaires justifiées'.($externalAttendance ? ' · présence complète confirmée selon le donneur d’ordre' : '').($unknown ? ' · présences incomplètes' : '')];
         }
         foreach (['internal','external'] as $type) $data['e_'.$type.'_count'] = count($trainers[$type] ?? []);
         if (!isset($data['b_remote']) && $sessions && !array_filter($fields, fn($f, $k) => str_ends_with($k, '_remote') && (($rules[$k] ?? $f['default']) === null), ARRAY_FILTER_USE_BOTH)) $data['b_remote'] = 'no';
@@ -215,7 +226,7 @@ final class BpfPrefill
         return $rate === null || $rate < 0 || $rate > 100 ? null : ($rate > 0 ? 'yes' : 'no');
     }
 
-    public function attendance(Inscription $i, array $days, array $online): array
+    public function attendance(Inscription $i, array $days, array $online, bool $externalComplete = false): array
     {
         $minutes = 0; $missing = 0; $manual = $i->getPresencesManuelles();
         foreach ($days as [$jour, $date, $net]) {
@@ -228,7 +239,7 @@ final class BpfPrefill
             $states = [];
             foreach ($periods as $period) {
                 $key = $date.':'.$period; $status = $manual[$key]['status'] ?? null;
-                $states[] = isset($online[$key]) || $status === 'paper' ? true : ($status === 'absent' || $i->getStatus() === StatusInscription::ABSENT ? false : null);
+                $states[] = isset($online[$key]) || $status === 'paper' ? true : ($status === 'absent' || $i->getStatus() === StatusInscription::ABSENT ? false : ($externalComplete ? true : null));
             }
             if (in_array(null, $states, true)) { ++$missing; continue; }
             if (!in_array(false, $states, true)) { $minutes += $net; continue; }
