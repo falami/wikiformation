@@ -75,7 +75,7 @@ final class UtilisateurIdentityTest extends KernelTestCase
         self::assertCount(2, $saved->getUtilisateur()->getInscriptions());
     }
 
-    public function testMultipleCompanyAssociationsCanBeSavedWithoutChangingPrimary(): void
+    public function testUnifiedCompaniesCanReplaceLegacyPrimary(): void
     {
         $companies = [];
         foreach (['Principale', 'Deuxième', 'Troisième'] as $name) {
@@ -93,12 +93,12 @@ final class UtilisateurIdentityTest extends KernelTestCase
         self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
         $this->em->clear();
         $saved = $this->em->find(Utilisateur::class, $id);
-        self::assertSame($ids[0], $saved->getEntreprise()->getId());
+        self::assertNull($saved->getEntreprise());
         self::assertCount(2, $saved->getEntreprisesAssociees());
         foreach ($saved->getEntreprisesAssociees() as $company) self::assertNull($company->getRepresentant());
     }
 
-    public function testSwappingPrimaryAndAssociatedCompaniesPreservesBothCompanyRecords(): void
+    public function testUnifiedCompaniesPreserveBothCompanyRecords(): void
     {
         $companies = [];
         foreach (['Generale du solaire', 'HOLDING DU SOLAIRE'] as $index => $name) {
@@ -114,14 +114,14 @@ final class UtilisateurIdentityTest extends KernelTestCase
         foreach ([[1,0],[0,1]] as [$primary,$secondary]) {
             $page = $client->request('GET', $this->editUrl($id));
             $form = $page->filter('form[name="utilisateur"]')->form();
-            $form['utilisateur[entreprise]']->select((string)$ids[$primary]);
-            $form['utilisateur[entreprisesAssociees]']->select([(string)$ids[$secondary]]);
+            self::assertCount(0, $page->filter('select[name="utilisateur[entreprise]"]'));
+            $form['utilisateur[entreprisesAssociees]']->select([(string)$ids[$primary], (string)$ids[$secondary]]);
             $client->submit($form);
             self::assertSame(302, $client->getResponse()->getStatusCode());
             $this->em->clear();
             $saved = $this->em->find(Utilisateur::class,$id);
-            self::assertSame($ids[$primary],$saved->getEntreprise()->getId());
-            self::assertSame([$ids[$secondary]],array_map(fn($c)=>$c->getId(),$saved->getEntreprisesAssociees()->toArray()));
+            self::assertNull($saved->getEntreprise());
+            self::assertEqualsCanonicalizing($ids,array_map(fn($c)=>$c->getId(),$saved->getEntreprisesAssociees()->toArray()));
             foreach ($ids as $index => $companyId) {
                 $company = $this->em->find(\App\Entity\Entreprise::class,$companyId);
                 self::assertSame(['Generale du solaire','HOLDING DU SOLAIRE'][$index],$company->getRaisonSociale());

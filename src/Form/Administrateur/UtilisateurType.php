@@ -101,24 +101,14 @@ final class UtilisateurType extends AbstractType
             ])
             ->add('entreprisesAssociees', EntityType::class, [
                 'class' => Entreprise::class, 'multiple' => true, 'required' => false, 'mapped' => false,
-                'label' => 'Autres entreprises associées', 'choice_label' => 'raisonSociale',
-                'data' => $b->getData()?->getEntreprisesAssociees()->filter(fn($e) => $e->getEntite() === $entite)->toArray() ?? [],
+                'label' => 'Entreprises associées', 'choice_label' => 'raisonSociale',
+                'data' => array_values(array_unique(array_filter([
+                    ...($utilisateur?->getEntreprisesAssociees()->toArray() ?? []),
+                    $utilisateur?->getEntreprise(),
+                ], fn($e) => $e && $e->getEntite() === $entite), SORT_REGULAR)),
                 'attr' => ['class' => 'form-select js-tomselect-entreprise'],
                 'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('e')->where('e.entite = :entite')->setParameter('entite', $entite)->orderBy('e.raisonSociale', 'ASC'),
                 'help' => 'Le stagiaire pourra être sélectionné pour les conventions de chacune de ces entreprises.',
-            ])
-            ->add('entreprise', EntityType::class, [
-                'required' => false,
-                'class' => Entreprise::class,
-                'choice_label' => 'raisonSociale',
-                'label' => 'Entreprise principale (proposée par défaut)',
-                'placeholder' => '- Aucune -',
-                'attr' => ['class' => 'form-select js-tomselect-entreprise'],
-                'query_builder' => fn(EntityRepository $er) =>
-                    $er->createQueryBuilder('e')
-                        ->andWhere('e.entite = :entite')
-                        ->setParameter('entite', $entite)
-                        ->orderBy('e.raisonSociale', 'ASC')
             ])
             ->add('telephone', TextType::class, [
                 'required' => false,
@@ -182,7 +172,12 @@ final class UtilisateurType extends AbstractType
             foreach ($u->getEntreprisesAssociees()->toArray() as $company) {
                 if ($company->getEntite() === $entite) $u->removeEntreprisesAssociee($company);
             }
-            foreach ($form->get('entreprisesAssociees')->getData() as $company) $u->addEntreprisesAssociee($company);
+            $companies = $form->get('entreprisesAssociees')->getData();
+            foreach ($companies as $company) $u->addEntreprisesAssociee($company);
+            // Keep the legacy default only when there is a single unambiguous company.
+            if (!$u->getEntreprise() || $u->getEntreprise()->getEntite() === $entite) {
+                $u->setEntreprise(count($companies) === 1 ? $companies[0] : null);
+            }
         });
 
     }

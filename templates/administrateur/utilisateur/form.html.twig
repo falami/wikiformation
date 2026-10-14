@@ -487,7 +487,6 @@
           <span class="chip">Étape 3</span>
         </div>
         <div class="p-3 p-md-4">
-          {{ form_row(form.entreprise) }}
           {{ form_row(form.entreprisesAssociees) }}
           <div class="form-text">
             <button type="button" class="btn btn-outline-primary rounded-pill mt-2" data-bs-toggle="modal" data-bs-target="#new-company-modal"><i class="bi bi-building-add me-2"></i>Nouvelle entreprise</button>
@@ -767,14 +766,14 @@ document.addEventListener('DOMContentLoaded', function () {
       const response = await fetch(companyForm.action, {method:'POST', body:new FormData(companyForm), headers:{'X-Requested-With':'XMLHttpRequest'}});
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.errors?.join(' ') || data.message || 'La création a échoué. Réessayez.');
-      const primary = document.getElementById('{{ form.entreprise.vars.id }}');
-      const associated = document.getElementById('{{ form.entreprisesAssociees.vars.id }}');
-      [primary, associated].forEach(select => {
-        if (select.tomselect) select.tomselect.addOption({value:String(data.id), text:data.label});
-        else if (![...select.options].some(option => option.value === String(data.id))) select.add(new Option(data.label, data.id));
-      });
-      if (primary.tomselect) primary.tomselect.setValue(String(data.id));
-      else { primary.value = String(data.id); primary.dispatchEvent(new Event('change', {bubbles:true})); }
+      const primary = document.getElementById('{{ form.entreprisesAssociees.vars.id }}');
+      if (primary.tomselect) {
+        primary.tomselect.addOption({value:String(data.id), text:data.label});
+        primary.tomselect.addItem(String(data.id));
+      } else {
+        primary.add(new Option(data.label, data.id, true, true));
+        primary.dispatchEvent(new Event('change', {bubbles:true}));
+      }
       document.getElementById('new-company-success').textContent = data.label + ' — entreprise sélectionnée.';
       companyForm.reset(); busy = false;
       bootstrap.Modal.getInstance(modal)?.hide();
@@ -819,7 +818,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const villeEl  = document.getElementById('{{ form.ville.vars.id }}');
 
   const ueRolesEl = document.getElementById('{{ form.ueRoles.vars.id }}');
-  const entrepriseEl = document.getElementById('{{ form.entreprise.vars.id }}');
+  const entrepriseEl = document.getElementById('{{ form.entreprisesAssociees.vars.id }}');
   const verifiedEl = document.getElementById('{{ form.isVerified.vars.id }}');
 
   const formateurCard  = document.getElementById('formateur-card');
@@ -930,11 +929,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   const entrepriseTS = initTomSelectOn(entrepriseEl, {
-    plugins: ['clear_button'],
-  });
-
-
-  initTomSelectOn(document.getElementById('{{ form.entreprisesAssociees.vars.id }}'), {
     plugins: ['remove_button'], maxItems: null, closeAfterSelect: false,
   });
 
@@ -1000,7 +994,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const rolesTxt = getSelectedTenantRoleLabels().join(', ');
     $r.roles && ($r.roles.textContent = rolesTxt || '-');
 
-    const entTxt = selectedText(entrepriseEl);
+    const entTxt = Array.from(entrepriseEl?.selectedOptions || []).map(option => option.text).join(', ');
     $r.entreprise && ($r.entreprise.textContent = entTxt || '-');
 
     $r.verified && ($r.verified.textContent = verifiedEl?.checked ? 'Oui' : 'Non');
