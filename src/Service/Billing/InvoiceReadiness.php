@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Service\Billing;
 
 use App\Entity\Facture;
+use App\Enum\InvoiceVatCategory;
 
 /** Missing facts are explicit; this check never infers an organisation's tax exemption. */
 final class InvoiceReadiness
@@ -43,8 +44,8 @@ final class InvoiceReadiness
         }
         if ($hasTax && !trim((string) $data['issuer']['numeroTva'])) $issues[] = 'Numéro de TVA de l’émetteur à renseigner pour les lignes taxées.';
         if ($hasTax && !is_bool($terms['vatOnDebits'])) $issues[] = 'Exigibilité de la TVA à confirmer : encaissements ou débits.';
-        if ($hasZeroRate && (!in_array($terms['vatCategory'], ['E', 'Z', 'AE', 'O'], true) || !trim((string) $terms['vatExemptionReason']))) $issues[] = 'Catégorie et motif fiscal explicite requis pour une ligne sans TVA ; aucune exonération n’est présumée.';
-        if ($hasTax && !$hasZeroRate && $terms['vatCategory'] !== 'S') $issues[] = 'Catégorie TVA normale à confirmer pour les lignes taxées.';
+        if ($hasZeroRate && (!in_array(InvoiceVatCategory::tryFrom((string) $terms['vatCategory']), [InvoiceVatCategory::EXEMPT, InvoiceVatCategory::ZERO, InvoiceVatCategory::REVERSE_CHARGE, InvoiceVatCategory::OUTSIDE_SCOPE], true) || !trim((string) $terms['vatExemptionReason']))) $issues[] = 'Catégorie et motif fiscal explicite requis pour une ligne sans TVA ; aucune exonération n’est présumée.';
+        if ($hasTax && !$hasZeroRate && $terms['vatCategory'] !== InvoiceVatCategory::STANDARD->value) $issues[] = 'Catégorie TVA normale à confirmer pour les lignes taxées.';
         if (!$data['lines']) $issues[] = 'Les prestations facturées doivent être détaillées.';
         return array_values(array_unique($issues));
     }

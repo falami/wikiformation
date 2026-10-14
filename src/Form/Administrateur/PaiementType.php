@@ -99,13 +99,7 @@ class PaiementType extends AbstractType
 
             ->add('mode', ChoiceType::class, [
                 'label' => '*Mode de paiement',
-                'choices' => [
-                    'Carte Bancaire' => ModePaiement::CB,
-                    'Virement'       => ModePaiement::VIREMENT,
-                    'Chèque'         => ModePaiement::CHEQUE,
-                    'Espèces'        => ModePaiement::ESPECES,
-                    'OPCO'           => ModePaiement::OPCO,
-                ],
+                'choices' => ModePaiement::cases(),
                 'choice_label' => fn(ModePaiement $m) => $m->label(),
                 'choice_value' => fn(?ModePaiement $m) => $m?->value,
                 'placeholder'  => 'Sélectionner un mode',

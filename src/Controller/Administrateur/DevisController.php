@@ -344,6 +344,7 @@ class DevisController extends AbstractController
 
     // ✅ Filtre custom statut
     ChoiceFilter::equals($qb, $statusFilter, 'd.status', 'selected_status');
+    \App\Service\Devis\QuoteListFilters::apply($qb, 'd', $request->request);
 
     // ✅ recordsFiltered (avec search + filtre)
     $recordsFiltered = (int)(clone $qb)
@@ -547,8 +548,9 @@ class DevisController extends AbstractController
     $since = (new \DateTimeImmutable())->sub(new \DateInterval('P30D'));
 
     // petit helper pour appliquer le même filtre à plusieurs QB
-    $applyStatus = function (\Doctrine\ORM\QueryBuilder $qb, string $alias) use ($statusFilter) {
+    $applyStatus = function (\Doctrine\ORM\QueryBuilder $qb, string $alias) use ($statusFilter, $request) {
       ChoiceFilter::equals($qb, $statusFilter, "$alias.status", 'selected_status');
+      \App\Service\Devis\QuoteListFilters::apply($qb, $alias, $request->query);
       return $qb;
     };
 

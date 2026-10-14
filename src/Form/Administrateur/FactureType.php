@@ -31,6 +31,7 @@ class FactureType extends AbstractType
 
     public function buildForm(FormBuilderInterface $b, array $opt): void
     {
+        if ($b->getData() instanceof Facture) \App\Service\Billing\InvoicePreferences::apply($b->getData(), true);
         $b->add('invoiceTerms', InvoiceTermsType::class, ['label' => false, 'mapped' => false, 'data' => array_replace(\App\Service\Billing\InvoicePreferences::defaults($b->getData()?->getEntite()), $b->getData()?->getMeta()['invoice_terms'] ?? [])]);
         $b->addEventListener(\Symfony\Component\Form\FormEvents::POST_SUBMIT, static function (\Symfony\Component\Form\FormEvent $event): void {
             $invoice = $event->getData();
@@ -119,6 +120,13 @@ class FactureType extends AbstractType
                         $sess ? $sess->getCode() : '-',
                         $nomComplet ?: '-'
                     );
+                },
+                'choice_attr' => static function (Inscription $i): array {
+                    $last = null;
+                    foreach ($i->getSession()?->getJours() ?? [] as $day) {
+                        if ($day->getDateFin() && (!$last || $day->getDateFin() > $last)) $last = $day->getDateFin();
+                    }
+                    return ['data-service-date'=>$last?->format('Y-m-d') ?? ''];
                 },
                 'label' => 'Inscriptions rattachées (optionnel)',
                 'attr' => ['class' => 'form-select'],

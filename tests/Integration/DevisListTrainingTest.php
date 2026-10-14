@@ -50,6 +50,25 @@ final class DevisListTrainingTest extends KernelTestCase
         }
     }
 
+    public function testCombinedFiltersAndKpis(): void
+    {
+        $quote = $this->quote('DEV-FILTER')->setDestinataire($this->admin)->setDateEmission(new \DateTimeImmutable('2026-10-01'))->setFormation($this->formation);
+        $session = $this->session('SES-FILTER', ['2026-10-07','2026-10-09']);
+        $this->em->persist((new ConventionContrat())->setEntite($this->entite)->setCreateur($this->admin)->setSession($session)->setDevis($quote)->setNumero('CONV-FILTER'));
+        $this->quote('DEV-OTHER')->setFormation($this->formation);
+        $this->em->flush();
+        $client = $this->client();
+        $filters = ['recipientFilter'=>'Admin Test','trainingFilter'=>'Habilitation','emissionFrom'=>'2026-10-01','emissionTo'=>'2026-10-01','trainingFrom'=>'2026-10-09','trainingTo'=>'2026-10-09'];
+        $data = $this->table($client, $filters);
+        self::assertSame(1, $data['recordsFiltered']);
+        self::assertSame('DEV-FILTER', $data['data'][0]['numero']);
+        $client->request('GET', $this->url('app_administrateur_devis_kpis'), $filters);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame(1, json_decode($client->getResponse()->getContent(), true)['count']);
+        $filters['trainingFrom'] = $filters['trainingTo'] = '2026-10-08';
+        self::assertSame(0, $this->table($client, $filters)['recordsFiltered']);
+    }
+
     public function testListsAllLinkedSessionsOnceAndSupportsSearchWithoutBreakingPagination(): void
     {
         $devis = $this->quote('DEV-MULTIPLE')->setFormation($this->formation)->setMontantTtcCents(50000);

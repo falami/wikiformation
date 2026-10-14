@@ -10,6 +10,25 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
   <style>
+    .invoice-terms .cardx-h{padding:24px 28px;gap:16px;background:linear-gradient(110deg,#fff 60%,#f8fafc)}
+    .terms-eyebrow{display:block;font-size:10px;letter-spacing:.15em;font-weight:800;color:#718096;margin-bottom:7px}
+    .invoice-terms .cardx-title{font-size:1.15rem;line-height:1.4}
+    .terms-heading-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#fff7db;color:#916c12;flex-shrink:0}
+    .terms-intro{display:flex;gap:12px;margin:22px 28px 0;padding:14px 16px;border:1px solid #e1e9ef;border-radius:12px;background:#f7fafc;color:#526579;font-size:13px;line-height:1.6}
+    .terms-intro i{margin-top:4px;color:#688299}
+    .terms-section{min-width:0;margin:0;padding:26px 28px;border:0}
+    .terms-section + .terms-section{border-top:1px solid #e8edf3}
+    .terms-section legend{float:none;display:flex;align-items:center;gap:10px;width:auto;margin:0 0 8px;font-size:15px;font-weight:750;color:#233342}
+    .terms-number{display:inline-grid;place-items:center;width:29px;height:29px;border-radius:9px;background:#edf2f6;color:#526579;font-size:11px;letter-spacing:.03em}
+    .terms-description{margin:0 0 22px 39px;font-size:12px;line-height:1.6;color:#64748b}
+    .invoice-terms label{display:block;font-size:12px;font-weight:650;color:#3e5063;margin-bottom:8px;line-height:1.5}
+    .invoice-terms .form-control,.invoice-terms .form-select{border:1px solid #dce4ed;border-radius:10px;min-height:46px;padding:11px 13px;font-size:14px;line-height:1.5;background-color:#fff;box-shadow:0 1px 2px #172b4d04}
+    .invoice-terms textarea.form-control{resize:vertical;min-height:88px;line-height:1.7}
+    .invoice-terms .form-control:focus,.invoice-terms .form-select:focus{border-color:#8299ad;box-shadow:0 0 0 3px #23334212}
+    .invoice-terms .form-text{font-size:11px;color:#718096;line-height:1.6;margin-top:7px}
+    .terms-footer{display:flex;align-items:center;gap:9px;padding:16px 28px;border-top:1px solid #e8edf3;background:#f8fafc;font-size:11px;color:#64748b}
+    @media(max-width:575px){.invoice-terms .cardx-h,.terms-section{padding:20px 18px}.terms-intro{margin:18px 18px 0}.terms-description{margin-left:0}.terms-footer{padding:16px 18px}}
+
     :root{
       --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
@@ -467,15 +486,50 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
-        <div class="cardx-h"><h5 class="cardx-title"><i class="fa fa-file-contract text-warning"></i> Mentions de facturation</h5></div>
-        <div class="cardx-b p-4">
-          <p class="text-muted">Les conditions de votre organisme sont reprises automatiquement. Complétez les mentions applicables avant émission : les informations manquantes empêchent la création d’une facture numérotée. Une fois émise, ses informations sont conservées.</p>
-          <div class="row g-3">
-            {% for field in form.invoiceTerms %}<div class="col-md-6">{{ form_row(field) }}</div>{% endfor %}
-          </div>
+      <section class="cardx mb-4 invoice-terms" aria-labelledby="invoice-terms-title">
+        <div class="cardx-h">
+          <div><span class="terms-eyebrow">CONDITIONS & MENTIONS</span><h5 class="cardx-title" id="invoice-terms-title">Les détails de votre facturation</h5></div>
+          <span class="terms-heading-icon" aria-hidden="true"><i class="fa fa-file-invoice"></i></span>
         </div>
-      </div>
+        <div class="terms-intro"><i class="fa fa-circle-info" aria-hidden="true"></i><span>Vos conditions habituelles sont préremplies. Vous pouvez les ajuster pour cette facture avant son émission.</span></div>
+        {{ form_errors(form.invoiceTerms) }}
+        <fieldset class="terms-section">
+          <legend><span class="terms-number">01</span> Règlement & échéances</legend>
+          <p class="terms-description">Les dates et les modalités de paiement convenues avec votre client.</p>
+          <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.invoiceTerms.dueDate, {'label': 'Date d’échéance'}) }}</div>
+            <div class="col-md-6">{{ form_row(form.invoiceTerms.serviceDate, {'label': 'Date de prestation'}) }}</div>
+            <div class="col-md-6">{{ form_row(form.invoiceTerms.paymentMeans) }}</div>
+            <div class="col-md-6">{{ form_row(form.invoiceTerms.purchaseOrderReference, {'label': 'Bon de commande', 'attr': {'placeholder': 'Référence, si fournie par le client'}, 'help': 'Facultatif'}) }}</div>
+            <div class="col-md-8">{{ form_row(form.invoiceTerms.earlyPaymentDiscount, {'label': 'Escompte pour paiement anticipé'}) }}</div>
+            <div class="col-md-4">
+              {{ form_label(form.invoiceTerms.recoveryCompensationCents, 'Indemnité de recouvrement') }}
+              <div class="input-group input-euro">
+                {{ form_widget(form.invoiceTerms.recoveryCompensationCents, {'money_pattern': '{{ widget }}', 'attr': {'class': 'form-control text-end'}}) }}
+                <span class="input-group-text euro-suffix">€</span>
+              </div>
+              {{ form_errors(form.invoiceTerms.recoveryCompensationCents) }}
+              <div class="form-text">Clients professionnels uniquement</div>
+            </div>
+            <div class="col-12">{{ form_row(form.invoiceTerms.latePaymentPenalty, {'label': 'Pénalités de retard', 'attr': {'rows': 3}}) }}</div>
+          </div>
+        </fieldset>
+        <fieldset class="terms-section">
+          <legend><span class="terms-number">02</span> TVA & fiscalité</legend>
+          <p class="terms-description">Le régime et les mentions applicables aux prestations facturées.</p>
+          <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.invoiceTerms.vatCategory, {'label': 'Régime de TVA'}) }}</div>
+            <div class="col-md-6">{{ form_row(form.invoiceTerms.vatOnDebits) }}</div>
+            <div class="col-12">{{ form_row(form.invoiceTerms.vatExemptionReason, {'label': 'Motif et base légale des prestations sans TVA', 'help': 'À compléter uniquement si une prestation bénéficie d’un régime sans TVA. Les débours sont gérés dans les lignes de facture.', 'attr': {'rows': 2, 'placeholder': 'Mention applicable, le cas échéant'}}) }}</div>
+          </div>
+        </fieldset>
+        <fieldset class="terms-section">
+          <legend><span class="terms-number">03</span> Identité de l’émetteur</legend>
+          <p class="terms-description">Ces informations figurent sur la facture remise à votre client.</p>
+          {{ form_row(form.invoiceTerms.legalIdentity, {'label': 'Identité juridique & immatriculation', 'help': 'Nom et forme juridique, identifiants et mentions d’immatriculation applicables.', 'attr': {'rows': 3}}) }}
+        </fieldset>
+        <div class="terms-footer"><i class="fa fa-lock" aria-hidden="true"></i> Les mentions sont conservées lors de l’émission de la facture.</div>
+      </section>
 
       {# ===== Montants + Remise globale ===== #}
       <div class="cardx mb-4">
@@ -955,6 +1009,32 @@ document.addEventListener('DOMContentLoaded', function(){
   const idEntreprise    = '#{{ form.entrepriseDestinataire.vars.id }}';
   const idInscriptions  = '#{{ form.inscriptions.vars.id }}';
   const idDate          = '#{{ form.dateEmission.vars.id }}';
+  const dueInput = document.getElementById('{{ form.invoiceTerms.dueDate.vars.id }}');
+  const serviceInput = document.getElementById('{{ form.invoiceTerms.serviceDate.vars.id }}');
+  let dueAutomatic = true, serviceAutomatic = true;
+  dueInput?.addEventListener('change', () => { dueAutomatic = false; });
+  serviceInput?.addEventListener('change', () => { serviceAutomatic = false; });
+  function setSuggestedDate(input, value) {
+    if (input?._flatpickr) input._flatpickr.setDate(value, false, 'Y-m-d');
+    else if (input) input.value = value;
+  }
+  const todayServiceDate = {{ 'now'|date('Y-m-d', 'Europe/Paris')|json_encode|raw }};
+  $(idInscriptions).on('change', function(){
+    if (!serviceAutomatic) return;
+    const dates = Array.from(this.selectedOptions).map(o=>o.dataset.serviceDate).filter(Boolean).sort();
+    setSuggestedDate(serviceInput, dates.at(-1) || todayServiceDate);
+  });
+  $(idDate).on('change', function(){
+    if (!dueAutomatic) return;
+    const raw = this.value;
+    const parts = raw.includes('/') ? raw.split('/').reverse() : raw.split('-');
+    if (parts.length !== 3) return;
+    const date = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]), 12);
+    if (Number.isNaN(date.getTime())) return;
+    date.setDate(date.getDate() + {{ (entite.preferences.invoicePreferences.confirmed|default(false) ? entite.preferences.invoicePreferences.dueDays|default(30) : 30)|json_encode|raw }});
+    setSuggestedDate(dueInput, date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0'));
+  });
+
   const idDevise        = '#{{ form.devise.vars.id }}';
   const idStatus        = '#{{ form.status.vars.id }}';
 
