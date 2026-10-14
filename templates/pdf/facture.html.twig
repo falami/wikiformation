@@ -30,7 +30,7 @@
   <title>Facture {{ facture.numero }}</title>
 
   <style>
-    @page { margin: 10mm 10mm 0mm; size: A4 portrait; }
+    @page { margin: 10mm 10mm 58mm; size: A4 portrait; }
 
     body{
       font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
@@ -40,7 +40,7 @@
     .wrap{ padding-bottom:0; }
     h1,h2,h3,p,table{ margin:0; padding:0 }
 
-    .content{ padding-bottom: 45mm; }
+    .content{ padding-bottom: 5mm; }
 
     /* HEADER */
     .brand-name{ font-size:20px; font-weight:800; color:{{ brand.primary }}; letter-spacing:.5px }
@@ -99,51 +99,21 @@
       text-align:center; text-transform:uppercase;
     }
 
-    /* FOOTER BANCAIRE FIXE */
+    .footer-wrapper{position:fixed;left:0;right:0;bottom:-48mm;font-family:Arial,sans-serif;}
+    .footer-note{text-align:center;color:#64748b;font-size:9px;margin-bottom:10px;}
+    .footer-panel{border-top:3px solid {{ brand.primary }};background:#f6f8fb;padding:13px 15px;}
+    .footer-grid{width:100%;border-collapse:collapse;table-layout:fixed;}
+    .footer-grid td{vertical-align:top;padding:0;line-height:1.55;font-size:9px;color:#425568;word-wrap:break-word;}
+    .footer-grid .issuer-cell{width:42%;padding-right:18px;border-right:1px solid #dbe4ed;}
+    .footer-grid .bank-cell{width:58%;padding-left:18px;}
+    .footer-caption{font-size:8px;letter-spacing:1px;font-weight:bold;color:#607589;margin-bottom:6px;}
+    .footer-name{font-size:11px;font-weight:bold;color:{{ brand.primary }};margin-bottom:4px;}
+    .bank-iban{font-size:10px;font-weight:bold;letter-spacing:.3px;color:{{ brand.primary }};margin:3px 0 5px;}
+    .footer-reference{border-top:1px solid #dbe4ed;margin-top:9px;padding-top:7px;font-size:8px;color:#607589;}
+    .payment-terms{margin-top:17px;border-top:1px solid #dbe4ed;padding-top:10px;font-size:9px;color:#53677a;line-height:1.55;page-break-inside:avoid;}
+    .payment-terms-title{font-size:9px;font-weight:bold;letter-spacing:.7px;color:{{ brand.primary }};margin-bottom:6px;}
+    .payment-terms p{margin-bottom:4px;}
 
-    /* ✅ FOOTER FIXE (NOTE + BANQUE) — même logique que devis */
-    .footer-wrapper{
-      position: fixed;
-      left: 10mm;
-      right: 10mm;
-      bottom: 10mm;   /* ✅ dans la page */
-      page-break-inside: avoid;
-    }
-
-
-    .footer-note{
-      text-align:center;
-      margin:0 0 6px 0;
-      padding:4px 10px;
-      border:1px dashed {{ brand.line }};
-      border-radius:10px;
-      background:#fff;
-      color:#6b7f92;
-      font-style: italic;
-    }
-
-    .footer-banque{
-      border:1px solid {{ brand.line }};
-      border-radius:10px;
-      background:#fff;
-      padding:7px 10px;
-      text-align:left;
-    }
-
-    .footer-banque-title{
-      text-align:center;
-      font-weight:800;
-      font-size:10px;
-      text-transform:uppercase;
-      color:{{ brand.primary }};
-      border-bottom:1px solid {{ brand.line }};
-      padding-bottom:3px;
-      margin-bottom:3px;
-    }
-    .footer-banque p{ margin:0; line-height:1.25; }
-
-
-    /* HEADER (stable DOMPDF) */
     .header{ width:100%; border-collapse:collapse; margin-bottom:10mm; }
     .header td{ vertical-align:top; padding:0; }
     .header .left{ width:62%; }
@@ -534,12 +504,12 @@
       </tr>
     </table>
     {% if issued %}
-      <div class="note">
-        {% if issued.terms.legalIdentity %}<p>{{ issued.terms.legalIdentity|nl2br }}</p>{% endif %}
+      <div class="payment-terms">
+        <div class="payment-terms-title">CONDITIONS DE RÈGLEMENT</div>
         {% if issued.terms.purchaseOrderReference %}<p>Bon de commande : {{ issued.terms.purchaseOrderReference }}</p>{% endif %}
         {% if issued.terms.vatExemptionReason %}<p>{{ issued.terms.vatExemptionReason|nl2br }}</p>{% endif %}
         {% if issued.terms.vatOnDebits %}<p>TVA acquittée d’après les débits.</p>{% endif %}
-        {% if issued.terms.earlyPaymentDiscount %}<p>Escompte : {{ issued.terms.earlyPaymentDiscount }}</p>{% endif %}
+        {% if issued.terms.earlyPaymentDiscount %}<p>{{ issued.terms.earlyPaymentDiscount }}</p>{% endif %}
         {% if issued.customer.type == 'company' %}
           {% if issued.terms.latePaymentPenalty %}<p>Pénalités de retard : {{ issued.terms.latePaymentPenalty }}</p>{% endif %}
           {% if issued.terms.recoveryCompensationCents is not null %}<p>Indemnité forfaitaire de recouvrement : {{ m.eur(issued.terms.recoveryCompensationCents) }}.</p>{% endif %}
@@ -557,29 +527,27 @@
 
 <div class="footer-wrapper">
   <div class="footer-note">{{ noteText }}</div>
-
-  {% if entite.banque %}
-    <div class="footer-banque">
-      <div class="footer-banque-title">Informations bancaires</div>
-
-      <table style="width:100%; border-collapse:collapse; font-size:9.3px;">
-        <tr>
-          <td style="width:50%; padding:2px 4px; text-align:left;">
-            {% if entite.banque %}<strong>Banque :</strong> {{ entite.banque }}<br>{% endif %}
-            {% if entite.codeBanque %}<strong>Code :</strong> {{ entite.codeBanque }}<br>{% endif %}
-            {% if entite.numeroCompte %}<strong>N° compte :</strong> {{ entite.numeroCompte }}{% endif %}
-          </td>
-
-          <td style="width:50%; padding:2px 4px; text-align:left;">
-            {% if entite.iban %}<strong>IBAN :</strong> {{ entite.iban }}<br>{% endif %}
-            {% if entite.bic %}<strong>BIC :</strong> {{ entite.bic }}<br>{% endif %}
-            {% if entite.siret %}<strong>SIRET :</strong> {{ entite.siret }}{% endif %}
-
-          </td>
-        </tr>
-      </table>
-    </div>
-  {% endif %}
+  <div class="footer-panel">
+    <table class="footer-grid"><tr>
+      <td class="issuer-cell">
+        <div class="footer-caption">VOTRE ORGANISME DE FORMATION</div>
+        <div class="footer-name">{{ entite.nom }}</div>
+        {% if issued and issued.terms.legalIdentity %}
+          <div>{{ issued.terms.legalIdentity|nl2br }}</div>
+        {% else %}
+          {% if entite.siret %}<div>SIRET : {{ entite.siret }}</div>{% endif %}
+        {% endif %}
+      </td>
+      <td class="bank-cell">
+        <div class="footer-caption">COORDONNÉES BANCAIRES</div>
+        {% if entite.banque %}<div class="footer-name">{{ entite.banque }}</div>{% endif %}
+        {% if entite.iban %}<div>IBAN</div><div class="bank-iban">{{ entite.iban }}</div>{% endif %}
+        {% if entite.bic %}<div><strong>BIC</strong> &nbsp; {{ entite.bic }}</div>{% endif %}
+        {% if entite.codeBanque or entite.numeroCompte %}<div>{% if entite.codeBanque %}Code banque : {{ entite.codeBanque }}{% endif %}{% if entite.numeroCompte %} &nbsp; · &nbsp; Compte : {{ entite.numeroCompte }}{% endif %}</div>{% endif %}
+      </td>
+    </tr></table>
+    <div class="footer-reference">Référence à rappeler lors du règlement : <strong>{{ facture.numero }}</strong></div>
+  </div>
 </div>
 
 </body>
