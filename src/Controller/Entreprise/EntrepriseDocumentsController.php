@@ -47,6 +47,60 @@ final class EntrepriseDocumentsController extends AbstractController
     return $this->portal->resolve($this->getUser(), $entite);
   }
 
+  #[Route('/inscription/{id}/archive/{scope}', name: 'inscription_archive', methods: ['GET'], requirements: ['id'=>'\\d+', 'scope'=>'stagiaire|session'])]
+  public function inscriptionArchive(Entite $entite, Inscription $inscription, string $scope, Request $request, EM $em,
+    \App\Service\Convention\EnterpriseLearnerDocuments $learners,
+    \App\Service\Convention\ConventionDossier $dossier,
+    \App\Service\Convention\ConventionDocument $conventionDocuments): Response
+  {
+    $company = $this->getEntrepriseUserOrFail($entite);
+    $session = $inscription->getSession();
+    if ($inscription->getEntite()?->getId() !== $entite->getId() || $session?->getEntite()?->getId() !== $entite->getId()
+      || $inscription->getEntreprise()?->getId() !== $company->getId() || !$inscription->getStagiaire()) throw $this->createNotFoundException();
+    $registrations = $scope === 'stagiaire' ? [$inscription] : $em->getRepository(Inscription::class)->findBy(['entite'=>$entite,'session'=>$session,'entreprise'=>$company]);
+    $files = [];
+    $bytes = static function (Response $response): string {
+      $content = $response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse
+        ? file_get_contents($response->getFile()->getPathname()) : $response->getContent();
+      if ($content === false || $content === '') throw new \RuntimeException('Document illisible.');
+      return $content;
+    };
+    foreach ($registrations as $registration) {
+      if (!$registration->getStagiaire()) continue;
+      $person = $registration->getStagiaire();
+      $folder = 'Stagiaires/'.$registration->getId().'-'.preg_replace('/[^\pL\pN_-]+/u', '-', $person->getPrenom().' '.$person->getNom()).'/';
+      foreach ($learners->build($registration, $request) as $name=>$content) $files[$folder.$name] = $content;
+      foreach ($em->getRepository(QcmAssignment::class)->findBy(['entite'=>$entite,'inscription'=>$registration]) as $assignment) {
+        $files[$folder.'QCM-'.$assignment->getId().'.pdf'] = $bytes($this->qcmQuestionnairePdf($entite, $assignment, $em));
+        if ($assignment->getAttempt()?->getSubmittedAt()) $files[$folder.'Resultat-QCM-'.$assignment->getId().'.pdf'] = $bytes($this->qcmResultPdf($entite, $assignment));
+      }
+      if ($scope !== 'session') continue;
+      foreach ($registration->getDevis() as $quote) if ($quote->getEntite()?->getId() === $entite->getId() && $quote->getEntrepriseDestinataire()?->getId() === $company->getId() && $quote->getStatus() !== DevisStatus::DRAFT) {
+        $key = 'Session/Devis-'.$quote->getId().'.pdf';
+        if (!isset($files[$key])) $files[$key] = $bytes($this->devisPdf($entite, $quote));
+      }
+      foreach ($registration->getFactures() as $invoice) if ($invoice->getEntite()?->getId() === $entite->getId() && $invoice->getEntrepriseDestinataire()?->getId() === $company->getId()) {
+        $key = 'Session/Facture-'.$invoice->getId().'.pdf';
+        if (!isset($files[$key])) $files[$key] = $bytes($this->facturePdf($entite, $invoice));
+      }
+    }
+    if ($scope === 'session') {
+      foreach ($em->getRepository(ConventionContrat::class)->findBy(['entite'=>$entite,'session'=>$session,'entreprise'=>$company]) as $convention) {
+        $files['Session/Convention-'.$convention->getId().'.pdf'] = $bytes($conventionDocuments->response($convention));
+      }
+      $root = realpath($this->getParameter('kernel.project_dir').'/public/uploads/entreprise/docs');
+      foreach ($em->getRepository(\App\Entity\EntrepriseDocument::class)->findBy(['entite'=>$entite,'session'=>$session,'entreprise'=>$company]) as $document) {
+        $path = $root ? realpath($root.'/'.$document->getFilename()) : false;
+        if ($path && str_starts_with($path, $root.DIRECTORY_SEPARATOR) && is_file($path)) {
+          $files['Session/Documents/'.$document->getId().'-'.basename($document->getOriginalName())] = file_get_contents($path);
+        }
+      }
+    }
+    $files['Contenu.txt'] = "Documents disponibles au moment du téléchargement. Les questionnaires non soumis et les attestations non délivrées ne sont pas inclus.\nLe dossier session contient uniquement les documents accessibles à votre entreprise.\n\n".implode("\n", array_keys($files));
+    return new Response($dossier->archive($files), 200, ['Content-Type'=>'application/zip',
+      'Content-Disposition'=>'attachment; filename="Dossier-'.$scope.'-'.$inscription->getId().'.zip"', 'Cache-Control'=>'private, no-store']);
+  }
+
   #[Route('/convention/{id}/dossier', name: 'convention_dossier', methods: ['GET'], requirements: ['id'=>'\d+'])]
   public function conventionDossier(Entite $entite, ConventionContrat $c, Request $request, \App\Service\Convention\ConventionDossier $dossier): Response
   {
@@ -152,7 +206,8 @@ final class EntrepriseDocumentsController extends AbstractController
 
     $qb = $em->getRepository(Devis::class)->createQueryBuilder('d')
       ->andWhere('d.entite = :entite')->setParameter('entite', $entite)
-      ->andWhere('d.entrepriseDestinataire = :e')->setParameter('e', $entreprise);
+      ->andWhere('d.entrepriseDestinataire = :e')->setParameter('e', $entreprise)
+      ->andWhere('d.status != :draft')->setParameter('draft', \App\Enum\DevisStatus::DRAFT);
 
     $recordsTotal = (int)(clone $qb)
       ->select('COUNT(DISTINCT d.id)')
@@ -1120,6 +1175,8 @@ final class EntrepriseDocumentsController extends AbstractController
     if (!$this->pdf) throw $this->createNotFoundException('Service PDF non disponible.');
     if ($devis->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
     if ($devis->getEntrepriseDestinataire()?->getId() !== $entreprise->getId()) throw $this->createAccessDeniedException();
+
+    if ($devis->getStatus() === DevisStatus::DRAFT) throw $this->createNotFoundException('Devis non disponible.');
 
     $html = $this->renderView('pdf/devis.html.twig', [
       'entite' => $entite,

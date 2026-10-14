@@ -74,7 +74,7 @@ final class FormateurController extends AbstractController
     }
 
     #[Route('/ajax', name: 'app_administrateur_formateur_ajax', methods: ['POST'])]
-    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em): JsonResponse
+    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Satisfaction\CatalogueRatings $ratings): JsonResponse
     {
 
 
@@ -170,7 +170,8 @@ final class FormateurController extends AbstractController
         // Page trainers rather than the rows produced by their two collection joins.
         $rows = iterator_to_array(new Paginator($query, fetchJoinCollection: true));
 
-        $data = array_map(function (Formateur $sk) use ($entite) {
+        $ratingMap=$ratings->forType($entite,'formateur');
+        $data = array_map(function (Formateur $sk) use ($entite, $ratingMap) {
             $u = $sk->getUtilisateur();
             $fullname = trim(($u?->getPrenom() ?? '') . ' ' . ($u?->getNom() ?? ''));
 
@@ -198,6 +199,7 @@ final class FormateurController extends AbstractController
                 'enginsQualifies'  => $enginsStr,
                 'sitesPreferes'    => $sitesStr,
                 'nbSessions'       => $nbSessions,
+                'rating' => $this->renderView('administrateur/partials/_rating.html.twig',['rating'=>$ratingMap[$sk->getId()]??null]),
                 'actions'          => $this->renderView('administrateur/formateur/_actions.html.twig', [
                     'formateur' => $sk,
                     'entite'    => $entite,
@@ -218,7 +220,7 @@ final class FormateurController extends AbstractController
 
     #[Route('/ajouter', name: 'app_administrateur_formateur_ajouter', methods: ['GET', 'POST'])]
     #[Route('/modifier/{id}', name: 'app_administrateur_formateur_modifier', methods: ['GET', 'POST'])]
-    public function addEdit(Entite $entite, Request $request, EntityManagerInterface $em, ?Formateur $formateur = null): Response
+    public function addEdit(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Satisfaction\CatalogueRatings $ratings, ?Formateur $formateur = null): Response
     {
 
 
@@ -270,6 +272,7 @@ final class FormateurController extends AbstractController
         return $this->render('administrateur/formateur/form.html.twig', [
             'form'        => $form->createView(),
             'modeEdition' => $isEdit,
+            'trainerRating' => $isEdit ? ($ratings->forType($entite, 'formateur')[$formateur->getId()] ?? null) : null,
             'formateur'     => $formateur,
             'entite' => $entite,
         ]);

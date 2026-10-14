@@ -821,6 +821,16 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
 </div>
 
 </div>
+<div class="modal fade" id="documentDownloadModal" tabindex="-1" aria-labelledby="documentDownloadTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 border-0 shadow">
+    <div class="modal-header"><h5 class="modal-title fw-bold" id="documentDownloadTitle">Télécharger les documents</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+    <div class="modal-body p-4 d-grid gap-3">
+      <a id="downloadLearnerDocs" class="btn btn-primary text-start p-3 rounded-3"><i class="bi bi-person-down me-2"></i><strong>Documents du stagiaire</strong><span class="d-block small mt-2">Convocation, émargements, satisfaction, QCM et attestation disponibles.</span></a>
+      <a id="downloadSessionDocs" class="btn btn-outline-primary text-start p-3 rounded-3"><i class="bi bi-folder2-open me-2"></i><strong>Dossier complet de la session</strong><span class="d-block small mt-2">Documents de vos stagiaires, conventions, devis, factures et pièces de la session.</span></a>
+      <p class="small text-muted mb-0">Archives ZIP · Uniquement les documents accessibles à votre entreprise.</p>
+    </div>
+  </div></div>
+</div>
 {% endblock %}
 
 {% block javascripts %}
@@ -1166,10 +1176,12 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
     }
 
     $(document).on('click', '.js-open-docs', function(){
-      const sid = this.dataset.session || '';
-      $('#filterSession').val(String(sid));
-      loadDocs();
-      window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' });
+      const id = this.dataset.inscription;
+      if (!id) return;
+      const base = {{ path('app_entreprise_documents_inscription_archive', {entite:entite.id, entreprise:entreprise.id, id:999999, scope:'stagiaire'})|json_encode|raw }};
+      document.getElementById('downloadLearnerDocs').href = base.replace('999999', id);
+      document.getElementById('downloadSessionDocs').href = base.replace('999999', id).replace('/stagiaire', '/session');
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('documentDownloadModal')).show();
     });
 
     const notificationSession = new URLSearchParams(window.location.search).get('session');

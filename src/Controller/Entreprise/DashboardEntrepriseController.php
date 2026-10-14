@@ -157,12 +157,13 @@ final class DashboardEntrepriseController extends AbstractController
               <button class="btn btn-sm btn-outline-primary js-open-session-detail" data-session="%d">
                 <i class="bi bi-eye"></i> Détail
               </button>
-              <button class="btn btn-sm btn-outline-secondary js-open-docs" data-session="%d">
+              <button class="btn btn-sm btn-outline-secondary js-open-docs" data-session="%d" data-inscription="%d">
                 <i class="bi bi-folder2-open"></i> Docs
               </button>
           </div>',
           (int)$s->getId(),
-          (int)$s->getId()
+          (int)$s->getId(),
+          (int)$i->getId()
         ),
         'firstStartIso' => $first?->format(\DateTimeInterface::ATOM),
         'lastEndIso' => $last?->format(\DateTimeInterface::ATOM),
@@ -284,7 +285,8 @@ final class DashboardEntrepriseController extends AbstractController
       ->select('d')
       ->from(Devis::class, 'd')
       ->andWhere('d.entite = :entite')->setParameter('entite', $entite)
-      ->andWhere('d.entrepriseDestinataire = :e')->setParameter('e', $entreprise);
+      ->andWhere('d.entrepriseDestinataire = :e')->setParameter('e', $entreprise)
+      ->andWhere('d.status != :draft')->setParameter('draft', \App\Enum\DevisStatus::DRAFT);
     if ($sessionId > 0) {
       $devisQb->innerJoin('d.inscriptions', 'di')->distinct()
         ->andWhere('di.session = :sid AND di.entite = :entite')

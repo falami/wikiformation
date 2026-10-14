@@ -2,6 +2,7 @@
 {% block title %}Formateurs{% endblock %}
 
 {% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('dist/css/learner-ratings.css') }}">
   {{ parent() }}
   <style>
     :root{
@@ -434,6 +435,7 @@
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+<link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}">
 {% endblock %}
 
 {% block javascripts %}
@@ -631,7 +633,7 @@
   </div>
 
   {# TABLE #}
-  <div class="table-card mb-4 p-3">
+  <div class="table-card premium-list mb-4"><div class="ledger-heading"><div><h3>Annuaire des formateurs</h3><p>Expertises, affectations et appréciations de vos stagiaires.</p></div><span class="ledger-mark"><i class="bi bi-star"></i> Avis stagiaires</span></div>
     <table id="tableauFormateur" class="table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
@@ -641,6 +643,7 @@
           <th>Engins qualifiés</th>
           <th>Sites préférés</th>
           <th>Sessions</th>
+          <th>Appréciation stagiaires</th>
           <th class="text-end"></th>
         </tr>
       </thead>
@@ -754,13 +757,16 @@ $(function(){
       {data:'enginsQualifies'},
       {data:'sitesPreferes'},
       {data:'nbSessions'},
+      {data:'rating', orderable:false, searchable:false},
       {data:'actions'}
     ],
 
     order:[[0,'desc']],
     language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
     columnDefs:[
-      {targets:6, className:'action-column text-end', orderable:false, searchable:false},
+      {targets:1, render:function(data,type){return type==='display'?'<div class="ledger-primary">'+$('<div>').text(data||'—').html()+'</div>':data;}},
+
+      {targets:7, className:'action-column text-end', orderable:false, searchable:false},
       {type:'num', targets:0}
     ],
 

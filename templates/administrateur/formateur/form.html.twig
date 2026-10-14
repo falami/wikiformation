@@ -7,6 +7,7 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/learner-ratings.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
@@ -281,6 +282,13 @@
 
   {% include 'flagMessage.html.twig' %}
 
+  {% if is_edit %}
+    <section class="trainer-rating-summary mb-4">
+      <h3>Appréciation des stagiaires</h3>
+      {% include 'administrateur/partials/_rating.html.twig' with {rating: trainerRating} %}
+      <p class="text-muted mb-0 mt-2">Note formateur des questionnaires soumis. En cas de coanimation, elle concerne l’équipe pédagogique.</p>
+    </section>
+  {% endif %}
   {{ form_start(form, {'attr': {'novalidate':'novalidate', 'id': form.vars.id|default('formateur_form')}}) }}
   {{ form_errors(form) }}
 

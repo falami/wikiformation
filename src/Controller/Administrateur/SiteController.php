@@ -35,7 +35,7 @@ final class SiteController extends AbstractController
     }
 
     #[Route('/ajax', name: 'app_administrateur_site_ajax', methods: ['POST'])]
-    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em): JsonResponse
+    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Satisfaction\CatalogueRatings $ratings): JsonResponse
     {
 
 
@@ -94,7 +94,8 @@ final class SiteController extends AbstractController
             ->setParameter('entite', $entite)
             ->getQuery()->getResult(); // tableau: [0 => Site, 'nbEngins' => int, 'nbSessions' => int]
 
-        $data = array_map(function ($row) use ($entite) {
+        $ratingMap=$ratings->forType($entite,'site');
+        $data = array_map(function ($row) use ($entite, $ratingMap) {
             /** @var Site $s */
             $s = is_array($row) ? $row[0] : $row;
             $nbEngins  = is_array($row) ? (int)$row['nbEngins']  : $s->getEngins()->count();
@@ -113,6 +114,7 @@ final class SiteController extends AbstractController
                 'coords'      => $coords,
                 'nbEngins'   => $nbEngins,
                 'nbSessions'  => $nbSessions,
+                'rating' => $this->renderView('administrateur/partials/_rating.html.twig',['rating'=>$ratingMap[$s->getId()]??null]),
                 'actions'     => $this->renderView('administrateur/site/_actions.html.twig', [
                     'site'   => $s,
                     'entite' => $entite, // ✅ nécessaire au partial

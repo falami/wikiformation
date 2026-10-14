@@ -664,13 +664,15 @@ final class UtilisateurController extends AbstractController
   /* ===================== SHOW / INTERACTIONS ===================== */
 
   #[Route('/{id}', name: 'show', methods: ['GET'])]
-  public function show(Entite $entite, Utilisateur $utilisateur): Response
+  public function show(Entite $entite, Utilisateur $utilisateur, \App\Service\Satisfaction\CatalogueRatings $ratings): Response
   {
     $this->assertUtilisateurInEntite($entite, $utilisateur);
 
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
+    $trainer=$this->em->getRepository(\App\Entity\Formateur::class)->findOneBy(['entite'=>$entite,'utilisateur'=>$utilisateur]);
+    $trainerRating=$trainer?($ratings->forType($entite,'formateur')[$trainer->getId()]??null):null;
     $linkedProspect = $this->em->getRepository(Prospect::class)->findOneBy(
       ['entite' => $entite, 'linkedUser' => $utilisateur],
       ['updatedAt' => 'DESC']
@@ -754,6 +756,7 @@ final class UtilisateurController extends AbstractController
       'u'                 => $utilisateur,
       'linkedProspect'    => $linkedProspect,
       'interactions'      => $interactions,
+      'trainerRating'=>$trainerRating,'isTrainer'=>(bool)$trainer,
       'emailHistory' => $emailHistory,
       'emailTemplates' => $tpls,
       'interactionForm'   => $form->createView(),

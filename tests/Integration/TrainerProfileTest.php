@@ -60,6 +60,37 @@ final class TrainerProfileTest extends \Symfony\Bundle\FrameworkBundle\Test\WebT
         }
     }
 
+    public function testCatalogueRatingsUseSubmittedSpecificScores(): void
+    {
+        $course = (new \App\Entity\Formation())->setTitre('Excel')->setSlug('excel')->setEntite($this->entite)->setCreateur($this->user);
+        $this->em->persist($course);
+        $this->session->setFormation($course);
+        $template = (new \App\Entity\SatisfactionTemplate())->setEntite($this->entite)->setCreateur($this->user);
+        $this->em->persist($template);
+        foreach ([[8,10,6,true],[0,8,null,true],[10,0,10,false]] as [$global,$trainer,$site,$submitted]) {
+            $assignment = (new \App\Entity\SatisfactionAssignment())->setSession($this->session)->setTemplate($template)->setEntite($this->entite)->setCreateur($this->user);
+            $attempt = (new \App\Entity\SatisfactionAttempt())->setAssignment($assignment)->setEntite($this->entite)->setCreateur($this->user)->setNoteGlobale($global)->setNoteFormateur($trainer)->setNoteSite($site)->setSubmittedAt($submitted ? new \DateTimeImmutable() : null);
+            $this->em->persist($assignment); $this->em->persist($attempt);
+        }
+        $this->em->flush();
+        $ratings = new \App\Service\Satisfaction\CatalogueRatings($this->em);
+        self::assertSame(['average'=>4.0,'votes'=>2], $ratings->forType($this->entite,'formation')[$course->getId()]);
+        self::assertSame(['average'=>9.0,'votes'=>2], $ratings->forType($this->entite,'formateur')[$this->trainer->getId()]);
+        self::assertSame(['average'=>6.0,'votes'=>1], $ratings->forType($this->entite,'site')[$this->session->getSite()->getId()]);
+        // Repeated days must not multiply votes; a full override excludes the default trainer.
+        $replacementUser = (new Utilisateur())->setEmail('replacement@test.test')->setPassword('unused')->setNom('Test')->setPrenom('Alex');
+        $this->em->persist($replacementUser);
+        $replacement = (new Formateur())->setUtilisateur($replacementUser)->setEntite($this->entite)->setCreateur($this->user);
+        $this->em->persist($replacement);
+        foreach ($this->session->getJours() as $day) $day->setFormateur($replacement);
+        $this->session->addJour((new SessionJour())->setEntite($this->entite)->setCreateur($this->user)->setDateDebut(new \DateTimeImmutable('2026-10-02 09:00'))->setDateFin(new \DateTimeImmutable('2026-10-02 17:00'))->setFormateur($replacement));
+        $this->em->flush();
+        self::assertSame([$replacement->getId()=>['average'=>9.0,'votes'=>2]], $ratings->forType($this->entite,'formateur'));
+        $other = (new Entite())->setNom('Other')->setPublic(false)->setCreateur($this->user);
+        $this->em->persist($other); $this->em->flush();
+        foreach (['formation','formateur','site'] as $type) self::assertSame([], $ratings->forType($other,$type));
+    }
+
     public function testProfileSaveAndPlanning(): void {
         $this->client->loginUser($this->user);
         $url='/fr/formateur/'.$this->entite->getId().'/profil';
@@ -105,13 +136,14 @@ final class TrainerProfileTest extends \Symfony\Bundle\FrameworkBundle\Test\WebT
         $this->client->request('GET','/fr/administrateur/'.$other->getId().'/formateurs/'.$this->trainer->getId().'/demandes');self::assertResponseStatusCodeSame(404);
     }
     public function testEmailResponseConfirmationAndAudit():void {
+        $mailer=$this->createMock(\Symfony\Component\Mailer\MailerInterface::class);$mailer->expects(self::once())->method('send')->with(self::callback(function($email){$attachment=$email->getAttachments()[0];self::assertSame('text/calendar',$attachment->getMediaType().'/'.$attachment->getMediaSubtype());self::assertStringContainsString('STATUS:TENTATIVE',$attachment->getBody());self::assertStringContainsString('20261201T070000Z',$attachment->getBody());return true;}));self::getContainer()->set(\Symfony\Component\Mailer\MailerInterface::class,$mailer);
         $item=new \App\Entity\TrainerInquiry();$item->formateur=$this->trainer;$item->author=$this->user;$item->subject='Excel';$item->recipient=$this->user->getEmail();$item->requestKey=str_repeat('c',64);$item->status='sent';$item->slots=['2026-12-01-AM'];$this->em->persist($item);$this->em->flush();
         $service=self::getContainer()->get(\App\Service\TrainerProfile\InquiryResponses::class);$url='/fr/reponse-proposition/'.$item->id.'/'.$service->signature($item).'?choice=available';
         $page=$this->client->request('GET',$url);self::assertResponseIsSuccessful();self::assertSame('sent',$item->status);self::assertSame(0,$this->em->getRepository(\App\Entity\ProspectInteraction::class)->count([]));
         $token=$page->filter('input[name="_token"]')->attr('value');$body=['_token'=>$token,'choice'=>'available','note'=>'Avec plaisir.'];
-        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertSame('available',$item->status);self::assertSame(1,$this->em->getRepository(\App\Entity\ProspectInteraction::class)->count([]));self::assertSame(1,$this->em->getRepository(\App\Entity\NotificationEvent::class)->count(['sourceType'=>'TrainerInquiry']));
-        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertCount(1,$item->history);
-        $body['choice']='unavailable';$this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertSame('unavailable',$item->status);self::assertCount(2,$item->history);
+        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertSame('available',$item->status);self::assertSame(2,$this->em->getRepository(\App\Entity\ProspectInteraction::class)->count([]));self::assertSame(2,$this->em->getRepository(\App\Entity\NotificationEvent::class)->count(['sourceType'=>'TrainerInquiry']));
+        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertCount(2,$item->history);
+        $body['choice']='unavailable';$this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertSame('unavailable',$item->status);self::assertCount(3,$item->history);
         $this->client->request('GET','/fr/reponse-proposition/'.$item->id.'/'.str_repeat('0',64));self::assertResponseStatusCodeSame(410);
         $item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);$item->createdAt=new \DateTimeImmutable('-31 days');$this->em->flush();$this->client->request('GET',$url);self::assertResponseStatusCodeSame(410);
     }

@@ -61,6 +61,34 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
     }
 
 
+    public function testEnterpriseCannotSeeDraftQuotes(): void
+    {
+        $company = (new \App\Entity\Entreprise())->setRaisonSociale('Client')->setEntite($this->entite)->setCreateur($this->user);
+        $this->em->persist($company);
+        $this->user->setEntreprise($company);
+        $quotes = [];
+        foreach ([\App\Enum\DevisStatus::DRAFT, \App\Enum\DevisStatus::SENT] as $status) {
+            $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->user)->setEntrepriseDestinataire($company)->setNumero('DEV-'.$status->value)->setStatus($status)->setPdfPath('test.pdf');
+            $this->em->persist($quote); $quotes[] = $quote;
+        }
+        $this->em->flush();
+        $this->client->loginUser($this->user);
+        $base = '/fr/entreprise/'.$this->entite->getId();
+        $this->client->request('POST', $base.'/documents/devis/ajax');
+        self::assertResponseIsSuccessful();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertSame(1, $data['recordsTotal']);
+        self::assertSame('DEV-sent', $data['data'][0]['numero']);
+        $this->client->request('POST', $base.'/documents/devis/ajax', ['statusFilter'=>'draft']);
+        self::assertSame([], json_decode($this->client->getResponse()->getContent(), true)['data']);
+        $this->client->request('GET', $base.'/documents/feed');
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString('DEV-draft', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('DEV-sent', $this->client->getResponse()->getContent());
+        $this->client->request('GET', $base.'/documents/devis/'.$quotes[0]->getId().'/pdf');
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testDossierIsScopedAndDownloadableWithoutSendingEmail(): void
     {
         $sent=[];
@@ -124,6 +152,24 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         self::assertStringContainsString('/dossier',json_decode($this->client->getResponse()->getContent(),true)['data'][0]['actions']);
         $this->client->request('POST','/fr/entreprise/'.$this->entite->getId().'/documents/devis/ajax');self::assertResponseIsSuccessful();
         $portal='/fr/entreprise/'.$this->entite->getId();
+        foreach (['stagiaire','session'] as $scope) {
+            $this->client->request('GET', $portal.'/documents/inscription/'.$inscriptions[0]->getId().'/archive/'.$scope);
+            self::assertResponseIsSuccessful();
+            $path = tempnam(sys_get_temp_dir(), 'enterprise-zip');
+            file_put_contents($path, $this->client->getResponse()->getContent());
+            $zip = new \ZipArchive(); self::assertTrue($zip->open($path));
+            $names = []; for ($n=0;$n<$zip->numFiles;$n++) $names[]=$zip->getNameIndex($n);
+            $list = implode("\n", $names);
+            self::assertStringContainsString('Alice-Exemple/Convocation.pdf', $list);
+            self::assertStringContainsString('Emargements.pdf', $list);
+            self::assertStringContainsString('Satisfaction-', $list);
+            self::assertStringNotContainsString('Bruno', $list);
+            self::assertSame($scope === 'session', str_contains($list, 'Session/Convention-'));
+            $zip->close(); unlink($path);
+        }
+        $this->client->request('GET', $portal.'/documents/inscription/'.$inscriptions[1]->getId().'/archive/session');
+        self::assertResponseStatusCodeSame(404);
+
         $this->client->request('GET',$portal.'/documents/satisfaction/stagiaire/'.$appreciations[0]->getId());self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('article','Très utile pour Alice');
         $this->client->request('GET',$portal.'/documents/satisfaction/stagiaire/'.$appreciations[1]->getId());self::assertResponseStatusCodeSame(404);

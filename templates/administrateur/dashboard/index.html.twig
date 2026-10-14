@@ -1557,7 +1557,7 @@
           <div class="table-pro__body">
             <div class="table-responsive">
               <table class="table table-sm table-pro__table w-100" id="tblDocsMissing">
-                <thead><tr><th>Session</th><th>Stagiaire</th><th>Manquants</th></tr></thead>
+                <thead><tr><th>Session</th><th>Stagiaire</th><th>Documents à régulariser</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
@@ -2763,7 +2763,13 @@
 
           <td>${escapeHtml(r.userLabel ?? '—')}</td>
 
-          <td><span class="badge-pro badge-pro--warn">${escapeHtml(r.missingCount ?? 0)}</span></td>
+          <td>
+            ${r.missingCount > 0 ? `<div class="small fw-semibold mb-2"><span class="badge-pro badge-pro--warn me-1">${escapeHtml(r.missingCount)}</span> document${r.missingCount > 1 ? 's' : ''} manquant${r.missingCount > 1 ? 's' : ''}</div>` : ''}
+            <div class="d-grid gap-1">
+              ${(r.missingLabels ?? []).map(label => `<div class="small text-danger"><i class="bi bi-file-earmark-x me-1" aria-hidden="true"></i>${escapeHtml(label)}</div>`).join('')}
+              ${(r.pendingPieces ?? []).map(piece => `<button type="button" class="btn btn-sm btn-outline-warning text-start js-open-piece" data-piece-id="${escapeHtml(piece.pieceId)}"><i class="bi bi-hourglass-split me-1" aria-hidden="true"></i>${escapeHtml(piece.label)} <span class="d-block small">Déposé · À valider</span></button>`).join('')}
+            </div>
+          </td>
 
         `;
 

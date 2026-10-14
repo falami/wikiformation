@@ -53,7 +53,7 @@ final class FormationController extends AbstractController
     }
 
     #[Route('/ajax', name: 'ajax', methods: ['POST'])]
-    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em): JsonResponse
+    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Satisfaction\CatalogueRatings $ratings): JsonResponse
     {
 
 
@@ -204,7 +204,8 @@ final class FormationController extends AbstractController
             ->setMaxResults($length)
             ->getQuery()->getResult(); // tableau: [0 => Formation, 'nbSessions' => int]
 
-        $data = array_map(function ($row) use ($entite) {
+        $ratingMap=$ratings->forType($entite,'formation');
+        $data = array_map(function ($row) use ($entite, $ratingMap) {
             /** @var Formation $f */
             $f = is_array($row) ? $row[0] : $row;
             $nbSessions = is_array($row) ? (int)$row['nbSessions'] : $f->getSessions()->count();
@@ -254,6 +255,7 @@ final class FormationController extends AbstractController
                         $f->getPublicHosts()->toArray()
                     ))
                     : '—',
+                'rating' => $this->renderView('administrateur/partials/_rating.html.twig',['rating'=>$ratingMap[$f->getId()]??null]),
                 'actions'    => $this->renderView('administrateur/formation/_actions.html.twig', [
                     'formation' => $f,
                     'entite'    => $entite,
