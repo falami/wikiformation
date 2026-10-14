@@ -10,6 +10,21 @@ final class QuoteListFilters
 {
     public static function apply(QueryBuilder $qb, string $alias, InputBag $input): void
     {
+        \App\Service\Filter\ChoiceFilter::any($qb, $input->get('recipientChoice'), static function (QueryBuilder $branch, string $value) use ($alias): void {
+            [$type, $id] = array_pad(explode(':', $value, 2), 2, '');
+            $field = ['company' => 'entrepriseDestinataire', 'user' => 'destinataire', 'prospect' => 'prospect'][$type] ?? null;
+            if (!$field || !ctype_digit($id)) { $branch->andWhere('1 = 0'); return; }
+            $branch->andWhere('IDENTITY('.$alias.'.'.$field.') = :recipientId')->setParameter('recipientId', (int) $id);
+        });
+        $choiceIndex = 0;
+        \App\Service\Filter\ChoiceFilter::any($qb, $input->get('trainingChoice'), static function (QueryBuilder $branch, string $value) use ($alias, $input, &$choiceIndex): void {
+            self::apply($branch, $alias, new InputBag(['trainingFilter' => $value, 'trainingFrom' => $input->get('trainingFrom'), 'trainingTo' => $input->get('trainingTo')]));
+            $suffix = '_choice'.(++$choiceIndex);
+            $predicate = (string) $branch->getDQLPart('where');
+            $predicate = preg_replace_callback('/\b(fc|fs|ff|fj|fi|fd|fis|fif|fij|directFormation)\b/', static fn($match) => $match[0].$suffix, $predicate);
+            $branch->where($predicate);
+
+        });
         $recipient = trim((string) $input->get('recipientFilter', ''));
         if ($recipient !== '') {
             $qb->leftJoin($alias.'.destinataire','filterUser')->leftJoin($alias.'.entrepriseDestinataire','filterCompany')->leftJoin($alias.'.prospect','filterProspect');

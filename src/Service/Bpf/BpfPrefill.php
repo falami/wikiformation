@@ -69,9 +69,9 @@ final class BpfPrefill
                 $objective = $rule($formationKey.'_objective', $formationLabel.' · Objectif BPF', $objectives);
                 $code = $rule($formationKey.'_nsf', $formationLabel.' · Code NSF', $nsfChoices);
             }
-            $remote = $rule('rule_session_'.$sid.'_remote', $label.' · Formation à distance', ['Présentiel intégral' => 'no', 'Tout ou partie à distance' => 'yes']);
+            $remote = $rule('rule_session_'.$sid.'_remote', $label.' · Formation à distance', ['Présentiel intégral' => 'no', 'Tout ou partie à distance' => 'yes'], self::remoteDefault($session), 'Repris du champ « Enseignement à distance (%) » de la session : 0 % = présentiel intégral. Les modalités d’évaluation de la formation ne déterminent pas ce choix.');
             if ($remote === 'yes') $data['b_remote'] = 'yes';
-            elseif ($remote === null) $issues[] = $label.' : précisez la modalité présentiel / distance.';
+            elseif ($remote === null) $issues[] = $label.' : renseignez « Enseignement à distance (%) » dans la session (0 % pour le présentiel), ou choisissez la modalité dans les règles de génération du BPF. Le champ « Modalités d’évaluation » de la formation est distinct.';
             $outsourced = $rule('rule_session_'.$sid.'_outsourced', $label.' · Activité confiée à un autre organisme (F2)', ['Aucune' => 'no', 'Intégralement confiée' => 'yes', 'Partiellement confiée : ajuster F2' => 'partial']);
             if (!$session->isSousTraitance() && !in_array($outsourced, ['no','yes'], true)) $incomplete['f2'] = true;
             if (!$session->isSousTraitance() && !in_array($outsourced, ['no','yes'], true)) $issues[] = $label.' : sous-traitance confiée à préciser pour F2 (ou ventiler manuellement si partielle).';
@@ -209,6 +209,12 @@ final class BpfPrefill
     }
 
     /** @return array{float,int} Known minutes and number of unresolved slots. */
+    public static function remoteDefault(Session $session): ?string
+    {
+        $rate = $session->getTauxDistanciel();
+        return $rate === null || $rate < 0 || $rate > 100 ? null : ($rate > 0 ? 'yes' : 'no');
+    }
+
     public function attendance(Inscription $i, array $days, array $online): array
     {
         $minutes = 0; $missing = 0; $manual = $i->getPresencesManuelles();

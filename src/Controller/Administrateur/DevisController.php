@@ -42,14 +42,26 @@ class DevisController extends AbstractController
 
 
   #[Route('', name: 'index', methods: ['GET'])]
-  public function devis(Entite $entite): Response
+  public function devis(Entite $entite, EM $em): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
+    $recipientChoices = [];
+    foreach ($em->getRepository(Devis::class)->createQueryBuilder('d')
+      ->leftJoin('d.destinataire', 'u')->addSelect('u')
+      ->leftJoin('d.entrepriseDestinataire', 'c')->addSelect('c')
+      ->leftJoin('d.prospect', 'p')->addSelect('p')
+      ->where('d.entite = :entite')->setParameter('entite', $entite)->getQuery()->getResult() as $quote) {
+      if ($person = $quote->getEntrepriseDestinataire()) $recipientChoices['company:'.$person->getId()] = $person->getRaisonSociale();
+      elseif ($person = $quote->getDestinataire()) $recipientChoices['user:'.$person->getId()] = trim($person->getPrenom().' '.$person->getNom());
+      elseif ($person = $quote->getProspect()) $recipientChoices['prospect:'.$person->getId()] = trim($person->getPrenom().' '.$person->getNom().' '.$person->getSociete());
+    }
+    asort($recipientChoices, SORT_NATURAL | SORT_FLAG_CASE);
+    $trainingChoices = $em->getRepository(\App\Entity\Formation::class)->findBy(['entite' => $entite], ['titre' => 'ASC']);
     return $this->render('administrateur/devis/index.html.twig', [
       'entite' => $entite,
-
-
+      'recipientChoices' => $recipientChoices,
+      'trainingChoices' => $trainingChoices,
     ]);
   }
 

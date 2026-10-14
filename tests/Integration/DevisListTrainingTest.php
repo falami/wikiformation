@@ -121,6 +121,11 @@ final class DevisListTrainingTest extends KernelTestCase
         self::assertSame(1, $data['recordsFiltered']);
         self::assertSame('Habilitation électrique', $data['data'][0]['formation']);
         self::assertSame('15/10/2026', $data['data'][0]['dates']);
+        self::assertSame(1, $this->table($client, ['trainingChoice' => json_encode(['Habilitation', 'Absent'])])['recordsFiltered']);
+        self::assertSame(0, $this->table($client, ['trainingChoice' => '[]'])['recordsFiltered']);
+        self::assertSame(0, $this->table($client, ['recipientChoice' => '[]'])['recordsFiltered']);
+        self::assertSame(0, $this->table($client, ['trainingChoice' => '["CONFIDENTIEL"]'])['recordsFiltered']);
+
         self::assertSame(0, $this->table($client, ['search' => ['value' => 'SECRET']])['recordsFiltered']);
         self::assertSame(0, $this->table($client, ['search' => ['value' => 'CONFIDENTIEL']])['recordsFiltered']);
         $data = $this->table($client, ['search' => ['value' => 'UNPLANNED']]);

@@ -6,6 +6,20 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 final class BpfPrefillTest extends TestCase
 {
+    public function testRemoteModeUsesSessionRateNotAssessmentText(): void
+    {
+        $session = new \App\Entity\Session();
+        self::assertNull(BpfPrefill::remoteDefault($session));
+        $session->setFormation((new \App\Entity\Formation())->setModalitesEvaluation('Présentiel'));
+        self::assertNull(BpfPrefill::remoteDefault($session));
+        $session->setTauxDistanciel(0);
+        self::assertSame('no', BpfPrefill::remoteDefault($session));
+        $session->setTauxDistanciel(50);
+        self::assertSame('yes', BpfPrefill::remoteDefault($session));
+        $session->setTauxDistanciel(100);
+        self::assertSame('yes', BpfPrefill::remoteDefault($session));
+    }
+
     public function testAttendanceDoesNotInventMissingOrSplitBreakHours(): void
     {
         $service = new BpfPrefill($this->createMock(EntityManagerInterface::class));

@@ -6,7 +6,7 @@
   const selectFilters = `:is(${roots}) select, select[id$="Filter"], select[id^="filter"], #devisStatus, #factureStatus, #convSign, #emarSigned, #posState, #qcmPhase, #qcmState, #satisStagState, #satisFormState, #assiduiteState`;
   // Categorical filters backed by ChoiceFilter. Period type is a display mode,
   // so it keeps its select; years/months/quarters are independent multi-filters.
-  const multiIds = new Set(('statusFilter sourceFilter activeFilter nextFilter enginFilter siteFilter categorieFilter sousCategorieFilter niveauFilter rolesFilter verifiedFilter lockedFilter sessionFilter formateurFilter stagiaireFilter requiredFilter phaseFilter submittedFilter publishedFilter questionnaireFilter dossierFilter sessionFormationFilter sessionStatusFilter yearFilter monthFilter quarterFilter factureStatusFilter devisStatusFilter payModeFilter reservationStatusFilter inscriptionStatusFilter qcmActiveFilter periodYear periodMonth periodQuarter tvaOnly filter-state').split(' '));
+  const multiIds = new Set(('statusFilter sourceFilter activeFilter nextFilter enginFilter siteFilter categorieFilter sousCategorieFilter niveauFilter rolesFilter verifiedFilter lockedFilter sessionFilter formateurFilter stagiaireFilter requiredFilter phaseFilter submittedFilter publishedFilter questionnaireFilter dossierFilter sessionFormationFilter sessionStatusFilter yearFilter monthFilter quarterFilter factureStatusFilter devisStatusFilter recipientChoice trainingChoice payModeFilter reservationStatusFilter inscriptionStatusFilter qcmActiveFilter periodYear periodMonth periodQuarter tvaOnly filter-state').split(' '));
   const bridges = new Map();
   const tables = new Map();
   const panelOwners = new WeakMap();
@@ -410,7 +410,7 @@
         session: 'sessionStatusFilter sessionFormationFilter dossierFilter',
         formateur: 'enginFilter siteFilter',
         'formateurs/contrats': 'statusFilter formateurFilter sessionFilter',
-        devis: 'devisStatusFilter',
+        devis: 'devisStatusFilter recipientChoice trainingChoice',
         facture: 'yearFilter monthFilter quarterFilter factureStatusFilter',
         paiement: 'yearFilter monthFilter quarterFilter payModeFilter',
         depense: 'periodYear periodMonth periodQuarter tvaOnly',

@@ -174,7 +174,8 @@ class FormationType extends AbstractType
             ])
 
             ->add('modalitesEvaluation', TextareaType::class, [
-                'label' => 'Modalités Evaluation',
+                'label' => 'Modalités d’évaluation des acquis',
+                'help' => 'Exemples : QCM, exercices pratiques, mise en situation. Pour le présentiel ou le distanciel, renseignez « Enseignement à distance (%) » dans la session.',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-control',
