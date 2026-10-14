@@ -337,7 +337,7 @@ final class ConventionEditingParticipantsTest extends KernelTestCase
         $learner->setEntreprise($second); $this->em->flush();
         $id = $learner->getId();
         $this->client->request('GET', str_replace('/edit', '/participants-eligibles', $this->url()), [
-            'session' => $this->session->getId(), 'entreprise' => $second->getId(),
+            'session' => $this->session->getId(), 'entreprise' => $second->getId(), 'stagiaire' => '',
         ]);
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertStringContainsString('Second CLIENT', $this->client->getResponse()->getContent());

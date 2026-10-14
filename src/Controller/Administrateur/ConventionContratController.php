@@ -265,12 +265,12 @@ final class ConventionContratController extends AbstractController
         $context = clone $c;
         if (!$c->isSigned()) {
             foreach (['session' => \App\Entity\Session::class, 'entreprise' => \App\Entity\Entreprise::class] as $field => $class) {
-                $id = $request->query->getInt($field);
+                $id = $request->query->get($field) === '' ? 0 : $request->query->getInt($field);
                 $object = $id ? $em->getRepository($class)->findOneBy(['id' => $id, 'entite' => $entite]) : null;
                 if ($id && !$object) throw $this->createNotFoundException();
                 $context->{'set'.ucfirst($field)}($object);
             }
-            $learnerId = $request->query->getInt('stagiaire');
+            $learnerId = $request->query->get('stagiaire') === '' ? 0 : $request->query->getInt('stagiaire');
             $learner = $learnerId ? $em->getRepository(Utilisateur::class)->createQueryBuilder('u')
                 ->leftJoin('u.utilisateurEntites', 'ue')->where('u.id = :id AND (u.entite = :e OR ue.entite = :e)')
                 ->setParameter('id', $learnerId)->setParameter('e', $entite)->getQuery()->getOneOrNullResult() : null;
