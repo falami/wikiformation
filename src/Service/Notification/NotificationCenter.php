@@ -174,6 +174,7 @@ final class NotificationCenter
                 } elseif ($event->category!=='contracts' && (!$s || !in_array($s->getId(),$sessionIds,true) || ($event->sourceType!=='Session' && !$this->personVisible($space,$user,$s,$event->subject,$tenant)))) continue;
             }
             $url=$s?$this->sessionUrl($tenant,$s,$space):$this->url('app_notifications_index',$tenant,['space'=>$space]);
+            if ($event->sourceType==='TrainerInquiry' && $space==='admin' && $event->subject) $url=$this->url('app_administrateur_utilisateur_show',$tenant,['id'=>$event->subject->getId()]);
             $this->add($items,'event:'.$event->id,$event->category,'info',$event->title,trim(($s?->getCode() ? $s->getCode().' · ' : '').($event->subject ? trim($event->subject->getPrenom().' '.$event->subject->getNom()) : ''), ' ·'),$url,$event->occurredAt,$s?->getId());
             $items['event:'.$event->id]['actor'] = $event->actor !== '' && $event->actor !== 'Traitement automatique ou accès personnel' ? $event->actor : null;
         }

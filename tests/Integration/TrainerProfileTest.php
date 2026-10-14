@@ -67,7 +67,7 @@ final class TrainerProfileTest extends \Symfony\Bundle\FrameworkBundle\Test\WebT
         $token=$crawler->filter('input[name="_token"]')->first()->attr('value');
         $this->client->request('POST',$url,['_token'=>$token,'action'=>'save','subjects'=>['Excel','Excel','Management'],'days'=>['1','2','3','4','5'],'declaredAvailable'=>'1']);self::assertResponseRedirects();
         $profile=$this->em->getRepository(\App\Entity\TrainerProfile::class)->findOneBy(['formateur'=>$this->trainer]);self::assertSame(['Excel','Management'],$profile->subjects);
-        $this->client->request('GET','/fr/administrateur/'.$this->entite->getId().'/formateurs/disponibilites?subject=Excel&date=2026-10-01');self::assertResponseIsSuccessful();self::assertSelectorTextContains('.tp-matrix','Camille');
+        $this->client->request('GET','/fr/administrateur/'.$this->entite->getId().'/formateurs/disponibilites?subject=Excel&date=2026-10-01');self::assertResponseIsSuccessful();self::assertSelectorTextContains('.tp-matrix','Camille');self::assertSelectorExists('input[name="date"][value="2026-09-28"]');self::assertSelectorTextContains('.tp-matrix thead th:nth-child(2) .day-number','28');
         $this->client->request('POST',$url,['_token'=>'invalid','action'=>'save','subjects'=>['Wrong']]);self::assertResponseStatusCodeSame(403);
     }
     public function testDiplomaUploadAndTenantIsolation():void {
@@ -83,6 +83,37 @@ final class TrainerProfileTest extends \Symfony\Bundle\FrameworkBundle\Test\WebT
             $this->client->request('GET','/fr/formateur/'.$other->getId().'/diplomes/'.$d->id);self::assertResponseStatusCodeSame(404);
             $this->client->request('POST',$url,['_token'=>$token,'action'=>'deleteDiploma','diplomaId'=>$d->id]);self::assertResponseRedirects();
         } finally { $path=self::getContainer()->getParameter('kernel.project_dir').'/var/storage/trainer-diplomas/'.$d->filename;if(is_file($path))unlink($path); }
+    }
+    public function testInquirySendDeduplicationAndHistory():void {
+        $mailer=$this->createMock(\Symfony\Component\Mailer\MailerInterface::class);$mailer->expects(self::once())->method('send');self::getContainer()->set(\Symfony\Component\Mailer\MailerInterface::class,$mailer);
+        $this->client->loginUser($this->user);$page=$this->client->request('GET','/fr/administrateur/'.$this->entite->getId().'/formateurs/disponibilites');self::assertResponseIsSuccessful();
+        $token=$page->filter('[data-inquiry-token]')->attr('data-inquiry-token');$url='/fr/administrateur/'.$this->entite->getId().'/formateurs/'.$this->trainer->getId().'/demandes';
+        $date=(new \DateTimeImmutable('tomorrow',new \DateTimeZone('Europe/Paris')))->format('Y-m-d');$body=['_token'=>$token,'key'=>str_repeat('a',32),'subject'=>'Excel','message'=>'Une formation de perfectionnement.','slots'=>[$date.'-AM',$date.'-PM']];
+        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();self::assertSame('sent',json_decode($this->client->getResponse()->getContent(),true)['status']);
+        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();self::assertSame(1,$this->em->getRepository(\App\Entity\TrainerInquiry::class)->count([]));
+        $this->client->request('GET',$url);$items=json_decode($this->client->getResponse()->getContent(),true)['items'];self::assertCount(1,$items);self::assertCount(2,$items[0]['slots']);
+        $this->client->request('POST',$items[0]['updateUrl'],['_token'=>$token,'status'=>'interested','note'=>'Accord reçu par téléphone.']);self::assertResponseIsSuccessful();
+        $this->client->request('GET',$url);$item=json_decode($this->client->getResponse()->getContent(),true)['items'][0];self::assertSame('interested',$item['status']);self::assertSame('Camille Test',$item['history'][2]['author']);
+        $body['key']=str_repeat('b',32);$body['slots']=['2020-01-01-AM'];$this->client->request('POST',$url,$body);self::assertResponseStatusCodeSame(422);
+        $body['_token']='invalid';$this->client->request('POST',$url,$body);self::assertResponseStatusCodeSame(403);
+    }
+    public function testInquiryFailureIsRecordedAndOtherTenantIsDenied():void {
+        $mailer=$this->createMock(\Symfony\Component\Mailer\MailerInterface::class);$mailer->method('send')->willThrowException(new \RuntimeException('Transport unavailable'));self::getContainer()->set(\Symfony\Component\Mailer\MailerInterface::class,$mailer);
+        $this->client->loginUser($this->user);$page=$this->client->request('GET','/fr/administrateur/'.$this->entite->getId().'/formateurs/disponibilites');$token=$page->filter('[data-inquiry-token]')->attr('data-inquiry-token');$url='/fr/administrateur/'.$this->entite->getId().'/formateurs/'.$this->trainer->getId().'/demandes';
+        $date=(new \DateTimeImmutable('tomorrow'))->format('Y-m-d');$this->client->request('POST',$url,['_token'=>$token,'key'=>str_repeat('f',32),'subject'=>'Excel','slots'=>[$date.'-AM']]);self::assertResponseIsSuccessful();self::assertSame('failed',json_decode($this->client->getResponse()->getContent(),true)['status']);
+        $other=(new Entite())->setNom('Other')->setPublic(false)->setCreateur($this->em->find(Utilisateur::class,$this->user->getId()));$this->em->persist($other);$this->em->flush();
+        $this->client->request('GET','/fr/administrateur/'.$other->getId().'/formateurs/'.$this->trainer->getId().'/demandes');self::assertResponseStatusCodeSame(404);
+    }
+    public function testEmailResponseConfirmationAndAudit():void {
+        $item=new \App\Entity\TrainerInquiry();$item->formateur=$this->trainer;$item->author=$this->user;$item->subject='Excel';$item->recipient=$this->user->getEmail();$item->requestKey=str_repeat('c',64);$item->status='sent';$item->slots=['2026-12-01-AM'];$this->em->persist($item);$this->em->flush();
+        $service=self::getContainer()->get(\App\Service\TrainerProfile\InquiryResponses::class);$url='/fr/reponse-proposition/'.$item->id.'/'.$service->signature($item).'?choice=available';
+        $page=$this->client->request('GET',$url);self::assertResponseIsSuccessful();self::assertSame('sent',$item->status);self::assertSame(0,$this->em->getRepository(\App\Entity\ProspectInteraction::class)->count([]));
+        $token=$page->filter('input[name="_token"]')->attr('value');$body=['_token'=>$token,'choice'=>'available','note'=>'Avec plaisir.'];
+        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertSame('available',$item->status);self::assertSame(1,$this->em->getRepository(\App\Entity\ProspectInteraction::class)->count([]));self::assertSame(1,$this->em->getRepository(\App\Entity\NotificationEvent::class)->count(['sourceType'=>'TrainerInquiry']));
+        $this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertCount(1,$item->history);
+        $body['choice']='unavailable';$this->client->request('POST',$url,$body);self::assertResponseIsSuccessful();$item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);self::assertSame('unavailable',$item->status);self::assertCount(2,$item->history);
+        $this->client->request('GET','/fr/reponse-proposition/'.$item->id.'/'.str_repeat('0',64));self::assertResponseStatusCodeSame(410);
+        $item=$this->em->find(\App\Entity\TrainerInquiry::class,$item->id);$item->createdAt=new \DateTimeImmutable('-31 days');$this->em->flush();$this->client->request('GET',$url);self::assertResponseStatusCodeSame(410);
     }
     public function testOccupiedAndUnknownDays():void {
         $service=new \App\Service\TrainerProfile\Availability($this->em);$p=new \App\Entity\TrainerProfile();$p->formateur=$this->trainer;
