@@ -1,6 +1,21 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Qualité & conformité · {{ entite.nom }}{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/quality.css') }}">{% endblock %}
+{% block stylesheets %}{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/quality.css') }}">{% endblock %}
+
+
+
+
 {% block body %}
 <div class="container-fluid py-4 quality-workspace">
   <header class="quality-heading"><div><span class="quality-kicker">{{ entite.nom }} · Actions de formation</span><h1>Votre suivi qualité, étape par étape</h1><p>Réutilisez les informations déjà saisies et concentrez-vous sur ce qui reste à compléter.</p><small>Diagnostic du {{ report.generatedAt|date('d/m/Y à H:i', 'Europe/Paris') }} · Cet organisme uniquement</small></div><a class="btn btn-light" href="{{ path('app_administrateur_quality_export', {entite: entite.id}) }}"><i class="bi bi-download me-2" aria-hidden="true"></i>Exporter le diagnostic</a></header>

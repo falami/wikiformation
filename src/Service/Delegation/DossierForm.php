@@ -66,7 +66,7 @@ final class DossierForm
             $builder->add('tauxDistanciel', \Symfony\Component\Form\Extension\Core\Type\NumberType::class, [
                 'label' => 'Enseignement à distance (%)', 'required' => false, 'html5' => true, 'scale' => 2,
                 'help' => '0 pour le présentiel, 100 pour le tout à distance. Cette proportion des heures est reprise sur les conventions.',
-                'attr' => ['min' => 0, 'max' => 100, 'step' => '0.01', 'placeholder' => 'Non renseigné'],
+                'attr' => ['min' => 0, 'max' => 100, 'step' => '0.01', 'placeholder' => 'Non renseigné', 'class' => 'form-control'],
             ]);
         }
         if ($new && $record instanceof Session) {
