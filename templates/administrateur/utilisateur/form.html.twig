@@ -261,6 +261,7 @@
   
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/user-editor.css') }}">
 {% endblock %}
 
 {% block javascripts %}
@@ -272,6 +273,7 @@
 
 
 {% block body %}
+<div class="user-editor">
 
 
   {# ===== HERO ===== #}
@@ -348,11 +350,11 @@
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="profile-dropzone" id="profileDropzone">
+          <div class="profile-dropzone" id="profileDropzone" role="button" tabindex="0" aria-label="Choisir ou déposer une photo de profil">
             {{ form_widget(form.photo, {
               attr: {
                 class: 'd-none',
-                accept: 'image/*'
+                accept: 'image/jpeg,image/png,image/webp'
               }
             }) }}
 
@@ -374,15 +376,15 @@
             </div>
 
             <div class="flex-grow-1">
-              <div class="fw-semibold">Déposer une photo</div>
+              <div class="photo-eyebrow">PHOTO DE PROFIL</div><div class="fw-semibold fs-5">Glissez votre photo ici</div><div class="small text-muted mt-1">ou cliquez pour choisir un fichier</div>
               <div class="small text-muted">PNG, JPG, JPEG, WebP - 8 Mo max</div>
             </div>
           </div>
 
           <div class="d-flex gap-2 mt-2 flex-wrap">
-            <label for="{{ form.photo.vars.id }}" class="btn btn-sm btn-outline-secondary mb-0" id="profileBrowseBtn">
-              <i class="bi bi-upload"></i> Parcourir
-            </label>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" id="profileBrowseBtn">
+              <i class="bi bi-image me-1"></i> Choisir une photo
+            </button>
 
             <button
               type="button"
@@ -393,6 +395,7 @@
             </button>
           </div>
 
+          <p class="small muted mt-3 mb-0" id="profilePhotoStatus" role="status">La photo sera mise à jour après enregistrement de la fiche.</p>
           {{ form_errors(form.photo) }}
         </div>
       </div>
@@ -859,15 +862,27 @@ document.addEventListener('DOMContentLoaded', function () {
     removeBtn?.classList.toggle('d-none', !hasCurrentPreview);
   }
 
+  const photoStatus = document.getElementById('profilePhotoStatus');
+  const originalPhoto = preview.querySelector('img')?.getAttribute('src');
+  let photoRead = 0;
+  document.getElementById('profileBrowseBtn')?.addEventListener('click', () => fileInput.click());
+  dropzone?.addEventListener('keydown', e => { if (e.target === dropzone && ['Enter', ' '].includes(e.key)) { e.preventDefault(); fileInput.click(); } });
   function handleImageFile(file) {
-    if (!file || !file.type.startsWith('image/')) {
+    const generation = ++photoRead;
+    if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8000000) {
+      fileInput.value = '';
+      if (originalPhoto && removePhotoInput.value !== '1') renderImage(originalPhoto); else renderPlaceholder();
+      updateRemoveButtonVisibility();
+      photoStatus.textContent = 'Choisissez une image JPG, PNG ou WebP de 8 Mo maximum.';
       return;
     }
+    photoStatus.textContent = file.name + ' · Photo prête à enregistrer.';
 
     removePhotoInput.value = '0';
 
     const reader = new FileReader();
     reader.onload = function(e) {
+      if (generation !== photoRead) return;
       renderImage(e.target.result);
       updateRemoveButtonVisibility();
     };
@@ -876,7 +891,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   dropzone?.addEventListener('click', (e) => {
     if (
-      e.target.closest('#profileRemoveBtn') ||
+      e.target === fileInput || e.target.closest('#profileRemoveBtn') ||
       e.target.closest('label[for="profileInput"]')
     ) {
       return;
@@ -892,7 +907,9 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   removeBtn?.addEventListener('click', function() {
+    ++photoRead;
     fileInput.value = '';
+    photoStatus.textContent = 'La photo sera supprimée après enregistrement.';
     removePhotoInput.value = '1';
     renderPlaceholder();
     updateRemoveButtonVisibility();
@@ -911,6 +928,7 @@ document.addEventListener('DOMContentLoaded', function () {
     e.preventDefault();
     dropzone.classList.remove('dragover');
 
+    if (e.dataTransfer?.files?.length !== 1) { photoStatus.textContent = 'Déposez une seule photo à la fois.'; return; }
     const file = e.dataTransfer?.files?.[0];
     if (file) {
       const dt = new DataTransfer();
@@ -1031,6 +1049,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 
+</div>
 {% endblock %}
 
 {% block javascripts_bottom %}

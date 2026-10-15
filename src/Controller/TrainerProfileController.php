@@ -87,14 +87,17 @@ final class TrainerProfileController extends AbstractController
     public function planning(Entite $entite,Request $request,Availability $availability): Response {
         $start=$this->week($request);$subject=mb_strtolower(trim($request->query->getString('subject')));$rows=[];
         $trainers=$this->em->getRepository(Formateur::class)->findBy(['entite'=>$entite]);
+        $rawSelected = $request->query->all()['trainers'] ?? [];
+        $selectedTrainers = array_values(array_unique(array_map('intval', array_filter(is_array($rawSelected) ? $rawSelected : [], static fn($id) => is_scalar($id) && ctype_digit((string) $id) && (int) $id > 0))));
         foreach($trainers as $trainer) {
+            if ($selectedTrainers && !in_array($trainer->getId(), $selectedTrainers, true)) continue;
             $profile=$this->profile($trainer);
             if($subject!=='' && !in_array($subject,array_map('mb_strtolower',$profile->subjects),true)) continue;
             $rows[]=['trainer'=>$trainer,'profile'=>$profile];
         }
         $page=max(1,$request->query->getInt('page',1));$total=count($rows);$page=min($page,max(1,(int)ceil($total/25)));$rows=array_slice($rows,($page-1)*25,25);
         foreach($rows as &$row) { $row['days']=$availability->days($row['trainer'],$row['profile'],$start);$row['diplomas']=$this->em->getRepository(TrainerDiploma::class)->findBy(['formateur'=>$row['trainer']]); } unset($row);
-        return $this->render('formateur/profile/planning.html.twig',['entite'=>$entite,'rows'=>$rows,'start'=>$start,'subjects'=>$this->subjects($entite),'subject'=>$request->query->getString('subject'),'page'=>$page,'total'=>$total]);
+        return $this->render('formateur/profile/planning.html.twig',['entite'=>$entite,'rows'=>$rows,'start'=>$start,'trainers'=>$trainers,'selectedTrainers'=>$selectedTrainers,'subjects'=>$this->subjects($entite),'subject'=>$request->query->getString('subject'),'page'=>$page,'total'=>$total]);
     }
     private function week(Request $request): \DateTimeImmutable {
         $value=$request->query->getString('date',(new \DateTimeImmutable('today',new \DateTimeZone('Europe/Paris')))->format('Y-m-d'));

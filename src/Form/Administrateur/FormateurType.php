@@ -151,11 +151,14 @@ class FormateurType extends AbstractType
                 'currency' => false,
                 'attr' => ['class' => 'form-control', 'placeholder' => 'Ex : 400,00'],
             ])
+            ->add('removePhoto', CheckboxType::class, [
+                'mapped' => false, 'required' => false, 'label' => 'Supprimer la photo',
+            ])
             ->add('photo', FileType::class, [
                 'label' => 'Photo (optionnel)',
                 'mapped' => false,
                 'required' => false,
-                'attr' => ['class' => 'form-control'],
+                'attr' => ['class' => 'form-control', 'accept' => 'image/jpeg,image/png,image/webp'],
                 'constraints' => [
                     new Assert\File(
                         maxSize: '4M',

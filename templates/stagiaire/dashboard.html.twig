@@ -1006,6 +1006,7 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
 
 </style>
 <link rel="stylesheet" href="{{ asset('dist/css/attendance-modal.css') }}?v=1">
+<link rel="stylesheet" href="{{ asset('dist/css/trainer-session-ledger.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -1323,19 +1324,19 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
   {# ===== GRID ===== #}
   <div class="row g-4">
     <div class="col-12">
-      <div class="section-card">
+      <div class="section-card student-session-ledger">
         <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
-          <h5 class="section-title mb-0">Mes sessions</h5>
-          <span class="text-muted small">Liste compacte</span>
+          <div><span class="ledger-eyebrow">VOTRE PARCOURS DE FORMATION</span><h5 class="section-title mb-0">Mes sessions</h5><p class="ledger-description">Vos formations, vos horaires et les documents de votre parcours.</p></div>
+          <span class="ledger-label"><i class="bi bi-calendar-week me-2"></i>Planning & suivi</span>
         </div>
         <div class="card-body">
           <div class="table-responsive p-4">
-            <table id="table-stagiaire" class="table table-striped align-middle compact w-100">
+            <table id="table-stagiaire" class="table align-middle w-100">
               <thead>
               <tr>
-                <th>Code</th>
+                <th>Référence</th>
                 <th>Formation</th>
-                <th>Dates</th>
+                <th>Planning</th>
                 <th>Formateur</th>
                 <th class="text-center">Actions</th>
               </tr>
@@ -1649,7 +1650,7 @@ $(function(){
 
 
     pageLength:10,
-    language: { url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json' },
+    language: { url:'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json', emptyTable: '<i class="bi bi-calendar2-week ledger-empty-icon" aria-hidden="true"></i>Aucune session pour le moment.<br><small>Vos formations apparaîtront ici après votre inscription.</small>', zeroRecords: 'Aucune session ne correspond à votre recherche.' },
     drawCallback:function(){
       computeKpisFromTable(this.api());
       buildTimelineFromTable(this.api(), '#upcoming-timeline', 6);

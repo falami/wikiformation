@@ -81,6 +81,7 @@ final class UtilisateurType extends AbstractType
                 'constraints' => [
                     new Image(
                         maxSize: '8M',
+                        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
                         mimeTypesMessage: 'Image invalide'
                     )
                 ],

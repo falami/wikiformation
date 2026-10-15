@@ -160,7 +160,7 @@
     }
     .ts-dropdown{ z-index: 9999 !important; }
     .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
-    .card, .card-body, .container, .container-fluid, .cardx, .cardx *{ overflow: visible; }
+    .prospect-editor .cardx { overflow: visible; }
 
     /* ===== Sticky actions (col droite) ===== */
     .sticky-actions{
@@ -489,6 +489,7 @@
 }
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/prospect-editor.css') }}">
 {% endblock %}
 
 {% block javascripts %}
@@ -499,6 +500,7 @@
 {% endblock %}
 
 {% block body %}
+<div class="prospect-editor">
 
   {# ===== HERO ===== #}
   {# ===== HERO (comme session) ===== #}
@@ -573,12 +575,17 @@
   {{ form_start(form, { attr: { novalidate: 'novalidate', id: 'prospectForm' } }) }}
   {{ form_errors(form) }}
 
+  <nav class="prospect-sections" aria-label="Sections de la fiche prospect">
+    <a href="#prospect-identity"><span>01</span> Identité et coordonnées</a>
+    <a href="#prospect-company"><span>02</span> Entreprise</a>
+    <a href="#prospect-followup"><span>03</span> Suivi commercial</a>
+  </nav>
   <div class="row g-4">
     {# ====================== COL LEFT ====================== #}
     <div class="col-lg-8">
 
       {# ===== IDENTITÉ ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="prospect-identity">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-person-vcard text-warning"></i> Identité</h5>
           <span class="chip">Étape 1</span>
@@ -629,12 +636,12 @@
             {% endif %}
           </div>
 
-          <div class="form-text mt-2">Ces infos seront reprises automatiquement lors de la création d’un devis.</div>
+          <div class="form-text mt-2">Ces informations seront reprises lors de la création d’un devis.</div>
         </div>
       </div>
 
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="prospect-company">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Entreprise</h5>
           <span class="chip">Étape 2</span>
@@ -665,7 +672,7 @@
 
 
       {# ===== PROSPECTION ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="prospect-followup">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-funnel text-warning"></i> Prospection</h5>
           <span class="chip">Étape 3</span>
@@ -802,7 +809,7 @@
                 <i class="bi bi-activity"></i> Timeline / interactions
               </a>
               <div class="ms-auto small text-muted">
-                Astuce : mets une <strong>prochaine action</strong> pour alimenter ton dashboard.
+                Planifiez une <strong>prochaine action</strong> pour retrouver ce prospect dans votre tableau de bord.
               </div>
             </div>
           {% endif %}
@@ -818,7 +825,7 @@
           <i class="bi bi-arrow-left"></i> Retour
         </a>
         <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
-          <i class="bi bi-check"></i> {{ is_edit ? 'Modifier & Terminer' : 'Créer & Terminer' }}
+          <i class="bi bi-check"></i> {{ is_edit ? 'Enregistrer les modifications' : 'Créer le prospect' }}
         </button>
       </div>
 
@@ -834,7 +841,7 @@
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Votre fiche se complète au fil de la saisie.</div>
 
           <div class="border rounded-4 p-3 mb-3"
                style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
@@ -919,6 +926,7 @@
 
 
   {{ form_end(form) }}
+</div>
 
 
 

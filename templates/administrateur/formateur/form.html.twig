@@ -6,6 +6,7 @@
 {% block title %}{{ is_edit ? 'Modifier un formateur' : 'Ajouter un formateur' }}{% endblock %}
 
 {% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('dist/css/trainer-photo.css') }}">
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/learner-ratings.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
@@ -303,12 +304,29 @@
           <span class="chip">Optionnel</span>
         </div>
         <div class="cardx-body">
-          {{ form_row(form.photo) }}
-
-          {% if is_edit and formateur.photo %}
-            <div class="mt-2 small muted">Photo actuelle :</div>
-            <img src="{{ asset('uploads/photos/formateur/' ~ formateur.photo) }}" class="img-fluid rounded" style="max-height:160px;">
-          {% endif %}
+          <div class="trainer-photo" data-trainer-photo>
+            <div class="trainer-photo-preview">
+              <img data-photo-preview {% if formateur.photo %}src="{{ asset('uploads/photos/formateur/' ~ formateur.photo) }}"{% else %}hidden{% endif %} alt="Aperçu de la photo du formateur">
+              <i class="bi bi-person-bounding-box" data-photo-placeholder {% if formateur.photo %}hidden{% endif %}></i>
+            </div>
+            <div class="trainer-photo-controls">
+              <div class="trainer-photo-drop" data-photo-drop role="button" tabindex="0" aria-label="Choisir ou déposer une photo">
+                <i class="bi bi-cloud-arrow-up fs-3 text-warning"></i>
+                <strong>Glissez votre photo ici</strong>
+                <span>ou cliquez pour parcourir vos fichiers</span>
+                <small>JPG, PNG ou WebP · 4 Mo maximum</small>
+              </div>
+              {{ form_widget(form.photo, {attr: {class: 'visually-hidden', 'data-photo-input': '', tabindex: '-1'}}) }}
+              <div class="d-none">{{ form_widget(form.removePhoto, {attr: {'data-photo-remove': ''}}) }}</div>
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" data-photo-choose><i class="bi bi-image me-1"></i>Choisir une photo</button>
+                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" data-photo-delete><i class="bi bi-trash me-1"></i>Supprimer</button>
+              </div>
+              <div class="small muted mt-2" data-photo-status role="status">Les modifications seront appliquées à l’enregistrement.</div>
+            </div>
+          </div>
+          {{ form_errors(form.photo) }}
+          {{ form_errors(form.removePhoto) }}
         </div>
       </div>
 
@@ -399,7 +417,18 @@
         <div class="cardx-body">
           <div class="row g-3 align-items-end">
             <div class="col-12">
-              {{ form_row(form.sansContratRemuneration) }}
+              <div class="soft-box">
+                <div class="switch-row">
+                  <div class="flex-grow-1">
+                    <label class="title d-block mb-0" for="{{ form.sansContratRemuneration.vars.id }}">Intervient sans contrat ni rémunération formateur</label>
+                    <div class="desc" id="sans-contrat-help">Pour le dirigeant qui assure lui-même la formation. Lorsqu’il est le seul intervenant, aucun contrat ni coût formateur n’est attendu dans le registre des sessions. Les contrats existants sont conservés.</div>
+                  </div>
+                  <div class="form-check form-switch flex-shrink-0">
+                    {{ form_widget(form.sansContratRemuneration, {attr: {class: 'form-check-input', role: 'switch', 'aria-describedby': 'sans-contrat-help'}}) }}
+                  </div>
+                </div>
+                {{ form_errors(form.sansContratRemuneration) }}
+              </div>
             </div>
             <div class="col-12 col-md-6">
               {{ form_row(form.modeRemuneration, {'attr': {'class': 'form-select', 'id': 'mode_remu'}}) }}
@@ -468,6 +497,7 @@
 {% endblock %}
 
 {% block javascripts %}
+<script src="{{ asset('dist/js/trainer-photo.js') }}" defer></script>
   {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 

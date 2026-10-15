@@ -260,6 +260,9 @@ final class FormateurController extends AbstractController
         }
 
         if ($form->isSubmitted() && $form->isValid()) {
+            if ($form->get('removePhoto')->getData() && !$form->get('photo')->getData()) {
+                $formateur->setPhoto(null);
+            }
             $em->persist($formateur);
             $em->flush();
 
