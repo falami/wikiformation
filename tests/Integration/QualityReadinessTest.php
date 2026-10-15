@@ -256,6 +256,42 @@ final class QualityReadinessTest extends KernelTestCase
         self::assertSame([], $report['followUp']['items']);
     }
 
+    public function testSubcontractedAttendanceDisappearsFromFollowUpOnceDocumented(): void
+    {
+        $other = (new Entite())->setNom('Autre organisme')->setPublic(false)->setCreateur($this->user);
+        $this->em->persist($other);
+        $wanted = null;
+        foreach ([[$this->entite, 'done', '2025-09-10'], [$this->entite, 'canceled', '2025-09-10'], [$this->entite, 'published', '2099-09-10'], [$other, 'done', '2025-09-10']] as $n => [$entite, $status, $date]) {
+            $site = (new \App\Entity\Site())->setNom('Salle')->setSlug('operational-'.$n)->setEntite($entite)->setCreateur($this->user);
+            $session = (new \App\Entity\Session())->setEntite($entite)->setCreateur($this->user)->setCode('DOSSIER-'.$n)->setSite($site)->setFormationIntituleLibre('Formation')->setStatus(\App\Enum\StatusSession::from($status))->setTauxDistanciel(0);
+            $session->addJour((new \App\Entity\SessionJour())->setEntite($entite)->setCreateur($this->user)->setDateDebut(new \DateTimeImmutable($date.' 09:00'))->setDateFin(new \DateTimeImmutable($date.' 12:00')));
+            $inscription = (new \App\Entity\Inscription())->setEntite($entite)->setCreateur($this->user)->setSession($session)->setStagiaire($this->user)->setStatus(\App\Enum\StatusInscription::TERMINE);
+            foreach ([$site,$session,$inscription] as $item) $this->em->persist($item);
+            if ($n === 0) $wanted = $inscription;
+        }
+        $this->em->flush();
+        $wanted->getSession()->setTypeFinancement(\App\Enum\TypeFinancement::OUI);
+        $this->em->flush();
+        $id = $wanted->getId();
+        $report = self::getContainer()->get(QualityReadiness::class)->inspect($this->entite);
+        self::assertSame(1, $report['followUp']['total']);
+        self::assertSame(1, $report['followUp']['checked']);
+        self::assertSame($id, $report['followUp']['items'][0]['id']);
+        self::assertTrue($report['followUp']['items'][0]['attendance']);
+        $this->client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/qualite');
+        $html = $this->client->getResponse()->getContent();
+        self::assertStringContainsString('/inscription/'.$id.'#presences-papier', $html);
+        self::assertStringNotContainsString('DOSSIER-3', $html);
+        self::assertSame(0, $this->em->getRepository(AuditLog::class)->count([]));
+        $wanted = $this->em->find(\App\Entity\Inscription::class, $id);
+        self::assertSame([], $wanted->getPresencesManuelles());
+        $wanted->enregistrerPresenceManuelle('2025-09-10:AM', 'paper', 'Feuille conservée', $this->em->find(Utilisateur::class, $this->user->getId()));
+        $this->em->flush();
+        $report = self::getContainer()->get(QualityReadiness::class)->inspect($this->em->find(Entite::class, $this->entite->getId()));
+        self::assertSame([], $report['followUp']['items']);
+        self::assertNull(self::getContainer()->get(\App\Service\Document\RealisationCertificate::class)->hours($wanted));
+    }
+
     public function testBulkPaperAttendanceUsesDepositDateAndPreservesExistingRecords(): void
     {
         $ids = [];

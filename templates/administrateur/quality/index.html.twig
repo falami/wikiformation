@@ -24,6 +24,7 @@
     <a href="#formations"><span>02</span><strong>Mes formations</strong><small>Une fiche réutilisée dans les documents</small></a>
     <a href="#sessions"><span>03</span><strong>Mes sessions</strong><small>Les preuves réelles de chaque dossier</small></a>
   </nav>
+  {% include 'flagMessage.html.twig' %}
   <div class="quality-note mb-4"><i class="bi bi-info-circle" aria-hidden="true"></i><div>Cet écran repère automatiquement certains champs manquants et blocages de certificats. Le contenu des justificatifs et vos pratiques restent à confirmer : aucun taux de certification n’est calculé. Aucune présence, clôture ou transmission à l’État n’est effectuée depuis cet écran.</div></div>
   {% if report.overdueRecords %}<section class="quality-card mb-4"><header><span class="quality-priority">Priorité</span><h2>Échéances de suivi dépassées</h2></header><div class="p-4"><p class="text-muted">Les dix premières échéances ouvertes, de la plus ancienne à la plus récente. Renseignez les suites réellement données avant de clôturer.</p>{% for record in report.overdueRecords %}<div class="quality-task"><div><strong>{{ record.title }}</strong><small>Échéance du {{ record.dueAt|date('d/m/Y') }}</small></div><a class="btn btn-outline-dark btn-sm" href="{{ path('app_administrateur_quality_record_edit', {entite:entite.id,id:record.id}) }}">Reprendre le suivi</a></div>{% endfor %}</div></section>{% endif %}
 

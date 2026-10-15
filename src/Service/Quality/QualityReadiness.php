@@ -102,11 +102,17 @@ final class QualityReadiness
         $items = [];
         foreach ($records as $inscription) {
             $data = $this->certificates->data($inscription);
+            if ($inscription->getSession()->isSousTraitance()) {
+                $data['hours'] = $this->certificates->attendanceHours($inscription);
+                $data['issues'] = $data['hours'] === null
+                    ? ['Complétez les présences et les horaires des créneaux pour justifier la durée suivie en sous-traitance.']
+                    : [];
+            }
             if (!$data['issues']) continue;
             $items[] = ['id' => $inscription->getId(), 'session' => $inscription->getSession()->getCode(),
                 'learner' => trim($inscription->getStagiaire()?->getPrenom().' '.$inscription->getStagiaire()?->getNom()),
                 'issues' => $data['issues'], 'hours' => $data['hours'],
-                'attendance' => $data['hours'] === null && !$inscription->getSession()->isSousTraitance()];
+                'attendance' => $data['hours'] === null];
         }
         return ['total' => $total, 'checked' => count($records), 'items' => $items];
     }

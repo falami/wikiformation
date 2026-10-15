@@ -37,6 +37,14 @@ final class RealisationCertificate
     {
         $session = $inscription->getSession();
         if (!$session || $session->isSousTraitance()) return null;
+        return $this->attendanceHours($inscription);
+    }
+
+    /** Durée documentée, y compris en sous-traitance, sans autoriser un certificat. */
+    public function attendanceHours(Inscription $inscription): ?float
+    {
+        $session = $inscription->getSession();
+        if (!$session) return null;
         $manual = $inscription->getPresencesManuelles();
         $online = $inscription->getId() ? $this->attendance->online($inscription) : [];
         $minutes = 0; $slots = 0; $intervals = [];
