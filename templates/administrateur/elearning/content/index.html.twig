@@ -14,141 +14,19 @@
       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
     }
-    .wrap{max-width:1200px;margin:0 auto;}
-    .hero{
-      border-radius:20px;
-      background: linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
-      color:#fff;
-      box-shadow:0 18px 50px rgba(0,0,0,.14);
-    }
-    .hero .accent{width:10px;background:var(--theme-color-secondaire,#ffc107);border-radius:999px;}
-    .cardx{background:#fff;border:1px solid rgba(15,23,42,.10);border-radius:18px;box-shadow:0 10px 28px rgba(15,23,42,.08);}
-    .node-item{border:1px solid rgba(15,23,42,.10);border-radius:14px;background:#fff;}
-    .node-children{margin-left:1.5rem;border-left:2px dashed rgba(15,23,42,.15);padding-left:1rem;}
-    .drag-handle{cursor:grab;color:#94a3b8;}
-    .drag-handle:hover{color:#334155;}
-    .sortable-ghost{opacity:.45;}
   </style>
+<link rel="stylesheet" href="{{ asset('dist/css/course-builder.css') }}?v=1">
 {% endblock %}
 
 {% block body %}
-<div class="wrap">
-
-  {# ===== HERO ===== #}
-  <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
-    <div class="flex-grow-1">
-      <h2 class="fw-bold mb-1">Contenu du cours</h2>
-      <div class="opacity-75 mb-3">{{ course.titre }}</div>
-
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-light btn-sm"
-           href="{{ path('app_administrateur_elearning_index', { entite: entite.id }) }}">
-          <i class="bi bi-arrow-left"></i> Retour
-        </a>
-
-        <a class="btn btn-light btn-sm fw-semibold"
-           href="{{ path('app_administrateur_elearning_content_node_add', { entite: entite.id, course: course.id }) }}">
-          <i class="bi bi-plus-lg"></i> Ajouter un chapitre
-        </a>
-
-      </div>
-    </div>
-  </div>
-
-  {% include 'flagMessage.html.twig' %}
-
-  <div class="cardx p-3 p-md-4">
-
-    {% if roots is empty %}
-      <div class="alert alert-info mb-0">
-        Aucun contenu pour l’instant.
-        <a class="alert-link"
-           href="{{ path('app_administrateur_elearning_content_node_add', { entite: entite.id, course: course.id }) }}">
-          Créer le premier chapitre
-        </a>.
-      </div>
-    {% else %}
-
-      {# ===== LISTE RACINE DRAGGABLE ===== #}
-      <ul class="list-group node-sortable"
-          data-parent-id="0"
-          data-url="{{ path('app_administrateur_elearning_content_node_reorder', { entite: entite.id, course: course.id }) }}"
-          data-csrf="{{ csrf_token('reorder_nodes_' ~ course.id) }}">
-
-        {% for n in roots %}
-          {% include 'administrateur/elearning/content/_node_item.html.twig' with {
-            entite: entite,
-            course: course,
-            n: n
-          } %}
-        {% endfor %}
-      </ul>
-
-    {% endif %}
-  </div>
-
-</div>
-
-{# ===== SORTABLE JS ===== #}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-
-<script>
-(function(){
-  async function post(url, payload){
-    const fd = new FormData();
-    Object.entries(payload).forEach(([k,v]) => {
-      if (Array.isArray(v)) v.forEach(x => fd.append(k + '[]', x));
-      else fd.append(k, v);
-    });
-    const res = await fetch(url, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}});
-    const json = await res.json();
-    if (!res.ok || !json.ok) throw new Error(json.message || 'Erreur');
-  }
-
-  // ===== CHAPITRES / SOUS-CHAPITRES =====
-  document.querySelectorAll('.node-sortable').forEach(list => {
-    new Sortable(list, {
-      animation:150,
-      handle:'.drag-handle',
-      ghostClass:'sortable-ghost',
-      onEnd: async () => {
-        const ids = [...list.children].map(li => li.dataset.id);
-        try{
-          await post(list.dataset.url, {
-            _token: list.dataset.csrf,
-            parentId: list.dataset.parentId,
-            ids
-          });
-        }catch(e){
-          alert(e.message);
-          location.reload();
-        }
-      }
-    });
-  });
-
-  // ===== BLOCS =====
-  document.querySelectorAll('.block-sortable').forEach(list => {
-    new Sortable(list, {
-      animation:150,
-      handle:'.drag-handle',
-      ghostClass:'sortable-ghost',
-      onEnd: async () => {
-        const ids = [...list.children].map(li => li.dataset.id);
-        try{
-          await post(list.dataset.url, {
-            _token: list.dataset.csrf,
-            nodeId: list.dataset.nodeId,
-            ids
-          });
-        }catch(e){
-          alert(e.message);
-          location.reload();
-        }
-      }
-    });
-  });
-})();
-</script>
+<div class="course-builder" id="courseBuilder" data-url="{{ path('app_administrateur_elearning_content_order_siblings',{entite:entite.id,course:course.id}) }}" data-token="{{ csrf_token('course_order_' ~ course.id) }}">
+<header class="cb-hero"><div><div class="cb-eyebrow">STUDIO PÉDAGOGIQUE · E-LEARNING</div><h1>{{ course.titre }}</h1><p>Composez un parcours clair, du premier chapitre au dernier exercice.</p><a class="cb-back" href="{{ path('app_administrateur_elearning_index',{entite:entite.id}) }}"><i class="bi bi-arrow-left"></i> Tous les cours</a></div><a class="btn btn-light" href="{{ path('app_administrateur_elearning_content_node_add',{entite:entite.id,course:course.id}) }}"><i class="bi bi-plus-lg"></i> Ajouter un chapitre</a></header>
+{% include 'flagMessage.html.twig' %}
+<div class="cb-stats"><div><span>Structure du parcours</span><strong>{{ roots|length }} <small>chapitre(s)</small></strong></div><div><span>Chapitres et sous-chapitres</span><strong id="nodeCount">—</strong></div><div><span>Ressources pédagogiques</span><strong id="blockCount">—</strong></div><div><span>À préparer</span><strong id="draftCount">—</strong></div></div>
+<div class="cb-workspace"><aside class="cb-outline"><div class="cb-eyebrow">LE PARCOURS</div><h2>Plan du cours</h2><nav aria-label="Chapitres du cours">{% for n in roots %}<a href="#course-node-{{ n.id }}"><span>{{ '%02d'|format(loop.index) }}</span>{{ n.titre }}</a>{% else %}<p>Votre plan apparaîtra ici.</p>{% endfor %}</nav><p class="cb-hint">Déplacez les éléments au sein d’un même niveau. Chaque changement d’ordre est enregistré.</p></aside>
+<main class="cb-main"><div class="cb-toolbar"><div><label class="visually-hidden" for="courseSearch">Rechercher dans le contenu</label><input id="courseSearch" type="search" class="form-control" placeholder="Rechercher un chapitre, une ressource…"></div><div class="cb-tools"><button type="button" data-expand="true">Tout déplier</button><button type="button" data-expand="false">Tout replier</button></div></div>
+<div class="cb-status" id="courseSaveStatus" role="status" aria-live="polite">Organisation du contenu</div><p id="courseNoResults" hidden>Aucun contenu ne correspond à votre recherche.</p>
+{% if roots is empty %}<div class="cb-empty"><i class="bi bi-journal-plus"></i><h2>Votre parcours commence ici.</h2><p>Créez un chapitre, puis ajoutez vos textes, vidéos et activités.</p><a class="btn btn-dark" href="{{ path('app_administrateur_elearning_content_node_add',{entite:entite.id,course:course.id}) }}">Créer le premier chapitre</a></div>{% else %}<ul class="cb-list" data-order-kind="nodes" data-parent-id="0">{% for n in roots %}{% include 'administrateur/elearning/content/_node_item.html.twig' with {n:n} %}{% endfor %}</ul>{% endif %}
+</main></div></div>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script><script src="{{ asset('dist/js/course-builder.js') }}?v=1"></script>
 {% endblock %}

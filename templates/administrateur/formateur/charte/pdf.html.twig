@@ -1,1 +1,70 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>@page{margin:55px 48px 65px}body{font-family:DejaVu Sans,sans-serif;color:#243c49;font-size:10px;line-height:1.6}header{border-bottom:3px solid #c6a362;padding-bottom:22px;margin-bottom:25px}.eyebrow{font-size:8px;letter-spacing:2px;color:#937036;text-transform:uppercase}h1{font-size:25px;line-height:1.25;margin:10px 0}h2{font-size:13px;margin:24px 0 10px;page-break-after:avoid;color:#203c49}h3{font-size:11px;page-break-after:avoid;margin:17px 0 8px}p{page-break-inside:avoid;white-space:pre-line;margin:0 0 12px}.meta{color:#718291;font-size:9px}.signature{border:1px solid #dac79f;background:#fffdf7;padding:20px;margin-top:25px;page-break-inside:avoid}.hash{font-size:7px;word-wrap:break-word;font-family:DejaVu Sans Mono,monospace}.footer{position:fixed;bottom:-40px;font-size:8px;color:#7c8c96;border-top:1px solid #dfe7ed;width:100%;padding-top:10px}</style></head><body><div class="footer">{{ v.issuer.name|default(v.charter.entite.nom) }} · Charte qualité · Version {{ v.number }}</div><header><div class="eyebrow">{{ v.issuer.name|default(v.charter.entite.nom) }} · Engagements professionnels</div><h1>{{ v.title }}</h1><div class="meta">Version {{ v.number }} · Application : {{ v.effectiveAt ? v.effectiveAt|date('d/m/Y') : 'À définir' }} · {{ v.publishedAt ? 'Publiée le ' ~ v.publishedAt|date('d/m/Y') : 'BROUILLON — non publié' }}</div></header>{% for chapter in v.chapters %}{% set n=loop.index %}<h2>{{ n }}. {{ chapter.title }}</h2><p>{{ chapter.body }}</p>{% for sub in chapter.children %}<h3>{{ n }}.{{ loop.index }} {{ sub.title }}</h3><p>{{ sub.body }}</p>{% endfor %}{% endfor %}{% if s and s.signedAt %}<div class="signature"><div class="eyebrow">Engagement du formateur</div><h2>Signée par {{ s.evidence.name }}</h2><p>{{ s.evidence.consent }}</p><p>Le {{ s.signedAt|date('d/m/Y à H:i:s') }} · Compte {{ s.evidence.userId }} : {{ s.evidence.email }}</p><p class="meta">{{ s.evidence.method }}</p><div class="hash">Empreinte SHA-256 du texte :<br>{{ s.evidence.digest }}</div></div>{% elseif v.digest %}<div class="hash">Empreinte SHA-256 du texte : {{ v.digest }}</div>{% endif %}</body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+@page { margin: 48px 48px 64px; }
+body { font-family: DejaVu Sans, sans-serif; color: #293f4b; font-size: 10px; line-height: 1.7; }
+.running { position: fixed; top: -28px; left: 0; right: 0; font-size: 7px; color: #7a8991; letter-spacing: 1px; text-transform: uppercase; }
+.footer { position: fixed; bottom: -39px; left: 0; right: 0; border-top: 1px solid #d6dfe2; padding-top: 9px; font-size: 7px; color: #71818b; }
+.footer .right { float: right; color: #9a783b; }
+.hero { background: #193741; color: #fff; padding: 30px 32px 27px; border-bottom: 5px solid #c8a767; margin: 6px 0 22px; }
+.eyebrow { font-size: 7px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #c8a767; }
+h1 { font-family: DejaVu Serif, serif; font-size: 29px; line-height: 1.24; font-weight: normal; margin: 18px 0 16px; }
+.hero .subtitle { font-size: 9px; color: #d8e2e5; letter-spacing: .3px; }
+.metadata { width: 100%; border-collapse: collapse; margin: 0 0 26px; table-layout: fixed; }
+.metadata td { background: #f2f5f5; padding: 12px 14px; border-right: 3px solid white; vertical-align: top; }
+.label { display: block; font-size: 6.5px; letter-spacing: 1px; color: #73858d; text-transform: uppercase; margin-bottom: 4px; }
+.value { font-size: 9px; font-weight: bold; color: #203e49; }
+.chapter-heading { margin: 23px 0 10px; page-break-after: avoid; border-bottom: 1px solid #e0e6e8; padding-bottom: 9px; }
+h2 { font-size: 12px; line-height: 1.5; margin: 0; color: #203d49; }
+.number { font-family: DejaVu Serif, serif; font-size: 20px; font-weight: normal; color: #b39150; margin-right: 12px; }
+h3 { font-size: 10px; color: #365663; margin: 17px 0 7px; page-break-after: avoid; }
+p { white-space: pre-line; margin: 0 0 12px; orphans: 3; widows: 3; }
+.chapter-body { padding-left: 37px; }
+.signature { background: #f8f6f0; border: 1px solid #ded2b7; border-left: 4px solid #b9985c; padding: 22px 25px; margin-top: 26px; page-break-inside: avoid; }
+.signature h2 { font-family: DejaVu Serif, serif; font-weight: normal; font-size: 22px; margin: 10px 0; }
+.signature .identity { margin: 17px 0 12px; border-top: 1px solid #e1dacb; padding-top: 12px; }
+.small { font-size: 8px; color: #6b7f89; }
+.integrity { margin-top: 20px; padding-top: 12px; border-top: 1px solid #dce4e7; page-break-inside: avoid; }
+.hash { font-family: DejaVu Sans Mono, monospace; font-size: 6.5px; color: #71818b; word-wrap: break-word; }
+</style>
+</head>
+<body>
+{% set issuer = v.issuer.name|default(v.charter.entite.nom) %}
+<div class="running">{{ issuer }} · Engagements professionnels</div>
+<div class="footer"><span class="right">CHARTE QUALITÉ · V{{ v.number }}</span>{{ issuer }}</div>
+<div class="hero">
+    <div class="eyebrow">Référentiel des engagements · Formateurs</div>
+    <h1>{{ v.title }}</h1>
+    <div class="subtitle">{{ issuer }}</div>
+</div>
+<table class="metadata"><tr>
+    <td><span class="label">Édition</span><span class="value">Version {{ '%02d'|format(v.number) }}</span></td>
+    <td><span class="label">Date d’application</span><span class="value">{{ v.effectiveAt ? v.effectiveAt|date('d/m/Y') : 'À définir' }}</span></td>
+    <td><span class="label">{{ v.publishedAt ? 'Publication' : 'Statut' }}</span><span class="value">{{ v.publishedAt ? v.publishedAt|date('d/m/Y') : 'Brouillon non publié' }}</span></td>
+</tr></table>
+{% for chapter in v.chapters %}
+    {% set n = loop.index %}
+    <div class="chapter-heading"><h2><span class="number">{{ '%02d'|format(n) }}</span>{{ chapter.title }}</h2></div>
+    <div class="chapter-body">
+        {% if chapter.body %}<p>{{ chapter.body }}</p>{% endif %}
+        {% for sub in chapter.children %}
+            <h3>{{ n }}.{{ loop.index }} · {{ sub.title }}</h3><p>{{ sub.body }}</p>
+        {% endfor %}
+    </div>
+{% endfor %}
+{% if s and s.signedAt %}
+    <div class="signature">
+        <div class="eyebrow">Engagement du formateur · Acceptation enregistrée</div>
+        <h2>{{ s.evidence.name }}</h2>
+        <p>{{ s.evidence.consent }}</p>
+        <div class="identity"><span class="label">Signé le {{ s.signedAt|date('d/m/Y à H:i:s') }}</span><strong>{{ s.evidence.email }}</strong><br><span class="small">Compte formateur n° {{ s.evidence.userId }}</span></div>
+        <p class="small">{{ s.evidence.method }}</p>
+        <div class="hash">Empreinte SHA-256 du texte<br>{{ s.evidence.digest }}</div>
+    </div>
+{% elseif v.digest %}
+    <div class="integrity"><span class="label">Identification de la version · Empreinte SHA-256 du texte</span><div class="hash">{{ v.digest }}</div></div>
+{% endif %}
+</body>
+</html>

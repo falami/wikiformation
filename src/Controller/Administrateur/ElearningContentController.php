@@ -37,6 +37,8 @@ final class ElearningContentController extends AbstractController
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
+    if ($course->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+
     $roots = $em->getRepository(ElearningNode::class)->findBy(
       ['course' => $course, 'parent' => null],
       ['position' => 'ASC', 'id' => 'ASC']
@@ -49,6 +51,44 @@ final class ElearningContentController extends AbstractController
 
 
     ]);
+  }
+
+  #[Route('/ordonner', name: 'order_siblings', methods: ['POST'])]
+  public function orderSiblings(Entite $entite, ElearningCourse $course, Request $request, EntityManagerInterface $em): JsonResponse
+  {
+    if ($course->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    if (!$this->isCsrfTokenValid('course_order_'.$course->getId(), $request->request->get('_token'))) {
+      return $this->json(['ok'=>false,'message'=>'Session expirée. Rechargez la page.'],403);
+    }
+    $kind=$request->request->get('kind');
+    $ids=$request->request->all('ids');$previous=$request->request->all('previous');
+    foreach ([$ids,$previous] as $values) {
+      if (!$values || count($values)>5000 || array_filter($values, fn($id)=>!is_string($id)||!ctype_digit($id)) || count(array_unique($values))!==count($values)) {
+        return $this->json(['ok'=>false,'message'=>'Ordre invalide.'],400);
+      }
+    }
+    if (!in_array($kind,['nodes','blocks'],true)) return $this->json(['ok'=>false],400);
+    return $em->wrapInTransaction(function () use ($em,$course,$request,$kind,$ids,$previous) {
+      // Serialize ordering operations for this course, then detect stale tabs.
+      $em->lock($course, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+      $parent=null;$parentId=$request->request->getInt('parentId');
+      if ($parentId) {
+        $parent=$em->find(ElearningNode::class,$parentId);
+        if (!$parent || $parent->getCourse()?->getId()!==$course->getId()) return $this->json(['ok'=>false],400);
+      }
+      if ($kind==='blocks' && !$parent) return $this->json(['ok'=>false],400);
+      $items=$em->getRepository($kind==='nodes'?ElearningNode::class:ElearningBlock::class)->findBy(
+        $kind==='nodes'?['course'=>$course,'parent'=>$parent]:['node'=>$parent],['position'=>'ASC','id'=>'ASC']
+      );
+      $current=array_map(fn($item)=>(string)$item->getId(),$items);
+      if ($current!==$previous || count($current)!==count($ids) || array_diff($current,$ids)) {
+        return $this->json(['ok'=>false,'message'=>'Le contenu a changé dans un autre onglet. Rechargez avant de réorganiser.'],409);
+      }
+      $positions=array_flip($ids);
+      foreach ($items as $item) $item->setPosition($positions[(string)$item->getId()]);
+      $em->flush();
+      return $this->json(['ok'=>true]);
+    });
   }
 
   #[Route('/node/ajouter', name: 'node_add', methods: ['GET', 'POST'])]

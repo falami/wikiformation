@@ -537,9 +537,11 @@
 }
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/learning-experience.css') }}?v=1">
 {% endblock %}
 
 {% block body %}
+<div class="learning-experience">
 
 
   <div class="hero p-3 mb-4 d-flex gap-3">
@@ -553,7 +555,7 @@
 
       <div class="d-flex flex-wrap align-items-end gap-3">
         <div class="me-auto">
-          <h2 class="fw-bold mb-1">{{ course.titre }}</h2>
+          <div class="learning-eyebrow">VOTRE ESPACE D’APPRENTISSAGE</div><h1 class="fw-bold mb-1">{{ course.titre }}</h1>
           <div class="opacity-75">{{ course.description ?: 'Suivi de progression, chapitres, contenu, quiz.' }}</div>
 
           <div class="mt-3">
@@ -574,9 +576,9 @@
     </div>
   </div>
 
-  <div class="row g-3 pb-4">
+  <div class="row g-3 pb-4 learning-layout">
     {# TOC #}
-    <div class="col-12 col-lg-4">
+    <div class="col-12 col-lg-4 learning-sidebar">
       <div class="cardx p-3 tocbox">
         <div class="d-flex align-items-center justify-content-between mb-2">
           <div class="fw-bold"><i class="bi bi-list-ul me-2"></i>Sommaire</div>
@@ -656,9 +658,9 @@
                     <span class="toc-title">
                       <div class="t">{{ ch.titre }}</div>
                       <div class="m">
-                        <span class="toc-pill"><i class="bi bi-boxes"></i> {{ ch.blocks|length }} bloc{% if ch.blocks|length>1 %}s{% endif %}</span>
+                        <span class="toc-pill"><i class="bi bi-boxes"></i> {{ ch.blocks|length }} ressource{% if ch.blocks|length>1 %}s{% endif %}</span>
                         {% if ch.dureeMinutes %}<span class="toc-pill"><i class="bi bi-clock"></i> {{ ch.dureeMinutes }} min</span>{% endif %}
-                        {% if children|length %}<span class="toc-pill"><i class="bi bi-diagram-2"></i> {{ children|length }} sous</span>{% endif %}
+                        {% if children|length %}<span class="toc-pill"><i class="bi bi-diagram-2"></i> {{ children|length }} leçons</span>{% endif %}
                       </div>
                     </span>
                   </a>
@@ -691,7 +693,7 @@
                           <span class="label">
                             <div class="t">{{ chapIndex }}.{{ loop.index }} - {{ sub.titre }}</div>
                             <div class="m">
-                              {{ sub.blocks|length }} bloc{% if sub.blocks|length>1 %}s{% endif %}
+                              {{ sub.blocks|length }} ressource{% if sub.blocks|length>1 %}s{% endif %}
                               {% if sub.dureeMinutes %} • {{ sub.dureeMinutes }} min{% endif %}
                             </div>
                           </span>
@@ -715,7 +717,7 @@
 
 
     {# CONTENT #}
-    <div class="col-12 col-lg-8">
+    <div class="col-12 col-lg-8 learning-content">
       <div class="d-grid gap-3">
         {% for n in orderedNodes %}
           {% set isDone = (n.id in completedNodeIds) %}
@@ -725,7 +727,7 @@
               {% if n.dureeMinutes %}<div class="chip"><i class="bi bi-clock"></i> {{ n.dureeMinutes }} min</div>{% endif %}
 
               <div class="ms-auto d-flex align-items-center gap-2">
-                <span class="chip {{ isDone ? '' : '' }}" data-node-status="{{ n.id }}">
+                <span class="visually-hidden" data-node-status="{{ n.id }}">
                   <i class="bi {{ isDone ? 'bi-check2-circle' : 'bi-hourglass-split' }}"></i>
                   {{ isDone ? 'Terminé' : 'En cours' }}
                 </span>
@@ -747,7 +749,7 @@
 
             <div class="px-3 pb-3">
               <h4 class="node-title mb-1">{{ n.titre }}</h4>
-              <div class="node-sub">{{ n.slug }}</div>
+
             </div>
 
 
@@ -773,18 +775,18 @@
                   <div class="d-flex flex-wrap gap-2 align-items-center">
                     <p class="block-title mb-0">
                       <i class="bi bi-square-fill me-2" style="color: var(--s)"></i>
-                      Bloc {{ loop.index }}
+                      Ressource {{ loop.index }}
                     </p>
 
                     <span class="chip kind">
-                      {% if type == 'richtext' %}<i class="bi bi-text-paragraph"></i> Texte{% endif %}
+                      {% if type in ['richtext','texte'] %}<i class="bi bi-text-paragraph"></i> Texte{% endif %}
                       {% if type == 'image' %}<i class="bi bi-image"></i> Image{% endif %}
                       {% if type == 'video' %}<i class="bi bi-play-btn"></i> Vidéo{% endif %}
-                      {% if type == 'file' %}<i class="bi bi-paperclip"></i> Fichier{% endif %}
+                      {% if type in ['file','fichier'] %}<i class="bi bi-paperclip"></i> Fichier{% endif %}
                       {% if type == 'code' %}<i class="bi bi-braces"></i> Code{% endif %}
                       {% if type == 'checklist' %}<i class="bi bi-list-check"></i> Checklist{% endif %}
                       {% if type == 'quiz' %}<i class="bi bi-patch-question"></i> Quiz{% endif %}
-                      <span class="ms-1 text-lowercase">{{ type }}</span>
+
                     </span>
 
                     {% if b.isRequired %}
@@ -1392,4 +1394,5 @@ document.addEventListener('click', async (e) => {
 </script>
 
 
+</div>
 {% endblock %}
