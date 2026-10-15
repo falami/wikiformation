@@ -60,6 +60,48 @@ final class TrainerProfileTest extends \Symfony\Bundle\FrameworkBundle\Test\WebT
         }
     }
 
+    public function testCvUploadIsPrivateAndRejectsStaleChanges(): void
+    {
+        $this->client->loginUser($this->user);$url='/fr/formateur/'.$this->entite->getId().'/cv';
+        $page=$this->client->request('GET',$url);$token=$page->filter('input[name="_token"]')->first()->attr('value');
+        $tmp=tempnam(sys_get_temp_dir(),'cv');file_put_contents($tmp,"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF");
+        $file=new \Symfony\Component\HttpFoundation\File\UploadedFile($tmp,'mon-cv.pdf','application/pdf',null,true);
+        $this->client->request('POST',$url,['_token'=>$token,'version'=>1,'action'=>'upload'],['cvFile'=>$file]);self::assertResponseRedirects();
+        $cv=$this->em->getRepository(\App\Entity\TrainerCv::class)->findOneBy(['formateur'=>$this->trainer]);self::assertNotNull($cv->filename);self::assertNull($cv->published);
+        try {
+            $this->client->request('GET','/fr/formateur/'.$this->entite->getId().'/'.$this->trainer->getId().'/cv/fichier');self::assertResponseIsSuccessful();self::assertStringContainsString('private',$this->client->getResponse()->headers->get('Cache-Control'));
+            $this->client->request('POST',$url,['_token'=>$token,'version'=>999,'action'=>'save','cv'=>['headline'=>'Wrong']]);self::assertResponseStatusCodeSame(409);
+        } finally { @unlink(self::getContainer()->getParameter('kernel.project_dir').'/var/storage/trainer-cv/'.$cv->filename); }
+    }
+
+    public function testCvDraftPublicationAndPrivateDocuments(): void
+    {
+        $this->client->loginUser($this->user);
+        $url='/fr/formateur/'.$this->entite->getId().'/cv';
+        $page=$this->client->request('GET',$url);self::assertResponseIsSuccessful();
+        $token=$page->filter('input[name="_token"]')->first()->attr('value');
+        $content=['headline'=>'Formateur en outils collaboratifs','summary'=>'Accompagner les équipes dans leur progression.','experience'=>"2020 — Aujourd’hui\nFormateur indépendant\nConception et animation de parcours en bureautique.",'education'=>'Certification professionnelle de formateur','skills'=>"Excel\nGoogle Sheets",'languages'=>'Français','methods'=>'Une pédagogie concrète, fondée sur la pratique.'];
+        $this->client->request('POST',$url,['_token'=>$token,'version'=>1,'action'=>'publish','cv'=>$content]);self::assertResponseRedirects();
+        $cv=$this->em->getRepository(\App\Entity\TrainerCv::class)->findOneBy(['formateur'=>$this->trainer]);self::assertSame($content['summary'],$cv->published['summary']);
+        $content['summary']='Brouillon privé';
+        $this->client->request('POST',$url,['_token'=>$token,'version'=>$cv->version,'action'=>'save','cv'=>$content]);self::assertResponseRedirects();
+        $cv=$this->em->getRepository(\App\Entity\TrainerCv::class)->findOneBy(['formateur'=>$this->trainer]);self::assertNotSame($cv->content['summary'],$cv->published['summary']);
+        $this->client->request('GET','/fr/administrateur/'.$this->entite->getId().'/formateur/'.$this->trainer->getId().'/cv');self::assertResponseIsSuccessful();self::assertSelectorTextContains('.resume-main','Brouillon privé');
+        $this->user=$this->em->find(Utilisateur::class,$this->user->getId());
+        $this->entite=$this->em->find(Entite::class,$this->entite->getId());
+        $other=(new Entite())->setNom('Other')->setPublic(false)->setCreateur($this->user);$this->em->persist($other);$this->em->flush();
+        $this->client->request('GET','/fr/administrateur/'.$other->getId().'/formateur/'.$this->trainer->getId().'/cv');self::assertResponseStatusCodeSame(404);
+        $learnerUrl='/fr/stagiaire/'.$this->entite->getId().'/session/'.$this->session->getId().'/formateur/'.$this->trainer->getId().'/cv';
+        $this->client->request('GET',$learnerUrl);self::assertResponseStatusCodeSame(403);
+        $this->user=$this->em->find(Utilisateur::class,$this->user->getId());$this->entite=$this->em->find(Entite::class,$this->entite->getId());$this->session=$this->em->find(Session::class,$this->session->getId());
+        $ins=(new Inscription())->setSession($this->session)->setStagiaire($this->user)->setEntite($this->entite)->setCreateur($this->user);$this->em->persist($ins);$this->em->flush();
+        $this->client->request('GET',$learnerUrl);self::assertResponseIsSuccessful();self::assertSelectorTextNotContains('.resume-main','Brouillon privé');self::assertSelectorNotExists('.tp-file');
+        if(getenv('CV_QA_HTML')) file_put_contents(getenv('CV_QA_HTML'),$this->client->getResponse()->getContent());
+        $this->client->request('POST',$url,['_token'=>'bad','version'=>$cv->version,'action'=>'unpublish']);self::assertResponseStatusCodeSame(403);
+        $this->client->request('POST',$url,['_token'=>$token,'version'=>$cv->version,'action'=>'unpublish']);self::assertResponseRedirects();
+        $this->client->request('GET',$learnerUrl);self::assertResponseStatusCodeSame(404);
+    }
+
     public function testCatalogueRatingsUseSubmittedSpecificScores(): void
     {
         $course = (new \App\Entity\Formation())->setTitre('Excel')->setSlug('excel')->setEntite($this->entite)->setCreateur($this->user);
