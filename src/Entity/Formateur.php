@@ -12,6 +12,16 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: FormateurRepository::class)]
 class Formateur
 {
+    #[ORM\Column(options: ['default' => false])]
+    private bool $sansContratRemuneration = false;
+
+    public function isSansContratRemuneration(): bool { return $this->sansContratRemuneration; }
+    public function setSansContratRemuneration(bool $value): static
+    {
+        $this->sansContratRemuneration = $value;
+        return $this;
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

@@ -40,8 +40,10 @@ final class SessionFinancialSummary
             $amounts['EUR'] = ['ht' => $ht, 'tax' => (int) round($ht * $session->getTauxTvaEffectif() / 100)];
             $estimated = true;
         }
+        $responsibleOnly = $session->isFormationAssureeParResponsable();
         $cost = 0; $trainerCount = 0; $covered = [];
         foreach ($contracts as $contract) {
+            if ($responsibleOnly) continue;
             if ($contract->getEntite() !== $session->getEntite() || $contract->getSession() !== $session
                 || $contract->getStatus() === ContratFormateurStatus::RESILIE) continue;
             $cost += $contract->getMontantPrevuCents() + $contract->getFraisMissionCents();
@@ -49,12 +51,12 @@ final class SessionFinancialSummary
             if ($contract->getFormateur()) $covered[spl_object_id($contract->getFormateur())] = true;
         }
         $missing = 0;
-        foreach ($session->getFormateursEffectifs() as $trainer) if (!isset($covered[spl_object_id($trainer)])) ++$missing;
+        foreach ($session->getFormateursEffectifs() as $trainer) if (!$responsibleOnly && (!isset($covered[spl_object_id($trainer)]))) ++$missing;
         ksort($amounts);
         $base = $session->getMontantGlobalCents() ?? $session->getTarifEffectifCents();
         $tax = (int) round($base * $session->getTauxTvaEffectif() / 100);
         return ['global' => $session->getMontantGlobalCents() !== null, 'sessionHt' => $base, 'sessionRate' => $session->getTauxTvaEffectif(), 'sessionTax' => $tax, 'sessionTtc' => $base + $tax, 'amounts' => $amounts, 'estimated' => $estimated, 'conventions' => $count, 'trainerCost' => $cost,
-            'contracts' => $trainerCount, 'missingTrainers' => $missing,
+            'responsibleOnly' => $responsibleOnly, 'contracts' => $trainerCount, 'missingTrainers' => $missing,
             'remaining' => count($amounts) === 1 && isset($amounts['EUR']) && $trainerCount > 0 && $missing === 0 ? $amounts['EUR']['ht'] - $cost : null];
     }
 }

@@ -122,6 +122,11 @@ class FormateurType extends AbstractType
                 'attr'  => ['class' => 'form-control', 'placeholder' => 'FR00000000000'],
                 'required' => false,
             ])
+            ->add('sansContratRemuneration', CheckboxType::class, [
+                'required' => false,
+                'label' => 'Intervient sans contrat ni rémunération formateur',
+                'help' => 'À activer pour le dirigeant qui réalise lui-même la formation. Lorsqu’il est le seul intervenant, le registre des sessions ne demande pas de contrat formateur et ne déduit pas de rémunération. Les contrats existants sont conservés.',
+            ])
             ->add('modeRemuneration', ChoiceType::class, [
                 'label' => 'Mode de rémunération',
                 'required' => false,

@@ -720,6 +720,13 @@ class Session
         return array_values($formateurs);
     }
 
+    /** Explicit exemption: never infer this from organisation membership. */
+    public function isFormationAssureeParResponsable(): bool
+    {
+        $trainers = $this->getFormateursEffectifs();
+        return count($trainers) === 1 && $trainers[0]->isSansContratRemuneration();
+    }
+
     public function hasFormateur(Formateur $formateur): bool
     {
         foreach ($this->getFormateursEffectifs() as $f) {

@@ -864,7 +864,10 @@ final class SessionController extends AbstractController
 
 
                 // Contrat formateur
-                if (!$s->getFormateur() && !$cfUploaded && $ctTotal === 0) {
+                $responsibleOnly = $s->isFormationAssureeParResponsable();
+                if ($responsibleOnly) {
+                    $contratLine = '';
+                } elseif (!$s->getFormateur() && !$cfUploaded && $ctTotal === 0) {
                     $contratLine = $line(
                         '<i class="bi bi-person-badge me-1"></i> Contrat formateur',
                         $badge('bg-warning-subtle text-warning', 'Formateur manquant')
@@ -1019,7 +1022,7 @@ final class SessionController extends AbstractController
                 $missing = [];
                 if ($hasPiecesRules && $insTotal > 0 && $dosMissing > 0) $missing[] = "Dossiers: $dosWith/$insTotal";
                 if ($s->getFormateur()) {
-                    if (!$cfUploaded) { // ✅ si scan déposé, on ne met pas “manquant”
+                    if (!$responsibleOnly && !$cfUploaded) { // ✅ si scan déposé, on ne met pas “manquant”
                         if ($ctTotal <= 0) $missing[] = "Contrat formateur: absent";
                         elseif ($ctSigned < $ctTotal) $missing[] = "Contrat(s): $ctSigned/$ctTotal";
                     }
@@ -1050,7 +1053,7 @@ final class SessionController extends AbstractController
                 $reportLines = '';
                 if ($s->isSousTraitance()) {
                     $missing = [];
-                    if (!$cfUploaded && ($ctTotal === 0 || $ctSigned < $ctTotal)) {
+                    if (!$responsibleOnly && !$cfUploaded && ($ctTotal === 0 || $ctSigned < $ctTotal)) {
                         $missing[] = 'Contrat formateur signé';
                     }
                     $piecesLine = $conventionsLine = $factLine = '';

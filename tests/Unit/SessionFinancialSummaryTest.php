@@ -6,6 +6,24 @@ use App\Service\Session\SessionFinancialSummary;
 use PHPUnit\Framework\TestCase;
 final class SessionFinancialSummaryTest extends TestCase
 {
+    public function testResponsibleTeachingAloneDoesNotRequireContractOrDeduction(): void
+    {
+        $entity = new Entite();
+        $user = (new Utilisateur())->setEntite($entity);
+        $trainer = (new Formateur())->setUtilisateur($user)->setSansContratRemuneration(true);
+        $session = (new Session())->setEntite($entity)->setFormateur($trainer);
+        $calculator = new SessionFinancialSummary();
+        $result = $calculator->calculate($session, [], [$this->contract($session, $trainer, 25000)]);
+        self::assertTrue($session->isFormationAssureeParResponsable());
+        self::assertTrue($result['responsibleOnly']);
+        self::assertSame(0, $result['trainerCost']);
+        self::assertSame(0, $result['missingTrainers']);
+        $trainer->setSansContratRemuneration(false); // Same organisation, but ordinary paid trainer.
+        $result = $calculator->calculate($session, [], []);
+        self::assertFalse($result['responsibleOnly']);
+        self::assertSame(1, $result['missingTrainers']);
+    }
+
     public function testSessionVatOverridesFormationAndSupportsExemption(): void
     {
         $session = (new Session())->setMontantCents(83200);
