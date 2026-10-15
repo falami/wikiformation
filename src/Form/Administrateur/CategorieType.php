@@ -8,6 +8,9 @@ use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\{FileType, TextType, CheckboxType};
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Image;
 
@@ -26,6 +29,8 @@ final class CategorieType extends AbstractType
       ])
       ->add('slug', TextType::class, [
         'label' => 'Slug',
+        'required' => false,
+        'empty_data' => '',
         'help' => 'Unique par entité (ex: bureautique, excel, word)',
       ])
       ->add('parent', EntityType::class, [
@@ -69,7 +74,16 @@ final class CategorieType extends AbstractType
         'required' => false,
         'label' => 'Afficher sur la page d’accueil',
         'help' => 'Si désactivé, la catégorie n’apparaîtra pas dans la galerie de la page d’accueil.',
-      ]);;
+      ]);
+
+    $b->addEventListener(FormEvents::PRE_SUBMIT, static function (FormEvent $event): void {
+      $data = $event->getData();
+      if (!is_array($data)) return;
+      if (is_string($data['nom'] ?? null) && (!isset($data['slug']) || $data['slug'] === null || (is_string($data['slug']) && trim($data['slug']) === ''))) {
+        $data['slug'] = substr((string) (new AsciiSlugger('fr'))->slug($data['nom'])->lower(), 0, 140);
+        $event->setData($data);
+      }
+    });
   }
 
   public function configureOptions(OptionsResolver $r): void

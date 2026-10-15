@@ -5,7 +5,20 @@
 {% block stylesheets %}
   {{ parent() }}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
   <style>
+    .quote-period .dropdown-menu { border-radius:18px; border:1px solid #e1e7ee; box-shadow:0 18px 45px #23334220; }
+    .quote-calendar { border-radius:16px; box-shadow:0 12px 35px #23334226; border:1px solid #e1e7ee; padding:10px; width:328px; }
+    .quote-calendar .flatpickr-months { padding:8px 0 14px; color:#233342; }
+    .quote-calendar .flatpickr-day.selected,.quote-calendar .flatpickr-day.selected:hover { background:#233342; border-color:#233342; color:white; }
+    .quote-calendar .flatpickr-day.today { border-color:#d9aa31; }
+    .quote-calendar .flatpickr-day:hover { background:#fff4cf; border-color:#fff4cf; }
+    .quote-calendar .flatpickr-weekday { color:#748397; }
+    .quote-period .flatpickr-wrapper { display:block; width:100%; }
+    .quote-period .quote-calendar.open { position:relative; top:auto; left:auto; margin:8px 0 16px; box-shadow:none; max-width:100%; }
+    .quote-period .quote-calendar:before,.quote-period .quote-calendar:after { display:none; }
+    .quote-period .dropdown-menu { min-width:360px !important; max-width:calc(100vw - 24px); }
+    .quote-period .flatpickr-input[readonly] { background:white; cursor:pointer; }
     .devis-status-select { min-width:190px; }
     .devis-status-select .ts-control { border-radius:12px; padding:.55rem .8rem; }
     #tableauDevis_wrapper .devis-training-column { min-width:220px; max-width:360px; white-space:pre-line; font-weight:600; }
@@ -329,6 +342,7 @@ body .devis-floating-dropdown{
 
 {% block javascripts %}
   {{ parent() }}
+  <script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}"></script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
@@ -460,8 +474,8 @@ body .devis-floating-dropdown{
           <div class="dropdown quote-period">
             <button type="button" class="btn wf-filter-toggle dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"><i class="bi bi-calendar3 me-2"></i>{{ label }} <span class="period-count">Tout</span></button>
             <div class="dropdown-menu p-3" style="min-width:280px">
-              <label class="form-label small" for="{{ prefix }}From">À partir du</label><input class="form-control quote-filter mb-3" type="date" id="{{ prefix }}From" name="{{ prefix }}From">
-              <label class="form-label small" for="{{ prefix }}To">Jusqu’au</label><input class="form-control quote-filter" type="date" id="{{ prefix }}To" name="{{ prefix }}To">
+              <label class="form-label small" for="{{ prefix }}From">À partir du</label><input class="form-control quote-filter mb-3" type="date" data-quote-date id="{{ prefix }}From" name="{{ prefix }}From">
+              <label class="form-label small" for="{{ prefix }}To">Jusqu’au</label><input class="form-control quote-filter" type="date" data-quote-date id="{{ prefix }}To" name="{{ prefix }}To">
             </div>
           </div>
         {% endfor %}
@@ -849,6 +863,32 @@ $(function () {
     loadDevisKpis();
   });
 
+
+  const quoteLocale = {
+    weekdays:{shorthand:['dim','lun','mar','mer','jeu','ven','sam'],longhand:['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi']},
+    months:{shorthand:['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'],longhand:['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']},
+    firstDayOfWeek:1,rangeSeparator:' au ',scrollTitle:'Défiler pour augmenter',toggleTitle:'Cliquer pour basculer',yearAriaLabel:'Année',monthAriaLabel:'Mois'
+  };
+  if (window.flatpickr) document.querySelectorAll('.quote-period').forEach(period => {
+    const inputs = [...period.querySelectorAll('[data-quote-date]')];
+    const pickers = inputs.map(input => flatpickr(input, {
+      locale:quoteLocale,dateFormat:'Y-m-d',altInput:true,altFormat:'d/m/Y',
+      altInputClass:'form-control mb-3',disableMobile:true,
+      static:true,
+      onReady:(_,__,fp)=>{fp.calendarContainer.classList.add('quote-calendar');fp.altInput.placeholder='Choisir une date';},
+      onChange:()=>syncBounds()
+    }));
+    function syncBounds() {
+      pickers[0].set('maxDate',inputs[1].value || null);
+      pickers[1].set('minDate',inputs[0].value || null);
+    }
+    const clear = document.createElement('button');
+    clear.type='button';clear.className='btn btn-sm btn-outline-secondary rounded-pill mt-2';clear.textContent='Effacer la période';
+    clear.addEventListener('click',()=>{pickers.forEach(fp=>{fp.set('minDate',null);fp.set('maxDate',null);fp.clear(false);});inputs[0].dispatchEvent(new Event('change',{bubbles:true}));});
+    period.querySelector('.dropdown-menu').append(clear);
+    period.addEventListener('hide.bs.dropdown',()=>pickers.forEach(fp=>fp.close()));
+  });
+
   let filterTimer;
   $('.quote-filter').on('input change', function(){
     document.querySelectorAll('.quote-period').forEach(period => { period.querySelector('.period-count').textContent = [...period.querySelectorAll('input')].some(input => input.value) ? 'Période' : 'Tout'; });
@@ -858,6 +898,7 @@ $(function () {
 
   $('#btnReset').on('click', function () {
     clearTimeout(filterTimer);
+    document.querySelectorAll('[data-quote-date]').forEach(input=>{if(input._flatpickr){input._flatpickr.set('minDate',null);input._flatpickr.set('maxDate',null);input._flatpickr.clear(false);}});
     $('.quote-filter').val('');
     $('#recipientChoice, #trainingChoice').val('all');
     $('.period-count').text('Tout');

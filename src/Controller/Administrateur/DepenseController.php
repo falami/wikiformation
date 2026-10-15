@@ -845,6 +845,7 @@ final class DepenseController extends AbstractController
     Request $request,
     EM $em,
     DepenseBankImportParser $parser,
+    \App\Service\Depense\ExpenseImportRules $importRules,
     DepenseCategorieRepository $catRepo,
     DepenseFournisseurRepository $fourRepo,
     UtilisateurRepository $userRepo,
@@ -900,6 +901,8 @@ final class DepenseController extends AbstractController
         'raw' => $r['raw'],
       ];
     }
+
+    $proposals = $importRules->apply($entite, $proposals);
 
     // Détection doublons (même date + même TTC)
     $dupMap = $this->buildDuplicateMap($em, $entite, $proposals);
@@ -1011,11 +1014,9 @@ final class DepenseController extends AbstractController
         ->setMontantTvaCents($tvaCents)
         ->setMontantTtcCents($ttcCents);
 
-      // clamp logique identique à ta recalcDepense()
+      // Preserve a configured zero percentage on deductible expenses.
       if (!$d->isTvaDeductible()) {
         $d->setTvaDeductiblePct(0);
-      } elseif ($d->getTvaDeductiblePct() <= 0) {
-        $d->setTvaDeductiblePct(100);
       }
 
       // relations

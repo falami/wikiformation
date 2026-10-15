@@ -180,13 +180,21 @@ final class BpfPrefill
         }
         $expenses = ['d_total' => 0, 'd_salary' => 0, 'd_purchase' => 0];
         foreach ($periodRecords(Depense::class, 'dateDepense') as $expense) {
+            // Explicit application policy: reuse the expense's Déd. flag for BPF inclusion.
+            if (!$expense->isTvaDeductible()) {
+                $evidence[] = ['kind' => 'Dépense', 'label' => '#'.$expense->getId().' · '.$expense->getLibelle(), 'detail' => 'Exclue du calcul BPF : Déd. = Non · 0 € retenu'];
+                continue;
+            }
             $key = $expense->getCategorie() ? 'rule_expense_category_'.$expense->getCategorie()->getId() : 'rule_expense_'.$expense->getId();
             $bucket = $rule($key, 'Charges · '.($expense->getCategorie()?->getLibelle() ?? $expense->getLibelle()), ['Salaires formateurs (6411)' => 'd_salary', 'Achats / honoraires de formation (604 / 6226)' => 'd_purchase', 'Autres charges de formation' => 'd_total', 'Hors formation / investissement : exclure' => 'exclude']);
             if ($bucket === 'exclude') continue;
             if (!$bucket || $expense->getDevise() !== 'EUR') { $incomplete['d'] = true; $issues[] = 'Dépense #'.$expense->getId().' : catégorie BPF ou conversion en euros à préciser pour D.'; continue; }
-            $expenses['d_total'] += $expense->getMontantHtCents();
-            if ($bucket !== 'd_total') $expenses[$bucket] += $expense->getMontantHtCents();
-            $evidence[] = ['kind' => 'Dépense', 'label' => '#'.$expense->getId().' · '.$expense->getLibelle(), 'detail' => number_format($expense->getMontantHtCents()/100,2,',',' ').' € HT · '.$bucket];
+            // The existing mixed-use percentage is also the allocation requested for BPF.
+            $percentage = max(0.0, min(100.0, $expense->getTvaDeductiblePct()));
+            $allocatedHt = (int) round($expense->getMontantHtCents() * $percentage / 100);
+            $expenses['d_total'] += $allocatedHt;
+            if ($bucket !== 'd_total') $expenses[$bucket] += $allocatedHt;
+            $evidence[] = ['kind' => 'Dépense', 'label' => '#'.$expense->getId().' · '.$expense->getLibelle(), 'detail' => number_format($expense->getMontantHtCents()/100,2,',',' ').' € HT × '.number_format($percentage,2,',',' ').' % = '.number_format($allocatedHt/100,2,',',' ').' € HT retenus · '.$bucket];
         }
         foreach ($expenses as $key => $cents) $data[$key] = (int) round($cents / 100);
         // Preserve the official equality F1 = F3 = F4 when fractional hours are

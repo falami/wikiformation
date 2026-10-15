@@ -1,7 +1,7 @@
 (() => {
-  const tables = ['tblUnsigned', 'tblAppreciations'];
+  const tables = ['tblUnsigned', 'tblAppreciations', 'tblTrainerCompliance'];
   let busy = false;
-  const visible = table => [...table.querySelectorAll('[data-reminder-row]')].filter(box => box.closest('tr').getClientRects().length);
+  const visible = table => [...table.querySelectorAll('[data-reminder-row]')].filter(box => !box.disabled && box.closest('tr').getClientRects().length);
   function refresh() {
     tables.forEach(id => {
       const table = document.getElementById(id);
@@ -39,6 +39,15 @@
         sent += result.sent; skipped += result.skipped; failed += result.failed;
         Object.values(result.messages || {}).flat().forEach(message => details.add(message));
         if (!result.failed) box.checked = false;
+        if (id === 'tblTrainerCompliance') {
+          box.checked = false;
+          box.disabled = true;
+          form.querySelector('button').disabled = true;
+          const note = document.createElement('small');
+          note.className = 'd-block text-muted';
+          note.textContent = result.sent ? 'Relance transmise' : (result.failed ? 'Envoi à vérifier avant toute nouvelle relance' : 'Relance indisponible');
+          form.append(note);
+        }
       } catch (_) { failed++; }
     }
     status.textContent = `${sent} mail(s) confié(s) au service d’envoi · ${skipped} relance(s) ignorée(s) · ${failed} échec(s).`;

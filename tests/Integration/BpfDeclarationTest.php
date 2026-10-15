@@ -208,7 +208,20 @@ final class BpfDeclarationTest extends KernelTestCase
         $generator = self::getContainer()->get(\App\Service\Bpf\BpfPrefill::class);
         $start = new \DateTimeImmutable('2025-07-01'); $end = new \DateTimeImmutable('2026-06-30');
         $result = $generator->generate($this->entite, $start, $end, $rules);
-        self::assertSame(0, $result['data']['c_1']); self::assertSame(450, $result['data']['d_purchase']); self::assertSame(450, $result['data']['d_total']);
+        self::assertSame(0, $result['data']['c_1']); self::assertSame(360, $result['data']['d_purchase']); self::assertSame(360, $result['data']['d_total']);
+        foreach ([0 => 0, 50 => 225, 100 => 450] as $pct => $expected) {
+            $expense->setTvaDeductiblePct($pct)->setTvaDeductible(true);
+            $this->em->flush();
+            $allocated = $generator->generate($this->entite, $start, $end, $rules);
+            self::assertSame($expected, $allocated['data']['d_total']);
+            self::assertSame($expected, $allocated['data']['d_purchase']);
+        }
+        $expense->setTvaDeductible(false);
+        $this->em->flush();
+        $excluded = $generator->generate($this->entite, $start, $end, ['rule_invoice_'.$invoice->getId() => 'c_1']);
+        self::assertSame(0, $excluded['data']['d_total']);
+        self::assertSame(0, $excluded['data']['d_purchase']);
+        self::assertStringContainsString('Déd. = Non', implode(' ', array_column($excluded['evidence'], 'detail')));
         $credit->setMontantTtcCents(6000);
         $result = $generator->generate($this->entite, $start, $end, $rules);
         self::assertSame(100, $result['data']['c_1']);

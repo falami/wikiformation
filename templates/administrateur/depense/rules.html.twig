@@ -1,0 +1,60 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Règles d’import des dépenses{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+{% endblock %}
+{% block body %}
+{% set values = submitted|default({}) %}
+<div class="container-fluid py-4">
+  <div class="p-4 mb-4 shadow-sm" style="background:linear-gradient(120deg,#233342,#435460);color:white;border-radius:22px;border-left:6px solid #ffc107">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3"><div><div class="small text-uppercase text-warning mb-2">Dépenses · Automatisation</div><h1 class="h3 fw-bold">Règles de classement à l’import</h1><p class="mb-0">Vos libellés deviennent des dépenses préclassées, prêtes à vérifier.</p></div><a class="btn btn-light rounded-pill" href="{{ path('app_administrateur_depense_import',{entite:entite.id}) }}">Retour à l’import</a></div>
+  </div>
+  {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+  <div class="row g-4"><div class="col-xl-4"><section class="card shadow-sm border-0 rounded-4 p-4">
+    <h2 class="h5 fw-bold mb-3">{{ edit ? 'Modifier la règle' : 'Créer une règle' }}</h2>
+    <form method="post">
+      <input type="hidden" name="_token" value="{{ csrf_token('expense_rules_' ~ entite.id) }}"><input type="hidden" name="id" value="{{ edit.id|default(0) }}">
+      <label class="form-label" for="rule-keyword">Le libellé contient</label><input id="rule-keyword" class="form-control mb-3" name="keyword" maxlength="180" required placeholder="Ex. autoroute" value="{{ values.keyword|default(edit.keyword|default('')) }}">
+      <label class="form-label" for="rule-category">Catégorie</label><div class="d-flex gap-2 align-items-start mb-3"><div class="flex-grow-1" style="min-width:0"><select id="rule-category" class="form-select mb-3" name="category" required><option value="">Choisir une catégorie</option>{% for c in categories %}<option value="{{ c.id }}" {{ values.category|default(edit.category.id|default(0)) == c.id ? 'selected' : '' }}>{{ c.libelle }}</option>{% endfor %}</select></div><button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#choice-category" aria-label="Ajouter une catégorie" title="Ajouter une catégorie"><i class="bi bi-plus-lg"></i></button></div>
+      <label class="form-label" for="rule-supplier">Fournisseur / sous-classement</label><div class="d-flex gap-2 align-items-start mb-3"><div class="flex-grow-1" style="min-width:0"><select id="rule-supplier" class="form-select mb-3" name="supplier" required><option value="">Choisir un fournisseur</option>{% for f in suppliers %}<option value="{{ f.id }}" {{ values.supplier|default(edit.supplier.id|default(0)) == f.id ? 'selected' : '' }}>{{ f.nom }}</option>{% endfor %}</select></div><button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#choice-supplier" aria-label="Ajouter un fournisseur" title="Ajouter un fournisseur"><i class="bi bi-plus-lg"></i></button></div>
+      <div class="row g-3 mb-3"><div class="col-6"><label for="rule-percent" class="form-label">Pourcentage (%)</label><input id="rule-percent" class="form-control" type="number" min="0" max="100" step="0.01" name="percentage" required value="{{ values.percentage|default(edit.percentage|default(80)) }}"></div><div class="col-6"><label for="rule-priority" class="form-label">Priorité</label><input id="rule-priority" class="form-control" type="number" min="0" max="9999" name="priority" required value="{{ values.priority|default(edit.priority|default(100)) }}"></div></div>
+      <div class="form-check form-switch mb-3"><input id="rule-ded" class="form-check-input" type="checkbox" name="deductible" value="1" {{ submitted is defined ? (values.deductible|default(false) ? 'checked' : '') : ((edit ? edit.deductible : true) ? 'checked' : '') }}><label class="form-check-label" for="rule-ded">Déductible</label></div>
+      <div class="form-check form-switch mb-3"><input id="rule-enabled" class="form-check-input" type="checkbox" name="enabled" value="1" {{ submitted is defined ? (values.enabled|default(false) ? 'checked' : '') : ((edit ? edit.enabled : true) ? 'checked' : '') }}><label class="form-check-label" for="rule-enabled">Règle active</label></div>
+      <button class="btn btn-warning w-100 rounded-pill">Enregistrer la règle</button>{% if edit %}<a class="btn btn-link w-100" href="{{ path('app_expense_import_rules',{entite:entite.id}) }}">Annuler la modification</a>{% endif %}
+    </form>
+  </section></div><div class="col-xl-8"><section class="card shadow-sm border-0 rounded-4 overflow-hidden">
+    <div class="p-4 border-bottom"><h2 class="h5 fw-bold">Vos règles <span class="badge bg-light text-dark">{{ rules|length }}</span></h2><p class="small text-muted mb-0">Priorité la plus petite en premier ; à égalité, règle la plus ancienne. La première correspondance gagne. Accents et majuscules sont ignorés. Les dépenses déjà enregistrées restent inchangées.</p></div>
+    <div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Priorité / libellé</th><th>Classement</th><th>Déduction</th><th>Actions</th></tr></thead><tbody>
+    {% for r in rules %}<tr><td class="p-3"><span class="small text-muted">{{ r.priority }} · {{ r.enabled ? 'Active' : 'Désactivée' }}</span><div class="fw-bold">{{ r.keyword }}</div></td><td>{{ r.category.libelle }}<div class="small text-muted">{{ r.supplier.nom }}</div></td><td>{{ r.deductible ? 'Oui' : 'Non' }} · {{ r.percentage }} %</td><td><a class="btn btn-sm btn-outline-dark mb-1" href="{{ path('app_expense_import_rules',{entite:entite.id,edit:r.id}) }}">Modifier</a><form method="post" onsubmit="return confirm('Supprimer cette règle pour les prochains imports ?')"><input type="hidden" name="_token" value="{{ csrf_token('expense_rules_' ~ entite.id) }}"><input type="hidden" name="id" value="{{ r.id }}"><input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger">Supprimer</button></form></td></tr>
+    {% else %}<tr><td colspan="4" class="p-5 text-center text-muted">Créez votre première règle, par exemple « autoroute » → Autoroute / Vinci.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section></div></div>
+</div>
+
+{% for kind,label in {'category':'Nouvelle catégorie','supplier':'Nouveau fournisseur'} %}
+<div class="modal fade" id="choice-{{ kind }}" tabindex="-1" aria-labelledby="choice-title-{{ kind }}" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+<form data-rule-choice data-target="rule-{{ kind }}" action="{{ path('app_expense_rule_choice_create',{entite:entite.id,kind:kind}) }}" method="post">
+<div class="modal-header p-4" style="background:#233342;color:white;border-bottom:3px solid #ffc107"><h2 class="modal-title fs-5" id="choice-title-{{ kind }}">{{ label }}</h2><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+<div class="modal-body p-4"><p class="text-muted small">L’élément sera ajouté à votre organisme et sélectionné dans la règle en cours.</p><input type="hidden" name="_token" value="{{ csrf_token('expense_rules_' ~ entite.id) }}"><label class="form-label" for="choice-name-{{ kind }}">Nom {{ kind == 'category' ? 'de la catégorie' : 'du fournisseur' }}</label><input id="choice-name-{{ kind }}" name="name" class="form-control" maxlength="{{ kind == 'category' ? 120 : 160 }}" required autocomplete="off" placeholder="{{ kind == 'category' ? 'Ex. Autoroute' : 'Ex. Vinci' }}"><div class="alert alert-danger mt-3 d-none" data-choice-error role="alert"></div></div>
+<div class="modal-footer border-0 px-4 pb-4"><button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-warning rounded-pill">Créer et sélectionner</button></div>
+</form></div></div></div>
+{% endfor %}
+{% endblock %}
+{% block javascripts %}{{ parent() }}
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script src="{{ asset('dist/js/expense-rule-choices.js') }}" defer></script>
+<script>document.addEventListener('DOMContentLoaded',()=>{if(window.TomSelect) ['rule-category','rule-supplier'].forEach(id=>new TomSelect('#'+id,{create:false,allowEmptyOption:true}));});</script>
+{% endblock %}

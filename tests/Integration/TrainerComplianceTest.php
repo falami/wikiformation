@@ -50,6 +50,13 @@ final class TrainerComplianceTest extends KernelTestCase
         $db->insert('trainer_reminder_delivery',['entite_id'=>$this->entiteId,'scope_key'=>'manual:'.$key,'sequence_number'=>1,'kind'=>'manual','recipient'=>'trainer@example.test','subject'=>'Test','status'=>'sent','created_at'=>gmdate('Y-m-d H:i:s'),'sent_at'=>gmdate('Y-m-d H:i:s')]);
         self::assertFalse((bool)$service->pending($entite)[$key]['available']);
         self::assertSame('skipped',$service->send($entite,$key));
+        $page=$this->client->request('GET','/fr/administrateur/'.$this->entiteId.'/dashboard');
+        self::assertCount(1,$page->filter('[data-reminder-all="tblTrainerCompliance"]'));
+        $token=$page->filter('#trainer-compliance input[name="_token"]')->first()->attr('value');
+        $this->client->request('POST','/fr/administrateur/'.$this->entiteId.'/dashboard/relance-formateur',['key'=>$key,'_token'=>$token],[],['HTTP_X_REQUESTED_WITH'=>'XMLHttpRequest']);
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertSame(['sent'=>0,'skipped'=>1,'failed'=>0],json_decode($this->client->getResponse()->getContent(),true));
+
         $db->update('trainer_reminder_delivery',['created_at'=>gmdate('Y-m-d H:i:s',time()-90000)],['scope_key'=>'manual:'.$key]);
         self::assertTrue((bool)$service->pending($entite)[$key]['available']);
         $db->update('trainer_reminder_delivery',['status'=>'unknown'],['scope_key'=>'manual:'.$key]);

@@ -19,6 +19,9 @@ final class TrainerComplianceController extends AbstractController
     {
         if (!$this->isCsrfTokenValid('trainer_compliance_'.$entite->getId(),$request->request->getString('_token'))) throw $this->createAccessDeniedException();
         $result=$compliance->send($entite,$request->request->getString('key'));
+        if ($request->isXmlHttpRequest()) {
+            return $this->json(['sent'=>$result==='sent'?1:0,'skipped'=>$result==='skipped'?1:0,'failed'=>$result==='unknown'?1:0]);
+        }
         $this->addFlash($result==='sent'?'success':'warning', match($result) {
             'sent'=>'La relance a été transmise au service de messagerie.',
             'unknown'=>'Envoi non confirmé : vérifiez la messagerie avant de renouveler la relance. Le nouvel envoi est bloqué pour éviter un doublon.',

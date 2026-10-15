@@ -111,6 +111,22 @@
   border-color: var(--theme-color-secondaire);
 }
 
+.category-editor {max-width:1280px;margin:0 auto;padding:16px 0 32px;}
+.category-editor .hero {border-left:6px solid var(--theme-color-secondaire);box-shadow:0 12px 32px #23334214;padding:30px!important;}
+.category-editor .hero h2 {font-weight:800;letter-spacing:-.7px;margin:10px 0!important;}
+.category-editor .card {overflow:hidden;box-shadow:0 8px 28px #23334208!important;border-color:#e3e9ef;}
+.category-editor .card-header {padding:20px 24px;background:linear-gradient(110deg,#f7f9fc,#fffaf0)!important;color:#233342;border-bottom:1px solid #e6ebf1;}
+.category-editor .card-body {padding:26px;}
+.category-editor .form-control,.category-editor .ts-control {box-shadow:none!important;border-color:#dce3eb;border-radius:12px!important;}
+.category-editor .ts-control {padding:15px!important;}
+.category-editor .form-control:focus {border-color:#b88c27;box-shadow:0 0 0 3px #ffc10720!important;}
+.category-editor .soft-box {border:0;padding:0;background:transparent;}
+.category-editor .switch-row {padding:20px;background:#f8fafc;}
+.category-editor .upload-zone {padding:30px;background:#f8fafc;color:#40566b;border-color:#c6d2df;}
+.category-editor .upload-zone.dragover {background:#fff8e4;border-color:#c59622;}
+.category-editor .upload-zone:focus-visible {outline:3px solid #ffc107;outline-offset:3px;}
+.category-editor .btn-gradient {background:#233342;color:white;border-radius:12px;padding:12px 22px;}
+@media(max-width:576px){.category-editor .card-body{padding:18px}.category-editor .hero{padding:22px!important}}
 </style>
 {% endblock %}
 
@@ -121,16 +137,17 @@
 
 {% block body %}
 
+  <div class="category-editor">
   {# HERO #}
   <div class="hero p-4 mb-4">
     <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
       <div>
         <div class="small opacity-75">
           <i class="bi bi-diagram-3 me-2 text-theme-secondaire"></i>
-          Organisation du catalogue
+          CATALOGUE DE FORMATION
         </div>
         <h2 class="mb-1">{{ modeEdition ? 'Modifier' : 'Créer' }} une catégorie</h2>
-        <div class="small opacity-75">Ex : Bureautique → Excel → (formations Excel 1j, 3j, …)</div>
+        <div class="small opacity-75">Organisez vos formations et soignez leur présentation dans votre catalogue.</div>
       </div>
 
       <div class="d-flex gap-2 align-items-center">
@@ -161,7 +178,7 @@
 
         <div class="col-md-6">
           <div class="form-floating">
-            {{ form_widget(form.nom, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Nom'}}) }}
+            {{ form_widget(form.nom, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Nom', 'data-category-name': ''}}) }}
             <label for="{{ form.nom.vars.id }}">*Nom</label>
           </div>
           {{ form_errors(form.nom) }}
@@ -169,8 +186,12 @@
 
         <div class="col-md-6">
           <div class="form-floating">
-            {{ form_widget(form.slug, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Slug'}}) }}
-            <label for="{{ form.slug.vars.id }}">*Slug</label>
+            {{ form_widget(form.slug, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Slug', 'data-category-slug': '', 'maxlength': 140, 'spellcheck': 'false', 'aria-describedby': 'slug-help'}}) }}
+            <label for="{{ form.slug.vars.id }}">Identifiant (slug)</label>
+          </div>
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+            <small id="slug-help" class="text-muted">Généré depuis le nom. Vous pouvez le personnaliser.</small>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" id="regenerate-slug"><i class="bi bi-arrow-clockwise me-1"></i>Depuis le nom</button>
           </div>
           {{ form_errors(form.slug) }}
         </div>
@@ -183,7 +204,7 @@
                   Afficher sur la page d’accueil
                 </div>
                 <div class="desc">
-                  Active ce switch pour afficher cette catégorie dans la galerie “Explorer par matière” sur la home.
+                  Présentez cette catégorie dans la galerie « Explorer par matière » de votre page d’accueil.
                 </div>
 
                 {# Si tu as un help Symfony, tu peux le garder ici #}
@@ -205,13 +226,10 @@
 
 
         <div class="col-12">
-          <div class="form-floating">
-            {# parent déjà stylé via attr dans le FormType #}
-            {{ form_widget(form.parent) }}
-            <label for="{{ form.parent.vars.id }}">Catégorie parente</label>
-          </div>
+          <label class="form-label fw-semibold" for="{{ form.parent.vars.id }}">Catégorie parente</label>
+          {{ form_widget(form.parent) }}
           <div class="form-text">
-            Laisse vide pour une catégorie principale (ex: Bureautique). Mets une parente pour une sous-catégorie (ex: Excel).
+            Aucune pour une catégorie principale, ou choisissez une catégorie pour y rattacher une sous-catégorie.
           </div>
           {{ form_errors(form.parent) }}
         </div>
@@ -228,7 +246,7 @@
     <div class="card-body">
       <label class="form-label fw-semibold">Image</label>
 
-      <div class="upload-zone" id="photo-zone" data-input-id="{{ form.photo.vars.id }}">
+      <div class="upload-zone" id="photo-zone" role="button" tabindex="0" aria-label="Choisir une image de catégorie" data-input-id="{{ form.photo.vars.id }}">
         <i class="fas fa-cloud-upload-alt fa-2x mb-2 d-block"></i>
         <div class="hint">Glissez une image ici ou cliquez pour choisir un fichier</div>
 
@@ -258,18 +276,29 @@
       <i class="fa fa-arrow-left me-1"></i> Retour
     </a>
     <button type="submit" class="btn btn-gradient">
-      <i class="fa fa-check me-1"></i>{{ modeEdition ? 'Modifier' : 'Ajouter & Terminer' }}
+      <i class="fa fa-check me-1"></i>{{ modeEdition ? 'Enregistrer les modifications' : 'Créer la catégorie' }}
     </button>
   </div>
 
   {{ form_end(form) }}
+  </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
+  const name = document.querySelector('[data-category-name]');
+  const slug = document.querySelector('[data-category-slug]');
+  const slugify = value => value.toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 140);
+  let automatic = !slug.value;
+  const generate = () => { slug.value = slugify(name.value); };
+  name.addEventListener('input', () => { if (automatic) generate(); });
+  slug.addEventListener('input', () => { automatic = !slug.value; });
+  document.getElementById('regenerate-slug').addEventListener('click', () => { automatic = true; generate(); slug.focus(); });
+  if (automatic) generate();
+
   // TomSelect
   document.querySelectorAll('select.js-ts').forEach((sel) => {
-    if (sel.tomselect) return;
+    if (sel.tomselect || typeof TomSelect === 'undefined') return;
     new TomSelect(sel, {
       create:false,
       allowEmptyOption:true,
@@ -295,9 +324,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     zone.addEventListener('click', (e) => {
-      if (e.target.closest('button')) return;
+      if (e.target === input || e.target.closest('button')) return;
       openPicker();
     });
+
+    zone.addEventListener('keydown', e => { if (e.target === zone && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPicker(); } });
 
     input?.addEventListener('change', (e) => {
       const files = e.target.files;
