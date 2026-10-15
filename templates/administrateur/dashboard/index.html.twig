@@ -1345,6 +1345,26 @@
     </div>
   </section>
 
+  <section class="table-pro mb-4" id="pending-appreciations">
+  <div class="table-pro__head"><h3 class="table-pro__title"><i class="bi bi-chat-square-heart"></i> Appréciations à compléter <span class="table-pro__count">{{ pendingAppreciations|length > 300 ? '300+' : pendingAppreciations|length }}</span></h3>
+  <input class="form-control form-control-sm" style="max-width:260px" placeholder="Rechercher un stagiaire…" aria-label="Rechercher une appréciation" data-plain-search="#tblAppreciations"></div>
+  <p class="text-muted small px-3 mt-3">Sessions achevées, hors sous-traitance et annulations. Les questionnaires non commencés ou non soumis sont inclus ; les inscriptions annulées et absences sont exclues.</p>
+  <div class="px-3 pb-3"><button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblAppreciations" disabled>Relancer la sélection (0)</button><span class="small ms-3" data-reminder-feedback="tblAppreciations" role="status"></span><span class="small text-muted ms-3">La case d’en-tête sélectionne les lignes affichées.</span></div><div class="table-responsive"><table class="table table-pro__table" id="tblAppreciations"><thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblAppreciations" aria-label="Sélectionner les appréciations affichées"></th><th>Session</th><th>Formation</th><th>Stagiaire</th><th>État</th><th>Action</th></tr></thead><tbody>
+  {% for ins in pendingAppreciations|slice(0,300) %}
+  <tr><td>{% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}<input type="checkbox" class="form-check-input" data-reminder-row aria-label="Sélectionner {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}">{% endif %}</td><td><a href="{{ path('app_administrateur_session_show',{entite:entite.id,id:ins.session.id}) }}">{{ ins.session.code }}</a></td><td>{{ ins.session.formation.titre|default('—') }}</td><td>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}<div class="small text-muted">{{ ins.stagiaire.email }}</div></td>
+  <td><span class="badge-pro badge-pro--warn">Non renseignée / non soumise</span></td><td>
+  {% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}
+  <form method="post" action="{{ path('app_administrateur_session_attendance_reminder',{entite:entite.id,id:ins.session.id}) }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('attendance_reminder_' ~ ins.session.id) }}"><input type="hidden" name="inscription" value="{{ ins.id }}"><input type="hidden" name="kind" value="satisfaction"><input type="hidden" name="return" value="dashboard">
+    <button class="btn btn-sm btn-outline-dark rounded-pill"><i class="bi bi-envelope"></i> Relancer</button>
+  </form>
+  {% else %}<span class="small text-muted">Ouvrir la session</span>{% endif %}
+  </td></tr>
+  {% else %}<tr><td colspan="6" class="text-center text-muted p-4">Aucune appréciation en attente sur les sessions concernées.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if pendingAppreciations|length > 300 %}<p class="small text-muted px-3">Affichage limité aux 300 premières inscriptions en attente.</p>{% endif %}
+</section>
+
   {# ================= VUE DIRECTION ================= #}
   <section class="of-section">
     <div class="of-section-head">
@@ -1608,25 +1628,7 @@
   
 
 
-<section class="table-pro mb-4" id="pending-appreciations">
-  <div class="table-pro__head"><h3 class="table-pro__title"><i class="bi bi-chat-square-heart"></i> Appréciations à compléter <span class="table-pro__count">{{ pendingAppreciations|length > 300 ? '300+' : pendingAppreciations|length }}</span></h3>
-  <input class="form-control form-control-sm" style="max-width:260px" placeholder="Rechercher un stagiaire…" aria-label="Rechercher une appréciation" data-plain-search="#tblAppreciations"></div>
-  <p class="text-muted small px-3 mt-3">Sessions achevées, hors sous-traitance et annulations. Les questionnaires non commencés ou non soumis sont inclus ; les inscriptions annulées et absences sont exclues.</p>
-  <div class="px-3 pb-3"><button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblAppreciations" disabled>Relancer la sélection (0)</button><span class="small ms-3" data-reminder-feedback="tblAppreciations" role="status"></span><span class="small text-muted ms-3">La case d’en-tête sélectionne les lignes affichées.</span></div><div class="table-responsive"><table class="table table-pro__table" id="tblAppreciations"><thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblAppreciations" aria-label="Sélectionner les appréciations affichées"></th><th>Session</th><th>Formation</th><th>Stagiaire</th><th>État</th><th>Action</th></tr></thead><tbody>
-  {% for ins in pendingAppreciations|slice(0,300) %}
-  <tr><td>{% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}<input type="checkbox" class="form-check-input" data-reminder-row aria-label="Sélectionner {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}">{% endif %}</td><td><a href="{{ path('app_administrateur_session_show',{entite:entite.id,id:ins.session.id}) }}">{{ ins.session.code }}</a></td><td>{{ ins.session.formation.titre|default('—') }}</td><td>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}<div class="small text-muted">{{ ins.stagiaire.email }}</div></td>
-  <td><span class="badge-pro badge-pro--warn">Non renseignée / non soumise</span></td><td>
-  {% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}
-  <form method="post" action="{{ path('app_administrateur_session_attendance_reminder',{entite:entite.id,id:ins.session.id}) }}">
-    <input type="hidden" name="_token" value="{{ csrf_token('attendance_reminder_' ~ ins.session.id) }}"><input type="hidden" name="inscription" value="{{ ins.id }}"><input type="hidden" name="kind" value="satisfaction"><input type="hidden" name="return" value="dashboard">
-    <button class="btn btn-sm btn-outline-dark rounded-pill"><i class="bi bi-envelope"></i> Relancer</button>
-  </form>
-  {% else %}<span class="small text-muted">Ouvrir la session</span>{% endif %}
-  </td></tr>
-  {% else %}<tr><td colspan="6" class="text-center text-muted p-4">Aucune appréciation en attente sur les sessions concernées.</td></tr>{% endfor %}
-  </tbody></table></div>
-  {% if pendingAppreciations|length > 300 %}<p class="small text-muted px-3">Affichage limité aux 300 premières inscriptions en attente.</p>{% endif %}
-</section>
+
 </div>
 
 <script>
