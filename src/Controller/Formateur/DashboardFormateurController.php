@@ -105,7 +105,7 @@ class DashboardFormateurController extends AbstractController
      * DASHBOARD
      * ========================================================= */
     #[Route('/dashboard', name: 'dashboard', methods: ['GET'])]
-    public function dashboard(Entite $entite, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle): Response
+    public function dashboard(Entite $entite, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\TrainerCharter\CharterManager $charters): Response
     {
     $lifecycle->synchronize($entite);
         /** @var Utilisateur $user */
@@ -343,6 +343,7 @@ class DashboardFormateurController extends AbstractController
             'utilisateurEntite' => $utilisateurEntite,
             'nextSession'       => $nextSession,
             'pendingSessions' => $pendingSessions,
+            'pendingCharters' => $formateur ? $charters->pending($entite,$formateur) : [],
             'pendingContracts' => $formateur
                 ? $em->getRepository(ContratFormateur::class)->findAwaitingTrainerSignature($entite, $formateur)
                 : [],
