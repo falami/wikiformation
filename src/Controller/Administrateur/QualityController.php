@@ -56,20 +56,25 @@ final class QualityController extends AbstractController
             $this->addFlash('warning', 'Sélectionnez les lignes affichées et confirmez leurs présences complètes d’après les feuilles papier.');
             return $this->redirectToRoute('app_administrateur_quality_index', ['entite' => $entite->getId(), '_fragment' => 'sessions']);
         }
-        $changed = 0; $skipped = [];
+        $changed = 0; $missing = []; $tooLong = []; $alreadyComplete = 0;
         foreach ($ids as $id) {
             $ins = $em->getRepository(\App\Entity\Inscription::class)->findOneBy(['id' => $id, 'entite' => $entite]);
             if (!$ins || $ins->getSession()->getEntite()->getId() !== $entite->getId()) throw $this->createNotFoundException();
+            $online = $attendance->online($ins); $manual = $ins->getPresencesManuelles();
+            $pending = array_filter($attendance->periods($ins), static fn($period, $key) =>
+                !isset($online[$key]) && ($manual[$key]['status'] ?? 'unknown') === 'unknown', ARRAY_FILTER_USE_BOTH);
+            if (!$pending) { ++$alreadyComplete; continue; }
+            $label = $ins->getSession()->getCode().' · inscription #'.$id;
             $pieces = $em->getRepository(\App\Entity\SessionPiece::class)->findBy([
                 'session' => $ins->getSession(), 'entite' => $entite, 'type' => \App\Enum\SessionPieceType::EMARGEMENT_SIGNE,
             ], ['uploadedAt' => 'ASC']);
-            if (!$pieces) { $skipped[] = '#'.$id; continue; }
+            if (!$pieces) { $missing[] = $label; continue; }
             $references = [];
             foreach ($pieces as $piece) {
                 $references[] = 'pièce #'.$piece->getId().' déposée le '.$piece->getUploadedAt()->format('d/m/Y à H:i');
             }
             $reference = 'Émargements papier : '.implode(' ; ', $references);
-            if (mb_strlen($reference) > 500) { $skipped[] = '#'.$id; continue; }
+            if (mb_strlen($reference) > 500) { $tooLong[] = $label; continue; }
             $online = $attendance->online($ins); $manual = $ins->getPresencesManuelles();
             foreach ($attendance->periods($ins) as $key => $period) {
                 if (isset($online[$key]) || ($manual[$key]['status'] ?? 'unknown') !== 'unknown') continue;
@@ -79,8 +84,10 @@ final class QualityController extends AbstractController
             $attendance->computeForInscription($ins);
         }
         $em->flush();
-        $this->addFlash('success', $changed.' demi-journée(s) renseignée(s) comme présentes. Les présences et absences déjà saisies sont conservées.');
-        if ($skipped) $this->addFlash('warning', 'Inscriptions non modifiées (justificatif papier absent ou références trop nombreuses) : '.implode(', ', $skipped).'. Ouvrez ces dossiers pour les compléter.');
+        $this->addFlash($changed ? 'success' : 'info', $changed.' demi-journée(s) renseignée(s) comme présentes. Les présences et absences déjà saisies sont conservées.');
+        if ($alreadyComplete) $this->addFlash('info', $alreadyComplete.' inscription(s) ont déjà toutes leurs présences renseignées. Aucune modification nécessaire.');
+        if ($missing) $this->addFlash('warning', 'Aucun document de type « Émargements signés » trouvé dans la session pour : '.implode(' ; ', $missing).'. Déposez la feuille dans les documents de la session ou vérifiez sa catégorie, puis relancez la saisie groupée.');
+        if ($tooLong) $this->addFlash('warning', 'Les références des feuilles dépassent 500 caractères pour : '.implode(' ; ', $tooLong).'. Renseignez une référence plus courte dans le dossier de chaque inscription.');
         return $this->redirectToRoute('app_administrateur_quality_index', ['entite' => $entite->getId(), '_fragment' => 'sessions']);
     }
     #[Route('/export.json', name: 'export', methods: ['GET'])]

@@ -324,6 +324,10 @@ final class QualityReadinessTest extends KernelTestCase
         self::assertSame('paper', $manual['2025-09-10:PM']['status']);
         self::assertStringContainsString('15/09/2025 à 10:00', $manual['2025-09-10:PM']['reference']);
         self::assertSame([], $this->em->find(\App\Entity\Inscription::class, $ids[1])->getPresencesManuelles());
+        $this->client->followRedirect();
+        self::assertStringContainsString('Aucun document de type', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('BULK-1', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('justificatif papier absent ou références trop nombreuses', $this->client->getResponse()->getContent());
     }
 
     public function testQualityShortcutsPrepareOnlyAnUnsavedDraft(): void
