@@ -256,6 +256,40 @@ final class QualityReadinessTest extends KernelTestCase
         self::assertSame([], $report['followUp']['items']);
     }
 
+    public function testBulkPaperAttendanceUsesDepositDateAndPreservesExistingRecords(): void
+    {
+        $ids = [];
+        foreach ([true, false] as $n => $withPaper) {
+            $site = (new \App\Entity\Site())->setNom('Salle')->setSlug('bulk-'.$n)->setEntite($this->entite)->setCreateur($this->user);
+            $session = (new \App\Entity\Session())->setEntite($this->entite)->setCreateur($this->user)->setCode('BULK-'.$n)->setSite($site)->setFormationIntituleLibre('Formation')->setStatus(\App\Enum\StatusSession::DONE)->setTauxDistanciel(0);
+            $session->addJour((new \App\Entity\SessionJour())->setEntite($this->entite)->setCreateur($this->user)->setDateDebut(new \DateTimeImmutable('2025-09-10 09:00'))->setDateFin(new \DateTimeImmutable('2025-09-10 17:00')));
+            $ins = (new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->user)->setSession($session)->setStagiaire($this->user)->setStatus(\App\Enum\StatusInscription::TERMINE);
+            if ($withPaper) {
+                $ins->enregistrerPresenceManuelle('2025-09-10:AM', 'absent', 'Absence justifiée', $this->user);
+                $piece = (new \App\Entity\SessionPiece())->setEntite($this->entite)->setCreateur($this->user)->setSession($session)->setType(\App\Enum\SessionPieceType::EMARGEMENT_SIGNE)->setFilename('attendance.pdf')->setUploadedAt(new \DateTimeImmutable('2025-09-15 10:00:00', new \DateTimeZone('Europe/Paris')));
+                $this->em->persist($piece);
+            }
+            foreach ([$site, $session, $ins] as $entity) $this->em->persist($entity);
+            $this->em->flush();
+            $ids[] = $ins->getId();
+        }
+        $base = '/fr/administrateur/'.$this->entite->getId().'/qualite';
+        $page = $this->client->request('GET', $base);
+        self::assertSame(2, $page->filter('.quality-paper-row')->count());
+        $token = $page->filter('#quality-paper-bulk input[name="_token"]')->attr('value');
+        $this->client->request('POST', $base.'/presences-papier/groupe', ['_token' => $token, 'inscriptions' => $ids]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertCount(1, $this->em->find(\App\Entity\Inscription::class, $ids[0])->getPresencesManuelles());
+        $this->client->request('POST', $base.'/presences-papier/groupe', ['_token' => $token, 'inscriptions' => $ids, 'confirmed' => '1']);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $manual = $this->em->find(\App\Entity\Inscription::class, $ids[0])->getPresencesManuelles();
+        self::assertSame('absent', $manual['2025-09-10:AM']['status']);
+        self::assertSame('Absence justifiée', $manual['2025-09-10:AM']['reference']);
+        self::assertSame('paper', $manual['2025-09-10:PM']['status']);
+        self::assertStringContainsString('15/09/2025 à 10:00', $manual['2025-09-10:PM']['reference']);
+        self::assertSame([], $this->em->find(\App\Entity\Inscription::class, $ids[1])->getPresencesManuelles());
+    }
+
     public function testQualityShortcutsPrepareOnlyAnUnsavedDraft(): void
     {
         $page = $this->client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/qualite/registre/nouveau?kind=legal_watch');

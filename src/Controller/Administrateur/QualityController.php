@@ -45,6 +45,44 @@ final class QualityController extends AbstractController
         $response->headers->set('Cache-Control', 'private, no-store');
         return $response;
     }
+    #[Route('/presences-papier/groupe', name: 'paper_bulk', methods: ['POST'])]
+    #[IsGranted(TenantPermission::INSCRIPTION_MANAGE, subject: 'entite')]
+    public function paperBulk(Entite $entite, Request $request, EntityManagerInterface $em, QualityReadiness $quality, \App\Service\AssiduiteCalculator $attendance): Response
+    {
+        if (!$this->isCsrfTokenValid('quality_paper_'.$entite->getId(), $request->request->get('_token'))) throw $this->createAccessDeniedException();
+        $ids = array_values(array_unique(array_filter($request->request->all('inscriptions'), static fn($id) => is_scalar($id) && ctype_digit((string) $id))));
+        $allowed = array_column($quality->inspect($entite)['followUp']['items'], 'id');
+        if (!$ids || count($ids) > 30 || array_diff($ids, $allowed) || !$request->request->getBoolean('confirmed')) {
+            $this->addFlash('warning', 'Sélectionnez les lignes affichées et confirmez leurs présences complètes d’après les feuilles papier.');
+            return $this->redirectToRoute('app_administrateur_quality_index', ['entite' => $entite->getId(), '_fragment' => 'sessions']);
+        }
+        $changed = 0; $skipped = [];
+        foreach ($ids as $id) {
+            $ins = $em->getRepository(\App\Entity\Inscription::class)->findOneBy(['id' => $id, 'entite' => $entite]);
+            if (!$ins || $ins->getSession()->getEntite()->getId() !== $entite->getId()) throw $this->createNotFoundException();
+            $pieces = $em->getRepository(\App\Entity\SessionPiece::class)->findBy([
+                'session' => $ins->getSession(), 'entite' => $entite, 'type' => \App\Enum\SessionPieceType::EMARGEMENT_SIGNE,
+            ], ['uploadedAt' => 'ASC']);
+            if (!$pieces) { $skipped[] = '#'.$id; continue; }
+            $references = [];
+            foreach ($pieces as $piece) {
+                $references[] = 'pièce #'.$piece->getId().' déposée le '.$piece->getUploadedAt()->format('d/m/Y à H:i');
+            }
+            $reference = 'Émargements papier : '.implode(' ; ', $references);
+            if (mb_strlen($reference) > 500) { $skipped[] = '#'.$id; continue; }
+            $online = $attendance->online($ins); $manual = $ins->getPresencesManuelles();
+            foreach ($attendance->periods($ins) as $key => $period) {
+                if (isset($online[$key]) || ($manual[$key]['status'] ?? 'unknown') !== 'unknown') continue;
+                $ins->enregistrerPresenceManuelle($key, 'paper', $reference, $this->getUser());
+                ++$changed;
+            }
+            $attendance->computeForInscription($ins);
+        }
+        $em->flush();
+        $this->addFlash('success', $changed.' demi-journée(s) renseignée(s) comme présentes. Les présences et absences déjà saisies sont conservées.');
+        if ($skipped) $this->addFlash('warning', 'Inscriptions non modifiées (justificatif papier absent ou références trop nombreuses) : '.implode(', ', $skipped).'. Ouvrez ces dossiers pour les compléter.');
+        return $this->redirectToRoute('app_administrateur_quality_index', ['entite' => $entite->getId(), '_fragment' => 'sessions']);
+    }
     #[Route('/export.json', name: 'export', methods: ['GET'])]
     public function export(Entite $entite, QualityReadiness $quality): JsonResponse
     {
