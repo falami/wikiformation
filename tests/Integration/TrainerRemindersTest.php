@@ -67,6 +67,25 @@ final class TrainerRemindersTest extends KernelTestCase
     private function candidates(string $date = '2026-10-08 10:00 UTC'): array { return iterator_to_array($this->runner->candidates($this->entite, new \DateTimeImmutable($date)), false); }
     private function send(array $message, string $date = '2026-10-08 10:00 UTC'): string { return $this->runner->send($message, new \DateTimeImmutable($date)); }
 
+    public function testManualComplianceTransportAndSignatureResolution(): void
+    {
+        $transport=$this->createMock(MailerInterface::class);
+        $transport->expects(self::exactly(2))->method('send')->willReturnCallback(function ($mail) { if ($this->fail) throw new \RuntimeException('Simulated failure'); $this->messages[]=$mail; });
+        $twig=self::getContainer()->get('twig');$router=self::getContainer()->get('router');
+        $service=new \App\Service\TrainerReminder\TrainerCompliance($this->em,new \App\Service\TrainerCharter\CharterManager($this->em),$router,new MailerManager($transport,$twig,$router),$twig,new NullLogger());
+        $this->contract->setStatus(ContratFormateurStatus::ENVOYE);$this->em->flush();
+        $key='contract:'.$this->contract->getId().':'.$this->contract->getVersionNumero();
+        self::assertArrayHasKey($key,$service->pending($this->entite));
+        self::assertSame('sent',$service->send($this->entite,$key));
+        self::assertSame('skipped',$service->send($this->entite,$key));
+        self::assertStringContainsString('Consulter et signer',$this->messages[0]->getHtmlBody());
+        $this->contract->setSignatureAt(new \DateTimeImmutable());$this->em->flush();
+        self::assertArrayNotHasKey($key,$service->pending($this->entite));
+        $this->fail=true;$key='diploma:'.$this->trainer->getId();
+        self::assertSame('unknown',$service->send($this->entite,$key));
+        self::assertSame('skipped',$service->send($this->entite,$key));
+    }
+
     public function testInitialNoticeDelayRepeatsAndNoDuplicates(): void
     {
         self::assertSame([], $this->candidates());
