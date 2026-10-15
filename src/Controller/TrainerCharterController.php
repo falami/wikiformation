@@ -34,7 +34,7 @@ final class TrainerCharterController extends AbstractController
         $charters=$this->em->getRepository(TrainerCharter::class)->findBy(['entite'=>$entite],['id'=>'DESC']);
         $rows=[];
         foreach ($charters as $c) $rows[]=['charter'=>$c,'versions'=>$this->em->getRepository(TrainerCharterVersion::class)->findBy(['charter'=>$c],['number'=>'DESC']),'latest'=>$this->manager->latest($c)];
-        return $this->response('trainer_charter/admin.html.twig',compact('entite','rows'));
+        return $this->response('administrateur/formateur/charte/admin.html.twig',compact('entite','rows'));
     }
     #[Route('/administrateur/{entite}/formateur/chartes/nouvelle',name:'app_charter_new',methods:['POST'])]
     public function create(Entite $entite, Request $request): Response {
@@ -71,7 +71,7 @@ final class TrainerCharterController extends AbstractController
                 return $this->redirectToRoute($v->publishedAt?'app_charter_tracking':'app_charter_edit',['entite'=>$entite->getId(),'id'=>$id]);
             } catch (\InvalidArgumentException|\JsonException $e) { $error=$e->getMessage(); }
         }
-        return $this->response('trainer_charter/edit.html.twig',['entite'=>$entite,'v'=>$v,'error'=>$error]);
+        return $this->response('administrateur/formateur/charte/edit.html.twig',['entite'=>$entite,'v'=>$v,'error'=>$error]);
     }
     #[Route('/administrateur/{entite}/formateur/chartes/{id}/dupliquer',name:'app_charter_duplicate',requirements:['id'=>'\d+'],methods:['POST'])]
     public function duplicate(Entite $entite,int $id,Request $request): Response {
@@ -109,13 +109,13 @@ final class TrainerCharterController extends AbstractController
             $signed+=(int)($status==='signed');$pending+=(int)($status==='pending');
             $rows[]=['trainer'=>$t,'name'=>$this->trainerName($t),'signature'=>$s,'older'=>$older,'status'=>$status];
         }
-        return $this->response('trainer_charter/tracking.html.twig',compact('entite','v','rows','signed','pending','current'));
+        return $this->response('administrateur/formateur/charte/tracking.html.twig',compact('entite','v','rows','signed','pending','current'));
     }
     #[Route('/formateur/{entite}/chartes',name:'app_charter_mine',methods:['GET'])]
     public function mine(Entite $entite): Response {
         $t=$this->own($entite);$items=[];
         foreach ($this->manager->forTrainer($entite,$t) as $s) $items[]=['signature'=>$s,'current'=>$this->manager->latest($s->version->charter)?->id===$s->version->id];
-        return $this->response('trainer_charter/mine.html.twig',compact('entite','items'));
+        return $this->response('administrateur/formateur/charte/mine.html.twig',compact('entite','items'));
     }
     #[Route('/formateur/{entite}/chartes/{id}',name:'app_charter_sign',requirements:['id'=>'\d+'],methods:['GET','POST'])]
     public function sign(Entite $entite,int $id,Request $request): Response {
@@ -135,7 +135,7 @@ final class TrainerCharterController extends AbstractController
                 return $this->redirectToRoute('app_charter_sign',['entite'=>$entite->getId(),'id'=>$id]);
             }
         }
-        return $this->response('trainer_charter/sign.html.twig',compact('entite','s','v','current','error'));
+        return $this->response('administrateur/formateur/charte/sign.html.twig',compact('entite','s','v','current','error'));
     }
     #[Route('/administrateur/{entite}/formateur/chartes/{id}/export',name:'app_charter_export',requirements:['id'=>'\d+'],methods:['GET'])]
     public function export(Entite $entite,int $id): Response {
@@ -161,7 +161,7 @@ final class TrainerCharterController extends AbstractController
         return new Response($bytes,200,['Content-Type'=>'application/zip','Content-Disposition'=>'attachment; filename="Chartes-v'.$v->number.'.zip"','Cache-Control'=>'private, no-store']);
     }
     private function document(TrainerCharterVersion $v, ?TrainerCharterSignature $s=null): Response {
-        return $this->pdf->createPortrait($this->renderView('trainer_charter/pdf.html.twig',['v'=>$v,'s'=>$s]),'Charte-v'.$v->number.($s?'-formateur-'.$s->trainer->getId():''));
+        return $this->pdf->createPortrait($this->renderView('administrateur/formateur/charte/pdf.html.twig',['v'=>$v,'s'=>$s]),'Charte-v'.$v->number.($s?'-formateur-'.$s->trainer->getId():''));
     }
     #[Route('/administrateur/{entite}/formateur/chartes/{id}/pdf',name:'app_charter_version_pdf',requirements:['id'=>'\d+'],methods:['GET'])]
     public function versionPdf(Entite $entite,int $id): Response { $this->admin($entite);$r=$this->document($this->version($entite,$id));$r->headers->set('Cache-Control','private, no-store');return $r; }
