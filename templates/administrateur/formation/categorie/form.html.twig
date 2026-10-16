@@ -268,7 +268,7 @@
         </div>
 
         <div class="small mt-2">
-          Conseil : image large (recadrée automatiquement en 1200×600).
+          Les images JPEG, PNG et WebP trop lourdes sont réduites automatiquement avant l’envoi. Recadrage final en 1200×600.
         </div>
       </div>
 
@@ -337,17 +337,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
     zone.addEventListener('keydown', e => { if (e.target === zone && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPicker(); } });
 
-    input?.addEventListener('change', (e) => {
-      const files = e.target.files;
-      if (!files || !files.length) return;
-      const file = files[0];
-
-      const rdr = new FileReader();
-      rdr.onload = ev => {
-        previewImg.src = ev.target.result;
+    const status = document.createElement('p');
+    status.className = 'small mt-2 mb-0 text-muted';
+    status.setAttribute('role', 'status');
+    zone.after(status);
+    let generation = 0;
+    let busy = false;
+    let previewUrl = null;
+    input.form.addEventListener('submit', event => {
+      if (busy) { event.preventDefault(); status.textContent = 'Patientez : optimisation de l’image en cours…'; }
+    });
+    const encode = (canvas, quality) => new Promise((resolve, reject) => {
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Impossible de compresser cette image.')), 'image/webp', quality);
+    });
+    input.addEventListener('change', async () => {
+      const current = ++generation;
+      const file = input.files?.[0];
+      if (!file) return;
+      busy = true;
+      input.setCustomValidity('Veuillez patienter pendant le traitement de l’image.');
+      status.textContent = 'Vérification de l’image…';
+      let sourceUrl;
+      try {
+        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) throw new Error('Choisissez une image JPEG, PNG, WebP ou GIF.');
+        let result = file;
+        if (file.size > 3900000) {
+          if (file.type === 'image/gif') throw new Error('Ce GIF dépasse 4 Mo. Choisissez une version plus légère ou une image JPEG, PNG ou WebP pour la réduction automatique.');
+          status.textContent = 'Réduction automatique de l’image…';
+          sourceUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.src = sourceUrl;
+          await img.decode();
+          const canvas = document.createElement('canvas');
+          const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+          canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('La réduction est indisponible dans ce navigateur.');
+          let blob;
+          for (let attempt = 0; attempt < 8; attempt++) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            blob = await encode(canvas, Math.max(.65, .88 - attempt * .04));
+            if (blob.size <= 3900000) break;
+            canvas.width = Math.max(1, Math.round(canvas.width * .8));
+            canvas.height = Math.max(1, Math.round(canvas.height * .8));
+          }
+          if (!blob || blob.size > 3900000) throw new Error('Cette image reste trop lourde. Choisissez une image plus petite.');
+          result = new File([blob], file.name.replace(/\.[^.]+$/, '') + (blob.type === 'image/webp' ? '.webp' : '.png'), {type: blob.type});
+        }
+        if (current !== generation) return;
+        const transfer = new DataTransfer();
+        transfer.items.add(result);
+        input.files = transfer.files;
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(result);
+        previewImg.src = previewUrl;
         previewImg.classList.remove('d-none');
-      };
-      rdr.readAsDataURL(file);
+        const size = bytes => (bytes / 1000000).toLocaleString('fr-FR', {maximumFractionDigits: 2}) + ' Mo';
+        status.textContent = result === file ? 'Image prête · ' + size(result.size) : 'Image optimisée : ' + size(file.size) + ' → ' + size(result.size) + '. Prête à enregistrer.';
+        input.setCustomValidity('');
+      } catch (error) {
+        if (current !== generation) return;
+        status.textContent = error instanceof Error ? error.message : 'Impossible de traiter cette image.';
+        input.setCustomValidity(status.textContent);
+      } finally {
+        if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+        if (current === generation) busy = false;
+      }
     });
 
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
