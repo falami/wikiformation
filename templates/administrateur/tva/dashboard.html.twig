@@ -186,6 +186,10 @@
     #btnToggleFilters{ border-radius:999px; border:1px solid var(--stroke); background: color-mix(in srgb, var(--panel) 85%, transparent); }
 
 
+
+.vat-workspace{color:#243c4d;padding-bottom:24px}.vat-workspace .hero{background:linear-gradient(115deg,#18303e,#2b4b5c);box-shadow:0 12px 32px #18303e12;padding:28px!important}.vat-workspace .cardx{border-color:#e1e8ee;border-radius:20px;box-shadow:0 6px 24px #243c4d06}.vat-workspace .cardx-h{padding:22px 24px;background:transparent;flex-wrap:wrap}.vat-workspace .cardx-title{font-size:17px;font-weight:750;color:#243c4d;letter-spacing:-.025em}.vat-workspace .chip{background:#f3f6f8;border-color:#e1e8ee;color:#6b7f90;font-size:11px;padding:6px 10px}.vat-workspace .kpi-grid{gap:16px}.vat-workspace .kpi{background:#fff;border:0;border-left:3px solid #e3eaf0;border-radius:0;padding:10px 16px;min-width:0}.vat-workspace .kpi:nth-child(1){border-color:#3e718f}.vat-workspace .kpi:nth-child(2){border-color:#36a38a}.vat-workspace .kpi:nth-child(3){background:#eef5f8;border:1px solid #dce8ef;border-radius:12px}.vat-workspace .kpi:nth-child(4){border-color:#c49a43}.vat-workspace .kpi .label{font-size:12px;font-weight:600;line-height:1.5}.vat-workspace .kpi .value{font-size:clamp(19px,1.6vw,28px);font-weight:750;letter-spacing:-.04em;line-height:1.7;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.vat-workspace .kpi:nth-child(n+5) .value{font-size:20px}.vat-workspace .kpi .sub{font-size:11px;color:#7e8f9e}.vat-workspace #tvaTabs{padding:5px;border:1px solid #e3e9ef;border-radius:14px;background:#f3f6f8;gap:4px!important}.vat-workspace #tvaTabs .nav-link{background:transparent;border:0;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:650;color:#647b8e}.vat-workspace #tvaTabs .nav-link.active{background:#fff;color:#203d50;box-shadow:0 2px 7px #203d5014}.vat-workspace .chart-box{position:relative;height:340px}.vat-workspace .chart-box.sm{height:270px}.vat-workspace .filters-compact .form-control,.vat-workspace .filters-compact .form-select{min-height:42px;border-color:#dfe7ee}.vat-workspace table thead th{background:#f5f8fa;color:#728597;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:15px 12px;border-bottom:1px solid #e0e8ef}.vat-workspace table tbody td{padding:15px 12px;vertical-align:middle;color:#435e73;border-color:#edf1f5;font-size:13px}.vat-workspace .money{font-weight:650}.vat-chart-note{font-size:12px;color:#7b8e9d;margin-top:18px;padding-top:14px;border-top:1px solid #edf1f5}.vat-workspace .chart-empty{text-align:center;padding:32px;color:#748998;background:#f7fafb;border-radius:12px}
+@media(max-width:768px){.vat-workspace .kpi{grid-column:span 6}.vat-workspace .cardx-h{padding:18px}.vat-workspace #tvaTabs .nav-link{padding:9px 12px}.vat-workspace .chart-box{height:290px}}
+@media(max-width:420px){.vat-workspace .kpi{grid-column:span 12}}
   </style>
 {% endblock %}
 
@@ -199,6 +203,7 @@
 {% endblock %}
 
 {% block body %}
+<div class="vat-workspace">
 
   {# --- HTML (à mettre dans ton block body, à la place de l’ancien hero) --- #}
   <div class="hero p-3 mb-4 d-flex gap-3">
@@ -358,7 +363,7 @@
   <div class="cardx mb-4">
     <div class="cardx-h">
       <h5 class="cardx-title"><i class="bi bi-speedometer2 text-warning"></i> Indicateurs TVA</h5>
-      <span class="chip">Live</span>
+      <span class="chip">Selon vos filtres</span>
     </div>
     <div class="p-3 p-md-4">
       <div class="kpi-grid">
@@ -382,7 +387,7 @@
         <div class="kpi">
           <div class="label">TVA non déductible</div>
           <div class="value" id="kpiInNoDed">—</div>
-          <div class="sub">Achats (perdue)</div>
+          <div class="sub">Part non récupérable</div>
         </div>
 
         <div class="kpi">
@@ -431,11 +436,11 @@
           <div class="cardx">
             <div class="cardx-h">
               <h5 class="cardx-title"><i class="bi bi-graph-up text-warning"></i> TVA mensuelle</h5>
-              <span class="chip">Collectée vs Déductible vs Solde</span>
+              <span class="chip">Évolution sur la période</span>
             </div>
             <div class="p-3 p-md-4">
               <div class="chart-box"><canvas id="chVatTrend"></canvas></div>
-              <div class="small text-muted mt-2">Par mois sur la période.</div>
+              <div class="vat-chart-note" id="vatTrendNote" aria-live="polite">Par mois sur la période.</div>
             </div>
           </div>
         </div>
@@ -597,6 +602,7 @@
   </div>
   
 
+</div>
 <script>
 (function(){
   // ===== helpers money (EUR toujours) =====
@@ -873,42 +879,62 @@
   }
 
   function applyCharts(c){
-    // trend (line) : out/in/payable par mois
-    const labels = c.trend.labels;
+    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.color = '#758797';
+    const palette = ['#365f7b', '#42a58f', '#d2a74c', '#97adbd', '#8b86b0'];
+    let first = 0, last = c.trend.labels.length - 1;
+    const active = c.trend.labels.map((_, i) => Number(c.trend.outTva[i]) !== 0 || Number(c.trend.inTvaDed[i]) !== 0);
+    const hasActivity = active.some(Boolean);
+    // Unbounded filters use 2000–2100 server-side. Remove only their empty margins.
+    if (hasActivity) {
+      if (!document.getElementById('fStart').value) first = active.indexOf(true);
+      if (!document.getElementById('fEnd').value) last = active.lastIndexOf(true);
+    } else if (!document.getElementById('fStart').value || !document.getElementById('fEnd').value) {
+      first = 0; last = -1;
+    }
+    const slice = values => values.slice(first, last + 1);
+    const labels = slice(c.trend.labels);
+    const monthLabel = value => new Intl.DateTimeFormat('fr-FR', {month:'short', year:'2-digit'}).format(new Date(value + '-01T12:00:00'));
+    document.getElementById('vatTrendNote').textContent = hasActivity
+      ? `Du ${monthLabel(labels[0])} au ${monthLabel(labels[labels.length - 1])} · Les mois intermédiaires sans TVA sont conservés. Un solde négatif indique un crédit de TVA.`
+      : 'Aucun montant de TVA sur cette sélection.';
     chVatTrend = ensureChart(chVatTrend, 'chVatTrend', {
-      type: 'line',
+      type: 'bar',
       data: {
-        labels,
+        labels: labels.map(monthLabel),
         datasets: [
-          { label: 'TVA collectée', data: c.trend.outTva },
-          { label: 'TVA déductible', data: c.trend.inTvaDed },
-          { label: 'TVA à payer', data: c.trend.payable },
+          { label:'TVA collectée', data:slice(c.trend.outTva), backgroundColor:palette[0], borderRadius:4, maxBarThickness:24, order:2 },
+          { label:'TVA déductible', data:slice(c.trend.inTvaDed), backgroundColor:palette[1], borderRadius:4, maxBarThickness:24, order:2 },
+          { type:'line', label:'Solde TVA', data:slice(c.trend.payable), borderColor:palette[2], backgroundColor:palette[2], borderWidth:2, pointRadius:labels.length > 24 ? 0 : 3, pointHoverRadius:5, tension:0, order:1 }
         ]
       },
       options:{
         responsive:true, maintainAspectRatio:false,
-        interaction:{ mode:'index', intersect:false },
+        interaction:{mode:'index', intersect:false},
         plugins:{
-          legend:{ position:'bottom' },
-          tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${money(ctx.parsed.y)}` } }
+          legend:{position:'bottom', labels:{usePointStyle:true, boxWidth:8, padding:22, font:{size:12}}},
+          tooltip:{backgroundColor:'#203746', padding:14, cornerRadius:10, callbacks:{label:ctx => `${ctx.dataset.label} : ${money(ctx.parsed.y)}`}}
         },
-        scales:{ y:{ ticks:{ callback:(v)=> money(v) } } }
+        scales:{
+          x:{grid:{display:false}, border:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:12, font:{size:11}}},
+          y:{beginAtZero:true, border:{display:false}, grid:{color:'#edf1f4'}, ticks:{maxTicksLimit:6, callback:v => new Intl.NumberFormat('fr-FR', {style:'currency',currency:'EUR',maximumFractionDigits:0}).format(v / 100)}}
+        }
       }
     });
 
     // pie out by rate
     chOutByRate = ensureChart(chOutByRate, 'chOutByRate', {
-      type:'pie',
-      data:{ labels: c.outByRate.labels, datasets:[{ data: c.outByRate.values }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' },
+      type:'doughnut',
+      data:{ labels: c.outByRate.labels, datasets:[{ data: c.outByRate.values, backgroundColor:palette, borderWidth:3, borderColor: '#fff' }] },
+      options:{ cutout:'72%', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{usePointStyle:true, padding:20} },
         tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${money(ctx.parsed)}` } } } }
     });
 
     // pie in by rate (deductible)
     chInByRate = ensureChart(chInByRate, 'chInByRate', {
-      type:'pie',
-      data:{ labels: c.inByRate.labels, datasets:[{ data: c.inByRate.values }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' },
+      type:'doughnut',
+      data:{ labels: c.inByRate.labels, datasets:[{ data: c.inByRate.values, backgroundColor:palette, borderWidth:3, borderColor: '#fff' }] },
+      options:{ cutout:'72%', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{usePointStyle:true, padding:20} },
         tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${money(ctx.parsed)}` } } } }
     });
 
