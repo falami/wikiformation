@@ -100,9 +100,9 @@ final class PaiementController extends AbstractController
 
 
 
-        // mapping colonnes DataTables (8 colonnes)
+        // mapping colonnes DataTables (9 colonnes)
         $map = [
-            0 => 'p.id',
+            0 => 'p.datePaiement',
             1 => 'u.nom',
             2 => 'f.numero',
             3 => 'p.ventilationHtHorsDeboursCents',   // HT
@@ -110,8 +110,7 @@ final class PaiementController extends AbstractController
             5 => 'p.ventilationDeboursCents',         // Débours
             6 => 'p.montantCents',                    // TTC payé
             7 => 'p.mode',
-            8 => 'p.datePaiement',
-            9 => 'p.id', // actions
+            8 => 'p.id', // actions
         ];
 
 
