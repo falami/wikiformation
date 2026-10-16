@@ -4,6 +4,7 @@
 {% block title %}{{ modeEdition ? 'Modification' : 'Ajout' }} d’un chapitre - {{ formation.titre }}{% endblock %}
 
 {% block stylesheets %}
+{{ parent() }}
 <style>
 :root{
   --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
@@ -45,9 +46,11 @@
 <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
 <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css')}}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+<style>{% include 'administrateur/formation/content/_form_styles.html.twig' %}</style>
 {% endblock %}
 
 {% block javascripts %}
+{{ parent() }}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -55,10 +58,14 @@
 
 {% block body %}
 
-  <h2 class="mb-3">
-    <i class="fa fa-sitemap text-theme-secondaire me-2"></i>{{ modeEdition ? 'Modifier' : 'Ajouter' }} un chapitre
-    <small class="text-muted">- {{ formation.titre }}</small>
-  </h2>
+<div class="chapter-editor">
+  <header class="chapter-editor-hero">
+    <div><span class="editor-eyebrow">PROGRAMME / {{ formation.titre }}</span>
+      <h1>{{ modeEdition ? 'Modifier le chapitre' : 'Créer un chapitre' }}</h1>
+      <p>Définissez sa place dans le parcours, sa durée et sa visibilité.</p>
+    </div>
+    <a href="{{ path('app_administrateur_formation_content_index', {entite: entite.id, formation: formation.id}) }}"><i class="bi bi-arrow-left"></i> Voir le programme</a>
+  </header>
 
   {% include 'flagMessage.html.twig' %}
 
@@ -75,53 +82,42 @@
   {# ================== Informations ================== #}
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
-      <i class="fa fa-info-circle text-theme-secondaire me-2"></i> Informations
+      <i class="fa fa-info-circle text-theme-secondaire me-2"></i> Identité du chapitre
     </div>
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-6">
-          <div class="form-floating">
-            {{ form_widget(form.type, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Type'}}) }}
-            <label for="{{ form.type.vars.id }}">Type</label>
-          </div>
+          <div class="chapter-field"><label for="{{ form.type.vars.id }}">Type</label>
+{{ form_widget(form.type, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Type'}}) }}</div>
           {{ form_errors(form.type) }}
         </div>
 
         <div class="col-md-6" id="parent-wrapper" style="display:none;">
-          <div class="form-floating">
-            {{ form_widget(form.parent, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Parent'}}) }}
-            <label for="{{ form.parent.vars.id }}">Parent (si sous-chapitre)</label>
-          </div>
+          <div class="chapter-field"><label for="{{ form.parent.vars.id }}">Chapitre parent</label>
+{{ form_widget(form.parent, {'attr': {'class': 'form-control rounded-3 shadow-sm', 'placeholder': 'Parent'}}) }}</div>
           {{ form_errors(form.parent) }}
         </div>
 
         <div class="col-md-6">
-          <div class="form-floating position-relative">
-            {{ form_widget(form.titre, {'attr': {'class': 'form-control rounded-3 shadow-sm with-icon', 'placeholder': 'Titre'}}) }}
-            <label for="{{ form.titre.vars.id }}">*Titre</label>
-            <i class="fa fa-heading position-absolute top-50 start-0 translate-middle-y ms-3 text-muted form-icon"></i>
-          </div>
+          <div class="chapter-field"><label for="{{ form.titre.vars.id }}">*Titre</label>
+{{ form_widget(form.titre, {'attr': {'class': 'form-control rounded-3 shadow-sm with-icon', 'placeholder': 'Titre'}}) }}</div>
           {{ form_errors(form.titre) }}
         </div>
 
         <div class="col-md-6">
-          <div class="form-floating position-relative">
-            {{ form_widget(form.slug, {'attr': {'class': 'form-control rounded-3 shadow-sm with-icon', 'placeholder': 'Slug'}}) }}
-            <label for="{{ form.slug.vars.id }}">Slug</label>
-            <i class="fa fa-link position-absolute top-50 start-0 translate-middle-y ms-3 text-muted form-icon"></i>
-          </div>
-          <div class="form-text">Généré côté contrôleur si laissé vide.</div>
+          <div class="chapter-field"><label for="{{ form.slug.vars.id }}">Identifiant (slug)</label>
+{{ form_widget(form.slug, {'attr': {'class': 'form-control rounded-3 shadow-sm with-icon', 'placeholder': 'Slug'}}) }}</div>
+          <div class="chapter-slug-help"><span id="chapter-slug-status" aria-live="polite">Généré depuis le titre · personnalisable</span><button type="button" id="chapter-slug-reset"><i class="bi bi-arrow-clockwise"></i> Depuis le titre</button></div>
           {{ form_errors(form.slug) }}
         </div>
 
         <div class="col-md-6">
-          <div class="form-floating">
-            {{ form_widget(form.dureeMinutes, {'attr': {'class':'form-control rounded-3 shadow-sm', 'placeholder':'Durée (min)', 'min':0}}) }}
-            <label for="{{ form.dureeMinutes.vars.id }}">Durée (minutes)</label>
-          </div>
+          <div class="chapter-field"><label for="{{ form.dureeMinutes.vars.id }}">Durée (minutes)</label>
+{{ form_widget(form.dureeMinutes, {'attr': {'class':'form-control rounded-3 shadow-sm', 'placeholder':'Durée (min)', 'min':0}}) }}</div>
           {{ form_errors(form.dureeMinutes) }}
         </div>
 
+        <div class="col-md-6"><div class="chapter-preview"><span class="editor-eyebrow">APERÇU DU CHAPITRE</span><strong id="chapter-preview-title">{{ form.titre.vars.value ?: 'Votre titre apparaîtra ici' }}</strong><span id="chapter-preview-duration">{{ form.dureeMinutes.vars.value ?: '—' }} min</span></div></div>
         {{ form_widget(form.position) }}
 
       </div>
@@ -134,9 +130,9 @@
       <i class="fa fa-bullhorn text-theme-secondaire me-2"></i> Publication
     </div>
     <div class="card-body">
-      <div class="form-check form-switch">
+      <div class="chapter-publication form-check form-switch">
         {{ form_widget(form.isPublished, {'attr': {'class': 'form-check-input'}}) }}
-        <label class="form-check-label" for="{{ form.isPublished.vars.id }}">Publié</label>
+        <label class="form-check-label" for="{{ form.isPublished.vars.id }}">Afficher ce chapitre dans le programme</label>
       </div>
       {{ form_errors(form.isPublished) }}
       <div class="form-text mt-2">Lorsque publié, le chapitre est visible dans la structure de la formation.</div>
@@ -144,7 +140,7 @@
   </div>
 
   {# ================== Actions ================== #}
-  <div class="d-flex justify-content-end gap-2 mt-3">
+  <div class="chapter-savebar d-flex justify-content-end gap-2 mt-3">
     <a href="{{ path('app_administrateur_formation_content_index', { entite: entite.id, formation: formation.id }) }}" class="btn btn-secondary">
       <i class="fa fa-arrow-left me-1"></i> Retour
     </a>
@@ -176,7 +172,7 @@
                     </span>
                     <span class="badge-soft">{{ n.type.name == 'SOUS_CHAPITRE' ? 'Sous-chapitre' : 'Chapitre' }}</span>
                     <span class="node-title">{{ n.titre }}</span>
-                    <span class="node-meta">#{{ n.position }}</span>
+                    
                     {% if n.dureeMinutes %}<span class="badge-soft">{{ n.dureeMinutes }} min</span>{% endif %}
                     {% if not n.isPublished %}<span class="badge-soft">Brouillon</span>{% endif %}
                   </div>
@@ -191,8 +187,8 @@
                       href="{{ path('app_administrateur_formation_content_node_add', {
                         entite: entite.id,
                         formation: formation.id,
-                        parentId: r.id,
-                        copyFromId: r.id
+                        parentId: n.id,
+                        copyFromId: n.id
                       }) }}">
                       <i class="fa fa-plus"></i>
                     </a>
@@ -228,7 +224,7 @@
                   <span class="drag" title="Déplacer"><i class="fa fa-grip-vertical"></i></span>
                   <span class="badge-soft">Chapitre</span>
                   <span class="node-title">{{ r.titre }}</span>
-                  <span class="node-meta">#{{ r.position }}</span>
+                  
                   {% if r.dureeMinutes %}<span class="badge-soft">{{ r.dureeMinutes }} min</span>{% endif %}
                   {% if not r.isPublished %}<span class="badge-soft">Brouillon</span>{% endif %}
                 </div>
@@ -266,8 +262,29 @@
     </div>
   </div>
 
+</div>
 {# ================== Scripts page ================== #}
 <script>
+  // Automatic slug generation stops when the user customizes the value.
+  const chapterTitle = document.getElementById('{{ form.titre.vars.id }}');
+  const chapterSlug = document.getElementById('{{ form.slug.vars.id }}');
+  const chapterDuration = document.getElementById('{{ form.dureeMinutes.vars.id }}');
+  const slugifyChapter = value => value.toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 180).replace(/-+$/g, '');
+  let autoSlug = !chapterSlug.value || chapterSlug.value === slugifyChapter(chapterTitle.value);
+  const slugStatus = document.getElementById('chapter-slug-status');
+  function updateChapterPreview(){
+    document.getElementById('chapter-preview-title').textContent = chapterTitle.value || 'Votre titre apparaîtra ici';
+    document.getElementById('chapter-preview-duration').textContent = (chapterDuration.value || '—') + ' min';
+    slugStatus.textContent = autoSlug ? 'Généré automatiquement depuis le titre' : 'Identifiant personnalisé';
+  }
+  chapterTitle.addEventListener('input', () => { if(autoSlug) chapterSlug.value = slugifyChapter(chapterTitle.value); updateChapterPreview(); });
+  chapterSlug.addEventListener('input', () => { autoSlug = !chapterSlug.value; updateChapterPreview(); });
+  chapterSlug.addEventListener('blur', () => { if(autoSlug) chapterSlug.value = slugifyChapter(chapterTitle.value); });
+  chapterDuration.addEventListener('input', updateChapterPreview);
+  document.getElementById('chapter-slug-reset').addEventListener('click', () => { autoSlug = true; chapterSlug.value = slugifyChapter(chapterTitle.value); updateChapterPreview(); });
+  if(autoSlug) chapterSlug.value = slugifyChapter(chapterTitle.value);
+  updateChapterPreview();
+
   // TomSelect pour type/parent + toggle parent
   const typeSel   = document.getElementById('{{ form.type.vars.id }}');
   const parentSel = document.getElementById('{{ form.parent.vars.id }}');
