@@ -1,0 +1,30 @@
+{% macro node(c, categories, entite, depth, ancestors) %}
+  {% if c.id not in ancestors %}
+    {% set children = categories|filter(child => child.parent and child.parent.id == c.id) %}
+    <section class="category-node {{ depth == 0 ? 'category-root' : 'category-child' }}" data-type="{{ depth == 0 ? 'main' : 'sub' }}" data-search="{{ c.nom ~ ' ' ~ c.slug ~ ' ' ~ (c.parent ? c.parent.nom : '') }}">
+      <div class="category-row">
+        <div class="category-picture">
+          {% if c.photo %}<img src="{{ asset('uploads/photos/categorie/' ~ c.photo) }}" alt="" loading="lazy">{% else %}<i class="bi bi-{{ depth == 0 ? 'collection' : 'folder2' }}"></i>{% endif %}
+        </div>
+        <div class="category-copy">
+          <span class="category-level">{{ depth == 0 ? 'Catégorie principale' : 'Sous-catégorie · Niveau ' ~ (depth + 1) }}</span>
+          <h4>{{ c.nom }}</h4>
+          <p>{% if c.parent %}<span>Parent : <strong>{{ c.parent.nom }}</strong></span><span class="category-dot">·</span>{% endif %}<span class="category-slug">{{ c.slug }}</span></p>
+        </div>
+        {% if children|length %}<span class="category-count">{{ children|length }} sous-catégorie{{ children|length > 1 ? 's' : '' }} directe{{ children|length > 1 ? 's' : '' }}</span>{% endif %}
+        <div class="category-actions">
+          <a href="{{ path('app_administrateur_formation_categorie_modifier', {entite: entite.id, id: c.id}) }}" aria-label="Modifier {{ c.nom }}" title="Modifier"><i class="bi bi-pencil"></i></a>
+          <form method="post" action="{{ path('app_administrateur_formation_categorie_supprimer', {entite: entite.id, id: c.id}) }}" onsubmit="return confirm('Supprimer cette catégorie ?');">
+            <input type="hidden" name="_token" value="{{ csrf_token('delete_categorie_' ~ c.id) }}">
+            <button type="submit" class="category-delete" aria-label="Supprimer {{ c.nom }}" title="Supprimer"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+      </div>
+      {% if children|length %}
+        <div class="category-children">
+          {% for child in children %}{{ _self.node(child, categories, entite, depth + 1, ancestors|merge([c.id])) }}{% endfor %}
+        </div>
+      {% elseif depth == 0 %}<div class="category-no-children">Aucune sous-catégorie pour le moment</div>{% endif %}
+    </section>
+  {% endif %}
+{% endmacro %}
