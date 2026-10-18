@@ -16,7 +16,7 @@ final class HabilitationWorkflow
     {
         if (!$dossier->getActive() || $dossier->getDeleted()) throw new \InvalidArgumentException('Ce dossier est désactivé.');
         if (!in_array($stage, ['avis', 'titre'], true)) throw new \InvalidArgumentException('Étape inconnue.');
-        if ($stage === 'titre' && !$dossier->getAvisToken()) throw new \InvalidArgumentException('L’avis du formateur doit être signé avant la décision de l’entreprise.');
+        if ($stage === 'titre' && (!$dossier->getAvisToken() || !in_array($dossier->getState(), ['awaiting_company', 'published'], true))) throw new \InvalidArgumentException('L’avis du formateur doit être signé avant la décision de l’entreprise.');
         $data = $this->schema->answers($dossier->getSchema(), $input, $sign, $stage === 'titre' ? $dossier->getTrainerData() : null);
         $signature = $sign ? $this->images->normalize($image) : null;
         if ($stage === 'avis') {
@@ -29,9 +29,18 @@ final class HabilitationWorkflow
             'identity' => $this->identity($dossier), 'signer' => trim($actor->getPrenom().' '.$actor->getNom()),
             'avisToken' => $dossier->getAvisToken(),
         ]);
-        if ($sign && $stage === 'avis') $dossier->setAvisToken($revision->getToken())->setState('awaiting_company');
+        if ($sign && $stage === 'avis') $dossier->setAvisToken($revision->getToken())->setState('pending_admin');
         if ($sign && $stage === 'titre') $dossier->setTitreToken($revision->getToken())->setState('published');
         return $revision;
+    }
+
+    public function transmit(HabilitationDossier $dossier, Utilisateur $actor): HabilitationRevision
+    {
+        if (!$dossier->getActive() || $dossier->getDeleted() || !$dossier->getAvisToken() || $dossier->getState() !== 'pending_admin') {
+            throw new \InvalidArgumentException('Seul un avis validé en attente de transmission peut être transmis.');
+        }
+        $dossier->setState('awaiting_company');
+        return $this->record($dossier, $actor, 'transmit', ['avisToken'=>$dossier->getAvisToken()]);
     }
 
     public function record(HabilitationDossier $dossier, Utilisateur $actor, string $kind, array $snapshot = []): HabilitationRevision

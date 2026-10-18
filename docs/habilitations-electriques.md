@@ -16,7 +16,7 @@ La migration Version20261006120000 ajoute trois tables et le modèle d’habilit
 
 Dans **Habilitations électriques → Modèles**, créer un modèle à partir de la trame proposée, puis adapter sections, sous-sections et colonnes. Chaque colonne contient soit des choix multiples définis dans le modèle, soit un champ libre. Les éléments peuvent être ajoutés, supprimés et réordonnés.
 
-Dans l’édition d’une formation, sélectionner le **questionnaire d’habilitation**. Les nouvelles inscriptions reçoivent automatiquement un dossier si l’entreprise et le formateur sont identifiables. Les inscriptions existantes, ou celles sans affectation complète, sont gérées avec **Affecter un questionnaire**.
+Dans l’édition d’une formation, sélectionner le **questionnaire d’habilitation**. Les inscriptions reçoivent automatiquement un dossier dès le premier jour de session si l’entreprise et le formateur sont identifiables, y compris pour les sessions passées. Les inscriptions sans affectation complète sont gérées par l’administrateur avec **Affecter une évaluation**.
 
 L’administrateur peut affecter ou réaffecter un dossier à une inscription, un modèle, une entreprise et un formateur de son organisme. Une inscription possède un seul dossier ; restaurer ou réaffecter celui-ci au lieu de créer un doublon.
 
@@ -25,8 +25,9 @@ Chaque dossier conserve une copie de son modèle. Modifier un modèle ne change 
 ## Parcours
 
 1. **Formateur affecté** : saisir l’avis par sous-section, les symboles, domaines de tension, ouvrages, recommandations, dates et qualité du signataire ; enregistrer un brouillon ou signer explicitement.
-2. **Entreprise** : consulter l’avis signé, retenir les habilitations parmi les avis favorables du formateur, préciser fonction, affectation, délivrance et fin de validité, puis signer le titre.
-3. **Stagiaire** : après publication par l’entreprise, consulter son dossier et télécharger les deux PDF.
+2. **Administrateur** : contrôler l’avis signé et le transmettre à l’espace entreprise.
+3. **Entreprise** : consulter l’avis signé, retenir les habilitations parmi les avis favorables du formateur, préciser fonction, affectation, délivrance et fin de validité, puis signer le titre.
+4. **Stagiaire** : après publication par l’entreprise, consulter son dossier et télécharger les deux PDF.
 
 La transmission se fait par la mise à disposition dans l’espace concerné ; aucun email automatique n’est envoyé. L’accès entreprise suit le compte représentant de l’entreprise principale, avec le rôle entreprise dans l’organisme.
 
@@ -51,3 +52,15 @@ Les tests couvrent le parcours HTTP complet, les deux téléchargements, les aff
 ## Convention pour les prochains formulaires
 
 Utiliser Tom Select pour les listes déroulantes et Flatpickr en français pour les dates, avec affichage jj/mm/aaaa et envoi serveur Y-m-d. Le composant commun public/dist/js/enhanced-forms.js initialise les contrôles dans un conteneur data-enhanced-form. Charger Tom Select, Flatpickr et leurs styles avant ce composant. Après ajout dynamique de champs, appeler WikiFormationForms.init(conteneur). Détruire les instances Tom Select avant de reconstruire des champs ; utiliser leur méthode setValue pour les valeurs proposées automatiquement. Conserver les cases à cocher prévues par les modèles et les droits des champs en lecture seule.
+
+## Affectation automatique et transmission (octobre 2026)
+
+Les inscriptions non annulées et non absentes reçoivent leur dossier à partir du premier jour de session (date civile Europe/Paris). Les sessions annulées sont exclues. Le modèle actif, l’entreprise et le formateur doivent être renseignés dans le même organisme. Sans formateur principal, un seul formateur effectif permet l’affectation automatique ; sinon l’administrateur choisit le responsable manuellement. Les dossiers existants, même désactivés, ne sont jamais écrasés.
+
+La synchronisation est réalisée à l’ouverture du tableau de bord formateur et de la liste des habilitations (administrateur/formateur), ainsi qu’au déploiement et lors du traitement existant `app:trainer-reminders:run --execute` (le conteneur local le lance chaque minute). Elle rattrape également les sessions passées. Pour une création sans visite, planifier quotidiennement sur le serveur (ou toutes les heures) :
+```sh
+cd "$HOME/apps/wkformation" && php bin/console app:habilitations:sync --env=prod --no-debug
+```
+L’option `--entite=1` permet de limiter l’organisme. La commande indique les inscriptions dont l’entreprise ou le formateur manque.
+
+Seul l’administrateur affecte ou réaffecte. Le formateur accède à ses évaluations via Habilitations ou le menu de chaque session. Après signature, l’état devient « Validé · à transmettre ». L’administrateur contrôle puis utilise « Transmettre à l’entreprise ». Avant cette action, aucun accès entreprise au dossier ni au PDF n’est autorisé. Une modification de l’avis révoque cet accès et exige une nouvelle signature et transmission. Les dossiers déjà transmis avant cette évolution restent accessibles.

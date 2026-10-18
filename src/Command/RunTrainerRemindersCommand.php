@@ -14,7 +14,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'app:trainer-reminders:run', description: 'Relances formateurs par organisme (simulation sans --execute).')]
 final class RunTrainerRemindersCommand extends Command
 {
-    public function __construct(private readonly EntityManagerInterface $em, private readonly TrainerReminderRunner $runner) { parent::__construct(); }
+    public function __construct(private readonly EntityManagerInterface $em, private readonly TrainerReminderRunner $runner, private readonly \App\Service\Habilitation\HabilitationAssignments $habilitations) { parent::__construct(); }
     protected function configure(): void
     {
         $this->addOption('execute', null, InputOption::VALUE_NONE, 'Envoyer les e-mails activés dans les paramètres.')->addOption('entite', null, InputOption::VALUE_REQUIRED, 'Limiter à un organisme.');
@@ -27,6 +27,7 @@ final class RunTrainerRemindersCommand extends Command
         $count = 0; $failed = false;
         foreach ($this->em->getRepository(Entite::class)->findBy($id === null ? [] : ['id' => (int) $id]) as $entite) {
             try {
+                if ($input->getOption('execute')) $this->habilitations->synchronize($entite);
                 foreach ($this->runner->candidates($entite, $now) as $message) {
                     $status = $input->getOption('execute') ? $this->runner->send($message, $now) : 'simulation';
                     $output->writeln(sprintf('Organisme %d · %s · %s', $entite->getId(), $message['scope'], $status));

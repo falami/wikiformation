@@ -30,6 +30,28 @@ final class NotificationActivityListener
     public static function describe(object $e, array $changes, bool $new): ?NotificationEvent
     {
         $n = new NotificationEvent();
+        if ($e instanceof \App\Entity\TrainerDiploma || $e instanceof \App\Entity\TrainerCharterSignature) {
+            if ($e instanceof \App\Entity\TrainerDiploma) {
+                if (!$new || $e->filename === '') return null;
+                $trainer = $e->formateur;
+                $n->title = 'Diplôme déposé · '.$e->title;
+                $n->occurredAt = $e->uploadedAt;
+                // The diploma ID is not yet allocated during onFlush; link to its trainer's documents.
+                $n->sourceId = $trainer?->getId();
+            } else {
+                if (!$e->signedAt || (!$new && (!isset($changes['signedAt']) || $changes['signedAt'][0] !== null))) return null;
+                $trainer = $e->trainer;
+                if (!$trainer || $e->version?->charter?->entite !== $trainer->getEntite()) return null;
+                $n->title = 'Charte formateur signée · '.$e->version->title.' · Version '.$e->version->number;
+                $n->occurredAt = $e->signedAt;
+                $n->sourceId = $e->version->id;
+            }
+            $n->entite = $trainer?->getEntite();
+            $n->subject = $trainer?->getUtilisateur();
+            $n->sourceType = (new \ReflectionClass($e))->getShortName();
+            $n->title = mb_substr($n->title, 0, 255);
+            return $n;
+        }
         if ($e instanceof ContratFormateur) {
             if ($e->getStatus() === \App\Enum\ContratFormateurStatus::BROUILLON) return null;
             if (!$new && !array_intersect(array_keys($changes), ['status','signatureAt','versionNumero','pdfPath','montantPrevuCents','conditionsParticulieres','conditionsGenerales'])) return null;

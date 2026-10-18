@@ -1,0 +1,86 @@
+(() => {
+  const tables = ['tblUnsigned', 'tblAppreciations', 'tblTrainerCompliance'];
+  let busy = false;
+  const visible = table => [...(table?.querySelectorAll('[data-reminder-row]') || [])].filter(box => !box.disabled && box.closest('tr').getClientRects().length);
+  function refresh() {
+    tables.forEach(id => {
+      const table = document.getElementById(id);
+      if (!table) return;
+      const boxes = visible(table), checked = boxes.filter(box => box.checked);
+      const all = document.querySelector(`[data-reminder-all="${id}"]`);
+      const button = document.querySelector(`[data-reminder-send="${id}"]`);
+      if (all) { all.checked = boxes.length > 0 && checked.length === boxes.length; all.indeterminate = checked.length > 0 && checked.length < boxes.length; all.disabled = busy || !boxes.length; }
+      if (button) { button.disabled = busy || !checked.length; button.textContent = `Relancer la sélection (${checked.length})`; }
+    });
+  }
+  document.addEventListener('change', event => {
+    if (event.target.matches('[data-reminder-all]')) {
+      const checked = event.target.checked;
+      visible(document.getElementById(event.target.dataset.reminderAll)).forEach(box => { box.checked = checked; });
+    }
+    refresh();
+  });
+  document.addEventListener('input', () => setTimeout(refresh, 0));
+  async function send(id, boxes) {
+    if (busy || !boxes.length) return;
+    const table = document.getElementById(id);
+    const status = document.querySelector(`[data-reminder-feedback="${id}"]`);
+    const buttons = [...table.querySelectorAll('form button')];
+    const previouslyDisabled = buttons.map(button => button.disabled);
+    busy = true; buttons.forEach(button => { button.disabled = true; }); refresh();
+    let sent = 0, skipped = 0, failed = 0;
+    const details = new Set();
+    try {
+      for (const [index, box] of boxes.entries()) {
+        if (status) status.textContent = `Relances en cours… ${index + 1}/${boxes.length}`;
+        const row = box.closest('tr'), form = row.querySelector('form');
+        try {
+          const response = await fetch(form.action, {method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json'}, credentials:'same-origin'});
+          if (!response.ok) throw new Error(response.status === 403 ? 'Session expirée ou accès refusé : rechargez la page.' : 'Envoi non confirmé : vérifiez avant de relancer.');
+          const result = await response.json();
+          if (!['sent','skipped','failed'].every(key => Number.isInteger(result[key]) && result[key] >= 0)) throw new Error('Réponse inattendue : vérifiez avant de relancer.');
+          if (result.sent && result.lastReminderAt) {
+            const cell = row.querySelector('[data-reminder-history]');
+            if (cell) cell.textContent = new Date(result.lastReminderAt).toLocaleString('fr-FR', {timeZone:'Europe/Paris', dateStyle:'short', timeStyle:'short'});
+          }
+          sent += result.sent; skipped += result.skipped; failed += result.failed;
+          Object.values(result.messages || {}).flat().forEach(message => details.add(message));
+          if (result.sent || result.failed || id === 'tblTrainerCompliance') {
+            box.checked = false; box.disabled = true;
+            form.dataset.reminderDone = '1';
+          } else box.checked = false;
+        } catch (error) {
+          failed++;
+          details.add(error.message || 'Envoi non confirmé : vérifiez avant de relancer.');
+          // A lost response may still mean the server sent the mail. Never retry automatically.
+          box.checked = false; box.disabled = true;
+          if (form) form.dataset.reminderDone = '1';
+        }
+      }
+    } finally {
+      busy = false;
+      buttons.forEach((button, index) => { button.disabled = previouslyDisabled[index] || button.form?.dataset.reminderDone === '1'; });
+      refresh();
+      if (status) status.textContent = `${sent} mail(s) confié(s) au service d’envoi · ${skipped} relance(s) ignorée(s) · ${failed} échec(s). ${[...details].join(' ')}`;
+    }
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-reminder-send]');
+    if (!button) return;
+    event.preventDefault();
+    const id = button.dataset.reminderSend;
+    send(id, visible(document.getElementById(id)).filter(box => box.checked));
+  });
+  document.addEventListener('submit', event => {
+    const table = event.target.closest('table');
+    if (!table || !tables.includes(table.id)) return;
+    event.preventDefault();
+    const box = event.target.closest('tr').querySelector('[data-reminder-row]');
+    if (box && !box.disabled) send(table.id, [box]);
+  });
+  function init() {
+    tables.forEach(id => { const body = document.querySelector(`#${id} tbody`); if (body) new MutationObserver(refresh).observe(body, {childList:true, subtree:true, attributes:true, attributeFilter:['style','class']}); });
+    refresh();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();

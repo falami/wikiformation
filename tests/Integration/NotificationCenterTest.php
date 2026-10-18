@@ -60,6 +60,45 @@ final class NotificationCenterTest extends \Symfony\Bundle\FrameworkBundle\Test\
         }
     }
 
+    public function testDiplomaAndCharterNotifications(): void
+    {
+        $diploma = new \App\Entity\TrainerDiploma();
+        $diploma->formateur = $this->trainer;
+        $diploma->title = 'Qualification Excel';
+        $diploma->filename = 'diploma.pdf';
+        $charter = new \App\Entity\TrainerCharter();
+        $charter->entite = $this->entite;
+        $version = new \App\Entity\TrainerCharterVersion();
+        $version->charter = $charter;
+        $version->title = 'Charte qualité';
+        $signature = new \App\Entity\TrainerCharterSignature();
+        $signature->version = $version;
+        $signature->trainer = $this->trainer;
+        foreach ([$diploma, $charter, $version, $signature] as $entity) $this->em->persist($entity);
+        $this->em->flush();
+        $repo = $this->em->getRepository(\App\Entity\NotificationEvent::class);
+        self::assertSame(1, $repo->count(['sourceType'=>'TrainerDiploma']));
+        self::assertSame(0, $repo->count(['sourceType'=>'TrainerCharterSignature']));
+        $signature->signedAt = new \DateTimeImmutable();
+        $this->em->flush();
+        $signature->evidence = ['checked'=>true];
+        $diploma->title = 'Titre corrigé';
+        $this->em->flush();
+        self::assertSame(1, $repo->count(['sourceType'=>'TrainerDiploma']));
+        self::assertSame(1, $repo->count(['sourceType'=>'TrainerCharterSignature']));
+        $center = self::getContainer()->get(\App\Service\Notification\NotificationCenter::class);
+        $events = $repo->findBy(['sourceType'=>['TrainerDiploma','TrainerCharterSignature']]);
+        $keys = array_map(fn($event)=>'event:'.$event->id, $events);
+        $admin = array_values(array_filter($center->items($this->entite,$this->user,'admin'),fn($item)=>in_array($item['key'],$keys,true)));
+        self::assertCount(2,$admin);
+        foreach ($admin as $item) {
+            self::assertStringContainsString('Camille Test',$item['detail']);
+            self::assertFalse($item['read']);
+            self::assertMatchesRegularExpression('~/(formateurs/disponibilites|formateur/chartes/\d+/suivi)~',$item['url']);
+        }
+        self::assertSame([],array_values(array_filter($center->items($this->entite,$this->user,'formateur'),fn($item)=>in_array($item['key'],$keys,true))));
+    }
+
     public function testJournalAndRoleScopes(): void
     {
         $center=self::getContainer()->get(\App\Service\Notification\NotificationCenter::class);

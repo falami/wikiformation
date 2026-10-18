@@ -36,7 +36,7 @@ final class HabilitationTest extends KernelTestCase
         $formation=(new Formation())->setTitre('Habilitation électrique')->setSlug('habilitation-test')->setEntite($this->tenant)->setCreateur($this->admin)->setHabilitationTemplate($template);$this->em->persist($formation);
         $f=(new Formateur())->setUtilisateur($this->trainer)->setEntite($this->tenant)->setCreateur($this->admin);$this->em->persist($f);
         $site=(new \App\Entity\Site())->setNom('Site exemple')->setSlug('site-exemple')->setEntite($this->tenant)->setCreateur($this->admin);$this->em->persist($site);
-        $session=(new Session())->setSite($site)->setEntite($this->tenant)->setCreateur($this->admin)->setFormation($formation)->setCode('SES-TEST')->setFormateur($f);$this->em->persist($session);
+        $session=(new Session())->setSite($site)->setEntite($this->tenant)->setCreateur($this->admin)->setFormation($formation)->setCode('SES-TEST')->setFormateur($f);$session->addJour((new \App\Entity\SessionJour())->setEntite($this->tenant)->setCreateur($this->admin)->setDateDebut(new \DateTimeImmutable('-2 days 09:00'))->setDateFin(new \DateTimeImmutable('-2 days 17:00')));$this->em->persist($session);
         $inscription=(new Inscription())->setSession($session)->setStagiaire($this->trainee)->setEntreprise($company)->setEntite($this->tenant)->setCreateur($this->admin);$this->em->persist($inscription);
         $this->dossier=(new HabilitationDossier())->setEntite($this->tenant)->setInscription($inscription)->setTemplate($template)->setSchema($template->getSchema())->setFormateur($this->trainer)->setEntreprise($company);$this->em->persist($this->dossier);$this->em->flush();
         $this->client=new KernelBrowser(self::$kernel);$this->client->disableReboot();$this->client->catchExceptions(false);
@@ -47,7 +47,7 @@ final class HabilitationTest extends KernelTestCase
     private function show(string $query=''): string { return $this->url('/'.$this->dossier->getId()).$query; }
     private function input(): array {return ['function'=>'Technicien','assignment'=>'Atelier','issuedAt'=>'2026-10-06','validUntil'=>'2027-10-06','signerFunction'=>'Responsable','place'=>'Alès','additionalDocument'=>'Aucun','rows'=>['row_0'=>['verdict'=>'favorable','symbols'=>['B0'],'voltage'=>['BT'],'works'=>'Atelier principal','details'=>'Sans travaux sous tension']]];}
     private function signature(): string { $im=imagecreatetruecolor(100,40);imagesetthickness($im,2);imageline($im,5,5,95,35,imagecolorallocate($im,240,240,240));ob_start();imagepng($im);$s=ob_get_clean();imagedestroy($im);return 'data:image/png;base64,'.base64_encode($s); }
-    private function sign(string $stage): HabilitationRevision { $r=self::getContainer()->get(HabilitationWorkflow::class)->save($this->dossier,$stage,$this->input(),true,$stage==='avis'?$this->trainer:$this->employer,$this->signature());$this->em->persist($r);$this->em->flush();return $r; }
+    private function sign(string $stage): HabilitationRevision { if ($stage==='titre' && $this->dossier->getState()==='pending_admin') { $this->em->persist(self::getContainer()->get(HabilitationWorkflow::class)->transmit($this->dossier,$this->admin));$this->em->flush(); } $r=self::getContainer()->get(HabilitationWorkflow::class)->save($this->dossier,$stage,$this->input(),true,$stage==='avis'?$this->trainer:$this->employer,$this->signature());$this->em->persist($r);$this->em->flush();return $r; }
     public function testAdminPagesAndTemplateSave(): void {
         $this->client->loginUser($this->admin);
         foreach(['','/modeles','/modeles/nouveau','/affecter','/'.$this->dossier->getId(),'/'.$this->dossier->getId().'/reaffecter'] as $path){$this->client->request('GET',$this->url($path));self::assertSame(200,$this->client->getResponse()->getStatusCode());}
@@ -55,6 +55,12 @@ final class HabilitationTest extends KernelTestCase
     }
     public function testFullHttpSignatureFlowAndDownload(): void {
         foreach ([['avis',$this->trainer],['titre',$this->employer]] as [$stage,$actor]) {
+            if ($stage==='titre') {
+                $this->client->loginUser($this->admin);
+                $page=$this->client->request('GET',$this->show());
+                $form=$page->filter('form[action$="/transmettre"]')->form();
+                $this->client->submit($form);self::assertSame(302,$this->client->getResponse()->getStatusCode());
+            }
             $this->client->loginUser($actor);$page=$this->client->request('GET',$this->show('?stage='.$stage));self::assertSame(200,$this->client->getResponse()->getStatusCode());
             if (getenv('HAB_PREVIEW_DIR')) file_put_contents(getenv('HAB_PREVIEW_DIR').'/'.$stage.'.html', $this->client->getResponse()->getContent());
             $token=$page->filter('#hab-evaluation input[name="_token"]')->attr('value');
@@ -90,7 +96,7 @@ final class HabilitationTest extends KernelTestCase
     public function testReassignmentResetsApprovalsAndKeepsHistory(): void {
         $avis=$this->sign('avis');$this->sign('titre');$this->client->loginUser($this->admin);
         $page=$this->client->request('GET',$this->show('/reaffecter'));$this->client->submit($page->filter('#hab-assignment')->form());self::assertSame(302,$this->client->getResponse()->getStatusCode());
-        $d=$this->em->getRepository(HabilitationDossier::class)->find($this->dossier->getId());self::assertNull($d->getAvisToken());self::assertNull($d->getTitreToken());self::assertSame([],$d->getTrainerData());self::assertCount(3,$this->em->getRepository(HabilitationRevision::class)->findBy(['dossier'=>$d]));self::assertNotEmpty($avis->getSnapshot()['signature']);
+        $d=$this->em->getRepository(HabilitationDossier::class)->find($this->dossier->getId());self::assertNull($d->getAvisToken());self::assertNull($d->getTitreToken());self::assertSame([],$d->getTrainerData());self::assertCount(4,$this->em->getRepository(HabilitationRevision::class)->findBy(['dossier'=>$d]));self::assertNotEmpty($avis->getSnapshot()['signature']);
     }
     public function testAdminCanEditButCannotImpersonateSignatory(): void {
         $this->client->loginUser($this->admin);$page=$this->client->request('GET',$this->show());$token=$page->filter('#hab-evaluation input[name="_token"]')->attr('value');$version=$page->filter('#hab-evaluation input[name="version"]')->attr('value');$this->client->catchExceptions(true);
@@ -102,6 +108,60 @@ final class HabilitationTest extends KernelTestCase
         $this->em->persist($i);$this->em->flush();$d=$this->em->getRepository(HabilitationDossier::class)->findOneBy(['inscription'=>$i]);
         self::assertNotNull($d);self::assertSame($this->trainer,$d->getFormateur());$snapshot=$d->getSchema();
         $model=$d->getTemplate();$changed=$model->getSchema();$changed['sections'][0]['title']='Modifié après affectation';$model->setSchema($changed);$this->em->flush();self::assertSame($snapshot,$d->getSchema());
+    }
+
+    public function testTrainerCannotAssignAndEmployerMustWaitForAdmin(): void {
+        $this->sign('avis');
+        self::assertSame('pending_admin',$this->dossier->getState());
+        $this->client->catchExceptions(true);
+        $this->client->loginUser($this->trainer);
+        foreach (['GET','POST'] as $method) {
+            $this->client->request($method,$this->url('/affecter'));
+            self::assertSame(403,$this->client->getResponse()->getStatusCode());
+        }
+        $this->client->loginUser($this->employer);
+        foreach ([$this->show(),$this->show('/document/'.$this->dossier->getAvisToken())] as $url) {
+            $this->client->request('GET',$url);self::assertSame(403,$this->client->getResponse()->getStatusCode());
+        }
+        $this->client->request('GET',$this->url());
+        self::assertStringNotContainsString('SES-TEST',$this->client->getResponse()->getContent());
+        $this->client->loginUser($this->trainer);
+        $this->client->request('POST',$this->show('/transmettre'));
+        self::assertSame(403,$this->client->getResponse()->getStatusCode());
+    }
+
+    public function testPastAssignmentsAreBackfilledOnceAndFutureOnesWait(): void {
+        $session=$this->dossier->getInscription()->getSession();
+        foreach ($session->getJours() as $day) $day->setDateDebut(new \DateTimeImmutable('+2 days 09:00'))->setDateFin(new \DateTimeImmutable('+2 days 17:00'));
+        $i=(new Inscription())->setSession($session)->setStagiaire($this->other)->setEntreprise($this->dossier->getEntreprise())->setEntite($this->tenant)->setCreateur($this->admin);
+        $this->em->persist($i);$this->em->flush();
+        $service=self::getContainer()->get(\App\Service\Habilitation\HabilitationAssignments::class);
+        self::assertSame(0,$service->synchronize($this->tenant)['created']);
+        self::assertNull($this->em->getRepository(HabilitationDossier::class)->findOneBy(['inscription'=>$i]));
+        foreach ($session->getJours() as $day) $day->setDateDebut(new \DateTimeImmutable('-10 days 09:00'))->setDateFin(new \DateTimeImmutable('-10 days 17:00'));
+        $this->em->flush();
+        self::assertSame(1,$service->synchronize($this->tenant)['created']);
+        self::assertSame(0,$service->synchronize($this->tenant)['created']);
+        $this->client->loginUser($this->trainer);
+        $this->client->request('GET',$this->url('?session='.$session->getId()));
+        self::assertStringContainsString('SES-TEST',$this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('Affecter une évaluation',$this->client->getResponse()->getContent());
+        $this->client->request('GET',$this->url('?session=999999'));
+        self::assertStringNotContainsString('SES-TEST',$this->client->getResponse()->getContent());
+    }
+
+    public function testEligibilityUsesFirstCalendarDayAndExcludesCancellations(): void {
+        $i=$this->dossier->getInscription();$s=$i->getSession();
+        $now=new \DateTimeImmutable('2026-10-18 00:01',new \DateTimeZone('Europe/Paris'));
+        foreach ($s->getJours() as $day) $day->setDateDebut(new \DateTimeImmutable('2026-10-18 09:00',new \DateTimeZone('Europe/Paris')));
+        self::assertTrue(\App\Service\Habilitation\HabilitationAssignments::due($i,$now));
+        self::assertFalse(\App\Service\Habilitation\HabilitationAssignments::due($i,$now->modify('-1 day')));
+        $i->setStatus(\App\Enum\StatusInscription::ANNULE);
+        self::assertFalse(\App\Service\Habilitation\HabilitationAssignments::due($i,$now));
+        $i->setStatus(\App\Enum\StatusInscription::ABSENT);
+        self::assertFalse(\App\Service\Habilitation\HabilitationAssignments::due($i,$now));
+        $i->setStatus(\App\Enum\StatusInscription::CONFIRME);$s->setStatus(\App\Enum\StatusSession::CANCELED);
+        self::assertFalse(\App\Service\Habilitation\HabilitationAssignments::due($i,$now));
     }
 
 }

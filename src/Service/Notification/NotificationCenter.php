@@ -175,6 +175,10 @@ final class NotificationCenter
             }
             $url=$s?$this->sessionUrl($tenant,$s,$space):$this->url('app_notifications_index',$tenant,['space'=>$space]);
             if ($event->sourceType==='TrainerInquiry' && $space==='admin' && $event->subject) $url=$this->url('app_administrateur_utilisateur_show',$tenant,['id'=>$event->subject->getId()]);
+            if ($space==='admin' && $event->sourceId) {
+                if ($event->sourceType==='TrainerDiploma') $url=$this->url('app_admin_trainer_availability',$tenant,['trainers'=>[$event->sourceId]]);
+                if ($event->sourceType==='TrainerCharterSignature') $url=$this->url('app_charter_tracking',$tenant,['id'=>$event->sourceId]);
+            }
             $this->add($items,'event:'.$event->id,$event->category,'info',$event->title,trim(($s?->getCode() ? $s->getCode().' · ' : '').($event->subject ? trim($event->subject->getPrenom().' '.$event->subject->getNom()) : ''), ' ·'),$url,$event->occurredAt,$s?->getId());
             $items['event:'.$event->id]['actor'] = $event->actor !== '' && $event->actor !== 'Traitement automatique ou accès personnel' ? $event->actor : null;
         }

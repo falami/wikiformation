@@ -29,6 +29,7 @@ class DashboardFormateurController extends AbstractController
         private UtilisateurEntiteManager $utilisateurEntiteManager,
         private PdfManager $pdfManager,
         private HttpClientInterface $httpClient,
+        private \App\Service\Habilitation\HabilitationAssignments $habilitationAssignments,
     ) {}
 
     /* =========================================================
@@ -107,6 +108,7 @@ class DashboardFormateurController extends AbstractController
     #[Route('/dashboard', name: 'dashboard', methods: ['GET'])]
     public function dashboard(Entite $entite, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\TrainerCharter\CharterManager $charters): Response
     {
+        $this->habilitationAssignments->synchronize($entite);
     $lifecycle->synchronize($entite);
         /** @var Utilisateur $user */
         $user = $this->getUser();

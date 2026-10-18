@@ -44,5 +44,6 @@ composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 php bin/console doctrine:migrations:migrate --no-interaction --env=prod
 php bin/console cache:clear --env=prod --no-debug --no-warmup
 php bin/console cache:warmup --env=prod --no-debug
+php bin/console app:habilitations:sync --env=prod --no-debug
 chmod -R ug+rwX var
 printf 'Deployment completed. Backup: %s\n' "$BACKUP_DIR"
