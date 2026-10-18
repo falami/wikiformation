@@ -36,6 +36,35 @@ final class TrainerCharterController extends AbstractController
         foreach ($charters as $c) $rows[]=['charter'=>$c,'versions'=>$this->em->getRepository(TrainerCharterVersion::class)->findBy(['charter'=>$c],['number'=>'DESC']),'latest'=>$this->manager->latest($c)];
         return $this->response('administrateur/formateur/charte/admin.html.twig',compact('entite','rows'));
     }
+    #[Route('/administrateur/{entite}/formateur/chartes/{id}/supprimer',name:'app_charter_delete',requirements:['id'=>'\\d+'],methods:['POST'])]
+    public function delete(Entite $entite, int $id, Request $request): Response {
+        $this->admin($entite);
+        $this->csrf($request, 'charter_delete_'.$id);
+        $charter = $this->em->getRepository(TrainerCharter::class)->findOneBy(['id'=>$id, 'entite'=>$entite]);
+        if (!$charter) throw $this->createNotFoundException();
+        try {
+            $this->em->wrapInTransaction(function () use ($charter): void {
+                $versions = $this->em->getRepository(TrainerCharterVersion::class)->findBy(['charter'=>$charter]);
+                foreach ($versions as $version) {
+                    $signatures = $this->em->getRepository(TrainerCharterSignature::class)->findBy(['version'=>$version]);
+                    foreach ($signatures as $signature) {
+                        $this->em->lock($signature, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+                        $this->em->refresh($signature);
+                        if ($signature->signedAt || $signature->pdfDigest || $signature->pdfBytes() !== '') {
+                            throw new \DomainException('Cette charte possède un exemplaire signé : elle est conservée avec ses signatures et ne peut pas être supprimée.');
+                        }
+                        $this->em->remove($signature);
+                    }
+                    $this->em->remove($version);
+                }
+                $this->em->remove($charter);
+            });
+            $this->addFlash('success', 'La charte, ses versions et ses demandes non signées ont été supprimées.');
+        } catch (\DomainException $e) {
+            $this->addFlash('warning', $e->getMessage());
+        }
+        return $this->redirectToRoute('app_charter_admin', ['entite'=>$entite->getId()]);
+    }
     #[Route('/administrateur/{entite}/formateur/chartes/nouvelle',name:'app_charter_new',methods:['POST'])]
     public function create(Entite $entite, Request $request): Response {
         $this->admin($entite);$this->csrf($request,'charter_new_'.$entite->getId());

@@ -483,10 +483,12 @@
                 </div>
               </div>
             {% endif %}
+            {% if session and session.tauxDistanciel is not null %}
             <div class="info-block">
               <span class="info-label">Enseignement à distance</span>
-              <div class="info-content">{% if session and session.tauxDistanciel is not null %}{{ session.tauxDistanciel|number_format(2, ',', ' ') }} % de la durée totale des enseignements{% else %}À préciser avant signature : proportion de la durée dispensée à distance (0 % si intégralement en présentiel).{% endif %}</div>
+              <div class="info-content">{{ session.tauxDistanciel|number_format(2, ',', ' ') }} % de la durée totale des enseignements</div>
             </div>
+            {% endif %}
             {% if convention and convention.montantHtCents is not null %}
               <div class="info-block mb-0">
                 <span class="info-label">Montant de la convention</span>
@@ -550,14 +552,16 @@
         </tr>
       </table>
 
+      {% if formation and formation.objectifs|default('')|trim is not empty %}
       <div class="info-block">
         <span class="info-label">Objectifs</span>
         <div class="info-content">
-          {{ (formation and formation.objectifs is defined and formation.objectifs) ? formation.objectifs|nl2br : '-' }}
+          {{ formation.objectifs|nl2br }}
         </div>
       </div>
 
-      {% if formation and formation.public is defined and formation.public %}
+      {% endif %}
+      {% if formation and formation.public|default('')|trim is not empty %}
         <div class="info-block">
           <span class="info-label">Public visé</span>
           <div class="info-content">
@@ -566,10 +570,12 @@
         </div>
       {% endif %}
 
+      {% if formation and formation.conditionPrealable|default('')|trim is not empty %}
       <div class="info-block">
         <span class="info-label">Prérequis</span>
-        <div class="info-content">{{ formation and formation.conditionPrealable ? formation.conditionPrealable|nl2br : 'À préciser avant signature (indiquer explicitement si aucun prérequis).' }}</div>
+        <div class="info-content">{{ formation.conditionPrealable|nl2br }}</div>
       </div>
+      {% endif %}
       <div class="info-block">
         <span class="info-label">Moyens de suivi et documents de fin de formation</span>
         <div class="info-content">Présences justifiées par les émargements et, le cas échéant, par les traces d’activité à distance. Un certificat de réalisation mentionne la durée effectivement suivie. Une éventuelle certification professionnelle et ses conditions d’obtention doivent être précisées dans le programme.</div>
@@ -773,7 +779,7 @@
     {% endif %}
 
     {# ===== Conditions financières (si dispo) ===== #}
-    {% if convention and convention.conditionsFinancieres %}
+    {% if convention and convention.conditionsFinancieres|default('')|trim is not empty %}
       <div class="card card-highlight">
         <div class="section-title">
           Conditions financières
@@ -781,8 +787,7 @@
         </div>
         <p class="mb-0">{{ convention.conditionsFinancieres|nl2br }}</p>
       </div>
-    {% else %}
-      <div class="card"><div class="section-title">Conditions financières à compléter avant signature</div><p class="mb-0">Préciser les modalités et l’échéancier de paiement ainsi que les conditions financières en cas d’abandon ou d’interruption de la formation.</p></div>
+
     {% endif %}
 
     <div class="card">
@@ -790,7 +795,7 @@
         Règlement et frais annexes
         <div class="section-title-accent"></div>
       </div>
-      <p>Le règlement suit les modalités et l’échéancier indiqués dans les conditions financières ci-dessus ou dans le devis accepté auquel cette convention se réfère.</p>
+      <p>Le règlement suit les modalités et l’échéancier convenus entre les parties{% if convention and convention.conditionsFinancieres|default('')|trim is not empty %}, précisés dans les conditions financières ci-dessus{% elseif devis %}, précisés dans le devis accepté auquel cette convention se réfère{% endif %}.</p>
       <p>Les frais de déplacement, de restauration ou d’hébergement éventuellement facturés doivent être détaillés dans le devis ou les conditions financières. Leur prise en charge est à préciser avant signature si elle n’y figure pas.</p>
       {% if entite.iban %}
         <div class="info-block mb-0"><span class="info-label">Coordonnées pour un règlement par virement</span>

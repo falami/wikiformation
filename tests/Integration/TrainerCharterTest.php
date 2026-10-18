@@ -33,6 +33,25 @@ final class TrainerCharterTest extends KernelTestCase
         $this->client->request('POST',$this->base().'/'.$v->id.'/suivi',['_token'=>$token,'trainers'=>[(string)$this->trainerId]]);self::assertSame(302,$this->client->getResponse()->getStatusCode());
         return $this->em->getRepository(TrainerCharterSignature::class)->findOneBy([])->id;
     }
+    public function testDeleteUnsignedCharterAndItsRequests(): void {
+        $v=$this->published(); $this->requestSignature($v);
+        $page=$this->client->request('GET',$this->base());
+        $this->client->submit($page->selectButton('Supprimer la charte')->form());
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        self::assertSame(0,$this->em->getRepository(TrainerCharter::class)->count([]));
+        self::assertSame(0,$this->em->getRepository(TrainerCharterVersion::class)->count([]));
+        self::assertSame(0,$this->em->getRepository(TrainerCharterSignature::class)->count([]));
+    }
+    public function testDeleteProtectsSignedCharter(): void {
+        $v=$this->published(); $id=$this->requestSignature($v);
+        $signature=$this->em->find(TrainerCharterSignature::class,$id);
+        $signature->signedAt=new \DateTimeImmutable(); $this->em->flush();
+        $page=$this->client->request('GET',$this->base());
+        $this->client->submit($page->selectButton('Supprimer la charte')->form());
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        self::assertSame(1,(int)$this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM trainer_charter_signature'));
+        self::assertSame(1,(int)$this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM trainer_charter'));
+    }
     public function testEditorPublicationAndImmutableVersion(): void {
         $page=$this->client->request('GET',$this->base());$form=$page->selectButton('Créer une charte')->form();$this->client->submit($form);
         $page=$this->client->followRedirect();self::assertSame(200,$this->client->getResponse()->getStatusCode());
