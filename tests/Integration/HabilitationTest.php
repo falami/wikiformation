@@ -42,6 +42,32 @@ final class HabilitationTest extends KernelTestCase
         $this->client=new KernelBrowser(self::$kernel);$this->client->disableReboot();$this->client->catchExceptions(false);
     }
 
+    public function testSelectedAttestationsExportAndAccessControl(): void
+    {
+        $this->sign('avis');
+        $this->client->loginUser($this->trainer);
+        $page = $this->client->request('GET', $this->url());
+        $token = $page->filter('#hab-export-selection input[name="_token"]')->attr('value');
+        $this->client->request('POST', $this->url().'/attestations-selection', ['_token'=>$token, 'ids'=>[$this->dossier->getId()]]);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame('application/zip', $this->client->getResponse()->headers->get('Content-Type'));
+        $path = tempnam(sys_get_temp_dir(), 'test-hab-zip');
+        try {
+            file_put_contents($path, $this->client->getResponse()->getContent());
+            $zip = new \ZipArchive(); self::assertTrue($zip->open($path));
+            self::assertSame(1, $zip->numFiles);
+            self::assertStringStartsWith('%PDF', $zip->getFromIndex(0)); $zip->close();
+        } finally { unlink($path); }
+        $this->client->request('POST', $this->url().'/attestations-selection', ['_token'=>$token, 'ids'=>[]]);
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->other);
+        $page = $this->client->request('GET', $this->url());
+        $token = $page->filter('#hab-export-selection input[name="_token"]')->attr('value');
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', $this->url().'/attestations-selection', ['_token'=>$token, 'ids'=>[$this->dossier->getId()]]);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
     public function testBulkAssignmentsAreAtomicAndArchivePreviousAnswers(): void
     {
         $company=(new Entreprise())->setEntite($this->tenant)->setRaisonSociale('Nouvel employeur')->setCreateur($this->admin);
@@ -97,7 +123,7 @@ final class HabilitationTest extends KernelTestCase
         $this->client->request('POST',$this->url().'/modifier-selection',['_token'=>$token,'ids'=>[$this->dossier->getId(),999999]]);
         self::assertSame(404,$this->client->getResponse()->getStatusCode());
         $this->client->loginUser($this->trainer);
-        $page=$this->client->request('GET',$this->url());self::assertCount(0,$page->filter('.hab-select-row'));
+        $page=$this->client->request('GET',$this->url());self::assertCount(0,$page->filter('#hab-bulk-selection'));self::assertCount(0,$page->filter('.hab-select-row:not([disabled])'));
         $this->client->request('POST',$this->url().'/modifier-selection',['_token'=>$token,'ids'=>[$this->dossier->getId()]]);
         self::assertSame(403,$this->client->getResponse()->getStatusCode());
     }
