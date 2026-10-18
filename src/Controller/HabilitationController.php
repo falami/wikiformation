@@ -183,6 +183,86 @@ final class HabilitationController extends AbstractController
         }
         return $this->privateRender('assign', $this->base($entite) + compact('d', 'inscriptions', 'models', 'companies', 'trainers', 'error'), $error ? 422 : 200);
     }
+
+    #[Route('/modifier-selection', name: 'bulk_assign', methods: ['POST'])]
+    public function bulkAssign(#[MapEntity(id: 'entite')] Entite $entite, Request $request): Response
+    {
+        $this->member($entite);
+        $this->denyAccessUnlessGranted(P::ADMIN, $entite);
+        $this->csrf($request, 'habilitation_bulk');
+        $ids = $request->request->all('ids');
+        if (!$ids || count($ids) > 100) return new Response('Sélectionnez entre 1 et 100 dossiers.', 422);
+        foreach ($ids as $id) if (!is_scalar($id) || !ctype_digit((string) $id)) return new Response('Sélection invalide.', 422);
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $dossiers = $this->em->getRepository(HabilitationDossier::class)->findBy(['id'=>$ids, 'entite'=>$entite], ['id'=>'ASC']);
+        if (count($dossiers) !== count($ids)) throw $this->createNotFoundException();
+        $models = $this->em->getRepository(HabilitationTemplate::class)->findBy(['entite'=>$entite, 'active'=>true]);
+        $companies = $this->em->getRepository(Entreprise::class)->findBy(['entite'=>$entite], ['raisonSociale'=>'ASC']);
+        $trainers = $this->em->getRepository(Formateur::class)->findBy(['entite'=>$entite]);
+        $inscriptions = array_values(array_filter($this->em->getRepository(Inscription::class)->findBy(['entite'=>$entite]),
+            static fn ($i) => $i->getSession()->getEntite()->getId() === $entite->getId()));
+        $values = $request->request->all(); $error = null;
+        if ($request->request->getString('action') === 'apply') {
+            try {
+                $company = $request->request->getInt('entreprise') ? $this->pick($companies, $request->request->getInt('entreprise')) : null;
+                $model = $request->request->getInt('template') ? $this->pick($models, $request->request->getInt('template')) : null;
+                $assigned = null;
+                if ($request->request->getBoolean('change_trainers')) {
+                    $assigned = [];
+                    foreach ($request->request->all('formateurs') as $fid) {
+                        if (!is_scalar($fid) || !ctype_digit((string)$fid)) throw new \InvalidArgumentException('Formateur invalide.');
+                        $f = $this->pick($trainers, (int)$fid);
+                        if (!$f->getUtilisateur()) throw new \InvalidArgumentException('Le formateur doit avoir un compte.');
+                        $assigned[$f->getUtilisateur()->getId()] = $f->getUtilisateur();
+                    }
+                    if (!$assigned) throw new \InvalidArgumentException('Sélectionnez au moins un formateur ou conservez les affectations actuelles.');
+                    $assigned = array_values($assigned);
+                }
+                $versions = $request->request->all('versions');
+                $registrations = $request->request->all('inscriptions');
+                $changes = [];
+                foreach ($dossiers as $d) {
+                    $version = $versions[$d->getId()] ?? null;
+                    if (!is_scalar($version) || !ctype_digit((string)$version) || (int)$version !== $d->getVersion()) {
+                        return new Response('Un dossier a été modifié ailleurs. Revenez à la liste et recommencez la sélection. Aucune modification appliquée.', 409);
+                    }
+                    $this->em->lock($d, LockMode::OPTIMISTIC, (int)$version);
+                    $registration = $registrations[$d->getId()] ?? $d->getInscription()->getId();
+                    if (!is_scalar($registration) || !ctype_digit((string)$registration)) throw new \InvalidArgumentException('Inscription invalide.');
+                    $i = $this->pick($inscriptions, (int)$registration);
+                    $existing = $this->em->getRepository(HabilitationDossier::class)->findOneBy(['inscription'=>$i]);
+                    if ($existing && $existing !== $d) throw new \InvalidArgumentException('Une inscription sélectionnée possède déjà un dossier.');
+                    $oldTrainers = array_map(static fn ($u) => $u->getId(), $d->getFormateurs());
+                    $newTrainers = $assigned === null ? $oldTrainers : array_map(static fn ($u) => $u->getId(), $assigned);
+                    sort($oldTrainers); sort($newTrainers);
+                    if (($company && $company !== $d->getEntreprise()) || ($model && $model !== $d->getTemplate()) || $i !== $d->getInscription() || $oldTrainers !== $newTrainers) {
+                        $changes[] = [$d, $i];
+                    }
+                }
+                if (!$changes) throw new \InvalidArgumentException('Aucune différence à appliquer. Choisissez les champs à modifier.');
+                if (!$request->request->getBoolean('confirm_reset')) throw new \InvalidArgumentException('Confirmez la remise en évaluation des dossiers modifiés.');
+                $this->em->wrapInTransaction(function () use ($changes, $company, $model, $assigned) {
+                    foreach ($changes as [$d, $i]) {
+                        $before = ['identity'=>$this->workflow->identity($d), 'schema'=>$d->getSchema(), 'trainerData'=>$d->getTrainerData(),
+                            'employerData'=>$d->getEmployerData(), 'avisToken'=>$d->getAvisToken(), 'titreToken'=>$d->getTitreToken(), 'state'=>$d->getState()];
+                        $d->setInscription($i);
+                        if ($company) $d->setEntreprise($company);
+                        if ($model) $d->setTemplate($model)->setSchema($model->getSchema());
+                        if ($assigned !== null) $d->setFormateurs($assigned);
+                        $d->setTrainerData([])->setEmployerData([])->setAvisToken(null)->setTitreToken(null)->setState('draft');
+                        $this->em->persist($this->workflow->record($d, $this->getUser(), 'reassign', ['bulk'=>true, 'previous'=>$before, 'identity'=>$this->workflow->identity($d)]));
+                    }
+                });
+                $this->addFlash('success', count($changes).' dossier(s) modifié(s). Les versions précédentes sont conservées ; les dossiers modifiés nécessitent une nouvelle évaluation.');
+                return $this->redirectToRoute('app_habilitation_index', ['entite'=>$entite->getId()]);
+            } catch (\InvalidArgumentException $e) { $error = $e->getMessage(); }
+            catch (OptimisticLockException|\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
+                return new Response('Conflit de modification : aucune modification appliquée. Rechargez la liste.', 409);
+            }
+        }
+        return $this->privateRender('bulk_assign', $this->base($entite) + compact('dossiers','models','companies','trainers','inscriptions','values','error'), $error ? 422 : 200);
+    }
+
     private function pick(array $objects, int $id): object
     {
         foreach ($objects as $object) if ($object->getId() === $id) return $object;
@@ -283,7 +363,7 @@ final class HabilitationController extends AbstractController
 
     #[Route('/{id}/document/{token}', name: 'pdf', methods: ['GET'], requirements: ['id' => '\d+', 'token' => '[a-f0-9]{32}'])]
     #[Route('/{id}/attestation/{token}', name: 'attestation', methods: ['GET'], defaults: ['attestation' => true], requirements: ['id' => '\d+', 'token' => '[a-f0-9]{32}'])]
-    public function pdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $token, bool $attestation = false): Response
+    public function pdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $token, \App\Service\Pdf\OrganisationBranding $branding, bool $attestation = false): Response
     {
         $rights = $this->access($entite, $dossier);
         $r = $this->em->getRepository(HabilitationRevision::class)->findOneBy(['dossier' => $dossier, 'token' => $token]);
@@ -302,8 +382,9 @@ final class HabilitationController extends AbstractController
             unset($section);
             $snapshot['schema']['sections'] = array_values(array_filter($snapshot['schema']['sections'], static fn ($section) => $section['rows'] !== []));
         }
-        $pdf->loadHtml($this->renderView($attestation ? 'habilitation/attestation.html.twig' : 'habilitation/pdf.html.twig', ['revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($token, [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]));
+        $pdf->loadHtml($this->renderView($attestation ? 'habilitation/attestation.html.twig' : 'habilitation/pdf.html.twig', ['brand' => $branding->forEntity($entite), 'revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($token, [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]));
         $pdf->render();
+        if ($attestation) $pdf->getCanvas()->page_text(500, 811, '{PAGE_NUM} / {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 8, [0.4, 0.45, 0.5]);
         $prefix = $attestation ? 'attestation-electrique' : 'habilitation';
         return new Response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$prefix.'-'.$dossier->getId().'-'.$r->getKind().'-'.substr($token, 0, 8).'.pdf"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }

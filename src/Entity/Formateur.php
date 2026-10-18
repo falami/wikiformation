@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: FormateurRepository::class)]
+#[ORM\UniqueConstraint(name: 'uniq_trainer_user_tenant', columns: ['utilisateur_id', 'entite_id'])]
 class Formateur
 {
     #[ORM\Column(options: ['default' => false])]
@@ -27,7 +28,7 @@ class Formateur
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\OneToOne(inversedBy: 'formateur')]
+    #[ORM\ManyToOne(inversedBy: 'trainerMemberships')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Utilisateur $utilisateur = null;
 
@@ -154,6 +155,11 @@ class Formateur
         $this->positioningAttempts = new ArrayCollection();
         $this->dateCreation = new \DateTimeImmutable();
     }
+
+    #[ORM\Column(type: 'json')]
+    private array $recruitmentDetails = [];
+    public function getRecruitmentDetails(): array { return $this->recruitmentDetails; }
+    public function setRecruitmentDetails(array $value): self { $this->recruitmentDetails = $value; return $this; }
 
     public function getId(): ?int
     {

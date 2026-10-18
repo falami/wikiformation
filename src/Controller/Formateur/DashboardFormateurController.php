@@ -41,7 +41,7 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur|null $user */
         $user = $this->getUser();
 
-        $formateur = $user?->getFormateur();
+        $formateur = $user?->getFormateur($session->getEntite());
 
         return $formateur
             ? $session->getJoursPourFormateur($formateur)
@@ -53,7 +53,7 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur|null $user */
         $user = $this->getUser();
 
-        $formateur = $user?->getFormateur();
+        $formateur = $user?->getFormateur($entite);
 
         if (!$formateur) {
             return false;
@@ -120,7 +120,7 @@ class DashboardFormateurController extends AbstractController
         // ============================
         $nextSession = null;
 
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
         if ($formateur) {
 
             $tz = new \DateTimeZone('Europe/Paris'); // ou self::TZ si tu veux
@@ -372,7 +372,7 @@ class DashboardFormateurController extends AbstractController
 
         // 1) Charge les sessions du formateur (avec formation + jours pour formater dates)
         /** @var Session[] $list */
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
         $list = $formateur ? $sessions->createForFormateurQueryBuilder($entite, $formateur)
             ->leftJoin('s.formation', 'fo')->addSelect('fo')
             ->leftJoin('s.site', 'si')->addSelect('si')
@@ -602,7 +602,7 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
         if (!$formateur) {
             return new JsonResponse([]); // pas de formateur => pas d'événements
         }
@@ -758,7 +758,7 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
         if (!$formateur) {
             return new JsonResponse(['count' => 0, 'draft' => 0, 'pending' => 0, 'signed' => 0]);
         }
@@ -885,7 +885,7 @@ class DashboardFormateurController extends AbstractController
 
 
         // Sessions appartenant au formateur connecté ET à l'entité courante
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
         $list = $formateur ? $em->getRepository(Session::class)->createForFormateurQueryBuilder($entite, $formateur)
             ->leftJoin('s.formation', 'fo')->addSelect('fo')
             ->leftJoin('s.jours', 'j')->addSelect('j')
@@ -1198,7 +1198,7 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
         if (!$formateur) {
             return new JsonResponse([
                 'draw' => $request->request->getInt('draw', 1),
@@ -1307,7 +1307,7 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
         if (!$formateur || $contrat->getFormateur()?->getId() !== $formateur->getId()) {
             throw $this->createAccessDeniedException();
         }
@@ -1333,7 +1333,7 @@ class DashboardFormateurController extends AbstractController
     #[Route('/contrat/{contrat}/document', name: 'contrat_document', methods: ['GET'])]
     public function contratDocument(Entite $entite, ContratFormateur $contrat, \App\Service\Pdf\ContratFormateurDocument $document): Response
     {
-        $formateur = $this->getUser()->getFormateur();
+        $formateur = $this->getUser()->getFormateur($entite);
         if (!$formateur || $contrat->getFormateur()?->getId() !== $formateur->getId()) throw $this->createAccessDeniedException();
         if ($contrat->getEntite()?->getId() !== $entite->getId() || $formateur->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         if ($document->isFrozen($contrat)) {
@@ -1358,7 +1358,7 @@ class DashboardFormateurController extends AbstractController
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
 
         if (!$formateur || $contrat->getFormateur()?->getId() !== $formateur->getId()) {
             throw $this->createAccessDeniedException();

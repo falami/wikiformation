@@ -1,0 +1,25 @@
+{% extends 'recruitment/admin_base.html.twig' %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block recruitment %}
+{% set a=application %}
+<header class="hab-hero"><div><div class="hab-eyebrow">RECRUTEMENT · CANDIDATURE #{{ a.id }}</div><h1>{{ a.firstName }} {{ a.lastName }}</h1><p>{{ a.details.company }} · {{ a.details.city }}<br>Reçue le {{ a.createdAt|date('d/m/Y à H:i','Europe/Paris') }}</p></div><a class="hab-btn" href="{{ path('app_super_recruitment',{entite:entite.id}) }}">Toutes les candidatures</a></header>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<div class="detail-grid"><div><section class="hab-panel">{% if a.photoFilename %}<img class="portrait" src="{{ path('app_super_recruitment_file',{entite:entite.id,id:a.id,kind:'photo'}) }}" alt="Portrait de {{ a.firstName }}">{% endif %}<h2>Profil & coordonnées</h2><p style="white-space:pre-wrap">{{ a.details.presentation }}</p><dl><dt>Email et téléphone</dt><dd>{{ a.email }}<br>{{ a.phone }}</dd><dt>Adresse professionnelle</dt><dd>{{ a.details.address }}<br>{{ a.details.postalCode }} {{ a.details.city }}</dd><dt>Entreprise</dt><dd>{{ a.details.company }}<br>SIRET : {{ a.details.siret }}<br>{{ a.details.vat ? 'Assujetti TVA · ' ~ a.details.vatNumber : 'Non assujetti à la TVA' }}</dd></dl><a class="hab-btn gold" href="{{ path('app_super_recruitment_file',{entite:entite.id,id:a.id,kind:'cv'}) }}">Télécharger le CV</a></section>
+<section class="hab-panel"><h2>Expertises & mobilité</h2>{% for s in a.subjects %}<span class="tag">{{ s }}</span>{% endfor %}<dl><dt>Départements</dt><dd>{{ a.nationwide ? 'Toute la France' : a.departments|join(', ') }}</dd><dt>Tarifs HT</dt><dd>{% if a.hourlyRate %}{{ (a.hourlyRate/100)|number_format(2,',',' ') }} €/heure<br>{% endif %}{% if a.dailyRate %}{{ (a.dailyRate/100)|number_format(2,',',' ') }} €/jour{% endif %}</dd></dl></section></div>
+<aside><section class="hab-panel"><h2>Suivi de candidature</h2><form method="post"><input type="hidden" name="_token" value="{{ csrf_token('application_' ~ a.id) }}"><input type="hidden" name="version" value="{{ a.version }}"><input type="hidden" name="action" value="save"><label>Statut<select name="status">{% for value,label in {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'} %}<option value="{{ value }}" {{ a.status==value ? 'selected' }}>{{ label }}</option>{% endfor %}</select></label><label>Notes internes<textarea name="notes" rows="5" maxlength="10000">{{ a.notes }}</textarea></label><button class="hab-btn" style="margin-top:16px">Enregistrer le suivi</button></form></section>
+<section class="hab-panel"><div class="hab-eyebrow">CANDIDATURE RETENUE</div><h2>Affecter aux organismes</h2><p>Un seul compte utilisateur, une fiche formateur par entité. Les profils déjà présents restent inchangés.</p><form method="post"><input type="hidden" name="_token" value="{{ csrf_token('application_' ~ a.id) }}"><input type="hidden" name="version" value="{{ a.version }}"><input type="hidden" name="action" value="transfer"><label>Entités destinataires<select name="entities[]" multiple required data-recruit-select>{% for e in entities %}<option value="{{ e.id }}">{{ e.nom }} · #{{ e.id }}</option>{% endfor %}</select></label><label style="margin:15px 0"><input type="checkbox" name="confirmExisting" value="1"> Si un compte existe avec cet email, j’ai vérifié qu’il appartient à ce candidat.</label><button class="hab-btn gold">Créer / rattacher le compte formateur</button></form><p class="text-muted small mt-3">Aucun email n’est envoyé par cette action. Le titulaire peut définir son mot de passe via « Mot de passe oublié ».</p></section>
+<section class="hab-panel"><h2>Entités déjà affectées</h2>{% for p in placements %}<p><strong>{{ p.entite.nom }}</strong><br>{{ p.createdAt|date('d/m/Y','Europe/Paris') }}<br><a href="{{ path('app_admin_trainer_cv',{entite:p.entite.id,id:p.formateur.id}) }}">Consulter le profil et le CV ↗</a></p>{% else %}<p>Aucune affectation pour le moment.</p>{% endfor %}</section></aside></div>
+{% endblock %}

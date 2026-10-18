@@ -2589,7 +2589,8 @@ final class SessionController extends AbstractController
 
         // ===== CAS 1 : utilisateur existant =====
         if ($user) {
-            $formateur = $formateurRepo->findOneBy(['utilisateur' => $user]);
+            $formateur = $formateurRepo->findOneBy(['utilisateur' => $user, 'entite' => $entite])
+                ?? $formateurRepo->findOneBy(['utilisateur' => $user]);
             if ($formateur && $formateur->getEntite()?->getId() !== $entite->getId()) {
                 return new JsonResponse(['success' => false, 'message' => 'Ce compte formateur appartient déjà à un autre organisme. Son profil ne peut pas être transféré depuis cette session.'], 409);
             }

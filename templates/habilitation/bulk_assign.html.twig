@@ -1,0 +1,37 @@
+{% extends 'habilitation/layout.html.twig' %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block content %}
+<header class="hab-hero"><div><div class="hab-eyebrow">MODIFICATION GROUPÉE</div><h1>{{ dossiers|length }} habilitation(s) sélectionnée(s)</h1><p>Modifiez les champs communs en une seule opération.</p></div></header>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+<form method="post" class="hab-panel">
+<input type="hidden" name="_token" value="{{ csrf_token('habilitation_bulk') }}"><input type="hidden" name="action" value="apply">
+<div class="hab-grid">
+<div><label for="bulk-company">Entreprise qui délivrera le titre</label><select id="bulk-company" name="entreprise"><option value="">Conserver l’entreprise de chaque dossier</option>{% for c in companies %}<option value="{{ c.id }}" {{ values.entreprise|default('') == c.id ? 'selected' }}>{{ c.raisonSociale }}</option>{% endfor %}</select></div>
+<div><label for="bulk-template">Questionnaire d’habilitation</label><select id="bulk-template" name="template"><option value="">Conserver le questionnaire de chaque dossier</option>{% for t in models %}<option value="{{ t.id }}" {{ values.template|default('') == t.id ? 'selected' }}>{{ t.titre }}</option>{% endfor %}</select></div>
+<div class="hab-full"><label><input type="checkbox" name="change_trainers" value="1" {{ values.change_trainers|default(false) ? 'checked' }}> Remplacer les formateurs affectés sur la sélection</label>
+<label for="bulk-trainers">Nouveaux formateurs</label><select id="bulk-trainers" name="formateurs[]" multiple size="5">{% for f in trainers %}{% if f.utilisateur %}<option value="{{ f.id }}" {{ f.id in values.formateurs|default([]) ? 'selected' }}>{{ f.utilisateur.prenom }} {{ f.utilisateur.nom }}</option>{% endif %}{% endfor %}</select><small>Sans cocher « Remplacer », chaque dossier conserve ses formateurs. Plusieurs formateurs peuvent partager un questionnaire.</small></div>
+</div>
+<h2 style="margin-top:28px">Dossiers concernés</h2><p>Chaque stagiaire conserve sa session. Vous pouvez aussi changer son inscription ci-dessous si nécessaire.</p>
+<div class="hab-table-wrap"><table class="hab-table"><thead><tr><th>Dossier actuel</th><th>Stagiaire et session</th></tr></thead><tbody>
+{% for d in dossiers %}<tr><td><strong>{{ d.inscription.stagiaire.prenom }} {{ d.inscription.stagiaire.nom }}</strong><small>{{ d.entreprise.raisonSociale }} · {{ d.template.titre }}</small><small>{% for f in d.formateurs %}{{ f.prenom }} {{ f.nom }}{{ not loop.last ? ', ' }}{% endfor %}</small>
+<input type="hidden" name="ids[]" value="{{ d.id }}"><input type="hidden" name="versions[{{ d.id }}]" value="{{ values.versions[d.id]|default(d.version) }}"></td>
+<td><label class="visually-hidden" for="bulk-registration-{{ d.id }}">Inscription de {{ d.inscription.stagiaire.prenom }} {{ d.inscription.stagiaire.nom }}</label><select id="bulk-registration-{{ d.id }}" name="inscriptions[{{ d.id }}]" required>{% for i in inscriptions %}<option value="{{ i.id }}" {{ values.inscriptions[d.id]|default(d.inscription.id) == i.id ? 'selected' }}>{{ i.stagiaire.prenom }} {{ i.stagiaire.nom }} · {{ i.session.code }}</option>{% endfor %}</select></td></tr>{% endfor %}
+</tbody></table></div>
+<div class="hab-note" style="margin-top:24px">Seuls les dossiers dont l’affectation change seront remis en évaluation. Leurs réponses actuelles et leurs signatures sont archivées ; une nouvelle évaluation et de nouvelles signatures seront nécessaires.</div>
+<label style="display:flex;gap:10px;align-items:flex-start;margin:20px 0"><input type="checkbox" name="confirm_reset" value="1" required {{ values.confirm_reset|default(false) ? 'checked' }}> Je confirme la remise en évaluation des dossiers modifiés.</label>
+<div class="hab-actions"><a class="hab-btn" href="{{ path('app_habilitation_index',{entite:entite.id}) }}">Annuler</a><button class="hab-btn gold">Appliquer à la sélection</button></div>
+</form>
+{% endblock %}

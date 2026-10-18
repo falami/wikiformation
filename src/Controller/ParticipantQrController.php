@@ -19,7 +19,7 @@ final class ParticipantQrController extends AbstractController
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
-        $trainer = $user?->getFormateur();
+        $trainer = $user?->getFormateur($entite);
         if ($session->getEntite()?->getId() !== $entite->getId() || !$trainer
             || $trainer->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateur($trainer)) {
             throw $this->createNotFoundException();

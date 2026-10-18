@@ -1,0 +1,26 @@
+{% extends 'recruitment/admin_base.html.twig' %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/quality.css') }}">
+{% endblock %}
+{% block recruitment %}
+<header class="hab-hero"><div><div class="hab-eyebrow">SUPER ADMIN · VIVIER NATIONAL</div><h1>Les talents de demain.</h1><p>Étudiez les candidatures et proposez les bons formateurs aux organismes de votre choix.</p></div><a class="hab-btn" href="{{ path('app_recruitment') }}" target="_blank" rel="noopener">Voir la page publique ↗</a></header>
+<section class="hab-panel"><form method="get"><div class="filters"><label>Formateur<input name="q" value="{{ q }}" placeholder="Nom, prénom, email"></label><label>Spécialité<select name="subject" data-recruit-select data-recruit-subject placeholder="Toutes les matières">
+<option value="">Toutes les matières</option>
+{% if subject and subject not in subjects|column('text') %}<option value="{{ subject }}" selected>{{ subject }}</option>{% endif %}
+{% for matter in subjects %}<option value="{{ matter.text }}" {{ subject == matter.text ? 'selected' }}>{{ matter.text }}</option>{% endfor %}
+</select></label><label>Zone d’intervention<select name="department" data-recruit-select><option value="">Tous les départements</option>{% for d in departments %}<option value="{{ d.value }}" {{ department == d.value ? 'selected' }}>{{ d.text }}</option>{% endfor %}</select></label><label>Statut<select name="status"><option value="">Tous</option>{% for value,label in {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'} %}<option value="{{ value }}" {{ status == value ? 'selected' }}>{{ label }}</option>{% endfor %}</select></label><label>Tarif maximum HT (€)<input name="max" inputmode="decimal" value="{{ max }}" placeholder="Sans plafond"></label><label>Base du tarif<select name="basis"><option value="daily" {{ basis == 'daily' ? 'selected' }}>Par jour</option><option value="hourly" {{ basis == 'hourly' ? 'selected' }}>Par heure</option></select></label></div><div class="toolbar"><button class="hab-btn gold">Filtrer les candidatures</button><a class="hab-btn" href="{{ path('app_super_recruitment',{entite:entite.id}) }}">Réinitialiser</a></div></form></section>
+<section class="hab-panel"><h2>Candidatures</h2><div class="hab-table-wrap"><table class="hab-table"><thead><tr><th>Formateur</th><th>Expertises</th><th>Mobilité</th><th>Tarifs HT</th><th>Suivi</th><th></th></tr></thead><tbody>{% for a in applications %}<tr><td><strong>{{ a.firstName }} {{ a.lastName }}</strong><small>{{ a.email }}</small><small>{{ a.details.city }} · {{ a.details.postalCode }}</small></td><td>{% for s in a.subjects|slice(0,4) %}<span class="tag">{{ s }}</span>{% endfor %}{% if a.subjects|length > 4 %}<small>+ {{ a.subjects|length - 4 }} spécialités</small>{% endif %}</td><td>{{ a.nationwide ? 'Toute la France' : a.departments|join(', ') }}</td><td>{% if a.hourlyRate %}{{ (a.hourlyRate / 100)|number_format(2,',',' ') }} €/h<br>{% endif %}{% if a.dailyRate %}{{ (a.dailyRate / 100)|number_format(2,',',' ') }} €/j{% endif %}</td><td><span class="hab-badge">{{ {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'}[a.status] }}</span><small>{{ a.createdAt|date('d/m/Y','Europe/Paris') }}</small></td><td><a class="hab-btn" href="{{ path('app_super_recruitment_show',{entite:entite.id,id:a.id}) }}">Étudier le profil ↗</a></td></tr>{% else %}<tr><td colspan="6"><div class="hab-empty">Aucune candidature pour ces critères.</div></td></tr>{% endfor %}</tbody></table></div>
+<div class="toolbar">{% set filters={entite:entite.id,q:q,subject:subject,department:department,status:status,basis:basis,max:max} %}{% if page > 1 %}<a class="hab-btn" href="{{ path('app_super_recruitment',filters|merge({page:page-1})) }}">Précédent</a>{% endif %}<span>Page {{ page }}</span>{% if more %}<a class="hab-btn" href="{{ path('app_super_recruitment',filters|merge({page:page+1})) }}">Suivant</a>{% endif %}</div></section>
+{% endblock %}

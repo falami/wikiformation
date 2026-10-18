@@ -41,6 +41,67 @@ final class HabilitationTest extends KernelTestCase
         $this->dossier=(new HabilitationDossier())->setEntite($this->tenant)->setInscription($inscription)->setTemplate($template)->setSchema($template->getSchema())->setFormateur($this->trainer)->setEntreprise($company);$this->em->persist($this->dossier);$this->em->flush();
         $this->client=new KernelBrowser(self::$kernel);$this->client->disableReboot();$this->client->catchExceptions(false);
     }
+
+    public function testBulkAssignmentsAreAtomicAndArchivePreviousAnswers(): void
+    {
+        $company=(new Entreprise())->setEntite($this->tenant)->setRaisonSociale('Nouvel employeur')->setCreateur($this->admin);
+        $this->em->persist($company);
+        $newTrainer=(new Formateur())->setUtilisateur($this->other)->setEntite($this->tenant)->setCreateur($this->admin);
+        $newModel=(new HabilitationTemplate())->setEntite($this->tenant)->setTitre('Nouveau questionnaire')->setSchema($this->dossier->getSchema());
+        $this->em->persist($newTrainer);$this->em->persist($newModel);
+        $i=(new Inscription())->setSession($this->dossier->getInscription()->getSession())->setStagiaire($this->other)->setEntreprise($this->dossier->getEntreprise())->setEntite($this->tenant)->setCreateur($this->admin);
+        $this->em->persist($i);
+        $second=(new HabilitationDossier())->setEntite($this->tenant)->setInscription($i)->setTemplate($this->dossier->getTemplate())->setSchema($this->dossier->getSchema())->setFormateur($this->trainer)->setEntreprise($this->dossier->getEntreprise());
+        $this->dossier->setTrainerData(['comment'=>'Réponse à conserver'])->setAvisToken('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')->setState('pending_admin');
+        $this->em->persist($second);$this->em->flush();
+        $ids=[$this->dossier->getId(),$second->getId()];
+        $versions=[$ids[0]=>$this->dossier->getVersion(),$ids[1]=>$second->getVersion()];
+        $this->client->loginUser($this->admin);
+        $page=$this->client->request('GET',$this->url());
+        self::assertCount(2,$page->filter('.hab-select-row'));
+        $token=$page->filter('#hab-bulk-selection input[name="_token"]')->attr('value');
+        $url=$this->url().'/modifier-selection';
+        $this->client->request('POST',$url,['_token'=>$token,'ids'=>$ids]);
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        $payload=['_token'=>$token,'ids'=>$ids,'versions'=>$versions,'action'=>'apply','entreprise'=>$company->getId(),'template'=>$newModel->getId(),'change_trainers'=>'1','formateurs'=>[$newTrainer->getId()],'confirm_reset'=>'1'];
+        $invalid=$payload;$invalid['entreprise']=999999;
+        $this->client->request('POST',$url,$invalid);
+        self::assertSame(422,$this->client->getResponse()->getStatusCode());
+        $this->em=self::getContainer()->get('doctrine')->getManager();
+        self::assertSame('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',$this->em->find(HabilitationDossier::class,$ids[0])->getAvisToken());
+        $stale=$payload;$stale['versions'][$ids[1]]=0;
+        $this->client->request('POST',$url,$stale);
+        self::assertSame(409,$this->client->getResponse()->getStatusCode());
+        $this->client->request('POST',$url,$payload);
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        $this->em=self::getContainer()->get('doctrine')->getManager();
+        foreach($ids as $id) {
+            $d=$this->em->find(HabilitationDossier::class,$id);
+            self::assertSame($company->getId(),$d->getEntreprise()->getId());
+            self::assertSame('draft',$d->getState());self::assertNull($d->getAvisToken());
+            self::assertSame($this->other->getId(),$d->getFormateur()->getId());self::assertSame($newModel->getId(),$d->getTemplate()->getId());
+        }
+        $revision=$this->em->getRepository(HabilitationRevision::class)->findOneBy(['dossier'=>$ids[0],'kind'=>'reassign']);
+        self::assertSame('Réponse à conserver',$revision->getSnapshot()['previous']['trainerData']['comment']);
+        self::assertSame('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',$revision->getSnapshot()['previous']['avisToken']);
+    }
+
+    public function testBulkAssignmentRejectsOtherTenantAndTrainer(): void
+    {
+        $this->client->catchExceptions(true);
+        $this->client->loginUser($this->admin);
+        $page=$this->client->request('GET',$this->url());
+        $token=$page->filter('#hab-bulk-selection input[name="_token"]')->attr('value');
+        $this->client->request('POST',$this->url().'/modifier-selection',['_token'=>'invalid','ids'=>[$this->dossier->getId()]]);
+        self::assertSame(403,$this->client->getResponse()->getStatusCode());
+        $this->client->request('POST',$this->url().'/modifier-selection',['_token'=>$token,'ids'=>[$this->dossier->getId(),999999]]);
+        self::assertSame(404,$this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->trainer);
+        $page=$this->client->request('GET',$this->url());self::assertCount(0,$page->filter('.hab-select-row'));
+        $this->client->request('POST',$this->url().'/modifier-selection',['_token'=>$token,'ids'=>[$this->dossier->getId()]]);
+        self::assertSame(403,$this->client->getResponse()->getStatusCode());
+    }
+
     public function testAdminCanAssignMultipleTrainersAndRemoveAccess(): void
     {
         $second = $this->user('Second');

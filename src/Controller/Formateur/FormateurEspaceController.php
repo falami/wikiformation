@@ -188,7 +188,7 @@ class FormateurEspaceController extends AbstractController
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
 
         if (!$formateur) {
             return new JsonResponse([
@@ -336,7 +336,7 @@ class FormateurEspaceController extends AbstractController
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
-        $formateur = $user->getFormateur();
+        $formateur = $user->getFormateur($entite);
 
         if (!$formateur) {
             return new JsonResponse(['count' => 0, 'upcoming' => 0, 'ongoing' => 0, 'done' => 0]);

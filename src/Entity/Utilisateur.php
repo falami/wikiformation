@@ -170,8 +170,8 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $societe = null;
 
-    #[ORM\OneToOne(mappedBy: 'utilisateur', cascade: ['persist', 'remove'])]
-    private ?Formateur $formateur = null;
+    #[ORM\OneToMany(mappedBy: 'utilisateur', targetEntity: Formateur::class, cascade: ['persist', 'remove'])]
+    private Collection $trainerMemberships;
 
     #[ORM\ManyToOne(inversedBy: 'utilisateurs')]
     private ?Entreprise $entreprise = null;
@@ -845,6 +845,7 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         $this->positioningAssignments = new ArrayCollection();
         $this->positioningAssignementsFormateur = new ArrayCollection();
         $this->satisfactionAssignments = new ArrayCollection();
+        $this->trainerMemberships = new ArrayCollection();
         $this->formateurSatisfactionAssignments = new ArrayCollection();
         $this->formateurObjectiveEvaluations = new ArrayCollection();
         $this->prospects = new ArrayCollection();
@@ -1492,20 +1493,21 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getFormateur(): ?Formateur
+    public function getFormateur(?Entite $entite = null): ?Formateur
     {
-        return $this->formateur;
+        $scope = $entite ?? $this->getEntite();
+        foreach ($this->trainerMemberships as $trainer) {
+            if ($scope && ($trainer->getEntite() === $scope || ($scope->getId() !== null && $trainer->getEntite()?->getId() === $scope->getId()))) return $trainer;
+        }
+        return !$scope && $this->trainerMemberships->count() === 1 ? $this->trainerMemberships->first() : null;
     }
 
     public function setFormateur(?Formateur $formateur): static
     {
-        // set the owning side of the relation if necessary
-        if ($formateur->getUtilisateur() !== $this) {
-            $formateur->setUtilisateur($this);
+        if ($formateur && !$this->trainerMemberships->contains($formateur)) {
+            $this->trainerMemberships->add($formateur);
+            if ($formateur->getUtilisateur() !== $this) $formateur->setUtilisateur($this);
         }
-
-        $this->formateur = $formateur;
-
         return $this;
     }
 
