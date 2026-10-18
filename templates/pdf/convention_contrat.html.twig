@@ -369,7 +369,9 @@
             <div class="doc-badge">CONVENTION</div>
             <div class="doc-meta">
               <div class="doc-meta-item"><strong>Numéro :</strong> {{ convention ? convention.numero : '-' }}</div>
-              <div class="doc-meta-item"><strong>Date d’édition :</strong> {{ "now"|date('d/m/Y') }}</div>
+              {% if convention and convention.pdfGeneratedAt %}
+              <div class="doc-meta-item"><strong>Date d’édition :</strong> {{ convention.pdfGeneratedAt|date('d/m/Y', 'Europe/Paris') }}</div>
+              {% endif %}
               {% if session and session.code is defined and session.code %}
                 <div class="doc-meta-item"><strong>Réf. session :</strong> {{ session.code }}</div>
               {% endif %}
@@ -561,6 +563,13 @@
       </div>
 
       {% endif %}
+      {% if formation and formation.description|default('')|trim is not empty %}
+        <div class="info-block" style="page-break-inside: auto;">
+          <span class="info-label" style="page-break-after: avoid;">Plan de cours</span>
+          <div class="info-content">{{ formation.description|nl2br }}</div>
+        </div>
+      {% endif %}
+
       {% if formation and formation.public|default('')|trim is not empty %}
         <div class="info-block">
           <span class="info-label">Public visé</span>
@@ -879,7 +888,7 @@
       </div>
 
       <p class="text-muted mb-0">
-        Fait à {{ entite.ville|default('Ville') }}, le {{ convention ? convention.dateCreation|date('d/m/Y') : "now"|date('d/m/Y') }}.
+        Fait à {{ entite.ville|default('Ville') }}{% if convention and convention.pdfGeneratedAt %}, le {{ convention.pdfGeneratedAt|date('d/m/Y', 'Europe/Paris') }}{% endif %}.
       </p>
 
       <table class="grid-2" style="margin-top:10pt;">

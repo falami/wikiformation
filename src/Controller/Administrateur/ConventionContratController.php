@@ -399,6 +399,7 @@ final class ConventionContratController extends AbstractController
             throw $this->createAccessDeniedException('CSRF invalide.');
         }
 
+        $c->setPdfGeneratedAt(new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')));
         $vars = $this->buildTemplateVars($entite, $c);
         $absolutePath = $this->pdf->conventionContrat($vars, sprintf('convention-%d.pdf', $c->getId()));
         $c->setPdfPath($this->toRelativeWebPath($absolutePath));

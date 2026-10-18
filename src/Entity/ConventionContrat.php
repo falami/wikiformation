@@ -246,6 +246,12 @@ class ConventionContrat
         return $this->effectifPrevisionnel ?? $this->inscriptions->count() + count($this->getParticipantsLibresListe());
     }
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $pdfGeneratedAt = null;
+
+    public function getPdfGeneratedAt(): ?\DateTimeImmutable { return $this->pdfGeneratedAt; }
+    public function setPdfGeneratedAt(?\DateTimeImmutable $date): static { $this->pdfGeneratedAt = $date; return $this; }
+
     public function getPdfPath(): ?string
     {
         return $this->pdfPath;
