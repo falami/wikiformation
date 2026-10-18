@@ -64,3 +64,10 @@ cd "$HOME/apps/wkformation" && php bin/console app:habilitations:sync --env=prod
 L’option `--entite=1` permet de limiter l’organisme. La commande indique les inscriptions dont l’entreprise ou le formateur manque.
 
 Seul l’administrateur affecte ou réaffecte, via « Modifier l’affectation » dans la liste. Plusieurs formateurs peuvent remplir le même questionnaire ; la signature identifie celui qui valide. Réaffecter remet l’évaluation à zéro et conserve les versions précédentes dans l’historique. Le formateur accède à ses évaluations via Habilitations ou le menu de chaque session. Après signature, l’état devient « Validé · à transmettre ». L’administrateur contrôle puis utilise « Transmettre à l’entreprise ». Avant cette action, aucun accès entreprise au dossier ni au PDF n’est autorisé. Une modification de l’avis révoque cet accès et exige une nouvelle signature et transmission. Les dossiers déjà transmis avant cette évolution restent accessibles.
+
+## Attestation électrique PDF
+
+La liste et chaque dossier proposent « Attestation PDF » dès qu’un avis est signé.
+Le PDF portrait reprend le modèle d’avis post-formation : stagiaire, entreprise, formation, session, dates, durée hors pauses, formateurs, évaluateur signataire, avis et domaines de tension saisis, observations et signature.
+Il utilise exclusivement la version signée. Les nouvelles signatures figent aussi la durée et les coordonnées de l’organisme ; les anciennes versions sans ces données ne sont pas complétées avec des informations actuelles.
+L’administration accède immédiatement au document. L’entreprise y accède après transmission, pour son dossier uniquement. Les anciennes versions restent accessibles à l’administrateur dans l’historique.

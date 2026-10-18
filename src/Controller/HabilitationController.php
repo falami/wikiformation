@@ -60,6 +60,23 @@ final class HabilitationController extends AbstractController
         return $this->privateRender('index', $this->base($entite) + ['dossiers' => array_slice($rows, 0, 30), 'canCreate' => $admin, 'sessionId' => $sessionId, 'sync' => $sync, 'q' => $q, 'page' => $page, 'more' => $more]);
     }
 
+    #[Route('/attestations', name: 'attestations', methods: ['GET'])]
+    public function attestations(#[MapEntity(id: 'entite')] Entite $entite, Request $request): Response
+    {
+        $this->member($entite);
+        $this->denyAccessUnlessGranted(P::ADMIN, $entite);
+        $page = max(1, $request->query->getInt('page', 1));
+        $qb = $this->em->createQueryBuilder()->select('r', 'd')
+            ->from(HabilitationRevision::class, 'r')->join('r.dossier', 'd')
+            ->where('d.entite = :entite')->andWhere('r.kind = :kind')
+            ->setParameter('entite', $entite)->setParameter('kind', 'avis')
+            ->orderBy('r.createdAt', 'DESC')->addOrderBy('r.id', 'DESC');
+        $rows = $qb->setFirstResult(($page - 1) * 30)->setMaxResults(31)->getQuery()->getResult();
+        return $this->privateRender('attestations', $this->base($entite) + [
+            'revisions' => array_slice($rows, 0, 30), 'page' => $page, 'more' => count($rows) > 30,
+        ]);
+    }
+
     #[Route('/modeles', name: 'templates', methods: ['GET'])]
     public function templates(#[MapEntity(id: 'entite')] Entite $entite): Response
     {
@@ -265,13 +282,15 @@ final class HabilitationController extends AbstractController
     }
 
     #[Route('/{id}/document/{token}', name: 'pdf', methods: ['GET'], requirements: ['id' => '\d+', 'token' => '[a-f0-9]{32}'])]
-    public function pdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $token): Response
+    #[Route('/{id}/attestation/{token}', name: 'attestation', methods: ['GET'], defaults: ['attestation' => true], requirements: ['id' => '\d+', 'token' => '[a-f0-9]{32}'])]
+    public function pdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $token, bool $attestation = false): Response
     {
         $rights = $this->access($entite, $dossier);
         $r = $this->em->getRepository(HabilitationRevision::class)->findOneBy(['dossier' => $dossier, 'token' => $token]);
         if (!$r || !$this->visibleRevision($r, $dossier, $rights) || !in_array($r->getKind(), ['avis', 'titre'], true)) throw $this->createNotFoundException();
+        if ($attestation && $r->getKind() !== 'avis') throw $this->createNotFoundException();
         $options = new Options(['isRemoteEnabled' => false, 'isPhpEnabled' => false, 'defaultFont' => 'DejaVu Sans']);
-        $pdf = new Dompdf($options); $pdf->setPaper('A4', 'landscape');
+        $pdf = new Dompdf($options); $pdf->setPaper('A4', $attestation ? 'portrait' : 'landscape');
         $snapshot = $r->getSnapshot();
         if ($r->getKind() === 'titre') {
             foreach ($snapshot['schema']['sections'] as &$section) {
@@ -283,8 +302,9 @@ final class HabilitationController extends AbstractController
             unset($section);
             $snapshot['schema']['sections'] = array_values(array_filter($snapshot['schema']['sections'], static fn ($section) => $section['rows'] !== []));
         }
-        $pdf->loadHtml($this->renderView('habilitation/pdf.html.twig', ['revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($token, [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]));
+        $pdf->loadHtml($this->renderView($attestation ? 'habilitation/attestation.html.twig' : 'habilitation/pdf.html.twig', ['revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($token, [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]));
         $pdf->render();
-        return new Response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="habilitation-'.$dossier->getId().'-'.$r->getKind().'-'.substr($token, 0, 8).'.pdf"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
+        $prefix = $attestation ? 'attestation-electrique' : 'habilitation';
+        return new Response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$prefix.'-'.$dossier->getId().'-'.$r->getKind().'-'.substr($token, 0, 8).'.pdf"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 }

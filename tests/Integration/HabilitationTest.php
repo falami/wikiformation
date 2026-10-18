@@ -83,6 +83,54 @@ final class HabilitationTest extends KernelTestCase
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
     }
 
+    public function testAttestationIsAvailableAfterTransmissionAndUsesSignedSnapshot(): void
+    {
+        $avis = $this->sign('avis');
+        $url = $this->show('/attestation/'.$avis->getToken());
+        $snapshot = $avis->getSnapshot();
+        self::assertArrayHasKey('durationHours', $snapshot['identity']);
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', $url);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringStartsWith('%PDF', $this->client->getResponse()->getContent());
+        if (getenv('HAB_PREVIEW_DIR')) file_put_contents(getenv('HAB_PREVIEW_DIR').'/attestation.pdf', $this->client->getResponse()->getContent());
+        $this->client->catchExceptions(true);
+        $this->client->loginUser($this->employer);
+        $this->client->request('GET', $url);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->admin);
+        $page = $this->client->request('GET', $this->show());
+        $this->client->submit($page->filter('form[action$="/transmettre"]')->form());
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->employer);
+        $page = $this->client->request('GET', $this->url());
+        self::assertStringContainsString('Attestation PDF', $page->text());
+        $this->client->request('GET', $url);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringStartsWith('%PDF', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('no-store', $this->client->getResponse()->headers->get('Cache-Control'));
+        $this->client->loginUser($this->other);
+        $this->client->request('GET', $url);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertSame($snapshot, $avis->getSnapshot());
+    }
+
+    public function testAdminAttestationLibraryIncludesArchivedDocumentsAndRejectsTrainer(): void
+    {
+        $avis = $this->sign('avis');
+        $this->dossier->setAvisToken(null)->setState('draft');
+        $this->em->flush();
+        $this->client->loginUser($this->admin);
+        $page = $this->client->request('GET', $this->url('/attestations'));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Archivée', $page->text());
+        self::assertCount(1, $page->filter('a[href$="/attestation/'.$avis->getToken().'"]'));
+        $this->client->catchExceptions(true);
+        $this->client->loginUser($this->trainer);
+        $this->client->request('GET', $this->url('/attestations'));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
     private function user(string $name): Utilisateur { $u=(new Utilisateur())->setPrenom($name)->setNom('Test')->setEmail(strtolower($name).'@example.test')->setPassword('unused');$this->em->persist($u);return $u; }
     protected function tearDown(): void { parent::tearDown();foreach(['ENV','SERVER'] as $i=>$scope){if($this->oldDb[$i]===null)unset($GLOBALS['_'.$scope]['DATABASE_URL']);else $GLOBALS['_'.$scope]['DATABASE_URL']=$this->oldDb[$i];} }
     private function url(string $suffix=''): string { return '/fr/habilitation/'.$this->tenant->getId().$suffix; }

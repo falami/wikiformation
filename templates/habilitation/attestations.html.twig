@@ -1,0 +1,28 @@
+{% extends 'habilitation/layout.html.twig' %}
+{% block title %}Attestations électriques{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block content %}
+<header class="hab-hero"><div><div class="hab-eyebrow">ADMINISTRATION · ÉLECTRICITÉ</div><h1>Attestations électriques</h1><p>Les attestations de tous les stagiaires de votre organisme, avec leurs versions signées et archivées.</p></div><a class="hab-btn" href="{{ path('app_habilitation_index', {entite: entite.id}) }}">Voir les évaluations</a></header>
+<section class="hab-panel">
+<h2>Documents disponibles</h2><p>Une attestation apparaît dès que le formateur valide et signe l’évaluation. L’entreprise y accède après transmission depuis le dossier.</p>
+<div class="hab-table-wrap"><table class="hab-table"><thead><tr><th>Stagiaire / formation</th><th>Entreprise / session</th><th>Validation</th><th>Version</th><th>Documents</th></tr></thead><tbody>
+{% for r in revisions %}{% set d = r.dossier %}{% set identity = r.snapshot.identity %}{% set current = d.avisToken == r.token and d.active and not d.deleted %}
+<tr><td><strong>{{ identity.trainee }}</strong><small>{{ identity.formation }}</small></td><td>{{ identity.company }}<small>{{ identity.session }}</small></td><td>{{ r.createdAt|date('d/m/Y à H:i', 'Europe/Paris') }}<small>{{ r.snapshot.signer }}</small></td><td><span class="hab-badge {{ current ? 'published' : 'muted' }}">{{ current ? 'Actuelle' : 'Archivée' }}</span>{% if current %}<small>{{ d.state == 'pending_admin' ? 'À transmettre à l’entreprise' : 'Transmise à l’entreprise' }}</small>{% endif %}</td><td><a class="hab-btn gold" href="{{ path('app_habilitation_attestation', {entite: entite.id, id: d.id, token: r.token}) }}">Attestation PDF</a><a class="hab-btn" href="{{ path('app_habilitation_show', {entite: entite.id, id: d.id}) }}">Ouvrir le dossier</a></td></tr>
+{% else %}<tr><td colspan="5"><div class="hab-empty"><h3>Aucune attestation signée pour le moment</h3><p>Les évaluations en cours ne produisent pas encore d’attestation. Le formateur doit utiliser « Valider et signer l’évaluation ».</p><a class="hab-btn" href="{{ path('app_habilitation_index', {entite: entite.id}) }}">Consulter les évaluations en cours</a></div></td></tr>{% endfor %}
+</tbody></table></div>
+<div class="hab-actions">{% if page > 1 %}<a class="hab-btn" href="{{ path('app_habilitation_attestations', {entite: entite.id, page: page - 1}) }}">Précédent</a>{% endif %}<span>Page {{ page }}</span>{% if more %}<a class="hab-btn" href="{{ path('app_habilitation_attestations', {entite: entite.id, page: page + 1}) }}">Suivant</a>{% endif %}</div>
+</section>
+{% endblock %}

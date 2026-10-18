@@ -58,6 +58,9 @@ final class HabilitationWorkflow
             'dates' => array_map(static fn ($j) => $j->getDateDebut()?->format('d/m/Y H:i').' – '.$j->getDateFin()?->format('d/m/Y H:i'), $s->getJours()->toArray()),
             'organisme' => $d->getEntite()->getNom(), 'trainer' => implode(', ', array_map(static fn ($u) => trim($u->getPrenom().' '.$u->getNom()), $d->getFormateurs())),
             'model' => $d->getTemplate()->getTitre(),
+            'durationHours' => $s->getDureeFormationHeures(),
+            'organismeAddress' => trim(implode(' ', array_filter([$d->getEntite()->getAdresse(), $d->getEntite()->getCodePostal(), $d->getEntite()->getVille()]))),
+            'organismeDeclaration' => $d->getEntite()->getNumeroDeclarant(),
         ];
     }
 }

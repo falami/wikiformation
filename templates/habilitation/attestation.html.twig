@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><style>
+@page{margin:36px 42px 48px}body{font-family:"DejaVu Sans",sans-serif;font-size:10px;color:#233342;line-height:1.5}h1{font-size:22px;margin:0}h2{font-size:12px;margin:18px 0 6px;page-break-after:avoid}.hero{border-left:5px solid #e7b52f;padding:15px 20px;background:#f2f5f7}.subtitle{letter-spacing:2px;font-size:11px}.muted{color:#667085}.meta{width:100%;border-collapse:collapse;margin:12px 0}.meta td{width:50%;vertical-align:top;padding:7px 10px;background:#f6f8fa}p{margin:7px 0}.result{page-break-inside:avoid;border:1px solid #dce2e9;padding:10px 12px;margin:8px 0}.result h3{font-size:11px;margin:0 0 5px}.free{white-space:pre-wrap;word-wrap:break-word}.notice{background:#fff8e6;padding:10px;margin:16px 0}.signature{page-break-inside:avoid;margin-top:16px}.signature img{max-width:210px;max-height:65px}.footer{position:fixed;bottom:-30px;font-size:7px;color:#667085}.label{font-weight:bold}
+</style></head><body>
+<div class="footer">{{ snapshot.identity.organisme }} · Avis signé le {{ revision.createdAt|date('d/m/Y H:i', 'Europe/Paris') }} · Réf. {{ revision.token }}</div>
+<div class="hero"><h1>AVIS POST-FORMATION</h1><div class="subtitle">HABILITATION ÉLECTRIQUE</div></div>
+{% if archived or inactive %}<div class="notice"><b>VERSION ARCHIVÉE{{ inactive ? ' · DOSSIER DÉSACTIVÉ' }}</b><br>Document conservé pour l’historique.</div>{% endif %}
+<h2>Organisme de formation</h2>
+<p><b>{{ snapshot.identity.organisme }}</b>{% if snapshot.identity.organismeAddress|default('') %}<br>{{ snapshot.identity.organismeAddress }}{% endif %}{% if snapshot.identity.organismeDeclaration|default('') %}<br>N° de déclaration d’activité : {{ snapshot.identity.organismeDeclaration }}{% endif %}</p>
+<h2>Stagiaire et formation</h2>
+<table class="meta"><tr><td><span class="label">Nom et prénom du stagiaire</span><br>{{ snapshot.identity.trainee }}</td><td><span class="label">Entreprise</span><br>{{ snapshot.identity.company }}</td></tr>
+<tr><td colspan="2"><span class="label">Intitulé de la formation</span><br>{{ snapshot.identity.formation }}<br><span class="muted">Session {{ snapshot.identity.session }}</span></td></tr>
+<tr><td><span class="label">Dates de la formation</span><br>{% for date in snapshot.identity.dates %}{{ date }}<br>{% endfor %}</td><td><span class="label">Durée de formation</span><br>{% if snapshot.identity.durationHours is defined %}{{ snapshot.identity.durationHours|number_format(2, ',', ' ') }} heures{% else %}Non conservée dans cette ancienne version{% endif %}</td></tr>
+<tr><td><span class="label">Formateurs affectés</span><br>{{ snapshot.identity.trainer }}</td><td><span class="label">Formateur ayant validé l’évaluation</span><br>{{ snapshot.signer }}</td></tr></table>
+<p>Au vu des connaissances théoriques évaluées et des compétences pratiques observées, le formateur a émis les avis suivants.</p>
+{% for verdict,label in {favorable:'Avis favorables', unfavorable:'Avis défavorables', not_evaluated:'Éléments non évalués'} %}
+{% set matching = [] %}{% for section in snapshot.schema.sections %}{% for row in section.rows %}{% if snapshot.data.rows[row.id].verdict|default('not_evaluated') == verdict %}{% set matching = matching|merge([{section:section.title, row:row}]) %}{% endif %}{% endfor %}{% endfor %}
+{% if matching %}{% if verdict == 'not_evaluated' %}<p class="muted">{{ matching|length }} rubrique(s) du questionnaire non évaluée(s). Le détail figure dans l’avis complet.</p>{% else %}<h2>{{ label }}</h2>{% for item in matching %}{% set answer = snapshot.data.rows[item.row.id]|default({}) %}
+{% if verdict == 'not_evaluated' %}<p class="muted">{{ item.section }} · {{ item.row.title }}</p>{% else %}
+<div class="result"><h3>{{ item.section }} · {{ item.row.title }}</h3>{% for field in item.row.fields %}{% set value = answer[field.id]|default('') %}{% if value %}<div class="free"><b>{{ field.label }} :</b> {{ field.type == 'checkbox' ? value|join(', ') : value }}</div>{% endif %}{% endfor %}</div>
+{% endif %}{% endfor %}{% endif %}{% endif %}
+{% endfor %}
+{% for key,label in {observations:'Observations', restrictions:'Restrictions et recommandations', additionalDocument:'Document complémentaire'} %}{% if snapshot.data[key]|default('') %}<h2>{{ label }}</h2><div class="free">{{ snapshot.data[key] }}</div>{% endif %}{% endfor %}
+<div class="notice">Cet avis ne vaut pas habilitation. L’habilitation électrique relève de la responsabilité de l’employeur.</div>
+<div class="signature">Fait{% if snapshot.data.place|default('') %} à {{ snapshot.data.place }}{% endif %}, le {{ revision.createdAt|date('d/m/Y', 'Europe/Paris') }}.<br><b>Le formateur évaluateur : {{ snapshot.signer }}</b>{% if snapshot.data.signerFunction|default('') %}<br>{{ snapshot.data.signerFunction }}{% endif %}<br><img src="{{ snapshot.signature }}" alt="Signature du formateur"></div>
+</body></html>
