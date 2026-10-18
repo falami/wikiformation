@@ -27,12 +27,16 @@ final class HabilitationAssignments
         $s = $i->getSession(); $e = $i->getEntite();
         $t = $s->getFormation()?->getHabilitationTemplate();
         $company = $i->getEntreprise() ?? $i->getStagiaire()?->getEntreprise();
-        $trainer = $s->getFormateur();
-        if (!$trainer && count($s->getFormateursEffectifs()) === 1) $trainer = $s->getFormateursEffectifs()[0];
-        if (!$e || !$t?->getActive() || !$company || !$trainer?->getUtilisateur() || !$i->getCreateur()) return null;
-        if ($s->getEntite() !== $e || $t->getEntite() !== $e || $company->getEntite() !== $e || $trainer->getEntite() !== $e) return null;
+        $trainers = $s->getFormateursEffectifs();
+        if (!$e || !$t?->getActive() || !$company || !$trainers || !$i->getCreateur()) return null;
+        if ($s->getEntite() !== $e || $t->getEntite() !== $e || $company->getEntite() !== $e) return null;
+        $users = [];
+        foreach ($trainers as $trainer) {
+            if ($trainer->getEntite() !== $e || !$trainer->getUtilisateur()) return null;
+            $users[] = $trainer->getUtilisateur();
+        }
         return (new HabilitationDossier())->setEntite($e)->setInscription($i)->setTemplate($t)
-            ->setSchema($t->getSchema())->setEntreprise($company)->setFormateur($trainer->getUtilisateur());
+            ->setSchema($t->getSchema())->setEntreprise($company)->setFormateurs($users);
     }
 
     /** Includes past sessions; existing and archived assignments are never overwritten. */

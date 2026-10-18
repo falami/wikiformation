@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\{ArrayCollection, Collection};
 
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uniq_habilitation_inscription', columns: ['inscription_id'])]
@@ -39,6 +40,34 @@ class HabilitationDossier
     private ?Utilisateur $formateur = null;
     public function getFormateur(): ?Utilisateur { return $this->formateur; }
     public function setFormateur(?Utilisateur $value): self { $this->formateur = $value; return $this; }
+
+    #[ORM\ManyToMany(targetEntity: Utilisateur::class)]
+    #[ORM\JoinTable(name: 'habilitation_dossier_formateur')]
+    #[ORM\JoinColumn(name: 'dossier_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'utilisateur_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private Collection $formateurs;
+
+    /** Includes the original trainer for dossiers created before multi-assignment. */
+    public function getFormateurs(): array
+    {
+        $users = $this->formateurs->toArray();
+        if ($this->formateur && !$this->hasUser($users, $this->formateur)) array_unshift($users, $this->formateur);
+        return $users;
+    }
+    private function hasUser(array $users, Utilisateur $user): bool
+    {
+        foreach ($users as $candidate) if ($candidate === $user || ($user->getId() !== null && $candidate->getId() === $user->getId())) return true;
+        return false;
+    }
+    public function isAssignedTo(Utilisateur $user): bool { return $this->hasUser($this->getFormateurs(), $user); }
+    public function setFormateurs(array $users): self
+    {
+        if (!$users) throw new \InvalidArgumentException('Sélectionnez au moins un formateur.');
+        $this->formateurs->clear();
+        foreach ($users as $user) if (!$this->formateurs->contains($user)) $this->formateurs->add($user);
+        $this->formateur = reset($users);
+        return $this;
+    }
 
     #[ORM\ManyToOne(targetEntity: Entreprise::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -95,5 +124,5 @@ class HabilitationDossier
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function setCreatedAt(\DateTimeImmutable $value): self { $this->createdAt = $value; return $this; }
 
-    public function __construct() { $this->createdAt = new \DateTimeImmutable(); }
+    public function __construct() { $this->createdAt = new \DateTimeImmutable(); $this->formateurs = new ArrayCollection(); }
 }

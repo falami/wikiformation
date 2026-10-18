@@ -46,7 +46,7 @@ final class HabilitationController extends AbstractController
             ->where('d.entite = :e')->setParameter('e', $entite)->orderBy('d.createdAt', 'DESC');
         if (!$admin) {
             $allowed = [];
-            if ($trainer) { $allowed[] = 'd.formateur = :me'; $qb->setParameter('me', $u); }
+            if ($trainer) { $allowed[] = '(d.formateur = :me OR :me MEMBER OF d.formateurs)'; $qb->setParameter('me', $u); }
             if ($company && $u->getEntreprise()) { $allowed[] = "(d.entreprise = :company AND d.avisToken IS NOT NULL AND d.state IN ('awaiting_company', 'published'))"; $qb->setParameter('company', $u->getEntreprise()); }
             if ($student) { $allowed[] = "(i.stagiaire = :student AND d.state = 'published')"; $qb->setParameter('student', $u); }
             $qb->andWhere($allowed ? '('.implode(' OR ', $allowed).')' : '1 = 0')->andWhere('d.active = true AND d.deleted = false');
@@ -139,14 +139,21 @@ final class HabilitationController extends AbstractController
                 $i = $this->pick($inscriptions, $request->request->getInt('inscription'));
                 $t = $this->pick($models, $request->request->getInt('template'));
                 $c = $this->pick($companies, $request->request->getInt('entreprise'));
-                $f = $this->pick($trainers, $request->request->getInt('formateur'));
-                if (!$admin && ($f->getUtilisateur()?->getId() !== $me->getId() || $c->getId() !== ($i->getEntreprise() ?? $i->getStagiaire()->getEntreprise())?->getId() || $t->getId() !== $i->getSession()->getFormation()?->getHabilitationTemplate()?->getId())) throw new \InvalidArgumentException('L’affectation doit correspondre à votre session, à son modèle et à l’employeur du stagiaire.');
+                $trainerIds = $request->request->all('formateurs');
+                // Accept the previous single-select payload for existing integrations.
+                if (!$trainerIds && $request->request->has('formateur')) $trainerIds = [$request->request->getInt('formateur')];
+                if (!$trainerIds) throw new \InvalidArgumentException('Sélectionnez au moins un formateur.');
+                $assigned = [];
+                foreach (array_unique($trainerIds) as $trainerId) {
+                    $f = $this->pick($trainers, (int) $trainerId);
+                    if (!$f->getUtilisateur()) throw new \InvalidArgumentException('Chaque formateur doit disposer d’un compte.');
+                    $assigned[] = $f->getUtilisateur();
+                }
                 $existing = $this->em->getRepository(HabilitationDossier::class)->findOneBy(['inscription' => $i]);
                 if ($existing && $existing !== $d) throw new \InvalidArgumentException('Cette inscription possède déjà un dossier. Ouvrez-le depuis la liste (ou demandez sa réactivation).');
-                if (!$f->getUtilisateur()) throw new \InvalidArgumentException('Le formateur doit disposer d’un compte.');
                 $previous = $d ? $this->workflow->identity($d) : null;
                 $d ??= (new HabilitationDossier())->setEntite($entite);
-                $d->setInscription($i)->setTemplate($t)->setSchema($t->getSchema())->setFormateur($f->getUtilisateur())->setEntreprise($c)
+                $d->setInscription($i)->setTemplate($t)->setSchema($t->getSchema())->setFormateurs($assigned)->setEntreprise($c)
                     ->setTrainerData([])->setEmployerData([])->setAvisToken(null)->setTitreToken(null)->setState('draft')->setActive(true)->setDeleted(false);
                 $this->em->persist($d);
                 $this->em->persist($this->workflow->record($d, $me, $previous ? 'reassign' : 'assign', ['previous' => $previous, 'identity' => $this->workflow->identity($d)]));
@@ -170,7 +177,7 @@ final class HabilitationController extends AbstractController
         $this->member($e);
         if ($d->getEntite()->getId() !== $e->getId()) throw $this->createNotFoundException();
         $u = $this->getUser(); $admin = $this->admin($e);
-        $trainer = $this->isGranted(P::FORMATEUR, $e) && $d->getFormateur()->getId() === $u->getId();
+        $trainer = $this->isGranted(P::FORMATEUR, $e) && $d->isAssignedTo($u);
         $company = $this->isGranted(P::ENTREPRISE, $e) && $d->getEntreprise()->getId() === $u->getEntreprise()?->getId();
         $student = $this->isGranted(P::STAGIAIRE, $e) && $d->getInscription()->getStagiaire()->getId() === $u->getId() && $d->getState() === 'published';
         if (!$admin && ((!$d->getActive() || $d->getDeleted()) || (!$trainer && !($company && $d->getAvisToken() && in_array($d->getState(), ['awaiting_company', 'published'], true)) && !$student))) throw $this->createAccessDeniedException();

@@ -41,6 +41,48 @@ final class HabilitationTest extends KernelTestCase
         $this->dossier=(new HabilitationDossier())->setEntite($this->tenant)->setInscription($inscription)->setTemplate($template)->setSchema($template->getSchema())->setFormateur($this->trainer)->setEntreprise($company);$this->em->persist($this->dossier);$this->em->flush();
         $this->client=new KernelBrowser(self::$kernel);$this->client->disableReboot();$this->client->catchExceptions(false);
     }
+    public function testAdminCanAssignMultipleTrainersAndRemoveAccess(): void
+    {
+        $second = $this->user('Second');
+        $second->setEntite($this->tenant);
+        $this->em->persist((new UtilisateurEntite())->setEntite($this->tenant)->setUtilisateur($second)->setCreateur($this->admin)->setRoles(['TENANT_FORMATEUR']));
+        $f = (new Formateur())->setUtilisateur($second)->setEntite($this->tenant)->setCreateur($this->admin);
+        $this->em->persist($f); $this->em->flush();
+        $first = $this->em->getRepository(Formateur::class)->findOneBy(['utilisateur'=>$this->trainer]);
+        $this->client->loginUser($this->admin);
+        $page = $this->client->request('GET', $this->show('/reaffecter'));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $this->client->request('POST', $this->show('/reaffecter'), [
+            '_token'=>$page->filter('input[name="_token"]')->attr('value'),
+            'version'=>$this->dossier->getVersion(),
+            'inscription'=>$this->dossier->getInscription()->getId(),
+            'template'=>$this->dossier->getTemplate()->getId(),
+            'entreprise'=>$this->dossier->getEntreprise()->getId(),
+            'formateurs'=>[$first->getId(), $f->getId()],
+        ]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $this->em = self::getContainer()->get('doctrine')->getManager();
+        $this->dossier = $this->em->find(HabilitationDossier::class, $this->dossier->getId());
+        self::assertCount(2, $this->dossier->getFormateurs());
+        $this->client->loginUser($second);
+        $page = $this->client->request('GET', $this->url());
+        self::assertStringContainsString('SES-TEST', $page->text());
+        $page = $this->client->request('GET', $this->show());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $this->client->request('POST', $this->show(), [
+            '_token'=>$page->filter('#hab-evaluation input[name="_token"]')->attr('value'),
+            '_complete'=>'1', 'version'=>$this->dossier->getVersion(), 'action'=>'sign', 'data'=>$this->input(),
+            'confirm'=>'1', 'signature'=>$this->signature(),
+        ]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $this->em = self::getContainer()->get('doctrine')->getManager();
+        $this->dossier = $this->em->find(HabilitationDossier::class, $this->dossier->getId());
+        $this->dossier->setFormateurs([$this->em->find(Utilisateur::class, $this->trainer->getId())]); $this->em->flush();
+        $this->client->catchExceptions(true);
+        $this->client->request('GET', $this->show());
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
     private function user(string $name): Utilisateur { $u=(new Utilisateur())->setPrenom($name)->setNom('Test')->setEmail(strtolower($name).'@example.test')->setPassword('unused');$this->em->persist($u);return $u; }
     protected function tearDown(): void { parent::tearDown();foreach(['ENV','SERVER'] as $i=>$scope){if($this->oldDb[$i]===null)unset($GLOBALS['_'.$scope]['DATABASE_URL']);else $GLOBALS['_'.$scope]['DATABASE_URL']=$this->oldDb[$i];} }
     private function url(string $suffix=''): string { return '/fr/habilitation/'.$this->tenant->getId().$suffix; }

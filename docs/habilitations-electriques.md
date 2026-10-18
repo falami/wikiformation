@@ -18,7 +18,7 @@ Dans **Habilitations électriques → Modèles**, créer un modèle à partir de
 
 Dans l’édition d’une formation, sélectionner le **questionnaire d’habilitation**. Les inscriptions reçoivent automatiquement un dossier dès le premier jour de session si l’entreprise et le formateur sont identifiables, y compris pour les sessions passées. Les inscriptions sans affectation complète sont gérées par l’administrateur avec **Affecter une évaluation**.
 
-L’administrateur peut affecter ou réaffecter un dossier à une inscription, un modèle, une entreprise et un formateur de son organisme. Une inscription possède un seul dossier ; restaurer ou réaffecter celui-ci au lieu de créer un doublon.
+L’administrateur peut affecter ou réaffecter un dossier à une inscription, un modèle, une entreprise et plusieurs formateurs de son organisme. Une inscription possède un seul dossier ; restaurer ou réaffecter celui-ci au lieu de créer un doublon.
 
 Chaque dossier conserve une copie de son modèle. Modifier un modèle ne change pas rétroactivement les évaluations existantes. Un modèle utilisé est désactivé au lieu d’être supprimé.
 
@@ -55,7 +55,7 @@ Utiliser Tom Select pour les listes déroulantes et Flatpickr en français pour 
 
 ## Affectation automatique et transmission (octobre 2026)
 
-Les inscriptions non annulées et non absentes reçoivent leur dossier à partir du premier jour de session (date civile Europe/Paris). Les sessions annulées sont exclues. Le modèle actif, l’entreprise et le formateur doivent être renseignés dans le même organisme. Sans formateur principal, un seul formateur effectif permet l’affectation automatique ; sinon l’administrateur choisit le responsable manuellement. Les dossiers existants, même désactivés, ne sont jamais écrasés.
+Les inscriptions non annulées et non absentes reçoivent leur dossier à partir du premier jour de session (date civile Europe/Paris). Les sessions annulées sont exclues. Le modèle actif, l’entreprise et le formateur doivent être renseignés dans le même organisme. Tous les formateurs effectifs de la session sont affectés au questionnaire partagé. Les dossiers existants, même désactivés, ne sont jamais écrasés.
 
 La synchronisation est réalisée à l’ouverture du tableau de bord formateur et de la liste des habilitations (administrateur/formateur), ainsi qu’au déploiement et lors du traitement existant `app:trainer-reminders:run --execute` (le conteneur local le lance chaque minute). Elle rattrape également les sessions passées. Pour une création sans visite, planifier quotidiennement sur le serveur (ou toutes les heures) :
 ```sh
@@ -63,4 +63,4 @@ cd "$HOME/apps/wkformation" && php bin/console app:habilitations:sync --env=prod
 ```
 L’option `--entite=1` permet de limiter l’organisme. La commande indique les inscriptions dont l’entreprise ou le formateur manque.
 
-Seul l’administrateur affecte ou réaffecte. Le formateur accède à ses évaluations via Habilitations ou le menu de chaque session. Après signature, l’état devient « Validé · à transmettre ». L’administrateur contrôle puis utilise « Transmettre à l’entreprise ». Avant cette action, aucun accès entreprise au dossier ni au PDF n’est autorisé. Une modification de l’avis révoque cet accès et exige une nouvelle signature et transmission. Les dossiers déjà transmis avant cette évolution restent accessibles.
+Seul l’administrateur affecte ou réaffecte, via « Modifier l’affectation » dans la liste. Plusieurs formateurs peuvent remplir le même questionnaire ; la signature identifie celui qui valide. Réaffecter remet l’évaluation à zéro et conserve les versions précédentes dans l’historique. Le formateur accède à ses évaluations via Habilitations ou le menu de chaque session. Après signature, l’état devient « Validé · à transmettre ». L’administrateur contrôle puis utilise « Transmettre à l’entreprise ». Avant cette action, aucun accès entreprise au dossier ni au PDF n’est autorisé. Une modification de l’avis révoque cet accès et exige une nouvelle signature et transmission. Les dossiers déjà transmis avant cette évolution restent accessibles.
