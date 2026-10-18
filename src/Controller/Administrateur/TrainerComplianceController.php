@@ -18,9 +18,10 @@ final class TrainerComplianceController extends AbstractController
     public function remind(Entite $entite, Request $request, TrainerCompliance $compliance): Response
     {
         if (!$this->isCsrfTokenValid('trainer_compliance_'.$entite->getId(),$request->request->getString('_token'))) throw $this->createAccessDeniedException();
-        $result=$compliance->send($entite,$request->request->getString('key'));
+        $sentAt = null;
+        $result=$compliance->send($entite,$request->request->getString('key'), $sentAt);
         if ($request->isXmlHttpRequest()) {
-            return $this->json(['sent'=>$result==='sent'?1:0,'skipped'=>$result==='skipped'?1:0,'failed'=>$result==='unknown'?1:0]);
+            return $this->json(['lastReminderAt'=>$sentAt,'sent'=>$result==='sent'?1:0,'skipped'=>$result==='skipped'?1:0,'failed'=>$result==='unknown'?1:0]);
         }
         $this->addFlash($result==='sent'?'success':'warning', match($result) {
             'sent'=>'La relance a été transmise au service de messagerie.',

@@ -86,6 +86,32 @@ final class TrainerRemindersTest extends KernelTestCase
         self::assertSame('skipped',$service->send($this->entite,$key));
     }
 
+    public function testPublishedCharterCanBeRequestedFromDashboardAndAppearsForTrainer(): void
+    {
+        $transport = $this->createMock(MailerInterface::class);
+        $transport->expects(self::once())->method('send');
+        $twig = self::getContainer()->get('twig'); $router = self::getContainer()->get('router');
+        $manager = new \App\Service\TrainerCharter\CharterManager($this->em);
+        $service = new \App\Service\TrainerReminder\TrainerCompliance($this->em, $manager, $router, new MailerManager($transport, $twig, $router), $twig, new NullLogger());
+        $charter = new \App\Entity\TrainerCharter(); $charter->entite = $this->entite;
+        $version = new \App\Entity\TrainerCharterVersion(); $version->charter = $charter; $version->title = 'Charte test';
+        $this->em->persist($charter); $this->em->persist($version); $this->em->flush();
+        $key = 'charter-request:'.$version->id.':'.$this->trainer->getId();
+        self::assertArrayNotHasKey($key, $service->pending($this->entite));
+        $version->publishedAt = new \DateTimeImmutable(); $this->em->flush();
+        self::assertArrayHasKey($key, $service->pending($this->entite));
+        self::assertSame('sent', $service->send($this->entite, $key));
+        $signatures = $manager->forTrainer($this->entite, $this->trainer);
+        self::assertCount(1, $signatures);
+        $signature = $signatures[0];
+        $row = $service->pending($this->entite)['charter:'.$signature->id];
+        self::assertSame('sent', $row['history']['status']);
+        self::assertFalse((bool) $row['available']);
+        self::assertSame('skipped', $service->send($this->entite, $key));
+        $signature->signedAt = new \DateTimeImmutable(); $this->em->flush();
+        self::assertArrayNotHasKey('charter:'.$signature->id, $service->pending($this->entite));
+    }
+
     public function testInitialNoticeDelayRepeatsAndNoDuplicates(): void
     {
         self::assertSame([], $this->candidates());

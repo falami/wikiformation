@@ -3,7 +3,7 @@
 declare(strict_types=1);
 namespace App\Service\TrainerReminder;
 
-use App\Entity\{Entite, Formateur, Session, ContratFormateur, TrainerDiploma, UtilisateurEntite};
+use App\Entity\{Entite, Formateur, Session, ContratFormateur, TrainerDiploma, UtilisateurEntite, TrainerCharter, TrainerCharterSignature};
 use App\Enum\{ContratFormateurStatus, StatusSession};
 use App\Service\TrainerCharter\CharterManager;
 use App\Service\Email\MailerManager;
@@ -30,9 +30,23 @@ final class TrainerCompliance
                 'available'=>!$blocked && $membership?->isActive() && $membership->hasRole(UtilisateurEntite::TENANT_FORMATEUR) && filter_var($user?->getEmail(), FILTER_VALIDATE_EMAIL),
                 'url'=>$this->urls->generate($route, $params + ['entite'=>$entite->getId(),'_locale'=>'fr'], UrlGeneratorInterface::ABSOLUTE_URL)];
         };
+        $publishedCharters = [];
+        foreach ($this->em->getRepository(TrainerCharter::class)->findBy(['entite'=>$entite]) as $charter) {
+            if ($version = $this->charters->latest($charter)) $publishedCharters[] = $version;
+        }
         foreach ($this->em->getRepository(Formateur::class)->findBy(['entite'=>$entite]) as $trainer) {
             if (!$this->em->getRepository(TrainerDiploma::class)->count(['formateur'=>$trainer])) $add($trainer, 'diploma:'.$trainer->getId(), 'Diplômes', 'Déposez vos diplômes et justificatifs de qualification dans votre profil.', 'app_formateur_profile');
-            foreach ($this->charters->pending($entite, $trainer) as $signature) $add($trainer, 'charter:'.$signature->id, 'Charte qualité', $signature->version->title.' · version '.$signature->version->number, 'app_charter_sign', ['id'=>$signature->id]);
+            foreach ($publishedCharters as $version) {
+                $signature = $this->em->getRepository(TrainerCharterSignature::class)->findOneBy(['version'=>$version, 'trainer'=>$trainer]);
+                if ($signature?->signedAt) continue;
+                if ($signature) {
+                    $add($trainer, 'charter:'.$signature->id, 'Charte qualité', $version->title.' · version '.$version->number, 'app_charter_sign', ['id'=>$signature->id]);
+                } else {
+                    $key = 'charter-request:'.$version->id.':'.$trainer->getId();
+                    $add($trainer, $key, 'Charte qualité', $version->title.' · version '.$version->number.' · Signature à demander', 'app_charter_mine');
+                    $rows[$key]['charterVersion'] = $version;
+                }
+            }
         }
         foreach ($this->em->getRepository(ContratFormateur::class)->findBy(['entite'=>$entite,'status'=>ContratFormateurStatus::ENVOYE]) as $contract) {
             $trainer = $contract->getFormateur(); $session = $contract->getSession();
@@ -60,10 +74,22 @@ final class TrainerCompliance
         return $rows;
     }
 
-    public function send(Entite $entite, string $key): string
+    public function send(Entite $entite, string $key, ?string &$sentAt = null): string
     {
+        $sentAt = null;
         $row = $this->pending($entite)[$key] ?? null;
         if (!$row || !$row['available']) return 'skipped';
+        if (isset($row['charterVersion'])) {
+            $signature = new TrainerCharterSignature();
+            $signature->version = $row['charterVersion'];
+            $signature->trainer = $row['trainer'];
+            $signature->requestedBy = 'Tableau de bord — demande de signature';
+            $this->em->persist($signature);
+            try { $this->em->flush(); } catch (UniqueConstraintViolationException) { return 'skipped'; }
+            // Use the same history key as requests created from the charter tracking page.
+            $key = 'charter:'.$signature->id;
+            $row['url'] = $this->urls->generate('app_charter_sign', ['entite'=>$entite->getId(), '_locale'=>'fr', 'id'=>$signature->id], UrlGeneratorInterface::ABSOLUTE_URL);
+        }
         $db=$this->em->getConnection();
         if ($db->isTransactionActive()) throw new \LogicException('Envoi hors transaction requis.');
         $sequence = $row['history'] ? (int)$row['history']['sequence_number']+1 : 1;
@@ -76,6 +102,7 @@ final class TrainerCompliance
             $html=$this->twig->render('emails/trainer_compliance.html.twig', $row+['entite'=>$entite,'subject'=>$subject]);
             $this->mailer->sendHtml($entite,$row['trainer']->getUtilisateur()->getEmail(),$subject,$html,$subject."\n".$row['detail']."\nConnectez-vous à votre espace formateur : ".$row['url']);
             $db->update('trainer_reminder_delivery',['status'=>'sent','sent_at'=>$at],['id'=>$id]);
+            $sentAt = (new \DateTimeImmutable($at, new \DateTimeZone('UTC')))->format(DATE_ATOM);
             return 'sent';
         } catch (\Throwable $e) {
             $db->update('trainer_reminder_delivery',['status'=>'unknown'],['id'=>$id]);

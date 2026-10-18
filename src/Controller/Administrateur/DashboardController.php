@@ -32,6 +32,7 @@ final class DashboardController extends AbstractController
 
   public function __construct(
     private readonly EM $em,
+    private readonly \App\Service\Session\LearnerReminderHistory $reminderHistory,
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]
@@ -45,6 +46,7 @@ final class DashboardController extends AbstractController
       'title'  => 'Tableau de bord',
       'trainerCompliance' => $this->isGranted(TenantPermission::FORMATEUR_MANAGE, $entite) ? $compliance->pending($entite) : [],
       'pendingAppreciations' => $appreciations->find($entite),
+      'learnerReminderHistory' => $this->reminderHistory->forEntity($entite),
       'rapportsOuverts' => $this->em->getRepository(\App\Entity\RapportFormateur::class)->count(['entite' => $entite, 'statutTraitement' => ['new', 'in_progress']]),
       'rapportsUrgents' => $this->em->getRepository(\App\Entity\RapportFormateur::class)->count(['entite' => $entite, 'statutTraitement' => ['new', 'in_progress'], 'importance' => ['urgent', 'high']]),
       'entite' => $entite,
@@ -1111,12 +1113,14 @@ final class DashboardController extends AbstractController
     // Fusion : manquants d’abord, puis non signés
 
     $unsignedAll = array_merge($missing, $unsigned);
+    $reminderHistory = $this->reminderHistory->forEntity($entite);
     foreach ($unsignedAll as &$row) {
       if (empty($row['userId']) || !$this->isGranted(TenantPermission::SESSION_MANAGE, $entite)) continue;
       $reminderDate = \DateTimeImmutable::createFromFormat('!d/m/Y', $row['date']);
       if (!$reminderDate || !in_array($row['periode'], ['Matin', 'Après-midi'], true)) continue;
       $ins = $this->em->getRepository(Inscription::class)->findOneBy(['session' => $row['sessionId'], 'entite' => $entite, 'stagiaire' => $row['userId']]);
       if (!$ins || in_array($ins->getStatus(), [StatusInscription::ANNULE, StatusInscription::ABSENT], true) || !filter_var($ins->getStagiaire()?->getEmail(), FILTER_VALIDATE_EMAIL)) continue;
+      $row['lastReminderAt'] = $reminderHistory[$ins->getId()]['attendance'][$reminderDate->format('Y-m-d')][$row['periode'] === 'Matin' ? 'AM' : 'PM'] ?? null;
       $row['reminder'] = [
         'url' => $this->generateUrl('app_administrateur_session_attendance_reminder', ['entite' => $entite->getId(), 'id' => $row['sessionId']]),
         'token' => $this->container->get('security.csrf.token_manager')->getToken('attendance_reminder_'.$row['sessionId'])->getValue(),

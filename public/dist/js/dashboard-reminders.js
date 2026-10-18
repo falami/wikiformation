@@ -36,6 +36,10 @@
         const response = await fetch(form.action, {method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin'});
         if (!response.ok) throw new Error();
         const result = await response.json();
+        if (result.sent && result.lastReminderAt) {
+          const cell = box.closest('tr').querySelector('[data-reminder-history]');
+          if (cell) cell.textContent = new Date(result.lastReminderAt).toLocaleString('fr-FR', {timeZone:'Europe/Paris', dateStyle:'short', timeStyle:'short'});
+        }
         sent += result.sent; skipped += result.skipped; failed += result.failed;
         Object.values(result.messages || {}).flat().forEach(message => details.add(message));
         if (!result.failed) box.checked = false;

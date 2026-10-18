@@ -16,8 +16,9 @@ final class AttendanceReminder
     public function __construct(private EntityManagerInterface $em, private ParticipantQrAccess $access,
         private UrlGeneratorInterface $router, private MailerManager $mailer, private Environment $twig) {}
 
-    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance', ?string $period = null, ?array &$skipReasons = null, ?array $selectedIds = null): array
+    public function send(Session $session, string $date, ?int $inscriptionId = null, string $kind = 'attendance', ?string $period = null, ?array &$skipReasons = null, ?array $selectedIds = null, ?array &$deliveries = null): array
     {
+        $deliveries = [];
         if ($selectedIds !== null) {
             $allowed=array_map(fn($i)=>$i->getId(),$this->em->getRepository(Inscription::class)->findBy(['session'=>$session,'entite'=>$session->getEntite()]));
             if (!$selectedIds || array_diff($selectedIds,$allowed)) throw new \DomainException('Sélection vide ou étrangère à cette session.');
@@ -64,11 +65,12 @@ final class AttendanceReminder
             if (!filter_var($user->getEmail(), FILTER_VALIDATE_EMAIL)) { ++$result['skipped']; ++$skipReasons['email']; continue; }
             $participant = $this->access->forInscription($i);
             $this->em->flush();
-            $links = []; $images = [];
+            $links = []; $images = []; $purposes = [];
             foreach (['attendance' => (bool) $missing, 'satisfaction' => $needsSatisfaction] as $purpose => $needed) {
                 if (!$needed) continue;
                 $token = $purpose === 'satisfaction' ? $this->access->satisfactionReminderToken($participant) : $this->access->token($participant, $purpose);
                 if (!$this->access->resolve($token, $purpose)) continue;
+                $purposes[] = $purpose;
                 $params = ['token' => $token];
                 if ($purpose === 'attendance') $params['date'] = $date;
                 $url = $this->router->generate('app_participant_qr_'.$purpose, $params, UrlGeneratorInterface::ABSOLUTE_URL);
@@ -85,6 +87,7 @@ final class AttendanceReminder
             try {
                 $this->mailer->sendParticipantReminder($session->getEntite(), $user->getEmail(), 'Votre formation · éléments à compléter · '.$session->getCode(), $html, $text, $images);
                 ++$result['sent'];
+                $deliveries[] = ['inscription' => $i->getId(), 'date' => $date, 'periods' => in_array('attendance', $purposes, true) ? array_keys($missing) : [], 'satisfaction' => in_array('satisfaction', $purposes, true), 'at' => (new \DateTimeImmutable())->format(DATE_ATOM)];
             } catch (TransportExceptionInterface) { ++$result['failed']; }
         }
         return $result;

@@ -40,10 +40,10 @@ final class AttendanceReminderController extends AbstractController
         } else {
             $request->getSession()->set($key, time());
             try {
-                $reasons = [];
-                $result = $reminder->send($session, $date, $inscriptionId, $kind, $period, $reasons, $selectedIds);
-                $feedback = $result;
-                $em->persist((new AuditLog())->setEntite($entite)->setActor($this->getUser())->setCreateur($this->getUser())->setEvent('ATTENDANCE_REMINDER_SENT')->setCreatedAt(new \DateTimeImmutable())->setPayload(['session' => $session->getId(), 'date' => $date, 'kind' => $kind, 'period' => $period, 'inscription' => $inscriptionId, 'inscriptions'=>$selectedIds] + $result));
+                $reasons = []; $deliveries = [];
+                $result = $reminder->send($session, $date, $inscriptionId, $kind, $period, $reasons, $selectedIds, $deliveries);
+                $feedback = $result + ['lastReminderAt' => $deliveries ? end($deliveries)['at'] : null];
+                $em->persist((new AuditLog())->setEntite($entite)->setActor($this->getUser())->setCreateur($this->getUser())->setEvent('ATTENDANCE_REMINDER_SENT')->setCreatedAt(new \DateTimeImmutable())->setPayload(['session' => $session->getId(), 'date' => $date, 'kind' => $kind, 'period' => $period, 'inscription' => $inscriptionId, 'inscriptions'=>$selectedIds, 'deliveries'=>$deliveries] + $result));
                 $em->flush();
                 $message = sprintf('%d mail(s) confié(s) au service d’envoi, %d échec(s).', $result['sent'], $result['failed']);
                 foreach (['complete'=>'déjà complété(s)', 'email'=>'adresse(s) email absente(s) ou invalide(s)', 'access'=>'accès personnel(s) indisponible(s)', 'inactive'=>'inscription(s) inactive(s) ou sans stagiaire'] as $reason=>$label) {
