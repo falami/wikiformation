@@ -15,6 +15,16 @@ final class CharterManager
     public function pending(Entite $entite, Formateur $trainer): array {
         return array_values(array_filter($this->forTrainer($entite,$trainer), fn($s) => !$s->signedAt && $this->latest($s->version->charter)?->id === $s->version->id));
     }
+    /** Published current versions that have not yet been assigned to this trainer. */
+    public function available(Entite $entite, Formateur $trainer): array {
+        if ($trainer->getEntite()?->getId() !== $entite->getId()) return [];
+        $versions = [];
+        foreach ($this->em->getRepository(TrainerCharter::class)->findBy(['entite'=>$entite]) as $charter) {
+            $version = $this->latest($charter);
+            if ($version && !$this->em->getRepository(TrainerCharterSignature::class)->findOneBy(['version'=>$version, 'trainer'=>$trainer])) $versions[] = $version;
+        }
+        return $versions;
+    }
     public function normalize(array $chapters): array {
         if (!$chapters || count($chapters)>40) throw new \InvalidArgumentException('Ajoutez entre 1 et 40 chapitres.');
         $out=[];

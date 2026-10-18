@@ -98,12 +98,15 @@ final class TrainerRemindersTest extends KernelTestCase
         $this->em->persist($charter); $this->em->persist($version); $this->em->flush();
         $key = 'charter-request:'.$version->id.':'.$this->trainer->getId();
         self::assertArrayNotHasKey($key, $service->pending($this->entite));
+        self::assertSame([], $manager->available($this->entite, $this->trainer));
         $version->publishedAt = new \DateTimeImmutable(); $this->em->flush();
         self::assertArrayHasKey($key, $service->pending($this->entite));
+        self::assertSame([$version], $manager->available($this->entite, $this->trainer));
         self::assertSame('sent', $service->send($this->entite, $key));
         $signatures = $manager->forTrainer($this->entite, $this->trainer);
         self::assertCount(1, $signatures);
         $signature = $signatures[0];
+        self::assertSame([], $manager->available($this->entite, $this->trainer));
         $row = $service->pending($this->entite)['charter:'.$signature->id];
         self::assertSame('sent', $row['history']['status']);
         self::assertFalse((bool) $row['available']);

@@ -115,7 +115,24 @@ final class TrainerCharterController extends AbstractController
     public function mine(Entite $entite): Response {
         $t=$this->own($entite);$items=[];
         foreach ($this->manager->forTrainer($entite,$t) as $s) $items[]=['signature'=>$s,'current'=>$this->manager->latest($s->version->charter)?->id===$s->version->id];
-        return $this->response('administrateur/formateur/charte/mine.html.twig',compact('entite','items'));
+        return $this->response('administrateur/formateur/charte/mine.html.twig',['entite'=>$entite, 'items'=>$items, 'available'=>$this->manager->available($entite, $t)]);
+    }
+    #[Route('/formateur/{entite}/chartes/version/{id}/ouvrir',name:'app_charter_open',requirements:['id'=>'\\d+'],methods:['POST'])]
+    public function openPublished(Entite $entite, int $id, Request $request): Response {
+        $trainer = $this->own($entite);
+        $this->csrf($request, 'charter_open_'.$id);
+        $version = $this->version($entite, $id);
+        if (!$version->publishedAt || $this->manager->latest($version->charter)?->id !== $version->id) throw $this->createNotFoundException();
+        $signature = $this->em->getRepository(TrainerCharterSignature::class)->findOneBy(['version'=>$version, 'trainer'=>$trainer]);
+        if (!$signature) {
+            $signature = new TrainerCharterSignature();
+            $signature->version = $version; $signature->trainer = $trainer;
+            $signature->requestedBy = $this->getUser()->getUserIdentifier();
+            $this->em->persist($signature);
+            try { $this->em->flush(); }
+            catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException) { throw new ConflictHttpException('Cette charte vient d’être ouverte. Revenez à vos chartes pour continuer.'); }
+        }
+        return $this->redirectToRoute('app_charter_sign', ['entite'=>$entite->getId(), 'id'=>$signature->id]);
     }
     #[Route('/formateur/{entite}/chartes/{id}',name:'app_charter_sign',requirements:['id'=>'\d+'],methods:['GET','POST'])]
     public function sign(Entite $entite,int $id,Request $request): Response {
