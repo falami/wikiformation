@@ -247,8 +247,14 @@ final class AttendanceScopeTest extends KernelTestCase
             $url=self::getContainer()->get('router')->generate('app_admin_attendance_import_review',['entite'=>$tenant,'token'=>$token]);
             $crawler=$client->request('GET',$url);
             self::assertSame(200,$client->getResponse()->getStatusCode());
+            self::assertStringNotContainsString('src="/dist/js/attendance-import.js', $client->getResponse()->getContent());
+            self::assertStringContainsString("canvas.addEventListener('pointerdown'", $client->getResponse()->getContent(), 'Preview script must be embedded, independently of public asset deployment.');
+            $previewUrl=$crawler->filter('#paper-page-link')->attr('href');
             $csrf=$crawler->filter('#paper-confirm input[name="_token"]')->attr('value');
             self::assertStringContainsString($target,$client->getResponse()->getContent());
+            $client->request('GET',$previewUrl);
+            self::assertSame(200,$client->getResponse()->getStatusCode());
+            self::assertSame('image/png',$client->getResponse()->headers->get('Content-Type'));
             $body=['_token'=>$csrf,'confirm'=>'1','selections'=>json_encode([['target'=>$target,'page'=>1,'rect'=>[0.1,0.1,0.3,0.3]]])];
             $bad=$body;
             $bad['selections']=json_encode([
