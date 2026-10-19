@@ -3,6 +3,11 @@ FROM php:8.4-apache
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-fra \
+    tesseract-ocr-eng \
+    libreoffice-writer \
     libicu-dev \
     libzip-dev \
     libpng-dev \
@@ -31,6 +36,6 @@ RUN sed -ri \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-RUN echo "memory_limit=512M" > /usr/local/etc/php/conf.d/wikiformation.ini
+RUN printf "memory_limit=512M\nupload_max_filesize=16M\npost_max_size=18M\n" > /usr/local/etc/php/conf.d/wikiformation.ini
 
 WORKDIR /var/www/html

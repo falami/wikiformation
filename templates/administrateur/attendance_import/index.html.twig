@@ -1,0 +1,29 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Importer des émargements{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block body %}
+<div class="container-fluid py-4" style="max-width:1200px">
+<a class="btn btn-outline-secondary mb-4" href="{{ path('app_administrateur_dashboard_index',{entite:entite.id}) }}">← Tableau de bord</a>
+<div class="rounded-4 p-4 mb-4 text-white" style="background:#233342"><span class="text-warning">ÉMARGEMENTS PAPIER</span><h1 class="h3 mt-2">Régulariser depuis une feuille signée</h1><p class="mb-0">Importez le document, vérifiez les correspondances et encadrez les signatures à rattacher.</p></div>
+{% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+<form class="card rounded-4 p-4 mb-4" method="post" enctype="multipart/form-data">
+<input type="hidden" name="_token" value="{{ csrf_token('attendance_import_' ~ entite.id) }}">
+<label class="form-label fw-bold" for="import-session">Session concernée</label><select id="import-session" class="form-select mb-4" name="session" required><option value="">Choisir la session du document</option>{% for session in sessions %}<option value="{{ session.id }}">{{ session.code }} · {{ session.formation.titre|default('') }}</option>{% endfor %}</select>
+<label class="form-label fw-bold" for="import-file">Feuille d’émargement signée</label><input class="form-control" id="import-file" type="file" name="file" accept=".pdf,.docx" required><p class="text-muted small mt-2">PDF ou Word (.docx) · 15 Mo · 20 pages maximum. Pour un ancien fichier .doc, exportez-le en PDF.</p>
+<p class="text-muted">L’analyse est effectuée sur le serveur. Aucune présence n’est modifiée avant votre validation. Le document original reste conservé comme justificatif.</p><button class="btn btn-warning align-self-start" type="submit">Importer et examiner le document</button>
+</form>
+<section class="card rounded-4 p-4"><h2 class="h5">Derniers imports validés</h2>{% for log in history %}<div class="border-top py-3 d-flex justify-content-between gap-3"><span>{{ log.payload.name }}<br><small class="text-muted">{{ log.createdAt|date('d/m/Y H:i') }} · {{ log.payload.signatures|length }} signature(s)</small></span><a href="{{ path('app_admin_attendance_import_review',{entite:entite.id,token:log.payload.token}) }}">Consulter le justificatif</a></div>{% else %}<p class="text-muted mb-0">Aucun import validé pour le moment.</p>{% endfor %}</section></div>
+{% endblock %}

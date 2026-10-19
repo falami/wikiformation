@@ -230,6 +230,60 @@ final class AttendanceScopeTest extends KernelTestCase
         self::assertSame(3, $this->em->getRepository(Emargement::class)->count([]));
     }
 
+    public function testPaperImportReviewAndValidationPreserveEvidenceAndRemoveOnlySelectedAlert(): void
+    {
+        $imports = self::getContainer()->get(\App\Service\Attendance\PaperImport::class);
+        $tenant = $this->entite->getId(); $sessionId = $this->internal->getId();
+        $ins = $this->em->getRepository(Inscription::class)->findOneBy(['session'=>$this->internal]);
+        $target = $ins->getId().'|'.(new \DateTimeImmutable('yesterday'))->format('Y-m-d').':AM';
+        $token = bin2hex(random_bytes(16)); $dir=$imports->directory($tenant,$token);
+        mkdir($dir,0700,true);
+        $image=imagecreatetruecolor(100,100); imagepng($image,$dir.'/view-1.png'); imagedestroy($image);
+        file_put_contents($dir.'/original.pdf','%PDF-test evidence');
+        $imports->save($tenant,$token,['session'=>$sessionId,'name'=>'Test.pdf','extension'=>'pdf','sha256'=>hash_file('sha256',$dir.'/original.pdf'),'pages'=>1,'texts'=>['Camille Test']]);
+        try {
+            $this->em->clear();
+            $client=$this->client();
+            $url=self::getContainer()->get('router')->generate('app_admin_attendance_import_review',['entite'=>$tenant,'token'=>$token]);
+            $crawler=$client->request('GET',$url);
+            self::assertSame(200,$client->getResponse()->getStatusCode());
+            $csrf=$crawler->filter('#paper-confirm input[name="_token"]')->attr('value');
+            self::assertStringContainsString($target,$client->getResponse()->getContent());
+            $body=['_token'=>$csrf,'confirm'=>'1','selections'=>json_encode([['target'=>$target,'page'=>1,'rect'=>[0.1,0.1,0.3,0.3]]])];
+            $bad=$body;
+            $bad['selections']=json_encode([
+                ['target'=>$target,'page'=>1,'rect'=>[0.1,0.1,0.3,0.3]],
+                ['target'=>str_replace(':AM',':PM',$target),'page'=>99,'rect'=>[0.1,0.1,0.3,0.3]],
+            ]);
+            $client->request('POST',$url,$bad);
+            self::assertSame(200,$client->getResponse()->getStatusCode());
+            self::assertSame(0,$this->em->getRepository(\App\Entity\AuditLog::class)->count(['event'=>'ATTENDANCE_PAPER_IMPORTED']),'Invalid selection must not partially import.');
+            self::assertNull($this->em->getRepository(Emargement::class)->findOneBy(['session'=>$sessionId,'periode'=>DemiJournee::AM])->getSignatureDataUrl());
+            $client->request('POST',$url,$body);
+            self::assertSame(302,$client->getResponse()->getStatusCode(),$client->getResponse()->getContent());
+            $entry=$this->em->getRepository(Emargement::class)->findOneBy(['session'=>$sessionId,'periode'=>DemiJournee::AM]);
+            self::assertStringStartsWith('data:image/png;base64,',$entry->getSignatureDataUrl());
+            self::assertNull($entry->getSignedAt(),'Import does not invent an electronic signing timestamp.');
+            self::assertSame(1,$this->em->getRepository(\App\Entity\AuditLog::class)->count(['event'=>'ATTENDANCE_PAPER_IMPORTED']));
+            $client->request('GET',$this->url('app_administrateur_dashboard_todo'));
+            $alerts=json_decode($client->getResponse()->getContent(),true)['unsignedEmargements'];
+            self::assertCount(1,$alerts);
+            self::assertSame('Après-midi',$alerts[0]['periode']);
+            $client->request('POST',$url,$body);
+            self::assertSame(200,$client->getResponse()->getStatusCode());
+            self::assertSame(1,$this->em->getRepository(\App\Entity\AuditLog::class)->count(['event'=>'ATTENDANCE_PAPER_IMPORTED']),'Repeated submission must not duplicate evidence.');
+            $client->request('GET',$this->url('app_admin_attendance_import_index'));
+            self::assertSame(200,$client->getResponse()->getStatusCode());
+            self::assertStringContainsString('Test.pdf',$client->getResponse()->getContent());
+            $client->catchExceptions(true);
+            $client->request('POST',$url,['_token'=>'invalid']);
+            self::assertSame(403,$client->getResponse()->getStatusCode());
+            $other=$this->em->getRepository(Entite::class)->findOneBy(['nom'=>'Organisme B']);
+            $client->request('GET',self::getContainer()->get('router')->generate('app_admin_attendance_import_document',['entite'=>$other->getId(),'token'=>$token,'page'=>1]));
+            self::assertContains($client->getResponse()->getStatusCode(),[403,404]);
+        } finally { (new \Symfony\Component\Filesystem\Filesystem())->remove($dir); }
+    }
+
     private function piece(Session $session, SessionPieceType $type): void
     {
         $this->em->persist((new SessionPiece())->setSession($session)->setEntite($session->getEntite())->setCreateur($this->admin)->setType($type)->setFilename('test.pdf'));
