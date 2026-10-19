@@ -36,7 +36,7 @@ final class DashboardController extends AbstractController
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]
-  public function index(Entite $entite, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\Session\PendingLearnerAppreciations $appreciations, \App\Service\TrainerReminder\TrainerCompliance $compliance): Response
+  public function index(Entite $entite, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\Session\PendingLearnerAppreciations $appreciations, \App\Service\TrainerReminder\TrainerCompliance $compliance, \App\Service\Billing\InvoiceFollowUp $invoiceFollowUp): Response
   {
     $lifecycle->synchronize($entite);
     /** @var Utilisateur $user */
@@ -45,6 +45,7 @@ final class DashboardController extends AbstractController
     return $this->render('administrateur/dashboard/index.html.twig', [
       'title'  => 'Tableau de bord',
       'trainerCompliance' => $this->isGranted(TenantPermission::FORMATEUR_MANAGE, $entite) ? $compliance->pending($entite) : [],
+      'invoiceFollowUp' => $this->isGranted(TenantPermission::FACTURE_MANAGE, $entite) ? $invoiceFollowUp->rows($entite) : null,
       'pendingAppreciations' => $appreciations->find($entite),
       'learnerReminderHistory' => $this->reminderHistory->forEntity($entite),
       'rapportsOuverts' => $this->em->getRepository(\App\Entity\RapportFormateur::class)->count(['entite' => $entite, 'statutTraitement' => ['new', 'in_progress']]),

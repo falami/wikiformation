@@ -1,0 +1,32 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Suivi de la facture {{ f.numero }}{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block body %}
+<div class="card border-0 shadow-sm rounded-4 p-4 my-4">
+  <div class="d-flex justify-content-between gap-3 flex-wrap mb-4"><div><h1 class="h3">Renouvellement et relances</h1><p class="text-muted mb-0">Facture {{ f.numero }} · Émise le {{ f.dateEmission|date('d/m/Y') }}</p></div><a class="btn btn-outline-secondary align-self-start" href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: f.id}) }}">Retour à la facture</a></div>
+  {{ form_start(form) }}
+  <div class="row g-4"><div class="col-md-6">{{ form_row(form.renewalMonths) }}</div><div class="col-md-6">{{ form_row(form.reminderMonths) }}</div></div>
+  <button class="btn btn-warning mt-3">Enregistrer les réglages</button>
+  {{ form_end(form) }}
+  <hr>
+  <p>Prochain renouvellement : <strong>{{ renewalDate ? renewalDate|date('d/m/Y') : 'Désactivé' }}</strong></p>
+  <p>Prochaine relance possible : <strong>{{ reminderDate ? reminderDate|date('d/m/Y') : 'Aucune relance prévue' }}</strong></p>
+  {% set delivery = f.meta.follow_up_delivery|default({}) %}
+  {% if delivery.sentAt|default(null) %}<p class="text-muted">Dernière relance transmise à la messagerie : {{ delivery.sentAt|date('d/m/Y H:i') }}.</p>{% endif %}
+  {% if delivery.status|default('') in ['processing', 'unknown'] %}<p class="alert alert-warning">Un envoi est en cours ou son résultat est incertain. Les relances sont suspendues pour éviter un doublon. Vérifiez l’historique de messagerie.</p>{% endif %}
+  <p class="small text-muted mb-0">Le renouvellement crée un rappel interne. Les e-mails nécessitent l’exécution quotidienne du traitement automatique sur le serveur. Une facture soldée ou annulée n’est plus relancée.</p>
+</div>
+{% endblock %}

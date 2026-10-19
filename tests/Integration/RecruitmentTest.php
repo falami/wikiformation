@@ -81,7 +81,7 @@ final class RecruitmentTest extends WebTestCase
     public function testPublicSubmissionStoresPrivateCvAndValidatesInput(): void {
         $c=$this->client->request('GET','/fr/recrutement');
         $token=$c->filter('input[name="_token"]')->attr('value');
-        $data=['_token'=>$token,'prenom'=>'Camille','nom'=>'Expert','email'=>'new@recruit.test','telephone'=>'0600000000','societe'=>'Test','siret'=>'12345678901234','adresse'=>'1 rue Test','codePostal'=>'75001','ville'=>'Paris','tarifHoraire'=>'60,50','subjects'=>['Spécialité personnelle'],'departments'=>['75'],'consent'=>'1'];
+        $data=['_token'=>$token,'prenom'=>'Camille','nom'=>'Expert','email'=>'new@recruit.test','telephone'=>'0600000000','societe'=>'Test','siret'=>'12345678901234','adresse'=>'1 rue Test','codePostal'=>'75001','ville'=>'Paris','tarifHoraire'=>'60,50','subjects'=>['Spécialité personnelle'],'departments'=>['75'],'consent'=>'1','accuracy'=>'1'];
         $this->client->request('POST','/fr/recrutement',$data);self::assertResponseStatusCodeSame(422);
         self::assertSame(0,$this->em->getRepository(TrainerApplication::class)->count([]));
         $tmp=tempnam(sys_get_temp_dir(),'recruit-test');
@@ -93,6 +93,41 @@ final class RecruitmentTest extends WebTestCase
         $file=self::getContainer()->get(Applications::class)->directory().'/'.$a->cvFilename;$this->files[]=$file;self::assertFileExists($file);
         self::assertSame(0,$this->em->getRepository(Utilisateur::class)->count([]));
     }
+    public function testProfessionalReferencesAndPrivateSupportingDocuments(): void {
+        [$admin,$entity]=$this->fixtures();
+        $service=self::getContainer()->get(Applications::class);
+        $data=['prenom'=>'Camille','nom'=>'Expert','email'=>'remote@recruit.test','telephone'=>'0600000000','societe'=>'Test','siret'=>'12345678901234','adresse'=>'1 rue Test','codePostal'=>'75001','ville'=>'Paris','tarifHoraire'=>'60','subjects'=>['Bureautique'],'remoteTraining'=>'1','consent'=>'1','accuracy'=>'1','hasNda'=>'1','nda'=>'11 123 456 789','qualiopiStatus'=>'yes','qualiopiNumber'=>'CERT-2026-123','competenceEvidence'=>'1'];
+        $request=new \Symfony\Component\HttpFoundation\Request([], $data);
+        $candidate=$service->parse($request);
+        self::assertTrue($candidate->details['remoteTraining']);
+        self::assertSame([], $candidate->departments);
+        self::assertSame('11123456789',$candidate->details['nda']);
+        self::assertSame('CERT-2026-123',$candidate->details['qualiopiNumber']);
+        self::assertFalse($candidate->details['commitments']['qualityDiscussion']);
+        $pdf=new \Dompdf\Dompdf();$pdf->loadHtml('<p>Justificatif test</p>');$pdf->render();
+        foreach(['cv','rcPro','qualiopi'] as $kind) {
+            $tmp=tempnam(sys_get_temp_dir(),'recruit-ref-');$this->files[]=$tmp;file_put_contents($tmp,$pdf->output());
+            $request->files->set($kind,new \Symfony\Component\HttpFoundation\File\UploadedFile($tmp,$kind.'.pdf','application/pdf',null,true));
+        }
+        $service->upload($candidate,$request);
+        $this->files[]=$service->directory().'/'.$candidate->cvFilename;
+        foreach($candidate->details['documents'] as $document) {$this->files[]=$service->directory().'/'.$document['filename'];self::assertFileExists($service->directory().'/'.$document['filename']);}
+        $this->em->persist($candidate);$this->em->flush();
+        $url='/fr/super/'.$entity->getId().'/recrutement/'.$candidate->id.'/fichier/rcPro';
+        $this->client->request('GET',$url);self::assertResponseRedirects('http://localhost/fr/login');
+        $this->client->loginUser($admin);
+        $this->client->request('GET',$url);self::assertResponseIsSuccessful();
+        self::assertStringContainsString('private', $this->client->getResponse()->headers->get('Cache-Control'));
+        $this->client->request('GET','/fr/super/'.$entity->getId().'/recrutement/'.$candidate->id);self::assertResponseIsSuccessful();
+        self::assertStringContainsString('CERT-2026-123',$this->client->getResponse()->getContent());
+        foreach([['nda'=>'123'],['accuracy'=>'0'],['qualiopiStatus'=>'invalid']] as $invalid) {
+            try {$service->parse(new \Symfony\Component\HttpFoundation\Request([],array_replace($data,$invalid)));self::fail('Invalid submission accepted');}
+            catch(\InvalidArgumentException $e) {self::assertNotEmpty($e->getMessage());}
+        }
+        $service->cleanup($candidate);
+        self::assertFileDoesNotExist($service->directory().'/'.$candidate->details['documents']['rcPro']['filename']);
+    }
+
     public function testExistingAccountNeedsConfirmation(): void {
         [$u,$a]=$this->fixtures();$candidate=$this->candidate();$candidate->email=$u->getEmail();$this->em->flush();
         $this->expectException(\InvalidArgumentException::class);

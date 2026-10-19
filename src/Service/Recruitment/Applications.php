@@ -52,7 +52,16 @@ final class Applications
         $a->departments=$request->request->all('departments');
         foreach($a->departments as $code) if(!is_string($code) || !in_array($code,array_column($this->departments(),'value'),true)) throw new \InvalidArgumentException('Département invalide.');
         $a->departments=array_values(array_unique($a->departments));
-        if(!$a->nationwide && !$a->departments) throw new \InvalidArgumentException('Choisissez vos départements ou toute la France.');
+        if(!$a->nationwide && !$a->departments && !$request->request->getBoolean('remoteTraining')) throw new \InvalidArgumentException('Choisissez vos départements ou toute la France.');
+        $a->details['remoteTraining']=$request->request->getBoolean('remoteTraining');
+        $a->details['hasNda']=$request->request->getBoolean('hasNda');
+        $a->details['nda']=$a->details['hasNda'] ? preg_replace('/\s/', '', $get('nda',30)) : '';
+        if($a->details['hasNda'] && !preg_match('/^[0-9]{11}$/D',$a->details['nda'])) throw new \InvalidArgumentException('Le numéro de déclaration d’activité doit comporter 11 chiffres.');
+        $a->details['qualiopiStatus']=$get('qualiopiStatus',10,false) ?: 'no';
+        if(!in_array($a->details['qualiopiStatus'],['no','yes','pending'],true)) throw new \InvalidArgumentException('Choisissez votre situation Qualiopi.');
+        $a->details['qualiopiNumber']=$a->details['qualiopiStatus']==='yes' ? $get('qualiopiNumber',100,false) : '';
+        if(!$request->request->getBoolean('accuracy')) throw new \InvalidArgumentException('Veuillez certifier l’exactitude des informations communiquées.');
+        $a->details['commitments']=['version'=>1,'accuracy'=>true,'profileReview'=>true,'competenceEvidence'=>$request->request->getBoolean('competenceEvidence'),'qualityDiscussion'=>$request->request->getBoolean('qualityDiscussion'),'acceptedAt'=>(new \DateTimeImmutable())->format(DATE_ATOM)];
         if(!$request->request->getBoolean('consent')) throw new \InvalidArgumentException('Votre accord est nécessaire pour étudier et transmettre votre candidature.');
         return $a;
     }
@@ -61,11 +70,24 @@ final class Applications
         $cv=$r->files->get('cv'); $photo=$r->files->get('photo');
         if(!$cv instanceof UploadedFile || !$cv->isValid() || $cv->getSize()>10000000 || $cv->getMimeType()!=='application/pdf' || !str_starts_with(file_get_contents($cv->getPathname(),false,null,0,5),'%PDF-')) throw new \InvalidArgumentException('Le CV doit être un PDF de 10 Mo maximum.');
         if($photo && (!$photo instanceof UploadedFile || !$photo->isValid() || $photo->getSize()>5000000 || !in_array($photo->getMimeType(),['image/jpeg','image/png'],true))) throw new \InvalidArgumentException('La photo doit être une image JPG ou PNG de 5 Mo maximum.');
+        $documents=[];
+        foreach(['rcPro'=>'RC Pro','qualiopi'=>'Qualiopi'] as $key=>$label) {
+            $file=$r->files->get($key);
+            if($key==='qualiopi' && ($a->details['qualiopiStatus'] ?? 'no')!=='yes') continue;
+            if(!$file) continue;
+            if(!$file instanceof UploadedFile || !$file->isValid() || $file->getSize()>10000000 || $file->getMimeType()!=='application/pdf' || !str_starts_with(file_get_contents($file->getPathname(),false,null,0,5),'%PDF-')) throw new \InvalidArgumentException('Le justificatif '.$label.' doit être un PDF de 10 Mo maximum.');
+            $documents[$key]=$file;
+        }
         if(!is_dir($this->directory())) mkdir($this->directory(),0700,true);
         $a->cvFilename=bin2hex(random_bytes(24)).'.pdf';
         $a->cvOriginalName=mb_substr(basename($cv->getClientOriginalName()),0,255);
         try {
             $cv->move($this->directory(),$a->cvFilename);
+            foreach($documents as $key=>$file) {
+                $name=bin2hex(random_bytes(24)).'.pdf';
+                $a->details['documents'][$key]=['filename'=>$name,'originalName'=>mb_substr(basename($file->getClientOriginalName()),0,255)];
+                $file->move($this->directory(),$name);
+            }
             if($photo) {
                 $info=getimagesize($photo->getPathname());
                 if(!$info || $info[0]*$info[1]>20000000) throw new \InvalidArgumentException('La photo est trop grande (20 mégapixels maximum).');
@@ -78,6 +100,6 @@ final class Applications
     }
     public function cleanup(TrainerApplication $a): void
     {
-        foreach([$a->cvFilename,$a->photoFilename] as $f) if($f && is_file($this->directory().'/'.basename($f))) unlink($this->directory().'/'.basename($f));
+        foreach([$a->cvFilename,$a->photoFilename,...array_column($a->details['documents'] ?? [],'filename')] as $f) if($f && is_file($this->directory().'/'.basename($f))) unlink($this->directory().'/'.basename($f));
     }
 }

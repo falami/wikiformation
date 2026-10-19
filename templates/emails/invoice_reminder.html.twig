@@ -1,0 +1,17 @@
+{% set primary = entite.couleurPrincipal|default('#233342') %}
+{% if not (primary matches '/^#[0-9a-fA-F]{6}$/') %}{% set primary = '#233342' %}{% endif %}
+{% set accent = entite.couleurSecondaire|default('#ffc107') %}
+{% if not (accent matches '/^#[0-9a-fA-F]{6}$/') %}{% set accent = '#ffc107' %}{% endif %}
+<!doctype html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Suivi de votre facture</title></head>
+<body style="margin:0;background:#f3f5f8;font-family:Arial,Helvetica,sans-serif;color:#233342">
+<div style="display:none;max-height:0;overflow:hidden">Votre facture {{ invoice.numero }} : point sur votre règlement.</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 12px">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#fff;border:1px solid #e4e8ef;border-radius:18px;overflow:hidden">
+<tr><td style="padding:30px 32px;background:{{ primary }};border-bottom:4px solid {{ accent }};color:#fff"><div style="font-size:20px;font-weight:bold">{{ entite.nom }}</div><div style="margin-top:10px;font-size:11px;letter-spacing:2px">SUIVI DE FACTURATION</div></td></tr>
+<tr><td style="padding:32px"><h1 style="margin:0 0 24px;font-size:25px;line-height:1.3">Un point sur votre règlement</h1><p style="font-size:15px;line-height:1.8">Bonjour,</p><p style="font-size:15px;line-height:1.8">Sauf erreur de notre part, un solde reste à régler sur la facture ci-dessous. Nous vous remercions de l’attention portée à ce rappel.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fa;border:1px solid #e4e8ef;border-radius:12px"><tr><td style="padding:22px"><div style="font-size:12px;color:#64748b">FACTURE {{ invoice.numero }}</div><div style="font-size:30px;font-weight:bold;margin:12px 0">{{ (remaining / 100)|number_format(2, ',', ' ') }} {{ invoice.devise }}</div><div style="font-size:13px;color:#64748b">Solde restant à régler</div><div style="font-size:13px;margin-top:18px">Émise le {{ invoice.dateEmission|date('d/m/Y') }}{% if invoice.meta.invoice_terms.dueDate|default(null) %}<br>Échéance : {{ invoice.meta.invoice_terms.dueDate|date('d/m/Y') }}{% endif %}</div></td></tr></table>
+<p style="font-size:15px;line-height:1.8;margin-top:24px">Vous pouvez effectuer votre règlement selon les modalités indiquées sur votre facture, en rappelant sa référence <strong>{{ invoice.numero }}</strong>.</p>
+<p style="font-size:14px;line-height:1.8;color:#64748b">Votre paiement est déjà en cours ? Merci de nous le signaler en répondant à cet e-mail. Notre équipe reste à votre disposition pour toute question ou pour vous transmettre un nouvel exemplaire de la facture.</p>
+<p style="font-size:15px;line-height:1.8;margin-bottom:0">Merci pour votre confiance,<br><strong>L’équipe {{ entite.nom }}</strong></p></td></tr>
+<tr><td style="padding:20px 32px;border-top:1px solid #e4e8ef;color:#64748b;font-size:12px;line-height:1.7">Ce rappel tient compte des paiements et avoirs enregistrés au moment de son envoi.</td></tr>
+</table></td></tr></table></body></html>

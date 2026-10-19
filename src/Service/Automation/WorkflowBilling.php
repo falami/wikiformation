@@ -83,6 +83,13 @@ final class WorkflowBilling
             if ($previous === 'sent') return ['status' => 'skipped', 'detail' => 'Cet envoi a déjà été effectué pour cette facture dans un dossier.', 'snapshot' => ['invoiceId' => $invoice->getId(), 'sharedDelivery' => true]];
             if ($previous !== null) return $this->blocked('Un envoi de cette facture est déjà réservé ou son résultat est incertain. Vérifiez la messagerie avant toute reprise.');
             if ($action === 'reminder') {
+                $manualDelivery = $meta['follow_up_delivery'] ?? [];
+                if (in_array($manualDelivery['status'] ?? '', ['processing', 'unknown'], true)
+                    || (!empty($manualDelivery['sentAt']) && new \DateTimeImmutable($manualDelivery['sentAt']) > new \DateTimeImmutable('-24 hours'))) {
+                    return $this->blocked('Une relance de cette facture est déjà en cours, incertaine ou a été transmise il y a moins de 24 heures.');
+                }
+
+                if ((int)(\App\Service\Billing\InvoiceFollowUp::settings($invoice)['reminderMonths']) > 0) return ['status' => 'skipped', 'detail' => 'Les relances sont gérées par les réglages propres à cette facture.'];
                 $initial = $deliveries['invoice_send']['status'] ?? $this->previousDeliveryStatus($invoice, 'invoice_send', $task);
                 if ($initial !== 'sent') return $this->blocked('Vérifiez d’abord l’envoi initial de la facture.');
                 if (self::outstanding($invoice) === 0) return ['status' => 'skipped', 'detail' => 'Le solde est nul après paiements et avoirs.'];

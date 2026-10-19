@@ -1,0 +1,30 @@
+(() => {
+  function initInvoiceReminders() {
+    const form = document.getElementById('invoice-reminder-selection');
+    if (!form || form.dataset.ready) return;
+    form.dataset.ready = '1';
+    const all = document.querySelector('[data-invoice-all]');
+    const rows = Array.from(document.querySelectorAll('[data-invoice-row]:not(:disabled)'));
+    const button = form.querySelector('[data-invoice-send]');
+    function update() {
+      const count = rows.filter(row => row.checked).length;
+      form.querySelector('[data-invoice-count]').textContent = count;
+      button.disabled = count === 0 || count > 50;
+      all.checked = rows.length > 0 && count === rows.length;
+      all.indeterminate = count > 0 && count < rows.length;
+      all.disabled = rows.length === 0;
+    }
+    all.addEventListener('change', () => { rows.forEach((row, index) => { row.checked = all.checked && index < 50; }); update(); });
+    rows.forEach(row => row.addEventListener('change', update));
+    form.addEventListener('submit', event => {
+      const count = rows.filter(row => row.checked).length;
+      if (count === 0 || count > 50) { event.preventDefault(); return; }
+      button.disabled = true;
+      button.textContent = 'Envoi des relances…';
+    });
+    update();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initInvoiceReminders);
+  else initInvoiceReminders();
+  document.addEventListener('turbo:load', initInvoiceReminders);
+})();

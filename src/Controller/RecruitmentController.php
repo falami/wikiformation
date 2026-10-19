@@ -78,13 +78,13 @@ final class RecruitmentController extends AbstractController
         }
         return $this->render('recruitment/show.html.twig',compact('entite','application','error')+['entities'=>$this->em->getRepository(Entite::class)->findBy([],['nom'=>'ASC']),'placements'=>$this->em->getRepository(RecruitmentPlacement::class)->findBy(['application'=>$application])]);
     }
-    #[Route('/super/{entite}/recrutement/{id}/fichier/{kind}',name:'app_super_recruitment_file',methods:['GET'],requirements:['id'=>'\d+','kind'=>'cv|photo'])]
+    #[Route('/super/{entite}/recrutement/{id}/fichier/{kind}',name:'app_super_recruitment_file',methods:['GET'],requirements:['id'=>'\d+','kind'=>'cv|photo|rcPro|qualiopi'])]
     public function fileDownload(Entite $entite,TrainerApplication $application,string $kind): Response
     {
         $this->denyAccessUnlessGranted('ROLE_SUPER_ADMIN');
-        $name=$kind==='cv'?$application->cvFilename:$application->photoFilename;
+        $name=match($kind) {'cv'=>$application->cvFilename,'photo'=>$application->photoFilename,default=>$application->details['documents'][$kind]['filename'] ?? null};
         if(!$name || !is_file($this->applications->directory().'/'.basename($name))) throw $this->createNotFoundException();
-        $r=$this->file($this->applications->directory().'/'.basename($name),$kind==='cv'?'CV.pdf':'portrait.jpg',$kind==='cv'?'attachment':'inline');
+        $r=$this->file($this->applications->directory().'/'.basename($name),match($kind) {'cv'=>'CV.pdf','photo'=>'portrait.jpg','rcPro'=>'RC-Pro.pdf',default=>'Qualiopi.pdf'},$kind==='photo'?'inline':'attachment');
         $r->headers->set('Cache-Control','private, no-store');$r->headers->set('X-Content-Type-Options','nosniff');return $r;
     }
 }

@@ -689,6 +689,16 @@ class FactureController extends AbstractController
       $facture->setDevise('EUR');
     }
 
+    // Renewal starts a new invoice; issued snapshots and delivery history are never copied.
+    if ($sourceId = $req->query->getInt('renewalSource')) {
+      $source = $em->getRepository(Facture::class)->find($sourceId);
+      if (!$source || $source->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
+      $facture->setDestinataire($source->getDestinataire());
+      $facture->setEntrepriseDestinataire($source->getEntrepriseDestinataire());
+      $facture->setDevise($source->getDevise());
+      if (!$req->isMethod('POST')) $this->addFlash('info', 'Client repris de la facture '.$source->getNumero().'. Complétez les prestations et tarifs, puis marquez le rappel de renouvellement comme traité.');
+    }
+
     $form = $this->createForm(FactureType::class, $facture, [
       'entite' => $entite,
     ])->handleRequest($req);

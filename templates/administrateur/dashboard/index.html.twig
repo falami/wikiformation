@@ -1123,17 +1123,20 @@
       }
     }
 
-    .of-dashboard [data-reminder-all], .of-dashboard [data-reminder-row] {
+    .of-dashboard [data-reminder-all], .of-dashboard [data-reminder-row],
+    .of-dashboard [data-invoice-all], .of-dashboard [data-invoice-row] {
       width: 18px; height: 18px; min-width: 18px; margin: 0;
       cursor: pointer; vertical-align: middle; border-width: 2px;
     }
-    .of-dashboard th:has([data-reminder-all]), .of-dashboard td:has([data-reminder-row]) {
+    .of-dashboard th:has([data-reminder-all]), .of-dashboard td:has([data-reminder-row]),
+    .of-dashboard th:has([data-invoice-all]), .of-dashboard td:has([data-invoice-row]) {
       min-width: 40px; padding: 10px !important; text-align: center;
     }
     .of-dashboard [data-reminder-send],
     .of-dashboard #tblUnsigned form button,
     .of-dashboard #tblAppreciations form button,
-    .of-dashboard #tblTrainerCompliance form button {
+    .of-dashboard #tblTrainerCompliance form button,
+    .of-dashboard #invoice-follow-up .btn {
       min-height: 36px; padding: 6px 12px; font-size: 13px;
       font-weight: 600; line-height: 1.4; white-space: nowrap;
     }
@@ -1143,6 +1146,7 @@
 
 {% block javascripts %}
 <script>{% include 'administrateur/dashboard/_reminders.js.twig' %}</script>
+<script>{% include 'administrateur/dashboard/_invoice_reminders.js.twig' %}</script>
   {{ parent() }}
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -1381,6 +1385,8 @@
   </section>
 
   {% if is_granted('FORMATEUR_MANAGE', entite) or trainerCompliance|length %}{% include 'administrateur/dashboard/_trainer_compliance.html.twig' %}{% endif %}
+  {% include 'administrateur/dashboard/_invoice_follow_up.html.twig' %}
+
   {# ================= VUE DIRECTION ================= #}
   <section class="of-section">
     <div class="of-section-head">

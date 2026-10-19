@@ -43,7 +43,7 @@ final class Placement
                             ->setAdresse($application->details['address'])->setCodePostal($application->details['postalCode'])->setVille($application->details['city'])->setPays('France')
                             ->setSiret($application->details['siret'])->setAssujettiTva($application->details['vat'])->setNumeroTvaIntra($application->details['vatNumber'] ?: null)
                             ->setTauxHoraireCents($application->hourlyRate)->setTauxJournalierCents($application->dailyRate)->setModeRemuneration($application->dailyRate ? 'JOUR' : 'HEURE')
-                            ->setRecruitmentDetails(['company'=>$application->details['company'],'departments'=>$application->departments,'nationwide'=>$application->nationwide]);
+                            ->setRecruitmentDetails(['company'=>$application->details['company'],'departments'=>$application->departments,'nationwide'=>$application->nationwide,'remoteTraining'=>$application->details['remoteTraining'] ?? null,'nda'=>$application->details['nda'] ?? null,'qualiopiStatus'=>$application->details['qualiopiStatus'] ?? null,'qualiopiNumber'=>$application->details['qualiopiNumber'] ?? null]);
                         $user->setFormateur($trainer);
                         $this->em->persist($trainer);
                         $profile=new TrainerProfile();$profile->formateur=$trainer;$profile->subjects=$application->subjects;$this->em->persist($profile);

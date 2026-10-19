@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const types = input.accept.split(',');
       if (file && (!types.includes(file.type) || file.size > Number(zone.dataset.maxSize) * 1048576)) {
         input.value = ''; render();
-        status.textContent = `Fichier refusé : choisissez ${input.name === 'cv' ? 'un PDF' : 'une image JPG ou PNG'} de ${zone.dataset.maxSize} Mo maximum.`;
+        status.textContent = `Fichier refusé : choisissez ${input.accept === 'application/pdf' ? 'un PDF' : 'une image JPG ou PNG'} de ${zone.dataset.maxSize} Mo maximum.`;
         return;
       }
       render();
@@ -32,6 +32,23 @@ document.addEventListener('DOMContentLoaded', () => {
       input.files = e.dataTransfer.files; validate();
     });
   });
+  const nda = document.getElementById('rec-has-nda');
+  const qualiopi = document.getElementById('rec-qualiopi-status');
+  function toggleFields(selector, active) {
+    document.querySelectorAll(selector).forEach(section => {
+      section.hidden = !active;
+      section.querySelectorAll('input').forEach(input => { input.disabled = !active; });
+    });
+  }
+  function updateReferences() {
+    toggleFields('[data-nda-fields]', !!nda?.checked);
+    const number = document.querySelector('[name=nda]');
+    if (number) number.required = !!nda?.checked;
+    toggleFields('[data-qualiopi-fields]', qualiopi?.value === 'yes');
+  }
+  nda?.addEventListener('change', updateReferences);
+  qualiopi?.addEventListener('change', updateReferences);
+  updateReferences();
   const address = document.getElementById('rec-address');
   if (!address) return;
   const results = document.getElementById('rec-address-results'), status = document.getElementById('rec-address-status');
