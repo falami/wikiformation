@@ -22,3 +22,24 @@ Originaux, pages et texte OCR : `var/storage/attendance-imports/<entite>/<token>
 Chaque validation crée un AuditLog ATTENDANCE_PAPER_IMPORTED avec empreinte SHA-256 du fichier, page, coordonnées et inscription/créneau. L’inscription conserve une présence manuelle « paper » avec administrateur et date d’import. L’image découpée est conservée dans Emargement.signatureDataUrl pour les relevés existants ; signedAt, IP et userAgent ne sont pas fabriqués. L’horodatage de validation ne prétend pas être la date de signature papier.
 
 Aucune migration nécessaire. Les imports non validés ne changent aucune présence ; ils restent stockés pour éviter de perdre une préparation et nécessitent une politique de conservation adaptée par l’exploitant.
+
+### Production cPanel : outil introuvable
+
+Les installations du conteneur Docker local ne sont pas transférées par Git sur cPanel.
+Depuis le dossier de l’application, lancer :
+
+```sh
+php bin/console app:attendance-import:check --env=prod
+command -v pdftoppm
+command -v pdfinfo
+```
+
+Si les outils sont installés dans un dossier personnalisé, définir dans `.env.local` du **serveur** (chemin réel fourni par l’hébergeur) :
+
+```dotenv
+ATTENDANCE_TOOLS_DIR=/chemin/vers/le/dossier/bin
+```
+
+L’application recherche aussi les dossiers système usuels indépendamment du PATH PHP. Si `.env.local.php` a été généré par `composer dump-env prod`, régénérer ce fichier pour prendre en compte le réglage, puis vider le cache de production selon la procédure habituelle.
+
+Si les exécutables sont absents, demander à l’hébergeur : « Pouvez-vous installer ou rendre accessibles à mon PHP Poppler (`pdftoppm`, `pdfinfo`), autoriser `proc_open`, et me fournir le chemin des exécutables ? Tesseract avec les langues français/anglais est nécessaire pour l’OCR, et LibreOffice Writer pour le DOCX. » Ne pas utiliser sudo sur un hébergement mutualisé. Aucun changement de base de données n’est requis pour ce réglage.

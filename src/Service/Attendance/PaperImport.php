@@ -9,7 +9,10 @@ use Symfony\Component\Filesystem\Filesystem;
 /** Local processing only. OCR is a suggestion, never evidence of a signature. */
 final class PaperImport
 {
-    public function __construct(#[Autowire('%kernel.project_dir%/var/storage/attendance-imports')] private string $root) {}
+    public function __construct(
+        #[Autowire('%kernel.project_dir%/var/storage/attendance-imports')] private string $root,
+        #[Autowire('%env(default::ATTENDANCE_TOOLS_DIR)%')] private ?string $toolsDirectory = null,
+    ) {}
 
     public function directory(int $tenant, string $token): string
     {
@@ -74,7 +77,7 @@ final class PaperImport
             $this->run([$render,'-scale-to','1800','-png',$pdf,$dir.'/page']);
             $images = glob($dir.'/page-*.png');
             natsort($images);
-            $texts = []; $ocr = (new ExecutableFinder())->find('tesseract');
+            $texts = []; $ocr = $this->findBinary('tesseract');
             foreach (array_values($images) as $i=>$image) {
                 rename($image, $dir.'/view-'.($i+1).'.png');
                 $text = '';
@@ -107,9 +110,21 @@ final class PaperImport
         return 'data:image/png;base64,'.base64_encode($bytes);
     }
 
+    public function findBinary(string $name): ?string
+    {
+        if (!in_array($name, ['pdftoppm','pdfinfo','tesseract','libreoffice'], true)) throw new \InvalidArgumentException('Outil inconnu.');
+        // PHP-FPM/cPanel may have a different PATH from the SSH shell.
+        if ($this->toolsDirectory) {
+            $candidate=rtrim($this->toolsDirectory, '/').'/'.$name;
+            if (is_file($candidate) && is_executable($candidate)) return $candidate;
+        }
+        return (new ExecutableFinder())->find($name, null, ['/usr/local/bin','/usr/bin','/bin','/opt/bin','/opt/homebrew/bin']);
+    }
+
     private function binary(string $name): string
     {
-        return (new ExecutableFinder())->find($name) ?? throw new \DomainException('Le serveur doit être équipé de '.$name.' pour cet import. Consultez la configuration des imports d’émargements.');
+        if (!function_exists('proc_open')) throw new \DomainException('Le serveur interdit l’exécution des outils de conversion (proc_open). Contactez votre hébergeur pour activer l’import.');
+        return $this->findBinary($name) ?? throw new \DomainException('Import indisponible : '.$name.' est introuvable sur ce serveur. Faites installer Poppler (pdftoppm et pdfinfo), ou indiquez son dossier dans ATTENDANCE_TOOLS_DIR. Pour Word, LibreOffice est également nécessaire.');
     }
     private function run(array $args, int $timeout=90): string
     {
