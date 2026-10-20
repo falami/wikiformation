@@ -1140,6 +1140,26 @@
       min-height: 36px; padding: 6px 12px; font-size: 13px;
       font-weight: 600; line-height: 1.4; white-space: nowrap;
     }
+    #compliance-details .table-pro__head{flex-wrap:wrap;}
+    #compliance-details .table-pro__title{flex:1 1 260px;}
+    #compliance-details .table-pro__tools{flex:0 1 320px;min-width:0;}
+    #compliance-details .table-pro__search{width:100%;min-width:0;}
+    #compliance-details .attendance-actions{
+      display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+      padding:12px 16px;border-bottom:1px solid var(--dash-line);background:#fff;
+    }
+    #compliance-details .attendance-actions .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      flex:0 0 auto;min-height:36px;padding:6px 12px;border-radius:8px;
+      font-size:13px;font-weight:600;line-height:1.4;white-space:nowrap;
+    }
+    @media(max-width:767.98px){
+      #compliance-details .table-pro__title{flex:auto;}
+      #compliance-details .table-pro__tools{flex:auto;width:100%;}
+    }
+    @media(max-width:420px){
+      #compliance-details .attendance-actions .btn{flex:1 1 100%;}
+    }
     .of-dashboard [data-reminder-feedback] { display: inline-block; margin-top: 8px; }
   </style>
 {% endblock %}
@@ -1200,7 +1220,7 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ================= FILTRES ================= #}
-  <div class="filterbar dashboard-filters">
+  <div class="filterbar dashboard-filters mb-3">
     <div class="filterbar__top">
       <div class="filter-icon"><i class="bi bi-sliders2"></i></div>
       <div>
@@ -1285,8 +1305,31 @@
   </div>
 
 
+  <section class="table-pro mb-4" id="pending-appreciations">
+    <div class="table-pro__head"><h3 class="table-pro__title"><i class="bi bi-chat-square-heart"></i> Appréciations à compléter <span class="table-pro__count">{{ pendingAppreciations|length > 300 ? '300+' : pendingAppreciations|length }}</span></h3>
+    <input class="form-control form-control-sm" style="max-width:260px" placeholder="Rechercher un stagiaire…" aria-label="Rechercher une appréciation" data-plain-search="#tblAppreciations"></div>
+    <p class="text-muted small px-3 mt-3">Sessions achevées, hors sous-traitance et annulations. Les questionnaires non commencés ou non soumis sont inclus ; les inscriptions annulées et absences sont exclues.</p>
+    <div class="px-3 pb-3"><button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblAppreciations" disabled>Relancer la sélection (0)</button><span class="small ms-3" data-reminder-feedback="tblAppreciations" role="status"></span><span class="small text-muted ms-3">La case d’en-tête sélectionne les lignes affichées.</span></div><div class="table-responsive"><table class="table table-pro__table" id="tblAppreciations"><thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblAppreciations" aria-label="Sélectionner les appréciations affichées"></th><th>Session</th><th>Formation</th><th>Stagiaire</th><th>État</th><th>Dernière relance</th><th>Action</th></tr></thead><tbody>
+    {% for ins in pendingAppreciations|slice(0,300) %}
+    <tr><td>{% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}<input type="checkbox" class="form-check-input" data-reminder-row aria-label="Sélectionner {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}">{% endif %}</td><td><a href="{{ path('app_administrateur_session_show',{entite:entite.id,id:ins.session.id}) }}">{{ ins.session.code }}</a></td><td>{{ ins.session.formation.titre|default('—') }}</td><td>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}<div class="small text-muted">{{ ins.stagiaire.email }}</div></td>
+    <td><span class="badge-pro badge-pro--warn">Non renseignée / non soumise</span></td><td data-reminder-history class="small text-muted">{% set lastReminder = learnerReminderHistory[ins.id].satisfaction|default(null) %}{{ lastReminder ? lastReminder|date('d/m/Y H:i', 'Europe/Paris') : 'Aucune relance enregistrée' }}</td><td>
+    {% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}
+    <form method="post" action="{{ path('app_administrateur_session_attendance_reminder',{entite:entite.id,id:ins.session.id}) }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('attendance_reminder_' ~ ins.session.id) }}"><input type="hidden" name="inscription" value="{{ ins.id }}"><input type="hidden" name="kind" value="satisfaction"><input type="hidden" name="return" value="dashboard">
+      <button class="btn btn-sm btn-outline-dark rounded-pill"><i class="bi bi-envelope"></i> Relancer</button>
+    </form>
+    {% else %}<span class="small text-muted">Ouvrir la session</span>{% endif %}
+    </td></tr>
+    {% else %}<tr><td colspan="7" class="text-center text-muted p-4">Aucune appréciation en attente sur les sessions concernées.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if pendingAppreciations|length > 300 %}<p class="small text-muted px-3">Affichage limité aux 300 premières inscriptions en attente.</p>{% endif %}
+  </section>
+
+  {% if is_granted('FORMATEUR_MANAGE', entite) or trainerCompliance|length %}{% include 'administrateur/dashboard/_trainer_compliance.html.twig' %}{% endif %}
+  {% include 'administrateur/dashboard/_invoice_follow_up.html.twig' %}
+
   {# ================= CONFORMITE DETAILLEE ================= #}
-  <section class="of-section mb-3">
+  <section class="of-section mb-3" id="compliance-details">
     <div class="of-section-head">
       <div>
         <div class="section-eyebrow"><i class="bi bi-shield-check"></i> Conformité opérationnelle</div>
@@ -1300,7 +1343,46 @@
     </div>
 
     <div class="row g-3">
-      <div class="col-12 col-xl-6">
+      <div class="col-12">
+        <div class="table-pro h-100">
+          <div class="table-pro__head">
+            <h3 class="table-pro__title">
+              <i class="bi bi-pen"></i> Émargements à régulariser
+              <span class="table-pro__count" id="tblUnsignedCount">—</span>
+            </h3>
+
+            <div class="table-pro__tools">
+              <div class="table-pro__search">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblUnsigned">
+              </div>
+            </div>
+          </div>
+          <div class="attendance-actions">
+            <a class="btn btn-sm btn-outline-primary" href="{{ path('app_admin_attendance_import_index', {entite: entite.id}) }}"><i class="bi bi-upload" aria-hidden="true"></i> Importer une feuille</a>
+            <button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblUnsigned" disabled>Relancer la sélection (0)</button>
+          </div>
+
+          <div class="table-pro__body">
+            <div class="table-responsive">
+              <table class="table table-sm table-pro__table w-100" id="tblUnsigned">
+                <thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblUnsigned" aria-label="Sélectionner les émargements affichés"></th><th>Session</th><th>Personne</th><th>Date</th><th>Période</th><th>Dernière relance</th><th>Relance</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="table-pro__foot">
+            <div class="small" data-reminder-feedback="tblUnsigned" role="status"></div><div class="text-muted small" id="tblUnsignedInfo">—</div>
+            <div class="text-muted small">Top 20</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="of-section mb-4" id="incomplete-files">
         <div class="table-pro h-100">
           <div class="table-pro__head">
             <h3 class="table-pro__title">
@@ -1327,66 +1409,7 @@
             <div class="text-muted small">Top 20</div>
           </div>
         </div>
-      </div>
-
-      <div class="col-12 col-xl-6">
-        <div class="table-pro h-100">
-          <div class="table-pro__head">
-            <h3 class="table-pro__title">
-              <i class="bi bi-pen"></i> Émargements à régulariser
-              <span class="table-pro__count" id="tblUnsignedCount">—</span>
-            </h3>
-
-            <div class="table-pro__tools">
-              <div class="table-pro__search">
-                <i class="bi bi-search"></i>
-                <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." data-plain-search="#tblUnsigned">
-              </div>
-            </div>
-            <a class="btn btn-sm btn-outline-primary" href="{{ path('app_admin_attendance_import_index', {entite: entite.id}) }}"><i class="bi bi-upload"></i> Importer une feuille</a>
-            <button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblUnsigned" disabled>Relancer (0)</button>
-          </div>
-
-          <div class="table-pro__body">
-            <div class="table-responsive">
-              <table class="table table-sm table-pro__table w-100" id="tblUnsigned">
-                <thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblUnsigned" aria-label="Sélectionner les émargements affichés"></th><th>Session</th><th>Personne</th><th>Date</th><th>Période</th><th>Dernière relance</th><th>Relance</th></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="table-pro__foot">
-            <div class="small" data-reminder-feedback="tblUnsigned" role="status"></div><div class="text-muted small" id="tblUnsignedInfo">—</div>
-            <div class="text-muted small">Top 20</div>
-          </div>
-        </div>
-      </div>
-    </div>
   </section>
-
-  <section class="table-pro mb-4" id="pending-appreciations">
-    <div class="table-pro__head"><h3 class="table-pro__title"><i class="bi bi-chat-square-heart"></i> Appréciations à compléter <span class="table-pro__count">{{ pendingAppreciations|length > 300 ? '300+' : pendingAppreciations|length }}</span></h3>
-    <input class="form-control form-control-sm" style="max-width:260px" placeholder="Rechercher un stagiaire…" aria-label="Rechercher une appréciation" data-plain-search="#tblAppreciations"></div>
-    <p class="text-muted small px-3 mt-3">Sessions achevées, hors sous-traitance et annulations. Les questionnaires non commencés ou non soumis sont inclus ; les inscriptions annulées et absences sont exclues.</p>
-    <div class="px-3 pb-3"><button type="button" class="btn btn-sm btn-warning" data-reminder-send="tblAppreciations" disabled>Relancer la sélection (0)</button><span class="small ms-3" data-reminder-feedback="tblAppreciations" role="status"></span><span class="small text-muted ms-3">La case d’en-tête sélectionne les lignes affichées.</span></div><div class="table-responsive"><table class="table table-pro__table" id="tblAppreciations"><thead><tr><th><input type="checkbox" class="form-check-input" data-reminder-all="tblAppreciations" aria-label="Sélectionner les appréciations affichées"></th><th>Session</th><th>Formation</th><th>Stagiaire</th><th>État</th><th>Dernière relance</th><th>Action</th></tr></thead><tbody>
-    {% for ins in pendingAppreciations|slice(0,300) %}
-    <tr><td>{% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}<input type="checkbox" class="form-check-input" data-reminder-row aria-label="Sélectionner {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}">{% endif %}</td><td><a href="{{ path('app_administrateur_session_show',{entite:entite.id,id:ins.session.id}) }}">{{ ins.session.code }}</a></td><td>{{ ins.session.formation.titre|default('—') }}</td><td>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}<div class="small text-muted">{{ ins.stagiaire.email }}</div></td>
-    <td><span class="badge-pro badge-pro--warn">Non renseignée / non soumise</span></td><td data-reminder-history class="small text-muted">{% set lastReminder = learnerReminderHistory[ins.id].satisfaction|default(null) %}{{ lastReminder ? lastReminder|date('d/m/Y H:i', 'Europe/Paris') : 'Aucune relance enregistrée' }}</td><td>
-    {% if ins.stagiaire.email and is_granted(constant('App\\Security\\Permission\\TenantPermission::SESSION_MANAGE'), entite) %}
-    <form method="post" action="{{ path('app_administrateur_session_attendance_reminder',{entite:entite.id,id:ins.session.id}) }}">
-      <input type="hidden" name="_token" value="{{ csrf_token('attendance_reminder_' ~ ins.session.id) }}"><input type="hidden" name="inscription" value="{{ ins.id }}"><input type="hidden" name="kind" value="satisfaction"><input type="hidden" name="return" value="dashboard">
-      <button class="btn btn-sm btn-outline-dark rounded-pill"><i class="bi bi-envelope"></i> Relancer</button>
-    </form>
-    {% else %}<span class="small text-muted">Ouvrir la session</span>{% endif %}
-    </td></tr>
-    {% else %}<tr><td colspan="7" class="text-center text-muted p-4">Aucune appréciation en attente sur les sessions concernées.</td></tr>{% endfor %}
-    </tbody></table></div>
-    {% if pendingAppreciations|length > 300 %}<p class="small text-muted px-3">Affichage limité aux 300 premières inscriptions en attente.</p>{% endif %}
-  </section>
-
-  {% if is_granted('FORMATEUR_MANAGE', entite) or trainerCompliance|length %}{% include 'administrateur/dashboard/_trainer_compliance.html.twig' %}{% endif %}
-  {% include 'administrateur/dashboard/_invoice_follow_up.html.twig' %}
 
   {# ================= VUE DIRECTION ================= #}
   <section class="of-section">
