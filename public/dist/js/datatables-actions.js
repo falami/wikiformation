@@ -40,7 +40,27 @@
     const buttons = [...cell.querySelectorAll('a.btn, button.btn, input[type="submit"]')]
       .filter(b => !b.closest('.dropdown-menu'));
     const existing = cell.querySelector('[data-bs-toggle="dropdown"]');
-    if (existing) {
+    if (!existing && buttons.length && cell.closest('[data-actions-style="trainer"]')) {
+      const group = document.createElement('div');
+      group.className = 'btn-group wf-row-actions wf-trainer-actions';
+      const first = buttons[0].closest('form') || buttons[0];
+      first.before(group);
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'btn btn-light dropdown-toggle';
+      toggle.dataset.bsToggle = 'dropdown';
+      toggle.setAttribute('aria-label', 'Actions du document');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.innerHTML = '<i class="bi bi-three-dots-vertical" aria-hidden="true"></i>';
+      const menu = document.createElement('ul');
+      menu.className = 'dropdown-menu dropdown-menu-end wf-trainer-menu';
+      const heading = document.createElement('li');
+      heading.className = 'wf-menu-heading';
+      heading.innerHTML = '<i class="bi bi-lightning-charge" aria-hidden="true"></i> Actions';
+      menu.append(heading);
+      buttons.forEach(button => menu.append(menuItem(button)));
+      group.append(toggle, menu);
+    } else if (existing) {
       const group = existing.closest('.btn-group, .dropdown') || existing.parentElement;
       group.classList.add('wf-row-actions');
       existing.setAttribute('aria-label', existing.getAttribute('aria-label') || 'Actions');
