@@ -443,6 +443,9 @@ final class EntrepriseDocumentsController extends AbstractController
       $reviewUrl = $this->generateUrl('app_entreprise_convention_review', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$cc->getId()]);
       $reviewAction = $cc->getEntreprise()?->getId() === $entreprise->getId() && !$cc->getDateSignatureEntreprise()
         ? '<a class="btn btn-sm btn-primary" href="'.htmlspecialchars($reviewUrl, ENT_QUOTES).'"><i class="bi bi-pen"></i> Signer</a>' : '';
+      if ($reviewAction && $cc->getPdfPath()) {
+        $reviewAction .= $this->renderView('entreprise/documents/_invite_button.html.twig', ['c' => $cc, 'entite' => $entite, 'entreprise' => $entreprise]);
+      }
       $data[] = [
         'created' => $cc->getDateCreation()?->format('d/m/Y') ?? '—',
         'numero' => $cc->getNumero() ?: ('CC #' . $cc->getId()),

@@ -197,6 +197,18 @@ final class TrainerContractVersionTest extends KernelTestCase
         $client->request('POST', $this->url('supprimer'), ['_token' => html_entity_decode($match[1])]);
         self::assertSame(302, $client->getResponse()->getStatusCode());
         self::assertNotNull($this->em->find(ContratFormateur::class, $this->contract->getId()));
+        $revision = $this->revision();
+        $archivePath = self::getContainer()->get(\App\Service\Contrat\ContratFormateurVersioning::class)->path($revision);
+        self::assertFileExists($archivePath);
+        $id = $this->contract->getId();
+        $client->request('POST', $this->url('supprimer'), ['_token' => 'invalid', 'delete_history' => '1']);
+        self::assertNotNull($this->em->find(ContratFormateur::class, $id));
+        self::assertFileExists($archivePath);
+        $client->request('POST', $this->url('supprimer'), ['_token' => html_entity_decode($match[1]), 'delete_history' => '1']);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertNull($this->em->find(ContratFormateur::class, $id));
+        self::assertCount(0, $this->em->getRepository(\App\Entity\ContratFormateurRevision::class)->findAll());
+        self::assertFileDoesNotExist($archivePath);
     }
 
     private function signedOriginal(): string

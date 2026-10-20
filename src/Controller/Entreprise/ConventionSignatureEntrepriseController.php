@@ -42,6 +42,20 @@ class ConventionSignatureEntrepriseController extends AbstractController
     return $this->render('entreprise/documents/signature.html.twig', ['entite'=>$entite,'entreprise'=>$company,'c'=>$convention]);
   }
 
+  #[Route('/convention/{id}/inviter', name: 'convention_invite', methods: ['POST'])]
+  public function invite(Entite $entite, ConventionContrat $convention, Request $request, \App\Service\Convention\ConventionInvitation $invitations): Response
+  {
+    $company = $this->portal->resolve($this->getUser(), $entite);
+    if ($convention->getEntite()?->getId() !== $entite->getId() || $convention->getEntreprise()?->getId() !== $company->getId()
+        || $convention->getSession()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    if (!$this->isCsrfTokenValid('invite_convention_'.$convention->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException('Formulaire expiré.');
+    try {
+      $invitations->send($convention, $this->getUser(), (string)$request->request->get('email'), (string)$request->request->get('name'), (string)$request->request->get('position'));
+      $this->addFlash('success', 'Invitation envoyée : le signataire dispose de 48 heures pour signer cette convention.');
+    } catch (\DomainException $error) { $this->addFlash('warning', $error->getMessage()); }
+    return $this->redirectToRoute('app_entreprise_convention_review', ['entite'=>$entite->getId(), 'entreprise'=>$company->getId(), 'id'=>$convention->getId()]);
+  }
+
   #[Route('/inscription/{id}/convention/signature-entreprise', name: 'convention_sign', methods: ['POST'])]
   public function signByEntreprise(Entite $entite, Inscription $inscription, Request $request): Response
   {

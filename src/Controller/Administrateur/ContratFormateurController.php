@@ -226,6 +226,7 @@ class ContratFormateurController extends AbstractController
         'c' => $c,
         'entite' => $entite,
         'status' => $status,
+        'revisionCount' => $this->em->getRepository(ContratFormateurRevision::class)->count(['contrat' => $c]),
       ]);
 
       return [
@@ -524,7 +525,7 @@ class ContratFormateurController extends AbstractController
   }
 
   #[Route('/{id}/supprimer', name: 'supprimer', methods: ['POST'])]
-  public function supprimer(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request): Response
+  public function supprimer(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] ContratFormateur $contrat, Request $request, ContratFormateurVersioning $versions): Response
   {
     if ($contrat->getEntite()->getId() !== $entite->getId()) {
       throw $this->createNotFoundException();
@@ -541,15 +542,19 @@ class ContratFormateurController extends AbstractController
       return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
     }
 
-    if ($this->em->getRepository(ContratFormateurRevision::class)->count(['contrat' => $contrat]) > 0) {
-      $this->addFlash('warning', 'Ce contrat possède un historique de versions et ne peut pas être supprimé.');
+    $revisions = $this->em->getRepository(ContratFormateurRevision::class)->findBy(['contrat' => $contrat]);
+    if ($revisions && $request->request->get('delete_history') !== '1') {
+      $this->addFlash('warning', 'Confirmez la suppression de l’historique dans la fenêtre de suppression. Le contrat a été conservé.');
       return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
     }
 
+    foreach ($revisions as $revision) $this->em->remove($revision);
     $this->em->remove($contrat);
     $this->em->flush();
+    // Remove archived files only after the database deletion has succeeded.
+    foreach ($revisions as $revision) $versions->discardFile($revision);
 
-    $this->addFlash('success', 'Contrat supprimé.');
+    $this->addFlash('success', $revisions ? 'Contrat et historique des versions supprimés.' : 'Contrat supprimé.');
     return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);
   }
 

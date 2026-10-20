@@ -568,32 +568,33 @@
 
 
 
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteTitle" aria-describedby="deleteDescription" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Confirmer la suppression</h5>
+    <form id="deleteForm" method="post" class="modal-content border-0 shadow-lg" style="border-radius:24px;overflow:hidden">
+      <div class="modal-header border-0 p-4" style="background:linear-gradient(135deg,#fff1f2,#fff8ed)">
+        <div><span class="text-danger small fw-bold text-uppercase">Suppression du contrat</span>
+          <h5 id="deleteTitle" class="fw-bold mt-2 mb-0">Confirmer votre choix</h5></div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-
-      <div class="modal-body">
-        Cette suppression est définitive. Continuer ?
+      <div class="modal-body p-4">
+        <div class="rounded-3 bg-light p-3 mb-3"><i class="bi bi-file-earmark-text me-2" aria-hidden="true"></i><strong id="deleteNumber"></strong></div>
+        <p id="deleteDescription">Ce contrat sera supprimé définitivement. Cette action est irréversible.</p>
+        <div id="deleteHistorySection" class="border rounded-3 p-3" hidden>
+          <p class="fw-semibold mb-2"><i class="bi bi-clock-history me-2" aria-hidden="true"></i><span id="deleteHistoryCount"></span> version(s) conservée(s)</p>
+          <p class="small text-muted">L’historique est lié au contrat. Sa suppression inclut les anciennes versions et leurs PDF, y compris les éventuels exemplaires signés.</p>
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="delete_history" value="1" id="deleteHistory">
+            <label class="form-check-label" for="deleteHistory">Je souhaite aussi supprimer tout l’historique de ce contrat.</label></div>
+          <p class="small text-muted mt-2 mb-0">Pour conserver l’historique, annulez la suppression.</p>
+        </div>
+        <input type="hidden" name="_token" id="deleteToken" value="">
       </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
-
-        <form id="deleteForm" method="post" action="">
-          <input type="hidden" name="_token" id="deleteToken" value="">
-          <button type="submit" class="btn btn-danger">
-            <i class="bi bi-trash"></i> Supprimer
-          </button>
-        </form>
+      <div class="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
+        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" id="deleteSubmit" class="btn btn-danger rounded-pill px-4"><i class="bi bi-trash me-2" aria-hidden="true"></i>Supprimer définitivement</button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
-
 
 
 <script>
@@ -838,8 +839,16 @@ $(function(){
 
     $('#deleteForm').attr('action', url);
     $('#deleteToken').val(token || '');
+    const count = Number($(this).attr('data-history-count')) || 0;
+    $('#deleteNumber').text($(this).attr('data-number'));
+    $('#deleteHistoryCount').text(count);
+    $('#deleteHistorySection').prop('hidden', count === 0);
+    $('#deleteHistory').prop('checked', false).prop('required', count > 0);
+    $('#deleteSubmit').prop('disabled', count > 0);
   });
 
+
+  $('#deleteHistory').on('change', function(){ $('#deleteSubmit').prop('disabled', this.required && !this.checked); });
 
   // Reset
   $('#btnReset').on('click', function(){

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Convention;
 
-use App\Entity\{ConventionContrat, ConventionRevision, Utilisateur};
+use App\Entity\{ConventionContrat, ConventionRevision, ConventionSignatureInvitation, Utilisateur};
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -18,6 +18,7 @@ final class ConventionPortalSignature
     public function __construct(
         private readonly ConventionDocument $documents,
         private readonly ConventionSignaturePdf $signaturePdf,
+        private readonly ConventionInvitation $invitations,
         private readonly EntityManagerInterface $em,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {}
@@ -43,15 +44,20 @@ final class ConventionPortalSignature
         return new BinaryFileResponse($path, 200, ['Content-Type' => 'application/pdf', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 
-    public function sign(ConventionContrat $convention, Utilisateur $actor, string $role, ?string $signature = null, ?string $reviewDigest = null): void
+    public function sign(ConventionContrat $convention, Utilisateur $actor, string $role, ?string $signature = null, ?string $reviewDigest = null, ?ConventionSignatureInvitation $invitation = null, array $evidence = []): void
     {
         if (!in_array($role, ['stagiaire', 'entreprise'], true)) throw new \InvalidArgumentException('Signataire invalide.');
         if ($role === 'entreprise' && !$signature) throw new \DomainException('Veuillez tracer ou importer votre signature.');
         if ($signature !== null) self::validateSignature($signature);
         $path = null;
         try {
-            $this->em->wrapInTransaction(function () use ($convention, $actor, $role, $signature, $reviewDigest, &$path): void {
+            $this->em->wrapInTransaction(function () use ($convention, $actor, $role, $signature, $reviewDigest, $invitation, $evidence, &$path): void {
                 $this->em->refresh($convention, LockMode::PESSIMISTIC_WRITE);
+                if ($invitation) {
+                    $this->em->refresh($invitation, LockMode::PESSIMISTIC_WRITE);
+                    if ($role !== 'entreprise' || $invitation->getConvention()->getId() !== $convention->getId() || $invitation->getInvitedBy()->getId() !== $actor->getId()) throw new \DomainException('Invitation invalide.');
+                    $this->invitations->assertActive($invitation);
+                }
                 if (($role === 'stagiaire' && $convention->getDateSignatureStagiaire())
                     || ($role === 'entreprise' && $convention->getDateSignatureEntreprise() && $convention->getSignatureDataUrlEntreprise())) return;
                 if (($role === 'stagiaire' && $convention->getStagiaire()?->getId() !== $actor->getId())
@@ -83,11 +89,15 @@ final class ConventionPortalSignature
                 }
                 $convention->setPdfPath('private:'.$filename);
                 $this->em->persist(new ConventionRevision($convention, [
-                    'event' => 'portal_signature', 'actorId' => $actor->getId(), 'role' => $role,
+                    'event' => 'portal_signature', 'actorId' => $invitation ? null : $actor->getId(), 'role' => $role,
                     'signedAt' => $now->format(DATE_ATOM), 'sourceSha256' => hash('sha256', $bytes),
-                    'pdf' => $convention->getPdfPath(), 'signedPdfSha256' => hash('sha256', $signedBytes), 'method' => $signature === null ? 'authenticated_confirmation' : 'authenticated_png',
+                    'pdf' => $convention->getPdfPath(), 'signedPdfSha256' => hash('sha256', $signedBytes), 'method' => $invitation ? 'invitation_png' : ($signature === null ? 'authenticated_confirmation' : 'authenticated_png'),
+                    'invitationId' => $invitation?->getId(), 'invitedById' => $invitation?->getInvitedBy()->getId(),
+                    'signerName' => $invitation?->getName(), 'signerEmail' => $invitation?->getEmail(), 'signerPosition' => $invitation?->getPosition(),
+                    'ip' => $evidence['ip'] ?? null, 'userAgent' => $evidence['userAgent'] ?? null,
                     'signatureSha256' => $signature === null ? null : hash('sha256', $signature),
-                ], 'Signature '.$role.' — original conservé', trim($actor->getPrenom().' '.$actor->getNom()), $bytes, $now));
+                ], 'Signature '.$role.' — original conservé', $invitation?->getName() ?? trim($actor->getPrenom().' '.$actor->getNom()), $bytes, $now));
+                if ($invitation) $invitation->consume();
             });
         } catch (\Throwable $error) {
             if ($path && is_file($path)) unlink($path);

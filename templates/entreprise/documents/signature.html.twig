@@ -24,6 +24,8 @@
 {% elseif not c.pdfPath %}<div class="alert alert-info">La convention doit être générée par l’organisme avant de pouvoir être signée.</div>
 {% else %}
 {% if c.dateSignatureEntreprise %}<div class="alert alert-info">Votre accord a été enregistré. Ajoutez votre signature visible pour compléter le PDF.</div>{% endif %}
+<div class="rounded-4 border p-4 mb-4" style="background:#f5f8fb"><h3 class="h5">Une autre personne signe pour votre entreprise ?</h3><p class="text-muted">Invitez votre représentant habilité. Il recevra un accès personnel valable 48 heures, sans création de compte.</p>
+<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#inviteSignatureModal" data-invite-url="{{ path('app_entreprise_convention_invite',{entite:entite.id,entreprise:entreprise.id,id:c.id}) }}" data-invite-token="{{ csrf_token('invite_convention_' ~ c.id) }}" data-invite-number="{{ c.numero }}">Inviter un signataire</button></div>
 <form method="post" id="signature-form">
 <div class="mb-4"><label for="signature-canvas" class="form-label fw-bold">Votre signature</label>
 <p class="text-muted small">Maintenez le bouton de la souris enfoncé pour tracer votre signature (ou utilisez votre doigt sur écran tactile), ou importez une image PNG contenant votre signature, avec votre cachet si vous le souhaitez.</p>
@@ -32,39 +34,12 @@
 <p id="signature-error" class="text-danger mt-2" role="alert"></p>
 <input type="hidden" name="signatureData" id="signature-data"></div><input type="hidden" name="_token" value="{{ csrf_token('company_convention_' ~ c.id) }}"><div class="form-check mb-4"><input class="form-check-input" id="consent" name="consent" type="checkbox" value="1" required><label class="form-check-label" for="consent">J’ai lu cette convention, j’en accepte les conditions et je confirme être habilité à signer pour {{ entreprise.raisonSociale }}.</label></div><button class="btn btn-primary px-4 py-3" type="submit"><i class="bi bi-pen me-2"></i>Signer la convention</button></form>{% endif %}
 </section></div>
+{% include 'entreprise/documents/_invitation_modal.html.twig' %}
 {% endblock %}
 
 {% block javascripts_bottom %}
 {{ parent() }}
 <script>
-(function(){
-  const form = document.getElementById('signature-form');
-  if (!form) return;
-  const canvas = document.getElementById('signature-canvas'), ctx = canvas.getContext('2d');
-  const error = document.getElementById('signature-error');
-  let drawing = false, hasSignature = false;
-  ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#172e40';
-  function point(event){const r=canvas.getBoundingClientRect();return [(event.clientX-r.left)*canvas.width/r.width,(event.clientY-r.top)*canvas.height/r.height];}
-  canvas.addEventListener('pointerdown', event=>{if(event.button !== 0)return;event.preventDefault();drawing=true;canvas.setPointerCapture(event.pointerId);ctx.beginPath();ctx.moveTo(...point(event));});
-  canvas.addEventListener('pointermove', event=>{if(!drawing)return;ctx.lineTo(...point(event));ctx.stroke();hasSignature=true;error.textContent='';});
-  ['pointerup','pointercancel','lostpointercapture'].forEach(type=>canvas.addEventListener(type,()=>{drawing=false;}));
-  document.getElementById('signature-clear').addEventListener('click',()=>{ctx.clearRect(0,0,canvas.width,canvas.height);hasSignature=false;document.getElementById('signature-data').value='';});
-  document.getElementById('signature-upload').addEventListener('change', event=>{
-    const file=event.target.files[0];if(!file)return;
-    if(file.type!=='image/png'||file.size>500000){error.textContent='Choisissez une image PNG de 500 Ko maximum.';return;}
-    const reader=new FileReader();reader.onload=()=>{
-      const image=new Image();image.onload=()=>{
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        const scale=Math.min(canvas.width/image.width,canvas.height/image.height);
-        ctx.drawImage(image,(canvas.width-image.width*scale)/2,(canvas.height-image.height*scale)/2,image.width*scale,image.height*scale);
-        hasSignature=true;error.textContent='';
-      };image.onerror=()=>{error.textContent='Image illisible.';};image.src=reader.result;
-    };reader.readAsDataURL(file);
-  });
-  form.addEventListener('submit',event=>{
-    if(!hasSignature){event.preventDefault();error.textContent='Tracez ou importez votre signature avant de confirmer.';return;}
-    document.getElementById('signature-data').value=canvas.toDataURL('image/png');
-  });
-})();
+{% include 'convention_invitation/_signature.js.twig' %}
 </script>
 {% endblock %}

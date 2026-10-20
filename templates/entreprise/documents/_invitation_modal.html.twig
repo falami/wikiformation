@@ -1,0 +1,19 @@
+<div class="modal fade" id="inviteSignatureModal" tabindex="-1" aria-labelledby="inviteSignatureTitle" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered modal-lg"><form method="post" id="inviteSignatureForm" class="modal-content border-0 shadow-lg" style="border-radius:24px;overflow:hidden">
+<div class="modal-header p-4 text-white" style="background:linear-gradient(120deg,#172e40,#35566a);border-bottom:4px solid #e9bd51"><div><small class="text-uppercase" style="letter-spacing:2px;color:#efd48c">Signature par invitation · 48 heures</small><h2 class="h4 mt-2 mb-0" id="inviteSignatureTitle">La bonne personne, au bon moment.</h2></div><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+<div class="modal-body p-4"><p>Invitez une personne habilitée à signer la convention <strong id="inviteConventionNumber"></strong> au nom de votre entreprise.</p>
+<div class="row g-3"><div class="col-md-6"><label class="form-label" for="inviteName">Nom et prénom</label><input class="form-control" id="inviteName" name="name" maxlength="160" autocomplete="off" required></div><div class="col-md-6"><label class="form-label" for="invitePosition">Fonction dans l’entreprise</label><input class="form-control" id="invitePosition" name="position" maxlength="120" placeholder="Direction, représentant habilité…" required></div><div class="col-12"><label class="form-label" for="inviteEmail">Adresse e-mail du signataire</label><input class="form-control" type="email" id="inviteEmail" name="email" maxlength="180" placeholder="prenom.nom@entreprise.fr" required></div></div>
+<div class="rounded-3 p-3 mt-4" style="background:#f2f6f9;color:#355164"><i class="bi bi-envelope-paper me-2"></i>Un e-mail avec un lien personnel et un QR code sera envoyé.<ul class="small mt-2 mb-0"><li>Accès limité à cette convention, pendant 48 heures.</li><li>Lien désactivé dès la signature.</li><li>Une nouvelle invitation remplace la précédente.</li></ul></div>
+<input type="hidden" name="_token" id="inviteSignatureToken"></div>
+<div class="modal-footer border-0 px-4 pb-4"><button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn rounded-pill px-4" style="background:#233e50;color:white"><i class="bi bi-send me-2"></i>Envoyer l’invitation</button></div>
+</form></div></div>
+<script>
+document.getElementById('inviteSignatureModal').addEventListener('show.bs.modal', function(event){
+  const button=event.relatedTarget, form=document.getElementById('inviteSignatureForm');
+  form.reset(); form.action=button.dataset.inviteUrl;
+  document.getElementById('inviteSignatureToken').value=button.dataset.inviteToken;
+  document.getElementById('inviteConventionNumber').textContent=button.dataset.inviteNumber;
+  form.querySelector('[type="submit"]').disabled=false;
+});
+document.getElementById('inviteSignatureForm').addEventListener('submit',function(){this.querySelector('[type="submit"]').disabled=true;});
+</script>
