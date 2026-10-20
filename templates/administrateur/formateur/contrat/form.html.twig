@@ -301,6 +301,7 @@
               </div>
               {{ form_help(form.montantPrevuCents) }}
               {{ form_errors(form.montantPrevuCents) }}
+              <button type="button" id="restore-trainer-rate" class="btn btn-sm btn-outline-secondary mt-2">Reprendre le tarif de la fiche</button>
             </div>
 
             <div class="col-12 col-md-6">
@@ -320,7 +321,7 @@
 
           </div>
           <div class="form-text mt-2">
-            Le montant peut être proposé automatiquement selon le formateur & la session (si configuré).
+            Le tarif de la fiche du formateur est proposé par défaut pour ses créneaux. Tout montant saisi ici devient le montant du contrat.
           </div>
         </div>
       </div>
@@ -620,7 +621,7 @@
 
         const h = normalizeToNumber(montantEl?.value);
         const f = normalizeToNumber(fraisEl?.value);
-        if ($r.montant) $r.montant.textContent = h ? formatEuro(h) : '—';
+        if ($r.montant) $r.montant.textContent = montantEl?.value.trim() !== '' ? formatEuro(h) : '—';
         if ($r.frais)   $r.frais.textContent   = f ? formatEuro(f) : '—';
 
         // Récup depuis ton recap TVA (déjà calculé)
@@ -652,6 +653,7 @@
         el?.addEventListener('change', refreshResume);
       });
 
+      document.addEventListener('resume:refresh', refreshResume);
       refreshResume();
     });
   </script>
@@ -675,7 +677,8 @@
 
 
       // ✅ devient true seulement si l'utilisateur tape réellement
-      let userTouched = false;
+      let userTouched = {{ form.vars.submitted ? 'true' : 'false' }};
+      let suggestionSequence = 0;
 
       // si on est en édition et que le champ a déjà une valeur, on la protège
       let existingPersisted = isEdit && (inputMontant?.value || '').trim() !== '';
@@ -738,14 +741,17 @@
           userTouched = true;
           existingPersisted = false; // à partir du moment où l'user touche, on considère que c'est sa valeur
 
+          if (helpMontant) helpMontant.textContent = 'Montant personnalisé : ce montant sera enregistré et affiché dans le contrat.';
           updateRecap();
+          document.dispatchEvent(new Event('resume:refresh'));
         });
       }
       if (inputFrais) {
-        inputFrais.addEventListener('input', updateRecap);
+        inputFrais.addEventListener('input', () => { updateRecap(); document.dispatchEvent(new Event('resume:refresh')); });
       }
 
-      async function fetchSuggestionMontant(force = false) {
+      async function fetchSuggestionMontant() {
+        const sequence = ++suggestionSequence;
         if (!selectFormateur || !selectSession || !inputMontant) return;
 
         const formateurId = selectFormateur.value;
@@ -771,7 +777,7 @@
           });
 
           const data = await res.json();
-          console.log('[calc montant] response:', data);
+          if (sequence !== suggestionSequence || selectFormateur.value !== formateurId || selectSession.value !== sessionId) return;
 
           if (!data || !data.success) {
             if (helpMontant) helpMontant.textContent = data?.message || 'Aucun montant proposé.';
@@ -779,13 +785,8 @@
             return;
           }
 
-          const champVide = !inputMontant.value || inputMontant.value.trim() === '';
-
-          // ✅ règle claire :
-          // - si force (changement session/formateur) -> on écrase toujours
-          // - sinon -> on écrase uniquement si champ vide OU pas modifié manuellement
-          const canWrite = force || champVide || (!userTouched && !existingPersisted);
-
+          // A late response must never replace an entered or previously saved amount.
+          const canWrite = !userTouched && !existingPersisted;
 
           if (canWrite) {
             if (data.montantPrevuEuros) {
@@ -797,7 +798,9 @@
           }
 
           if (helpMontant) {
-            helpMontant.textContent = (data.montantPrevuCents > 0)
+            helpMontant.textContent = !canWrite
+              ? 'Montant du contrat conservé. Utilisez « Reprendre le tarif de la fiche » pour le recalculer.'
+              : (data.montantPrevuCents > 0)
               ? ('Proposition automatique : ' + (data.explication || ''))
               : 'Aucun montant calculable (heures/jours/taux manquants).';
           }
@@ -808,29 +811,25 @@
           document.dispatchEvent(new Event('resume:refresh'));
 
         } catch (e) {
-          console.error('[calc montant] error', e);
+          if (sequence !== suggestionSequence) return;
           if (helpMontant) helpMontant.textContent = 'Erreur lors du calcul automatique.';
           updateRecap();
         }
       }
 
-      selectFormateur.addEventListener('change', () => {
-        userTouched = false;
-        existingPersisted = false;   // on n'est plus dans le cas "montant enregistré pour CE couple"
-        fetchSuggestionMontant(true); // force => écrase
+      [selectFormateur, selectSession].forEach(select => select.addEventListener('change', () => {
+        fetchSuggestionMontant();
         updateRecap();
-      });
-
-      selectSession.addEventListener('change', () => {
+      }));
+      document.getElementById('restore-trainer-rate').addEventListener('click', () => {
+        if (!selectFormateur.value || !selectSession.value) return;
         userTouched = false;
         existingPersisted = false;
-        fetchSuggestionMontant(true);
-        updateRecap();
+        fetchSuggestionMontant();
       });
 
-
       updateRecap();
-      fetchSuggestionMontant(false);
+      fetchSuggestionMontant();
       document.dispatchEvent(new Event('resume:refresh'));
 
     });
