@@ -108,6 +108,25 @@ final class TrainerWorkflowTest extends KernelTestCase
         self::assertStringNotContainsString('Intervenant :', $html);
     }
 
+    public function testManualSatisfactionAssignmentCreatesAndSkipsDuplicates(): void
+    {
+        $inscription = (new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)->setSession($this->session)->setStagiaire($this->admin);
+        $template = (new \App\Entity\SatisfactionTemplate())->setEntite($this->entite)->setCreateur($this->admin)->setTitre('Satisfaction test');
+        $this->em->persist($inscription); $this->em->persist($template); $this->em->flush();
+        $iid = $inscription->getId(); $tid = $template->getId();
+        $url = '/fr/administrateur/'.$this->entite->getId().'/satisfaction/assignments/new';
+        $client = $this->client();
+        for ($n = 0; $n < 2; ++$n) {
+            $page = $client->request('GET', $url);
+            self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+            $client->submit($page->filter('form[name="form"]')->form([
+                'form[template]' => $tid, 'form[inscriptions]' => [$iid], 'form[required]' => '1',
+            ]));
+            self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+            self::assertSame(1, $this->em->getRepository(\App\Entity\SatisfactionAssignment::class)->count([]));
+        }
+    }
+
     public function testAssignmentsCountHalfDaysAndPreventSigningAnotherPeriod(): void
     {
         self::assertCount(2, $this->session->getFormateursEffectifs());

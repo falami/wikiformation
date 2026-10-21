@@ -66,6 +66,61 @@ final class SatisfactionAssignmentController extends AbstractController
     ]);
   }
 
+  #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
+  public function new(Entite $entite, Request $request, EM $em): Response
+  {
+    $ue = $this->utilisateurEntiteManager->getUserEntiteLink($entite);
+    if (!$ue) throw $this->createAccessDeniedException();
+    $inscriptions = $em->getRepository(\App\Entity\Inscription::class)->createQueryBuilder('i')
+      ->join('i.session', 's')->join('i.stagiaire', 'u')
+      ->where('i.entite = :e')->andWhere('s.entite = :e')
+      ->andWhere('i.status NOT IN (:excluded)')
+      ->setParameter('e', $entite)->setParameter('excluded', [\App\Enum\StatusInscription::ANNULE, \App\Enum\StatusInscription::ABSENT])
+      ->orderBy('s.id', 'DESC')->addOrderBy('u.nom', 'ASC')->getQuery()->getResult();
+    $templates = $em->getRepository(\App\Entity\SatisfactionTemplate::class)->findBy(['entite' => $entite, 'isActive' => true], ['titre' => 'ASC']);
+    $form = $this->createFormBuilder(['required' => true])
+      ->add('template', \Symfony\Bridge\Doctrine\Form\Type\EntityType::class, [
+        'class' => \App\Entity\SatisfactionTemplate::class, 'choices' => $templates,
+        'choice_label' => 'titre', 'placeholder' => 'Choisir un questionnaire', 'label' => 'Questionnaire',
+        'constraints' => [new \Symfony\Component\Validator\Constraints\NotNull()],
+      ])
+      ->add('inscriptions', \Symfony\Bridge\Doctrine\Form\Type\EntityType::class, [
+        'class' => \App\Entity\Inscription::class, 'choices' => $inscriptions, 'multiple' => true,
+        'choice_label' => static fn($i) => $i->getStagiaire()->getNom().' '.$i->getStagiaire()->getPrenom().' · '.$i->getStagiaire()->getEmail(),
+        'group_by' => static fn($i) => $i->getSession()->getCode(),
+        'label' => 'Stagiaires par session', 'constraints' => [new \Symfony\Component\Validator\Constraints\Count(min: 1)],
+        'attr' => ['size' => 12], 'help' => 'Sélectionnez un ou plusieurs stagiaires. Les inscriptions annulées et les absences sont exclues.',
+      ])
+      ->add('required', \Symfony\Component\Form\Extension\Core\Type\CheckboxType::class, ['label' => 'Questionnaire obligatoire', 'required' => false])
+      ->getForm()->handleRequest($request);
+    if ($form->isSubmitted() && $form->isValid()) {
+      $data = $form->getData(); $created = 0; $skipped = 0; $seen = [];
+      foreach ($data['inscriptions'] as $inscription) {
+        $key = $inscription->getSession()->getId().':'.$inscription->getStagiaire()->getId();
+        $existing = $em->getRepository(SatisfactionAssignment::class)->findOneBy([
+          'session' => $inscription->getSession(), 'stagiaire' => $inscription->getStagiaire(), 'template' => $data['template'],
+        ]);
+        if ($existing || isset($seen[$key])) { ++$skipped; continue; }
+        $seen[$key] = true;
+        $assignment = (new SatisfactionAssignment())->setEntite($entite)->setCreateur($this->getUser())
+          ->setSession($inscription->getSession())->setStagiaire($inscription->getStagiaire())
+          ->setInscription($inscription)->setTemplate($data['template'])->setIsRequired($data['required']);
+        $em->persist($assignment); ++$created;
+      }
+      try {
+        $em->flush();
+      } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
+        $this->addFlash('warning', 'Une affectation vient d’être créée par un autre utilisateur. Vérifiez la liste avant de réessayer.');
+        return $this->redirectToRoute('app_administrateur_satisfaction_assignment_index', ['entite' => $entite->getId()]);
+      }
+      $this->addFlash('success', sprintf('%d affectation(s) créée(s), %d déjà existante(s) conservée(s).', $created, $skipped));
+      return $this->redirectToRoute('app_administrateur_satisfaction_assignment_index', ['entite' => $entite->getId()]);
+    }
+    return $this->render('administrateur/satisfaction/assignment/new.html.twig', [
+      'entite' => $entite, 'utilisateurEntite' => $ue, 'form' => $form->createView(),
+    ], new Response(status: $form->isSubmitted() ? 422 : 200));
+  }
+
   #[Route('/ajax', name: 'ajax', methods: ['POST'])]
   public function ajax(Entite $entite, Request $req, EM $em, CsrfTokenManagerInterface $csrfManager): JsonResponse
   {
