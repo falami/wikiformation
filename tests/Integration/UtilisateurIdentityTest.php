@@ -57,6 +57,47 @@ final class UtilisateurIdentityTest extends KernelTestCase
         }
     }
 
+    public function testTrainerDetailsPersistAndReloadWithoutChangingAnotherOrganism(): void
+    {
+        $other = (new Entite())->setNom('Autre organisme')->setPublic(false)->setCreateur($this->admin);
+        $this->em->persist($other);
+        $foreign = (new \App\Entity\Formateur())->setEntite($other)->setUtilisateur($this->learner)->setCreateur($this->admin)->setSiret('99999999900019');
+        $this->em->persist($foreign); $this->em->flush();
+        $id = $this->learner->getId(); $tenantId = $this->entite->getId(); $foreignId = $foreign->getId();
+        $client = $this->client();
+        $page = $client->request('GET', $this->editUrl($id));
+        $form = $page->filter('form[name="utilisateur"]')->form();
+        $form['utilisateur[ueRoles]']->select([UtilisateurEntite::TENANT_FORMATEUR]);
+        $form['utilisateur[formateurData][siret]'] = '80813612100023';
+        $form['utilisateur[formateurData][numeroTvaIntra]'] = 'FR12808136121';
+        $form['utilisateur[formateurData][assujettiTva]']->tick();
+        $form['utilisateur[formateurData][tauxTvaParDefaut]']->select('20');
+        $form['utilisateur[formateurData][modeRemuneration]']->select('JOUR');
+        $form['utilisateur[formateurData][tauxJournalierCents]'] = '450,00';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $saved = $this->em->getRepository(\App\Entity\Formateur::class)->findOneBy(['entite'=>$tenantId,'utilisateur'=>$id]);
+        self::assertNotNull($saved);
+        self::assertSame('80813612100023', $saved->getSiret());
+        self::assertSame('FR12808136121', $saved->getNumeroTvaIntra());
+        self::assertSame(45000, $saved->getTauxJournalierCents());
+        self::assertTrue($saved->isAssujettiTva());
+        self::assertSame(20.0, $saved->getTauxTvaParDefaut());
+        self::assertSame('99999999900019', $this->em->find(\App\Entity\Formateur::class, $foreignId)->getSiret());
+        $page = $client->request('GET', '/fr/administrateur/'.$tenantId.'/utilisateur/modifier/'.$id);
+        $form = $page->filter('form[name="utilisateur"]')->form();
+        self::assertSame('80813612100023', $form['utilisateur[formateurData][siret]']->getValue());
+        self::assertSame('FR12808136121', $form['utilisateur[formateurData][numeroTvaIntra]']->getValue());
+        $form['utilisateur[formateurData][siret]'] = '12345678900012';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $saved = $this->em->getRepository(\App\Entity\Formateur::class)->findOneBy(['entite'=>$tenantId,'utilisateur'=>$id]);
+        self::assertSame('12345678900012', $saved->getSiret());
+        self::assertSame(45000, $saved->getTauxJournalierCents());
+    }
+
     public function testRolesCanBeAddedToVerifiedEnrolledAccount(): void
     {
         $this->learner->setIsVerified(true); $this->em->flush();

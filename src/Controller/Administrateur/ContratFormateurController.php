@@ -376,14 +376,6 @@ class ContratFormateurController extends AbstractController
         return $this->redirectToRoute('app_administrateur_formateurs_contrats_new', ['entite' => $entite->getId()]);
       }
 
-      // ✅ Snapshot TVA depuis formateur (si besoin tu peux conditionner si champs contrat vides)
-      if ($formateur) {
-        $contrat
-          ->setAssujettiTva($formateur->isAssujettiTva())
-          ->setTauxTva($formateur->getTauxTvaParDefaut())
-          ->setNumeroTvaIntra($formateur->getNumeroTvaIntra());
-      }
-
       if ($formateur && $session) {
         $existing = $this->em->getRepository(ContratFormateur::class)->findOneBy([
           'entite'    => $entite,

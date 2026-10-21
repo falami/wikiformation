@@ -103,6 +103,7 @@ final class ContratFormateurType extends AbstractType
       ])
       ->add('tauxTva', NumberType::class, [
         'label' => 'Taux TVA (%)',
+        'constraints' => [new \Symfony\Component\Validator\Constraints\Range(min: 0, max: 100)],
         'required' => false,
         'row_attr' => $rowAttr,
         'attr' => $mergeAttr($controlAttr, ['inputmode' => 'decimal', 'placeholder' => '20']),
@@ -159,6 +160,12 @@ final class ContratFormateurType extends AbstractType
       ->add('clauseFinContrat', TextareaType::class, ['label' => 'Clause fin de contrat', 'required' => false, 'row_attr' => $rowAttr, 'attr' => $mergeAttr($controlAttr, ['rows' => 6])])
       ->add('clauseProprieteIntellectuelle', TextareaType::class, ['label' => 'Clause propriété intellectuelle', 'required' => false, 'row_attr' => $rowAttr, 'attr' => $mergeAttr($controlAttr, ['rows' => 6])])
     ;
+    $b->addEventListener(\Symfony\Component\Form\FormEvents::POST_SUBMIT, static function (\Symfony\Component\Form\FormEvent $event): void {
+      $contract = $event->getData();
+      if ($contract instanceof ContratFormateur && $contract->isAssujettiTva() && $contract->getTauxTva() === null) {
+        $event->getForm()->get('tauxTva')->addError(new \Symfony\Component\Form\FormError('Renseignez le taux de TVA applicable au contrat.'));
+      }
+    });
   }
 
   public function configureOptions(OptionsResolver $r): void

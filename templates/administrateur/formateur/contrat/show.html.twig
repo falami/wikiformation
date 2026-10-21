@@ -185,9 +185,15 @@
     </div>
     </div></div>
   </div>
+  {% if contrat.status.value != 'RESILIE' and is_granted('DEPENSE_MANAGE', entite) %}
+  <div class="cardx p-3 mb-4">
+    <a class="btn btn-outline-primary" href="{{ path('app_administrateur_depense_new', {entite: entite.id, contrat: contrat.id}) }}"><i class="bi bi-receipt"></i> Enregistrer la facture du formateur</a>
+    <p class="small text-muted mb-0 mt-2">La TVA du contrat est prévisionnelle. La TVA déductible est comptabilisée à partir de la dépense justifiée par la facture reçue.</p>
+  </div>
+  {% endif %}
   <div class="row g-4 mb-4">
     <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-calendar-week"></i> Session</div><strong>{{ contrat.session.code }}</strong><div class="small">{{ contrat.session.site.nom|default('Lieu à préciser') }}</div></div></div>
-    <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-cash-stack"></i> Honoraires et frais HT</div><strong>{{ ((contrat.montantPrevuCents + contrat.fraisMissionCents) / 100)|number_format(2, ',', ' ') }} €</strong><div class="small">Dont frais : {{ (contrat.fraisMissionCents / 100)|number_format(2, ',', ' ') }} €</div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-cash-stack"></i> Honoraires et frais HT</div><strong>{{ ((contrat.montantPrevuCents + contrat.fraisMissionCents) / 100)|number_format(2, ',', ' ') }} €</strong><div class="small">Dont frais : {{ (contrat.fraisMissionCents / 100)|number_format(2, ',', ' ') }} €</div><div class="small">TVA : {{ (contrat.montantTvaCents / 100)|number_format(2, ',', ' ') }} € · Total TTC : {{ (contrat.totalTtcCents / 100)|number_format(2, ',', ' ') }} €</div></div></div>
     <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-people"></i> Effectif prévu de la session</div><strong>{{ effectif }} stagiaire(s)</strong><div class="small">Effectif des conventions prioritaire</div></div></div>
     <div class="col-sm-6 col-xl-3"><div class="cardx contract-stat"><div class="text-muted"><i class="bi bi-pen"></i> Signature du formateur</div><strong>{{ contrat.signatureAt ? contrat.signatureAt|date('d/m/Y') : 'En attente' }}</strong><div class="small">Créé le {{ contrat.dateCreation|date('d/m/Y') }}</div></div></div>
   </div>

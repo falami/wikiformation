@@ -60,6 +60,34 @@ final class TrainerContractVersionTest extends KernelTestCase
         }
     }
 
+    public function testContractVatIsSavedAndExpensePrefillDoesNotDeductWithoutConfirmation(): void
+    {
+        $this->contract->getFormateur()->setAssujettiTva(true)->setTauxTvaParDefaut(10);
+        $this->em->flush();
+        $client = $this->client();
+        $crawler = $client->request('GET', $this->url('edit'));
+        $client->submit($crawler->filter('form#contratForm')->form([
+            'contrat_formateur[montantPrevuCents]' => '300',
+            'contrat_formateur[assujettiTva]' => '1',
+            'contrat_formateur[tauxTva]' => '20',
+            'contrat_formateur[motifModification]' => 'TVA applicable à la prestation',
+        ]));
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->reloadContract();
+        self::assertSame(6000, $this->contract->getMontantTvaCents());
+        self::assertSame(36000, $this->contract->getTotalTtcCents());
+        $crawler = $client->request('GET', '/fr/administrateur/' . $this->entite->getId() . '/depense/new?contrat=' . $this->contract->getId());
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        self::assertStringContainsString('Montants proposés depuis le contrat', $client->getResponse()->getContent());
+        self::assertSame('360,00', $crawler->filter('input[name="depense[montantTtcCents]"]')->attr('value'));
+        self::assertSame(0, $crawler->filter('input[name="depense[tvaDeductible]"][checked]')->count());
+        self::assertSame(0, $this->em->getRepository(\App\Entity\Depense::class)->count([]));
+        $expense = (new \App\Entity\Depense())->setMontantTvaCents(6000)->setTvaDeductible(true)->setTvaDeductiblePct(100);
+        self::assertSame(6000, $expense->getTvaDeductibleCents());
+        $expense->setTvaDeductiblePct(50);
+        self::assertSame(3000, $expense->getTvaDeductibleCents());
+    }
+
     public function testEditingDraftArchivesThePreviousValuesAndRequiresAReason(): void
     {
         $this->contract->setMontantPrevuCents(90000)->setConditionsParticulieres('Avant modification');

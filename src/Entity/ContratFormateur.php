@@ -358,6 +358,21 @@ class ContratFormateur
         return $this;
     }
 
+    public function getTotalHtCents(): int
+    {
+        return ($this->montantPrevuCents ?? 0) + ($this->fraisMissionCents ?? 0);
+    }
+
+    public function getMontantTvaCents(): int
+    {
+        return $this->assujettiTva ? (int) round($this->getTotalHtCents() * ($this->tauxTva ?? 0) / 100) : 0;
+    }
+
+    public function getTotalTtcCents(): int
+    {
+        return $this->getTotalHtCents() + $this->getMontantTvaCents();
+    }
+
     public function isAssujettiTva(): ?bool
     {
         return $this->assujettiTva;

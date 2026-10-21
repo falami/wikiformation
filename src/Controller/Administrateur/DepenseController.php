@@ -349,6 +349,24 @@ final class DepenseController extends AbstractController
       ->setCreateur($user)
       ->setPayeur($user);
 
+    $sourceContract = null;
+    if ($req->query->getInt('contrat') > 0) {
+      $sourceContract = $em->getRepository(\App\Entity\ContratFormateur::class)->findOneBy([
+        'id' => $req->query->getInt('contrat'), 'entite' => $entite,
+      ]);
+      if (!$sourceContract) throw $this->createNotFoundException();
+      if ($sourceContract->getStatus() === \App\Enum\ContratFormateurStatus::RESILIE) {
+        throw $this->createAccessDeniedException('Ce contrat est résilié.');
+      }
+      $dep->setLibelle('Facture formateur · ' . $sourceContract->getNumero() . ' · ' . $sourceContract->getSession()?->getCode())
+        ->setMontantHtCents($sourceContract->getTotalHtCents())
+        ->setMontantTvaCents($sourceContract->getMontantTvaCents())
+        ->setMontantTtcCents($sourceContract->getTotalTtcCents())
+        ->setTauxTva($sourceContract->isAssujettiTva() ? ($sourceContract->getTauxTva() ?? 0) : 0)
+        ->setTvaDeductible(false)->setTvaDeductiblePct(100)
+        ->setMeta(['contratFormateurId' => $sourceContract->getId()]);
+    }
+
     // optionnel (si tu veux forcer au new)
     if (!$dep->getDevise()) $dep->setDevise('EUR');
     if ($dep->getTauxTva() === null) $dep->setTauxTva(20.0);
@@ -356,6 +374,10 @@ final class DepenseController extends AbstractController
     $form = $this->createForm(DepenseType::class, $dep, [
       'entite' => $entite,
     ])->handleRequest($req);
+
+    if ($form->isSubmitted() && $sourceContract && $dep->isTvaDeductible() && !$form->get('justificatifFile')->getData()) {
+      $form->get('justificatifFile')->addError(new \Symfony\Component\Form\FormError('Joignez la facture du formateur pour justifier la TVA déductible.'));
+    }
 
     if ($form->isSubmitted() && $form->isValid()) {
       $this->recalcDepense($dep);
@@ -375,6 +397,7 @@ final class DepenseController extends AbstractController
     return $this->render('administrateur/depense/form.html.twig', [
       'form' => $form,
       'title' => 'Nouvelle dépense',
+      'sourceContract' => $sourceContract,
       'entite' => $entite,
     ]);
   }

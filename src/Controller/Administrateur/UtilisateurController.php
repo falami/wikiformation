@@ -255,8 +255,22 @@ final class UtilisateurController extends AbstractController
 
     $origTenantRoles = $ue?->getRoles() ?? [UtilisateurEntite::TENANT_STAGIAIRE];
 
+    $trainer = $isEdit ? $this->em->getRepository(\App\Entity\Formateur::class)->findOneBy([
+      'entite' => $entite, 'utilisateur' => $utilisateur,
+    ]) : null;
+    $trainerData = [];
+    if ($trainer) {
+      foreach (['certifications', 'tauxTvaParDefaut', 'numeroTvaIntra', 'modeRemuneration', 'tauxHoraireCents', 'tauxJournalierCents', 'siret'] as $field) {
+        $trainerData[$field] = $trainer->{'get'.ucfirst($field)}();
+      }
+      $trainerData['assujettiTva'] = $trainer->isAssujettiTva();
+      $trainerData['qualificationEngins'] = $trainer->getQualificationEngins()->toArray();
+      $trainerData['sitePreferes'] = $trainer->getSitePreferes()->toArray();
+    }
+
     $form = $this->createForm(UtilisateurType::class, $utilisateur, [
       'entite' => $entite,
+      'formateur_data' => $trainerData,
       'ueRoles' => $ue?->getRoles() ?? [UtilisateurEntite::TENANT_STAGIAIRE],
       'can_set_high_roles' => $canSetHighRoles,
       'locked' => $locked,
@@ -346,6 +360,23 @@ final class UtilisateurController extends AbstractController
 
           $ue->setRoles($rolesFinal);
           $ue->ensureCouleur();
+
+          if ($ue->hasRole(UtilisateurEntite::TENANT_FORMATEUR)) {
+              $trainer ??= (new \App\Entity\Formateur())->setEntite($entite)->setUtilisateur($utilisateur)->setCreateur($user);
+              $data = $form->get('formateurData')->getData();
+              foreach (['certifications', 'tauxTvaParDefaut', 'numeroTvaIntra', 'modeRemuneration', 'tauxHoraireCents', 'tauxJournalierCents', 'siret'] as $field) {
+                  $value = $data[$field] ?? null;
+                  if ($value !== null && in_array($field, ['tauxHoraireCents', 'tauxJournalierCents'], true)) $value = (int) round($value);
+                  $trainer->{'set'.ucfirst($field)}($value);
+              }
+              $trainer->setAssujettiTva((bool) ($data['assujettiTva'] ?? false));
+              foreach ($trainer->getQualificationEngins()->toArray() as $item) $trainer->removeQualificationEngins($item);
+              foreach ($data['qualificationEngins'] ?? [] as $item) $trainer->addQualificationEngins($item);
+              foreach ($trainer->getSitePreferes()->toArray() as $item) $trainer->removeSitePrefere($item);
+              foreach ($data['sitePreferes'] ?? [] as $item) $trainer->addSitePrefere($item);
+              $this->em->persist($trainer);
+          }
+
 
           if ($form->has('photo')) {
             /** @var UploadedFile|null $photoFile */

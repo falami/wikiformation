@@ -645,9 +645,9 @@ table{ border-collapse: collapse; width:100%; }
 
   {% set honoraires = (contrat.montantPrevuCents ?? 0) / 100 %}
   {% set frais = (contrat.fraisMissionCents ?? 0) / 100 %}
-  {% set totalHt = honoraires + frais %}
-  {% set tva = (contrat.assujettiTva and contrat.tauxTva) ? (totalHt * contrat.tauxTva / 100) : 0 %}
-  {% set totalTtc = totalHt + tva %}
+  {% set totalHt = contrat.totalHtCents / 100 %}
+  {% set tva = contrat.montantTvaCents / 100 %}
+  {% set totalTtc = contrat.totalTtcCents / 100 %}
 
   <table class="table">
     <tr>

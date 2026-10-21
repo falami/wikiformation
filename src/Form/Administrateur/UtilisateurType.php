@@ -151,6 +151,7 @@ final class UtilisateurType extends AbstractType
                 'attr' => ['class' => 'form-select js-ts-ueroles'],
             ])
             ->add('formateurData', FormateurInlineType::class, [
+                'data' => $o['formateur_data'],
                 'mapped' => false,
                 'required' => false,
                 'entite' => $entite,
@@ -187,6 +188,7 @@ final class UtilisateurType extends AbstractType
     {
         $r->setDefaults([
             'data_class' => Utilisateur::class,
+            'formateur_data' => [],
             'locked' => false,
             'identity_locked' => false,
             'entite' => null,

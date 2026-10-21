@@ -41,12 +41,13 @@ final class SessionFinancialSummary
             $estimated = true;
         }
         $responsibleOnly = $session->isFormationAssureeParResponsable();
-        $cost = 0; $trainerCount = 0; $covered = [];
+        $cost = 0; $trainerTax = 0; $trainerCount = 0; $covered = [];
         foreach ($contracts as $contract) {
             if ($responsibleOnly) continue;
             if ($contract->getEntite() !== $session->getEntite() || $contract->getSession() !== $session
                 || $contract->getStatus() === ContratFormateurStatus::RESILIE) continue;
-            $cost += $contract->getMontantPrevuCents() + $contract->getFraisMissionCents();
+            $cost += $contract->getTotalHtCents();
+            $trainerTax += $contract->getMontantTvaCents();
             ++$trainerCount;
             if ($contract->getFormateur()) $covered[spl_object_id($contract->getFormateur())] = true;
         }
@@ -55,7 +56,7 @@ final class SessionFinancialSummary
         ksort($amounts);
         $base = $session->getMontantGlobalCents() ?? $session->getTarifEffectifCents();
         $tax = (int) round($base * $session->getTauxTvaEffectif() / 100);
-        return ['global' => $session->getMontantGlobalCents() !== null, 'sessionHt' => $base, 'sessionRate' => $session->getTauxTvaEffectif(), 'sessionTax' => $tax, 'sessionTtc' => $base + $tax, 'amounts' => $amounts, 'estimated' => $estimated, 'conventions' => $count, 'trainerCost' => $cost,
+        return ['global' => $session->getMontantGlobalCents() !== null, 'sessionHt' => $base, 'sessionRate' => $session->getTauxTvaEffectif(), 'sessionTax' => $tax, 'sessionTtc' => $base + $tax, 'amounts' => $amounts, 'estimated' => $estimated, 'conventions' => $count, 'trainerCost' => $cost, 'trainerTax' => $trainerTax, 'trainerTtc' => $cost + $trainerTax,
             'responsibleOnly' => $responsibleOnly, 'contracts' => $trainerCount, 'missingTrainers' => $missing,
             'remaining' => count($amounts) === 1 && isset($amounts['EUR']) && $trainerCount > 0 && $missing === 0 ? $amounts['EUR']['ht'] - $cost : null];
     }

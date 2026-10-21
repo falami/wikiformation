@@ -59,6 +59,27 @@ final class SessionFinancialSummaryTest extends TestCase
         self::assertSame(180000, $calculator->calculate($s, [], [])['amounts']['EUR']['ht']);
     }
 
+    public function testTrainerVatUsesContractSnapshotAndIsRoundedPerContract(): void
+    {
+        $s = (new Session())->setEntite(new Entite());
+        $trainer = (new Formateur())->setAssujettiTva(true)->setTauxTvaParDefaut(10);
+        $s->setFormateur($trainer);
+        $contract = $this->contract($s, $trainer, 30000)->setAssujettiTva(true)->setTauxTva(20);
+        $result = (new SessionFinancialSummary())->calculate($s, [$this->convention($s)], [$contract]);
+        self::assertSame(6000, $contract->getMontantTvaCents());
+        self::assertSame(36000, $contract->getTotalTtcCents());
+        self::assertSame(6000, $result['trainerTax']);
+        self::assertSame(36000, $result['trainerTtc']);
+        self::assertSame(70000, $result['remaining']);
+        $contract->setFraisMissionCents(1001)->setTauxTva(5.5);
+        self::assertSame(1705, $contract->getMontantTvaCents());
+        $contract->setAssujettiTva(false);
+        self::assertSame(0, $contract->getMontantTvaCents());
+        self::assertSame(31001, $contract->getTotalTtcCents());
+        $contract->setStatus(ContratFormateurStatus::RESILIE);
+        self::assertSame(0, (new SessionFinancialSummary())->calculate($s, [], [$contract])['trainerTax']);
+    }
+
     private function convention(Session $s, ?int $ht = 100000): ConventionContrat { return (new ConventionContrat())->setSession($s)->setEntite($s->getEntite())->setMontantHtCents($ht)->setTauxTva(20); }
     private function contract(Session $s, Formateur $f, int $cost): ContratFormateur { return (new ContratFormateur())->setSession($s)->setEntite($s->getEntite())->setFormateur($f)->setMontantPrevuCents($cost); }
     public function testTotalsIncludeAllTrainersAndMissionExpenses(): void {

@@ -674,6 +674,25 @@
       const spanTVA      = document.getElementById('tva-montant');
       const spanTotalTTC = document.getElementById('tva-total-ttc');
       const isEdit = {{ is_edit ? 'true' : 'false' }};
+      const vatEnabled = document.getElementById('{{ form.assujettiTva.vars.id }}');
+      const vatRate = document.getElementById('{{ form.tauxTva.vars.id }}');
+      const vatNumber = document.getElementById('{{ form.numeroTvaIntra.vars.id }}');
+      function applyTrainerVat() {
+        const opt = selectFormateur.options[selectFormateur.selectedIndex];
+        if (!opt?.value) return;
+        vatEnabled.checked = opt.dataset.assujettiTva === '1';
+        vatRate.value = opt.dataset.tauxTva || '';
+        vatNumber.value = opt.dataset.numeroTva || '';
+      }
+      selectFormateur.addEventListener('change', applyTrainerVat);
+      if (!isEdit && !{{ form.vars.submitted ? 'true' : 'false' }}) applyTrainerVat();
+      [vatEnabled, vatRate, vatNumber].forEach(el => {
+        ['input', 'change'].forEach(event => el.addEventListener(event, () => {
+          updateRecap();
+          document.dispatchEvent(new Event('resume:refresh'));
+        }));
+      });
+
 
 
       // ✅ devient true seulement si l'utilisateur tape réellement
@@ -708,9 +727,9 @@
           return;
         }
 
-        const assujetti = opt.dataset.assujettiTva === '1';
-        const taux = normalizeToNumber(opt.dataset.tauxTva || '');
-        const numero = opt.dataset.numeroTva || '';
+        const assujetti = vatEnabled.checked;
+        const taux = normalizeToNumber(vatRate.value);
+        const numero = vatNumber.value;
 
         if (spanStatut) spanStatut.textContent = assujetti ? 'Assujetti à la TVA' : 'Non assujetti / exonéré';
         if (spanTaux)   spanTaux.textContent   = assujetti && taux > 0 ? (taux.toString().replace('.', ',') + ' %') : '—';

@@ -19,7 +19,7 @@ final class TrainerContracts
         $form->remove('status');
         foreach (['session' => 'sessions', 'formateur' => 'formateurs'] as $field => $module) {
             $choices = $module === 'sessions' ? $this->access->editableRows($member, $module) : $this->access->rows($member, $module);
-            $form->add($field, ChoiceType::class, ['label' => $field === 'session' ? 'Session du portefeuille' : 'Formateur', 'choices' => $choices, 'choice_value' => fn($r) => $r?->getId(), 'choice_label' => fn($r) => $field === 'session' ? $r->getCode() : trim($r->getUtilisateur()?->getPrenom() . ' ' . $r->getUtilisateur()?->getNom()), 'placeholder' => 'Sélectionner', 'constraints' => [new \Symfony\Component\Validator\Constraints\NotNull()]]);
+            $form->add($field, ChoiceType::class, ['label' => $field === 'session' ? 'Session du portefeuille' : 'Formateur', 'choices' => $choices, 'choice_value' => fn($r) => $r?->getId(), 'choice_label' => fn($r) => $field === 'session' ? $r->getCode() : trim($r->getUtilisateur()?->getPrenom() . ' ' . $r->getUtilisateur()?->getNom()), 'choice_attr' => fn($r) => $field === 'formateur' ? ['data-assujetti-tva' => $r->isAssujettiTva() ? '1' : '0', 'data-taux-tva' => (string) ($r->getTauxTvaParDefaut() ?? ''), 'data-numero-tva' => (string) ($r->getNumeroTvaIntra() ?? '')] : [], 'placeholder' => 'Sélectionner', 'constraints' => [new \Symfony\Component\Validator\Constraints\NotNull()]]);
         }
         return $form;
     }
