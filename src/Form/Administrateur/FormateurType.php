@@ -96,6 +96,41 @@ class FormateurType extends AbstractType
                 },
             ])
 
+            ->add('nomSociete', TextType::class, [
+                'label' => 'Nom de la société / raison sociale', 'required' => false,
+                'attr' => ['class' => 'form-control', 'maxlength' => 255],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 255)],
+            ])
+            ->add('siret', TextType::class, [
+                'label' => 'SIRET', 'required' => false,
+                'attr' => ['class' => 'form-control', 'maxlength' => 30],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 30)],
+            ])
+            ->add('adresse', TextType::class, [
+                'label' => 'Adresse professionnelle', 'required' => false,
+                'attr' => ['class' => 'form-control', 'maxlength' => 255],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 255)],
+            ])
+            ->add('complement', TextType::class, [
+                'label' => 'Complément d’adresse', 'required' => false,
+                'attr' => ['class' => 'form-control', 'maxlength' => 255],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 255)],
+            ])
+            ->add('codePostal', TextType::class, [
+                'label' => 'Code postal', 'required' => false,
+                'attr' => ['class' => 'form-control', 'maxlength' => 5],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 5)],
+            ])
+            ->add('ville', TextType::class, [
+                'label' => 'Ville', 'required' => false,
+                'attr' => ['class' => 'form-control', 'maxlength' => 100],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 100)],
+            ])
+            ->add('pays', TextType::class, [
+                'label' => 'Pays', 'required' => false,
+                'attr' => ['class' => 'form-control', 'maxlength' => 100],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 100)],
+            ])
             ->add('certifications', TextareaType::class, [
                 'label' => 'Certifications',
                 'required' => false,

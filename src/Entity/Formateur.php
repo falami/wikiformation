@@ -123,6 +123,22 @@ class Formateur
     #[ORM\Column(length: 30, nullable: true)]
     private ?string $siret = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    #[\Symfony\Component\Validator\Constraints\Length(max: 255)]
+    private ?string $nomSociete = null;
+
+    public function getNomSociete(): ?string
+    {
+        return $this->nomSociete;
+    }
+
+    public function setNomSociete(?string $nom): static
+    {
+        $this->nomSociete = ($nom = trim($nom ?? '')) !== '' ? $nom : null;
+        return $this;
+    }
+
+
 
     #[ORM\OneToMany(mappedBy: 'formateur', targetEntity: RapportFormateur::class, orphanRemoval: true)]
     private Collection $rapportFormateurs;

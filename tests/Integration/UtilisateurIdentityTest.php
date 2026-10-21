@@ -69,6 +69,8 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $form = $page->filter('form[name="utilisateur"]')->form();
         $form['utilisateur[ueRoles]']->select([UtilisateurEntite::TENANT_FORMATEUR]);
         $form['utilisateur[formateurData][siret]'] = '80813612100023';
+        $form['utilisateur[formateurData][nomSociete]'] = 'Société Formation Exemple';
+        $form['utilisateur[formateurData][adresse]'] = '12 rue des Écoles';
         $form['utilisateur[formateurData][numeroTvaIntra]'] = 'FR12808136121';
         $form['utilisateur[formateurData][assujettiTva]']->tick();
         $form['utilisateur[formateurData][tauxTvaParDefaut]']->select('20');
@@ -80,6 +82,8 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $saved = $this->em->getRepository(\App\Entity\Formateur::class)->findOneBy(['entite'=>$tenantId,'utilisateur'=>$id]);
         self::assertNotNull($saved);
         self::assertSame('80813612100023', $saved->getSiret());
+        self::assertSame('Société Formation Exemple', $saved->getNomSociete());
+        self::assertSame('12 rue des Écoles', $saved->getAdresse());
         self::assertSame('FR12808136121', $saved->getNumeroTvaIntra());
         self::assertSame(45000, $saved->getTauxJournalierCents());
         self::assertTrue($saved->isAssujettiTva());
@@ -89,6 +93,7 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $form = $page->filter('form[name="utilisateur"]')->form();
         self::assertSame('80813612100023', $form['utilisateur[formateurData][siret]']->getValue());
         self::assertSame('FR12808136121', $form['utilisateur[formateurData][numeroTvaIntra]']->getValue());
+        self::assertSame('Société Formation Exemple', $form['utilisateur[formateurData][nomSociete]']->getValue());
         $form['utilisateur[formateurData][siret]'] = '12345678900012';
         $client->submit($form);
         self::assertSame(302, $client->getResponse()->getStatusCode());

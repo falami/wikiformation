@@ -60,6 +60,36 @@ final class TrainerContractVersionTest extends KernelTestCase
         }
     }
 
+    public function testNewContractKeepsExplicitVatInsteadOfOverwritingItWithTrainerProfile(): void
+    {
+        $sequence = $this->createMock(\App\Service\Sequence\SequenceNumberManager::class);
+        $sequence->method('next')->willReturn([2026, 1]);
+        self::getContainer()->set(\App\Service\Sequence\ContratFormateurNumberGenerator::class, new \App\Service\Sequence\ContratFormateurNumberGenerator($sequence));
+
+        $trainer = $this->contract->getFormateur();
+        $trainer->setAssujettiTva(true)->setTauxTvaParDefaut(10);
+        $trainerId = $trainer->getId();
+        $sessionId = $this->contract->getSession()->getId();
+        $this->em->remove($this->contract);
+        $this->em->flush();
+        $client = $this->client();
+        $crawler = $client->request('GET', '/fr/administrateur/' . $this->entite->getId() . '/formateurs/contrats/nouveau');
+        $form = $crawler->filter('form#contratForm')->form([
+            'contrat_formateur[formateur]' => $trainerId,
+            'contrat_formateur[session]' => $sessionId,
+            'contrat_formateur[montantPrevuCents]' => '300',
+            'contrat_formateur[assujettiTva]' => '1',
+            'contrat_formateur[tauxTva]' => '20',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $this->em->clear();
+        $saved = $this->em->getRepository(ContratFormateur::class)->findOneBy(['session' => $sessionId]);
+        self::assertSame(30000, $saved->getMontantPrevuCents());
+        self::assertSame(20.0, $saved->getTauxTva());
+        self::assertSame(6000, $saved->getMontantTvaCents());
+    }
+
     public function testContractVatIsSavedAndExpensePrefillDoesNotDeductWithoutConfirmation(): void
     {
         $this->contract->getFormateur()->setAssujettiTva(true)->setTauxTvaParDefaut(10);
@@ -82,6 +112,23 @@ final class TrainerContractVersionTest extends KernelTestCase
         self::assertSame('360,00', $crawler->filter('input[name="depense[montantTtcCents]"]')->attr('value'));
         self::assertSame(0, $crawler->filter('input[name="depense[tvaDeductible]"][checked]')->count());
         self::assertSame(0, $this->em->getRepository(\App\Entity\Depense::class)->count([]));
+        $form = $crawler->filter('form#depense')->form([
+            'depense[tvaDeductible]' => '1',
+            'depense[tvaDeductiblePct]' => '100',
+        ]);
+        $client->submit($form);
+        self::assertStringContainsString('Joignez la facture du formateur', $client->getResponse()->getContent());
+        self::assertSame(0, $this->em->getRepository(\App\Entity\Depense::class)->count([]));
+        $this->reloadContract();
+        $expenseForReport = (new \App\Entity\Depense())->setEntite($this->em->find(Entite::class, $this->entite->getId()))->setCreateur($this->em->find(Utilisateur::class, $this->user->getId()))
+            ->setLibelle('Facture reçue du formateur')->setMontantHtCents(30000)->setMontantTvaCents(6000)
+            ->setMontantTtcCents(36000)->setTvaDeductible(true)->setTvaDeductiblePct(100);
+        $this->em->persist($expenseForReport);
+        $this->em->flush();
+        $client->request('GET', '/fr/administrateur/' . $this->entite->getId() . '/tva/api/summary');
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $report = json_decode($client->getResponse()->getContent(), true);
+        self::assertSame(6000, $report['kpis']['in']['tvaDed']);
         $expense = (new \App\Entity\Depense())->setMontantTvaCents(6000)->setTvaDeductible(true)->setTvaDeductiblePct(100);
         self::assertSame(6000, $expense->getTvaDeductibleCents());
         $expense->setTvaDeductiblePct(50);

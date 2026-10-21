@@ -64,7 +64,7 @@ li{ margin: 0 0 6pt; }
 .text-center{ text-align:center; }
 
 /* dompdf pagination */
-.page-break{ page-break-before: always; }
+.section-title{ page-break-after: avoid; }
 
 /* utilitaire : on l’utilise seulement sur les petits blocs critiques */
 .avoid-break{ page-break-inside: avoid; }
@@ -490,10 +490,18 @@ table{ border-collapse: collapse; width:100%; }
   <div class="info-block mb-0">
     <span class="info-label">L’intervenant</span>
     <div class="info-content">
-      <strong>{{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }}</strong><br>
+      {% if contrat.formateur.nomSociete %}
+        <strong>{{ contrat.formateur.nomSociete }}</strong><br>
+        Intervenant : {{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }}<br>
+      {% else %}
+        <strong>{{ contrat.formateur.utilisateur.prenom }} {{ contrat.formateur.utilisateur.nom }}</strong><br>
+      {% endif %}
       {% if contrat.formateur.adresse %}{{ contrat.formateur.adresse }}<br>{% endif %}
+      {% if contrat.formateur.complement %}{{ contrat.formateur.complement }}<br>{% endif %}
+      {% if contrat.formateur.codePostal or contrat.formateur.ville %}{{ contrat.formateur.codePostal }} {{ contrat.formateur.ville }}<br>{% endif %}
+      {% if contrat.formateur.pays %}{{ contrat.formateur.pays }}<br>{% endif %}
       {% if contrat.formateur.siret %}
-        Formateur indépendant – SIRET n° {{ contrat.formateur.siret }}.
+        {% if not contrat.formateur.nomSociete %}Formateur indépendant – {% endif %}SIRET n° {{ contrat.formateur.siret }}.
       {% endif %}
     </div>
   </div>
@@ -804,8 +812,7 @@ table{ border-collapse: collapse; width:100%; }
   {% endif %}
 </div>
 
-{# ================= PROGRAMME (new page) ================= #}
-<div class="page-break"></div>
+{# Le programme suit les clauses sans imposer une page presque vide. #}
 
 <div class="card card-highlight">
   <div class="section-title">Programme</div>

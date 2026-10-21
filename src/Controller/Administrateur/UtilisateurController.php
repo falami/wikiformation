@@ -260,7 +260,7 @@ final class UtilisateurController extends AbstractController
     ]) : null;
     $trainerData = [];
     if ($trainer) {
-      foreach (['certifications', 'tauxTvaParDefaut', 'numeroTvaIntra', 'modeRemuneration', 'tauxHoraireCents', 'tauxJournalierCents', 'siret'] as $field) {
+      foreach (['certifications', 'tauxTvaParDefaut', 'numeroTvaIntra', 'modeRemuneration', 'tauxHoraireCents', 'tauxJournalierCents', 'siret', 'nomSociete', 'adresse', 'complement', 'codePostal', 'ville', 'pays'] as $field) {
         $trainerData[$field] = $trainer->{'get'.ucfirst($field)}();
       }
       $trainerData['assujettiTva'] = $trainer->isAssujettiTva();
@@ -364,7 +364,7 @@ final class UtilisateurController extends AbstractController
           if ($ue->hasRole(UtilisateurEntite::TENANT_FORMATEUR)) {
               $trainer ??= (new \App\Entity\Formateur())->setEntite($entite)->setUtilisateur($utilisateur)->setCreateur($user);
               $data = $form->get('formateurData')->getData();
-              foreach (['certifications', 'tauxTvaParDefaut', 'numeroTvaIntra', 'modeRemuneration', 'tauxHoraireCents', 'tauxJournalierCents', 'siret'] as $field) {
+              foreach (['certifications', 'tauxTvaParDefaut', 'numeroTvaIntra', 'modeRemuneration', 'tauxHoraireCents', 'tauxJournalierCents', 'siret', 'nomSociete', 'adresse', 'complement', 'codePostal', 'ville', 'pays'] as $field) {
                   $value = $data[$field] ?? null;
                   if ($value !== null && in_array($field, ['tauxHoraireCents', 'tauxJournalierCents'], true)) $value = (int) round($value);
                   $trainer->{'set'.ucfirst($field)}($value);

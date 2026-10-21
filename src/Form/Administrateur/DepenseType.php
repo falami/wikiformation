@@ -111,7 +111,7 @@ class DepenseType extends AbstractType
           'placeholder' => '100',
         ],
         'constraints' => [
-          new Assert\Range(['min' => 0, 'max' => 100]),
+          new Assert\Range(min: 0, max: 100),
         ],
       ])
 

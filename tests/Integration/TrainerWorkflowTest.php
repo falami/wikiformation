@@ -60,6 +60,54 @@ final class TrainerWorkflowTest extends KernelTestCase
         }
     }
 
+    public function testTrainerCreationIncludesCompanySiretVatAndProfessionalAddress(): void
+    {
+        $client = $this->client();
+        $page = $client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/formateur/ajouter');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $form = $page->filter('form[name="formateur"]')->form([
+            'formateur[utilisateur]' => $this->admin->getId(),
+            'formateur[nomSociete]' => 'Formation & Conseil',
+            'formateur[siret]' => '80813612100023',
+            'formateur[adresse]' => '12 rue des Écoles',
+            'formateur[codePostal]' => '30100',
+            'formateur[ville]' => 'Alès',
+            'formateur[pays]' => 'France',
+            'formateur[assujettiTva]' => '1',
+            'formateur[tauxTvaParDefaut]' => '20',
+            'formateur[numeroTvaIntra]' => 'FR12808136121',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        $this->em->clear();
+        $trainer = $this->em->getRepository(Formateur::class)->findOneBy(['utilisateur' => $this->admin->getId(), 'entite' => $this->entite->getId()]);
+        self::assertSame('Formation & Conseil', $trainer->getNomSociete());
+        self::assertSame('80813612100023', $trainer->getSiret());
+        self::assertSame('Alès', $trainer->getVille());
+        self::assertTrue($trainer->isAssujettiTva());
+        self::assertSame(20.0, $trainer->getTauxTvaParDefaut());
+        self::assertSame('FR12808136121', $trainer->getNumeroTvaIntra());
+    }
+
+    public function testContractPdfIdentifiesCompanyWithoutLosingTrainerIdentity(): void
+    {
+        $this->morning->setNomSociete('Formation & Conseil')->setSiret('80813612100023')->setAdresse('12 rue des Écoles')->setCodePostal('30100')->setVille('Alès');
+        $contract = (new ContratFormateur())->setEntite($this->entite)->setFormateur($this->morning)->setSession($this->session)->setNumero('CF-TEST');
+        $document = self::getContainer()->get(\App\Service\Pdf\ContratFormateurDocument::class);
+        $twig = self::getContainer()->get('twig');
+        $html = $twig->render('pdf/contrat_formateur.html.twig', $document->templateData($contract));
+        self::assertStringContainsString('Formation &amp; Conseil', $html);
+        self::assertStringContainsString('Intervenant :', $html);
+        self::assertStringContainsString('30100 Alès', $html);
+        if (getenv('TRAINER_PDF_PREVIEW')) {
+            file_put_contents(getenv('TRAINER_PDF_PREVIEW'), self::getContainer()->get(\App\Service\Pdf\PdfManager::class)->createPortraitBytes($html));
+        }
+        $this->morning->setNomSociete('  ');
+        $html = $twig->render('pdf/contrat_formateur.html.twig', $document->templateData($contract));
+        self::assertStringContainsString('Formateur indépendant', $html);
+        self::assertStringNotContainsString('Intervenant :', $html);
+    }
+
     public function testAssignmentsCountHalfDaysAndPreventSigningAnotherPeriod(): void
     {
         self::assertCount(2, $this->session->getFormateursEffectifs());
