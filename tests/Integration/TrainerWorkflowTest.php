@@ -222,6 +222,38 @@ final class TrainerWorkflowTest extends KernelTestCase
         self::assertSame(200, $client->getResponse()->getStatusCode());
     }
 
+    public function testContractStatusChangeDoesNotRequireReasonOrCreateRevision(): void
+    {
+        $contract = $this->contract($this->afternoon, 'CF-STATUS');
+        $id = $contract->getId();
+        $client = $this->client();
+        $url = $this->url('app_administrateur_formateurs_contrats_edit', ['id' => $id]);
+        $crawler = $client->request('GET', $url);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $form = $crawler->filter('#contratForm')->form();
+        $form['contrat_formateur[status]'] = 'ENVOYE';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $saved = $this->em->find(ContratFormateur::class, $id);
+        self::assertSame(ContratFormateurStatus::ENVOYE, $saved->getStatus());
+        self::assertSame(1, $saved->getVersionNumero());
+        self::assertSame(0, $this->em->getRepository(\App\Entity\ContratFormateurRevision::class)->count([]));
+    }
+
+    public function testContractContentChangeStillRequiresReason(): void
+    {
+        $contract = $this->contract($this->afternoon, 'CF-CONTENT');
+        $client = $this->client();
+        $crawler = $client->request('GET', $this->url('app_administrateur_formateurs_contrats_edit', ['id' => $contract->getId()]));
+        $form = $crawler->filter('#contratForm')->form();
+        $form['contrat_formateur[montantPrevuCents]'] = '350';
+        $client->submit($form);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Indiquez un motif', $client->getResponse()->getContent());
+        self::assertSame(0, $this->em->getRepository(\App\Entity\ContratFormateurRevision::class)->count([]));
+    }
+
     public function testContractPreparationIsCsrfProtectedAndUsesOnlyAssignedHours(): void
     {
         $this->afternoon->setModeRemuneration('HEURE')->setTauxHoraireCents(10000); $this->em->flush();

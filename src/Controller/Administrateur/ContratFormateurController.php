@@ -434,14 +434,35 @@ class ContratFormateurController extends AbstractController
     $before = clone $contrat;
     $form = $this->createForm(ContratFormateurType::class, $contrat, ['entite' => $entite]);
     $form->add('versionAttendue', HiddenType::class, ['mapped' => false, 'data' => (string) $contrat->getLockVersion()]);
-    $form->add('motifModification', TextareaType::class, ['mapped' => false, 'label' => 'Motif de la modification', 'attr' => [ 'class' => 'form-control rounded-3 shadow-sm with-icon pref-textarea', 'rows' => 2, 'maxlength' => 1000], 'constraints' => [new Assert\NotBlank(), new Assert\Length(max: 1000)]]);
+    $form->add('motifModification', TextareaType::class, ['mapped' => false, 'required' => false, 'label' => 'Motif de la modification du contenu', 'attr' => [ 'class' => 'form-control rounded-3 shadow-sm with-icon pref-textarea', 'rows' => 2, 'maxlength' => 1000], 'constraints' => [new Assert\Length(max: 1000)]]);
+    // Compare mapped model values, excluding workflow status and unmapped metadata.
+    $initialContent = [];
+    foreach ($form as $name => $field) {
+      if ($name !== 'status' && $field->getConfig()->getMapped()) {
+        $initialContent[$name] = $field->getData();
+      }
+    }
     $form->handleRequest($request);
     $this->validateAssignment($form, $contrat, $entite);
+    $contentChanged = false;
+    if ($form->isSubmitted()) {
+      foreach ($initialContent as $name => $value) {
+        if ($form->get($name)->getData() != $value) {
+          $contentChanged = true;
+          break;
+        }
+      }
+      if ($contentChanged && trim((string) $form->get('motifModification')->getData()) === '') {
+        $form->get('motifModification')->addError(new FormError('Indiquez un motif lorsque vous modifiez le contenu du contrat.'));
+      }
+    }
     if ($form->isSubmitted() && $form->isValid()) {
       $revision = null;
       try {
         $versions->assertCurrent($contrat, (int) $form->get('versionAttendue')->getData());
-        $revision = $versions->archive($before, $contrat, $this->getUser(), (string) $form->get('motifModification')->getData());
+        if ($contentChanged) {
+          $revision = $versions->archive($before, $contrat, $this->getUser(), (string) $form->get('motifModification')->getData());
+        }
         $this->em->flush();
       } catch (\DomainException $e) {
         $form->addError(new FormError($e->getMessage()));
@@ -453,7 +474,7 @@ class ContratFormateurController extends AbstractController
         throw $e;
       }
       if ($form->isValid()) {
-        $this->addFlash('success', sprintf('Version %d enregistrée. La version précédente reste accessible dans l’historique.', $contrat->getVersionNumero()));
+        $this->addFlash('success', $contentChanged ? sprintf('Version %d enregistrée. La version précédente reste accessible dans l’historique.', $contrat->getVersionNumero()) : 'Contrat enregistré sans création de nouvelle version.');
         return $this->redirectToRoute('app_administrateur_formateurs_contrats_show', ['entite' => $entite->getId(), 'id' => $contrat->getId()]);
       }
     }
