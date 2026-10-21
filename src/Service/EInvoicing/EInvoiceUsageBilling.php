@@ -16,6 +16,7 @@ final class EInvoiceUsageBilling
     public function assertEligible(EInvoiceConnection $connection): ?EntiteSubscription
     {
         if ($connection->getEnvironment() === 'sandbox') return null;
+        if ($connection->getBillingConsentAt() && EInvoiceTariff::isInternal($connection->getEntite())) return null;
         if (!$connection->getBillingConsentAt() || !in_array($connection->getUnitPriceCents(), [1, 2], true)) throw new \DomainException('Acceptez le tarif de transmission de votre organisme avant l’activation.');
         $sub = $this->subscriptions->findLatestForEntite($connection->getEntite());
         $now = new \DateTimeImmutable();
@@ -38,13 +39,14 @@ final class EInvoiceUsageBilling
         $connection = $transmission->getConnection(); $sub = $this->assertEligible($connection);
         $transmission->captureUsageTerms(['unitPriceCents' => $connection->getUnitPriceCents(), 'currency' => 'eur',
             'consentedAt' => $connection->getBillingConsentAt()->format(DATE_ATOM), 'consentedBy' => $connection->getBillingConsentBy(),
-            'customer' => $sub->getStripeCustomerId(), 'subscription' => $sub->getStripeSubscriptionId()]);
+            'customer' => $sub?->getStripeCustomerId(), 'subscription' => $sub?->getStripeSubscriptionId()]);
     }
 
     /** Caller holds the connection lease and flushes accepted transmission + ledger together. */
     public function record(EInvoiceTransmission $transmission): void
     {
         if ($transmission->getConnection()->getEnvironment() !== 'production' || !$transmission->getUsageTerms()
+            || ($transmission->getUsageTerms()['unitPriceCents'] ?? null) === 0
             || !$transmission->getProviderId() || !$transmission->getAcceptedAt() || !$transmission->getAttemptedAt()) return;
         if ($this->em->getRepository(EInvoiceUsage::class)->findOneBy(['transmission' => $transmission])) return;
         if ($this->em->getRepository(EInvoiceUsage::class)->findOneBy(['connection' => $transmission->getConnection(), 'providerId' => $transmission->getProviderId()])) return;

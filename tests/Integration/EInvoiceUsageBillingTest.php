@@ -61,20 +61,23 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
         $t->accepted($id); (new \ReflectionProperty($t, 'acceptedAt'))->setValue($t, new \DateTimeImmutable($date));
         $this->billing->record($t); $this->em->flush();
     }
-    public function testOwnerDiscountAffectsFutureTransmissionsAndStripeButNotFrozenHistory(): void
+    public function testOwnerExemptionSkipsNewChargesButPreservesFrozenHistory(): void
     {
         $old = $this->transmission();
         $this->entite->setSiret('80813612100023'); $this->em->flush();
         self::assertSame(1, $this->entite->getId());
-        self::assertSame(1, $this->connection->getUnitPriceCents());
+        self::assertSame(0, $this->connection->getUnitPriceCents());
         $this->accept($old, '801');
+        $this->em->remove($this->sub); $this->em->flush();
+        self::assertNull($this->billing->assertEligible($this->connection));
         $this->accept($this->transmission(), '802');
+        self::assertSame(1, $this->em->getRepository(EInvoiceUsage::class)->count([]));
         $summary = $this->billing->summary($this->entite, new \DateTimeImmutable('2020-09-30'));
-        self::assertSame(1, $summary['unitPriceCents']);
-        self::assertSame(3, $summary['amountCents']);
+        self::assertSame(0, $summary['unitPriceCents']);
+        self::assertSame(2, $summary['amountCents']);
         $this->billing->process($this->connection, '2020-09', true);
         $prices = array_column($this->gateway->payloads, 'unit_amount_decimal'); sort($prices);
-        self::assertSame(['1', '2'], $prices);
+        self::assertSame(['2'], $prices);
         $other = (new Entite())->setNom('Other')->setSiret('80813612100023')->setPublic(false)->setCreateur($this->user);
         $this->em->persist($other); $this->em->flush();
         self::assertSame(2, \App\Service\EInvoicing\EInvoiceTariff::unitPriceCents($other));

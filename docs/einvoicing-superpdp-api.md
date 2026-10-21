@@ -60,3 +60,13 @@ Les événements fournisseur sont conservés avec leur identifiant, date et code
 La recette réelle OAuth/annuaire/transmission/réception, la vérification des statuts réglementaires attendus, la gestion des mandats et l’archivage prévu au contrat du prestataire doivent être validés avant généralisation. Les clés, URL de callback autorisées et compte de production doivent être configurés par l’exploitant. La conformité de chaque opération fiscale et la complétude d’un e-reporting ne sont pas établies par la seule validation d’un XML.
 
 Tarification fournisseur : l’[offre API éditeur](https://www.superpdp.tech/tarifs/) est facturée à l’éditeur et peut être refacturée à ses clients. Les [conditions contractuelles](https://www.superpdp.tech/legal/11/) ne documentent pas un réglage OAuth garantissant un paiement direct par chaque organisme. Les frais fournisseur de réception, minimums, vérification d’identité et autres coûts éventuels ne sont donc pas tous couverts par le seul tarif local de 0,02 € HT par émission. Leur prise en charge doit être arrêtée contractuellement avant activation commerciale.
+
+### Exemption interne I.T. For You
+L’entité 1 portant le SIRET 80813612100023 bénéficie d’un tarif interne nul.
+L’activation conserve la confirmation explicite, les permissions et la connexion
+production vérifiée, mais ne requiert pas d’abonnement Stripe. Le traitement
+capture les conditions à zéro avant transmission et ne crée aucune consommation
+facturable pour ces nouvelles tentatives. Les anciennes conditions déjà figées
+restent inchangées. Les frais directs du fournisseur restent distincts.
+Aucune migration n’est nécessaire pour cette politique ; déployer le code et les
+templates puis vider le cache de production avant d’activer depuis les préférences.

@@ -9,8 +9,13 @@ final class EInvoiceTariff
 {
     public static function unitPriceCents(Entite $entite): int
     {
-        // The owner's preferential price is scoped to both the tenant and its legal identity.
+        return self::isInternal($entite) ? 0 : 2;
+    }
+
+    public static function isInternal(Entite $entite): bool
+    {
+        // Scope the exemption to both the owner tenant and its legal identity.
         return $entite->getId() === 1
-            && preg_replace('/\s+/', '', $entite->getSiret() ?? '') === '80813612100023' ? 1 : 2;
+            && preg_replace('/\s+/', '', $entite->getSiret() ?? '') === '80813612100023';
     }
 }

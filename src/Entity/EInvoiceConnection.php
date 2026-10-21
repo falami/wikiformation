@@ -75,7 +75,7 @@ class EInvoiceConnection
     public function setAutomatic(bool $value): void
     {
         if ($value && (!$this->verified || !$this->credentials)) throw new \DomainException('Connectez et vérifiez d’abord votre organisme.');
-        if ($value && ($this->environment !== 'production' || !$this->billingConsentAt || !in_array($this->getUnitPriceCents(), [1, 2], true))) throw new \DomainException('Acceptez le tarif de transmission avant activation.');
+        if ($value && ($this->environment !== 'production' || !$this->billingConsentAt || !in_array($this->getUnitPriceCents(), [0, 1, 2], true))) throw new \DomainException('Acceptez le tarif de transmission avant activation.');
         if ($value && $this->enabledAt === null) $this->enabledAt = new \DateTimeImmutable();
         $this->automatic = $value;
     }

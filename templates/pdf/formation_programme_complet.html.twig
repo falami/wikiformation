@@ -521,7 +521,7 @@
 
         {% if formation.description %}
           <div class="hero-sub">
-            {{ formation.description|striptags|trim }}
+            {{ formation.description|striptags|trim|nl2br }}
           </div>
         {% else %}
           <div class="hero-sub">
@@ -536,10 +536,6 @@
 
           {% if formation.duree %}
             <span class="chip">Durée : {{ formation.duree }} jour{% if formation.duree > 1 %}s{% endif %}</span>
-          {% endif %}
-
-          {% if formation.prixBaseCents %}
-            <span class="chip">Prix : {{ (formation.prixBaseCents / 100)|number_format(2, ',', ' ') }} € HT</span>
           {% endif %}
 
           {% if formation.categorie %}
@@ -580,16 +576,6 @@
                 <td class="meta-val">
                   {% if formation.duree %}
                     {{ formation.duree }} jour{% if formation.duree > 1 %}s{% endif %}
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
-              </tr>
-              <tr>
-                <td class="meta-key">Prix de base</td>
-                <td class="meta-val">
-                  {% if formation.prixBaseCents %}
-                    {{ (formation.prixBaseCents / 100)|number_format(2, ',', ' ') }} € HT
                   {% else %}
                     -
                   {% endif %}
@@ -728,6 +714,7 @@
       {% endif %}
     {% endfor %}
 
+    {% if chapitres is not empty %}
     <div class="card card-soft">
       <div class="section-head">
         <div class="section-kicker">Contenu détaillé</div>
@@ -735,7 +722,6 @@
         <div class="section-rule"></div>
       </div>
 
-      {% if chapitres is not empty %}
         <div class="program-wrap">
           {% for chapitre in chapitres %}
             <div class="program-card">
@@ -788,10 +774,8 @@
             </div>
           {% endfor %}
         </div>
-      {% else %}
-        <div class="info-content">Aucun contenu pédagogique publié pour cette formation.</div>
-      {% endif %}
     </div>
+    {% endif %}
 
   </div>
 </body>

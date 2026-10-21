@@ -5,7 +5,7 @@ namespace App\Controller\Administrateur;
 use App\Entity\{Entite, EInvoiceConnection, EInvoiceTransmission, EInvoiceReceived, AuditLog};
 use App\Repository\Billing\EntiteSubscriptionRepository;
 use App\Security\Permission\TenantPermission;
-use App\Service\EInvoicing\{EInvoiceConfiguration, SuperPdpClient, SuperPdpException, ConnectionManager, ConnectionLease, EInvoiceUsageBilling};
+use App\Service\EInvoicing\{EInvoiceConfiguration, SuperPdpClient, SuperPdpException, ConnectionManager, ConnectionLease, EInvoiceUsageBilling, EInvoiceTariff};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, RedirectResponse};
@@ -101,11 +101,11 @@ final class EInvoiceController extends AbstractController
             $subscription = $subscriptions->findLatestForEntite($entite);
             $now = new \DateTimeImmutable();
             if ($mode !== 'production' || !$connection->isVerified() || !$connection->getCredentials()
-                || !$subscription || $subscription->getStatus() !== 'active'
+                || (!EInvoiceTariff::isInternal($entite) && (!$subscription || $subscription->getStatus() !== 'active'
                 || !preg_match('/^cus_[A-Za-z0-9]+$/D', $subscription->getStripeCustomerId() ?? '')
                 || !preg_match('/^sub_[A-Za-z0-9]+$/D', $subscription->getStripeSubscriptionId() ?? '')
                 || ($subscription->getEndedAt() && $subscription->getEndedAt() <= $now)
-                || ($subscription->getCurrentPeriodEnd() && $subscription->getCurrentPeriodEnd() <= $now)
+                || ($subscription->getCurrentPeriodEnd() && $subscription->getCurrentPeriodEnd() <= $now)))
                 || $request->request->get('accept_price') !== '1') {
                 $this->addFlash('warning', 'Un abonnement Stripe actif et l’acceptation du tarif affiché par facture transmise sont nécessaires.');
                 return $this->back($entite, $mode);

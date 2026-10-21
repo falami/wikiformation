@@ -57,13 +57,23 @@ final class EInvoiceSettingsTest extends KernelTestCase
         $connection = $this->em->find(EInvoiceConnection::class, $connection->getId()); self::assertFalse($connection->isAutomatic(), 'Local active subscription without Stripe identifiers cannot accept usage charges.');
         self::assertNull($connection->getBillingConsentAt());
     }
-    public function testOwnerSeesTheDiscountInBothPriceAndConsent(): void
+    public function testOwnerCanActivateWithoutStripeSubscription(): void
     {
         $this->entite->setSiret('80813612100023'); $this->em->flush();
         $this->client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/preferences/facturation-electronique');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
-        self::assertStringContainsString('0,01 € HT', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('0,00 € HT', $this->client->getResponse()->getContent());
         self::assertStringNotContainsString('0,02 € HT', $this->client->getResponse()->getContent());
+        $connection = new EInvoiceConnection($this->entite, 'production');
+        $connection->connected(['id' => 'owner', 'number' => '808136121', 'formal_name' => 'Owner'], 'encrypted');
+        $this->em->persist($connection); $this->em->flush();
+        $page = $this->client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/preferences/facturation-electronique');
+        $this->client->submit($page->selectButton('Accepter et activer')->form(['accept_price' => '1']));
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $connection = $this->em->find(EInvoiceConnection::class, $connection->getId());
+        self::assertTrue($connection->isAutomatic());
+        self::assertSame(0, $connection->getUnitPriceCents());
+
     }
     public function testMutationsRequireCsrfAndTenantPermissionAndOauthCannotBeReplayed(): void
     {
@@ -121,6 +131,7 @@ final class EInvoiceSettingsTest extends KernelTestCase
         $page = $this->client->request('GET', $url);
         $this->client->submit($page->selectButton('Accepter et activer')->form(['accept_price' => '1']));
         $this->em->clear(); $connection = $this->em->getRepository(EInvoiceConnection::class)->findOneBy(['entite' => $this->entite->getId()]);
+        $connection = $this->em->find(EInvoiceConnection::class, $connection->getId());
         self::assertTrue($connection->isAutomatic()); self::assertSame(2, $connection->getUnitPriceCents());
         self::assertSame($this->user->getId(), $connection->getBillingConsentBy());
         $this->client->catchExceptions(true); $this->client->request('GET', $callback);
