@@ -23,9 +23,10 @@ class PdfManager
     private function createPdf(string $html, string $orientation): Dompdf
     {
         $dompdf = new Dompdf($this->options);
-        $dompdf->loadHtml($html);
+        $dompdf->loadHtml(DocumentFooter::prepare($html));
         $dompdf->setPaper('A4', $orientation);
         $dompdf->render();
+        DocumentFooter::draw($dompdf, $html);
 
         return $dompdf;
     }
@@ -63,9 +64,10 @@ class PdfManager
         $options = new Options();
         $options->set('isRemoteEnabled', true);
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->loadHtml(DocumentFooter::prepare($html), 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
+        DocumentFooter::draw($dompdf, $html);
 
         (new Filesystem())->mkdir($this->pdfOutputDir);
         $path = rtrim($this->pdfOutputDir, '/') . '/' . $filename;
@@ -108,8 +110,9 @@ class PdfManager
 
         $dompdf = new Dompdf($options);
         $dompdf->setPaper('A4', 'portrait');
-        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->loadHtml(DocumentFooter::prepare($html), 'UTF-8');
         $dompdf->render();
+        DocumentFooter::draw($dompdf, $html);
 
         return $dompdf->output(); // ✅ bytes PDF
     }
@@ -120,9 +123,10 @@ class PdfManager
         $options->set('defaultFont', 'DejaVu Sans');
 
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->loadHtml(DocumentFooter::prepare($html), 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
+        DocumentFooter::draw($dompdf, $html);
 
         return $dompdf->output();
     }
@@ -134,9 +138,10 @@ class PdfManager
         $options->set('defaultFont', 'DejaVu Sans');
 
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->loadHtml(DocumentFooter::prepare($html), 'UTF-8');
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
+        DocumentFooter::draw($dompdf, $html);
 
         return $dompdf->output();
     }

@@ -37,7 +37,7 @@ final class InvoiceSnapshot
     /** @internal A draft is only for readiness checks; it is not an issued document. */
     public static function draft(Facture $invoice): array
     {
-        $issuer = self::fields($invoice->getEntite(), ['id', 'nom', 'adresse', 'complement', 'codePostal', 'ville', 'pays', 'email', 'telephone', 'siret', 'numeroTva', 'formeJuridique', 'couleurPrincipal', 'couleurSecondaire', 'banque', 'codeBanque', 'numeroCompte', 'iban', 'bic']);
+        $issuer = self::fields($invoice->getEntite(), ['id', 'nom', 'adresse', 'complement', 'codePostal', 'ville', 'pays', 'email', 'telephone', 'siteInternet', 'siret', 'numeroTva', 'formeJuridique', 'couleurPrincipal', 'couleurSecondaire', 'banque', 'codeBanque', 'numeroCompte', 'iban', 'bic']);
         $issuer['siren'] = strlen((string) $issuer['siret']) === 14 ? substr($issuer['siret'], 0, 9) : null;
         $issuer['logo'] = null;
         $issuer['logoDataUri'] = self::logo($invoice->getEntite()?->getLogo());

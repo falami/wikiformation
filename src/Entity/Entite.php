@@ -22,6 +22,18 @@ use App\Entity\Billing\EntiteConnect;
 #[ORM\Entity(repositoryClass: EntiteRepository::class)]
 class Entite
 {
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Url(protocols: ['http', 'https'])]
+    #[Assert\Length(max: 255)]
+    private ?string $siteInternet = null;
+
+    public function getSiteInternet(): ?string { return $this->siteInternet; }
+    public function setSiteInternet(?string $value): static
+    {
+        $this->siteInternet = $value !== null && trim($value) !== '' ? trim($value) : null;
+        return $this;
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

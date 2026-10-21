@@ -418,9 +418,10 @@ final class HabilitationController extends AbstractController
             unset($section);
             $snapshot['schema']['sections'] = array_values(array_filter($snapshot['schema']['sections'], static fn ($section) => $section['rows'] !== []));
         }
-        $pdf->loadHtml($this->renderView($attestation ? 'habilitation/attestation.html.twig' : 'habilitation/pdf.html.twig', ['brand' => $branding->forEntity($entite), 'revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($token, [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]));
+        $footerHtml = $this->renderView($attestation ? 'habilitation/attestation.html.twig' : 'habilitation/pdf.html.twig', ['entite' => $entite, 'brand' => $branding->forEntity($entite), 'revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($token, [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]);
+        $pdf->loadHtml(\App\Service\Pdf\DocumentFooter::prepare($footerHtml));
         $pdf->render();
-        if ($attestation) $pdf->getCanvas()->page_text(500, 811, '{PAGE_NUM} / {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 8, [0.4, 0.45, 0.5]);
+        \App\Service\Pdf\DocumentFooter::draw($pdf, $footerHtml);
         $prefix = $attestation ? 'attestation-electrique' : 'habilitation';
         return new Response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$prefix.'-'.$dossier->getId().'-'.$r->getKind().'-'.substr($token, 0, 8).'.pdf"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }

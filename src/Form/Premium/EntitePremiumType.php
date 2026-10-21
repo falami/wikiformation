@@ -90,6 +90,11 @@ class EntitePremiumType extends AbstractType
                     ),
                 ],
             ])
+            ->add('siteInternet', \Symfony\Component\Form\Extension\Core\Type\UrlType::class, [
+                'label' => 'Site internet de l’organisme',
+                'required' => false,
+                'attr' => ['class' => 'form-control', 'placeholder' => 'https://www.exemple.fr'],
+            ])
             ->add('telephone', TextType::class, [
                 'label' => 'N° de Téléphone',
                 'required' => false,

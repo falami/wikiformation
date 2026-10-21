@@ -1,0 +1,15 @@
+{# Metadata consumed by the PDF renderer; coordinates always belong to the document issuer. #}
+{% set footerIssuer = entite|default(convention.entite|default(meta.entite|default(v.charter.entite|default(null)))) %}
+{% set footerReference = facture.numero|default(devis.numero|default(contrat.numero|default(convention.numero|default(attestation.numero|default(documentReference|default('')))))) %}
+{% if not footerReference %}
+  {% set footerReference = revision.token|default(session.code|default(formation.id is defined ? 'Formation #' ~ formation.id : documentTitle|default(''))) %}
+{% endif %}
+{% if footerIssuer %}
+<meta name="wf-document-footer" content="{{ {
+  name: footerIssuer.nom|default(''),
+  email: footerIssuer.email|default(''),
+  phone: footerIssuer.telephone|default(''),
+  website: footerIssuer.siteInternet|default(''),
+  reference: footerReference ? 'Réf. ' ~ footerReference : ''
+}|json_encode|e('html_attr') }}">
+{% endif %}
