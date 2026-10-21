@@ -1,24 +1,133 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Nouvelle affectation de satisfaction{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/recruitment/tom-select.css') }}">
+<style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+
+
+
+.assignment-page{max-width:1240px;color:#233342}
+.assignment-hero{background:linear-gradient(120deg,#1c3040,#435561);border-radius:24px;padding:32px;border-left:6px solid #ffc107;color:white;margin-bottom:28px}
+.assignment-hero p{color:#d5dfe7;margin:10px 0 0}
+.assignment-eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.16em;color:#ffdb70;text-transform:uppercase;margin-bottom:12px}
+.assignment-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+.assignment-panel{background:white;border:1px solid #e2e8ef;border-radius:22px;box-shadow:0 12px 36px #23334208;min-width:0}
+.assignment-section{padding:28px;border-bottom:1px solid #edf0f4}
+.assignment-section:last-child{border-bottom:0}
+.assignment-heading{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.assignment-step{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:#fff4d2;color:#896416;font-weight:800;flex-shrink:0}
+.assignment-heading h2{font-size:1.05rem;font-weight:750;margin:0}
+.assignment-page label.form-label{display:block;font-weight:650;margin-bottom:10px}
+.assignment-page .form-text{color:#738296;font-size:.85rem;line-height:1.6;margin-top:10px}
+.assignment-page .ts-control{border:1px solid #dce4ed;border-radius:12px;min-height:52px;padding:13px 15px;box-shadow:none;font-size:.95rem}
+.assignment-page .ts-wrapper.focus .ts-control{border-color:#c19b35;box-shadow:0 0 0 3px #ffc10720}
+.assignment-page .ts-wrapper.multi .ts-control>div{background:#edf3f8;color:#244359;border:1px solid #d8e4ed;border-radius:8px;padding:5px 8px}
+.assignment-page .ts-dropdown{border:1px solid #dce4ed;border-radius:12px;box-shadow:0 16px 40px #23334220;overflow:hidden;font-size:.94rem}
+.assignment-page .ts-dropdown .option{padding:12px 16px}
+.assignment-page .ts-dropdown .optgroup-header{background:#f5f7fa;color:#6d7e90;padding:10px 16px;font-weight:750}
+.assignment-page .ts-dropdown .active{background:#fff5d8;color:#233342}
+.assignment-switch{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px;background:#f7f9fc;border:1px solid #e2e8ef;border-radius:14px}
+.assignment-switch .form-check-input{width:2.6em;height:1.4em;float:none;margin:0;cursor:pointer}
+.assignment-summary{padding:26px;position:sticky;top:100px}
+.assignment-summary h2{font-size:1.1rem;font-weight:750}
+.assignment-count{font-size:2.8rem;font-weight:800;line-height:1.1;margin-top:24px}
+.assignment-summary dl{margin:24px 0}
+.assignment-summary dt{font-size:.8rem;color:#7b8798;font-weight:500;margin-top:18px}
+.assignment-summary dd{font-weight:650;margin:5px 0;overflow-wrap:anywhere}
+.assignment-note{background:#f7f9fc;border-radius:12px;padding:14px;font-size:.8rem;color:#68788a;line-height:1.65}
+.assignment-submit{min-height:50px;border-radius:12px;width:100%;font-weight:750;margin-top:20px}
+@media(max-width:991px){.assignment-layout{grid-template-columns:1fr}.assignment-summary{position:static}}
+@media(max-width:575px){.assignment-section,.assignment-hero,.assignment-summary{padding:20px}}
+  </style>
+{% endblock %}
 {% block body %}
-<div class="container py-4" style="max-width:1000px">
-  <a class="btn btn-outline-secondary mb-4" href="{{ path('app_administrateur_satisfaction_assignment_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left"></i> Affectations de satisfaction</a>
-  <div class="rounded-4 p-4 mb-4 text-white" style="background:linear-gradient(120deg,#233342,#52616a);border-left:6px solid #ffc107">
-    <h1 class="h3">Nouvelle affectation</h1>
-    <p class="mb-0">Attribuez un questionnaire de satisfaction aux stagiaires de vos sessions.</p>
-  </div>
-  <div class="card border-0 shadow-sm rounded-4"><div class="card-body p-4">
-    {{ form_start(form) }}
-    {{ form_errors(form) }}
-    <div class="mb-4">{{ form_row(form.template) }}</div>
-    <div class="mb-4">{{ form_row(form.inscriptions) }}</div>
-    <div class="mb-4">{{ form_row(form.required) }}</div>
-    <p class="text-muted small">Les affectations existantes et leurs réponses sont conservées. Cette action n’envoie pas d’e-mail.</p>
-    <div class="d-flex justify-content-end gap-2">
-      <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_satisfaction_assignment_index', {entite: entite.id}) }}">Annuler</a>
-      <button class="btn btn-warning fw-semibold" type="submit"><i class="bi bi-plus-circle me-1"></i> Créer les affectations</button>
+<div class="container-fluid py-4 assignment-page">
+  <a class="btn btn-outline-secondary rounded-pill mb-4" href="{{ path('app_administrateur_satisfaction_assignment_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left me-2"></i> Toutes les affectations</a>
+  <header class="assignment-hero">
+    <div class="assignment-eyebrow">Questionnaires · Satisfaction stagiaires</div>
+    <h1 class="h2 fw-bold mb-0">Nouvelle affectation</h1>
+    <p>Le bon questionnaire, pour les bons participants.</p>
+  </header>
+  {{ form_start(form) }}
+  {{ form_errors(form) }}
+  <div class="assignment-layout">
+    <div class="assignment-panel">
+      <section class="assignment-section">
+        <div class="assignment-heading"><span class="assignment-step">01</span><h2>Choisir le questionnaire</h2></div>
+        {{ form_label(form.template, null, {label_attr: {class: 'form-label'}}) }}
+        {{ form_widget(form.template, {attr: {class: 'form-select', 'data-placeholder': 'Rechercher un questionnaire…'}}) }}
+        {{ form_errors(form.template) }}
+        <div class="form-text">Retrouvez les questionnaires actifs de votre organisme.</div>
+      </section>
+      <section class="assignment-section">
+        <div class="assignment-heading"><span class="assignment-step">02</span><h2>Sélectionner les participants</h2></div>
+        {{ form_label(form.inscriptions, null, {label_attr: {class: 'form-label'}}) }}
+        {{ form_widget(form.inscriptions, {attr: {class: 'form-select', 'data-placeholder': 'Rechercher un nom ou un e-mail…'}}) }}
+        {{ form_errors(form.inscriptions) }}
+        <div class="d-flex justify-content-between align-items-start gap-3 mt-2">
+          <div class="form-text">Ajoutez plusieurs stagiaires, regroupés par session. Les inscriptions annulées et les absences sont exclues.</div>
+          <button type="button" class="btn btn-sm btn-link text-secondary text-nowrap" id="clear-participants">Tout retirer</button>
+        </div>
+      </section>
+      <section class="assignment-section">
+        <div class="assignment-heading"><span class="assignment-step">03</span><h2>Définir les modalités</h2></div>
+        <div class="assignment-switch">
+          <div>
+            {{ form_label(form.required, null, {label_attr: {class: 'form-label mb-1'}}) }}
+            <div class="form-text mt-0">Indique que ce questionnaire doit être complété.</div>
+          </div>
+          <div class="form-check form-switch p-0">{{ form_widget(form.required, {attr: {class: 'form-check-input', role: 'switch'}}) }}</div>
+        </div>
+        {{ form_errors(form.required) }}
+      </section>
     </div>
-    {{ form_end(form) }}
-  </div></div>
+    <aside class="assignment-panel assignment-summary" aria-label="Récapitulatif">
+      <h2><i class="bi bi-clipboard-check me-2"></i>Votre affectation</h2>
+      <div aria-live="polite"><div class="assignment-count" id="selection-count">0</div><div class="text-muted small">stagiaire(s) sélectionné(s)</div></div>
+      <dl><dt>Questionnaire</dt><dd id="selection-template">À sélectionner</dd><dt>Participation</dt><dd id="selection-required">Obligatoire</dd></dl>
+      <div class="assignment-note"><i class="bi bi-shield-check me-1"></i>Les affectations existantes et leurs réponses sont conservées. Aucun e-mail n’est envoyé à cette étape.</div>
+      <button class="btn btn-warning assignment-submit" type="submit"><i class="bi bi-plus-circle me-2"></i>Créer les affectations</button>
+      <a class="btn btn-link text-secondary w-100 mt-2" href="{{ path('app_administrateur_satisfaction_assignment_index', {entite: entite.id}) }}">Annuler</a>
+    </aside>
+  </div>
+  {{ form_end(form) }}
 </div>
+{% endblock %}
+{% block javascripts %}
+{{ parent() }}
+<script src="{{ asset('dist/recruitment/tom-select.min.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const template = document.getElementById('{{ form.template.vars.id }}');
+  const participants = document.getElementById('{{ form.inscriptions.vars.id }}');
+  const required = document.getElementById('{{ form.required.vars.id }}');
+  function refresh() {
+    document.getElementById('selection-count').textContent = participants.selectedOptions.length;
+    document.getElementById('selection-template').textContent = template.value ? template.selectedOptions[0].textContent : 'À sélectionner';
+    document.getElementById('selection-required').textContent = required.checked ? 'Obligatoire' : 'Facultative';
+  }
+  if (window.TomSelect) {
+    if (!template.tomselect) new TomSelect(template, {create:false, maxOptions:null, placeholder:'Rechercher un questionnaire…'});
+    if (!participants.tomselect) new TomSelect(participants, {
+      create:false, plugins:['remove_button'], maxOptions:null, closeAfterSelect:false,
+      hideSelected:true, lockOptgroupOrder:true, placeholder:'Rechercher un nom ou un e-mail…'
+    });
+  }
+  [template, participants, required].forEach(el => el.addEventListener('change', refresh));
+  document.getElementById('clear-participants').addEventListener('click', () => {
+    if (participants.tomselect) participants.tomselect.clear();
+    else Array.from(participants.options).forEach(option => option.selected = false);
+    refresh();
+  });
+  refresh();
+});
+</script>
 {% endblock %}
