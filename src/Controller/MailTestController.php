@@ -10,12 +10,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MailTestController extends AbstractController
 {
-    #[Route('/_mail-test', name: 'app_mail_test')]
+    #[Route('/_mail-test', name: 'app_mail_test', methods: ['POST'], env: 'dev')]
+    #[\Symfony\Component\Security\Http\Attribute\IsGranted('ROLE_SUPER_ADMIN')]
+    #[\Symfony\Component\Security\Http\Attribute\IsCsrfTokenValid('mail_test', tokenKey: '_token')]
     public function __invoke(MailerInterface $mailer): Response
     {
         try {
             $email = (new Email())
-                ->from('no-reply@wkformation.fr')   // même adresse que le compte SMTP
+                ->from('contact@wikiformation.fr')   // même adresse que le compte SMTP
                 ->to('jeroen30@hotmail.fr')      // ou ton adresse perso
                 ->subject('Test Symfony Mailer')
                 ->text('Hello, ceci est un test Symfony Mailer (sync).')
@@ -25,7 +27,7 @@ class MailTestController extends AbstractController
 
             return new Response('OK: email envoyé (sync)');
         } catch (\Throwable $e) {
-            return new Response('ERREUR: ' . $e->getMessage(), 500);
+            return new Response('Le transport de messagerie a refusé le test.', 502);
         }
     }
 }

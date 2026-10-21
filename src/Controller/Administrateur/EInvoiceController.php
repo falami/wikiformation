@@ -62,7 +62,9 @@ final class EInvoiceController extends AbstractController
     {
         $pending = $request->getSession()->remove('einvoice_oauth');
         if (!is_array($pending) || !is_string($request->query->get('state')) || !hash_equals($pending['state'], $request->query->get('state'))
-            || time() - $pending['created'] > 600 || $pending['actor'] !== $this->getUser()->getId()) throw $this->createAccessDeniedException('Connexion expirée ou non sollicitée.');
+            || time() - $pending['created'] > 600 || $pending['actor'] !== $this->getUser()->getId()) {
+            return $this->privateResponse($this->render('administrateur/preferences/einvoice_connection_expired.html.twig', [], new Response(status: 403)));
+        }
         $entite = $this->em->find(Entite::class, $pending['entite']) ?? throw $this->createNotFoundException();
         $this->denyAccessUnlessGranted(TenantPermission::ENTITE_PREFERENCE_MANAGE, $entite);
         $mode = $pending['mode'];

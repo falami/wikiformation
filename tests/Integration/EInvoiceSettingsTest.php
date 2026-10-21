@@ -81,6 +81,9 @@ final class EInvoiceSettingsTest extends KernelTestCase
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
         $this->client->request('GET', '/fr/administrateur/facturation-electronique/retour?state=invalid&code=unused');
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('La connexion ne peut pas être finalisée', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('unused', $this->client->getResponse()->getContent());
+        self::assertTrue($this->client->getResponse()->headers->hasCacheControlDirective('no-store'));
         self::assertSame(1, $this->em->getRepository(EInvoiceConnection::class)->count([]));
     }
     public function testOauthPkceBindsTheOrganismAndTariffNeedsASeparatePost(): void
