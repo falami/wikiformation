@@ -55,6 +55,39 @@ final class FinanceNavigationTest extends KernelTestCase
         }
     }
 
+    public function testIssuedInvoiceInternalSettingsPreserveDocument(): void
+    {
+        $invoice = $this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-AUDIT']);
+        $id = $invoice->getId();
+        $meta = ['invoice_snapshot' => ['original' => true], 'invoice_terms' => ['serviceDate' => '2026-09-21'], 'follow_up' => ['renewalsHandled' => 2], 'follow_up_delivery' => ['status' => 'sent']];
+        $invoice->setMeta($meta);
+        $this->em->flush();
+        $client = $this->client();
+        $url = $this->url('app_administrateur_facture_internal_edit', ['id' => $id]);
+        $page = $client->request('GET', $url);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $form = $page->selectButton('Enregistrer le suivi')->form();
+        $form['form[note]'] = 'Formation à renouveler';
+        $form['form[followUp][renewalMonths]'] = '12';
+        $form['form[followUp][reminderMonths]'] = '1';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $invoice = $this->em->find(Facture::class, $id);
+        self::assertSame('Formation à renouveler', $invoice->getNote());
+        self::assertSame(12, $invoice->getMeta()['follow_up']['renewalMonths']);
+        self::assertSame(2, $invoice->getMeta()['follow_up']['renewalsHandled']);
+        self::assertSame($meta['invoice_snapshot'], $invoice->getMeta()['invoice_snapshot']);
+        self::assertSame($meta['invoice_terms'], $invoice->getMeta()['invoice_terms']);
+        self::assertSame($meta['follow_up_delivery'], $invoice->getMeta()['follow_up_delivery']);
+        self::assertSame(12000, $invoice->getMontantTtcCents());
+        $client->request('POST', $url, ['form' => ['note' => 'Invalid', '_token' => 'invalid']]);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        $client->catchExceptions(true);
+        $client->request('GET', '/fr/administrateur/'.$this->other->getId().'/facture/'.$id.'/suivi-interne');
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+    }
+
     public function testQuoteInvoiceDraftCanBeSavedWithoutIssuanceFields(): void
     {
         $this->devis->setStatus(\App\Enum\DevisStatus::SENT);
@@ -63,6 +96,14 @@ final class FinanceNavigationTest extends KernelTestCase
         $this->em->flush();
         $client=$this->client();
         $url='/fr/administrateur/'.$this->entite->getId().'/devis/'.$this->devis->getId().'/facture-brouillon';
+        $client->request('GET', $this->url('app_administrateur_finance_dt_devis'));
+        $rows = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        $actions = new Crawler(end($rows['data'][0]));
+        $token = $actions->filter('form[action$="/to-facture"] input')->attr('value');
+        $client->request('POST', '/fr/administrateur/'.$this->entite->getId().'/devis/'.$this->devis->getId().'/to-facture', ['_token' => $token]);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('/facture-brouillon', $client->getResponse()->headers->get('Location'));
+        self::assertSame(1, $this->em->getRepository(Facture::class)->count([]));
         $page=$client->request('GET',$url);
         self::assertSame(200,$client->getResponse()->getStatusCode());
         $form=$page->filter('form[name="facture"]')->form();

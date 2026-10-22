@@ -1,0 +1,22 @@
+{% extends 'base_admin.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}Suivi interne · {{ facture.numero }}{% endblock %}
+{% block body %}
+<div class="container py-4" style="max-width:1000px">
+  <a class="btn btn-outline-secondary mb-4" href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">← Toutes les factures</a>
+  <div class="rounded-4 p-4 mb-4 text-white" style="background:#243746;border-left:6px solid #ffc107">
+    <h1 class="h3">Suivi interne · {{ facture.numero }}</h1>
+    <p class="mb-0">Mettez à jour votre note et les rappels associés à cette facture.</p>
+  </div>
+  <div class="card border-0 shadow-sm rounded-4"><div class="card-body p-4">
+    <p class="text-muted">Ces réglages concernent votre suivi. Le PDF émis, les montants et les mentions de la facture restent conservés.</p>
+    {{ form_start(form) }}
+    {{ form_errors(form) }}
+    {{ form_row(form.note) }}
+    <h2 class="h5 mt-4">Renouvellement et relances</h2>
+    {{ form_widget(form.followUp) }}
+    <div class="d-flex justify-content-end mt-4"><button class="btn btn-warning" type="submit">Enregistrer le suivi</button></div>
+    {{ form_end(form) }}
+  </div></div>
+</div>
+{% endblock %}

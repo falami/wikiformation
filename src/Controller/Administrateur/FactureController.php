@@ -766,6 +766,44 @@ class FactureController extends AbstractController
     return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
   }
 
+  #[Route('/{id}/suivi-interne', name: 'internal_edit', methods: ['GET', 'POST'])]
+  public function internalEdit(Entite $entite, Facture $facture, Request $request, EM $em): Response
+  {
+    if ($facture->getEntite()?->getId() !== $entite->getId()) {
+      throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
+    }
+    // Use an isolated form: issued document fields must never be mapped here.
+    $form = $this->createFormBuilder([
+      'note' => $facture->getNote(),
+      'followUp' => \App\Service\Billing\InvoiceFollowUp::settings($facture),
+    ])
+      ->add('note', \Symfony\Component\Form\Extension\Core\Type\TextareaType::class, [
+        'label' => 'Note / libellé interne', 'required' => false,
+        'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 255)],
+        'attr' => ['rows' => 3],
+      ])
+      ->add('followUp', \App\Form\Administrateur\InvoiceFollowUpType::class, ['label' => false])
+      ->getForm();
+    $form->handleRequest($request);
+    if ($form->isSubmitted() && $form->isValid()) {
+      $data = $form->getData();
+      $facture->setNote($data['note']);
+      $meta = $facture->getMeta() ?? [];
+      // Retain delivery history, renewal counters and the original invoice snapshot.
+      $meta['follow_up'] = array_replace($meta['follow_up'] ?? [], [
+        'renewalMonths' => (int) $data['followUp']['renewalMonths'],
+        'reminderMonths' => (int) $data['followUp']['reminderMonths'],
+      ]);
+      $facture->setMeta($meta);
+      $em->flush();
+      $this->addFlash('success', 'Le suivi interne de la facture a été enregistré.');
+      return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);
+    }
+    return $this->render('administrateur/facture/internal_edit.html.twig', [
+      'entite' => $entite, 'facture' => $facture, 'form' => $form,
+    ], new Response(status: $form->isSubmitted() ? 422 : 200));
+  }
+
   #[Route('/{id}/payer', name: 'pay', methods: ['POST'])]
   public function facturePay(Entite $entite, Facture $id, Request $request): RedirectResponse
   {
