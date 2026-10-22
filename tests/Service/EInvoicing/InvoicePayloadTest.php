@@ -17,6 +17,12 @@ final class InvoicePayloadTest extends TestCase
         $data = $payload->build($invoice, '0225:987654321_SERVICE');
         // SuperPDP OpenAPI invoice_type_code is an integer, unlike decimal amounts.
         self::assertSame(380, $data['type_code']);
+        self::assertSame('S1', $data['process_control']['business_process_type']);
+        self::assertSame([
+            ['subject_code' => 'PMT', 'note' => 'Indemnité forfaitaire de recouvrement : 40.00 EUR.'],
+            ['subject_code' => 'PMD', 'note' => 'Taux contractuel vérifié'],
+            ['subject_code' => 'AAB', 'note' => 'Pas d’escompte'],
+        ], $data['notes']);
         $wire = json_decode(json_encode($data, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsInt($wire['type_code']);
         self::assertIsString($wire['totals']['total_without_vat']);

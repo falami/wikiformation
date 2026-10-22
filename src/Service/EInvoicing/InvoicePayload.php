@@ -47,10 +47,15 @@ final class InvoicePayload
             $lines[] = $row;
         }
         $data = ['number' => $s['invoice']['numero'], 'issue_date' => $s['invoice']['dateEmission'], 'type_code' => 380, 'currency_code' => 'EUR',
-            'process_control' => ['specification_identifier' => 'urn:cen.eu:en16931:2017'],
+            'process_control' => ['specification_identifier' => 'urn:cen.eu:en16931:2017', 'business_process_type' => 'S1'],
             'seller' => $this->party($s['issuer'], $s['issuer']['nom'], '0225:'.$s['issuer']['siren']) + ['additional_legal_information' => (string) $terms['legalIdentity']],
             'buyer' => $this->party($s['customer'], $s['customer']['raisonSociale'], $buyerEndpoint),
             'payment_due_date' => $terms['dueDate'],
+            'notes' => [
+                ['subject_code' => 'PMT', 'note' => 'Indemnité forfaitaire de recouvrement : '.self::money((int) $terms['recoveryCompensationCents']).' EUR.'],
+                ['subject_code' => 'PMD', 'note' => (string) $terms['latePaymentPenalty']],
+                ['subject_code' => 'AAB', 'note' => (string) $terms['earlyPaymentDiscount']],
+            ],
             'payment_terms' => sprintf("Règlement : %s. Escompte : %s. Retard : %s. Indemnité forfaitaire de recouvrement : %s EUR.", $terms['paymentMeans'], $terms['earlyPaymentDiscount'], $terms['latePaymentPenalty'], self::money((int) $terms['recoveryCompensationCents'])),
             'totals' => ['sum_invoice_lines_amount' => self::money($t['htCents']), 'total_without_vat' => self::money($t['htCents']), 'total_with_vat' => self::money($t['ttcCents']), 'total_vat_amount' => ['value' => self::money($t['tvaCents']), 'currency_code' => 'EUR'], 'amount_due_for_payment' => self::money($t['ttcCents'])],
             'vat_break_down' => [], 'lines' => $lines];

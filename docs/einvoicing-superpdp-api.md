@@ -70,3 +70,14 @@ facturable pour ces nouvelles tentatives. Les anciennes conditions déjà figée
 restent inchangées. Les frais directs du fournisseur restent distincts.
 Aucune migration n’est nécessaire pour cette politique ; déployer le code et les
 templates puis vider le cache de production avant d’activer depuis les préférences.
+
+### Correction conversion du 22 octobre 2026
+
+La conversion publique a été reproduite avec les seules données fictives de
+InvoicePayloadTest (aucune émission). Le fournisseur renvoyait HTTP 400 :
+BR-FR-05 pour les notes PMT, PMD et AAB manquantes et BR-FR-08 pour le cadre
+de facturation absent. Le connecteur de prestations de services renseigne
+désormais S1 et les trois notes codées à partir des mentions figées à l’émission.
+Les mentions restent également dans payment_terms. Le type_code est un entier.
+La même facture fictive corrigée a été convertie en UBL avec HTTP 200.
+Ce contrôle de conversion ne confirme pas le dépôt d’une facture de production.
