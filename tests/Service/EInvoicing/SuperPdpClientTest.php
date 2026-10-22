@@ -15,6 +15,26 @@ final class SuperPdpClientTest extends TestCase
 {
     private const XML = '<?xml version="1.0"?><Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"><ID>TEST-001</ID></Invoice>';
 
+    public function testPreparationErrorsIdentifyOperationWithoutProviderData(): void
+    {
+        $client = new SuperPdpClient(new MockHttpClient(fn () => new MockResponse('{"message":"private-customer-token"}', ['http_code' => 400])));
+        foreach ([
+            [fn () => $client->directoryEntries('123456789'), 'Recherche du destinataire'],
+            [fn () => $client->convertInvoice(['invoice_number' => 'private-number']), 'Conversion de la facture'],
+            [fn () => $client->validateInvoice(self::XML), 'Validation du document'],
+        ] as [$call, $label]) {
+            try {
+                $call();
+                self::fail('Expected HTTP rejection.');
+            } catch (SuperPdpException $error) {
+                self::assertStringContainsString($label, $error->getMessage());
+                self::assertStringContainsString('HTTP 400', $error->getMessage());
+                self::assertStringNotContainsString('private', $error->getMessage());
+                self::assertFalse($error->isUncertain());
+            }
+        }
+    }
+
     public function testAuthorizationUrlUsesPkceAndAccountHintsWithoutCredentials(): void
     {
         $url = (new SuperPdpClient(new MockHttpClient()))->authorizationUrl('app-1', 'https://wiki.test/oauth/callback', str_repeat('a', 32), str_repeat('b', 43), '123456789', 'fr_siren', 'test@example.test');

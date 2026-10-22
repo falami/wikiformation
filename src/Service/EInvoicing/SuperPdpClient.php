@@ -262,7 +262,7 @@ final class SuperPdpClient
             if ($status < 200 || $status >= 300) {
                 $response->cancel();
                 $uncertain = $mutation && ($status >= 500 || $status === 408);
-                throw new SuperPdpException(match ($status) {
+                throw new SuperPdpException($this->operationLabel($method, $path). ' : '. match ($status) {
                     401 => 'La connexion à la plateforme agréée a expiré. Reconnectez l’organisme.',
                     403 => 'La plateforme agréée n’autorise pas cette opération. Vérifiez le compte et sa validation.',
                     429 => 'La plateforme agréée limite temporairement les requêtes.',
@@ -279,6 +279,22 @@ final class SuperPdpClient
                 ? 'Résultat non confirmé après une interruption réseau. Vérifiez la réception avant tout nouvel envoi.'
                 : 'La plateforme agréée est momentanément inaccessible.', null, $mutation);
         }
+    }
+
+    /** Only fixed labels are logged, never provider bodies, URLs or query values. */
+    private function operationLabel(string $method, string $path): string
+    {
+        return match ($path) {
+            '/oauth2/token' => 'Autorisation ou renouvellement de connexion',
+            '/v1.beta/oauth2_sessions/me' => 'Vérification de la session',
+            '/v1.beta/companies/me' => 'Vérification de l’organisme',
+            '/v1.beta/french_directory/entries' => 'Recherche du destinataire dans l’annuaire',
+            '/v1.beta/invoices/convert' => 'Conversion de la facture en UBL',
+            '/v1.beta/validation_reports' => 'Validation du document UBL',
+            '/v1.beta/invoices' => $method === 'POST' ? 'Dépôt de la facture' : 'Lecture des factures distantes',
+            '/v1.beta/invoice_events' => 'Lecture des événements',
+            default => 'Lecture du document distant',
+        };
     }
 
     private function pagination(string|int|null $afterId, int $limit): array
