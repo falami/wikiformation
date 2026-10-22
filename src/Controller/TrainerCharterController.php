@@ -65,6 +65,35 @@ final class TrainerCharterController extends AbstractController
         }
         return $this->redirectToRoute('app_charter_admin', ['entite'=>$entite->getId()]);
     }
+    #[Route('/administrateur/{entite}/formateur/chartes/version/{id}/supprimer', name:'app_charter_version_delete', requirements:['id'=>'\d+'], methods:['POST'])]
+    public function deleteDraft(Entite $entite, int $id, Request $request): Response {
+        $this->admin($entite);
+        $this->csrf($request, 'charter_version_delete_'.$id);
+        $version = $this->em->find(TrainerCharterVersion::class, $id);
+        if (!$version || $version->charter->entite->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        try {
+            $this->em->wrapInTransaction(function () use ($version): void {
+                $this->em->lock($version, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+                $this->em->refresh($version);
+                if ($version->publishedAt) throw new \DomainException('Une version publiée ne peut pas être supprimée.');
+                $signatures = $this->em->getRepository(TrainerCharterSignature::class)->findBy(['version'=>$version]);
+                foreach ($signatures as $signature) {
+                    $this->em->lock($signature, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+                    $this->em->refresh($signature);
+                    if ($signature->signedAt || $signature->pdfDigest || $signature->pdfBytes() !== '') {
+                        throw new \DomainException('Une version signée ne peut pas être supprimée.');
+                    }
+                    $this->em->remove($signature);
+                }
+                $this->em->remove($version);
+            });
+            $this->addFlash('success', 'Le brouillon a été supprimé. Les autres versions sont conservées.');
+        } catch (\DomainException $e) {
+            $this->addFlash('warning', $e->getMessage());
+        }
+        return $this->redirectToRoute('app_charter_admin', ['entite'=>$entite->getId()]);
+    }
+
     #[Route('/administrateur/{entite}/formateur/chartes/nouvelle',name:'app_charter_new',methods:['POST'])]
     public function create(Entite $entite, Request $request): Response {
         $this->admin($entite);$this->csrf($request,'charter_new_'.$entite->getId());

@@ -387,7 +387,7 @@
           {% endif %}
 
           <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
-            <i class="bi bi-check2 me-1"></i> Enregistrer
+            <i class="bi bi-check2 me-1"></i> {{ invoiceDraft|default(false) ? 'Enregistrer le brouillon' : 'Enregistrer' }}
           </button>
         </div>
       </div>
@@ -398,6 +398,13 @@
 
   {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'facture_form' } }) }}
   {{ form_errors(form) }}
+  {% if invoiceDraft|default(false) %}
+  <div class="alert alert-info rounded-4">
+    <strong>Brouillon de facture</strong> — Complétez les informations puis validez l’émission. Aucun numéro définitif ni transmission avant validation.
+    <button type="submit" name="invoice_action" value="issue" class="btn btn-success ms-3">Valider et émettre la facture</button>
+  </div>
+  {% endif %}
+
 
   <div class="row g-4">
 
@@ -478,7 +485,7 @@
 
             <div class="col-md-4">{{ form_row(form.dateEmission) }}</div>
             <div class="col-md-4">{{ form_row(form.devise) }}</div>
-            <div class="col-md-4">{{ form_row(form.status) }}</div>
+            <div class="col-md-4">{% if invoiceDraft|default(false) %}<label class="form-label">Statut</label><div><span class="badge bg-warning text-dark">Brouillon</span></div><div class="d-none">{{ form_widget(form.status) }}</div>{% else %}{{ form_row(form.status) }}{% endif %}</div>
             <div class="col-md-12">
               {{ form_row(form.note) }}
             </div>
@@ -730,7 +737,7 @@
 
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-gradient">
-          <i class="fa fa-check"></i> Enregistrer
+          <i class="fa fa-check"></i> {{ invoiceDraft|default(false) ? 'Enregistrer le brouillon' : 'Enregistrer' }}
         </button>
         <a class="btn btn-light" href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">Annuler</a>
       </div>
@@ -824,7 +831,7 @@
           <div class="d-flex gap-2">
             <a class="btn btn-light w-50" href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">Annuler</a>
             <button type="submit" class="btn btn-gradient w-50">
-              <i class="fa fa-check"></i> Enregistrer
+              <i class="fa fa-check"></i> {{ invoiceDraft|default(false) ? 'Enregistrer le brouillon' : 'Enregistrer' }}
             </button>
           </div>
         </div>

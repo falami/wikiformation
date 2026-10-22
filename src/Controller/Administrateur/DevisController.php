@@ -162,6 +162,7 @@ class DevisController extends AbstractController
   ): RedirectResponse {
 
 
+    $this->denyAccessUnlessGranted(TenantPermission::FACTURE_MANAGE, $entite);
     // 1) sécurité : le devis doit appartenir à l'entité
     if ($devis->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createAccessDeniedException('Devis non autorisé pour cette entité.');
@@ -187,14 +188,22 @@ class DevisController extends AbstractController
       $this->addFlash('warning', 'Choisissez une entreprise ou une personne comme destinataire du devis avant de créer la facture.');
       return $this->redirectToRoute('app_administrateur_devis_edit', ['entite' => $entite->getId(), 'id' => $devis->getId()]);
     }
+    $meta = $devis->getMeta() ?? [];
+    $meta['invoice_draft'] ??= [];
+    $devis->setMeta($meta);
+    $em->flush();
+    return $this->redirectToRoute('app_administrateur_devis_invoice_draft', ['entite'=>$entite->getId(), 'id'=>$devis->getId()]);
+  }
+
+  #[Route('/{id}/facture-brouillon', name: 'invoice_draft', methods: ['GET', 'POST'])]
+  public function invoiceDraft(Entite $entite, Devis $devis, Request $request, EM $em, FactureNumberGenerator $factureGen): Response
+  {
+    $this->denyAccessUnlessGranted(TenantPermission::FACTURE_MANAGE, $entite);
+    if ($devis->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    if ($devis->getFactureCreee()) return $this->redirectToRoute('app_administrateur_facture_show', ['entite'=>$entite->getId(), 'id'=>$devis->getFactureCreee()->getId()]);
+    if (!$devis->getStatus()->canBeInvoiced()) throw $this->createAccessDeniedException('Ce devis ne peut pas être facturé.');
     /** @var Utilisateur $user */
     $user = $this->getUser();
-
-    // 5) recalcul devis côté serveur (sécurité)
-    if ($devis->getConventions()->isEmpty()) {
-      $this->recalcDevis($devis);
-    }
-
     // 6) créer la facture
     $f = new Facture();
     $f->setEntite($entite);
@@ -259,25 +268,47 @@ class DevisController extends AbstractController
       $f->setFormation($devis->getFormation());
     }
 
-    \App\Service\Billing\InvoiceTotals::finalizeNewInvoice($f);
-
-    try {
-      \App\Service\Billing\InvoiceIssuer::persist($em, $factureGen, $f, function () use ($em, $devis, $f) {
-        $em->refresh($devis, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
-        if ($devis->getFactureCreee()) throw new \DomainException('Ce devis a déjà été transformé en facture.');
-        $devis->setFactureCreee($f)->setStatus(DevisStatus::INVOICED);
-      });
-    } catch (\DomainException $error) {
-      $this->addFlash('warning', $error->getMessage());
-      return $this->redirectToRoute('app_administrateur_devis_index', ['entite' => $entite->getId()]);
+    $type = \App\Form\Administrateur\FactureType::class;
+    $saved = $devis->getMeta()['invoice_draft'] ?? [];
+    if ($saved) {
+      // Rehydrate the draft through the same tenant-scoped form transformers.
+      $restore = $this->createForm($type, $f, ['entite'=>$entite, 'csrf_protection'=>false]);
+      $restore->submit($saved);
     }
-
-    $this->addFlash('success', 'Devis transformé en facture.');
-
-    return $this->redirectToRoute('app_administrateur_facture_show', [
-      'entite' => $entite->getId(),
-      'id' => $f->getId(),
-    ]);
+    $form = $this->createForm($type, $f, ['entite'=>$entite]);
+    $form->handleRequest($request);
+    if ($form->isSubmitted() && $form->isValid()) {
+      foreach ($f->getLignes() as $line) {
+        $line->setCreateur($user);
+        $line->setEntite($entite);
+        $line->setFacture($f);
+      }
+      $payload = $request->request->all($form->getName());
+      unset($payload['_token']);
+      if ($request->request->get('invoice_action') !== 'issue') {
+        $meta = $devis->getMeta() ?? [];
+        $meta['invoice_draft'] = $payload;
+        $devis->setMeta($meta);
+        $em->flush();
+        $this->addFlash('success', 'Brouillon de facture enregistré. Vous pouvez le reprendre depuis ce devis.');
+        return $this->redirectToRoute('app_administrateur_devis_invoice_draft', ['entite'=>$entite->getId(),'id'=>$devis->getId()]);
+      }
+      try {
+        \App\Service\Billing\InvoiceIssuer::persist($em, $factureGen, $f, function () use ($em, $devis, $f) {
+          $em->refresh($devis, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+          if ($devis->getFactureCreee()) throw new \DomainException('Ce devis a déjà été transformé en facture.');
+          $meta=$devis->getMeta() ?? []; unset($meta['invoice_draft']); $devis->setMeta($meta);
+          $devis->setFactureCreee($f)->setStatus(DevisStatus::INVOICED);
+        });
+        $this->addFlash('success', 'Facture validée et émise.');
+        return $this->redirectToRoute('app_administrateur_facture_show', ['entite'=>$entite->getId(),'id'=>$f->getId()]);
+      } catch (\DomainException $error) {
+        $form->addError(new \Symfony\Component\Form\FormError($error->getMessage()));
+      }
+    }
+    return $this->render('administrateur/facture/form.html.twig', [
+      'form'=>$form, 'entite'=>$entite, 'title'=>'Brouillon de facture · '.$devis->getNumero(), 'invoiceDraft'=>true,
+    ], new Response(status: $form->isSubmitted() ? 422 : 200));
   }
 
 

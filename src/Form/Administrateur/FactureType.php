@@ -32,7 +32,7 @@ class FactureType extends AbstractType
     public function buildForm(FormBuilderInterface $b, array $opt): void
     {
         if ($b->getData() instanceof Facture) \App\Service\Billing\InvoicePreferences::apply($b->getData(), true);
-        $b->add('followUp', InvoiceFollowUpType::class, ['label' => false, 'mapped' => false, 'data' => ['renewalMonths' => 0, 'reminderMonths' => 0]]);
+        $b->add('followUp', InvoiceFollowUpType::class, ['label' => false, 'mapped' => false, 'data' => array_replace(['renewalMonths' => 0, 'reminderMonths' => 0], $b->getData()?->getMeta()['follow_up'] ?? [])]);
         $b->add('invoiceTerms', InvoiceTermsType::class, ['label' => false, 'mapped' => false, 'data' => array_replace(\App\Service\Billing\InvoicePreferences::defaults($b->getData()?->getEntite()), $b->getData()?->getMeta()['invoice_terms'] ?? [])]);
         $b->addEventListener(\Symfony\Component\Form\FormEvents::POST_SUBMIT, static function (\Symfony\Component\Form\FormEvent $event): void {
             $invoice = $event->getData();

@@ -55,6 +55,53 @@ final class FinanceNavigationTest extends KernelTestCase
         }
     }
 
+    public function testQuoteInvoiceDraftCanBeSavedWithoutIssuanceFields(): void
+    {
+        $this->devis->setStatus(\App\Enum\DevisStatus::SENT);
+        $line=(new \App\Entity\LigneDevis())->setEntite($this->entite)->setCreateur($this->admin)->setLabel('Formation')->setQte(1)->setPuHtCents(250000)->setTva(20);
+        $this->devis->addLigne($line);
+        $this->em->flush();
+        $client=$this->client();
+        $url='/fr/administrateur/'.$this->entite->getId().'/devis/'.$this->devis->getId().'/facture-brouillon';
+        $page=$client->request('GET',$url);
+        self::assertSame(200,$client->getResponse()->getStatusCode());
+        $form=$page->filter('form[name="facture"]')->form();
+        $form['facture[invoiceTerms][serviceDate]']='';
+        $form['facture[invoiceTerms][purchaseOrderReference]']='BON-TEST';
+        $client->submit($form);
+        self::assertSame(302,$client->getResponse()->getStatusCode());
+        self::assertNull($this->devis->getFactureCreee());
+        self::assertSame(1,$this->em->getRepository(Facture::class)->count([]));
+        $page=$client->request('GET',$url);
+        self::assertSame('BON-TEST',$page->filter('[name="facture[invoiceTerms][purchaseOrderReference]"]')->attr('value'));
+        $form=$page->filter('form[name="facture"]')->form();
+        $client->submit($page->selectButton('Valider et émettre la facture')->form());
+        self::assertSame(422,$client->getResponse()->getStatusCode());
+        self::assertNull($this->devis->getFactureCreee());
+
+        $this->entite=$this->em->find(Entite::class,$this->entite->getId());
+        $this->admin=$this->em->find(Utilisateur::class,$this->admin->getId());
+        $this->entite->setAdresse('10 rue du Test')->setCodePostal('75001')->setVille('Paris')->setPays('France')->setSiret('12345678900012')->setNumeroTva('FR12345678901');
+        $this->admin->setAdresse('20 rue du Client')->setCodePostal('69001')->setVille('Lyon')->setPays('France');
+        $this->em->flush();
+
+        $page=$client->request('GET',$url);
+        $form=$page->selectButton('Valider et émettre la facture')->form();
+        $form['facture[invoiceTerms][earlyPaymentDiscount]']='Aucun escompte';
+        $form['facture[invoiceTerms][legalIdentity]']='Entreprise individuelle';
+        $form['facture[invoiceTerms][vatCategory]']='S';
+        $form['facture[invoiceTerms][vatOnDebits]']='0';
+        $client->submit($form);
+        self::assertSame(302,$client->getResponse()->getStatusCode(), strip_tags($client->getResponse()->getContent()));
+        $this->devis=$this->em->find(Devis::class,$this->devis->getId());
+        self::assertNotNull($this->devis->getFactureCreee());
+        self::assertSame('FAC-E'.$this->entite->getId().'-2026-0001',$this->devis->getFactureCreee()->getNumero());
+        self::assertArrayNotHasKey('invoice_draft',$this->devis->getMeta());
+        $client->request('GET',$url);
+        self::assertSame(302,$client->getResponse()->getStatusCode());
+        self::assertSame(2,$this->em->getRepository(Facture::class)->count([]));
+    }
+
     public function testFinanceAndVatCreditTablesSearchAndOpenOnlyOwnDocuments(): void
     {
         $client = $this->client();

@@ -33,6 +33,26 @@ final class TrainerCharterTest extends KernelTestCase
         $this->client->request('POST',$this->base().'/'.$v->id.'/suivi',['_token'=>$token,'trainers'=>[(string)$this->trainerId]]);self::assertSame(302,$this->client->getResponse()->getStatusCode());
         return $this->em->getRepository(TrainerCharterSignature::class)->findOneBy([])->id;
     }
+    public function testDeleteDraftPreservesPublishedVersion(): void {
+        $published=$this->published();
+        $draft=new TrainerCharterVersion();$draft->charter=$published->charter;$draft->number=2;
+        $this->em->persist($draft);$this->em->flush();$id=$draft->id;
+        $page=$this->client->request('GET',$this->base());
+        $this->client->submit($page->selectButton('Supprimer le brouillon')->form());
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        self::assertNull($this->em->find(TrainerCharterVersion::class,$id));
+        self::assertSame(1,$this->em->getRepository(TrainerCharterVersion::class)->count([]));
+    }
+    public function testPublishedVersionCannotBeDeletedDirectly(): void {
+        $v=$this->published();
+        $v->publishedAt=null;$this->em->flush();
+        $page=$this->client->request('GET',$this->base());
+        $token=$page->selectButton('Supprimer le brouillon')->form()['_token']->getValue();
+        $v->publishedAt=new \DateTimeImmutable();$this->em->flush();
+        $this->client->request('POST',$this->base().'/version/'.$v->id.'/supprimer',['_token'=>$token]);
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        self::assertSame(1,(int)$this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM trainer_charter_version'));
+    }
     public function testDeleteUnsignedCharterAndItsRequests(): void {
         $v=$this->published(); $this->requestSignature($v);
         $page=$this->client->request('GET',$this->base());
