@@ -108,6 +108,33 @@ final class TrainerWorkflowTest extends KernelTestCase
         self::assertStringNotContainsString('Intervenant :', $html);
     }
 
+    public function testMissingSignedContractCanBeRecoveredOnlyOnce(): void
+    {
+        $contract = $this->contract($this->morning, 'CF-RECOVERY');
+        $contract->setStatus(ContratFormateurStatus::SIGNE);
+        $this->em->flush();
+        $root = sys_get_temp_dir() . '/contract-recovery-' . bin2hex(random_bytes(6));
+        $document = new \App\Service\Pdf\ContratFormateurDocument($root, self::getContainer()->get(\App\Service\Session\SessionParticipantCount::class));
+        $command = new \App\Command\RecoverTrainerContractPdfCommand($this->em, $document,
+            self::getContainer()->get(\App\Service\Pdf\PdfManager::class), self::getContainer()->get('twig'), $root);
+        $tester = new \Symfony\Component\Console\Tester\CommandTester($command);
+        $args = ['contrat' => $contract->getId(), '--entite' => $this->entite->getId(), '--numero' => 'CF-RECOVERY'];
+        try {
+            self::assertSame(0, $tester->execute($args));
+            self::assertNull($contract->getPdfPath());
+            self::assertSame(0, $tester->execute($args + ['--execute' => true]));
+            $path = $document->storedPath($contract);
+            self::assertNotNull($path);
+            self::assertSame(1, $contract->getVersionNumero());
+            self::assertSame(ContratFormateurStatus::SIGNE, $contract->getStatus());
+            if (getenv('RECOVERY_PDF_PREVIEW')) copy($path, getenv('RECOVERY_PDF_PREVIEW'));
+            unlink($path);
+            self::assertSame(1, $tester->execute($args + ['--execute' => true]));
+        } finally {
+            (new \Symfony\Component\Filesystem\Filesystem())->remove($root);
+        }
+    }
+
     public function testManualSatisfactionAssignmentCreatesAndSkipsDuplicates(): void
     {
         $inscription = (new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)->setSession($this->session)->setStagiaire($this->admin);
