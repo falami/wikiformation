@@ -9,36 +9,50 @@
     ttc: previous.ttc + row.remainingBreakdown.ttc
   }}) %}
 {% endfor %}
-<section id="invoice-follow-up" class="table-pro my-4" aria-labelledby="invoice-follow-up-title">
-  <div class="table-pro__head"><h2 class="table-pro__title" id="invoice-follow-up-title"><i class="bi bi-receipt"></i> Factures et renouvellements</h2></div>
-  <div class="p-4 border-bottom text-muted small">Toutes les factures de l’organisme, indépendamment des filtres de sessions.</div>
-  <div class="table-pro__body"><div class="px-3 py-3 d-flex align-items-center justify-content-between gap-3 flex-wrap">
-    <h3 class="table-pro__title">Factures en attente de paiement <span class="table-pro__count">{{ invoiceFollowUp.unpaid|length }}</span></h3>
-    <div class="rounded-3 border border-warning-subtle bg-warning-subtle px-4 py-3" aria-label="Montant total en attente de paiement">
-      <div class="small text-muted mb-1"><i class="bi bi-hourglass-split me-1" aria-hidden="true"></i>Total restant à payer</div>
-      {% for currency, amounts in outstandingByCurrency %}
-        <div class="fs-4 fw-bold text-nowrap">{{ (amounts.ht / 100)|number_format(2, ',', ' ') }} {{ currency }} HT</div>
-        <div class="small text-muted">TVA : {{ (amounts.vat / 100)|number_format(2, ',', ' ') }} {{ currency }}</div>
-        <div class="small text-muted">TTC : {{ (amounts.ttc / 100)|number_format(2, ',', ' ') }} {{ currency }}</div>
-      {% else %}
-        <div class="fs-4 fw-bold">0,00 EUR HT</div><div class="small text-muted">TVA : 0,00 EUR · TTC : 0,00 EUR</div>
-      {% endfor %}
-      <div class="small text-muted">Après paiements et avoirs · ventilation HT/TVA au prorata</div>
+{% include 'administrateur/dashboard/_invoice_follow_up_styles.html.twig' %}
+<section id="invoice-follow-up" class="table-pro my-4 invoice-hub" aria-labelledby="invoice-follow-up-title">
+  <header class="invoice-hub__header">
+    <span class="invoice-hub__icon" aria-hidden="true"><i class="bi bi-receipt"></i></span>
+    <div><h2 id="invoice-follow-up-title">Factures et renouvellements</h2>
+    <p class="invoice-hub__intro">Toutes les factures de l’organisme, indépendamment des filtres de sessions.</p></div>
+  </header>
+  <div class="table-pro__body">
+    <div class="invoice-hub__overview">
+      <div class="invoice-hub__activity">
+
+        <div class="invoice-hub__metrics">
+          <div><span class="invoice-hub__metric-value">{{ invoiceFollowUp.unpaid|length }}</span><span>Facture{{ invoiceFollowUp.unpaid|length > 1 ? 's' : '' }} en attente</span></div>
+          <div><span class="invoice-hub__metric-value">{{ invoiceFollowUp.renewals|length }}</span><span>Renouvellement{{ invoiceFollowUp.renewals|length > 1 ? 's' : '' }} à préparer</span></div>
+        </div>
+      </div>
+      <div class="invoice-hub__balance" aria-label="Montant total en attente de paiement">
+        <span class="invoice-hub__balance-label"><i class="bi bi-wallet2" aria-hidden="true"></i> Total restant à payer</span>
+        {% for currency, amounts in outstandingByCurrency %}
+          <div class="invoice-hub__currency">
+            <div class="invoice-hub__amount">{{ (amounts.ht / 100)|number_format(2, ',', ' ') }} <span>{{ currency }} HT</span></div>
+            <dl class="invoice-hub__breakdown"><div><dt>TVA</dt><dd>{{ (amounts.vat / 100)|number_format(2, ',', ' ') }} {{ currency }}</dd></div><div><dt>Total TTC</dt><dd>{{ (amounts.ttc / 100)|number_format(2, ',', ' ') }} {{ currency }}</dd></div></dl>
+          </div>
+        {% else %}
+          <div class="invoice-hub__amount">0,00 <span>EUR HT</span></div>
+          <dl class="invoice-hub__breakdown"><div><dt>TVA</dt><dd>0,00 EUR</dd></div><div><dt>Total TTC</dt><dd>0,00 EUR</dd></div></dl>
+        {% endfor %}
+        <p class="invoice-hub__balance-note">Après paiements et avoirs · ventilation HT/TVA au prorata</p>
+      </div>
     </div>
-  </div>
-    <form id="invoice-reminder-selection" class="px-3 pb-3 d-flex align-items-center gap-3 flex-wrap" method="post" action="{{ path('app_invoice_remind_selection', {entite: entite.id}) }}">
+    <div class="invoice-hub__section-heading"><h3>Factures en attente de paiement</h3><span class="invoice-hub__count">{{ invoiceFollowUp.unpaid|length }}</span></div>
+    <form id="invoice-reminder-selection" class="invoice-hub__actions" method="post" action="{{ path('app_invoice_remind_selection', {entite: entite.id}) }}">
       <input type="hidden" name="_token" value="{{ csrf_token('invoice_reminders_' ~ entite.id) }}">
       <button class="btn btn-sm btn-warning" data-invoice-send disabled><i class="bi bi-envelope"></i> Relancer la sélection (<span data-invoice-count>0</span>)</button>
       <span class="small text-muted">Un e-mail par facture sélectionnée · 50 maximum · délai de 24 h entre deux relances.</span>
     </form>
-    <div class="table-responsive"><table class="table table-pro__table align-middle mb-0"><thead class="table-light"><tr><th><input type="checkbox" class="form-check-input" data-invoice-all aria-label="Sélectionner toutes les factures disponibles"></th><th>Facture / client</th><th>Échéance</th><th>Reste à payer</th><th>Relance automatique</th><th class="text-end pe-4">Actions</th></tr></thead><tbody>
+    <div class="table-responsive"><table class="table table-pro__table align-middle mb-0"><thead class="table-light"><tr><th><input type="checkbox" class="form-check-input" data-invoice-all aria-label="Sélectionner toutes les factures disponibles"></th><th>Facture / client</th><th>Échéance</th><th>Reste à payer TTC</th><th>Relance automatique</th><th class="text-end pe-4">Actions</th></tr></thead><tbody>
     {% for row in invoiceFollowUp.unpaid %}{% set invoice = row.invoice %}
-      <tr><td><input type="checkbox" class="form-check-input" form="invoice-reminder-selection" name="invoices[]" value="{{ invoice.id }}" data-invoice-row aria-label="Sélectionner la facture {{ invoice.numero }}" {% if not row.canRemind %}disabled title="Adresse absente, délai de 24 h ou envoi à vérifier"{% endif %}></td><td><strong>{{ invoice.numero }}</strong><div class="small text-muted">{{ invoice.entrepriseDestinataire ? invoice.entrepriseDestinataire.raisonSociale : (invoice.destinataire ? invoice.destinataire.prenom ~ ' ' ~ invoice.destinataire.nom : 'Client non renseigné') }}</div></td><td>{{ invoice.meta.invoice_terms.dueDate|default(null) ? invoice.meta.invoice_terms.dueDate|date('d/m/Y') : 'Non renseignée' }}</td><td class="text-nowrap"><span class="badge-pro badge-pro--warn">{{ (row.remaining / 100)|number_format(2, ',', ' ') }} {{ invoice.devise }}</span></td><td>{% if row.reminderDate %}<span class="badge rounded-pill bg-success-subtle text-success border">Programmée · {{ row.reminderDate|date('d/m/Y') }}</span>{% else %}<span class="badge rounded-pill bg-light text-secondary border">Désactivée ou suspendue</span>{% endif %}{% set delivery = invoice.meta.follow_up_delivery|default({}) %}{% if delivery.status|default('') == 'sent' %}<div class="small text-success mt-1">Transmise le {{ delivery.sentAt|date('d/m/Y H:i', 'Europe/Paris') }}</div>{% elseif delivery.status|default('') in ['unknown', 'processing'] %}<div class="small text-danger mt-1">Envoi à vérifier</div>{% endif %}</td><td class="text-end pe-4"><div class="d-flex gap-2 flex-wrap justify-content-end"><a class="btn btn-sm btn-outline-dark rounded-pill text-nowrap" href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: invoice.id}) }}">Ouvrir</a><a class="btn btn-sm btn-outline-dark rounded-pill text-nowrap" href="{{ path('app_invoice_follow_up', {entite: entite.id, id: invoice.id}) }}">Réglages</a></div></td></tr>
+      <tr><td><input type="checkbox" class="form-check-input" form="invoice-reminder-selection" name="invoices[]" value="{{ invoice.id }}" data-invoice-row aria-label="Sélectionner la facture {{ invoice.numero }}" {% if not row.canRemind %}disabled title="Adresse absente, délai de 24 h ou envoi à vérifier"{% endif %}></td><td><strong>{{ invoice.numero }}</strong><div class="small text-muted">{{ invoice.entrepriseDestinataire ? invoice.entrepriseDestinataire.raisonSociale : (invoice.destinataire ? invoice.destinataire.prenom ~ ' ' ~ invoice.destinataire.nom : 'Client non renseigné') }}</div></td><td>{{ invoice.meta.invoice_terms.dueDate|default(null) ? invoice.meta.invoice_terms.dueDate|date('d/m/Y') : 'Non renseignée' }}</td><td class="text-nowrap"><span class="badge-pro badge-pro--warn">{{ (row.remaining / 100)|number_format(2, ',', ' ') }} {{ invoice.devise }}</span></td><td>{% if row.reminderDate %}<span class="badge rounded-pill bg-success-subtle text-success border">Programmée · {{ row.reminderDate|date('d/m/Y') }}</span>{% else %}<span class="badge rounded-pill bg-light text-secondary border">Désactivée ou suspendue</span>{% endif %}{% set delivery = invoice.meta.follow_up_delivery|default({}) %}{% if delivery.status|default('') == 'sent' %}<div class="small text-success mt-1">Transmise le {{ delivery.sentAt|date('d/m/Y H:i', 'Europe/Paris') }}</div>{% elseif delivery.status|default('') in ['unknown', 'processing'] %}<div class="small text-danger mt-1">Envoi à vérifier</div>{% endif %}</td><td class="text-end pe-4"><div class="d-flex gap-2 flex-wrap justify-content-end"><a class="btn btn-sm btn-outline-dark rounded-pill text-nowrap" href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: invoice.id}) }}"><i class="bi bi-arrow-up-right me-1" aria-hidden="true"></i>Ouvrir</a><a class="btn btn-sm btn-outline-dark rounded-pill text-nowrap" href="{{ path('app_invoice_follow_up', {entite: entite.id, id: invoice.id}) }}"><i class="bi bi-sliders me-1" aria-hidden="true"></i>Réglages</a></div></td></tr>
     {% else %}<tr><td colspan="6" class="text-center text-muted p-4">Aucune facture en attente de paiement.</td></tr>{% endfor %}
     </tbody></table></div>
-    <div class="px-3 py-3 border-top"><h3 class="table-pro__title">Abonnements à renouveler <span class="table-pro__count">{{ invoiceFollowUp.renewals|length }}</span></h3></div>
+    <div class="invoice-hub__section-heading border-top"><h3>Abonnements à renouveler</h3><span class="invoice-hub__count">{{ invoiceFollowUp.renewals|length }}</span></div>
     <div class="table-responsive"><table class="table table-pro__table align-middle mb-0"><thead class="table-light"><tr><th>Facture d’origine / client</th><th>Renouvellement prévu</th><th class="text-end pe-4">Actions</th></tr></thead><tbody>
-    {% for row in invoiceFollowUp.renewals %}{% set invoice = row.invoice %}<tr><td><strong>{{ invoice.numero }}</strong><div class="small text-muted">{{ invoice.entrepriseDestinataire ? invoice.entrepriseDestinataire.raisonSociale : (invoice.destinataire ? invoice.destinataire.prenom ~ ' ' ~ invoice.destinataire.nom : '') }}</div></td><td><span class="badge-pro badge-pro--warn">{{ row.date|date('d/m/Y') }}</span></td><td class="text-end pe-4"><div class="d-flex flex-wrap gap-2 justify-content-end"><a class="btn btn-sm btn-warning rounded-pill text-nowrap" href="{{ path('app_administrateur_facture_new', {entite: entite.id, renewalSource: invoice.id}) }}">Préparer une facture</a><a class="btn btn-sm btn-outline-dark rounded-pill text-nowrap" href="{{ path('app_invoice_follow_up', {entite: entite.id, id: invoice.id}) }}">Réglages</a><form method="post" action="{{ path('app_invoice_renewal_handled', {entite: entite.id, id: invoice.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('renewal_' ~ invoice.id) }}"><input type="hidden" name="occurrence" value="{{ row.date|date('Y-m-d') }}"><button class="btn btn-sm btn-outline-dark rounded-pill text-nowrap">Marquer comme traité</button></form></div></td></tr>
+    {% for row in invoiceFollowUp.renewals %}{% set invoice = row.invoice %}<tr><td><strong>{{ invoice.numero }}</strong><div class="small text-muted">{{ invoice.entrepriseDestinataire ? invoice.entrepriseDestinataire.raisonSociale : (invoice.destinataire ? invoice.destinataire.prenom ~ ' ' ~ invoice.destinataire.nom : '') }}</div></td><td><span class="badge-pro badge-pro--warn">{{ row.date|date('d/m/Y') }}</span></td><td class="text-end pe-4"><div class="d-flex flex-wrap gap-2 justify-content-end"><a class="btn btn-sm btn-warning rounded-pill text-nowrap" href="{{ path('app_administrateur_facture_new', {entite: entite.id, renewalSource: invoice.id}) }}">Préparer une facture</a><a class="btn btn-sm btn-outline-dark rounded-pill text-nowrap" href="{{ path('app_invoice_follow_up', {entite: entite.id, id: invoice.id}) }}"><i class="bi bi-sliders me-1" aria-hidden="true"></i>Réglages</a><form method="post" action="{{ path('app_invoice_renewal_handled', {entite: entite.id, id: invoice.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('renewal_' ~ invoice.id) }}"><input type="hidden" name="occurrence" value="{{ row.date|date('Y-m-d') }}"><button class="btn btn-sm btn-outline-dark rounded-pill text-nowrap">Marquer comme traité</button></form></div></td></tr>
     {% else %}<tr><td colspan="3" class="text-center text-muted p-4">Aucun renouvellement à préparer pour le moment.</td></tr>{% endfor %}
     </tbody></table></div><p class="p-3 small text-muted border-top mb-0">Après création de la nouvelle facture, marquez le rappel comme traité pour passer à la prochaine échéance de l’abonnement.</p>
   </div>
