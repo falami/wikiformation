@@ -1,8 +1,24 @@
 {% if invoiceFollowUp is not null %}
+{% set outstandingByCurrency = {} %}
+{% for row in invoiceFollowUp.unpaid %}
+  {% set currency = row.invoice.devise %}
+  {% set outstandingByCurrency = outstandingByCurrency|merge({(currency): (outstandingByCurrency[currency]|default(0)) + row.remaining}) %}
+{% endfor %}
 <section id="invoice-follow-up" class="table-pro my-4" aria-labelledby="invoice-follow-up-title">
   <div class="table-pro__head"><h2 class="table-pro__title" id="invoice-follow-up-title"><i class="bi bi-receipt"></i> Factures et renouvellements</h2></div>
   <div class="p-4 border-bottom text-muted small">Toutes les factures de l’organisme, indépendamment des filtres de sessions.</div>
-  <div class="table-pro__body"><div class="px-3 py-3"><h3 class="table-pro__title">Factures en attente de paiement <span class="table-pro__count">{{ invoiceFollowUp.unpaid|length }}</span></h3></div>
+  <div class="table-pro__body"><div class="px-3 py-3 d-flex align-items-center justify-content-between gap-3 flex-wrap">
+    <h3 class="table-pro__title">Factures en attente de paiement <span class="table-pro__count">{{ invoiceFollowUp.unpaid|length }}</span></h3>
+    <div class="rounded-3 border border-warning-subtle bg-warning-subtle px-4 py-3" aria-label="Montant total en attente de paiement">
+      <div class="small text-muted mb-1"><i class="bi bi-hourglass-split me-1" aria-hidden="true"></i>Total restant à payer</div>
+      {% for currency, cents in outstandingByCurrency %}
+        <div class="fs-4 fw-bold text-nowrap">{{ (cents / 100)|number_format(2, ',', ' ') }} {{ currency }}</div>
+      {% else %}
+        <div class="fs-4 fw-bold">0,00 EUR</div>
+      {% endfor %}
+      <div class="small text-muted">Solde TTC après paiements et avoirs</div>
+    </div>
+  </div>
     <form id="invoice-reminder-selection" class="px-3 pb-3 d-flex align-items-center gap-3 flex-wrap" method="post" action="{{ path('app_invoice_remind_selection', {entite: entite.id}) }}">
       <input type="hidden" name="_token" value="{{ csrf_token('invoice_reminders_' ~ entite.id) }}">
       <button class="btn btn-sm btn-warning" data-invoice-send disabled><i class="bi bi-envelope"></i> Relancer la sélection (<span data-invoice-count>0</span>)</button>
