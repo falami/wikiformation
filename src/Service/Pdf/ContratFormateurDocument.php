@@ -34,21 +34,31 @@ final class ContratFormateurDocument
         return $root && $path && str_starts_with($path, $root . DIRECTORY_SEPARATOR) && is_file($path) ? $path : null;
     }
 
-    public function templateData(ContratFormateur $contrat): array
+    public function templateData(ContratFormateur $contrat, bool $recoverOrganisationSignature = false): array
     {
         $session = $contrat->getSession();
         $formateurUser = $contrat->getFormateur()?->getUtilisateur();
         $stagiaires = $session ? $this->participantCount->participants($session, $formateurUser) : [];
         $orgSigDataUri = null;
-        $signature = $this->publicUploadPath($contrat->getSignatureOrganismePath() ?: $contrat->getEntite()?->getPreferences()?->getSignatureOrganismePath());
-        if ($signature) {
+        $signaturePaths = [$contrat->getSignatureOrganismePath() ?: $contrat->getEntite()?->getPreferences()?->getSignatureOrganismePath()];
+        if ($recoverOrganisationSignature) {
+            $signaturePaths[] = $contrat->getEntite()?->getPreferences()?->getSignatureOrganismePath();
+        }
+        $signatureSource = null;
+        foreach (array_unique($signaturePaths) as $relative) {
+            $signature = $this->publicUploadPath($relative);
+            if (!$signature || !is_readable($signature)) continue;
             $mime = mime_content_type($signature);
-            if (in_array($mime, ['image/png', 'image/jpeg', 'image/gif'], true)) {
-                $orgSigDataUri = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($signature));
-            }
+            if (!in_array($mime, ['image/png', 'image/jpeg', 'image/gif'], true) || !@getimagesize($signature)) continue;
+            $bytes = file_get_contents($signature);
+            if (!$bytes) continue;
+            $orgSigDataUri = 'data:' . $mime . ';base64,' . base64_encode($bytes);
+            $signatureSource = $relative;
+            break;
         }
         return ['entite' => $contrat->getEntite(), 'contrat' => $contrat, 'session' => $session,
             'formation' => $session?->getFormation(), 'stagiaires' => $stagiaires, 'orgSigDataUri' => $orgSigDataUri,
+            'organisationSignatureSource' => $signatureSource,
             'effectifStage' => $session ? $this->participantCount->count($session, $formateurUser) : 0,
             'participantsLibres' => $session ? $this->participantCount->freeParticipantNames($session) : [],
         ];

@@ -29,6 +29,7 @@ final class RecoverTrainerContractPdfCommand extends Command
         $this->addArgument('contrat', InputArgument::REQUIRED, 'Identifiant du contrat')
             ->addOption('entite', null, InputOption::VALUE_REQUIRED, 'Identifiant de l’organisme')
             ->addOption('numero', null, InputOption::VALUE_REQUIRED, 'Numéro exact du contrat')
+            ->addOption('corriger-signature-organisme', null, InputOption::VALUE_NONE, 'Corriger une seule fois un PDF produit par cette récupération, en conservant le fichier précédent')
             ->addOption('execute', null, InputOption::VALUE_NONE, 'Effectuer la récupération ; sinon vérifier seulement');
     }
 
@@ -41,10 +42,36 @@ final class RecoverTrainerContractPdfCommand extends Command
             $io->error('Contrat, organisme ou numéro incohérent.');
             return Command::FAILURE;
         }
+        $data = $this->document->templateData($contract, true);
+        if (!$data['orgSigDataUri']) {
+            $io->error('Aucune signature organisme exploitable. Vérifiez la signature dans les préférences de cet organisme et la présence du fichier image sur ce serveur. Aucun PDF ni journal de récupération créé.');
+            return Command::FAILURE;
+        }
+        $io->text('Signature organisme chargée : ' . $data['organisationSignatureSource']);
         $dir = $this->projectDir . '/var/storage/contrat-formateur-recoveries';
         $audit = $dir . '/' . $contract->getId() . '.json';
-        if (!$this->document->isFrozen($contract) || $this->document->storedPath($contract) || is_file($audit)) {
-            $io->error('Récupération refusée : contrat non figé, PDF déjà présent ou récupération déjà effectuée.');
+        $repair = $input->getOption('corriger-signature-organisme');
+        $previousRecovery = null;
+        if ($repair) {
+            $previousRecovery = is_file($audit) ? json_decode(file_get_contents($audit), true) : null;
+            $stored = $this->document->storedPath($contract);
+            if (!$previousRecovery || ($previousRecovery['state'] ?? null) !== 'completed'
+                || ($previousRecovery['path'] ?? null) !== $contract->getPdfPath()
+                || !$stored || !hash_equals($previousRecovery['sha256'] ?? '', hash_file('sha256', $stored))) {
+                $io->error('Correction refusée : le PDF doit correspondre exactement à la récupération enregistrée.');
+                return Command::FAILURE;
+            }
+            $audit = $dir . '/' . $contract->getId() . '-signature.json';
+            if (is_file($audit) || !$this->document->templateData($contract, true)['orgSigDataUri']) {
+                $io->error('Correction déjà effectuée ou signature de l’organisme indisponible.');
+                return Command::FAILURE;
+            }
+        } elseif ($this->document->storedPath($contract) || is_file($audit)) {
+            $io->error('Récupération refusée : PDF déjà présent ou récupération déjà effectuée.');
+            return Command::FAILURE;
+        }
+        if (!$this->document->isFrozen($contract)) {
+            $io->error('Ce contrat ne nécessite pas de récupération.');
             return Command::FAILURE;
         }
         $io->note('Reconstitution à partir des données actuelles, avec les signatures encore enregistrées. Ce document ne remplace pas la preuve du PDF original.');
@@ -68,9 +95,12 @@ final class RecoverTrainerContractPdfCommand extends Command
         fwrite($journal, json_encode($record, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         fflush($journal);
         try {
-            $data = $this->document->templateData($contract);
-            // Do not use today's organisation signature as a substitute for a missing historical one.
-            if (!$contract->getSignatureOrganismePath()) $data['orgSigDataUri'] = null;
+            $data = $this->document->templateData($contract, true);
+            // Use the same signature resolution as normal contract generation:
+            // contract-specific signature first, organisation preferences otherwise.
+            $record['organisationSignatureSource'] = $data['organisationSignatureSource'];
+            $record['previousRecovery'] = $previousRecovery;
+
             $bytes = $this->pdf->createPortraitBytes($this->twig->render('pdf/contrat_formateur.html.twig', $data));
             $relative = 'uploads/contrats-reconstitues/' . bin2hex(random_bytes(24)) . '.pdf';
             $destination = $this->projectDir . '/public/' . $relative;

@@ -120,6 +120,20 @@ final class TrainerWorkflowTest extends KernelTestCase
         $tester = new \Symfony\Component\Console\Tester\CommandTester($command);
         $args = ['contrat' => $contract->getId(), '--entite' => $this->entite->getId(), '--numero' => 'CF-RECOVERY'];
         try {
+            self::assertSame(1, $tester->execute($args + ['--execute' => true]));
+            self::assertFileDoesNotExist($root . '/var/storage/contrat-formateur-recoveries/' . $contract->getId() . '.json');
+            $signatureDir = $root . '/public/uploads/signatures';
+            mkdir($signatureDir, 0770, true);
+            file_put_contents($signatureDir . '/org.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aOuoAAAAASUVORK5CYII='));
+            $preferences = (new \App\Entity\EntitePreferences())->setCreateur($this->admin);
+            $preferences->setSignatureOrganismePath('uploads/signatures/org.png');
+            $this->entite->setPreferences($preferences);
+            $this->em->persist($preferences);
+            $this->em->flush();
+            $contract->setSignatureOrganismePath('uploads/signatures/deleted.png');
+            $this->em->flush();
+            self::assertNull($document->templateData($contract)['orgSigDataUri']);
+            self::assertNotNull($document->templateData($contract, true)['orgSigDataUri']);
             self::assertSame(0, $tester->execute($args));
             self::assertNull($contract->getPdfPath());
             self::assertSame(0, $tester->execute($args + ['--execute' => true]));
@@ -128,7 +142,13 @@ final class TrainerWorkflowTest extends KernelTestCase
             self::assertSame(1, $contract->getVersionNumero());
             self::assertSame(ContratFormateurStatus::SIGNE, $contract->getStatus());
             if (getenv('RECOVERY_PDF_PREVIEW')) copy($path, getenv('RECOVERY_PDF_PREVIEW'));
-            unlink($path);
+            // Old recovery PDFs can be corrected once, without deleting their previous bytes.
+            self::assertNotNull($document->templateData($contract, true)['orgSigDataUri']);
+            self::assertSame(0, $tester->execute($args + ['--execute' => true, '--corriger-signature-organisme' => true]));
+            self::assertFileExists($path);
+            self::assertNotSame($path, $document->storedPath($contract));
+            self::assertSame(1, $tester->execute($args + ['--execute' => true, '--corriger-signature-organisme' => true]));
+            unlink($document->storedPath($contract));
             self::assertSame(1, $tester->execute($args + ['--execute' => true]));
         } finally {
             (new \Symfony\Component\Filesystem\Filesystem())->remove($root);
