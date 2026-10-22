@@ -45,13 +45,24 @@ final class InvoiceFollowUp
         return max($date, $dueDate->modify('+1 day')->setTime(0, 0));
     }
 
+    /** Indicative allocation: payments and global credits have no tax-line allocation. */
+    public static function remainingBreakdown(Facture $invoice): array
+    {
+        $remaining = InvoiceTotals::outstanding($invoice);
+        $totals = InvoiceTotals::calculate($invoice);
+        $total = InvoiceTotals::totalTtc($invoice);
+        $vat = $total > 0 ? (int) round($remaining * $totals['tvaCents'] / $total) : 0;
+        $vat = max(0, min($remaining, $vat));
+        return ['ht' => $remaining - $vat, 'vat' => $vat, 'ttc' => $remaining];
+    }
+
     public function rows(Entite $entite, ?\DateTimeImmutable $today = null): array
     {
         $today ??= new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris'));
         $rows = ['unpaid' => [], 'renewals' => []];
         foreach ($this->em->getRepository(Facture::class)->findBy(['entite' => $entite], ['dateEmission' => 'ASC']) as $invoice) {
             $remaining = InvoiceTotals::outstanding($invoice);
-            if ($remaining > 0) $rows['unpaid'][] = ['invoice' => $invoice, 'remaining' => $remaining, 'reminderDate' => self::reminderDate($invoice), 'canRemind' => InvoiceReminderRunner::canSendManually($invoice, new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))];
+            if ($remaining > 0) $rows['unpaid'][] = ['invoice' => $invoice, 'remaining' => $remaining, 'remainingBreakdown' => self::remainingBreakdown($invoice), 'reminderDate' => self::reminderDate($invoice), 'canRemind' => InvoiceReminderRunner::canSendManually($invoice, new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))];
             $date = self::renewalDate($invoice);
             if ($date && $date <= $today) $rows['renewals'][] = ['invoice' => $invoice, 'date' => $date];
         }

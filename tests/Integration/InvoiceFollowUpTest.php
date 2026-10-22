@@ -37,6 +37,17 @@ final class InvoiceFollowUpTest extends KernelTestCase
     {
         return (new Facture())->setEntite($this->entity)->setCreateur($this->user)->setDestinataire($this->user)->setNumero('TEST-'.bin2hex(random_bytes(3)))->setDateEmission(new \DateTimeImmutable('2024-01-31'))->setMontantHtCents(10000)->setMontantTvaCents(2000)->setMontantTtcCents(12000)->setMeta(['follow_up' => $settings]);
     }
+    public function testOutstandingBreakdownAllocatesPartialPaymentsAndCredits(): void
+    {
+        $invoice = $this->invoice();
+        self::assertSame(['ht' => 10000, 'vat' => 2000, 'ttc' => 12000], InvoiceFollowUp::remainingBreakdown($invoice));
+        $invoice->addPaiement((new Paiement())->setMontantCents(3000));
+        $invoice->addAvoir((new Avoir())->setMontantTtcCents(3000));
+        self::assertSame(['ht' => 5000, 'vat' => 1000, 'ttc' => 6000], InvoiceFollowUp::remainingBreakdown($invoice));
+        $invoice->addPaiement((new Paiement())->setMontantCents(6000));
+        self::assertSame(['ht' => 0, 'vat' => 0, 'ttc' => 0], InvoiceFollowUp::remainingBreakdown($invoice));
+    }
+
     public function testCalendarAndIndependentSettings(): void
     {
         $invoice = $this->invoice(['renewalMonths' => 1]);
