@@ -46,7 +46,7 @@ final class InvoicePayload
             if ($gross > $line['htCents']) $row['allowances'] = [['amount' => self::money($gross - $line['htCents']), 'reason' => 'Remise commerciale']];
             $lines[] = $row;
         }
-        $data = ['number' => $s['invoice']['numero'], 'issue_date' => $s['invoice']['dateEmission'], 'type_code' => '380', 'currency_code' => 'EUR',
+        $data = ['number' => $s['invoice']['numero'], 'issue_date' => $s['invoice']['dateEmission'], 'type_code' => 380, 'currency_code' => 'EUR',
             'process_control' => ['specification_identifier' => 'urn:cen.eu:en16931:2017'],
             'seller' => $this->party($s['issuer'], $s['issuer']['nom'], '0225:'.$s['issuer']['siren']) + ['additional_legal_information' => (string) $terms['legalIdentity']],
             'buyer' => $this->party($s['customer'], $s['customer']['raisonSociale'], $buyerEndpoint),
