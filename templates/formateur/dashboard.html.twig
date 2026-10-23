@@ -1157,6 +1157,20 @@ html, body{
     <div class="card-body p-4"><div class="d-flex flex-wrap justify-content-between align-items-center gap-3"><div><h2 id="charters-dashboard-title" class="h4 fw-bold"><i class="bi bi-journal-check text-warning me-2"></i>Mes engagements qualité</h2><p class="text-muted mb-0">{{ pendingCharters|length ? pendingCharters|length ~ ' charte(s) attendent votre signature.' : 'Retrouvez vos chartes et vos exemplaires signés.' }}</p></div><a class="btn btn-outline-dark rounded-pill" href="{{ path('app_charter_mine',{entite:entite.id}) }}">Mes chartes qualité</a></div>
     {% for signature in pendingCharters %}<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-top pt-3 mt-3"><strong>{{ signature.version.title }} · Version {{ signature.version.number }}</strong><a class="btn btn-warning rounded-pill" href="{{ path('app_charter_sign',{entite:entite.id,id:signature.id}) }}">Lire et signer</a></div>{% endfor %}</div>
   </section>
+  <section class="card border-0 shadow-sm rounded-4 mb-4" aria-labelledby="reports-dashboard-title">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div><h2 id="reports-dashboard-title" class="h4 fw-bold"><i class="bi bi-journal-text text-warning me-2" aria-hidden="true"></i>Mes comptes rendus</h2><p class="text-muted mb-0">{{ pendingReports|length ? pendingReports|length ~ ' compte(s) rendu(s) de fin de formation à compléter.' : 'Tous vos comptes rendus déposés sont disponibles ici.' }}</p></div>
+        <a class="btn btn-outline-dark rounded-pill" href="{{ path('app_formateur_rapport_index', {entite:entite.id}) }}">Mes comptes rendus</a>
+      </div>
+      {% for session in pendingReports %}
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-top pt-3 mt-3">
+          <div><strong>{{ session.code }}</strong><div class="small text-muted">{{ session.formation.titre|default(session.formationIntituleLibre) }}</div></div>
+          <a class="btn btn-warning rounded-pill" href="{{ path('app_formateur_rapport_new', {entite:entite.id,session:session.id}) }}">Compléter mon compte rendu</a>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
   {% if pendingContracts is not empty %}
   <section class="card border-0 shadow-sm rounded-4 mb-4 mt-3" aria-labelledby="pending-contracts-title">
     <div class="card-body p-4">

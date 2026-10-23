@@ -322,6 +322,7 @@ class DashboardFormateurController extends AbstractController
         }
 
         $pendingSessions = [];
+        $pendingReports = [];
         if ($formateur) {
             $candidates = $sessions->createForFormateurQueryBuilder($entite, $formateur)
                 ->andWhere('s.status NOT IN (:closedStatuses)')
@@ -334,6 +335,7 @@ class DashboardFormateurController extends AbstractController
                 }
             }
             foreach ($candidates as $candidate) {
+                if (\App\Service\TrainerReminder\PendingTrainerReport::isMissing($candidate, $formateur, new \DateTimeImmutable())) $pendingReports[] = $candidate;
                 $pending = $followUp->summarize($candidate, $formateur, $todayStart, $conventionsBySession[$candidate->getId()] ?? []);
                 if ($pending) $pendingSessions[] = $pending;
             }
@@ -345,6 +347,7 @@ class DashboardFormateurController extends AbstractController
             'utilisateurEntite' => $utilisateurEntite,
             'nextSession'       => $nextSession,
             'pendingSessions' => $pendingSessions,
+            'pendingReports' => $pendingReports,
             'pendingCharters' => $formateur ? $charters->pending($entite,$formateur) : [],
             'pendingContracts' => $formateur
                 ? $em->getRepository(ContratFormateur::class)->findAwaitingTrainerSignature($entite, $formateur)

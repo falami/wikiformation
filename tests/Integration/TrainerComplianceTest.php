@@ -55,7 +55,7 @@ final class TrainerComplianceTest extends KernelTestCase
         $token=$page->filter('#trainer-compliance input[name="_token"]')->first()->attr('value');
         $this->client->request('POST','/fr/administrateur/'.$this->entiteId.'/dashboard/relance-formateur',['key'=>$key,'_token'=>$token],[],['HTTP_X_REQUESTED_WITH'=>'XMLHttpRequest']);
         self::assertSame(200,$this->client->getResponse()->getStatusCode());
-        self::assertSame(['sent'=>0,'skipped'=>1,'failed'=>0],json_decode($this->client->getResponse()->getContent(),true));
+        self::assertSame(['lastReminderAt'=>null,'sent'=>0,'skipped'=>1,'failed'=>0],json_decode($this->client->getResponse()->getContent(),true));
 
         $db->update('trainer_reminder_delivery',['created_at'=>gmdate('Y-m-d H:i:s',time()-90000)],['scope_key'=>'manual:'.$key]);
         self::assertTrue((bool)$service->pending($entite)[$key]['available']);

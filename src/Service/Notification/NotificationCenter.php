@@ -99,14 +99,11 @@ final class NotificationCenter
             if (in_array($space,['admin','formateur'],true)) {
                 foreach ($s->getFormateursEffectifs() as $f) {
                     if ($f->getEntite()?->getId()!==$tenant->getId() || ($space==='formateur' && $f->getUtilisateur()?->getId()!==$user->getId())) continue;
-                    $reportFound=false;
                     foreach ($s->getRapportFormateurs() as $report) {
                         if ($report->getEntite()?->getId()!==$tenant->getId() || $report->getFormateur()?->getId()!==$f->getId()) continue;
-                        $reportFound=true;
                         $this->add($items,'report:'.$report->getId(),'feedback','info','Compte rendu formateur déposé',$context,$this->url($space==='admin'?'app_administrateur_rapport_edit':'app_formateur_rapport_show',$tenant,['id'=>$report->getId()]),$report->getSubmittedAt(),$s->getId());
                     }
-                    foreach ($s->getPieces() as $piece) if ($piece->getEntite()?->getId()===$tenant->getId() && $piece->getType()===\App\Enum\SessionPieceType::COMPTE_RENDU_FORMATEUR) $reportFound=true;
-                    if (!$reportFound && $active && $ended && !$s->isSousTraitance()) $this->add($items,'report-pending:'.$s->getId().':'.$f->getId(),'feedback','action','Compte rendu formateur attendu',$context,$space==='formateur'?$this->url('app_formateur_rapport_new',$tenant,['session'=>$s->getId()]):$url,null,$s->getId());
+                    if (\App\Service\TrainerReminder\PendingTrainerReport::isMissing($s, $f, $now)) $this->add($items,'report-pending:'.$s->getId().':'.$f->getId(),'feedback','action','Compte rendu formateur attendu',$context,$space==='formateur'?$this->url('app_formateur_rapport_new',$tenant,['session'=>$s->getId()]):$url,null,$s->getId());
                     $assigned=false;
                     foreach ($s->getFormateurSatisfactionAssignments() as $a) if ($a->getEntite()?->getId()===$tenant->getId() && $a->getFormateur()?->getId()===$f->getUtilisateur()?->getId()) $assigned=true;
                     if ($space==='admin' && !$assigned && $active && $ended && !$s->isSousTraitance()) $this->add($items,'trainer-feedback-pending:'.$s->getId().':'.$f->getId(),'feedback','action','Questionnaire formateur à affecter',$context,$space==='formateur'?$this->url('app_formateur_satisfaction_fill',$tenant,['session'=>$s->getId()]):$url,null,$s->getId());

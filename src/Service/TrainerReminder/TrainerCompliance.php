@@ -54,6 +54,14 @@ final class TrainerCompliance
             $add($trainer, 'contract:'.$contract->getId().':'.$contract->getVersionNumero(), 'Contrat', $contract->getNumero().' · '.$session->getCode(), 'app_formateur_contrat_sign', ['contrat'=>$contract->getId()]);
         }
         foreach ($this->em->getRepository(Session::class)->findBy(['entite'=>$entite]) as $session) {
+            foreach ($session->getFormateursEffectifs() as $trainer) {
+                if (PendingTrainerReport::isMissing($session, $trainer, $now)) {
+                    $add($trainer, 'report:'.$session->getId().':'.$trainer->getId(), 'Compte rendu formateur',
+                        $session->getCode().' · Compte rendu de fin de formation à compléter',
+                        'app_formateur_rapport_new', ['session'=>$session->getId()]);
+                }
+            }
+
             if (in_array($session->getStatus(), [StatusSession::CANCELED, StatusSession::DRAFT], true) || !$session->isEmargementEnAttenteRequis()) continue;
             foreach ($session->getFormateursEffectifs() as $trainer) {
                 $user = $trainer->getUtilisateur();
@@ -99,8 +107,9 @@ final class TrainerCompliance
         } catch (UniqueConstraintViolationException) { return 'skipped'; }
         $id=$db->lastInsertId();
         try {
-            $html=$this->twig->render('emails/trainer_compliance.html.twig', $row+['entite'=>$entite,'subject'=>$subject]);
-            $this->mailer->sendHtml($entite,$row['trainer']->getUtilisateur()->getEmail(),$subject,$html,$subject."\n".$row['detail']."\nConnectez-vous à votre espace formateur : ".$row['url']);
+            $qr = (new \Endroid\QrCode\Writer\PngWriter())->write(new \Endroid\QrCode\QrCode(data: $row['url'], size: 300, margin: 16))->getString();
+            $html=$this->twig->render('emails/trainer_compliance.html.twig', $row+['entite'=>$entite,'subject'=>$subject,'qrCid'=>'trainer-compliance-qr']);
+            $this->mailer->sendParticipantReminder($entite,$row['trainer']->getUtilisateur()->getEmail(),$subject,$html,$subject."\n".$row['detail']."\nConnectez-vous à votre espace formateur : ".$row['url'], ['trainer-compliance-qr'=>$qr]);
             $db->update('trainer_reminder_delivery',['status'=>'sent','sent_at'=>$at],['id'=>$id]);
             $sentAt = (new \DateTimeImmutable($at, new \DateTimeZone('UTC')))->format(DATE_ATOM);
             return 'sent';

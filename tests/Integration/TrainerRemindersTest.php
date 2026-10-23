@@ -67,6 +67,60 @@ final class TrainerRemindersTest extends KernelTestCase
     private function candidates(string $date = '2026-10-08 10:00 UTC'): array { return iterator_to_array($this->runner->candidates($this->entite, new \DateTimeImmutable($date)), false); }
     private function send(array $message, string $date = '2026-10-08 10:00 UTC'): string { return $this->runner->send($message, new \DateTimeImmutable($date)); }
 
+    public function testMissingReportCanBeRemindedAndDisappearsAfterSubmission(): void
+    {
+        $transport = $this->createMock(MailerInterface::class);
+        $transport->expects(self::once())->method('send')->willReturnCallback(function ($mail) {
+            self::assertStringContainsString('Compléter mon compte rendu', $mail->getHtmlBody());
+            self::assertStringContainsString('cid:trainer-compliance-qr', $mail->getHtmlBody());
+            self::assertCount(1, $mail->getAttachments());
+            self::assertSame('image', $mail->getAttachments()[0]->getMediaType());
+            self::assertSame('png', $mail->getAttachments()[0]->getMediaSubtype());
+        });
+        $twig = self::getContainer()->get('twig'); $router = self::getContainer()->get('router');
+        $service = new \App\Service\TrainerReminder\TrainerCompliance($this->em, new \App\Service\TrainerCharter\CharterManager($this->em), $router, new MailerManager($transport, $twig, $router), $twig, new NullLogger());
+        $key = 'report:'.$this->session->getId().':'.$this->trainer->getId();
+        self::assertArrayHasKey($key, $service->pending($this->entite));
+        self::assertSame('sent', $service->send($this->entite, $key));
+        self::assertSame('skipped', $service->send($this->entite, $key));
+        foreach ([StatusSession::DRAFT, StatusSession::CANCELED, StatusSession::DONE] as $status) {
+            $this->session->setStatus($status);
+            self::assertArrayNotHasKey($key, $service->pending($this->entite));
+        }
+        $this->session->setStatus(StatusSession::IN_PROGRESS);
+        $report = (new \App\Entity\RapportFormateur())->setEntite($this->entite)->setFormateur($this->trainer)->setSession($this->session);
+        $this->session->getRapportFormateurs()->add($report);
+        self::assertArrayNotHasKey($key, $service->pending($this->entite));
+        self::assertSame('skipped', $service->send($this->entite, $key));
+    }
+
+    public function testAdministratorCanCorrectActualTrainerWithAudit(): void
+    {
+        $replacementUser = (new Utilisateur())->setEmail('replacement@test.example')->setPassword('unused')->setPrenom('Actual')->setNom('Trainer');
+        $replacement = (new Formateur())->setUtilisateur($replacementUser)->setEntite($this->entite)->setCreateur($this->user);
+        $this->em->persist($replacementUser); $this->em->persist($replacement);
+        $signature = (new Emargement())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->user)->setUtilisateur($this->user)->setRole('formateur')->setDateJour(new \DateTimeImmutable('2026-10-01'))->setPeriode(DemiJournee::AM)->setSignatureDataUrl('data:image/png;base64,original');
+        $this->em->persist($signature); $this->em->flush();
+        $client = self::getContainer()->get('test.client'); $client->disableReboot(); $client->catchExceptions(false); $client->loginUser($this->user);
+        $url = '/fr/administrateur/'.$this->entite->getId().'/session/'.$this->session->getId().'/corriger-intervenant';
+        $page = $client->request('GET', $url);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $form = $page->selectButton('Enregistrer la correction')->form([
+            'form[source]' => $this->trainer->getId(), 'form[target]' => $replacement->getId(),
+            'form[reason]' => 'Le remplaçant a assuré et signé la formation.', 'form[confirm]' => '1',
+        ]);
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em = self::getContainer()->get('doctrine')->getManager();
+        $signature = $this->em->find(Emargement::class, $signature->getId());
+        $this->session = $this->em->find(Session::class, $this->session->getId());
+        self::assertSame($replacementUser->getId(), $signature->getUtilisateur()->getId());
+        self::assertSame('data:image/png;base64,original', $signature->getSignatureDataUrl());
+        self::assertSame($replacement->getId(), $this->session->getFormateur()->getId());
+        self::assertSame($this->trainer->getId(), $this->contract->getFormateur()->getId());
+        self::assertSame(1, $this->em->getRepository(\App\Entity\AuditLog::class)->count(['event'=>'trainer_attendance_attribution_corrected']));
+    }
+
     public function testManualComplianceTransportAndSignatureResolution(): void
     {
         $transport=$this->createMock(MailerInterface::class);

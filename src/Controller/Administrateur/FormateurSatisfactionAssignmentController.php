@@ -249,6 +249,43 @@ final class FormateurSatisfactionAssignmentController extends AbstractController
     ]);
   }
 
+  #[Route('/{assignment}/modifier', name: 'edit', methods: ['GET', 'POST'], requirements: ['assignment' => '\\d+'])]
+  public function edit(Entite $entite, FormateurSatisfactionAssignment $assignment, Request $request, EM $em): Response
+  {
+    if ($assignment->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    if ($assignment->getAttempt()) {
+      $this->addFlash('warning', 'Une tentative existe déjà : son auteur doit être conservé. Créez une affectation distincte pour le remplaçant.');
+      return $this->redirectToRoute('app_administrateur_formateur_satisfaction_assignment_index', ['entite'=>$entite->getId()]);
+    }
+    $choices = [];
+    foreach ($em->getRepository(\App\Entity\Formateur::class)->findBy(['entite'=>$entite]) as $trainer) {
+      $user = $trainer->getUtilisateur();
+      if ($user) $choices[$user->getId()] = $user;
+    }
+    $form = $this->createFormBuilder(['formateur'=>$assignment->getFormateur()])
+      ->add('formateur', \Symfony\Bridge\Doctrine\Form\Type\EntityType::class, [
+        'class'=>Utilisateur::class, 'choices'=>array_values($choices), 'label'=>'Formateur ayant assuré la formation',
+        'choice_label'=>static fn(Utilisateur $u): string => trim($u->getPrenom().' '.$u->getNom()).' · '.$u->getEmail(),
+        'placeholder'=>'Choisir un formateur',
+      ])->getForm();
+    $form->handleRequest($request);
+    if ($form->isSubmitted() && $form->isValid()) {
+      $target = $form->get('formateur')->getData();
+      $duplicate = $em->getRepository(FormateurSatisfactionAssignment::class)->findOneBy([
+        'session'=>$assignment->getSession(), 'formateur'=>$target, 'template'=>$assignment->getTemplate(),
+      ]);
+      if ($duplicate && $duplicate->getId() !== $assignment->getId()) {
+        $form->get('formateur')->addError(new \Symfony\Component\Form\FormError('Ce formateur possède déjà cette affectation.'));
+      } else {
+        $assignment->setFormateur($target);
+        $em->flush();
+        $this->addFlash('success', 'Le questionnaire a été réaffecté au formateur sélectionné.');
+        return $this->redirectToRoute('app_administrateur_formateur_satisfaction_assignment_index', ['entite'=>$entite->getId()]);
+      }
+    }
+    return $this->render('administrateur/formateur/satisfaction/assignment/edit.html.twig', ['entite'=>$entite, 'assignment'=>$assignment, 'form'=>$form->createView()]);
+  }
+
   #[Route('/{assignment}/force-attempt', name: 'force_attempt', methods: ['POST'], requirements: ['assignment' => '\d+'])]
   public function forceAttempt(Entite $entite, FormateurSatisfactionAssignment $assignment, EM $em): JsonResponse
   {

@@ -244,6 +244,7 @@ class RapportFormateurController extends AbstractController
 
         $formateur = $em->getRepository(Formateur::class)->findOneBy([
             'utilisateur' => $user,
+            'entite' => $entite,
         ]);
 
         $r = new RapportFormateur();
@@ -256,7 +257,7 @@ class RapportFormateurController extends AbstractController
         $sessionId = $req->query->get('session');
         if ($sessionId) {
             $session = $em->getRepository(Session::class)->find($sessionId);
-            if ($session && $session->getEntite()->getId() === $entite->getId()) {
+            if ($session && $session->getEntite()->getId() === $entite->getId() && $formateur && $session->hasFormateur($formateur)) {
                 $r->setSession($session);
             }
         }
