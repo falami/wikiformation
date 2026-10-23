@@ -44,6 +44,11 @@ printf 'Backup completed at %s\n' "$(date -Iseconds)" > "$BACKUP_DIR/COMPLETE"
 umask 022
 git pull --ff-only
 
+# Apache must be able to traverse the document root and read its access rules.
+# Do not apply this to application secrets, uploads, or parent directories.
+chmod 755 public
+chmod 644 public/.htaccess public/index.php
+
 # Check the shared table assets before running migrations. A partial upload
 # otherwise leaves every administrative listing with broken row actions.
 for asset in \

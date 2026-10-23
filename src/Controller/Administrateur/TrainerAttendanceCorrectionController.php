@@ -3,7 +3,7 @@
 declare(strict_types=1);
 namespace App\Controller\Administrateur;
 
-use App\Entity\{Entite, Session, Formateur, Emargement, AuditLog};
+use App\Entity\{Entite, Session, Formateur, Emargement, AuditLog, ContratFormateur};
 use App\Security\Permission\TenantPermission;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
@@ -22,9 +22,12 @@ final class TrainerAttendanceCorrectionController extends AbstractController
     {
         if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         $trainers = $em->getRepository(Formateur::class)->findBy(['entite'=>$entite]);
-        $options = ['class'=>Formateur::class, 'choices'=>$trainers, 'choice_label'=>static fn(Formateur $f): string => trim($f->getUtilisateur()?->getPrenom().' '.$f->getUtilisateur()?->getNom()), 'placeholder'=>'Choisir un formateur'];
+        $currentTrainers = array_values(array_filter($session->getFormateursEffectifs(), static fn(Formateur $f): bool => $f->getUtilisateur() !== null));
+        $trainers = array_values(array_filter($trainers, static fn(Formateur $f): bool => $f->getUtilisateur() !== null));
+        $contracts = $em->getRepository(ContratFormateur::class)->findBy(['entite'=>$entite, 'session'=>$session], ['id'=>'DESC']);
+        $options = ['class'=>Formateur::class, 'choices'=>$trainers, 'choice_label'=>static fn(Formateur $f): string => trim($f->getUtilisateur()?->getPrenom().' '.$f->getUtilisateur()?->getNom()).' · '.$f->getUtilisateur()?->getEmail(), 'placeholder'=>'Choisir un formateur'];
         $form = $this->createFormBuilder()
-            ->add('source', EntityType::class, $options + ['label'=>'Formateur indiqué actuellement'])
+            ->add('source', EntityType::class, array_replace($options, ['choices'=>$currentTrainers, 'data'=>count($currentTrainers) === 1 ? $currentTrainers[0] : null, 'label'=>'Formateur indiqué actuellement']))
             ->add('target', EntityType::class, $options + ['label'=>'Formateur ayant réellement assuré et signé la formation'])
             ->add('reason', TextareaType::class, ['label'=>'Motif de la correction', 'constraints'=>[new \Symfony\Component\Validator\Constraints\NotBlank(), new \Symfony\Component\Validator\Constraints\Length(max:2000)]])
             ->add('confirm', CheckboxType::class, ['label'=>'Je confirme que les signatures concernées ont été réalisées par le formateur remplaçant.', 'constraints'=>[new \Symfony\Component\Validator\Constraints\IsTrue()]])
@@ -55,11 +58,11 @@ final class TrainerAttendanceCorrectionController extends AbstractController
                             'attendanceIds'=>$ids, 'reason'=>$data['reason'],
                         ]));
                     });
-                    $this->addFlash('success', 'Intervenant et attribution des émargements corrigés. Vous pouvez télécharger la feuille actualisée.');
+                    $this->addFlash('success', 'Intervenant et attribution des émargements corrigés. Les contrats initiaux restent rattachés à la session, sans modification. Vous pouvez télécharger la feuille actualisée.');
                     return $this->redirectToRoute('app_administrateur_session_show', ['entite'=>$entite->getId(), 'id'=>$session->getId()]);
                 }
             }
         }
-        return $this->render('administrateur/session/correct_trainer.html.twig', ['entite'=>$entite, 'session'=>$session, 'form'=>$form->createView()]);
+        return $this->render('administrateur/session/correct_trainer.html.twig', ['entite'=>$entite, 'session'=>$session, 'form'=>$form->createView(), 'contracts'=>$contracts]);
     }
 }

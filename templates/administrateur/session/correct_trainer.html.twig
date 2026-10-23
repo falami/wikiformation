@@ -1,13 +1,47 @@
-{% extends 'formateur/rapport/show.html.twig' %}
-{% block title %}Corriger l’intervenant réel{% endblock %}
+{% extends 'base_admin.html.twig' %}
+{% block title %}Intervenant réel · {{ session.code }}{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+<style>
+.tc-page{--tc-ink:#233747;--tc-muted:#708091;--tc-line:#e3e9ee;max-width:1240px;margin:24px auto 48px;color:var(--tc-ink)}
+.tc-back{display:inline-flex;align-items:center;gap:8px;color:var(--tc-muted);text-decoration:none;font-size:.86rem;margin-bottom:18px}.tc-back:hover{color:var(--tc-ink)}
+.tc-hero{padding:28px 32px;border-radius:22px;background:linear-gradient(120deg,#203343,#314e5b);color:white;position:relative;overflow:hidden;margin-bottom:22px}.tc-hero:after{content:'';position:absolute;width:230px;height:230px;border:1px solid #ffffff16;border-radius:50%;right:-70px;top:-100px;pointer-events:none}.tc-eyebrow{font-size:.7rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#ddbd6c;margin-bottom:10px}.tc-hero h1{font-size:clamp(1.6rem,3vw,2.15rem);font-weight:750;letter-spacing:-.04em;margin:0 0 10px}.tc-hero p{color:#d4e0e6;margin:0;max-width:730px;line-height:1.65}.tc-code{display:inline-flex;gap:8px;align-items:center;border:1px solid #ffffff26;border-radius:8px;padding:6px 10px;font-size:.78rem;margin-top:18px;color:#f1e6c2}
+.tc-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:22px;align-items:start}.tc-card{border:1px solid var(--tc-line);border-radius:20px;background:#fff;box-shadow:0 8px 28px #23374706;min-width:0}.tc-card-head{padding:22px 26px;border-bottom:1px solid var(--tc-line);display:flex;gap:12px;align-items:center}.tc-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#f5f0e3;color:#9a772a;flex-shrink:0}.tc-card h2{font-size:1.02rem;font-weight:750;margin:0}.tc-card-head p{font-size:.8rem;margin:4px 0 0;color:var(--tc-muted)}.tc-form-body{padding:26px}.tc-step{display:flex;gap:14px;margin-bottom:23px}.tc-number{border:1px solid var(--tc-line);border-radius:50%;width:28px;height:28px;display:grid;place-items:center;font-size:.72rem;font-weight:800;flex-shrink:0;margin-top:4px;color:var(--tc-muted)}.tc-field{flex:1;min-width:0}.tc-field .form-label{font-size:.85rem;font-weight:700;margin-bottom:9px}.tc-field .form-control,.tc-field .form-select,.tc-field .ts-control{border-color:#dce4eb;border-radius:11px;min-height:48px;box-shadow:none}.tc-field .ts-control{padding:12px 14px}.tc-field .ts-dropdown{border:1px solid var(--tc-line);border-radius:12px;overflow:hidden;box-shadow:0 14px 35px #2337471a}.tc-field .ts-dropdown .option{padding:12px 14px}.tc-field .ts-dropdown .active{background:#f6f1e4;color:var(--tc-ink)}.tc-field .ts-wrapper.focus .ts-control,.tc-field .form-control:focus{border-color:#bda057;box-shadow:0 0 0 3px #ddbd6c26}.tc-hint{font-size:.77rem;color:var(--tc-muted);margin:8px 0 0;line-height:1.6}.tc-confirm{background:#f6f8fa;border:1px solid var(--tc-line);border-radius:12px;padding:16px;font-size:.82rem;line-height:1.6}.tc-confirm .form-check{margin:0}.tc-footer{padding:20px 26px;border-top:1px solid var(--tc-line);display:flex;gap:15px;align-items:center;justify-content:space-between;flex-wrap:wrap}.tc-save{background:#eac65f;color:#263444;border:1px solid #dfbc55;border-radius:11px;padding:12px 18px;font-weight:750;font-size:.86rem}.tc-save:hover{background:#ddba52}.tc-cancel{font-size:.82rem;color:var(--tc-muted)}.tc-summary{padding:24px}.tc-summary h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;font-weight:800;color:var(--tc-muted);margin-bottom:16px}.tc-person{padding:12px 0;overflow-wrap:anywhere}.tc-person small{display:block;color:var(--tc-muted);font-size:.72rem;margin-bottom:5px}.tc-person strong{font-size:.87rem}.tc-person+.tc-person{border-top:1px dashed var(--tc-line)}.tc-kept{margin-top:20px;border-radius:14px;background:#eef6f2;border:1px solid #d7e9df;padding:17px}.tc-kept strong{font-size:.87rem;color:#315f4b}.tc-kept p{font-size:.8rem;line-height:1.65;color:#597467;margin:8px 0 0}.tc-contract{padding:14px 0;border-bottom:1px solid var(--tc-line);font-size:.83rem}.tc-contract:last-child{border-bottom:0}.tc-contract a{color:var(--tc-ink);font-weight:750;text-decoration:none}.tc-contract a:hover{text-decoration:underline}.tc-contract small{display:block;color:var(--tc-muted);margin-top:5px}.tc-note{font-size:.78rem;line-height:1.7;color:var(--tc-muted);margin:20px 3px 0}.tc-note strong{color:var(--tc-ink)}
+@media(max-width:950px){.tc-layout{grid-template-columns:1fr}.tc-page{margin:16px auto 30px}.tc-hero{padding:24px}.tc-form-body,.tc-summary{padding:20px}.tc-card-head,.tc-footer{padding:20px}}
+@media(prefers-reduced-motion:no-preference){.tc-save{transition:background .15s}}
+</style>
+{% endblock %}
 {% block body %}
-<div class="container py-4" style="max-width:850px">
-<a class="btn btn-outline-secondary mb-3" href="{{ path('app_administrateur_session_show',{entite:entite.id,id:session.id}) }}">← Retour à la session</a>
-<div class="card border-0 shadow-sm rounded-4"><div class="card-body p-4">
-<h1 class="h3 fw-bold">Corriger l’intervenant réel</h1><p class="text-muted">{{ session.code }}</p>
-<p>Cette correction remplace le formateur sélectionné sur tous ses créneaux de cette session et réattribue ses émargements au formateur ayant réellement signé.</p>
-<p class="small text-muted">Les signatures, dates de signature et preuves techniques sont conservées. Le contrat reste au nom de son titulaire initial. Le motif, l’ancien et le nouveau formateur sont enregistrés dans l’historique technique. Les questionnaires et comptes rendus déjà déposés ne sont pas réattribués.</p>
 {% form_theme form 'bootstrap_5_layout.html.twig' %}
-{{ form_start(form) }}{{ form_widget(form) }}<button class="btn btn-warning mt-3">Enregistrer la correction</button>{{ form_end(form) }}
-</div></div></div>
+<div class="tc-page">
+<a class="tc-back" href="{{ path('app_administrateur_session_show',{entite:entite.id,id:session.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Retour à la session</a>
+<header class="tc-hero"><div class="tc-eyebrow">Session · Équipe pédagogique</div><h1>Le bon intervenant, sur les bons documents.</h1><p>Indiquez qui a réellement assuré la formation et signé les émargements. Le contrat initial reste rattaché à cette session.</p><span class="tc-code"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ session.code }}</span></header>
+<div class="tc-layout">
+<section class="tc-card" aria-labelledby="tc-form-title">
+<div class="tc-card-head"><span class="tc-icon"><i class="bi bi-person-check" aria-hidden="true"></i></span><div><h2 id="tc-form-title">Corriger l’intervenant réel</h2><p>Une correction tracée, des signatures conservées.</p></div></div>
+{{ form_start(form, {attr:{id:'trainer-correction-form'}}) }}
+<div class="tc-form-body">{{ form_errors(form) }}
+<div class="tc-step"><span class="tc-number" aria-hidden="true">01</span><div class="tc-field">{{ form_row(form.source,{attr:{class:'tc-trainer-select'}}) }}<p class="tc-hint">Les intervenants actuellement affectés à cette session.</p></div></div>
+<div class="tc-step"><span class="tc-number" aria-hidden="true">02</span><div class="tc-field">{{ form_row(form.target,{label:'Intervenant réel',attr:{class:'tc-trainer-select'}}) }}<p class="tc-hint">Recherchez le remplaçant par nom ou adresse e-mail.</p></div></div>
+<div class="tc-step"><span class="tc-number" aria-hidden="true">03</span><div class="tc-field">{{ form_row(form.reason,{attr:{rows:3,placeholder:'Ex. Le titulaire du contrat a mandaté ce formateur pour assurer la session.',maxlength:2000}}) }}</div></div>
+<div class="tc-confirm">{{ form_row(form.confirm) }}</div>
+</div><div class="tc-footer"><a class="tc-cancel" href="{{ path('app_administrateur_session_show',{entite:entite.id,id:session.id}) }}">Annuler</a><button class="tc-save" type="submit"><i class="bi bi-check2-circle me-2" aria-hidden="true"></i>Enregistrer la correction</button></div>{{ form_end(form) }}
+</section>
+<aside>
+<section class="tc-card tc-summary" aria-labelledby="tc-summary-title"><h3 id="tc-summary-title">Votre correction en un regard</h3><div aria-live="polite"><div class="tc-person"><small>Actuellement indiqué</small><strong id="tc-source-summary">À sélectionner</strong></div><div class="tc-person"><small>Intervenant réel</small><strong id="tc-target-summary">À sélectionner</strong></div></div><div class="tc-kept"><strong><i class="bi bi-shield-check me-1" aria-hidden="true"></i> Contrat initial conservé</strong><p>Le titulaire a envoyé un autre intervenant : son contrat, sa signature et son rattachement à la session restent inchangés.</p></div>
+{% for contract in contracts %}<div class="tc-contract" data-preserved-contract="{{ contract.id }}"><a href="{{ path('app_administrateur_formateurs_contrats_show',{entite:entite.id,id:contract.id}) }}">{{ contract.numero ?: 'Contrat #' ~ contract.id }} <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><small>Titulaire : {{ contract.formateur.utilisateur.prenom|default('') }} {{ contract.formateur.utilisateur.nom|default('') }}</small><small>{{ contract.status.label }}</small></div>{% else %}<p class="tc-hint mt-3">Aucun contrat actuellement rattaché à cette session.</p>{% endfor %}
+</section><p class="tc-note"><strong>Ce qui est mis à jour</strong><br>Tous les créneaux de l’intervenant sélectionné et l’attribution de ses émargements sur cette session.</p><p class="tc-note"><strong>Les preuves sont conservées</strong><br>Signatures et dates restent intactes. Le motif et les deux intervenants sont enregistrés dans l’historique. Les questionnaires et comptes rendus déjà déposés gardent leur auteur.</p>
+</aside></div></div>
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script>
+(() => {
+ const source=document.getElementById('{{ form.source.vars.id|e('js') }}');
+ const target=document.getElementById('{{ form.target.vars.id|e('js') }}');
+ const update=()=>{document.getElementById('tc-source-summary').textContent=source.value ? source.selectedOptions[0].textContent : 'À sélectionner';document.getElementById('tc-target-summary').textContent=target.value ? target.selectedOptions[0].textContent : 'À sélectionner';};
+ [source,target].forEach(select=>{if(window.TomSelect)new TomSelect(select,{create:false,maxItems:1,plugins:['dropdown_input'],placeholder:'Rechercher un formateur…',render:{no_results:()=>'<div class="no-results">Aucun formateur trouvé</div>'}});select.addEventListener('change',update);});
+ update();
+})();
+</script>
 {% endblock %}

@@ -2335,6 +2335,7 @@ final class SessionController extends AbstractController
             'formateursSession' => $formateursSession,
             'avatarsByFormateurId' => $avatarsByFormateurId,
             'contratsByFormateur' => $contratsByFormateur,
+            'sessionContracts' => $contrats,
             'travelByFormateurId' => $travelByFormateurId,
             'kmRate' => $kmRate,
             'assignmentsByPhase' => $byPhase,

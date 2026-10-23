@@ -96,6 +96,7 @@ final class TrainerRemindersTest extends KernelTestCase
 
     public function testAdministratorCanCorrectActualTrainerWithAudit(): void
     {
+        $this->contract->setStatus(ContratFormateurStatus::SIGNE)->setSignatureAt(new \DateTimeImmutable('2026-09-30 10:00'))->setSignatureDataUrl('data:image/png;base64,contract-original');
         $replacementUser = (new Utilisateur())->setEmail('replacement@test.example')->setPassword('unused')->setPrenom('Actual')->setNom('Trainer');
         $replacement = (new Formateur())->setUtilisateur($replacementUser)->setEntite($this->entite)->setCreateur($this->user);
         $this->em->persist($replacementUser); $this->em->persist($replacement);
@@ -105,6 +106,8 @@ final class TrainerRemindersTest extends KernelTestCase
         $url = '/fr/administrateur/'.$this->entite->getId().'/session/'.$this->session->getId().'/corriger-intervenant';
         $page = $client->request('GET', $url);
         self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertCount(2, $page->filter('select.tc-trainer-select'));
+        self::assertStringContainsString('CF-REMINDER', $client->getResponse()->getContent());
         $form = $page->selectButton('Enregistrer la correction')->form([
             'form[source]' => $this->trainer->getId(), 'form[target]' => $replacement->getId(),
             'form[reason]' => 'Le remplaçant a assuré et signé la formation.', 'form[confirm]' => '1',
@@ -117,7 +120,17 @@ final class TrainerRemindersTest extends KernelTestCase
         self::assertSame($replacementUser->getId(), $signature->getUtilisateur()->getId());
         self::assertSame('data:image/png;base64,original', $signature->getSignatureDataUrl());
         self::assertSame($replacement->getId(), $this->session->getFormateur()->getId());
+        $this->contract = $this->em->find(ContratFormateur::class, $this->contract->getId());
         self::assertSame($this->trainer->getId(), $this->contract->getFormateur()->getId());
+        self::assertSame($this->session->getId(), $this->contract->getSession()->getId());
+        self::assertSame(ContratFormateurStatus::SIGNE, $this->contract->getStatus());
+        self::assertSame('data:image/png;base64,contract-original', $this->contract->getSignatureDataUrl());
+        self::assertSame('2026-09-30 10:00', $this->contract->getSignatureAt()->format('Y-m-d H:i'));
+        self::assertSame(1, $this->em->getRepository(ContratFormateur::class)->count(['session'=>$this->session]));
+        $page = $client->followRedirect();
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('CF-REMINDER', $page->filter('#session-contracts')->text());
+        self::assertStringContainsString('Camille Test', $page->filter('#session-contracts')->text());
         self::assertSame(1, $this->em->getRepository(\App\Entity\AuditLog::class)->count(['event'=>'trainer_attendance_attribution_corrected']));
     }
 
