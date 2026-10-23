@@ -123,3 +123,46 @@ document.querySelectorAll('[data-bpf-field-link]').forEach(link => link.addEvent
   highlight.classList.add('bpf-error-target');
   setTimeout(() => highlight.classList.remove('bpf-error-target'), 4000);
 }));
+
+// Keep incomplete declaration fields visible, including enhanced classification selects.
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.querySelector('[data-bpf-form]');
+  if (!form) return;
+  const tracked = new Set(form.querySelectorAll('select.bpf-classification, input[required], select[required], textarea[required]'));
+  document.querySelectorAll('#bpf-controls [data-bpf-field-link]').forEach(link => {
+    const field = document.getElementById(link.hash.slice(1));
+    if (field && form.contains(field) && field.matches('input, select, textarea')) tracked.add(field);
+  });
+  function update() {
+    let classificationCount = 0;
+    tracked.forEach(field => {
+      const missing = !field.disabled && !String(field.value ?? '').trim();
+      field.classList.toggle('bpf-missing-field', missing);
+      const wrapper = field.tomselect?.wrapper;
+      wrapper?.classList.toggle('bpf-missing-field', missing);
+      const target = field.tomselect?.control_input || field;
+      const hintId = field.id + '-missing-hint';
+      let hint = document.getElementById(hintId);
+      if (!hint) {
+        hint = document.createElement('span'); hint.id = hintId;
+        hint.className = 'bpf-missing-hint'; hint.textContent = 'À compléter';
+        (wrapper || field).insertAdjacentElement('afterend', hint);
+        const describedBy = target.getAttribute('aria-describedby') || '';
+        target.setAttribute('aria-describedby', (describedBy + ' ' + hintId).trim());
+      }
+      hint.hidden = !missing;
+      if (missing && field.matches('.bpf-classification')) classificationCount++;
+    });
+    const summary = form.querySelector('.bpf-classifications > summary');
+    if (summary) {
+      let badge = summary.querySelector('[data-bpf-missing-count]');
+      if (!badge) {badge = document.createElement('span'); badge.dataset.bpfMissingCount = ''; badge.className = 'bpf-missing-hint'; summary.append(badge);}
+      badge.hidden = classificationCount === 0;
+      badge.textContent = classificationCount + ' correspondance(s) à compléter';
+    }
+  }
+  form.addEventListener('input', update);
+  form.addEventListener('change', update);
+  form.querySelectorAll('[data-bpf-zero]').forEach(button => button.addEventListener('click', update));
+  update();
+});
