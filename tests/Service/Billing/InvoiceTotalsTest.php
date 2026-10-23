@@ -13,6 +13,22 @@ use Twig\{Environment, Loader\FilesystemLoader, TwigFunction};
 
 final class InvoiceTotalsTest extends TestCase
 {
+    private function invoiceTwig(): Environment
+    {
+        $projectDir = dirname(__DIR__, 3);
+        $twig = new Environment(new FilesystemLoader($projectDir . '/templates'));
+        $twig->addExtension(new InvoiceTotalsExtension());
+        $images = new \App\Twig\PrivateDocumentImageExtension($projectDir);
+        $twig->addExtension($images);
+        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
+        $em->expects(self::never())->method('getRepository');
+        $twig->addExtension(new \App\Service\DocumentStudio\Renderer($em, new \App\Service\DocumentStudio\Content(), $images));
+        $twig->addFunction(new TwigFunction('asset', static fn(string $s) => $s));
+        $twig->addFunction(new TwigFunction('absolute_url', static fn(string $s) => $s));
+
+        return $twig;
+    }
+
     private function line(int $ht, float $vat = 20, bool $debours = false): LigneFacture
     {
         return (new LigneFacture())->setLabel('Formation')->setQte(1)->setPuHtCents($ht)->setTva($vat)->setIsDebours($debours);
@@ -91,10 +107,7 @@ final class InvoiceTotalsTest extends TestCase
         self::assertSame(246, array_sum(array_column($invoice->getIssuedTotals()['rates'], 'tvaCents')));
         $invoice->addPaiement((new Paiement())->setMontantCents(3146));
         self::assertSame(0, WorkflowBilling::outstanding($invoice));
-        $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates'));
-        $twig->addExtension(new InvoiceTotalsExtension());
-        $twig->addFunction(new TwigFunction('asset', static fn(string $s) => $s));
-        $twig->addFunction(new TwigFunction('absolute_url', static fn(string $s) => $s));
+        $twig = $this->invoiceTwig();
         $html = $twig->render('pdf/facture.html.twig', ['facture' => $invoice, 'entite' => (new Entite())->setNom('Organisme test')]);
         foreach (['Total HT (net)' => '29,00', 'TVA 20,00%' => '1,93', 'TVA 5,50%' => '0,53', 'Total TTC' => '31,46'] as $label => $amount) {
             self::assertMatchesRegularExpression('~' . preg_quote($label, '~') . '</td>\s*<td[^>]*>' . preg_quote($amount, '~') . ' €</td>~', $html);
@@ -125,10 +138,7 @@ final class InvoiceTotalsTest extends TestCase
         $totals = InvoiceTotals::calculate($f);
         self::assertSame(1, $totals['tvaCents']);
         self::assertSame(4, $totals['ttcCents']);
-        $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates'));
-        $twig->addExtension(new InvoiceTotalsExtension());
-        $twig->addFunction(new TwigFunction('asset', static fn(string $s) => $s));
-        $twig->addFunction(new TwigFunction('absolute_url', static fn(string $s) => $s));
+        $twig = $this->invoiceTwig();
         $context = ['facture' => $f, 'entite' => (new Entite())->setNom('Organisme test')];
         $preview = $twig->render('pdf/facture.html.twig', $context);
         $delivery = $twig->render('pdf/facture.html.twig', $context + ['invoiceTotals' => $totals]);

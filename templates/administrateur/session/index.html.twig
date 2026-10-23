@@ -307,6 +307,8 @@
       box-shadow:0 12px 30px rgba(0,0,0,.06);
       overflow: visible; /* ne pas couper le scroll interne DT */
     }
+    /* Keep search visible until the shared filter toolbar moves its input. */
+    .unified-list.unified-list--session .dt-top:has(input[type="search"]){ display:flex!important; }
     table.dataTable{ margin:0 !important; }
     table.dataTable thead th{
       background:#f7f8fa!important;
@@ -914,6 +916,12 @@ body .session-floating-dropdown{
 
   <div class="table-card unified-list unified-list--session mb-4">
     <div class="ledger-heading"><div><h3>Registre des sessions</h3><p>Avancement, participants et suivi financier de vos formations.</p></div><span class="ledger-mark"><i class="bi bi-calendar3" aria-hidden="true"></i>Organisation &amp; suivi</span></div>
+    <div id="session-load-error" class="alert alert-warning mx-3" role="alert" hidden>
+      <p class="mb-2" id="session-load-error-message"></p>
+      <button type="button" class="btn btn-sm btn-outline-dark" id="session-load-retry"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Réessayer</button>
+      <button type="button" class="btn btn-sm btn-outline-dark" id="session-page-reload">Recharger la page</button>
+    </div>
+    <p id="session-summary-warning" class="text-muted small mx-3" role="status" hidden>Certains compteurs ou filtres sont indisponibles. Vous pouvez réessayer en rechargeant la page.</p>
     <table id="tableauSession" class="table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
@@ -936,6 +944,7 @@ body .session-floating-dropdown{
 {% include 'partials/_modales_index_generiques.html.twig' %}
 
 <script>
+{% include 'administrateur/session/_listing_ajax.js.twig' %}
 $(function(){
   const $status    = $('#sessionStatusFilter');
   const $formation = $('#sessionFormationFilter');
@@ -989,11 +998,17 @@ $(function(){
     });
   }
 
+  let metaUnavailable = false, kpisUnavailable = false;
+  function updateSummaryWarning(){
+    $('#session-summary-warning').prop('hidden', !metaUnavailable && !kpisUnavailable);
+  }
+
   async function loadMeta(){
     const url = "{{ path('app_administrateur_session_kpis_meta', { entite: entite.id }) }}";
-    const res = await fetch(url, { headers: { 'Accept':'application/json' }});
-    if(!res.ok) return;
+    const res = await fetch(url, { headers: { 'Accept':'application/json' }, signal: AbortSignal.timeout(30000) });
+    if(!res.ok) throw new Error('Session filters unavailable');
     const json = await res.json();
+    if(!Array.isArray(json.formations)) throw new Error('Invalid session filters');
 
     tsFormation.clearOptions();
     tsFormation.addOption({ value: 'all', text: 'Toutes' });
@@ -1020,17 +1035,25 @@ $(function(){
     params.set('search[value]', table.search());
 
     const url = "{{ path('app_administrateur_session_kpis', { entite: entite.id }) }}?" + params.toString();
-    const res = await fetch(url, { headers: { 'Accept':'application/json' }});
-    if(!res.ok) return;
-
-    const k = await res.json();
-    if(requestId !== kpiRequest) return;
-    $('#kpi-count').text(k.count ?? '—');
-    $('#kpi-upcoming').text(k.upcoming ?? '—');
-    $('#kpi-running').text(k.running ?? '—');
-    $('#kpi-done').text(k.done ?? '—');
-    $('#kpi-range').text('{{ entite.nom }}');
-    $('#hero-last-refresh').text('Maj : ' + nowLabel());
+    try {
+      const res = await fetch(url, { headers: { 'Accept':'application/json' }, signal: AbortSignal.timeout(30000) });
+      if(!res.ok) throw new Error('Session counters unavailable');
+      const k = await res.json();
+      if(requestId !== kpiRequest) return;
+      if(!k || !['count', 'upcoming', 'running', 'done'].every(key => Number.isInteger(k[key]))) throw new Error('Invalid session counters');
+      $('#kpi-count').text(k.count ?? '—');
+      $('#kpi-upcoming').text(k.upcoming ?? '—');
+      $('#kpi-running').text(k.running ?? '—');
+      $('#kpi-done').text(k.done ?? '—');
+      $('#kpi-range').text('{{ entite.nom|e('js') }}');
+      kpisUnavailable = false;
+      updateSummaryWarning();
+    } catch (_) {
+      if(requestId !== kpiRequest) return;
+      $('#kpi-count, #kpi-upcoming, #kpi-running, #kpi-done').text('—');
+      kpisUnavailable = true;
+      updateSummaryWarning();
+    }
   }
 
   function updateResetUi(count){
@@ -1118,13 +1141,18 @@ $(function(){
     scrollCollapse: true,
     responsive: false,
 
-    ajax:{
-      url:"{{ path('app_administrateur_session_ajax', { entite: entite.id }) }}",
-      type:"POST",
-      data: d => {
-        Object.assign(d, listingFilters());
+    ajax: createSessionListingAjax({
+      url: "{{ path('app_administrateur_session_ajax', { entite: entite.id }) }}",
+      request: options => $.ajax(options),
+      getFilters: listingFilters,
+      onState(state, message) {
+        $('#session-load-error').prop('hidden', state !== 'error');
+        $('#session-load-error-message').text(message || '');
+        $('#session-load-retry').prop('disabled', state === 'loading');
+        if (state === 'ready') $('#hero-last-refresh').text('Maj : ' + nowLabel());
+        else if (state === 'error') $('#hero-last-refresh').text('Chargement interrompu');
       }
-    },
+    }),
 
     dom:
       '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
@@ -1135,8 +1163,8 @@ $(function(){
       + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
 
     buttons:['copy','csv','excel','pdf','print'],
-    lengthMenu:[[10,25,50,500],[10,25,50,500]],
-    pageLength: 100,
+    lengthMenu:[[10,25,50,100],[10,25,50,100]],
+    pageLength: 25,
 
     columns:[
       {data:'dossier', name:'dossier', orderable:true, searchable:false},
@@ -1184,6 +1212,8 @@ $(function(){
     }
   });
 
+  $('#session-load-retry').on('click', () => refreshAll(false));
+  $('#session-page-reload').on('click', () => window.location.reload());
 
 
   // ✅ Dropdown actions sessions : flotte le menu hors du scroll DataTables (anti-clipping)
@@ -1304,12 +1334,13 @@ $(function(){
   initTomSelect();
   initFlatpickr();
 
-  loadMeta().then(()=>{
+  loadMeta().catch(() => {
+    metaUnavailable = true;
+    updateSummaryWarning();
+  }).finally(()=>{
     loadKpis();
     buildActiveFilters();
   });
-
-  $('#hero-last-refresh').text('Maj : ' + nowLabel());
 
 
 

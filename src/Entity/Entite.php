@@ -23,7 +23,7 @@ use App\Entity\Billing\EntiteConnect;
 class Entite
 {
     #[ORM\Column(length: 255, nullable: true)]
-    #[Assert\Url(protocols: ['http', 'https'])]
+    #[Assert\Url(protocols: ['http', 'https'], requireTld: false)]
     #[Assert\Length(max: 255)]
     private ?string $siteInternet = null;
 

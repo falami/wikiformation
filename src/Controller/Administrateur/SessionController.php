@@ -40,6 +40,7 @@ use App\Exception\BillingQuotaExceededException;
 use App\Service\Planning\SessionPlanningValidator;
 use Symfony\Component\Form\FormError;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+use Psr\Log\LoggerInterface;
 
 
 #[Route('/administrateur/{entite}/session')]
@@ -123,22 +124,29 @@ final class SessionController extends AbstractController
 
 
 
-    #[Route('/ajax', name: 'app_administrateur_session_ajax', methods: ['POST'])]
-    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Session\SessionFinancialSummary $financialSummary): JsonResponse
+    #[Route('/ajax', name: 'app_administrateur_session_ajax', methods: ['GET', 'POST'])]
+    public function ajax(Entite $entite, Request $request, EntityManagerInterface $em, \App\Service\Session\SessionFinancialSummary $financialSummary, LoggerInterface $logger): JsonResponse
     {
-
-
+        $draw = 1;
+        $responseHeaders = ['Cache-Control' => 'private, no-store'];
         try {
-            $draw   = $request->request->getInt('draw', 1);
-            $start  = $request->request->getInt('start', 0);
-            $length = $request->request->getInt('length', 10);
+            // Listing only: accept a compact GET without DataTables' unused column metadata.
+            // Keep the previous POST payload compatible with existing clients.
+            $parameters = $request->isMethod('GET') ? $request->query : $request->request;
+            $draw = max(0, $parameters->getInt('draw', 1));
+            $start = max(0, $parameters->getInt('start', 0));
+            $requestedLength = $parameters->getInt('length', 25);
+            $length = $requestedLength === -1 ? 100 : max(1, min(100, $requestedLength));
 
-
-            $order = $request->request->all('order');
-            $columns = $request->request->all('columns');
+            $order = $parameters->all('order');
+            $columns = $parameters->all('columns');
             $orderColIdx = (int)($order[0]['column'] ?? 0);
-            $orderDir = strtolower((string)($order[0]['dir'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC';
-            $orderName = (string)($columns[$orderColIdx]['name'] ?? '');
+            $orderName = (string) $parameters->get('orderBy', $columns[$orderColIdx]['name'] ?? '');
+            $orderDir = strtolower((string) $parameters->get('orderDir', $order[0]['dir'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC';
+            $filters = $parameters->all();
+            if ($parameters->has('searchTerm')) {
+                $filters['search'] = ['value' => (string) $parameters->get('searchTerm')];
+            }
 
             $baseQb = $this->sessionListingQuery($entite, $em);
 
@@ -149,7 +157,7 @@ final class SessionController extends AbstractController
 
             $filteredQb = clone $baseQb;
 
-            $this->applySessionListingFilters($filteredQb, $request->request->all(), $em);
+            $this->applySessionListingFilters($filteredQb, $filters, $em);
 
             $recordsFiltered = (int)(clone $filteredQb)
                 ->select('COUNT(DISTINCT s.id)')
@@ -1337,15 +1345,19 @@ final class SessionController extends AbstractController
                 'recordsTotal'    => $recordsTotal,
                 'recordsFiltered' => $recordsFiltered,
                 'data'            => $data,
-            ]);
+            ], 200, $responseHeaders);
         } catch (\Throwable $e) {
+            $logger->error('Unable to load the session listing.', [
+                'entite_id' => $entite->getId(),
+                'exception' => $e,
+            ]);
             return new JsonResponse([
-                'draw' => (int)$request->request->get('draw', 1),
+                'draw' => $draw,
                 'recordsTotal' => 0,
                 'recordsFiltered' => 0,
                 'data' => [],
-                'error' => $e->getMessage(),
-            ], 500);
+                'error' => 'Impossible de charger les sessions. Veuillez réessayer.',
+            ], 500, $responseHeaders);
         }
     }
 

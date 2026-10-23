@@ -1,0 +1,55 @@
+// Kept with the template so deploying this page also deploys its error handling.
+function createSessionListingAjax({url, request, getFilters, onState}) {
+  let activeRequest = null;
+  let requestNumber = 0;
+  const transport = function(data, callback, settings) {
+    const current = ++requestNumber;
+    activeRequest?.abort();
+    onState('loading');
+    const order = data.order?.[0];
+    const params = {
+      ...getFilters(),
+      draw: data.draw,
+      start: data.start,
+      length: data.length,
+      orderBy: data.columns?.[order?.column]?.name || 'dates',
+      orderDir: order?.dir === 'asc' ? 'asc' : 'desc',
+      searchTerm: data.search?.value || ''
+    };
+    function finish(json, message) {
+      if (current !== requestNumber) return;
+      settings.oLanguage.sEmptyTable = message ? 'La liste des sessions est indisponible.' : 'Aucune session disponible.';
+      settings.oLanguage.sZeroRecords = message ? 'La liste des sessions est indisponible.' : 'Aucune session ne correspond aux filtres.';
+      onState(message ? 'error' : 'ready', message || '');
+      // DataTables must finish its draw even on a failed first request.
+      callback(message ? {draw: data.draw, recordsTotal: 0, recordsFiltered: 0, data: []} : json);
+    }
+    activeRequest = request({
+      url, type: 'GET', data: params, dataType: 'json', timeout: 30000,
+      headers: {'Accept': 'application/json'},
+      success(json) {
+        if (!json || json.error || json.draw !== data.draw || !Array.isArray(json.data)
+          || !Number.isInteger(json.recordsTotal) || !Number.isInteger(json.recordsFiltered)) {
+          finish(null, 'Le serveur a renvoyé une réponse inattendue. Réessayez ou rechargez la page.');
+          return;
+        }
+        finish(json);
+      },
+      error(xhr, status) {
+        if (status === 'abort') return;
+        const securityCheck = xhr.getResponseHeader?.('Tiger-Protect-Security')
+          || /o2s-browser-check|\/o2s-cgi\/security-challenge|Tiger Protect WAF/i.test(xhr.responseText || '');
+        let message = 'Impossible de charger les sessions. Réessayez dans quelques instants.';
+        if (securityCheck) message = 'La protection de l’hébergeur bloque le chargement des sessions. Rechargez la page ; si le blocage persiste, contactez votre hébergeur.';
+        else if (xhr.status === 401 || xhr.status === 403) message = 'Votre connexion ou vos droits ne permettent plus de charger les sessions. Rechargez la page pour vous reconnecter.';
+        else if (status === 'parsererror') message = 'Le serveur a renvoyé une page au lieu des sessions. Rechargez la page pour vérifier votre connexion.';
+        else if (status === 'timeout') message = 'Le serveur met trop de temps à répondre. Réessayez dans quelques instants.';
+        finish(null, message);
+      }
+    });
+    return activeRequest;
+  };
+  // Shared list filters discover their supported endpoint from this property.
+  transport.url = url;
+  return transport;
+}

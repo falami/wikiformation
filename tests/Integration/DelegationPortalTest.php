@@ -608,6 +608,7 @@ final class DelegationPortalTest extends KernelTestCase
         $this->em->flush();
         $sessionId = $session->getId();
         $dayId = $day->getId();
+        self::assertGreaterThan(0, $this->em->getRepository(\App\Entity\NotificationEvent::class)->count(['session' => $session]));
         $page = $this->client->request('GET', $this->url('app_commercial_schedule_edit', ['id' => $sessionId, 'dayId' => $dayId]));
         $form = $page->filter('form[name="form"]')->form();
         $form['form[dateFin]'] = '2026-12-01T16:00';
@@ -622,6 +623,25 @@ final class DelegationPortalTest extends KernelTestCase
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         self::assertNull($this->em->find(\App\Entity\Session::class, $sessionId));
         self::assertNull($this->em->find(\App\Entity\SessionJour::class, $dayId));
+    }
+    public function testSessionWithAnInscriptionStillProtectsItsExistingSchedule(): void
+    {
+        $company = $this->company('Inscribed session client');
+        $this->grant('entreprises', $company->getId());
+        $site = (new \App\Entity\Site())->setEntite($this->entite)->setCreateur($this->admin)->setNom('Site')->setSlug('protected-schedule');
+        $session = (new \App\Entity\Session())->setEntite($this->entite)->setCreateur($this->admin)->setCode('PROTECTED-SESSION')->setSite($site)->setEntrepriseCliente($company);
+        $day = (new \App\Entity\SessionJour())->setEntite($this->entite)->setCreateur($this->admin)->setSession($session)->setDateDebut(new \DateTimeImmutable('2026-12-01 08:30'))->setDateFin(new \DateTimeImmutable('2026-12-01 17:00'));
+        $session->addJour($day);
+        $inscription = (new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)->setSession($session)->setStagiaire($this->sales)->setEntreprise($company);
+        foreach ([$site, $session, $day, $inscription] as $record) $this->em->persist($record);
+        $this->em->flush();
+        self::assertNotNull(self::getContainer()->get(\App\Service\Delegation\CommercialRules::class)->deleteBlock($session));
+        $this->client->catchExceptions(true);
+        foreach (['GET', 'POST'] as $method) {
+            $this->client->request($method, $this->url('app_commercial_schedule_edit', ['id' => $session->getId(), 'dayId' => $day->getId()]));
+            self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        }
+        self::assertSame('17:00', $this->em->find(\App\Entity\SessionJour::class, $day->getId())->getDateFin()->format('H:i'));
     }
     public function testFailedMailCanBeRetriedWithoutLosingFailureState(): void
     {

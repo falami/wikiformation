@@ -63,7 +63,9 @@ final class CommercialRules
         // Inspect references before deletion, including associations outside this portal.
         $owned = match (true) {
             $record instanceof Devis => [\App\Entity\LigneDevis::class],
-            $record instanceof Session => [\App\Entity\SessionJour::class],
+            // Session notifications are derived metadata and cascade with the session.
+            // They must not lock an otherwise empty session's schedule or deletion.
+            $record instanceof Session => [\App\Entity\SessionJour::class, \App\Entity\NotificationEvent::class],
             $record instanceof Inscription => [\App\Entity\DossierInscription::class],
             default => [],
         };

@@ -118,6 +118,102 @@ final class SessionListingKpisTest extends KernelTestCase
         }
     }
 
+    public function testCompactGetMatchesPostFiltersAndSortWithoutLeakingOtherTenants(): void
+    {
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->catchExceptions(false);
+        $client->loginUser($this->admin);
+        $url = self::getContainer()->get('router')->generate('app_administrateur_session_ajax', ['entite' => $this->entite->getId()]);
+        $filters = ['statusFilter' => '["draft","done"]', 'formationFilter' => json_encode([$this->formation->getId(), $this->otherFormation->getId(), $this->foreignFormation->getId()])];
+
+        $client->request('POST', $url, $filters + [
+            'draw' => 8, 'length' => 25, 'search' => ['value' => 'SES-'],
+            'columns' => [['name' => 'code']], 'order' => [['column' => 0, 'dir' => 'asc']],
+        ]);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('private'));
+        self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        $post = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+
+        $client->request('GET', $url, $filters + [
+            'draw' => 8, 'length' => 25, 'searchTerm' => 'SES-', 'orderBy' => 'code', 'orderDir' => 'asc',
+        ]);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('private'));
+        self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        $get = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(8, $get['draw']);
+        self::assertSame(4, $get['recordsTotal']);
+        self::assertSame(2, $get['recordsFiltered']);
+        self::assertSame(array_column($post['data'], 'infos'), array_column($get['data'], 'infos'));
+        self::assertStringContainsString('SES-FUTURE', $get['data'][0]['infos']);
+        self::assertStringContainsString('SES-PAST', $get['data'][1]['infos']);
+        self::assertStringNotContainsString('SES-FOREIGN', $client->getResponse()->getContent());
+
+        $client->request('GET', $url, ['searchTerm' => 'SES-PAST', 'orderBy' => 'code', 'orderDir' => 'desc']);
+        $searched = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(1, $searched['recordsFiltered']);
+        self::assertCount(1, $searched['data']);
+        self::assertStringContainsString('SES-PAST', $searched['data'][0]['infos']);
+
+        // The original DataTables payload is also accepted over GET.
+        $client->request('GET', $url, ['columns' => [['name' => 'code']], 'order' => [['column' => 0, 'dir' => 'desc']]]);
+        $descending = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertStringContainsString('SES-RUNNING', $descending['data'][0]['infos']);
+        self::assertStringContainsString('SES-CANCELED', $descending['data'][3]['infos']);
+    }
+
+    public function testListingPaginationIsBoundedForGetAndPost(): void
+    {
+        for ($i = 0; $i < 105; ++$i) {
+            $this->session(sprintf('SES-LIMIT-%03d', $i), $this->formation, \App\Enum\StatusSession::DRAFT, $this->futureDate);
+        }
+        $this->em->flush();
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->catchExceptions(false);
+        $client->loginUser($this->admin);
+        $url = self::getContainer()->get('router')->generate('app_administrateur_session_ajax', ['entite' => $this->entite->getId()]);
+
+        foreach ([
+            ['GET', [], 25],
+            ['GET', ['length' => -1], 100],
+            ['POST', ['length' => 500], 100],
+            ['GET', ['length' => 0], 1],
+            ['POST', ['length' => -2], 1],
+        ] as [$method, $pagination, $expected]) {
+            $client->request($method, $url, $pagination + ['start' => -10, 'searchTerm' => 'SES-LIMIT-', 'orderBy' => 'code', 'orderDir' => 'asc']);
+            self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+            $json = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+            self::assertSame(105, $json['recordsFiltered']);
+            self::assertCount($expected, $json['data']);
+            self::assertStringContainsString('SES-LIMIT-000', $json['data'][0]['infos']);
+        }
+
+        $client->request('GET', $url, ['start' => 100, 'length' => 25, 'searchTerm' => 'SES-LIMIT-', 'orderBy' => 'code', 'orderDir' => 'asc']);
+        $lastPage = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertCount(5, $lastPage['data']);
+        self::assertStringContainsString('SES-LIMIT-100', $lastPage['data'][0]['infos']);
+    }
+
+    public function testListingFailureDoesNotExposeExceptionDetails(): void
+    {
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->catchExceptions(false);
+        $client->loginUser($this->admin);
+        $url = self::getContainer()->get('router')->generate('app_administrateur_session_ajax', ['entite' => $this->entite->getId()]);
+        $client->request('GET', $url, ['draw' => 4, 'dateFrom' => 'not-a-real-date']);
+        self::assertSame(500, $client->getResponse()->getStatusCode());
+        self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        $json = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(4, $json['draw']);
+        self::assertSame([], $json['data']);
+        self::assertSame('Impossible de charger les sessions. Veuillez réessayer.', $json['error']);
+        self::assertStringNotContainsString('not-a-real-date', $client->getResponse()->getContent());
+    }
+
     /** @param array{int,int,int,int} $expected Total, upcoming, running, done. */
     private function assertMatchingCounts(array $filters, array $expected): void
     {

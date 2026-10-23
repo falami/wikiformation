@@ -39,7 +39,27 @@ gzip -t "$BACKUP_DIR/database.sql.gz"
 printf 'Backup completed at %s\n' "$(date -Iseconds)" > "$BACKUP_DIR/COMPLETE"
 
 # No deployment operation is performed until both backups have succeeded.
+# Backups above stay private. New application files must be readable by the
+# HTTP server, which may run as a different user (notably the static proxy).
+umask 022
 git pull --ff-only
+
+# Check the shared table assets before running migrations. A partial upload
+# otherwise leaves every administrative listing with broken row actions.
+for asset in \
+  public/dist/css/datatables-actions.css public/dist/js/datatables-actions.js \
+  public/dist/css/style.css public/dist/css/style-table.css \
+  public/dist/css/unified-lists.css public/dist/css/session-ledger.css \
+  public/dist/css/notifications.css public/dist/js/notifications.js \
+  public/dist/css/admin-header.css public/dist/js/cookie-consent.js \
+  public/dist/css/list-filters.css public/dist/js/list-filters.js; do
+  [[ -s "$asset" ]] || { echo "Missing or empty public asset: $asset" >&2; exit 1; }
+done
+
+# Repair static assets created by an earlier deployment under umask 077.
+# Keep this limited to distributed assets: never change uploads or secrets.
+find public/dist -type d -exec chmod 755 {} +
+find public/dist -type f -exec chmod 644 {} +
 composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 php bin/console doctrine:migrations:migrate --no-interaction --env=prod
 php bin/console cache:clear --env=prod --no-debug --no-warmup

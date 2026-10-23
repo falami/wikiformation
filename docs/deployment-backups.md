@@ -29,3 +29,11 @@ Les contrôles de compression et d'empreinte détectent les archives tronquées,
 Aucune purge automatique : surveiller l'espace disque et conserver une copie hors du serveur. Les archives contiennent des données et des secrets ; leur répertoire est privé (0700, fichiers 0600).
 
 Prérequis : Bash, PHP, Composer, Git, tar, gzip, flock, sha256sum, mariadb-dump ou mysqldump. Les chemins peuvent être adaptés avec DEPLOY_APP_DIR et DEPLOY_BACKUP_DIR (ce dernier doit rester hors de l'application).
+
+## Fichiers statiques et erreurs 404
+
+Le déploiement conserve un masque de permissions `077` pour les sauvegardes, puis passe à `022` pour les fichiers de l'application. Les dossiers de `public/dist` sont normalisés en `0755` et leurs fichiers en `0644`, afin que le serveur statique puisse les lire. Cette correction ne touche ni les uploads ni les fichiers de configuration privés. Le script vérifie également la présence des styles et scripts communs à l'administration et à la liste des sessions avant les migrations.
+
+Pour un transfert manuel, envoyer aussi les fichiers de `public/dist`, notamment `css/datatables-actions.css` et `js/datatables-actions.js`, dans le répertoire `dist` de la **racine web effective du domaine**. Celle-ci doit correspondre au dossier `public` de l'application ; envoyer ces fichiers uniquement à côté de `src` ou de `templates` ne les rend pas accessibles. Conserver les permissions `0755` pour les dossiers et `0644` pour les fichiers statiques.
+
+Après déploiement, contrôler que `/dist/css/datatables-actions.css?v=4` et `/dist/js/datatables-actions.js?v=3` répondent en HTTP 200 avec leur contenu CSS/JavaScript. Une 404 malgré leur présence sur le serveur nécessite de vérifier la racine web du domaine et les permissions ; une page de vérification HTML renvoyée par le pare-feu relève d'un problème distinct.

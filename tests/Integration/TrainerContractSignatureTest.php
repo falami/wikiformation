@@ -122,7 +122,8 @@ final class TrainerContractSignatureTest extends KernelTestCase
         $client = $this->client();
         foreach (['GET', 'POST'] as $method) {
             $client->request($method, $this->url('app_formateur_contrat_sign', $other));
-            self::assertSame(404, $client->getResponse()->getStatusCode());
+            self::assertSame(403, $client->getResponse()->getStatusCode());
+            self::assertNull($this->contract->getSignatureAt());
         }
         $client->request('GET', self::getContainer()->get('router')->generate('app_administrateur_formateurs_contrats_show', ['entite' => $this->entite->getId(), 'id' => $this->contract->getId()]));
         self::assertSame(200, $client->getResponse()->getStatusCode());

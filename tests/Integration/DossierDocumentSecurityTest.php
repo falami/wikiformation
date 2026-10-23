@@ -153,7 +153,7 @@ final class DossierDocumentSecurityTest extends KernelTestCase
         $client = $this->client($this->learner);
         $crawler = $client->request('GET', $this->url('app_stagiaire_dossier_edit', ['id' => $this->inscription->getId()]));
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        $token = $crawler->filter('[data-csrf]')->attr('data-csrf');
+        $token = $crawler->filter('#btnSubmitConventionSig')->attr('data-csrf');
         self::assertNotSame('', $token);
         $url = $this->url('app_stagiaire_convention_esign', ['id' => $this->inscription->getId(), 'convention' => $convention->getId()]);
         $client->request('POST', $url, ['_token' => $token, 'signatureData' => 'data:image/png;base64,'.base64_encode('not an image')]);

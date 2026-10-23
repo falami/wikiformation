@@ -59,7 +59,8 @@ final class RegulatoryDocumentsTest extends KernelTestCase
         $convention = (new ConventionContrat())->setEntite($entite)->setSession($session)->setNumero('CONV-TEST')->setStagiaire($user)->setEffectifPrevisionnel(1);
         $twig = self::getContainer()->get('twig');
         $html = $twig->render('pdf/convention_contrat.html.twig', ['entite' => $entite, 'convention' => $convention]);
-        foreach (['dix jours', '30 %', 'force majeure', 'quatorze jours', 'préfet de région de Occitanie', 'Prérequis', 'Conditions financières à compléter', 'proportion de la durée dispensée à distance', 'Modèle de formulaire de rétractation', 'la signature du présent contrat'] as $expected) self::assertStringContainsString(mb_strtolower($expected), mb_strtolower($html));
+        foreach (['dix jours', '30 %', 'force majeure', 'quatorze jours', 'préfet de région de Occitanie', 'Prérequis', 'Délai de paiement', '30 jours à compter de la date de facture', 'Modèle de formulaire de rétractation', 'la signature du présent contrat'] as $expected) self::assertStringContainsString(mb_strtolower($expected), mb_strtolower($html));
+        self::assertStringNotContainsString('% de la durée totale des enseignements', $html, 'An unknown percentage must not be presented as zero.');
         $this->preview('contrat-individuel', $html);
         $session->setTauxDistanciel(0);
         $convention->setEntreprise((new Entreprise())->setRaisonSociale('Client société'));

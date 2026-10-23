@@ -123,6 +123,7 @@ final class BpfDeclarationTest extends KernelTestCase
         self::assertStringContainsString('Organisme de démonstration', $renderedHtml);
         self::assertStringNotContainsString('Nouvelle dénomination', $renderedHtml);
         self::assertStringContainsString('Version 1', $renderedHtml);
+        self::assertStringContainsString('BPF-'.$this->entite->getId().'-2026-v1', $renderedHtml);
         self::assertStringContainsString('01/07/2025', $renderedHtml);
         self::assertStringContainsString('30/06/2026', $renderedHtml);
         $this->entite = $this->em->find(Entite::class, $this->entite->getId());

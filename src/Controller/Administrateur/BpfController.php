@@ -147,7 +147,7 @@ final class BpfController extends AbstractController
             $snapshot = $revision->getPayload();
             $version = $snapshot['version'];
             $context = [
-                'entite' => ['nom' => $snapshot['entityName']], 'start' => $snapshot['start'], 'end' => $snapshot['end'],
+                'entite' => ['id' => $entite->getId(), 'nom' => $snapshot['entityName']], 'start' => $snapshot['start'], 'end' => $snapshot['end'],
                 'draft' => ['version' => $version, 'updatedAt' => $snapshot['updatedAt']], 'data' => $snapshot['data'],
                 'sections' => $snapshot['sections'], 'totals' => $snapshot['totals'], 'issues' => $snapshot['issues'],
             ];

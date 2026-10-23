@@ -250,6 +250,12 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $token = $this->token($client, 'devis_to_facture_' . $quote->getId());
         $client->request('POST', self::getContainer()->get('router')->generate('app_administrateur_devis_to_facture', ['entite' => $this->entite->getId(), 'id' => $quote->getId()]), ['_token' => $token]);
         self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertNull($quote->getFactureCreee(), 'Conversion must open an editable draft before issuance.');
+        self::assertNull($this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-NEW-1']));
+        $page = $client->followRedirect();
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $client->submit($page->selectButton('Valider et émettre la facture')->form());
+        self::assertSame(302, $client->getResponse()->getStatusCode(), strip_tags($client->getResponse()->getContent()));
         $invoice = $this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-NEW-1']);
         self::assertNotNull($invoice);
         self::assertSame(10800, $invoice->getTtcTotalCents());
