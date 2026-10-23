@@ -76,7 +76,7 @@ final class RecruitmentController extends AbstractController
                 return $this->redirectToRoute('app_super_recruitment_show',['entite'=>$entite->getId(),'id'=>$application->id]);
             } catch(\InvalidArgumentException $e) { $error=$e->getMessage(); if(!$this->em->isOpen()) { $this->addFlash('warning',$error); return $this->redirectToRoute('app_super_recruitment_show',['entite'=>$entite->getId(),'id'=>$application->id]); } }
         }
-        return $this->render('recruitment/show.html.twig',compact('entite','application','error')+['entities'=>$this->em->getRepository(Entite::class)->findBy([],['nom'=>'ASC']),'placements'=>$this->em->getRepository(RecruitmentPlacement::class)->findBy(['application'=>$application])]);
+        return $this->render('recruitment/show.html.twig',compact('entite','application','error')+['departments'=>$this->applications->departments(),'entities'=>$this->em->getRepository(Entite::class)->findBy([],['nom'=>'ASC']),'placements'=>$this->em->getRepository(RecruitmentPlacement::class)->findBy(['application'=>$application])]);
     }
     #[Route('/super/{entite}/recrutement/{id}/fichier/{kind}',name:'app_super_recruitment_file',methods:['GET'],requirements:['id'=>'\d+','kind'=>'cv|photo|rcPro|qualiopi'])]
     public function fileDownload(Entite $entite,TrainerApplication $application,string $kind): Response

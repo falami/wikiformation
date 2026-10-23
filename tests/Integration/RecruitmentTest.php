@@ -42,6 +42,21 @@ final class RecruitmentTest extends WebTestCase
         file_put_contents($dir.'/'.$a->cvFilename,"%PDF-1.4\n%%EOF");$this->files[]=$dir.'/'.$a->cvFilename;
         $this->em->persist($a);$this->em->flush();return $a;
     }
+    public function testCandidateMapShowsDeclaredCoverageWithoutEditableControls(): void {
+        [$user,$entite]=$this->fixtures();$candidate=$this->candidate();
+        $candidate->departments=['37','2A','971'];$this->em->flush();
+        $this->client->loginUser($user);
+        $url='/fr/super/'.$entite->getId().'/recrutement/'.$candidate->id;
+        $c=$this->client->request('GET',$url);self::assertResponseIsSuccessful();
+        self::assertCount(101,$c->filter('.candidate-map [data-department]'));
+        self::assertCount(3,$c->filter('.candidate-map .is-covered'));
+        foreach(['37','2A','971'] as $code) self::assertCount(1,$c->filter('.candidate-map [data-department="'.$code.'"].is-covered'));
+        self::assertCount(0,$c->filter('.candidate-map [role="checkbox"], .candidate-map [tabindex]'));
+        self::assertStringContainsString('Indre-et-Loire',$c->filter('#candidate-departments')->text());
+        $candidate->nationwide=true;$this->em->flush();
+        $c=$this->client->request('GET',$url);self::assertResponseIsSuccessful();
+        self::assertCount(101,$c->filter('.candidate-map .is-covered'));
+    }
     public function testPublicFormAndCsrf(): void {
         $c=$this->client->request('GET','/fr/recrutement');self::assertResponseIsSuccessful();
         self::assertCount(1,$c->filter('input[name=prenom]'));self::assertCount(1,$c->filter('input[name=siret]'));

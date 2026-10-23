@@ -1,4 +1,5 @@
 {% extends 'recruitment/admin_base.html.twig' %}
+{% block title %}{{ application.firstName }} {{ application.lastName }} · Candidature{% endblock %}
 {% block stylesheets %}
 {{ parent() }}
 <style>
@@ -14,12 +15,51 @@
     .recruit-admin .candidate-fields dd{margin:6px 0 0}
     .recruit-admin .candidate-subtitle{font-size:16px;margin-top:24px}
     @media(max-width:600px){.recruit-admin .candidate-fields{grid-template-columns:1fr}}
+
+.candidate-detail{--ink:#243746;--muted:#71808d;color:var(--ink)}
+.recruit-admin .candidate-detail .hab-hero{background:linear-gradient(120deg,#1e303f,#38515c);border:0;border-radius:24px;padding:34px 36px;color:white;align-items:center;margin-bottom:28px;box-shadow:0 14px 35px #23334212}
+.recruit-admin .candidate-detail .hab-hero h1{font-size:clamp(28px,3vw,42px);letter-spacing:-1.3px;color:white;margin:12px 0}
+.candidate-detail .hab-hero p{color:#d0dce3;font-size:14px;line-height:1.8;margin-top:14px}
+.candidate-detail .hab-hero .hab-eyebrow{color:#e2c887;font-size:10px;letter-spacing:2px}
+.candidate-detail .hab-hero .hab-btn{background:#ffffff12;border-color:#ffffff40;color:white}
+.candidate-status{display:inline-block;padding:6px 12px;border-radius:30px;background:#e9d191;color:#273947;font-size:12px;font-weight:700}
+.recruit-admin .candidate-detail .detail-grid{grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);gap:24px;align-items:start}
+.recruit-admin .candidate-detail .hab-panel{border:1px solid #e4e9ed;border-radius:20px;padding:28px;margin-bottom:24px;box-shadow:0 8px 28px #22374704;background:#fff}
+.recruit-admin .candidate-detail h2{font-size:20px;letter-spacing:-.5px;margin:0 0 22px;color:#243746}
+.recruit-admin .candidate-detail .candidate-fields{gap:6px 24px;margin-bottom:0}
+.recruit-admin .candidate-detail dt{font-size:11px;font-weight:600;color:#788691;margin-top:18px}
+.recruit-admin .candidate-detail dd{font-size:14px;color:#273b4c;line-height:1.7;margin-top:6px}
+.candidate-detail .portrait{float:right;margin:0 0 20px 20px}
+.candidate-detail .candidate-subtitle{border-top:1px solid #edf0f3;padding-top:20px}
+.candidate-detail p{font-size:14px;line-height:1.8;color:#647684}
+.candidate-section-heading{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.candidate-eyebrow{font-size:10px;letter-spacing:1.8px;font-weight:750;color:#95753c;display:block;margin-bottom:10px}
+.candidate-count{white-space:nowrap;background:#eef4f3;color:#426b61;padding:7px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.recruit-admin .candidate-detail .tag{padding:7px 11px;background:#f1f5f7;border:1px solid #e6ecef;border-radius:8px;color:#455e70;font-size:12px;margin:0 5px 7px 0}
+.candidate-map{background:#f7f9fa;border:1px solid #edf1f4;border-radius:16px;margin-top:18px;padding:18px}
+.candidate-map svg{display:block;width:100%;max-height:530px;margin:auto}
+.candidate-map path{fill:#e0e7ec;stroke:white;stroke-width:1;vector-effect:non-scaling-stroke}
+.candidate-map path.is-covered{fill:#527f73;stroke:#fff}
+.candidate-map text{font-family:inherit;fill:#637987}
+.candidate-legend{display:flex;align-items:center;gap:8px;font-size:11px;color:#6e7e89;margin:14px 0 20px}
+.candidate-legend span{width:10px;height:10px;border-radius:3px;background:#527f73}
+.candidate-rates{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e7edf0;margin-top:22px;padding-top:22px;gap:20px}
+.candidate-rates span,.candidate-rates small{display:block;font-size:11px;color:#778590}
+.candidate-rates strong{display:block;font-size:23px;letter-spacing:-.6px;margin:6px 0;color:#2d4657}
+.candidate-detail aside label{margin-top:16px;color:#516473}
+.candidate-detail aside .hab-btn{width:100%;justify-content:center;border-radius:10px;font-size:12px}
+.candidate-detail aside textarea{resize:vertical;min-height:120px}
+.candidate-detail input:focus,.candidate-detail textarea:focus,.candidate-detail select:focus{outline:2px solid #96b9ad;outline-offset:2px}
+.recruit-admin .candidate-documents .candidate-fields{margin-bottom:24px}
+.candidate-detail details{border-top:1px solid #edf0f3;padding-top:18px;font-size:13px;color:#5a6e7c}
+@media(max-width:1050px){.recruit-admin .candidate-detail .detail-grid{grid-template-columns:1fr}.candidate-detail aside{display:grid;grid-template-columns:1fr 1fr;gap:20px}.candidate-detail aside .hab-panel{margin:0}}
+@media(max-width:650px){.recruit-admin .candidate-detail .hab-hero,.recruit-admin .candidate-detail .hab-panel{padding:22px}.candidate-detail aside{display:block}.candidate-detail aside .hab-panel{margin-bottom:20px}.candidate-section-heading{display:block}.candidate-map{padding:8px}.candidate-rates strong{font-size:20px}.candidate-detail .hab-hero{gap:20px}.candidate-count{display:inline-block}}
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
 {% endblock %}
 {% block recruitment %}
 {% set a=application %}
-<header class="hab-hero"><div><div class="hab-eyebrow">RECRUTEMENT · CANDIDATURE #{{ a.id }}</div><h1>{{ a.firstName }} {{ a.lastName }}</h1><p>{{ a.details.company }} · {{ a.details.city }}<br>Reçue le {{ a.createdAt|date('d/m/Y à H:i','Europe/Paris') }}</p></div><a class="hab-btn" href="{{ path('app_super_recruitment',{entite:entite.id}) }}">Toutes les candidatures</a></header>
+<div class="candidate-detail"><header class="hab-hero"><div><div class="hab-eyebrow">RECRUTEMENT · CANDIDATURE #{{ a.id }}</div><h1>{{ a.firstName }} {{ a.lastName }}</h1><span class="candidate-status">{{ {new:'Nouvelle candidature',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'}[a.status]|default(a.status) }}</span><p>{{ a.details.company }} · {{ a.details.city }}<br>Reçue le {{ a.createdAt|date('d/m/Y à H:i','Europe/Paris') }}</p></div><a class="hab-btn" href="{{ path('app_super_recruitment',{entite:entite.id}) }}">Toutes les candidatures</a></header>
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 <div class="detail-grid"><div><section class="hab-panel">{% if a.photoFilename %}<img class="portrait" src="{{ path('app_super_recruitment_file',{entite:entite.id,id:a.id,kind:'photo'}) }}" alt="Portrait de {{ a.firstName }}">{% endif %}<h2>Profil & coordonnées</h2>
 <dl class="candidate-fields">
@@ -29,6 +69,14 @@
   <div><dt>Adresse professionnelle</dt><dd>{{ a.details.address|default('Non renseignée') }}<br>{{ a.details.postalCode|default('') }} {{ a.details.city|default('') }}</dd></div>
 </dl>
 {% if a.details.presentation|default('') %}<h3 class="candidate-subtitle">Présentation</h3><p style="white-space:pre-wrap">{{ a.details.presentation }}</p>{% endif %}
+</section>
+<section class="hab-panel candidate-mobility">
+<div class="candidate-section-heading"><div><span class="candidate-eyebrow">EXPERTISES & TERRITOIRE</span><h2>Son périmètre d’intervention</h2></div><span class="candidate-count">{{ a.nationwide ? 'France entière' : a.departments|length ~ ' départements' }}</span></div>
+<div class="candidate-specialties">{% for s in a.subjects %}<span class="tag">{{ s }}</span>{% else %}<p>Expertises non renseignées.</p>{% endfor %}</div>
+<div class="candidate-map" aria-describedby="candidate-departments">{% include 'recruitment/_map.svg.twig' with {readOnly:true, nationwide:a.nationwide, selectedDepartments:a.departments} only %}</div>
+<div class="candidate-legend"><span></span> Zone d’intervention déclarée</div>
+<div id="candidate-departments" class="candidate-departments">{% if a.nationwide %}<span class="tag">Toute la France · métropole et outre-mer</span>{% else %}{% for code in a.departments %}{% set departmentLabel = code %}{% for d in departments %}{% if d.value == code %}{% set departmentLabel = d.text %}{% endif %}{% endfor %}<span class="tag">{{ departmentLabel }}</span>{% else %}<p>Aucun département renseigné.</p>{% endfor %}{% endif %}</div>
+<div class="candidate-rates"><div><span>Tarif journalier HT</span><strong>{{ a.dailyRate is not null ? (a.dailyRate/100)|number_format(2,',',' ') ~ ' €' : 'Non renseigné' }}</strong><small>par jour</small></div><div><span>Tarif horaire HT</span><strong>{{ a.hourlyRate is not null ? (a.hourlyRate/100)|number_format(2,',',' ') ~ ' €' : 'Non renseigné' }}</strong><small>par heure</small></div></div>
 </section>
 <section class="hab-panel"><h2>Entreprise & informations administratives</h2>
 <dl class="candidate-fields">
@@ -42,7 +90,7 @@
   <div><dt>Numéro du certificat Qualiopi</dt><dd>{{ a.details.qualiopiNumber|default('Non renseigné') }}</dd></div>
 </dl>
 </section>
-<section class="hab-panel"><h2>Documents & engagements</h2>
+<section class="hab-panel candidate-documents"><h2>Documents & engagements</h2>
 <dl class="candidate-fields">
 {% for kind,label in {'rcPro':'Responsabilité civile professionnelle (RC Pro)', 'qualiopi':'Certificat Qualiopi'} %}
   <div><dt>{{ label }}</dt><dd>{% if a.details.documents[kind]|default(null) %}<a class="hab-btn" href="{{ path('app_super_recruitment_file',{entite:entite.id,id:a.id,kind:kind}) }}">Télécharger le justificatif</a>{% else %}Non fourni{% endif %}</dd></div>
@@ -51,8 +99,9 @@
 <a class="hab-btn gold" href="{{ path('app_super_recruitment_file',{entite:entite.id,id:a.id,kind:'cv'}) }}">Télécharger le CV</a>
 {% if a.details.commitments|default(null) %}<details class="mt-3"><summary>Engagements de candidature</summary><p class="small">Déclarations enregistrées le {{ a.details.commitments.acceptedAt|date('d/m/Y H:i', 'Europe/Paris') }}.</p><ul><li>Exactitude des informations : {{ a.details.commitments.accuracy|default(false) ? 'Confirmée' : 'Non déclarée' }}</li><li>Étude et transmission du profil : {{ a.details.commitments.profileReview|default(false) ? 'Acceptées' : 'Non déclarées' }}</li><li>Justificatifs de compétences sur demande : {{ a.details.commitments.competenceEvidence|default(false) ? 'Oui' : 'Non déclaré' }}</li><li>Échange sur les exigences avant mission : {{ a.details.commitments.qualityDiscussion|default(false) ? 'Oui' : 'Non déclaré' }}</li></ul></details>{% else %}<p class="small mt-3">Engagements non renseignés sur cette candidature.</p>{% endif %}
 </section>
-<section class="hab-panel"><h2>Expertises & mobilité</h2>{% for s in a.subjects %}<span class="tag">{{ s }}</span>{% endfor %}<dl><dt>Départements</dt><dd>{{ a.nationwide ? 'Toute la France' : a.departments|join(', ') }}</dd><dt>Tarifs HT</dt><dd>{% if a.hourlyRate %}{{ (a.hourlyRate/100)|number_format(2,',',' ') }} €/heure<br>{% endif %}{% if a.dailyRate %}{{ (a.dailyRate/100)|number_format(2,',',' ') }} €/jour{% endif %}</dd></dl></section></div>
+</div>
 <aside><section class="hab-panel"><h2>Suivi de candidature</h2><form method="post"><input type="hidden" name="_token" value="{{ csrf_token('application_' ~ a.id) }}"><input type="hidden" name="version" value="{{ a.version }}"><input type="hidden" name="action" value="save"><label>Statut<select name="status">{% for value,label in {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'} %}<option value="{{ value }}" {{ a.status==value ? 'selected' }}>{{ label }}</option>{% endfor %}</select></label><label>Notes internes<textarea name="notes" rows="5" maxlength="10000">{{ a.notes }}</textarea></label><button class="hab-btn" style="margin-top:16px">Enregistrer le suivi</button></form></section>
 <section class="hab-panel"><div class="hab-eyebrow">CANDIDATURE RETENUE</div><h2>Affecter aux organismes</h2><p>Un seul compte utilisateur, une fiche formateur par entité. Les profils déjà présents restent inchangés.</p><form method="post"><input type="hidden" name="_token" value="{{ csrf_token('application_' ~ a.id) }}"><input type="hidden" name="version" value="{{ a.version }}"><input type="hidden" name="action" value="transfer"><label>Entités destinataires<select name="entities[]" multiple required data-recruit-select>{% for e in entities %}<option value="{{ e.id }}">{{ e.nom }} · #{{ e.id }}</option>{% endfor %}</select></label><label style="margin:15px 0"><input type="checkbox" name="confirmExisting" value="1"> Si un compte existe avec cet email, j’ai vérifié qu’il appartient à ce candidat.</label><button class="hab-btn gold">Créer / rattacher le compte formateur</button></form><p class="text-muted small mt-3">Aucun email n’est envoyé par cette action. Le titulaire peut définir son mot de passe via « Mot de passe oublié ».</p></section>
 <section class="hab-panel"><h2>Entités déjà affectées</h2>{% for p in placements %}<p><strong>{{ p.entite.nom }}</strong><br>{{ p.createdAt|date('d/m/Y','Europe/Paris') }}<br><a href="{{ path('app_admin_trainer_cv',{entite:p.entite.id,id:p.formateur.id}) }}">Consulter le profil et le CV ↗</a></p>{% else %}<p>Aucune affectation pour le moment.</p>{% endfor %}</section></aside></div>
+</div>
 {% endblock %}
