@@ -24,6 +24,7 @@ final class OnboardingController extends AbstractController
         EntiteSubscriptionRepository $subRepo,
         TenantContext $tenant,
         int $billingAppTrialDays,
+        \App\Service\Partner\Referrals $referrals,
     ): Response {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
@@ -41,7 +42,16 @@ final class OnboardingController extends AbstractController
             $form->get('planCode')->setData((string) $request->getSession()->get('pricing_selected_plan', ''));
             $form->get('interval')->setData('month');
         }
+        if (!$request->isMethod('POST')) $form->get('referralCode')->setData((string)$request->getSession()->get('affiliate_code', ''));
         $form->handleRequest($request);
+        $partner = null;
+        if ($form->isSubmitted()) {
+            $code = trim((string)$form->get('referralCode')->getData());
+            if ($code !== '') {
+                $partner = $referrals->byCode($code);
+                if (!$partner || $partner->user === $user) $form->get('referralCode')->addError(new FormError('Code apporteur invalide ou auto-parrainage interdit.'));
+            }
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var UploadedFile|null $logoFile */
@@ -145,6 +155,9 @@ final class OnboardingController extends AbstractController
                 $session->remove('pricing_selected_interval');
 
                 $em->flush();
+
+                if ($partner) { $referrals->attach($partner, $entite, $user, 'onboarding'); $em->flush(); }
+                $session->remove('affiliate_code');
 
                 // 4) Tenant courant
                 $tenant->setCurrentEntite($user, $entite);

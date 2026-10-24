@@ -21,6 +21,7 @@ final class StripeWebhookController extends AbstractController
     EntiteSubscriptionRepository $subRepo,
     PlanRepository $planRepo,
     EntityManagerInterface $em,
+    \App\Service\Partner\Commissions $commissions,
     #[\Symfony\Component\DependencyInjection\Attribute\Autowire('%env(STRIPE_WEBHOOK_SECRET)%')]
     string $stripeWebhookSecret,
   ): Response {
@@ -36,6 +37,10 @@ final class StripeWebhookController extends AbstractController
 
     try {
       switch ($event->type) {
+        case 'invoice.paid': {
+            $commissions->record($event->data->object->toArray());
+            break;
+        }
         case 'checkout.session.completed': {
             $session = $event->data->object;
 

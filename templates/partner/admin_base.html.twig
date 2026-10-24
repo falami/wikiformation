@@ -1,0 +1,30 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Apporteurs d’affaires · WikiFormation{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/partners.css') }}">
+  <style>
+    :root {
+      --theme-color-principal: {{ entite.couleurPrincipal|default('#233342') }};
+      --theme-color-secondaire: {{ entite.couleurSecondaire|default('#ffc107') }};
+      --theme-color-tertiaire: {{ entite.couleurTertiaire|default('#f0f0f0') }};
+      --theme-color-quaternaire: {{ entite.couleurQuaternaire|default('#000000') }};
+    }
+    .pa-shell { max-width: 1500px; }
+    @media(max-width:1200px) { .pa-shell .pa-grid { grid-template-columns:1fr; } }
+  </style>
+{% endblock %}
+{% block body %}
+  <div class="pa-shell">
+    {% for type,messages in app.flashes %}{% for message in messages %}
+      <div class="pa-alert {{ type == 'success' ? 'pa-alert-success' : '' }}" role="status">{{ message }}</div>
+    {% endfor %}{% endfor %}
+    {% if error|default(null) %}<div class="pa-alert pa-alert-error" role="alert">{{ error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </div>
+{% endblock %}
+{% block javascripts_bottom %}
+  {{ parent() }}
+  <script>document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const input=document.getElementById(button.dataset.copy);try{await navigator.clipboard.writeText(input.value);button.textContent='Lien copié';}catch(e){input.focus();input.select();button.textContent='Sélectionné : copiez le lien';}}));</script>
+{% endblock %}

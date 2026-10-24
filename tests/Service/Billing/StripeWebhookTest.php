@@ -36,6 +36,7 @@ final class StripeWebhookTest extends TestCase
             new EntiteSubscriptionRepository($registry),
             new PlanRepository($registry),
             $em,
+            new \App\Service\Partner\Commissions($em,new \App\Service\Partner\Referrals($em),$this->createMock(\App\Service\Partner\PartnerStripeGateway::class),new \Symfony\Component\Lock\LockFactory(new \Symfony\Component\Lock\Store\FlockStore())),
             'fixture_secret',
         )->getStatusCode();
     }

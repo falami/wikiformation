@@ -54,7 +54,7 @@ class FormationContentController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
         $isEdit = (bool)$node;
-        $node ??= (new FormationContentNode())->setFormation($formation)->setCreateur($user)->setEntite($entite);
+        $node ??= (new FormationContentNode())->setFormation($formation)->setCreateur($user)->setEntite($entite)->setIsPublished(true);
 
         // parentId optionnel (création d’un sous-chapitre)
         // parentId optionnel (création d’un sous-chapitre)

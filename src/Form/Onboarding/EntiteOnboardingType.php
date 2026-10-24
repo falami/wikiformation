@@ -20,6 +20,7 @@ final class EntiteOnboardingType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $builder->add('referralCode', TextType::class, ['mapped'=>false, 'required'=>false, 'label'=>'Code apporteur (facultatif)', 'constraints'=>[new Assert\Length(max:40)], 'attr'=>['maxlength'=>40, 'placeholder'=>'Code transmis par votre partenaire']]);
         $builder
             ->add('nom', TextType::class, [
                 'label' => "Nom de l'organisme",

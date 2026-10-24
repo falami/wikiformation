@@ -67,7 +67,8 @@ class FormationType extends AbstractType
                 ],
             ])
             ->add('slug', TextType::class, [
-                'label' => '*Slug',
+                'label' => 'Slug',
+                'help' => 'Généré automatiquement depuis le titre. Vous pouvez le personnaliser.',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-control',
@@ -410,9 +411,9 @@ class FormationType extends AbstractType
                 },
             ])
 
-            ->add('public', TextType::class, [
+            ->add('public', TextareaType::class, [
                 'label' => 'Public',
-                'attr' => ['class' => 'form-control'],
+                'attr' => ['class' => 'form-control', 'rows' => 4],
                 'required' => false,
             ])
 

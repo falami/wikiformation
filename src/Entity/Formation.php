@@ -152,7 +152,7 @@ class Formation
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $objectifs = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $public = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]

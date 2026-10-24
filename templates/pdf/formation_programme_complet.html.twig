@@ -350,89 +350,48 @@
     /* =========================
        Program
        ========================= */
-    .program-wrap{
-      margin-top: 2pt;
-    }
-
-    .program-card{
-      border: 1pt solid {{ brand.line }};
-      border-left: 3pt solid {{ brand.accent }};
+    .program-section { page-break-before: always; font-family: DejaVu Sans, Helvetica, Arial, sans-serif; }
+    .program-section .section-head { page-break-after: avoid; margin-bottom: 18pt; }
+    .program-wrap { font-family: DejaVu Sans, Helvetica, Arial, sans-serif; }
+    .program-card { margin-bottom: 20pt; }
+    .program-top {
+      border-top: 2pt solid {{ brand.accent }};
+      background: {{ brand.soft }};
       border-radius: 8pt;
-      padding: 11pt 12pt;
-      margin-bottom: 10pt;
-      background: #fff;
+      padding: 13pt 12pt;
       page-break-inside: avoid;
+      page-break-after: avoid;
     }
-
-    .program-top{
-      margin-bottom: 6pt;
-      page-break-inside: avoid;
+    .program-heading { width: 100%; border-collapse: collapse; }
+    .program-heading td { vertical-align: top; padding: 0; }
+    .program-heading .number-cell { width: 42pt; }
+    .chapter-number {
+      display: inline-block; padding: 7pt 10pt;
+      border-radius: 7pt; background: {{ brand.soft2 }};
+      color: {{ brand.primary }}; font-size: 14pt; font-weight: bold;
     }
-
-    .program-index{
-      font-size: 8.2pt;
-      font-weight: 900;
-      color: {{ brand.muted }};
-      text-transform: uppercase;
-      letter-spacing: .8pt;
-      margin-bottom: 2pt;
+    .program-index {
+      font-size: 7pt; font-weight: bold; color: {{ brand.muted }};
+      text-transform: uppercase; letter-spacing: 1.2pt; margin-bottom: 4pt;
     }
-
-    .program-title{
-      font-size: 11pt;
-      font-weight: 900;
-      color: {{ brand.ink }};
-      line-height: 1.28;
-      margin: 0 0 4pt;
+    .program-title { font-size: 11pt; font-weight: bold; color: {{ brand.ink }}; line-height: 1.4; }
+    .program-meta { margin-top: 5pt; font-size: 8pt; color: {{ brand.muted }}; }
+    .program-text { padding: 10pt 12pt; font-size: 9pt; color: {{ brand.text }}; line-height: 1.6; }
+    .subnode {
+      margin: 0 0 0 20pt; padding: 10pt 12pt;
+      border-left: 1pt solid {{ brand.line }};
+      border-bottom: .5pt solid {{ brand.line }};
     }
-
-    .program-text{
-      margin-top: 4pt;
-      font-size: 9.45pt;
-      color: {{ brand.text }};
-      line-height: 1.58;
+    .subnode:nth-child(even) { background: {{ brand.soft }}; }
+    .subnode-heading { page-break-inside: avoid; page-break-after: avoid; }
+    .subnode-index {
+      display: inline-block; padding: 4pt 6pt; border-radius: 5pt;
+      background: {{ brand.soft2 }}; color: {{ brand.primary }};
+      font-size: 8pt; font-weight: bold;
     }
-
-    .program-text p:last-child{
-      margin-bottom:0;
-    }
-
-    .subnode{
-      margin-top: 8pt;
-      padding: 8pt 10pt;
-      border-left: 3pt solid {{ brand.primary }};
-      background: {{ brand.soft2 }};
-      border-radius: 6pt;
-      page-break-inside: avoid;
-    }
-
-    .subnode-index{
-      font-size: 8pt;
-      font-weight: 900;
-      color: {{ brand.muted }};
-      text-transform: uppercase;
-      letter-spacing: .7pt;
-      margin-bottom: 2pt;
-    }
-
-    .subnode-title{
-      font-size: 9.7pt;
-      font-weight: 800;
-      color: {{ brand.ink }};
-      line-height: 1.3;
-      margin-bottom: 4pt;
-    }
-
-    .richtext{
-      margin-top: 4pt;
-      font-size: 9.35pt;
-      color: {{ brand.text }};
-      line-height: 1.58;
-    }
-
-    .richtext p:last-child{
-      margin-bottom:0;
-    }
+    .subnode-title { font-size: 9pt; font-weight: bold; color: {{ brand.ink }}; line-height: 1.45; }
+    .richtext { margin: 8pt 0 0 42pt; font-size: 9pt; color: {{ brand.text }}; line-height: 1.6; }
+    .program-text p:last-child, .richtext p:last-child { margin-bottom: 0; }
 
     /* =========================
        Footer note
@@ -553,9 +512,7 @@
           <div class="section-rule"></div>
         </div>
         <div class="info-lead">
-            <div class="hero-sub">
-              {{ formation.description|striptags|trim|nl2br }}
-            </div>
+          {{ formation.description|striptags|trim|nl2br }}
         </div>
       </div>
     {% endif %}
@@ -723,7 +680,7 @@
     {% endfor %}
 
     {% if chapitres is not empty %}
-    <div class="card card-soft">
+    <div class="program-section">
       <div class="section-head">
         <div class="section-kicker">Contenu détaillé</div>
         <h2 class="section-title">Programme détaillé</h2>
@@ -732,15 +689,21 @@
 
         <div class="program-wrap">
           {% for chapitre in chapitres %}
+            {% set chapitreIndex = loop.index %}
+            {% set enfants = (chapitre.children is defined ? chapitre.children : [])|filter(sub => sub.isPublished) %}
             <div class="program-card">
               <div class="program-top">
-                <div class="program-index">Chapitre {{ loop.index }}</div>
-                <div class="program-title">
-                  {{ chapitre.titre }}
-                  {% if chapitre.dureeMinutes %}
-                    <span class="badge-soft" style="margin-left:6pt;">{{ chapitre.dureeMinutes }} min</span>
-                  {% endif %}
-                </div>
+                <table class="program-heading"><tr>
+                  <td class="number-cell"><span class="chapter-number">{{ chapitreIndex }}</span></td>
+                  <td>
+                    <div class="program-index">Chapitre</div>
+                    <div class="program-title">{{ chapitre.titre }}</div>
+                    <div class="program-meta">
+                      {% if chapitre.dureeMinutes %}{{ chapitre.dureeMinutes }} min{% endif %}
+                      {% if enfants|length %}{% if chapitre.dureeMinutes %} · {% endif %}{{ enfants|length }} sous-chapitre{{ enfants|length > 1 ? 's' : '' }}{% endif %}
+                    </div>
+                  </td>
+                </tr></table>
               </div>
 
               {% if chapitre.blocks is defined and chapitre.blocks|length > 0 %}
@@ -753,17 +716,18 @@
                 {% endfor %}
               {% endif %}
 
-              {% set enfants = chapitre.children is defined ? chapitre.children : [] %}
               {% if enfants and enfants|length > 0 %}
                 {% for sub in enfants %}
                   {% if sub.isPublished %}
                     <div class="subnode">
-                      <div class="subnode-index">Sous-partie {{ loop.parent.loop.index }}.{{ loop.index }}</div>
-                      <div class="subnode-title">
-                        {{ sub.titre }}
-                        {% if sub.dureeMinutes %}
-                          <span class="badge-soft" style="margin-left:6pt;">{{ sub.dureeMinutes }} min</span>
-                        {% endif %}
+                      <div class="subnode-heading">
+                        <table class="program-heading"><tr>
+                          <td class="number-cell"><span class="subnode-index">{{ chapitreIndex }}.{{ loop.index }}</span></td>
+                          <td>
+                            <div class="subnode-title">{{ sub.titre }}</div>
+                            {% if sub.dureeMinutes %}<div class="program-meta">{{ sub.dureeMinutes }} min</div>{% endif %}
+                          </td>
+                        </tr></table>
                       </div>
 
                       {% if sub.blocks is defined and sub.blocks|length > 0 %}

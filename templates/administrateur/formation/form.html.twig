@@ -1243,6 +1243,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Preserve existing URLs and stop automatic updates after a manual change.
+  if (elTitre && elSlug) {
+    const slugify = value => value.toLowerCase()
+      .replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/ß/g, 'ss')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      .slice(0, 160).replace(/-+$/g, '');
+    let automaticSlug = !elSlug.value.trim();
+    elTitre.addEventListener('input', () => {
+      if (automaticSlug) elSlug.value = slugify(elTitre.value);
+    });
+    elSlug.addEventListener('input', () => { automaticSlug = !elSlug.value.trim(); });
+    elSlug.addEventListener('blur', () => {
+      if (automaticSlug) { elSlug.value = slugify(elTitre.value); refreshResume(); }
+    });
+    if (automaticSlug) elSlug.value = slugify(elTitre.value);
+  }
+
   [elTitre, elSlug, elDur, elPrix].forEach(x => x && x.addEventListener('input', refreshResume));
   [elNiv, pub].forEach(x => x && x.addEventListener('change', refreshResume));
 

@@ -47,6 +47,12 @@ final class RedirectAfterLogin
       return new RedirectResponse($targetPath);
     }
 
+    if ($this->em->getRepository(\App\Entity\Partner\Partner::class)->findOneBy(['user'=>$u])
+        && (!is_string($targetPath) || !str_contains($targetPath, '/administrateur/'))) {
+      $session?->remove('_security.main.target_path');
+      return new RedirectResponse($this->router->generate('app_partner_dashboard'));
+    }
+
     // 2) Sinon, rediriger selon memberships actives
     $memberships = $this->ueRepo->findBy(['utilisateur' => $u], ['id' => 'ASC']);
     $memberships = array_values(array_filter(
