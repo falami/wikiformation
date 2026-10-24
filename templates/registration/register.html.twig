@@ -1,53 +1,20 @@
-{% extends 'base.html.twig' %}
-
+{% extends 'security/auth_base.html.twig' %}
 {% block title %}{{ 'auth.register.meta.title'|trans }}{% endblock %}
-
-{% block stylesheets %}
-    <style>
-        body {
-            background-color: #0f1b28;
-            color: white;
-        }
-        .register-container {
-            max-width: 900px;
-            width: 100%;
-            background: white;
-            color: black;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .left-panel, .right-panel {
-            padding: 30px;
-        }
-        .right-panel {
-            background: #f8f9fa;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .invalid-feedback {
-            display: block;
-        }
-    </style>
-{% endblock %}
-
-{% block body %}
-<div class="container d-flex justify-content-center align-items-center min-vh-100 py-5 py-md-0">
-    <div class="register-container shadow-lg row">
-        <!-- Partie gauche : Inscription -->
-        <div class="col-md-6 col-12 left-panel">
-            
-            <div class="text-center">
-                <img src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}" alt="Logo Wiki Formation" class="img-fluid" style="max-height: 40px;">
-                <h1 class="text-warning">{{ 'auth.register.title'|trans }}</h1>
-            </div>
-            
-            {{ form_start(registrationForm) }}
+{% block intro %}<h1>Un nouvel espace.<br><span>De nouvelles possibilités.</span></h1><p>Créez votre compte et retrouvez les outils pour organiser, accompagner et développer votre activité de formation.</p><ol class="auth-steps"><li><span class="step-current">1</span><div><strong>Créez votre compte</strong><small>Quelques informations pour faire connaissance</small></div></li><li><span class="step-check">2</span><div><strong>Validez votre e-mail</strong><small>Un lien de confirmation dans votre messagerie</small></div></li><li><span class="step-check">3</span><div><strong>Rejoignez votre espace</strong><small>Retrouvez les services adaptés à votre activité</small></div></li></ol>{% endblock %}
+{% block account_form %}<span class="eyebrow">BIENVENUE SUR WIKIFORMATION</span><h2 id="auth-title">Créez votre compte</h2><p class="form-description">Votre première étape vers une formation mieux organisée.</p>
+            {{ form_start(registrationForm, {attr: {'data-turbo': 'false'}}) }}
+                {% if registrationForm.vars.submitted and not registrationForm.vars.valid %}
+                    <div class="alert alert-danger" role="alert" tabindex="-1" id="registration-errors">
+                        <strong>L’inscription n’a pas pu être enregistrée.</strong>
+                        <p class="mb-0">Vérifiez les messages sous les champs. Si vous possédez déjà un compte, connectez-vous ou réinitialisez votre mot de passe.</p>
+                        {{ form_errors(registrationForm) }}
+                    </div>
+                {% endif %}
                 {{ form_row(registrationForm.prenom) }}
                 {{ form_row(registrationForm.nom) }}
                 {{ form_row(registrationForm.email) }}
 
+                {{ form_errors(registrationForm.password) }}
                 <div class="mb-3 position-relative">
                     {{ form_label(registrationForm.password.first) }}
                     <div class="input-group">
@@ -83,40 +50,22 @@
                 </div>
 
                 <div class="mb-3">
-                    {{ form_row(registrationForm.consentementRgpd) }}
-                    {{ form_row(registrationForm.newsletter) }}
+                    {% for consent in [registrationForm.consentementRgpd, registrationForm.newsletter] %}
+                        <div class="auth-consent">
+                            <div class="auth-consent-line">
+                                {{ form_widget(consent) }}
+                                {{ form_label(consent) }}
+                            </div>
+                            {{ form_errors(consent) }}
+                        </div>
+                    {% endfor %}
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 mt-3">{{ 'auth.register.submit'|trans }}</button>
-            {{ form_end(registrationForm) }}
-        </div>
-
-        <!-- Partie droite : Connexion -->
-        <div class="col-md-6 col-12 right-panel text-center">
-            <img class="mb-3 rounded" src="{{ asset('uploads/photos/entite/logo/logo-wikiformation.png') }}" alt="Logo" style="width: 150px;">
-            
-            <h4>{{ 'auth.register.already_account.title'|trans }}</h4>
-            <p>{{ 'auth.register.already_account.subtitle'|trans }}</p>
-            
-            <p class="text-danger">
-              <svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" fill="currentColor" class="bi bi-exclamation-triangle" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/>
-                <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/>
-              </svg>
-            </p>
-            <p class="text-danger">{{ 'auth.register.note_subscribe'|trans }}</p>
-
-            <div class="row">
-                <div class="col-12 d-flex gap-2">
-                    <a href="{{ path('app_login') }}" class="btn btn-success">{{ 'auth.register.login'|trans }}</a>
-                    <a href="{{ path('app_public') }}" class="btn btn-primary">{{ 'auth.register.home'|trans }}</a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
+                <button type="submit" class="verify-button mt-3">{{ 'auth.register.submit'|trans }}</button>
+            {{ form_end(registrationForm) }}<div class="resend-box"><p>{{ 'auth.register.already_account.title'|trans }}</p><a class="resend-button" href="{{ path('app_login') }}">{{ 'auth.register.login'|trans }} →</a></div>
+{% endblock %}
+{% block account_scripts %}<script>
+document.getElementById('registration-errors')?.focus();
 // Afficher/masquer les mots de passe (identique visuel)
 document.querySelectorAll('.toggle-password').forEach(button => {
   button.addEventListener('click', function () {
@@ -167,5 +116,4 @@ if (confirmPasswordInput && passwordInput) {
     }
   });
 }
-</script>
-{% endblock %}
+</script>{% endblock %}

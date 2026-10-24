@@ -99,6 +99,7 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
         $this->em->persist($f); $this->em->flush();
         $t = new EInvoiceTransmission($this->connection, $f); $t->prepared('<Invoice/>');
         $this->billing->prepare($t); self::assertSame('sub_fixture', $t->getUsageTerms()['subscription']);
+        self::assertSame(['providerCostCents' => 1, 'platformShareCents' => 1, 'version' => 1], $t->getUsageTerms()['internalAllocation']);
         $this->sub->setStripeSubscriptionId('sub_replacement'); $this->em->flush();
         $this->billing->prepare($t); self::assertSame('sub_replacement', $t->getUsageTerms()['subscription']);
         $t->begin(); $terms = $t->getUsageTerms();
@@ -139,6 +140,8 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
         self::assertSame(1, $result['recorded']); self::assertSame(1, $this->gateway->creates);
         $this->billing->process($this->connection, '2020-09', true); self::assertSame(1, $this->gateway->creates);
         self::assertSame(2, $this->gateway->payloads[0]['quantity']); self::assertSame('2', $this->gateway->payloads[0]['unit_amount_decimal']);
+        self::assertStringNotContainsString('internalAllocation', json_encode($this->gateway->payloads[0]));
+        self::assertStringNotContainsString('providerCostCents', json_encode($this->gateway->payloads[0]));
         self::assertSame('sub_fixture', $this->gateway->payloads[0]['subscription']); self::assertSame('exclusive', $this->gateway->payloads[0]['tax_behavior']);
         $this->accept($this->transmission(), '203'); $this->billing->process($this->connection, '2020-09', true);
         self::assertSame(2, $this->gateway->creates); self::assertSame(1, $this->gateway->payloads[1]['quantity']);

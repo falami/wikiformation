@@ -1,56 +1,7 @@
-{% extends 'base.html.twig' %}
-
-{% set brand = public_branding() %}
-
+{% extends 'security/auth_base.html.twig' %}
 {% block title %}{{ 'login.meta.title'|trans }}{% endblock %}
-
-{% block stylesheets %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <style>
-        body {
-            background-color: #0f1b28 !important;
-            color: white;
-        }
-        .login-container {
-            max-width: 900px;
-            width: 100%;
-            background: white;
-            color: black;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .left-panel, .right-panel {
-            padding: 30px;
-        }
-        .right-panel {
-            background: #f8f9fa;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .login-logo {
-            max-width: 160px;
-            max-height: 80px;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-        }
-    </style>
-{% endblock %}
-
-{% block body %}
-<div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="login-container shadow-lg row">
-        <div class="col-md-6 col-12 left-panel">
-            <div class="text-center">
-                <img
-                    class="mb-3 rounded login-logo"
-                    src="{{ asset(brand.logo) }}"
-                    alt="Logo {{ brand.name }}"
-                >
-            </div>
-
+{% block intro %}<h1>Heureux de vous retrouver.<br><span>Tout commence ici.</span></h1><p>Retrouvez vos formations, vos documents et votre équipe dans un espace unique.</p><ol class="auth-steps"><li><span class="step-current">1</span><div><strong>Connectez-vous</strong><small>Votre adresse e-mail et votre mot de passe</small></div></li><li><span class="step-check">2</span><div><strong>Confirmez votre identité</strong><small>Un code personnel envoyé par e-mail</small></div></li></ol>{% endblock %}
+{% block account_form %}<span class="eyebrow">ÉTAPE 1 SUR 2</span><h2 id="auth-title">Connexion à votre espace</h2><p class="form-description">Renseignez vos identifiants pour continuer.</p>
             {% if error %}
                 <div class="alert alert-danger text-center">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
             {% endif %}
@@ -76,14 +27,14 @@
                 </div>
             {% endif %}
 
-            <form method="post">
-                <h5 class="text-center mb-3">{{ 'login.form.title'|trans }}</h5>
+            <form method="post" data-turbo="false">
+
 
                 <div class="mb-3">
                     <label for="username" class="form-label">{{ 'login.form.email'|trans }}</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                        <input type="email" value="{{ last_username }}" name="_username" id="username" class="form-control" required autofocus>
+                        <input type="email" value="{{ last_username }}" name="_username" id="username" class="form-control" autocomplete="username" required autofocus>
                     </div>
                 </div>
 
@@ -91,8 +42,8 @@
                     <label for="password" class="form-label">{{ 'login.form.password'|trans }}</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" name="_password" id="password" class="form-control password-login-field" required>
-                        <button type="button" class="btn btn-outline-secondary toggle-password" data-target=".password-login-field">
+                        <input type="password" name="_password" id="password" class="form-control password-login-field" autocomplete="current-password" required>
+                        <button type="button" class="btn btn-outline-secondary toggle-password" data-target=".password-login-field" aria-label="Afficher ou masquer le mot de passe">
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
@@ -102,33 +53,15 @@
 
                 <p class="small text-muted mb-3"><i class="bi bi-shield-lock me-1"></i> Après votre mot de passe, un code de vérification sera envoyé à votre adresse e-mail.</p>
 
-                <button class="btn btn-primary w-100" type="submit">{{ 'login.form.submit'|trans }}</button>
+                <button class="verify-button" type="submit">{{ 'login.form.submit'|trans }}</button>
 
                 <div class="text-center mt-3">
                     <small><a href="{{ path('app_forgot_password_request') }}" class="text-muted">{{ 'login.form.forgot'|trans }}</a></small>
                 </div>
             </form>
-        </div>
-
-        <div class="col-md-6 col-12 right-panel text-center">
-            <h4>{{ 'login.signup.title'|trans }}</h4>
-            <p>{{ 'login.signup.text'|trans }}</p>
-            <div class="row">
-                <div class="col-12 d-flex gap-2 justify-content-center">
-                    <a href="{{ path('app_register') }}" class="btn btn-success">{{ 'login.signup.create'|trans }}</a>
-
-                    {% if brand.homeUrl %}
-                        <a href="{{ brand.homeUrl }}" class="btn btn-primary">Accueil</a>
-                    {% else %}
-                        <a href="{{ path('app_public') }}" class="btn btn-primary">{{ 'login.signup.home'|trans }}</a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
+<div class="resend-box"><p>{{ 'login.signup.title'|trans }}</p><a class="resend-button" href="{{ path('app_register') }}">{{ 'login.signup.create'|trans }} →</a></div>
+{% endblock %}
+{% block account_scripts %}<script>
     document.querySelectorAll('.toggle-password').forEach(button => {
         button.addEventListener('click', function () {
             const input = document.querySelector(this.dataset.target);
@@ -144,5 +77,4 @@
             }
         });
     });
-</script>
-{% endblock %}
+</script>{% endblock %}

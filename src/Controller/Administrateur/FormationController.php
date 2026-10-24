@@ -436,6 +436,13 @@ final class FormationController extends AbstractController
                 $em->flush();
             }
 
+            if ($request->request->get('after_save') === 'programme') {
+                return $this->redirectToRoute('app_administrateur_formation_content_index', [
+                    'entite' => $entite->getId(),
+                    'formation' => $formation->getId(),
+                ], Response::HTTP_SEE_OTHER);
+            }
+
             return $this->redirectToRoute('app_administrateur_formation_index', [
                 'entite'    => $entite->getId(),
                 'formation' => $formation->getId(),

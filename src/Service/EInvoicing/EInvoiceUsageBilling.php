@@ -38,6 +38,8 @@ final class EInvoiceUsageBilling
         if ($transmission->getAttemptedAt()) throw new \LogicException('Aucune tarification rétroactive d’une tentative.');
         $connection = $transmission->getConnection(); $sub = $this->assertEligible($connection);
         $transmission->captureUsageTerms(['unitPriceCents' => $connection->getUnitPriceCents(), 'currency' => 'eur',
+            // Internal allocation, never sent to customer-facing Stripe invoice items.
+            'internalAllocation' => ['providerCostCents' => 1, 'platformShareCents' => $connection->getUnitPriceCents() - 1, 'version' => 1],
             'consentedAt' => $connection->getBillingConsentAt()->format(DATE_ATOM), 'consentedBy' => $connection->getBillingConsentBy(),
             'customer' => $sub?->getStripeCustomerId(), 'subscription' => $sub?->getStripeSubscriptionId()]);
     }

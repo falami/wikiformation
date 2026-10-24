@@ -43,6 +43,11 @@ class EInvoiceUsage
     public function getTransmission(): EInvoiceTransmission { return $this->transmission; }
     public function getProviderId(): string { return $this->providerId; }
     public function getUnitPriceCents(): int { return $this->unitPriceCents; }
+    /** Null for historical emissions whose allocation was not captured. */
+    public function getInternalAllocation(): ?array
+    {
+        return $this->transmission->getUsageTerms()['internalAllocation'] ?? null;
+    }
     public function getStripeCustomerId(): string { return $this->stripeCustomerId; }
     public function getStripeSubscriptionId(): string { return $this->stripeSubscriptionId; }
     public function getAcceptedAt(): \DateTimeImmutable { return $this->acceptedAt; }

@@ -319,6 +319,10 @@
       .formation-editor .cardx-h { flex-wrap:wrap; gap:10px; }
       .formation-editor .phase-panel { padding:16px; }
     }
+    .formation-choice-create { display:flex; align-items:center; gap:10px; }
+    .formation-choice-control { flex:1; min-width:0; }
+    .formation-choice-control .ts-wrapper { width:100%; margin-bottom:0; }
+    .formation-choice-add { flex:0 0 42px; width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; padding:0; border-radius:8px; }
   </style>
 {% endblock %}
 
@@ -345,7 +349,7 @@
           </h2>
 
           <div class="subline mt-1">
-            Infos, tarification, médias et éligibilités.
+            Complétez la fiche, puis construisez le programme en chapitres et sous-chapitres.
           </div>
 
           <div class="d-flex gap-2 flex-wrap mt-3">
@@ -384,6 +388,21 @@
   }) }}
 
   {{ form_errors(form) }}
+
+  <section class="cardx mb-4" aria-labelledby="programme-workflow-title" style="border-top:3px solid #e5b544">
+    <div class="p-3 p-md-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <div class="small text-uppercase fw-bold text-muted mb-2">Votre formation en deux étapes</div>
+        <h2 id="programme-workflow-title" class="h5 fw-bold mb-2">1. Fiche de formation · 2. Programme détaillé</h2>
+        <p class="text-muted mb-0">Le contenu détaillé se remplit dans un espace dédié : chapitres, sous-chapitres, durées et contenus pédagogiques.</p>
+        <p class="small text-muted mt-1 mb-0">{{ modeEdition ? 'Enregistrez vos modifications pour retrouver et compléter votre programme.' : 'Enregistrez cette fiche pour commencer à ajouter vos chapitres.' }}</p>
+      </div>
+      <button type="submit" name="after_save" value="programme" class="btn btn-warning fw-semibold">
+        <i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>Enregistrer et {{ modeEdition ? 'modifier' : 'rédiger' }} le programme détaillé →
+      </button>
+    </div>
+  </section>
+
 
   <input type="hidden" name="photos_order" id="photos_order" value="">
   <input type="hidden" name="remove_cover" id="remove_cover" value="0">
@@ -424,15 +443,39 @@
             </div>
 
             <div class="col-md-6">
-              {{ form_row(form.engin) }}
+              {{ form_label(form.engin) }}
+              <div class="formation-choice-create">
+                <div class="formation-choice-control">{{ form_widget(form.engin) }}</div>
+              {% if is_granted('ENGIN_MANAGE', entite) %}
+              <button type="button" class="btn btn-outline-secondary formation-choice-add" data-quick-create-url="{{ path('app_formation_quick_create', {entite: entite.id, kind: 'engin'}) }}" data-quick-create-target="{{ form.engin.vars.id }}" data-quick-create-title="Créer un engin" title="Créer un engin" aria-label="Créer un engin"><i class="fa fa-plus" aria-hidden="true"></i></button>
+              {% endif %}
+              </div>
+              {{ form_errors(form.engin) }}
+              {{ form_help(form.engin) }}
             </div>
 
             <div class="col-md-6">
-              {{ form_row(form.formateur) }}
+              {{ form_label(form.formateur) }}
+              <div class="formation-choice-create">
+                <div class="formation-choice-control">{{ form_widget(form.formateur) }}</div>
+              {% if is_granted('FORMATEUR_MANAGE', entite) %}
+              <button type="button" class="btn btn-outline-secondary formation-choice-add" data-quick-create-url="{{ path('app_formation_quick_create', {entite: entite.id, kind: 'formateur'}) }}" data-quick-create-target="{{ form.formateur.vars.id }}" data-quick-create-title="Créer un formateur" title="Créer un formateur" aria-label="Créer un formateur"><i class="fa fa-plus" aria-hidden="true"></i></button>
+              {% endif %}
+              </div>
+              {{ form_errors(form.formateur) }}
+              {{ form_help(form.formateur) }}
             </div>
 
             <div class="col-md-6">
-              {{ form_row(form.categorie) }}
+              {{ form_label(form.categorie) }}
+              <div class="formation-choice-create">
+                <div class="formation-choice-control">{{ form_widget(form.categorie) }}</div>
+              {% if is_granted('FORMATION_MANAGE', entite) %}
+              <button type="button" class="btn btn-outline-secondary formation-choice-add" data-quick-create-url="{{ path('app_formation_quick_create', {entite: entite.id, kind: 'categorie'}) }}" data-quick-create-target="{{ form.categorie.vars.id }}" data-quick-create-title="Créer une catégorie ou sous-catégorie" title="Créer une catégorie ou sous-catégorie" aria-label="Créer une catégorie ou sous-catégorie"><i class="fa fa-plus" aria-hidden="true"></i></button>
+              {% endif %}
+              </div>
+              {{ form_errors(form.categorie) }}
+              {{ form_help(form.categorie) }}
             </div>
 
           </div>
@@ -795,7 +838,7 @@
       {# ================== CONTENU & CONDITIONS ================== #}
       <div class="cardx mb-4">
         <div class="cardx-h">
-          <h5 class="cardx-title"><i class="fa fa-align-left text-warning"></i> Contenu & Conditions</h5>
+          <h5 class="cardx-title"><i class="fa fa-align-left text-warning"></i> Présentation & conditions de la formation</h5>
           <span class="chip">Étape 4</span>
         </div>
 
@@ -812,7 +855,8 @@
         </div>
       </div>
 
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="submit" name="after_save" value="programme" class="btn btn-warning fw-semibold">Enregistrer et compléter le programme détaillé →</button>
         <button type="submit" class="btn btn-gradient">
           <i class="fa fa-check"></i> Enregistrer
         </button>
@@ -823,6 +867,12 @@
 
     {# ===== COL RIGHT (petit résumé + sticky) ===== #}
     <div class="col-lg-4 formation-summary">
+      <div class="cardx p-3 mb-3">
+        <h2 class="h6 fw-bold"><i class="bi bi-diagram-3 me-2" aria-hidden="true"></i>Programme détaillé</h2>
+        <p class="small text-muted">Ajoutez les chapitres, puis leurs sous-chapitres et leurs durées.</p>
+        <button type="submit" name="after_save" value="programme" class="btn btn-warning w-100">Enregistrer et ouvrir le programme</button>
+      </div>
+
 
       <div class="cardx mb-4">
         <div class="cardx-h">
@@ -899,6 +949,13 @@
   </div>
 
   {{ form_end(form) }}
+  <div class="modal fade" id="formationQuickCreate" tabindex="-1" aria-labelledby="formationQuickCreateTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header"><h2 class="modal-title fs-5" id="formationQuickCreateTitle"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <div class="modal-body"></div>
+    </div></div>
+  </div>
+  <script src="{{ asset('dist/js/formation-quick-create.js') }}" defer></script>
 
 {# ================== SCRIPTS PAGE ================== #}
 <script>

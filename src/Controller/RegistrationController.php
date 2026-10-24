@@ -39,7 +39,7 @@ final class RegistrationController extends AbstractController
         if (!$form->isSubmitted() || !$form->isValid()) {
             return $this->render('registration/register.html.twig', [
                 'registrationForm' => $form->createView(),
-            ]);
+            ], new Response(status: $form->isSubmitted() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
         }
 
         $email = (string) $form->get('email')->getData();
@@ -53,7 +53,7 @@ final class RegistrationController extends AbstractController
         if ($existing) {
             if ($existing->isVerified()) {
                 $this->addFlash('danger', 'Un compte existe déjà avec cette adresse email, veuillez faire une demande de réinitialisation.');
-                return $this->redirectToRoute('app_login');
+                return $this->redirectToRoute('app_login', [], Response::HTTP_SEE_OTHER);
             }
 
             $user = $existing;
@@ -92,7 +92,7 @@ final class RegistrationController extends AbstractController
             );
 
             $this->addFlash('success', 'Nous venons de vous envoyer un mail pour valider votre adresse mail !');
-            return $this->redirectToRoute('app_login');
+            return $this->redirectToRoute('app_login', [], Response::HTTP_SEE_OTHER);
         }
 
         // ===================================
@@ -132,6 +132,6 @@ final class RegistrationController extends AbstractController
         );
 
         $this->addFlash('success', 'Nous venons de vous envoyer un mail pour valider votre adresse mail !');
-        return $this->redirectToRoute('app_login');
+        return $this->redirectToRoute('app_login', [], Response::HTTP_SEE_OTHER);
     }
 }
