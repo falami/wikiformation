@@ -452,7 +452,14 @@
       background: rgba(220,53,69,.08);
     }
 
-  </style>
+  .session-switch-card{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px;margin:14px 0;background:#f8fafc;border:1px solid #dce5ed;border-radius:16px}
+.session-switch-card label{font-weight:650;cursor:pointer;margin-bottom:6px}
+.session-switch-card .session-switch-input{appearance:none!important;flex:0 0 54px;width:54px!important;height:30px!important;border:1px solid #c4cdd7!important;border-radius:30px!important;background:#cbd5df!important;position:relative;cursor:pointer;margin:0!important;transition:background .2s}
+.session-switch-card .session-switch-input:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;border-radius:50%;background:white;box-shadow:0 1px 4px #0002;transition:transform .2s}
+.session-switch-card .session-switch-input:checked{background:#ffbf00!important;border-color:#ffbf00!important}
+.session-switch-card .session-switch-input:checked:before{transform:translateX(24px)}
+.session-switch-card .session-switch-input:focus-visible{outline:3px solid #a87913;outline-offset:3px}
+</style>
 {% endblock %}
 
 {% block javascripts %}
@@ -582,7 +589,7 @@
               </div>
             </div>
 
-            <div class="col-md-6">{{ form_row(form.status) }}</div>
+            <div class="col-md-6">{{ form_row(form.status) }}</div><div class="col-12">{% include 'administrateur/session/_switch.html.twig' with {field: form.startReminderEnabled} %}</div>
             <div class="col-md-6">{{ form_row(form.engin) }}</div>
             <div class="col-md-6">{{ form_row(form.code) }}</div>
           </div>
@@ -739,7 +746,7 @@
               <i class='fa fa-trash'></i>
             </button>
           </div>
-          <div class='col-12'>{{ form_row(form.inscriptions.vars.prototype.conventionsToAssociate) }}{{ form_row(form.inscriptions.vars.prototype.createConvention) }}</div>
+          <div class='col-12'>{{ form_row(form.inscriptions.vars.prototype.conventionsToAssociate) }}{% include 'administrateur/session/_switch.html.twig' with {field: form.inscriptions.vars.prototype.createConvention} %}</div>
         </div>
       {% endset %}
 
@@ -760,7 +767,7 @@
                     <i class="fa fa-trash"></i>
                   </button>
                 </div>
-                <div class="col-12">{{ form_row(ins.conventionsToAssociate) }}{{ form_row(ins.createConvention) }}</div>
+                <div class="col-12">{{ form_row(ins.conventionsToAssociate) }}{% include 'administrateur/session/_switch.html.twig' with {field: ins.createConvention} %}</div>
                 <div class="col-12" data-saved-conventions data-learner="{{ ins.stagiaire.vars.value }}">
                   <div class="small fw-semibold mb-2">Conventions rattachées</div>
                   {% include 'administrateur/session/_participant_conventions.html.twig' with {documents: participantConventions[ins.vars.data.id]|default([]), ins: ins.vars.data} %}

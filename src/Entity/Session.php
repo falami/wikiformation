@@ -22,6 +22,12 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ORM\UniqueConstraint(name: 'uniq_session_code', columns: ['code'])]
 class Session
 {
+    #[ORM\Column(options: ['default' => false])]
+    private bool $startReminderEnabled = false;
+
+    public function isStartReminderEnabled(): bool { return $this->startReminderEnabled; }
+    public function setStartReminderEnabled(bool $enabled): static { $this->startReminderEnabled = $enabled; return $this; }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

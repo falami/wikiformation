@@ -114,6 +114,56 @@ final class RegulatoryDocumentsTest extends KernelTestCase
         self::assertNull($form->get('inscription')->getData());
     }
 
+    public function testClosingSessionPersistsOneCertificateWithActualHours(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get('doctrine')->getManager();
+        (new \Doctrine\ORM\Tools\SchemaTool($em))->createSchema($em->getMetadataFactory()->getAllMetadata());
+        $generator = $this->createMock(\App\Service\Sequence\AttestationNumberGenerator::class);
+        $generator->method('nextForEntite')->willReturn('ATT-TEST-001');
+        self::getContainer()->set(\App\Service\Sequence\AttestationNumberGenerator::class, $generator);
+        [$entite, $user, $session] = $this->fixture();
+        $entite->setCreateur($user); $user->setPassword('unused');
+        $site = (new \App\Entity\Site())->setEntite($entite)->setCreateur($user)->setNom('Salle')->setSlug('salle');
+        $session->setCreateur($user)->setSite($site);
+        $session->getFormation()->setCreateur($user)->setSlug('formation');
+        foreach ($session->getJours() as $day) $day->setCreateur($user)->setEntite($entite);
+        $i = (new Inscription())->setEntite($entite)->setStagiaire($user)->setCreateur($user)->setStatus(StatusInscription::CONFIRME);
+        $session->addInscription($i);
+        $i->enregistrerPresenceManuelle('2025-01-03:AM', 'paper', 'Feuille', $user);
+        $i->enregistrerPresenceManuelle('2025-01-03:PM', 'absent', '', $user);
+        foreach ([$user,$entite,$site,$session->getFormation(),$session,$i] as $entity) $em->persist($entity);
+        $em->flush();
+        self::assertNull($i->getAttestation());
+        $session->setStatus(\App\Enum\StatusSession::DONE); $em->flush();
+        self::assertNotNull($i->getAttestation());
+        self::assertSame(3.0,$i->getAttestation()->getDureeHeures());
+        $em->flush(); self::assertSame(1,$em->getRepository(Attestation::class)->count([]));
+        $session->setStatus(\App\Enum\StatusSession::PUBLISHED)->setStartReminderEnabled(true);
+        $clock = new \DateTimeImmutable('2026-10-25 10:00 Europe/Paris');
+        foreach ($session->getJours() as $day) {
+            $day->setDateDebut(new \DateTimeImmutable('2026-10-26 '.$day->getDateDebut()->format('H:i').' Europe/Paris'));
+            $day->setDateFin(new \DateTimeImmutable('2026-10-26 '.$day->getDateFin()->format('H:i').' Europe/Paris'));
+        }
+        $em->flush();
+        $transport = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $transport->expects(self::once())->method('send')->with(self::callback(function ($email) {
+            self::assertStringContainsString('Votre planning', $email->getHtmlBody());
+            self::assertStringContainsString('26/10/2026', $email->getTextBody());
+            self::assertStringContainsString('09:00', $email->getTextBody());
+            return true;
+        }));
+        $twig = self::getContainer()->get('twig');
+        $mailer = new \App\Service\Email\MailerManager($transport,$twig,self::getContainer()->get('router'));
+        $runner = new \App\Service\Session\SessionStartReminder($em,$mailer,$twig);
+        self::assertSame(1,$runner->run($clock,false)['eligible']);
+        self::assertSame(0,$em->getRepository(\App\Entity\SessionStartReminderDelivery::class)->count([]));
+        self::assertSame(1,$runner->run($clock,true)['sent']);
+        self::assertSame(0,$runner->run($clock,true)['sent']);
+        $id=$i->getId(); $em->clear();
+        self::assertSame(3.0,$em->find(Inscription::class,$id)->getAttestation()->getDureeHeures());
+    }
+
     private function fixture(): array
     {
         $user = (new Utilisateur())->setPrenom('Camille')->setNom('Test')->setEmail('camille@example.test');

@@ -14,7 +14,7 @@ final class EnterpriseLearnerDocuments
 {
     public function __construct(private EntityManagerInterface $em, private AttendancePdfData $attendance,
         private IndividualAttendanceSheets $sheets, private PdfManager $pdf, private Environment $twig,
-        private ConventionDossier $dossier) {}
+        private ConventionDossier $dossier, private \App\Service\Document\RealisationCertificate $certificates) {}
 
     /** The caller must authorize the inscription before generating its documents. */
     public function build(Inscription $inscription, Request $request): array
@@ -25,7 +25,7 @@ final class EnterpriseLearnerDocuments
         $context = ['entite'=>$tenant, 'inscription'=>$inscription, 'session'=>$session,
             'stagiaire'=>$person, 'formation'=>$session->getFormation(), 'entreprise'=>$inscription->getEntreprise()];
         $files = ['Convocation.pdf'=>$this->pdf->outputPortrait($this->twig->render('pdf/convocation.html.twig', $context))];
-        if ($inscription->getAttestation()) {
+        if ($this->certificates->available($inscription)) {
             $files['Attestation.pdf'] = $this->pdf->outputPortrait($this->twig->render('pdf/attestation.html.twig', $context + ['attestation'=>$inscription->getAttestation()]));
         }
         $data = $this->attendance->build($session, $request);

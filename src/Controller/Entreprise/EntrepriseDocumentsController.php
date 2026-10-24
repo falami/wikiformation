@@ -39,6 +39,7 @@ final class EntrepriseDocumentsController extends AbstractController
   public function __construct(
     private UtilisateurEntiteManager $utilisateurEntiteManager,
     private \App\Service\Entreprise\EntreprisePortalContext $portal,
+    private \App\Service\Document\RealisationCertificate $certificates,
     private ?PdfManager $pdf = null,
   ) {}
 
@@ -1125,7 +1126,7 @@ final class EntrepriseDocumentsController extends AbstractController
       ]);
 
       $attestationBtn = '';
-      if (method_exists($ins, 'getAttestation') && $ins->getAttestation()) {
+      if ($this->certificates->available($ins)) {
         $attestationUrl = $this->generateUrl('app_entreprise_documents_attestation_pdf', [
           'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
           'id' => $ins->getId(),
@@ -1338,7 +1339,7 @@ final class EntrepriseDocumentsController extends AbstractController
 
 
   #[Route('/attestation/{id}/pdf', name: 'attestation_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
-  public function attestationPdf(Entite $entite, Inscription $inscription): Response
+  public function attestationPdf(Entite $entite, Inscription $inscription, \App\Service\Document\RealisationCertificate $certificate): Response
   {
     $entreprise = $this->getEntrepriseUserOrFail($entite);
 
@@ -1346,7 +1347,7 @@ final class EntrepriseDocumentsController extends AbstractController
     if ($inscription->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
     if ($inscription->getEntreprise()?->getId() !== $entreprise->getId()) throw $this->createAccessDeniedException();
 
-    if (!$inscription->getAttestation()) {
+    if (!$certificate->available($inscription)) {
       throw $this->createNotFoundException('Aucune attestation disponible.');
     }
 

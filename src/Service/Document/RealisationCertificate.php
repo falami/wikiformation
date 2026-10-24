@@ -23,7 +23,7 @@ final class RealisationCertificate
             if ($day->getDateFin() && (!$end || $day->getDateFin() > $end)) $end = $day->getDateFin();
         }
         $issues = [];
-        if ($inscription->getStatus() !== StatusInscription::TERMINE) $issues[] = 'L’inscription doit être clôturée.';
+        if ($inscription->getStatus() !== StatusInscription::TERMINE && !($session?->getStatus() === \App\Enum\StatusSession::DONE && in_array($inscription->getStatus(), [StatusInscription::CONFIRME, StatusInscription::EN_COURS], true))) $issues[] = 'L’inscription doit être clôturée.';
         if ($hours === null) $issues[] = 'Complétez les présences et les créneaux pour justifier la durée réellement suivie. Pour une présence partielle, détaillez les horaires du matin et de l’après-midi hors pauses.';
         elseif ($hours <= 0) $issues[] = 'Aucune heure de formation effectivement suivie n’est justifiée.';
         if (!$start || !$end) $issues[] = 'La période de réalisation est manquante.';
@@ -31,6 +31,16 @@ final class RealisationCertificate
         if ($issuedAt && ($issuedAt->format('Y-m-d') > (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris')))->format('Y-m-d')
             || ($end && $issuedAt->format('Y-m-d') < $end->format('Y-m-d')))) $issues[] = 'La date de délivrance doit être comprise entre la fin de formation et aujourd’hui.';
         return ['hours' => $hours, 'start' => $start, 'end' => $end, 'issues' => $issues, 'ready' => $issues === []];
+    }
+
+    public function available(Inscription $inscription): bool
+    {
+        $session = $inscription->getSession();
+        $att = $inscription->getAttestation();
+        return $session && !$session->isSousTraitance() && $session->getStatus() === \App\Enum\StatusSession::DONE
+            && $att && $att->getEntite()?->getId() === $session->getEntite()?->getId()
+            && $inscription->getEntite()?->getId() === $session->getEntite()?->getId()
+            && $this->data($inscription, $att)['ready'];
     }
 
     public function hours(Inscription $inscription): ?float

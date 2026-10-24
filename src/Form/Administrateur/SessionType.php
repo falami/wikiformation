@@ -41,6 +41,11 @@ class SessionType extends AbstractType
         /** @var Entite|null $entite */
         $entite = $o['entite'] ?? null;
         $b
+            ->add('startReminderEnabled', CheckboxType::class, [
+                'required' => false,
+                'label' => 'Rappeler la formation aux stagiaires la veille',
+                'help' => 'Un e-mail personnalisé avec le lieu et le planning est envoyé la veille à partir de 9 h (heure du lieu de formation), pour les sessions publiées ou complètes.',
+            ])
             ->add('typeFinancement', EnumType::class, [
                 'class' => TypeFinancement::class,
                 'label' => 'Sous-traitance',
@@ -151,7 +156,6 @@ class SessionType extends AbstractType
                 'choice_label' => fn(Formateur $f) => $f->getUtilisateur()->getNom() . ' ' . $f->getUtilisateur()->getPrenom(),
                 'required' => false,
                 'label' => 'Formateur par défaut',
-                'help' => 'Utilisé sur les créneaux sans intervenant spécifique. Attribuez chaque journée ou demi-journée dans le planning ci-dessous.',
                 'attr' => ['class' => 'form-select'],
                 'query_builder' => function (\Doctrine\ORM\EntityRepository $er) use ($entite) {
                     $qb = $er->createQueryBuilder('f')

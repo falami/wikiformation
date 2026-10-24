@@ -725,8 +725,9 @@ class DashboardStagiaireController extends AbstractController
     public function downloadAttestation(
         Entite $entite,
         Inscription $inscription,
-        EntityManagerInterface $em
-    ): BinaryFileResponse {
+        \App\Service\Document\RealisationCertificate $certificate,
+        \App\Service\Pdf\PdfManager $pdf
+    ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -741,30 +742,12 @@ class DashboardStagiaireController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $att = $inscription->getAttestation();
-        $pdfRel = $att?->getPdfPath();
-
-        if (!$att || !$pdfRel) {
-            throw $this->createNotFoundException('Attestation non disponible.');
-        }
-
-
-        $abs = $this->publicPath($pdfRel);
-        dd($abs);
-        if (!is_file($abs)) {
-            throw $this->createNotFoundException('Fichier introuvable.');
-        }
-
-        // Nom de fichier propre
-        $downloadName = ($att->getNumeroOrNull() ?: ('attestation_' . $inscription->getId())) . '.pdf';
-
-        $response = new BinaryFileResponse($abs);
-        $response->setContentDisposition(
-            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            $downloadName
-        );
-        $response->headers->set('Content-Type', 'application/pdf');
-
+        if (!$certificate->available($inscription)) throw $this->createNotFoundException('Attestation non disponible.');
+        $response = $pdf->createPortrait($this->renderView('pdf/attestation.html.twig', [
+            'entite'=>$entite, 'inscription'=>$inscription, 'attestation'=>$inscription->getAttestation(),
+            'session'=>$session, 'stagiaire'=>$user, 'entreprise'=>$inscription->getEntreprise(),
+        ]), 'Attestation-'.$inscription->getId());
+        $response->headers->set('Cache-Control', 'private, no-store');
         return $response;
     }
 }
