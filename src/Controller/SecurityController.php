@@ -28,11 +28,15 @@ class SecurityController extends AbstractController
         $error = $authenticationUtils->getLastAuthenticationError();
         $lastUsername = $authenticationUtils->getLastUsername();
 
-        return $this->render('security/login.html.twig', [
+        $response = $this->render('security/login.html.twig', [
             'last_username' => $lastUsername,
             'error' => $error,
             'brand' => $publicContext->getBranding(),
         ]);
+        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+        $response->headers->set('Pragma', 'no-cache');
+
+        return $response;
     }
 
     #[Route(path: '/logout', name: 'app_logout')]

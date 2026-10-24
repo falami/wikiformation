@@ -95,6 +95,44 @@ final class EmailTwoFactorLoginTest extends KernelTestCase
         self::assertCount(2, $this->emails);
     }
 
+    public function testMobileLoginWithoutOriginHeadersUsesSessionCsrf(): void
+    {
+        $page = $this->client->request('GET', '/fr/login', [], [], ['HTTP_USER_AGENT' => 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36']);
+        $token = $page->filter('input[name="_csrf_token"]')->attr('value');
+        // Native form submissions must work without JavaScript-generated cookies or origin headers.
+        $this->client->request('POST', '/fr/login', [
+            '_username' => $this->email, '_password' => 'Secret-password-47!', '_csrf_token' => $token,
+        ], [], ['HTTP_REFERER' => '', 'HTTP_ORIGIN' => '', 'HTTP_SEC_FETCH_SITE' => '']);
+        self::assertSame('/2fa', $this->client->getResponse()->headers->get('Location'));
+        self::assertCount(1, $this->emails);
+    }
+
+    public function testForgedLoginCsrfIsRejectedEvenWithSameOrigin(): void
+    {
+        $this->client->request('GET', '/fr/login');
+        $this->client->request('POST', '/fr/login', [
+            '_username' => $this->email, '_password' => 'Secret-password-47!', '_csrf_token' => 'forged',
+        ], [], ['HTTP_ORIGIN' => 'http://localhost', 'HTTP_SEC_FETCH_SITE' => 'same-origin']);
+        self::assertSame('/fr/login', parse_url($this->client->getResponse()->headers->get('Location'), PHP_URL_PATH));
+        self::assertCount(0, $this->emails);
+    }
+
+    public function testLoginPageIsNotStoredAndTokenFromLostSessionIsRejected(): void
+    {
+        $page = $this->client->request('GET', '/fr/login');
+        self::assertStringContainsString('no-store', $this->client->getResponse()->headers->get('Cache-Control'));
+        $token = $page->filter('input[name="_csrf_token"]')->attr('value');
+        $this->client->getCookieJar()->clear();
+        $this->client->request('POST', '/fr/login', [
+            '_username' => $this->email, '_password' => 'Secret-password-47!', '_csrf_token' => $token,
+        ]);
+        self::assertCount(0, $this->emails);
+        self::assertSame('/fr/login', parse_url($this->client->getResponse()->headers->get('Location'), PHP_URL_PATH));
+        // Reloading recovers a fresh session and permits the normal 2FA flow.
+        $this->passwordLogin();
+        self::assertSame('/2fa', $this->client->getResponse()->headers->get('Location'));
+    }
+
     public function testBadPasswordSendsNothing(): void
     {
         $this->passwordLogin('incorrect');
