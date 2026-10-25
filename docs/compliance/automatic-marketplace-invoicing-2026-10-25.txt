@@ -1,0 +1,105 @@
+FACTURATION AUTOMATIQUE MARKETPLACE — ÉTAPE LOCALE DU 25 OCTOBRE 2026
+
+PÉRIMÈTRE
+Cours propres et cours de formateurs tiers. Acheteurs et vendeurs déclarés
+établis en France métropolitaine uniquement ; les adresses ultramarines et
+étrangères sont refusées pour ce premier périmètre fiscal. Le compte Connect
+est également contrôlé comme français. Ces contrôles ne vérifient pas à eux
+seuls l'authenticité d'une adresse ou d'un régime fiscal déclaré.
+Les abonnements conservent leur circuit Stripe Billing existant : aucun second
+jeu de factures d'abonnement n'est créé par ce module.
+
+IDENTITÉ ET TARIFS
+Jeroen Popot EI — I.T. For You, SIRET 80813612100023,
+88 Chemin de Russaud, 30100 Alès, France ; TVA FR75808136121,
+contact@itforyou.fr, 06.27.08.76.99.
+Commission initiale choisie : 20 % du prix HT ; TVA de 20 % sur cette commission.
+Frais Stripe réels déduits de la part du vendeur. Exemple : cours 100 HT /
+120 TTC, commission 20 HT + 4 TVA, part vendeur 96 avant frais Stripe.
+Ventes propres : pas de commission ni de transfert Connect.
+Les profils vendeurs sont responsables de leur mention fiscale ; seuls les
+cours au taux de 20 % ou exonérés selon la mention renseignée sont acceptés.
+
+CIRCUIT
+1. Le vendeur complète son profil et accepte les conditions puis un mandat
+   écrit distinct, versionné et archivé avec son identité et son utilisateur.
+   La révocation retire les offres ; les commandes déjà conclues restent
+   couvertes. Une modification d'identité requiert un nouvel accord.
+2. L'acheteur renseigne son identité et son adresse avant Checkout. Les données
+   du contrat et les montants sont figés dans la commande.
+3. Après vérification du paiement Stripe, facture du cours au nom du vendeur,
+   et facture de commission au nom d'I.T. For You vers le vendeur tiers.
+4. Originaux PDF conservés dans la base privée avec empreinte SHA-256 ; accès
+   contrôlé pour l'acheteur, le vendeur et le super administrateur. L'acheteur
+   ne peut pas accéder à la facture de commission. Numérotation dédiée par
+   émetteur et année, verrou transactionnel et contraintes uniques.
+5. Les remboursements Stripe produisent des avoirs cumulatifs sans doubler les
+   documents lors d'une relance. Les avoirs partiels reprennent globalement les
+   cours d'une commande au régime de TVA unique. Les centimes sont régularisés
+   sur le cumul pour retomber exactement sur les montants originaux au total.
+6. Copie accessible au vendeur et notification par e-mail ; notification des
+   factures et avoirs à l'acheteur. La notification vendeur démarre le délai
+   contractuel de 30 jours. Contestations visibles au journal super admin,
+   originaux conservés. Le traitement d'une contestation autre qu'un
+   remboursement (ex. identité erronée) reste une intervention administrative :
+   ce module ne fournit pas encore d'écran de réémission corrective.
+7. Le rapprochement existant couvre les paiements, notifications et, avec
+   --settle, les reversements / reprises. Un incident entre l'envoi SMTP et le
+   commit peut répéter une notification : les factures, elles, restent uniques.
+
+DÉPLOIEMENT
+Migration : DoctrineMigrations\Version20261025120000.
+Appliquée à la base Docker LOCALE après sauvegarde ciblée privée dans
+/private/tmp/wikiformation-marketplace-before-billing-20261025.sql.
+La migration respecte la collation de la clé historique et supporte la reprise
+après un DDL MySQL partiellement appliqué. Elle conserve les achats historiques
+(version de facturation 0) sans inventer de mandat ou recalculer leurs retenues.
+Elle fixe le taux à 20 % et désactive ventes et validation juridique : les
+conditions et la nouvelle TVA de commission doivent être validées avant reprise.
+Aucun déploiement en production, encaissement, e-mail ni transfert réel effectué.
+
+AUTOMATISATION EN PRODUCTION À CONFIGURER / VÉRIFIER
+Webhook Stripe signé : route app_stripe_webhook (/stripe/webhook).
+Événements marketplace : checkout.session.completed,
+checkout.session.async_payment_succeeded, checkout.session.expired,
+charge.refunded, charge.dispute.created, charge.dispute.closed.
+Les événements d'abonnement existants restent nécessaires également.
+Toutes les 5 minutes, depuis le répertoire réel du projet de production :
+  PHP bin/console app:marketplace:reconcile --settle --env=prod --no-interaction
+Remplacer PHP par le chemin de PHP 8.4 de l'hébergement. Surveiller les sorties
+non nulles et les échecs de transport mail. Ne pas exécuter cette commande avec
+les clés réelles pendant une recette : elle peut envoyer et transférer.
+Le webhook et la tâche doivent utiliser la même base, la même configuration
+Stripe et un stockage de verrou partagé si plusieurs instances sont utilisées.
+Aucune tâche de production n'a été installée pendant cette intervention.
+
+LIMITES AVANT OUVERTURE
+- Valider les CGV / confidentialité, le mandat, le régime fiscal des frais
+  Stripe supportés par le vendeur et le processus de rectification avec le
+  professionnel qui accompagne le lancement. Le texte de mandat est une base
+  technique, pas une validation juridique.
+- Facturation PDF automatique n'est pas transmission réglementaire SuperPDP.
+  Ce journal n'est pas encore raccordé aux transmissions SuperPDP ; en particulier
+  ne pas utiliser les identifiants d'I.T. For You pour émettre comme un autre
+  vendeur. Définir les mandats / comptes émetteurs, formats et e-reporting
+  applicables avec le prestataire avant de présenter le flux comme raccordé.
+- Recette Stripe TEST complète sur l'hébergement cible : paiement, échec,
+  webhooks répétés, remboursement partiel / total, frais et reversement Connect.
+- Vérifier sauvegarde / restauration des originaux et mandats, conservation
+  comptable et droits RGPD. La présence d'un PDF et d'une empreinte ne constitue
+  pas une certification d'archivage probant.
+
+RÉFÉRENCES DE CONCEPTION
+https://entreprendre.service-public.gouv.fr/vosdroits/F31808
+https://bofip.impots.gouv.fr/bofip/13244-PGP.html/identifiant=BOI-TVA-DECLA-30-20-10-30-20220629
+
+VÉRIFICATIONS FINALES
+- Suite PHP complète : 786 tests, 6 020 assertions, zéro erreur / échec.
+- 17 templates marketplace valides ; conteneur de services valide.
+- Facture PDF témoin issue du paiement simulé : rendu PNG inspecté, une page
+  lisible, aucune superposition constatée.
+- MySQL local : 74 migrations exécutées, zéro migration en attente.
+- Tests : TVA de commission et versement, remboursement au centime puis intégral,
+  répétitions de synchronisation, montant des avoirs, PDF inchangé, notification
+  non répétée après succès, refus d'écriture sur facture, refus de commande sans
+  mandat, restriction France, refus d'accès acheteur à la facture de commission.

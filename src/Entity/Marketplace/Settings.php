@@ -8,7 +8,7 @@ class Settings
     #[ORM\Id] #[ORM\Column]
     public int $id = 1;
     #[ORM\Column(nullable: true)]
-    public ?int $commissionBps = null;
+    public ?int $commissionBps = 2000;
     #[ORM\Column(length: 12)]
     public string $feesPayer = 'seller';
     #[ORM\Column]

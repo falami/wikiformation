@@ -1,19 +1,23 @@
 {% set english = app.request.locale == 'en' %}
-<div id="cookie-banner" role="region" aria-labelledby="cookie-banner-title" hidden
-     class="position-fixed bottom-0 start-0 end-0 bg-white shadow-lg p-3 border-top" style="z-index:1080">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mx-auto" style="max-width:1200px">
-    <div class="text-dark">
-      <strong id="cookie-banner-title">{{ english ? 'Your privacy choices' : 'Vos préférences de confidentialité' }}</strong>
-      <p class="mb-0 mt-1 small">{{ english ? 'Essential cookies keep the site working. With your permission, Google Analytics measures visits to public pages. Refusing does not restrict access to the service.' : 'Les cookies nécessaires assurent le fonctionnement du site. Avec votre accord, Google Analytics mesure les visites des pages publiques. Refuser ne limite pas l’accès au service.' }}
-        <a href="{{ path('app_public_cookies') }}">{{ 'cookies.more'|trans }}</a>.
-      </p>
+<link rel="stylesheet" href="{{ asset('dist/css/cookie-consent.css') }}?v=5">
+<div id="cookie-banner" class="wk-consent" role="region" aria-labelledby="cookie-banner-title" aria-describedby="cookie-banner-description" hidden>
+  <div class="wk-consent__icon" aria-hidden="true">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5c0 4.5 3 7.8 7.5 10 4.5-2.2 7.5-5.5 7.5-10V6L12 3Z"/><path d="m8.5 12 2.3 2.3 4.7-4.7"/></svg>
+  </div>
+  <div class="wk-consent__content">
+    <span class="wk-consent__eyebrow">{{ english ? 'YOUR PRIVACY' : 'VOTRE CONFIDENTIALITÉ' }}</span>
+    <h2 id="cookie-banner-title">{{ english ? 'Your experience. Your choice.' : 'Votre expérience. Votre choix.' }}</h2>
+    <p id="cookie-banner-description">{{ english ? 'Essential cookies keep the site working. With your permission, Google Analytics measures visits to public pages. Refusing does not restrict access to the service.' : 'Les cookies essentiels assurent le bon fonctionnement du site. Avec votre accord, Google Analytics mesure les visites des pages publiques. Refuser ne limite pas l’accès au service.' }}</p>
+    <a class="wk-consent__link" href="{{ path('app_public_cookies') }}">{{ english ? 'Understand our use of cookies' : 'Comprendre notre utilisation des cookies' }} <span aria-hidden="true">↗</span></a>
+  </div>
+  <div class="wk-consent__actions">
+    <div class="wk-consent__buttons">
+      <button id="reject-cookies" type="button" class="wk-consent__button">{{ 'cookies.reject'|trans }}</button>
+      <button id="accept-cookies" type="button" class="wk-consent__button">{{ 'cookies.accept'|trans }}</button>
     </div>
-    <div class="d-flex gap-2 flex-shrink-0">
-      <button id="reject-cookies" type="button" class="btn btn-outline-dark btn-sm px-3">{{ 'cookies.reject'|trans }}</button>
-      <button id="accept-cookies" type="button" class="btn btn-outline-dark btn-sm px-3">{{ 'cookies.accept'|trans }}</button>
-    </div>
+    <span class="wk-consent__note">{{ english ? 'You can change your mind at any time.' : 'Vous pouvez changer d’avis à tout moment.' }}</span>
   </div>
 </div>
-<button id="cookie-preferences" data-manage-cookies type="button" hidden
-        class="btn btn-light btn-sm border shadow-sm position-fixed" style="bottom:.6rem;left:.6rem;z-index:1040"
-        aria-controls="cookie-banner">{{ english ? 'Cookie settings' : 'Gérer les cookies' }}</button>
+<button id="cookie-preferences" class="wk-consent-manage" data-manage-cookies type="button" hidden aria-controls="cookie-banner" aria-label="{{ english ? 'Cookie settings' : 'Gérer les cookies' }}" title="{{ english ? 'Cookie settings' : 'Gérer les cookies' }}">
+  <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5c0 4.5 3 7.8 7.5 10 4.5-2.2 7.5-5.5 7.5-10V6L12 3Z"/><path d="m8.5 12 2.3 2.3 4.7-4.7"/></svg>
+</button>

@@ -18,12 +18,12 @@ final class MarketplaceTest extends KernelTestCase {
   foreach([$this->buyer,$trainer,$entity] as $x)$this->em->persist($x);$this->em->flush();
   $this->buyer->setEntite($entity);$trainer->setEntite($entity);
   $course=(new ElearningCourse())->setEntite($entity)->setCreateur($trainer)->setTitre('Course')->setSlug('course');$this->em->persist($course);
-  $this->seller=new Seller();$this->seller->user=$trainer;$this->seller->accountId='acct_test';$this->seller->termsAcceptedAt=new \DateTimeImmutable();$this->seller->termsVersion='2026-10-25';$this->em->persist($this->seller);
+  $this->seller=new Seller();$this->seller->user=$trainer;$this->seller->accountId='acct_test';$this->seller->termsAcceptedAt=new \DateTimeImmutable();$this->seller->termsVersion='2026-10-25';$this->seller->legalName='Test Seller EI';$this->seller->registration='12345678900012';$this->seller->address='1 rue Test, 75001 Paris';$this->seller->email='seller@example.test';$this->seller->country='FR';$this->seller->postalCode='75001';$this->seller->taxNumber='FR00123456789';$this->seller->mandates=[['version'=>\App\Service\Marketplace\BillingRules::VERSION,'seller'=>\App\Service\Marketplace\BillingRules::seller($this->seller),'acceptedAt'=>'2026-10-25T10:00:00Z','text'=>\App\Service\Marketplace\BillingRules::mandateText(),'revokedAt'=>null]];$this->em->persist($this->seller);
   $settings=new Settings();$settings->enabled=true;$settings->legalApproved=true;$settings->commissionBps=2000;$this->em->persist($settings);
   $this->offer=new Offer();$this->offer->seller=$this->seller;$this->offer->course=$course;$this->offer->published=true;$this->offer->membersVisible=true;$this->offer->priceCents=12000;$this->offer->taxBps=2000;$this->offer->snapshot=['title'=>'Original course','description'=>'Learn with a trainer','minutes'=>60,'capturedAt'=>'2026-10-25T10:00:00Z','nodes'=>[]];$this->em->persist($this->offer);$this->em->flush();
  }
  protected function tearDown(): void {parent::tearDown();foreach(['ENV','SERVER'] as $i=>$n){if($this->env[$i]===null)unset($GLOBALS['_'.$n]['DATABASE_URL']);else $GLOBALS['_'.$n]['DATABASE_URL']=$this->env[$i];}}
- private function payments(StripeGateway $stripe): Payments {return new Payments($this->em,$stripe,new Policy($this->em),self::getContainer()->get(UrlGeneratorInterface::class));}
+ private function payments(StripeGateway $stripe): Payments {return new Payments($this->em,$stripe,new Policy($this->em),self::getContainer()->get(UrlGeneratorInterface::class),self::getContainer()->get(\App\Service\Marketplace\Invoicing::class));}
  private function purchase(): Purchase {$p=new Purchase();$p->id=bin2hex(random_bytes(16));$p->buyer=$this->buyer;$p->seller=$this->seller;$p->createdAt=new \DateTimeImmutable('-20 days');$p->checkoutId='cs_test';$p->totalCents=12000;$p->commissionCents=2000;$p->items=[['course'=>$this->offer->course->getId(),'snapshot'=>$this->offer->snapshot]];$this->em->persist($p);$this->em->flush();return $p;}
  public function testMoneyAndDisabledSales(): void {
   self::assertSame(['net'=>10000,'tax'=>2000,'commission'=>2000],Payments::split(12000,2000,2000));
@@ -123,12 +123,12 @@ final class MarketplaceTest extends KernelTestCase {
 
  public function testCheckoutAndResumeAndReceiptOwnership(): void {
   foreach ([$this->buyer,$this->seller->user] as $u) $this->em->persist((new UtilisateurEntite())->setUtilisateur($u)->setEntite($this->offer->course->getEntite())->setCreateur($this->seller->user)->setRoles($u===$this->buyer?['TENANT_STAGIAIRE']:['TENANT_FORMATEUR']));$this->em->flush();
-  $stripe=$this->createMock(StripeGateway::class);$stripe->method('account')->willReturn(['charges_enabled'=>true,'payouts_enabled'=>true]);
+  $stripe=$this->createMock(StripeGateway::class);$stripe->method('account')->willReturn(['country'=>'FR','charges_enabled'=>true,'payouts_enabled'=>true]);
   $stripe->expects(self::once())->method('checkout')->willReturnCallback(function(array $request,string $key) {
    self::assertSame(12000,$request['line_items'][0]['price_data']['unit_amount']);self::assertSame('acct_test',$request['payment_intent_data']['on_behalf_of']);self::assertStringStartsWith('market-checkout-',$key);
    return ['id'=>'cs_test','url'=>'https://checkout.stripe.com/test'];
   });
-  $service=$this->payments($stripe);self::assertSame('https://checkout.stripe.com/test',$service->checkout($this->buyer,[$this->offer->id],['termsAccepted'=>true,'immediateAccess'=>true,'withdrawalAcknowledged'=>true]));
+  $service=$this->payments($stripe);self::assertSame('https://checkout.stripe.com/test',$service->checkout($this->buyer,[$this->offer->id],['termsAccepted'=>true,'immediateAccess'=>true,'billing'=>['name'=>'Test Buyer','address'=>'1 rue Test','postalCode'=>'75001','city'=>'Paris','country'=>'FR','kind'=>'person'],'withdrawalAcknowledged'=>true]));
   $purchase=$this->em->getRepository(Purchase::class)->findOneBy([]);self::assertSame(2000,$purchase->commissionCents);self::assertSame('seller',$purchase->feesPayer);self::assertSame('https://checkout.stripe.com/test',$service->resume($purchase));
   $purchase->checkoutId=null;$this->em->flush();
   $client=self::getContainer()->get('test.client');$client->disableReboot();$client->catchExceptions(false);$client->loginUser($this->buyer);
@@ -138,7 +138,7 @@ final class MarketplaceTest extends KernelTestCase {
  }
 
  public function testSuperAdminSalesStayOnPlatformStripeWithoutConnect(): void {
-  $owner=$this->seller->user;$owner->setRoles(['ROLE_SUPER_ADMIN']);$this->seller->accountId=null;$this->em->flush();
+  $owner=$this->seller->user;$owner->setRoles(['ROLE_SUPER_ADMIN']);$this->seller->accountId=null;$this->seller->registration=\App\Service\Marketplace\BillingRules::PLATFORM['registration'];$this->seller->taxNumber=\App\Service\Marketplace\BillingRules::PLATFORM['taxNumber'];$this->em->flush();
   // A super administrator can create their own courses without a trainer membership.
   (new Policy($this->em))->owns($owner,$this->offer->course->getEntite(),$this->offer->course);
   $stripe=$this->createMock(StripeGateway::class);$stripe->expects(self::never())->method('account');$stripe->expects(self::never())->method('createAccount');$stripe->expects(self::never())->method('transfer');$stripe->expects(self::never())->method('reverse');
@@ -146,7 +146,7 @@ final class MarketplaceTest extends KernelTestCase {
    self::assertArrayNotHasKey('on_behalf_of',$request['payment_intent_data']);self::assertArrayNotHasKey('transfer_data',$request['payment_intent_data']);self::assertArrayNotHasKey('application_fee_amount',$request['payment_intent_data']);
    return ['id'=>'cs_direct','url'=>'https://checkout.stripe.com/direct'];
   });
-  $service=$this->payments($stripe);$service->checkout($this->buyer,[$this->offer->id],[]);
+  $service=$this->payments($stripe);$service->checkout($this->buyer,[$this->offer->id],['billing'=>['name'=>'Test Buyer','address'=>'1 rue Test','postalCode'=>'75001','city'=>'Paris','country'=>'FR','kind'=>'person']]);
   $p=$this->em->getRepository(Purchase::class)->findOneBy([]);self::assertTrue($p->platformSale);self::assertSame(0,$p->commissionBps);self::assertSame(0,$p->commissionCents);self::assertSame('platform',$p->feesPayer);
   $refund=0;$stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_direct']);
   $stripe->method('payment')->willReturnCallback(function() use(&$refund){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_direct','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>['fee'=>210,'available_on'=>time()-86400]]];});
@@ -163,4 +163,59 @@ final class MarketplaceTest extends KernelTestCase {
   foreach ([$prefix.'/vendeur',$prefix.'/cours/'.$this->offer->course->getId().'/diffuser','/super/marketplace/studios'] as $url) { $client->request('GET',$url);self::assertSame(200,$client->getResponse()->getStatusCode());self::assertStringNotContainsString('Activer mes versements avec Stripe',$client->getResponse()->getContent()); }
  }
 
+
+ public function testAutomaticInvoicesCommissionVatRefundsAndPrivateDownloads(): void {
+  $p=$this->purchase();$p->billingVersion=1;$p->commissionTaxCents=400;
+  $p->items=[['course'=>$this->offer->course->getId(),'title'=>'Cours complet','net'=>10000,'tax'=>2000,'gross'=>12000,'taxBps'=>2000,'snapshot'=>$this->offer->snapshot]];
+  $p->consent=['seller'=>\App\Service\Marketplace\BillingRules::seller($this->seller),'platform'=>\App\Service\Marketplace\BillingRules::PLATFORM,'billing'=>['name'=>'Test Buyer','address'=>'1 rue Test, 75001 Paris, France','kind'=>'person']];$this->em->flush();
+  $refund=0;
+  $stripe=$this->createMock(StripeGateway::class);
+  $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_billing']);
+  $stripe->method('payment')->willReturnCallback(function() use (&$refund) {return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_billing','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>['fee'=>210,'available_on'=>time()-86400]]];});
+  $stripe->expects(self::once())->method('transfer')->with('acct_test',9390,'ch_billing',self::anything())->willReturn('tr_billing');
+  $service=$this->payments($stripe);$service->settle($p);$service->sync($p);
+  self::assertSame(9390,$p->transferredCents);self::assertSame(9390,$p->sellerCents);
+  $repo=$this->em->getRepository(\App\Entity\Marketplace\Invoice::class);self::assertSame(2,$repo->count([]));
+  $sale=$repo->findOneBy(['kind'=>'sale']);$commission=$repo->findOneBy(['kind'=>'commission']);
+  self::assertSame(2400,$commission->document['gross']);self::assertSame(400,$commission->document['tax']);self::assertSame(12000,$sale->document['gross']);
+  $original=$sale->pdf;self::assertStringStartsWith('%PDF-',base64_decode($original));
+  $oldAddress=$sale->document['issuer']['address'];$this->seller->address='Nouvelle adresse';$this->em->flush();self::assertSame($oldAddress,$sale->document['issuer']['address']);
+  $p->confirmationSentAt=new \DateTimeImmutable();$this->em->flush();
+  $transport=$this->createMock(\Symfony\Component\Mailer\MailerInterface::class);$transport->expects(self::exactly(3))->method('send');$mailer=new \App\Service\Email\MailerManager($transport,self::getContainer()->get(\Twig\Environment::class),self::getContainer()->get(UrlGeneratorInterface::class));
+  $confirmations=new \App\Service\Marketplace\Confirmations($this->em,$mailer,self::getContainer()->get(UrlGeneratorInterface::class));$confirmations->send($p);$confirmations->send($p);
+  self::assertNotNull($sale->notifiedAt);self::assertNotNull($sale->buyerNotifiedAt);self::assertNotNull($commission->notifiedAt);
+
+  if ($path=getenv('MARKET_INVOICE_PREVIEW')) file_put_contents($path,base64_decode($original));
+  foreach ([1,2,5999,6000,12000] as $amount) { $refund=$amount;$service->sync($p);$count=$repo->count([]);$service->sync($p);self::assertSame($count,$repo->count([])); }
+  self::assertSame($original,$sale->pdf);
+  foreach (['sale_credit'=>[10000,2000,12000],'commission_credit'=>[2000,400,2400]] as $kind=>$expected) {
+   $totals=[0,0,0];foreach ($repo->findBy(['kind'=>$kind]) as $credit) foreach (['net','tax','gross'] as $i=>$key) $totals[$i]+=$credit->document[$key];self::assertSame($expected,$totals);
+  }
+  $client=self::getContainer()->get('test.client');$client->disableReboot();$client->catchExceptions(false);$client->loginUser($this->buyer);
+  $client->request('GET','/cours-en-ligne/factures/'.$sale->id.'/pdf');self::assertSame(200,$client->getResponse()->getStatusCode());self::assertSame(base64_decode($original),$client->getResponse()->getContent());
+  $client->catchExceptions(true);$client->request('GET','/cours-en-ligne/factures/'.$commission->id.'/pdf');self::assertSame(404,$client->getResponse()->getStatusCode());
+  $client->loginUser($this->seller->user);$client->request('GET','/cours-en-ligne/factures/'.$commission->id.'/pdf');self::assertSame(200,$client->getResponse()->getStatusCode());
+  $client->request('GET','/cours-en-ligne/factures');self::assertSame(200,$client->getResponse()->getStatusCode());
+ }
+ public function testFranceAndMandateChecks(): void {
+  $data=['name'=>'Buyer','address'=>'1 rue Test','city'=>'Paris','postalCode'=>'75001','country'=>'FR','kind'=>'person'];
+  self::assertSame('FR',\App\Service\Marketplace\BillingRules::buyer($data)['country']);
+  foreach ([['country'=>'BE'],['postalCode'=>'97100'],['postalCode'=>'98000'],['kind'=>'business']] as $bad) {
+   try { \App\Service\Marketplace\BillingRules::buyer(array_replace($data,$bad));self::fail('Invalid billing accepted'); } catch (\DomainException) {self::assertTrue(true);}
+  }
+  self::assertNotNull(\App\Service\Marketplace\BillingRules::activeMandate($this->seller));
+  $this->seller->mandates[0]['revokedAt']='2026-10-25';self::assertNull(\App\Service\Marketplace\BillingRules::activeMandate($this->seller));
+ }
+
+ public function testIssuedInvoiceCannotBeRewritten(): void {
+  $p=$this->purchase();$invoice=new \App\Entity\Marketplace\Invoice();$invoice->purchase=$p;$invoice->eventKey='sale';$invoice->series='TEST';$invoice->sequence=1;$invoice->number='TEST-1';$invoice->issuedAt=new \DateTimeImmutable();$invoice->document=['gross'=>12000];$invoice->pdf='fixture';$invoice->sha256=hash('sha256','fixture');$this->em->persist($invoice);$this->em->flush();
+  $invoice->document=['gross'=>1];$this->expectException(\LogicException::class);$this->em->flush();
+ }
+ public function testMissingMandateStopsCheckoutBeforeStripe(): void {
+  $trainer=$this->seller->user;$entite=$this->offer->course->getEntite();
+  $this->em->persist((new UtilisateurEntite())->setUtilisateur($trainer)->setEntite($entite)->setCreateur($trainer)->setRoles(['TENANT_FORMATEUR']));$this->seller->mandates=[];$this->em->flush();
+  $stripe=$this->createMock(StripeGateway::class);$stripe->expects(self::never())->method('checkout');$stripe->expects(self::never())->method('account');
+  $this->expectException(\DomainException::class);$this->expectExceptionMessage('mandat');
+  $this->payments($stripe)->checkout($this->buyer,[$this->offer->id],['billing'=>['name'=>'Test Buyer','address'=>'1 rue Test','postalCode'=>'75001','city'=>'Paris','country'=>'FR','kind'=>'person']]);
+ }
 }

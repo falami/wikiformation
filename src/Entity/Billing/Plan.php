@@ -294,6 +294,33 @@ class Plan
         return $this->maxFormateurs === 0 ? 'Formateurs illimités' : $this->maxFormateurs . ($this->maxFormateurs === 1 ? ' formateur' : ' formateurs');
     }
 
+    public function getMaxCommerciaux(): int
+    {
+        $limits = $this->getSeatLimits();
+
+        // Historical plans used "admins" for commercial accounts too. Keep that
+        // capacity until a dedicated commercial limit is explicitly configured.
+        return (int) ($limits[UtilisateurEntite::TENANT_COMMERCIAL]
+            ?? $limits['commerciaux'] ?? $limits['admins'] ?? $this->maxUtilisateurs);
+    }
+
+    public function setMaxCommerciaux(int $limit): static
+    {
+        if ($limit < 0) {
+            throw new \InvalidArgumentException('Le quota commercial doit être positif ou nul.');
+        }
+        $this->seatLimits[UtilisateurEntite::TENANT_COMMERCIAL] = $limit;
+
+        return $this;
+    }
+
+    public function getMaxCommerciauxLabel(): string
+    {
+        $limit = $this->getMaxCommerciaux();
+
+        return $limit === 0 ? 'Comptes commerciaux illimités' : $limit . ($limit === 1 ? ' compte commercial' : ' comptes commerciaux');
+    }
+
     public function getMaxProspectsLabel(): string
     {
         return $this->maxProspects === 0 ? 'Prospects illimités' : $this->maxProspects . ($this->maxProspects === 1 ? ' prospect' : ' prospects');
@@ -350,15 +377,16 @@ class Plan
 
         return [
             UtilisateurEntite::TENANT_STAGIAIRE  => (int)($limits[UtilisateurEntite::TENANT_STAGIAIRE]  ?? $limits['stagiaires']  ?? 0),
-            UtilisateurEntite::TENANT_FORMATEUR  => (int)($limits[UtilisateurEntite::TENANT_FORMATEUR]  ?? $limits['formateurs']  ?? 0),
+            UtilisateurEntite::TENANT_FORMATEUR  => (int)($limits[UtilisateurEntite::TENANT_FORMATEUR]  ?? $this->getMaxFormateurs()),
             UtilisateurEntite::TENANT_ENTREPRISE => (int)($limits[UtilisateurEntite::TENANT_ENTREPRISE] ?? $limits['entreprises'] ?? 0),
             UtilisateurEntite::TENANT_OPCO       => (int)($limits[UtilisateurEntite::TENANT_OPCO]       ?? $limits['opcos']       ?? 0),
             UtilisateurEntite::TENANT_OF         => (int)($limits[UtilisateurEntite::TENANT_OF]         ?? $limits['ofs']         ?? 0),
 
-            // fallback sur "admins" si tu ne veux pas détailler plus finement
-            UtilisateurEntite::TENANT_ADMIN      => (int)($limits[UtilisateurEntite::TENANT_ADMIN]      ?? $limits['admins']      ?? 0),
-            UtilisateurEntite::TENANT_COMMERCIAL => (int)($limits[UtilisateurEntite::TENANT_COMMERCIAL] ?? $limits['admins']      ?? 0),
-            UtilisateurEntite::TENANT_DIRIGEANT  => (int)($limits[UtilisateurEntite::TENANT_DIRIGEANT]  ?? $limits['admins']      ?? 0),
+            // Management and trainer totals use the published max_* columns.
+            // Only an explicit TENANT_* key may impose a separate role cap.
+            UtilisateurEntite::TENANT_ADMIN      => (int)($limits[UtilisateurEntite::TENANT_ADMIN]      ?? 0),
+            UtilisateurEntite::TENANT_COMMERCIAL => $this->getMaxCommerciaux(),
+            UtilisateurEntite::TENANT_DIRIGEANT  => (int)($limits[UtilisateurEntite::TENANT_DIRIGEANT]  ?? 0),
         ];
     }
 

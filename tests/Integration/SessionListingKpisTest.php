@@ -215,6 +215,43 @@ final class SessionListingKpisTest extends KernelTestCase
     }
 
     /** @param array{int,int,int,int} $expected Total, upcoming, running, done. */
+    public function testGlobalSearchIncludesCompaniesLocationsAndParticipantsWithoutDuplicates(): void
+    {
+        $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Acme Industrie');
+        $employer = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Employeur Delta');
+        $this->em->persist($company);
+        $this->em->persist($employer);
+        $past = $this->em->getRepository(Session::class)->findOneBy(['code'=>'SES-PAST']);
+        $past->setEntrepriseCliente($company);
+        $this->site->setVille('Montpellier')->setCodePostal('34000')->setAdresse('12 rue des Lilas');
+        // Multiple matches must still count the session only once.
+        $learner = (new Utilisateur())->setEmail('second.search@example.test')->setPassword('unused')->setPrenom('Admin')->setNom('Test');
+        $this->em->persist($learner);
+        $this->inscription($past)->setStagiaire($learner)->setEntreprise($employer);
+        $this->em->flush();
+        foreach (['acme', 'INDUSTRIE', 'Employeur Delta', 'Acme Admin Test', '34000 Acme', 'Lilas Industrie'] as $term) {
+            $this->assertMatchingCounts(['search'=>['value'=>$term]], [1,0,0,1]);
+        }
+        $this->assertMatchingCounts(['search'=>['value'=>'Admin Test']], [2,1,0,1]);
+        $this->assertMatchingCounts(['search'=>['value'=>'Montpellier']], [4,2,1,1]);
+        $this->assertMatchingCounts(['search'=>['value'=>'Bureautique Camille']], [1,1,0,0]);
+        $this->assertMatchingCounts(['search'=>['value'=>'Confidentiel']], [0,0,0,0]);
+    }
+
+    public function testSearchFindsSubcontractingCompanyShownOnSessionCard(): void
+    {
+        $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('OPCADIA');
+        $this->em->persist($company);
+        $past = $this->em->getRepository(Session::class)->findOneBy(['code'=>'SES-PAST']);
+        // This is the blue company badge, not entrepriseCliente or a learner's employer.
+        $past->setOrganismeFormation($company);
+        $this->em->flush();
+        foreach (['opc', 'OPC', 'OpCaDiA', 'opc Habilitation'] as $term) {
+            $this->assertMatchingCounts(['search'=>['value'=>$term]], [1,0,0,1]);
+        }
+        $this->assertMatchingCounts(['search'=>['value'=>'opc'], 'statusFilter'=>'draft'], [0,0,0,0]);
+    }
+
     private function assertMatchingCounts(array $filters, array $expected): void
     {
         $client = new KernelBrowser(self::$kernel);

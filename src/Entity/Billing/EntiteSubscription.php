@@ -209,7 +209,10 @@ class EntiteSubscription
 
     public function setAddons(?array $addons): static
     {
-        $this->addons = $addons;
+        $this->addons = $addons === null ? null : array_values(array_unique(array_filter(
+            array_map('trim', array_filter($addons, 'is_string')),
+            static fn (string $code): bool => $code !== '',
+        )));
 
         return $this;
     }

@@ -562,6 +562,10 @@ final class DashboardEntrepriseController extends AbstractController
                   : null,
               'jours' => $jours,
               'participants' => $participants,
+              'documentsArchiveUrl' => !empty($inscriptions) ? $this->generateUrl('app_entreprise_documents_inscription_archive', [
+                  'entite' => $entite->getId(), 'entreprise' => $entreprise->getId(),
+                  'id' => $inscriptions[0]->getId(), 'scope' => 'session',
+              ]) : null,
               'participantsCount' => count($participants),
               'presentCount' => $presentCount,
               'absentCount' => $absentCount,

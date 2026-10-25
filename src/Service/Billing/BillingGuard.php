@@ -2,7 +2,6 @@
 
 namespace App\Service\Billing;
 
-use App\Entity\Billing\EntiteUsageYear;
 use App\Entity\Entite;
 use App\Entity\UtilisateurEntite;
 use App\Exception\BillingQuotaExceededException;
@@ -136,33 +135,15 @@ final class BillingGuard
 
     public function assertCanAddApprenantAndConsume(Entite $entite, int $by = 1): void
     {
+        if ($by < 0) throw new \InvalidArgumentException('Le nombre d’apprenants doit être positif.');
+        // Advisory batch preflight only. Actual consumption is deduplicated at flush
+        // by LearnerQuotaSubscriber, atomically with memberships/registrations.
         $max = $this->entitlement->limit('max_apprenants_an', $entite);
-        if ($max === null) {
-            return;
+        $year = (int) (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y');
+        $current = $this->usageRepo->findOneBy(['entite'=>$entite, 'year'=>$year])?->getApprenantsCount() ?? 0;
+        if ($max !== null && $current + $by > $max) {
+            throw new BillingQuotaExceededException('max_apprenants_an', $current, $max, sprintf('Quota apprenants/an atteint (%d/%d).', $current, $max));
         }
-
-        $year = (int) date('Y');
-        $usage = $this->usageRepo->findOneBy([
-            'entite' => $entite,
-            'year' => $year,
-        ]);
-
-        if (!$usage) {
-            $usage = new EntiteUsageYear($entite, $year);
-            $this->em->persist($usage);
-        }
-
-        $current = $usage->getApprenantsCount();
-        if (($current + $by) > $max) {
-            throw new BillingQuotaExceededException(
-                'max_apprenants_an',
-                $current,
-                $max,
-                sprintf("Quota apprenants/an atteint (%d/%d).", $current, $max)
-            );
-        }
-
-        $usage->increment($by);
     }
 
     public function assertCanAddApprenantIfNew(Entite $entite, bool $isNew): void
@@ -209,12 +190,6 @@ final class BillingGuard
 
     private function isBillableUserRole(string $role): bool
     {
-        return in_array($role, [
-            UtilisateurEntite::TENANT_ADMIN,
-            UtilisateurEntite::TENANT_DIRIGEANT,
-            UtilisateurEntite::TENANT_FORMATEUR,
-            UtilisateurEntite::TENANT_COMMERCIAL,
-            UtilisateurEntite::TENANT_OF,
-        ], true);
+        return in_array($role, QuotaUsage::BILLABLE_ROLES, true);
     }
 }

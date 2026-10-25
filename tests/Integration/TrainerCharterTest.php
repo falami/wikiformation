@@ -16,7 +16,10 @@ final class TrainerCharterTest extends KernelTestCase
         $e=(new Entite())->setNom('Organisme Démonstration')->setPublic(false)->setCreateur($admin);
         foreach([$admin,$user,$e] as $x)$this->em->persist($x);$this->em->flush();
         foreach([[$admin,['TENANT_ADMIN']],[$user,['TENANT_FORMATEUR']]] as [$u,$roles]){$u->setEntite($e);$this->em->persist((new UtilisateurEntite())->setUtilisateur($u)->setEntite($e)->setCreateur($admin)->setRoles($roles));}
-        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($e)->setStatus('active'));
+        // Ownership scenarios require two trainers in this organism.
+        $plan = (new \App\Entity\Billing\Plan())->setCode('TRAINERCHARTER')->setName('Isolation fixture')->setMaxApprenantsAn(50)->setMaxUtilisateurs(1)->setMaxFormateurs(2)->setMaxEntreprises(1)->setMaxProspects(50);
+        $this->em->persist($plan);
+        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($e)->setStatus('active')->setPlan($plan));
         $t=(new Formateur())->setUtilisateur($user)->setEntite($e)->setCreateur($admin);$user->setFormateur($t);$this->em->persist($t);$this->em->flush();
         $this->entiteId=$e->getId();$this->adminId=$admin->getId();$this->trainerId=$t->getId();$this->userId=$user->getId();
         $this->client=self::getContainer()->get('test.client');$this->client->disableReboot();$this->client->catchExceptions(false);$this->login($this->adminId);

@@ -51,7 +51,7 @@ final class CatalogueController extends AbstractController {
   $this->csrf($r,'checkout');
   if ($r->request->getString('terms_version')!==$this->policy->settings()->termsVersion || !$r->request->getBoolean('terms') || !$r->request->getBoolean('immediate') || !$r->request->getBoolean('withdrawal')) { $this->addFlash('danger','Confirmez les conditions et votre choix d’accès immédiat.');return $this->redirectToRoute('app_market_cart'); }
   $ids=[];foreach ($r->getSession()->get('market_cart',[]) as $id) { $offer=$this->em->find(Offer::class,$id);if ($offer && $offer->seller->id===$seller) $ids[]=$id; }
-  try { return $this->redirect($payments->checkout($this->getUser(),$ids,['termsAccepted'=>true,'immediateAccess'=>true,'withdrawalAcknowledged'=>true])); }
+  try { return $this->redirect($payments->checkout($this->getUser(),$ids,['billing'=>$r->request->all('billing'),'termsAccepted'=>true,'immediateAccess'=>true,'withdrawalAcknowledged'=>true])); }
   catch (\DomainException $e) { $this->addFlash('danger',$e->getMessage()); }
   catch (\Throwable $e) { $this->addFlash('danger','Le paiement est momentanément indisponible. Aucun accès ne sera activé sans confirmation du paiement.'); }
   return $this->redirectToRoute('app_market_cart');
@@ -66,7 +66,7 @@ final class CatalogueController extends AbstractController {
  public function purchase(Purchase $purchase,Payments $payments): Response {
   if ($purchase->buyer!==$this->getUser()) throw $this->createNotFoundException();
   try { $payments->sync($purchase); } catch (\Throwable $e) { $this->addFlash('warning','La confirmation du paiement est en cours. Vous pouvez revenir sur cette page.'); }
-  $response=$this->render('marketplace/purchase.html.twig',['purchase'=>$purchase]);$response->headers->set('Cache-Control','private, no-store');return $response;
+  $response=$this->render('marketplace/purchase.html.twig',['purchase'=>$purchase,'invoices'=>$this->em->getRepository(\App\Entity\Marketplace\Invoice::class)->findBy(['purchase'=>$purchase,'kind'=>['sale','sale_credit']],['id'=>'ASC'])]);$response->headers->set('Cache-Control','private, no-store');return $response;
  }
  #[Route('/achat/{id}/reprendre',name:'resume',methods:['POST'])]
  #[IsGranted('ROLE_USER')]

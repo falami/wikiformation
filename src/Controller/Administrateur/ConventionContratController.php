@@ -155,6 +155,8 @@ final class ConventionContratController extends AbstractController
                 'entreprise' => $c->getDestinataireLabel(),
                 'formation' => $c->getIntituleFormationEffectif() ?: '—',
                 'session'   => $sess?->getCode() ?? '—',
+                'suivi' => $this->renderView('administrateur/convention/_signature_status.html.twig', ['c' => $c]),
+                'details' => $this->renderView('administrateur/convention/_listing_details.html.twig', ['c' => $c]),
                 'actions'   => $this->renderView('administrateur/convention/_actions.html.twig', [
                     'c' => $c,
                     'entite' => $entite,

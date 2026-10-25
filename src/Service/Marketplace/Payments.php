@@ -5,7 +5,7 @@ use App\Entity\Marketplace\{Seller,Purchase,Offer,Access};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class Payments {
- public function __construct(private EntityManagerInterface $em,private StripeGateway $stripe,private Policy $policy,private UrlGeneratorInterface $router) {}
+ public function __construct(private EntityManagerInterface $em,private StripeGateway $stripe,private Policy $policy,private UrlGeneratorInterface $router,private Invoicing $invoicing) {}
  public static function split(int $gross,int $taxBps,int $commissionBps): array {
   if ($gross<0 || $taxBps<0 || $commissionBps<0 || $commissionBps>10000) throw new \InvalidArgumentException();
   $net=intdiv($gross*10000+intdiv(10000+$taxBps,2),10000+$taxBps);
@@ -13,6 +13,8 @@ final class Payments {
  }
  public function onboard(Seller $seller,Entite $entite): string {
   if ($this->policy->platformSeller($seller->user)) throw new \DomainException('Vos ventes sont encaissées sur le compte Stripe de la plateforme. Aucun compte Connect supplémentaire n’est nécessaire.');
+  BillingRules::seller($seller);
+  if (!BillingRules::activeMandate($seller)) throw new \DomainException('Acceptez le mandat de facturation avant de configurer Stripe.');
   if (!$seller->termsAcceptedAt) throw new \DomainException('Complétez votre profil vendeur.');
   if (!$seller->accountId) { $seller->accountId=$this->stripe->createAccount($seller->id,$seller->email);$this->em->flush(); }
   return $this->stripe->onboarding($seller->accountId,$this->router->generate('app_market_trainer_seller',['entite'=>$entite->getId()],UrlGeneratorInterface::ABSOLUTE_URL));
@@ -21,6 +23,7 @@ final class Payments {
   $settings=$this->policy->settings();
   if (!$settings->enabled || !$settings->legalApproved || $settings->commissionBps===null) throw new \DomainException('Les ventes ne sont pas encore ouvertes.');
   if (!$offerIds || count($offerIds)>30) throw new \DomainException('Votre panier est vide ou trop volumineux.');
+  $billing=BillingRules::buyer($consent['billing']??[]);
   $purchase=new Purchase();$purchase->id=bin2hex(random_bytes(16));$purchase->buyer=$buyer;$purchase->createdAt=new \DateTimeImmutable();$purchase->commissionBps=$settings->commissionBps;$purchase->feesPayer=$settings->feesPayer;
   $purchase->consent=$consent+['acceptedAt'=>$purchase->createdAt->format(DATE_ATOM),'version'=>$settings->termsVersion,'terms'=>$settings->terms];
   foreach (array_unique($offerIds) as $id) {
@@ -37,20 +40,38 @@ final class Payments {
    $purchase->totalCents+=$offer->priceCents;$purchase->commissionCents+=$split['commission'];
   }
   $seller=$purchase->seller;
+  $identity=BillingRules::seller($seller);
+  if ($purchase->platformSale) {
+   if ($identity['registration']!==BillingRules::PLATFORM['registration'] || $identity['taxNumber']!==BillingRules::PLATFORM['taxNumber'] || $identity['taxExemption']) throw new \DomainException('Les ventes propres doivent utiliser l’identité fiscale d’I.T. For You.');
+   $identity=BillingRules::PLATFORM;
+  }
+  $mandate=BillingRules::activeMandate($seller);
+  if (!$purchase->platformSale && (!$mandate || ($mandate['seller']??[])!=$identity)) throw new \DomainException('Le vendeur doit accepter le mandat de facturation avec ses coordonnées à jour.');
+  foreach ($purchase->items as $item) {
+   if ($item['taxBps']!==($identity['taxExemption'] ? 0 : 2000)) throw new \DomainException('Le taux de TVA du cours ne correspond pas au régime fiscal déclaré par le vendeur.');
+  }
+  $purchase->billingVersion=1;
+  $purchase->commissionTaxCents=intdiv($purchase->commissionCents*2000+5000,10000);
+  if ($purchase->commissionGrossCents()>$purchase->totalCents) throw new \DomainException('La commission TTC dépasse le prix du cours. Contactez la plateforme.');
+  $purchase->consent['billing']=$billing;
+  $purchase->consent['platform']=BillingRules::PLATFORM;
+  $purchase->consent['mandate']=$mandate;
+
   if ((!$purchase->platformSale && !$seller->accountId) || !$seller->termsAcceptedAt || $seller->termsVersion!==$settings->termsVersion) throw new \DomainException('Ce vendeur doit terminer son activation avant de pouvoir recevoir des paiements.');
   if (!$purchase->platformSale) {
    $account=$this->stripe->account($seller->accountId);
+   if (($account['country']??'')!=='FR') throw new \DomainException('Le compte Stripe du vendeur doit être établi en France.');
    if (empty($account['charges_enabled']) || empty($account['payouts_enabled'])) throw new \DomainException('Les paiements de ce vendeur ne sont pas encore activés.');
   }
   // Serialize cart creation; a pending checkout must be resolved before purchasing the same course again.
-  $this->em->wrapInTransaction(function() use($buyer,$purchase) {
+  $this->em->wrapInTransaction(function() use($buyer,$purchase,$identity) {
    $this->em->lock($buyer,\Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
    foreach ($purchase->items as $item) { if ($this->em->getRepository(Access::class)->findOneBy(['buyer'=>$buyer,'course'=>$item['course']])) throw new \DomainException('Vous possédez déjà ce cours.'); }
    foreach ($this->em->getRepository(Purchase::class)->findBy(['buyer'=>$buyer,'status'=>'pending']) as $existing) {
     if ($existing->createdAt < new \DateTimeImmutable('-31 minutes')) continue;
     if (array_intersect(array_column($existing->items,'course'),array_column($purchase->items,'course'))) throw new \DomainException('Un paiement est déjà en cours pour ce cours. Retrouvez-le dans vos achats ou attendez son expiration (30 minutes).');
    }
-   $purchase->consent['seller']=['name'=>$purchase->seller->legalName,'registration'=>$purchase->seller->registration,'address'=>$purchase->seller->address,'email'=>$purchase->seller->email,'taxNumber'=>$purchase->seller->taxNumber,'taxExemption'=>$purchase->seller->taxExemption];
+   $purchase->consent['seller']=$identity;
    $this->em->persist($purchase);$this->em->flush();
   });
   $lines=[];foreach ($purchase->items as $item) $lines[]=['quantity'=>1,'price_data'=>['currency'=>'eur','unit_amount'=>$item['gross'],'product_data'=>['name'=>$item['title']]]];
@@ -83,7 +104,7 @@ final class Payments {
    $purchase->status=!empty($charge['disputed']) && ($charge['_dispute_status']??'')!=='won'?'disputed':($purchase->refundedCents>0?'refunded':'paid');
    $balance=$charge['balance_transaction']??null;
    if (is_array($balance)) $purchase->stripeFeeCents=(int)$balance['fee'];
-   $purchase->sellerCents=$purchase->platformSale ? 0 : max(0,$purchase->totalCents-$purchase->commissionCents-($purchase->feesPayer==='seller'?$purchase->stripeFeeCents:0));
+   $purchase->sellerCents=$purchase->platformSale ? 0 : max(0,$purchase->totalCents-$purchase->commissionGrossCents()-($purchase->feesPayer==='seller'?$purchase->stripeFeeCents:0));
    foreach ($purchase->items as $item) {
     $course=$this->em->find(\App\Entity\Elearning\ElearningCourse::class,$item['course']);
     $access=$this->em->getRepository(Access::class)->findOneBy(['buyer'=>$purchase->buyer,'course'=>$course]);
@@ -91,6 +112,7 @@ final class Payments {
     // A dispute pauses access; partial refunds keep the complete purchased course accessible.
     if ($access->purchase===$purchase) $access->suspended=$purchase->status==='disputed' || $purchase->refundedCents===$purchase->totalCents;
    }
+   $this->invoicing->issue($purchase);
    $this->em->flush();
   });
  }
@@ -104,7 +126,7 @@ final class Payments {
   $this->sync($purchase);
   if ($purchase->platformSale) return;
   if (!$purchase->paidAt || $purchase->paidAt>new \DateTimeImmutable('-14 days') || !$purchase->chargeId) return;
-  $remainingCommission=max(0,$purchase->commissionCents-(int)ceil($purchase->commissionCents*$purchase->refundedCents/max(1,$purchase->totalCents)));
+  $remainingCommission=max(0,$purchase->commissionCents-Invoicing::refundShare($purchase->commissionCents,$purchase->refundedCents,$purchase->totalCents))+max(0,$purchase->commissionTaxCents-Invoicing::refundShare($purchase->commissionTaxCents,$purchase->refundedCents,$purchase->totalCents));
   $desired = $purchase->status==='disputed' ? 0 : max(0,$purchase->totalCents-$purchase->refundedCents-$remainingCommission-($purchase->feesPayer==='seller'?$purchase->stripeFeeCents:0));
   $delta=$desired-$purchase->transferredCents;
   $key='market-settle-'.$purchase->id.'-'.count($purchase->payoutHistory);

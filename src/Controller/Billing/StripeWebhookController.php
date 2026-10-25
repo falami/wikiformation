@@ -49,7 +49,7 @@ final class StripeWebhookController extends AbstractController
       if (in_array($event->type, ['charge.refunded','charge.dispute.created','charge.dispute.closed'], true)) {
         $obj = $event->data->object;
         $paymentId = $obj->payment_intent ?? null;
-        if ($paymentId && $purchase = $em->getRepository(\App\Entity\Marketplace\Purchase::class)->findOneBy(['paymentId'=>$paymentId])) $marketplace->sync($purchase);
+        if ($paymentId && $purchase = $em->getRepository(\App\Entity\Marketplace\Purchase::class)->findOneBy(['paymentId'=>$paymentId])) { $marketplace->sync($purchase); $marketConfirmations->send($purchase); }
       }
       switch ($event->type) {
         case 'invoice.paid': {

@@ -37,7 +37,10 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         $this->em->persist($this->user); $this->em->persist($this->entite); $this->em->flush();
         $this->user->setEntite($this->entite);
         $this->em->persist((new UtilisateurEntite())->setUtilisateur($this->user)->setEntite($this->entite)->setCreateur($this->user)->setRoles(['TENANT_FORMATEUR', 'TENANT_ADMIN']));
-        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($this->entite)->setStatus('active'));
+        // Ownership scenarios require two companies in this organism.
+        $plan = (new \App\Entity\Billing\Plan())->setCode('CONVENTIONDOSSIER')->setName('Isolation fixture')->setMaxApprenantsAn(50)->setMaxUtilisateurs(1)->setMaxFormateurs(1)->setMaxEntreprises(2)->setMaxProspects(50);
+        $this->em->persist($plan);
+        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($this->entite)->setStatus('active')->setPlan($plan));
         $this->trainer = (new Formateur())->setUtilisateur($this->user)->setEntite($this->entite)->setCreateur($this->user);
         $this->user->setFormateur($this->trainer);
         $site = (new Site())->setNom('Salle')->setSlug('reminder-test')->setEntite($this->entite)->setCreateur($this->user);

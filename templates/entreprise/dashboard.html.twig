@@ -728,6 +728,17 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
             </div>
           </div>
 
+          <section class="section-card mb-4" aria-labelledby="detail-documents-title">
+            <div class="card-header p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+              <div><h6 class="mb-1 fw-bold" id="detail-documents-title"><i class="bi bi-folder2-open me-2"></i>Documents de la session</h6>
+                <div class="small text-muted">Documents accessibles à votre entreprise et dossiers de ses participants.</div></div>
+              <a id="detail-documents-archive" class="btn btn-sm btn-outline-primary d-none">Télécharger le dossier complet (ZIP)</a>
+            </div>
+            <div class="card-body p-3"><div id="detail-documents" class="row g-3" aria-live="polite"></div>
+              <button type="button" id="detail-documents-retry" class="btn btn-sm btn-outline-secondary mt-2 d-none">Réessayer</button>
+            </div>
+          </section>
+
           <div class="row g-4">
             <div class="col-12 col-lg-7">
               <div class="section-card h-100">
@@ -1014,7 +1025,41 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
     document.getElementById('sessionDetailContent').classList.toggle('d-none', state !== 'content');
   }
 
+  let sessionDetailRequest;
+  let activeDetailSession;
+  async function loadSessionDocuments(sessionId, signal){
+    const wrap = document.getElementById('detail-documents');
+    const retry = document.getElementById('detail-documents-retry');
+    retry.classList.add('d-none');
+    wrap.setAttribute('aria-busy', 'true');
+    wrap.innerHTML = '<div class="col-12 text-muted">Chargement des documents…</div>';
+    try {
+      const url = new URL(urls.docs, window.location.origin);
+      url.searchParams.set('session', sessionId);
+      const response = await fetch(url, {signal, headers: {'Accept':'application/json'}});
+      if (!response.ok) throw new Error('Impossible de charger les documents.');
+      const result = await response.json();
+      if (signal.aborted) return;
+      wrap.innerHTML = result.data?.length ? result.data.map(docCard).join('') : '<div class="col-12 text-muted">Aucun document disponible pour cette session.</div>';
+    } catch (error) {
+      if (signal.aborted) return;
+      wrap.innerHTML = '<div class="col-12 text-danger" role="alert">'+escapeHtml(error.message)+'</div>';
+      retry.classList.remove('d-none');
+    } finally {
+      if (!signal.aborted) wrap.setAttribute('aria-busy', 'false');
+    }
+  }
+
+
   async function openSessionDetail(sessionId){
+    sessionDetailRequest?.abort();
+    const controller = new AbortController();
+    sessionDetailRequest = controller;
+    activeDetailSession = sessionId;
+    const archive = document.getElementById('detail-documents-archive');
+    archive.classList.add('d-none');
+    archive.removeAttribute('href');
+    document.getElementById('detail-documents').replaceChildren();
     const modalEl = document.getElementById('sessionDetailModal');
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
@@ -1026,6 +1071,7 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
 
     try {
       const res = await fetch(sessionDetailUrl(sessionId), {
+        signal: controller.signal,
         headers: {
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
@@ -1038,7 +1084,13 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
         throw new Error(json.message || 'Impossible de charger le détail de la session.');
       }
 
+      if (controller.signal.aborted) return;
       const s = json.session;
+      if (s.documentsArchiveUrl) {
+        archive.href = s.documentsArchiveUrl;
+        archive.classList.remove('d-none');
+      }
+      loadSessionDocuments(sessionId, controller.signal);
 
       document.getElementById('sessionDetailSubtitle').textContent = `${s.formation || '-'} · ${s.code || '-'}`;
       document.getElementById('detail-code').textContent = s.code || '-';
@@ -1079,12 +1131,19 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
 
       setSessionDetailLoadingState('content');
     } catch (e) {
+      if (controller.signal.aborted) return;
       document.getElementById('sessionDetailError').textContent = e.message || 'Erreur de chargement.';
       setSessionDetailLoadingState('error');
     }
   }
 
   $(function(){
+    // The scripts are loaded in <head>; bind modal controls only after DOM readiness.
+  document.getElementById('detail-documents-retry').addEventListener('click', () => {
+    if (activeDetailSession && sessionDetailRequest) loadSessionDocuments(activeDetailSession, sessionDetailRequest.signal);
+  });
+  document.getElementById('sessionDetailModal').addEventListener('hidden.bs.modal', () => sessionDetailRequest?.abort());
+
     DT = $('#table-ent').DataTable({
       ajax:{ url: urls.dt, type:'POST' },
       columns:[

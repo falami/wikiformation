@@ -1,0 +1,44 @@
+Pages d’erreur et signalement WikiFormation
+
+Les pages Symfony 403, 404, 500 et le modèle générique utilisent les styles
+communs aux écrans de connexion, sans chargement du branding en base de données.
+Aperçus en développement : /_error/403, /_error/404, /_error/500.
+
+En production (APP_ENV=prod, APP_DEBUG=0), une exception HTTP non interceptée
+reçoit une référence WK-… et un jeton aléatoire de 256 bits. Le rapport est
+conservé une heure dans cache.app. Le jeton sert de capacité de signalement :
+seule la page qui le reçoit peut envoyer le rapport correspondant. Aucune
+adresse destinataire ni aucun texte libre n’est accepté par l’endpoint.
+
+Le bouton « Signaler cette erreur » effectue un POST vers /support/error-report.
+L’envoi utilise le transport Symfony configuré par MAILER_DSN, directement,
+sans dépendre d’un worker Messenger. Le destinataire est toujours
+contact@wikiformation.fr. La politique existante EmailDeliveryPolicy configure
+l’expéditeur. Un SMTP opérationnel doit être configuré en production.
+La confirmation signifie que le transport a accepté le message, pas que le
+serveur du destinataire en a confirmé la livraison.
+
+Un rapport déjà envoyé n’est pas renvoyé lors d’un nouvel envoi séquentiel.
+La limite est de 5 demandes par heure et par IP (stockée sous forme hachée).
+Configurer les proxies de confiance Symfony pour conserver les IP clientes
+correctes derrière un reverse proxy. Les rapports expirent au bout d’une heure
+et deviennent indisponibles en cas de purge du cache. Un lien mailto reste
+accessible si le service de signalement est indisponible.
+
+L’e-mail contient la référence, le code HTTP, la date UTC, le nom de route,
+la méthode et le type d’exception. Il ne contient ni paramètres d’URL, ni corps
+de requête, ni cookies, ni message d’exception. Pour une URL inexistante sans
+route, le nom de route est indiqué comme inconnu ; les détails restent côté logs.
+
+Rechercher la référence WK-… dans var/log/error_report-AAAA-MM-JJ.log.
+Ce canal contient l’exception et sa trace ; accès réservé à l’exploitation.
+Monolog conserve 14 fichiers de rotation. Préserver ces fichiers lors des
+redéploiements / les collecter avec les logs de production. En multi-instance,
+utiliser un cache partagé pour les rapports et les limites.
+
+Aucun e-mail n’est envoyé au simple affichage d’une erreur. Le clic utilisateur
+est nécessaire. Les exceptions en dev/test n’activent pas le signalement.
+Les erreurs du serveur web survenant avant Symfony (ex. panne PHP / proxy)
+ne peuvent pas être traitées par ces templates ou ce mécanisme.
+
+Validation : vendor/bin/phpunit tests/Service/Support

@@ -22,7 +22,10 @@ final class EntreprisePortalContextTest extends WebTestCase
             $em->persist($user); $em->persist($tenant); $em->flush(); $user->setEntite($tenant);
             $membership = (new UtilisateurEntite())->setUtilisateur($user)->setEntite($tenant)->setCreateur($user)->setRoles(['TENANT_ENTREPRISE'])->setStatus('active');
             $em->persist($membership);
-            $em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($tenant)->setStatus('active'));
+            // Primary, two represented companies and a forbidden company verify isolation.
+            $plan = (new \App\Entity\Billing\Plan())->setCode('COMPANY_PORTAL')->setName('Company ownership fixture')->setMaxApprenantsAn(50)->setMaxUtilisateurs(1)->setMaxFormateurs(1)->setMaxEntreprises(4)->setMaxProspects(50);
+            $em->persist($plan);
+            $em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($tenant)->setStatus('active')->setPlan($plan));
             $site = (new Site())->setNom('Salle')->setSlug('portal-test')->setEntite($tenant)->setCreateur($user); $em->persist($site);
             $companies = []; $sessions = [];
             $primary = (new Entreprise())->setRaisonSociale('Entreprise principale')->setEntite($tenant)->setCreateur($user);

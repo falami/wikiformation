@@ -1450,6 +1450,8 @@ final class SessionController extends AbstractController
         return $em->getRepository(Session::class)->createQueryBuilder('s')
             ->leftJoin('s.formation', 'f')->addSelect('f')
             ->leftJoin('s.site', 'site')->addSelect('site')
+            ->leftJoin('s.entrepriseCliente', 'searchCompany')
+            ->leftJoin('s.organismeFormation', 'searchOrderingCompany')
             ->leftJoin('s.engin', 'b')->addSelect('b')
             ->leftJoin('s.formateur', 'sk')->addSelect('sk')
             ->leftJoin('sk.utilisateur', 'u')->addSelect('u')
@@ -1467,11 +1469,32 @@ final class SessionController extends AbstractController
         $formateurFilter = trim((string) ($filters['formateurFilter'] ?? ''));
         $searchV = trim((string) ($filters['search']['value'] ?? ''));
 
-        // ===== Search global =====
+        // Every word may match a different field; EXISTS avoids duplicate session rows.
         if ($searchV !== '') {
-            $filteredQb
-                ->andWhere('(s.code LIKE :q OR f.titre LIKE :q OR s.formationIntituleLibre LIKE :q OR site.nom LIKE :q OR b.nom LIKE :q OR u.nom LIKE :q OR u.prenom LIKE :q)')
-                ->setParameter('q', '%' . $searchV . '%');
+            $fields = ['s.code', 'f.titre', 's.formationIntituleLibre', 'site.nom',
+                'site.adresse', 'site.ville', 'site.codePostal', 'b.nom', 'u.nom', 'u.prenom',
+                'searchCompany.raisonSociale', 'searchOrderingCompany.raisonSociale'];
+            foreach (preg_split('/\s+/u', $searchV, -1, PREG_SPLIT_NO_EMPTY) as $index => $word) {
+                $parameter = 'session_search_' . $index;
+                $matches = array_map(static fn(string $field): string => 'LOWER(' . $field . ') LIKE :' . $parameter, $fields);
+                $participants = $em->createQueryBuilder()->select('1')->from(Inscription::class, 'searchIns')
+                    ->leftJoin('searchIns.stagiaire', 'searchLearner')
+                    ->leftJoin('searchIns.entreprise', 'searchEmployer')
+                    ->where('searchIns.session = s AND searchIns.entite = :entite')
+                    ->andWhere('(LOWER(searchLearner.nom) LIKE :' . $parameter
+                        . ' OR LOWER(searchLearner.prenom) LIKE :' . $parameter
+                        . ' OR LOWER(searchLearner.email) LIKE :' . $parameter
+                        . ' OR LOWER(searchEmployer.raisonSociale) LIKE :' . $parameter . ')');
+                // DQL aliases must be unique across all word subqueries.
+                $participantDql = strtr($participants->getDQL(), [
+                    'searchIns' => 'searchIns' . $index,
+                    'searchLearner' => 'searchLearner' . $index,
+                    'searchEmployer' => 'searchEmployer' . $index,
+                ]);
+                $matches[] = 'EXISTS(' . $participantDql . ')';
+                $filteredQb->andWhere('(' . implode(' OR ', $matches) . ')')
+                    ->setParameter($parameter, '%' . mb_strtolower($word) . '%');
+            }
         }
 
         // ===== Filtres =====
@@ -2432,7 +2455,7 @@ final class SessionController extends AbstractController
                 // Keep the existing identity, password and contact details intact.
                 $needsLearnerRole = !$ue || !$ue->hasRole(UtilisateurEntite::TENANT_STAGIAIRE);
                 if ($needsLearnerRole) {
-                    $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
+
                 }
 
                 $this->ensureUserEntiteRole(
@@ -2482,7 +2505,7 @@ final class SessionController extends AbstractController
             $user->setPassword($passwordHasher->hashPassword($user, $plainPassword));
 
             // quota apprenant annuel
-            $this->billingGuard->assertCanAddApprenantAndConsume($entite, 1);
+
 
             $em->persist($user);
 

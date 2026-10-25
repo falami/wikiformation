@@ -27,6 +27,7 @@ final class BillingController extends AbstractController
     AddonRepository $addons,
     EntiteUsageYearRepository $usageRepo,
     EntitlementService $entitlement,
+    \App\Service\Billing\QuotaUsage $quotaUsage,
     \App\Service\EInvoicing\EInvoiceUsageBilling $eInvoiceUsage,
   ): Response {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
@@ -58,7 +59,7 @@ final class BillingController extends AbstractController
     $sub = $subs->findLatestForEntite($entite);
     $limits = $entitlement->limits($entite);
 
-    $year = (int)(new \DateTimeImmutable())->format('Y');
+    $year = (int)(new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('Y');
     $usage = $usageRepo->getOrCreate($entite, $year);
 
     $trialRemainingDays = null;
@@ -73,6 +74,7 @@ final class BillingController extends AbstractController
       'plans' => $plans->findPublicOffers(),
       'addons' => $addons->findActiveOrdered(),
       'limits' => $limits,
+      'quotaUsage' => $quotaUsage->counts($entite),
       'usage' => $usage,
       'year' => $year,
       'entite' => $entite,

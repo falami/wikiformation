@@ -4,6 +4,7 @@ namespace App\Service\Doctrine;
 
 
 use Doctrine\ORM\EntityManagerInterface;
+use App\Exception\BillingQuotaExceededException;
 use Psr\Log\LoggerInterface;
 
 class DoctrineManager
@@ -25,6 +26,8 @@ class DoctrineManager
             $this->entityManager->persist($object);
             $this->entityManager->flush();
             return true;
+        } catch (BillingQuotaExceededException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->logger->critical($messageErreur . $e->getMessage());
             return false;
@@ -37,6 +40,8 @@ class DoctrineManager
             $this->entityManager->remove($object);
             $this->entityManager->flush();
             return true;
+        } catch (BillingQuotaExceededException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->logger->critical($messageErreur . $e->getMessage());
             return false;

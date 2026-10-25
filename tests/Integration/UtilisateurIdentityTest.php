@@ -368,7 +368,7 @@ final class UtilisateurIdentityTest extends KernelTestCase
         self::assertSame('unused', $saved->getPassword());
         self::assertSame(2, $this->em->getRepository(Utilisateur::class)->count([]));
         self::assertSame(2, $this->em->getRepository(UtilisateurEntite::class)->count([]));
-        self::assertSame(0, $this->em->getRepository(\App\Entity\Billing\EntiteUsageYear::class)->count([]));
+        self::assertSame(1, $this->em->getRepository(\App\Entity\Billing\EntiteUsageYear::class)->findOneBy(['entite'=>$this->entite->getId()])->getApprenantsCount(), 'The existing learner was already counted when the membership was created.');
     }
 
     public function testSessionLearnerCreationRejectsForeignAccountAndInvalidCsrf(): void
@@ -399,7 +399,7 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $second = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($second['already']); self::assertSame($first['id'], $second['id']);
         self::assertSame(3, $this->em->getRepository(Utilisateur::class)->count([]));
-        self::assertSame(1, $this->em->getRepository(\App\Entity\Billing\EntiteUsageYear::class)->findOneBy(['entite'=>$this->entite->getId()])->getApprenantsCount());
+        self::assertSame(2, $this->em->getRepository(\App\Entity\Billing\EntiteUsageYear::class)->findOneBy(['entite'=>$this->entite->getId()])->getApprenantsCount(), 'One existing learner plus one new learner, despite the retry.');
     }
 
     public function testCompanyCreatedFromParticipantModalIsReusedAndAttachedToNewLearner(): void

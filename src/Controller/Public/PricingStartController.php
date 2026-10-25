@@ -38,7 +38,7 @@ final class PricingStartController extends AbstractController
     }
 
     // 2) On stocke TOUJOURS en session (même si connecté)
-    $request->getSession()->set('pricing_selected_plan', $planCode);
+    $request->getSession()->set('pricing_selected_plan', $plan->getCode());
     $request->getSession()->set('pricing_selected_addons', $addons);
     $request->getSession()->set('pricing_selected_interval', $interval);
 

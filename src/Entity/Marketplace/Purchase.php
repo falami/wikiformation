@@ -12,6 +12,11 @@ class Purchase
         return max(0, $net - (int) round($net * $this->refundedCents / max(1, $this->totalCents)));
     }
 
+    #[ORM\Column(options: ['default'=>0])] public int $billingVersion = 0;
+    #[ORM\Column(options: ['default'=>0])] public int $commissionTaxCents = 0;
+
+    public function commissionGrossCents(): int { return $this->commissionCents + $this->commissionTaxCents; }
+
     // Frozen at checkout: later role changes must never reroute money.
     #[ORM\Column(options: ['default'=>false])] public bool $platformSale = false;
 

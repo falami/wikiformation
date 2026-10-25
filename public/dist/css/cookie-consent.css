@@ -1,0 +1,66 @@
+/* Shared consent surface: isolated from page and Bootstrap button styles. */
+.wk-consent[hidden], .wk-consent-manage[hidden] { display: none !important; }
+.wk-consent, .wk-consent * , .wk-consent-manage { box-sizing: border-box; }
+.wk-consent {
+  position: fixed;
+  z-index: 1080;
+  inset: auto 24px max(24px, env(safe-area-inset-bottom));
+  width: calc(100% - 48px);
+  max-width: 1180px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 28px 32px;
+  border: 1px solid #42505b;
+  border-radius: 22px;
+  background: radial-gradient(ellipse at top left, #2a3b46 0, transparent 65%), #142330;
+  box-shadow: 0 20px 70px #0e1c2b33, 0 3px 12px #0e1c2b1a, inset 0 1px 0 #ffffff0d;
+  color: #fff;
+  font-family: inherit;
+  text-align: left;
+  animation: wk-consent-enter .35s ease-out both;
+}
+.wk-consent__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  align-self: flex-start;
+  border: 1px solid #f4d27b40;
+  border-radius: 17px;
+  background: #f4d27b0d;
+  color: #f4d27b;
+}
+.wk-consent__content { flex: 1; min-width: 0; }
+.wk-consent__eyebrow { display: block; margin-bottom: 8px; color: #f4d27b; font-size: 10px; font-weight: 750; letter-spacing: .17em; line-height: 1.4; }
+.wk-consent #cookie-banner-title { margin: 0 0 9px; color: #fff; font-size: 23px; font-weight: 650; letter-spacing: -.035em; line-height: 1.25; }
+.wk-consent #cookie-banner-description { max-width: 650px; margin: 0 0 10px; color: #c6d0d9; font-size: 13px; font-weight: 400; line-height: 1.65; }
+.wk-consent .wk-consent__link { color: #f4d27b; font-size: 12px; font-weight: 500; text-decoration: underline; text-decoration-color: #f4d27b66; text-underline-offset: 4px; }
+.wk-consent__link span { display: inline-block; margin-left: 4px; }
+.wk-consent .wk-consent__link:hover { color: #fff0c9; text-decoration-color: currentColor; }
+.wk-consent__actions { flex: 0 0 280px; padding-left: 26px; border-left: 1px solid #ffffff1a; }
+.wk-consent__buttons { display: flex; gap: 10px; }
+.wk-consent .wk-consent__button { flex: 1; min-height: 46px; margin: 0; padding: 11px 16px; border: 1px solid #f4d27b80; border-radius: 10px; background: #f4d27b; color: #172634; font: inherit; font-size: 13px; font-weight: 650; line-height: 1.4; cursor: pointer; transition: background .18s, box-shadow .18s; }
+.wk-consent .wk-consent__button:hover { background: #ffe6a3; box-shadow: 0 4px 16px #00000020; }
+.wk-consent__note { display: block; margin-top: 12px; color: #b6c3ce; font-size: 10px; line-height: 1.5; text-align: center; }
+.wk-consent-manage { position: fixed; bottom: 16.5px; right: max(58px, env(safe-area-inset-right)); left: auto; z-index: 1040; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid #42505b; border-radius: 50px; background: #142330; color: #f4d27b; box-shadow: 0 4px 18px #0e1c2b20; font: inherit; font-size: 11px; line-height: 1.4; cursor: pointer; }
+.wk-consent-manage:hover { background: #263a49; }
+.wk-consent :is(button, a):focus-visible, .wk-consent-manage:focus-visible { outline: 3px solid #fff; outline-offset: 4px; box-shadow: 0 0 0 6px #172634; }
+@keyframes wk-consent-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 900px) {
+  .wk-consent { gap: 18px; padding: 24px; flex-wrap: wrap; }
+  .wk-consent__content { flex-basis: calc(100% - 80px); }
+  .wk-consent__actions { flex: 1 1 100%; display: flex; align-items: center; gap: 20px; padding: 18px 0 0; border-left: 0; border-top: 1px solid #ffffff1a; }
+  .wk-consent__buttons { flex: 0 0 280px; }
+  .wk-consent__note { margin: 0; text-align: left; }
+}
+@media (max-width: 540px) {
+  .wk-consent { inset-inline: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; gap: 12px; padding: 20px; border-radius: 18px; }
+  .wk-consent__icon { display: none; }
+  .wk-consent #cookie-banner-title { font-size: 22px; }
+  .wk-consent__actions { display: block; padding-top: 16px; }
+  .wk-consent__note { margin-top: 10px; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) { .wk-consent { animation: none; } .wk-consent .wk-consent__button { transition: none; } }

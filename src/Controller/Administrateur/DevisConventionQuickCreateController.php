@@ -134,7 +134,7 @@ final class DevisConventionQuickCreateController extends AbstractController
                             $em->persist($client);
                         }
                         if (!$membership || !$membership->hasRole(UtilisateurEntite::TENANT_STAGIAIRE)) {
-                            $billingGuard->assertCanAddApprenantAndConsume($entite);
+
                             if (!$membership) {
                                 $membership = (new UtilisateurEntite())->setEntite($entite)->setUtilisateur($client)->setCreateur($creator);
                                 $client->addUtilisateurEntite($membership);

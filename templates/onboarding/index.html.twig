@@ -2,682 +2,34 @@
 {% extends 'base.html.twig' %}
 {% block title %}Démarrage — WikiFormation{% endblock %}
 
+{% set brand = public_branding() %}
+{% block body_attributes %}class="onboarding-page"{% endblock %}
+{% block stylesheets %}<link rel="stylesheet" href="{{ asset('dist/css/onboarding.css') }}">{% endblock %}
 {% block body %}
-<style>
-  :root{
-    --wk-bg:#f6f8fb;
-    --wk-ink:#0f2336;
-    --wk-muted:rgba(15,35,54,.72);
-    --wk-muted2:rgba(15,35,54,.54);
-    --wk-stroke:rgba(15,35,54,.12);
-    --wk-radius:22px;
-  }
 
-  .wk-wrap{
-    min-height: calc(100vh - 120px);
-    background:
-      radial-gradient(1200px 600px at 10% -10%, rgba(13,110,253,.16), transparent 55%),
-      radial-gradient(900px 480px at 100% 10%, rgba(255,193,7,.14), transparent 60%),
-      linear-gradient(180deg, var(--wk-bg), #ffffff 60%);
-  }
 
-  .wk-shell{
-    border-radius: calc(var(--wk-radius) + 6px);
-    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.90));
-    border: 1px solid rgba(255,255,255,.8);
-    box-shadow: 0 30px 70px rgba(15,35,54,.12);
-    overflow: hidden;
-  }
-
-  .wk-head{
-    padding: 28px 28px 18px;
-    background:
-      radial-gradient(900px 220px at 20% 0%, rgba(13,110,253,.12), transparent 60%),
-      radial-gradient(700px 180px at 90% 20%, rgba(255,193,7,.10), transparent 62%),
-      linear-gradient(180deg, rgba(15,35,54,.02), rgba(15,35,54,0));
-    border-bottom: 1px solid var(--wk-stroke);
-  }
-
-  .wk-kicker{
-    display:inline-flex; align-items:center; gap:.55rem;
-    font-weight:900; letter-spacing:.2px; color:var(--wk-ink);
-  }
-  .wk-kicker .dot{
-    width:10px; height:10px; border-radius:999px;
-    background:#0d6efd;
-    box-shadow: 0 0 0 7px rgba(13,110,253,.14);
-  }
-
-  .wk-title{ color:var(--wk-ink); }
-  .wk-sub{ color:var(--wk-muted); }
-  .wk-body{ padding: 22px 28px 28px; }
-
-  .wk-section-title{
-    font-weight: 950;
-    color: var(--wk-ink);
-    letter-spacing: .2px;
-  }
-
-  .wk-divider{ height:1px; background: var(--wk-stroke); margin: 18px 0 18px; }
-
-  /* Toggle */
-  .wk-toggle{
-    display:inline-flex;
-    border:1px solid rgba(15,35,54,.14);
-    border-radius: 999px;
-    overflow:hidden;
-    background: rgba(255,255,255,.8);
-    box-shadow: 0 10px 22px rgba(15,35,54,.06);
-  }
-  .wk-toggle button{
-    border:0; background:transparent;
-    padding:.5rem .9rem;
-    font-weight: 950;
-    color: rgba(15,35,54,.70);
-  }
-  .wk-toggle button.is-active{
-    background: rgba(13,110,253,.12);
-    color: rgba(13,110,253,.95);
-  }
-
-  /* Grid */
-  .wk-plan-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  @media (max-width: 992px){ .wk-plan-grid{ grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 576px){ .wk-plan-grid{ grid-template-columns: 1fr; } }
-
-  /* Plan card */
-  .wk-plan{
-    --accent:#0d6efd;
-
-    border-radius: 18px;
-    border: 1px solid rgba(15,35,54,.14);
-    background: rgba(255,255,255,.92);
-    padding: 14px 14px 12px;
-    text-align: left;
-    position: relative;
-    width: 100%;
-    min-height: 186px;
-
-    transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, background .14s ease;
-    box-shadow: 0 10px 20px rgba(15,35,54,.06);
-    overflow: hidden;
-  }
-
-  /* Top accent bar */
-  .wk-plan::before{
-    content:"";
-    position:absolute;
-    inset:0 0 auto 0;
-    height:4px;
-    background: linear-gradient(90deg,
-      color-mix(in srgb, var(--accent) 90%, white),
-      color-mix(in srgb, var(--accent) 60%, white)
-    );
-    opacity:.95;
-  }
-
-  .wk-plan:hover{
-    transform: translateY(-2px);
-    box-shadow: 0 18px 38px rgba(15,35,54,.10);
-    border-color: color-mix(in srgb, var(--accent) 40%, rgba(15,35,54,.14));
-  }
-
-  .wk-plan:focus-visible{
-    outline: none;
-    box-shadow:
-      0 18px 42px rgba(15,35,54,.12),
-      0 0 0 .22rem color-mix(in srgb, var(--accent) 22%, transparent);
-  }
-
-  .wk-plan.is-selected{
-    border-color: #233342;
-    box-shadow:
-      0 16px 36px rgba(15,35,54,.14),
-      0 0 0 2px #233342;
-    background: #fff9e6;
-  }
-  .wk-plan-choice{
-    display:flex; align-items:center; justify-content:center; gap:.5rem;
-    margin-top:16px; padding:10px 12px; border-radius:10px;
-    background:#f1f4f7; color:#34475a; font-weight:800; font-size:.85rem;
-  }
-  .wk-plan-choice-selected{ display:none; }
-  .wk-plan.is-selected .wk-plan-choice{ background:#233342; color:#fff; }
-  .wk-plan.is-selected .wk-plan-choice-default{ display:none; }
-  .wk-plan.is-selected .wk-plan-choice-selected{ display:inline; }
-  .wk-plan.is-selected:focus-visible{ outline:3px solid #b58100; outline-offset:5px; }
-
-  /* badge */
-  .wk-badge{
-    display:inline-flex; align-items:center; gap:.4rem;
-    padding:.3rem .6rem;
-    border-radius:999px;
-    background: color-mix(in srgb, var(--accent) 12%, white);
-    border: 1px solid color-mix(in srgb, var(--accent) 22%, white);
-    color: color-mix(in srgb, var(--accent) 85%, black 15%);
-    font-weight: 950;
-    font-size:.78rem;
-    box-shadow: 0 10px 18px rgba(15,35,54,.06);
-  }
-  .wk-badge .b-dot{
-    width:8px; height:8px; border-radius:999px;
-    background: var(--accent);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
-  }
-
-  .wk-plan .name{ font-weight: 950; color: var(--wk-ink); }
-  .wk-plan .desc{
-    color: var(--wk-muted2);
-    font-size: .92rem;
-    margin-top: .22rem;
-    line-height: 1.35;
-    max-width: 42ch;
-  }
-
-  .wk-divider-mini{ height:1px; background: rgba(15,35,54,.10); margin: 10px 0 10px; }
-
-  /* Price */
-  .wk-price{ width: 100%; text-align:right; }
-  .wk-amount{
-    font-weight: 950;
-    color: var(--wk-ink);
-    font-size: 1.35rem;
-    line-height: 1.0;
-    letter-spacing: -.2px;
-  }
-  .wk-per{
-    color: var(--wk-muted2);
-    font-weight: 900;
-    font-size: .82rem;
-    margin-top: .15rem;
-  }
-  .wk-save{
-    display:inline-flex;
-    margin-top:.35rem;
-    padding:.18rem .45rem;
-    border-radius:999px;
-    font-size:.74rem;
-    font-weight: 900;
-    border: 1px solid rgba(15,35,54,.12);
-    background: rgba(15,35,54,.03);
-    color: rgba(15,35,54,.72);
-    white-space: nowrap;
-  }
-
-  /* Features */
-  .wk-features{ display:grid; gap:.35rem; margin-top:.25rem; }
-  .wk-feature{
-    color: rgba(15,35,54,.82);
-    font-size:.88rem;
-    display:flex; gap:.45rem; align-items:center;
-  }
-  .wk-feature i{ color: color-mix(in srgb, var(--accent) 65%, #0f2336); }
-
-  /* Meta */
-  .wk-meta{
-    margin-top: .8rem;
-    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem;
-  }
-  .wk-pill{
-    display:inline-flex; align-items:center; gap:.42rem;
-    padding:.34rem .55rem; border-radius:999px;
-    border: 1px solid rgba(15,35,54,.12);
-    background: rgba(15,35,54,.03);
-    color: rgba(15,35,54,.82);
-    font-size:.82rem;
-    white-space: nowrap;
-  }
-
-  /* Form */
-  .wk-form .form-control,
-  .wk-form .form-select{
-    border-radius: 14px;
-    border-color: rgba(15,35,54,.14);
-    box-shadow: none;
-  }
-  .wk-form .form-control:focus,
-  .wk-form .form-select:focus{
-    border-color: rgba(13,110,253,.45);
-    box-shadow: 0 0 0 .25rem rgba(13,110,253,.12);
-  }
-
-  .wk-cta{
-    border-radius: 16px;
-    padding: 14px 16px;
-    font-weight: 950;
-    letter-spacing: .2px;
-    box-shadow: 0 18px 40px rgba(13,110,253,.18);
-  }
-
-  .wk-footnote{ color: rgba(15,35,54,.55); }
-  .wk-error{
-    border-left: 3px solid #dc3545;
-    background: rgba(220,53,69,.06);
-    padding: .75rem .9rem;
-    border-radius: 14px;
-    color: rgba(15,35,54,.82);
-  }
-
-
-
-  .wk-per{
-    display: inline-flex;
-    flex-direction: column;   /* empile le texte + note */
-    align-items: center;
-    line-height: 1.05;
-    text-align: center;
-  }
-
-  .wk-per-note{
-    display: block;
-    margin-top: .2rem;
-    font-weight: 800;
-    font-size: .75rem;
-    color: rgba(15,35,54,.55);
-  }
-
-
-
-  /* Price (stack centered) */
-  .wk-price{ width: 100%; }
-
-  .wk-price-stack{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    gap:.15rem;
-    margin-top:.35rem;
-  }
-
-  .wk-amount{
-    font-weight: 950;
-    color: var(--wk-ink);
-    font-size: 1.55rem;
-    line-height: 1.05;
-    letter-spacing: -.3px;
-  }
-
-  .wk-per{
-    color: var(--wk-muted2);
-    font-weight: 900;
-    font-size: .84rem;
-    line-height: 1.1;
-  }
-
-  .wk-per-note{
-    font-weight: 800;
-    font-size: .76rem;
-    color: rgba(15,35,54,.55);
-    line-height: 1.1;
-  }
-
-  .wk-save{
-    display:inline-flex;
-    margin-top:.55rem;
-    padding:.18rem .5rem;
-    border-radius:999px;
-    font-size:.74rem;
-    font-weight: 900;
-    border: 1px solid rgba(15,35,54,.12);
-    background: rgba(15,35,54,.03);
-    color: rgba(15,35,54,.72);
-    white-space: nowrap;
-  }
-
-
-  /* Réserve toujours la même zone en haut pour l'étiquette */
-  .wk-badge-slot{
-    height: 35px;              /* espace constant */
-    display:flex;
-    justify-content:center;    /* centre le badge */
-    align-items:flex-start;
-  }
-
-  /* Le contenu commence toujours au même endroit */
-  .wk-plan-inner{
-    padding-top: 4px;          /* petit confort, identique partout */
-  }
-
-  /* Le badge n'est plus absolute => il ne perturbe plus l'alignement */
-  .wk-badge{
-    position: static;          /* IMPORTANT */
-    margin-top: 2px;
-  }
-
-
-
-
-  /* Branding block */
-  .wk-brand{
-    border:1px solid rgba(15,35,54,.12);
-    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.86));
-    border-radius: 18px;
-    padding: 16px;
-    box-shadow: 0 12px 26px rgba(15,35,54,.06);
-  }
-
-  .wk-brand-grid{
-    display:grid;
-    grid-template-columns: 1.2fr .8fr;
-    gap: 14px;
-  }
-  @media (max-width: 992px){
-    .wk-brand-grid{ grid-template-columns: 1fr; }
-  }
-
-  /* Dropzone */
-  .wk-drop{
-    border: 1px dashed rgba(15,35,54,.22);
-    border-radius: 16px;
-    background: rgba(15,35,54,.02);
-    padding: 14px;
-    display:flex;
-    gap: 12px;
-    align-items:center;
-    transition: transform .12s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
-    position: relative;
-  }
-
-  .wk-drop:hover{
-    border-color: rgba(13,110,253,.45);
-    background: rgba(13,110,253,.04);
-  }
-
-  .wk-drop.is-dragover{
-    border-color: rgba(13,110,253,.70);
-    background: rgba(13,110,253,.07);
-    box-shadow: 0 14px 30px rgba(13,110,253,.12);
-    transform: translateY(-1px);
-  }
-
-  .wk-logo-preview{
-    width: 100px;
-    height: 100px;
-    border-radius: 16px;
-    border: 1px solid rgba(15,35,54,.12);
-    background: #fff;
-    display:grid;
-    place-items:center;
-    overflow:hidden;
-    flex: 0 0 auto;
-  }
-
-  .wk-logo-preview img{
-    width:100%;
-    height:100%;
-    object-fit: contain;
-    padding: 10px;
-  }
-
-  .wk-logo-actions{
-    display:flex;
-    gap: .5rem;
-    flex-wrap: wrap;
-    align-items:center;
-  }
-
-  .wk-linkbtn{
-    border:0;
-    background: transparent;
-    font-weight: 950;
-    color: rgba(13,110,253,.95);
-    padding: 0;
-  }
-
-  .wk-ghostbtn{
-    border: 1px solid rgba(15,35,54,.14);
-    background: rgba(255,255,255,.75);
-    padding: .42rem .65rem;
-    border-radius: 12px;
-    font-weight: 900;
-    color: rgba(15,35,54,.82);
-  }
-
-  .wk-ghostbtn.danger{
-    border-color: rgba(220,53,69,.28);
-    color: rgba(220,53,69,.95);
-    background: rgba(220,53,69,.04);
-  }
-
-  /* Palette swatches */
-  .wk-palette{
-    display:flex;
-    flex-wrap:wrap;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .wk-swatch{
-    width: 28px;
-    height: 28px;
-    border-radius: 10px;
-    border: 1px solid rgba(15,35,54,.14);
-    box-shadow: 0 8px 18px rgba(15,35,54,.07);
-    cursor:pointer;
-    position: relative;
-  }
-  .wk-swatch[aria-pressed="true"]{
-    outline: none;
-    box-shadow: 0 0 0 .22rem rgba(13,110,253,.16), 0 10px 22px rgba(15,35,54,.10);
-  }
-  .wk-swatch::after{
-    content:"";
-    position:absolute;
-    inset:0;
-    border-radius: inherit;
-    background: radial-gradient(12px 12px at 30% 25%, rgba(255,255,255,.55), transparent 55%);
-    opacity:.65;
-    pointer-events:none;
-  }
-
-
-
-  /* Color picker row */
-  .wk-colorrow{
-    display:flex;
-    align-items:center;
-    gap:.6rem;
-    padding:.55rem .6rem;
-    border: 1px solid rgba(15,35,54,.14);
-    background: rgba(255,255,255,.75);
-    border-radius: 14px;
-    box-shadow: 0 10px 22px rgba(15,35,54,.06);
-  }
-
-  .wk-colorrow .wk-colorchip{
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-    border: 1px solid rgba(15,35,54,.14);
-    background: #fff;
-    box-shadow: 0 10px 18px rgba(15,35,54,.08);
-    flex: 0 0 auto;
-  }
-
-  .wk-colorrow input[type="color"]{
-    width: 44px;
-    height: 40px;
-    border: 0;
-    padding: 0;
-    background: transparent;
-    cursor: pointer;
-  }
-  .wk-colorrow input[type="color"]::-webkit-color-swatch-wrapper{ padding:0; }
-  .wk-colorrow input[type="color"]::-webkit-color-swatch{
-    border-radius: 12px;
-    border: 1px solid rgba(15,35,54,.14);
-  }
-
-  .wk-hex{
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    letter-spacing: .2px;
-  }
-
-  .wk-hint{
-    font-size:.78rem;
-    color: rgba(15,35,54,.55);
-  }
-  label{
-    color: black;
-  }
-
-
-
-  /* =========================
-   PREMIUM FORM / ERRORS
-   ========================= */
-
-.wk-form-card{
-  border: 1px solid rgba(15,35,54,.12);
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.92));
-  border-radius: 20px;
-  padding: 18px;
-  box-shadow: 0 14px 32px rgba(15,35,54,.06);
-}
-
-.wk-field{
-  display: flex;
-  flex-direction: column;
-  gap: .45rem;
-}
-
-.wk-label{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.75rem;
-  font-weight: 900;
-  color: var(--wk-ink);
-  letter-spacing: .15px;
-}
-
-.wk-required{
-  display:inline-flex;
-  align-items:center;
-  gap:.35rem;
-  font-size:.76rem;
-  font-weight:900;
-  color:#b42318;
-  background: rgba(220,53,69,.08);
-  border:1px solid rgba(220,53,69,.16);
-  border-radius:999px;
-  padding:.2rem .5rem;
-}
-
-.wk-input-wrap{
-  position: relative;
-}
-
-.wk-input-wrap .form-control,
-.wk-input-wrap .form-select{
-  min-height: 52px;
-  padding-right: 44px;
-}
-
-.wk-field-icon{
-  position:absolute;
-  top:50%;
-  right:14px;
-  transform:translateY(-50%);
-  color: rgba(15,35,54,.28);
-  pointer-events:none;
-}
-
-.wk-help{
-  font-size:.82rem;
-  color: rgba(15,35,54,.56);
-  margin-top: .1rem;
-}
-
-.wk-form .form-control.is-invalid,
-.wk-form .form-select.is-invalid{
-  border-color: rgba(220,53,69,.72);
-  background-image: none;
-  box-shadow: 0 0 0 .25rem rgba(220,53,69,.10);
-}
-
-.wk-form .form-control.is-valid,
-.wk-form .form-select.is-valid{
-  border-color: rgba(25,135,84,.52);
-  background-image: none;
-  box-shadow: 0 0 0 .25rem rgba(25,135,84,.08);
-}
-
-.wk-invalid{
-  margin-top: .15rem;
-  font-size: .86rem;
-  font-weight: 700;
-  color: #b42318;
-  display:flex;
-  gap:.45rem;
-  align-items:flex-start;
-}
-
-.wk-invalid i{
-  margin-top: .1rem;
-}
-
-.wk-error-summary{
-  border: 1px solid rgba(220,53,69,.18);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,245,245,.95));
-  border-left: 5px solid #dc3545;
-  border-radius: 18px;
-  padding: 16px 18px;
-  box-shadow: 0 12px 28px rgba(220,53,69,.08);
-}
-
-.wk-error-summary-title{
-  display:flex;
-  align-items:center;
-  gap:.6rem;
-  font-weight: 950;
-  color: #8f1d1d;
-  margin-bottom: .35rem;
-}
-
-.wk-error-summary ul{
-  margin: .25rem 0 0 1.1rem;
-  padding: 0;
-}
-
-.wk-error-summary li{
-  color: rgba(15,35,54,.84);
-  margin-bottom: .2rem;
-}
-
-.wk-section-note{
-  color: rgba(15,35,54,.58);
-  font-size:.92rem;
-  max-width: 68ch;
-}
-</style>
-
-<div class="wk-wrap py-5">
+<main class="wk-wrap">
   <div class="container">
     <div class="row justify-content-center">
-      <div class="col-12 col-xl-10">
+      <div class="col-12">
 
         <div class="wk-shell">
-          <div class="wk-head">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-              <div>
-                <div class="wk-kicker mb-2"><span class="dot"></span> Onboarding</div>
-                <h1 class="h3 wk-title mb-1">Créez votre organisme</h1>
-                <p class="wk-sub mb-0">
-                  Démarrez avec <strong>{{ trialDays }} jours d’essai</strong> (sans carte bancaire).
-                  <span class="d-inline-block">Choisissez votre plan ci-dessous.</span>
-                </p>
-              </div>
-
-              <div class="text-end d-flex flex-column align-items-end gap-2">
-                <div class="wk-pill"><i class="bi bi-shield-check"></i> Données sécurisées</div>
-                <div class="wk-pill"><i class="bi bi-arrow-repeat"></i> Changeable à tout moment</div>
-              </div>
+          <header class="wk-head">
+            <div class="wk-topline">
+              <a class="wk-brand-link" href="{{ brand.homeUrl ?: path('app_public') }}"><img src="{{ asset(brand.logo) }}" alt="{{ brand.name }}"></a>
+              <span class="wk-security"><i class="bi bi-shield-check" aria-hidden="true"></i> Votre espace sécurisé</span>
             </div>
-          </div>
+            <div class="wk-hero">
+              <div><span class="wk-eyebrow">BIENVENUE DANS VOTRE NOUVEL ESPACE</span>
+                <h1 class="wk-title">Votre expertise.<br><span>Un espace à sa hauteur.</span></h1>
+                <p class="wk-sub">Créez votre organisme et donnez une nouvelle dimension à vos formations.</p>
+              </div>
+              <div class="wk-trial"><span class="wk-trial-number">{{ trialDays }}<small>jours</small></span><strong>Pour découvrir tout le potentiel.</strong><span>Essai gratuit · Sans carte bancaire</span></div>
+            </div>
+            <nav class="wk-steps" aria-label="Configuration de votre organisme">
+              <a href="#offers"><span>01</span> Votre offre</a><a href="#identity"><span>02</span> Votre identité</a><a href="#details"><span>03</span> Votre organisme</a>
+            </nav>
+          </header>
 
           <div class="wk-body">
             {{ form_start(form, {
@@ -718,9 +70,9 @@
 
               <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
                 <div>
-                  <div class="wk-section-title">Choisissez votre plan</div>
+                  <span class="wk-eyebrow" id="offers">01 / UNE OFFRE À VOTRE MESURE</span><h2 class="wk-section-title">Choisissez votre point de départ.</h2>
                   <div class="text-muted" style="max-width: 62ch;">
-                    Toutes les offres sont mensuelles. Vous pourrez changer d’offre depuis votre espace facturation.
+                    Une offre pour chaque ambition. Vous pourrez en changer depuis votre espace facturation.
                   </div>
                 </div>
 
@@ -729,22 +81,19 @@
 
               <div class="mt-3 wk-plan-grid" id="planGrid">
                 {% for plan in plans %}
-                  {% set fallback = ['#2E6BFF','#11B981','#F59E0B','#7C3AED'] %}
-                  {% set accent = plan.accentColor ?: fallback[loop.index0 % 4] %}
+
+
 
                   <button type="button"
-                          class="wk-plan{{ form.planCode.vars.value == plan.code ? ' is-selected' : '' }}"
-                          aria-pressed="{{ form.planCode.vars.value == plan.code ? 'true' : 'false' }}"
-                          style="--accent: {{ accent }};"
+                          class="wk-plan{{ form.planCode.vars.value|trim|upper == plan.code|trim|upper ? ' is-selected' : '' }}"
+                          aria-pressed="{{ form.planCode.vars.value|trim|upper == plan.code|trim|upper ? 'true' : 'false' }}"
                           data-plan="{{ plan.code }}"
                           data-month="{{ plan.priceMonthlyCents ?? '' }}">
-                    {% if plan.badge %}
                       <div class="wk-badge-slot">
                         {% if plan.badge %}
                           <div class="wk-badge"><span class="b-dot"></span>{{ plan.badge }}</div>
                         {% endif %}
                       </div>
-                    {% endif %}
 
                     <div class="wk-plan-inner">
                       <div>
@@ -754,7 +103,7 @@
 
                       <div class="wk-price mt-2">
                         <div class="wk-price-stack">
-                          <div class="wk-amount" data-price>—</div>
+                          <div class="wk-amount" data-price>{{ plan.priceMonthlyCents ? (plan.priceMonthlyCents / 100)|number_format(0, ",", " ") ~ " €" : "Sur devis" }}</div>
                           <div class="wk-per" data-per>HT/mois</div>
                         </div>
 
@@ -767,6 +116,7 @@
                       <div class="wk-feature"><i class="bi bi-people"></i> {{ plan.maxUtilisateursLabel }}</div>
                       <div class="wk-feature"><i class="bi bi-mortarboard"></i> {{ plan.maxApprenantsLabel }}</div>
                       <div class="wk-feature"><i class="bi bi-person-badge"></i> {{ plan.maxFormateursLabel }}</div>
+                      <div class="wk-feature"><i class="bi bi-briefcase"></i> {{ plan.maxCommerciauxLabel }}</div>
                       <div class="wk-feature"><i class="bi bi-building"></i><span>{{ plan.maxEntreprisesLabel }}</span></div>
                       <div class="wk-feature"><i class="bi bi-person"></i><span>{{ plan.maxProspectsLabel }}</span></div>
                       {% if plan.supportPrioritaire %}
@@ -799,9 +149,9 @@
 
               <div class="wk-divider"></div>
 
-              <div class="wk-section-title mb-2">Branding (optionnel)</div>
+              <span class="wk-eyebrow" id="identity">02 / VOTRE SIGNATURE</span><h2 class="wk-section-title mb-2">Un espace qui vous ressemble.</h2>
               <div class="text-muted mb-3" style="max-width: 62ch;">
-                Ajoutez votre logo et choisissez des couleurs prédéfinies. Vous pourrez modifier tout cela plus tard.
+                Ajoutez votre logo et vos couleurs. Cette personnalisation est facultative et reste modifiable à tout moment.
               </div>
 
               <div class="wk-brand">
@@ -859,7 +209,7 @@
                               inputmode="text"
                               autocomplete="off"
                               spellcheck="false"
-                              data-hex>
+                              aria-label="Code hexadécimal de la couleur" data-hex>
                       </div>
                     </div>
 
@@ -872,7 +222,7 @@
                         <div class="wk-colorchip" data-chip></div>
                         <input type="color" value="#6610f2" aria-label="Sélecteur couleur secondaire" data-picker>
                         <input type="text" class="form-control form-control-sm wk-hex"
-                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" data-hex>
+                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" aria-label="Code hexadécimal de la couleur" data-hex>
                       </div>
                     </div>
 
@@ -885,7 +235,7 @@
                         <div class="wk-colorchip" data-chip></div>
                         <input type="color" value="#198754" aria-label="Sélecteur couleur tertiaire" data-picker>
                         <input type="text" class="form-control form-control-sm wk-hex"
-                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" data-hex>
+                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" aria-label="Code hexadécimal de la couleur" data-hex>
                       </div>
                     </div>
 
@@ -898,12 +248,12 @@
                         <div class="wk-colorchip" data-chip></div>
                         <input type="color" value="#ffc107" aria-label="Sélecteur couleur quaternaire" data-picker>
                         <input type="text" class="form-control form-control-sm wk-hex"
-                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" data-hex>
+                              placeholder="#RRGGBB" autocomplete="off" spellcheck="false" aria-label="Code hexadécimal de la couleur" data-hex>
                       </div>
                     </div>
 
                     <div class="small text-muted mt-2">
-                      Astuce : laissez “Automatique” si vous voulez démarrer vite. Vous pourrez customiser plus tard.
+                      Astuce : laissez “Automatique” si vous voulez démarrer vite. Vous pourrez personnaliser votre espace plus tard.
                     </div>
                   </div>
               </div>
@@ -912,7 +262,7 @@
 
               <div class="wk-divider"></div>
 
-              <div class="wk-section-title mb-1">Informations de base</div>
+              <span class="wk-eyebrow" id="details">03 / LES ESSENTIELS</span><h2 class="wk-section-title mb-1">Faisons connaissance.</h2>
               <div class="wk-section-note mb-3">
                 Renseignez les informations principales de votre organisme. Les champs obligatoires sont indiqués clairement.
               </div>
@@ -1035,9 +385,31 @@
                 </div>
               </div>
 
-              <div class="mt-4">{{ form_row(form.referralCode) }}</div>
+              <div class="wk-form-card mt-4">
+                <div class="row">
+                  <div class="col-12 col-lg-8">
+                    {{ form_label(form.referralCode, 'Code apporteur d’affaires (facultatif)', {label_attr: {class: 'form-label'}}) }}
+                    <div class="input-group has-validation">
+                      <span class="input-group-text" aria-hidden="true"><i class="bi bi-person-badge"></i></span>
+                      {{ form_widget(form.referralCode, {attr: {
+                        class: 'form-control' ~ (form.referralCode.vars.errors|length ? ' is-invalid' : ''),
+                        'aria-describedby': form.referralCode.vars.id ~ '_help' ~ (form.referralCode.vars.errors|length ? ' ' ~ form.referralCode.vars.id ~ '_errors' : ''),
+                        'aria-invalid': form.referralCode.vars.errors|length ? 'true' : 'false'
+                      }}) }}
+                      {% if form.referralCode.vars.errors|length %}
+                        <div class="invalid-feedback" id="{{ form.referralCode.vars.id }}_errors">
+                          {% for error in form.referralCode.vars.errors %}{{ error.message }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="form-text wk-help" id="{{ form.referralCode.vars.id }}_help">
+                      Un partenaire vous a recommandé WikiFormation ? Saisissez son code pour lui rattacher votre inscription. Sinon, laissez ce champ vide.
+                    </div>
+                  </div>
+                </div>
+              </div>
               <button class="btn btn-primary btn-lg mt-4 w-100 wk-cta" id="submitBtn" type="submit">
-                Créer mon espace & démarrer l’essai
+                Créer mon espace et démarrer mes {{ trialDays }} jours d’essai <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
               </button>
 
               <div class="wk-footnote small mt-3">
@@ -1051,7 +423,7 @@
       </div>
     </div>
   </div>
-</div>
+</main>
 
 <script>
 (function () {
@@ -1111,7 +483,7 @@
   refreshPrices();
 
   if (planInput?.value) {
-    const found = planButtons.find(b => (b.dataset.plan || '') === planInput.value);
+    const found = planButtons.find(b => (b.dataset.plan || '').trim().toUpperCase() === planInput.value.trim().toUpperCase());
     if (found) selectPlan(found);
   }
 

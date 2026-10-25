@@ -1,0 +1,16 @@
+framework:
+    rate_limiter:
+        error_reports:
+            policy: sliding_window
+            limit: 5
+            interval: '1 hour'
+
+monolog:
+    channels: ['error_report']
+    handlers:
+        error_report:
+            type: rotating_file
+            path: '%kernel.logs_dir%/error_report.log'
+            max_files: 14
+            level: error
+            channels: ['error_report']

@@ -25,7 +25,10 @@ final class ElearningSecurityTest extends KernelTestCase
             $objects[$key]->setEntite($objects['tenant']);
             $this->em->persist((new UtilisateurEntite())->setEntite($objects['tenant'])->setUtilisateur($objects[$key])->setCreateur($objects['admin'])->setRoles([$role]));
         }
-        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($objects['tenant'])->setStatus('active'));
+        // Two trainers are needed to verify course-owner isolation.
+        $plan = (new \App\Entity\Billing\Plan())->setCode('ELEARNING_SECURITY')->setName('Course ownership fixture')->setMaxApprenantsAn(50)->setMaxUtilisateurs(1)->setMaxFormateurs(2)->setMaxEntreprises(1)->setMaxProspects(50);
+        $this->em->persist($plan);
+        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($objects['tenant'])->setStatus('active')->setPlan($plan));
         $objects['course']=(new ElearningCourse())->setEntite($objects['tenant'])->setCreateur($objects['trainer'])->setTitre('Sécurité')->setSlug('security');
         $objects['foreignCourse']=(new ElearningCourse())->setEntite($objects['foreignTenant'])->setCreateur($objects['admin'])->setTitre('Cours confidentiel')->setSlug('foreign');
         $objects['node']=(new ElearningNode())->setEntite($objects['tenant'])->setCreateur($objects['trainer'])->setCourse($objects['course'])->setTitre('Chapitre')->setSlug('chapter')->setIsPublished(true);

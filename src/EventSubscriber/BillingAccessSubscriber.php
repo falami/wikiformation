@@ -1,12 +1,15 @@
 <?php // src/EventSubscriber/BillingAccessSubscriber.php
 namespace App\EventSubscriber;
 
-use App\Entity\Utilisateur;
+use App\Entity\{Entite, Utilisateur};
+use App\Repository\{EntiteRepository, UtilisateurEntiteRepository};
 use App\Service\Billing\EntitlementService;
+use App\Service\Tenant\TenantContext;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use App\Repository\Billing\EntiteSubscriptionRepository;
@@ -19,6 +22,9 @@ final class BillingAccessSubscriber implements EventSubscriberInterface
     private readonly EntitlementService $entitlement,
     private readonly RouterInterface $router,
     private readonly EntiteSubscriptionRepository $subRepo,
+    private readonly EntiteRepository $entiteRepo,
+    private readonly UtilisateurEntiteRepository $memberships,
+    private readonly TenantContext $tenant,
   ) {}
 
   public static function getSubscribedEvents(): array
@@ -42,10 +48,17 @@ final class BillingAccessSubscriber implements EventSubscriberInterface
       'app_stagiaire_',
       'app_formateur_',
       'app_entreprise_',
-      // ajoute ce que tu veux protéger
+      'app_commercial_',
+      'app_opco_',
+      'app_of_',
     ];
 
-    $isProtected = false;
+    // Some private endpoints have historical names such as app_formation_quick_create.
+    // Cover their tenant-scoped URL as well, so aliases cannot bypass the subscription.
+    $isProtected = $request->attributes->has('entite') && (bool) preg_match(
+      '~^/(?:[^/]+/)?administrateur/\d+(?:/|$)~',
+      $request->getPathInfo()
+    );
     foreach ($protectedPrefixes as $prefix) {
       if (str_starts_with($route, $prefix)) {
         $isProtected = true;
@@ -61,6 +74,7 @@ final class BillingAccessSubscriber implements EventSubscriberInterface
       'app_login',
       'app_logout',
       'app_public_pricing',
+      'app_administrateur_billing',
       'app_pricing_start_trial',
       'app_billing_change_preview',
       'app_billing_change_apply',
@@ -77,11 +91,28 @@ final class BillingAccessSubscriber implements EventSubscriberInterface
 
     $user = $token->getUser();
     if (!$user instanceof Utilisateur) return;
+    // Platform support must be able to inspect expired organisms. Actual quota
+    // writes remain checked by BillingQuotaSubscriber, including for super admins.
+    if ($user->isSuperAdmin()) return;
 
-    $entite = $user->getEntite();
+    // The URL selects the organism. The saved user/session organism can still refer
+    // to another one until the controller runs, including after a workspace switch.
+    if ($request->attributes->has('entite')) {
+      $routeEntite = $request->attributes->get('entite');
+      $entite = $routeEntite instanceof Entite ? $routeEntite :
+        ((is_int($routeEntite) || (is_string($routeEntite) && ctype_digit($routeEntite))) ? $this->entiteRepo->find($routeEntite) : null);
+    } else {
+      $entite = $request->hasSession() ? $this->tenant->getCurrentEntiteForUser($user) : $user->getEntite();
+    }
     if (!$entite) return;
+    // Let the controller's authorization checks handle foreign or inactive memberships.
+    if (!$this->memberships->userHasEntite($user, $entite)) return;
 
     if ($this->entitlement->isEntiteActive($entite)) return;
+
+    if (str_starts_with($route, 'app_commercial_') || str_starts_with($route, 'app_opco_')) {
+      throw new AccessDeniedHttpException('L’abonnement de cet organisme doit être renouvelé par son administrateur.');
+    }
 
     if ($request->hasSession()) {
       /** @var \Symfony\Component\HttpFoundation\Session\Session $session */

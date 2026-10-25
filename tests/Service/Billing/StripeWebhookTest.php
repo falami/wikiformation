@@ -53,7 +53,7 @@ final class StripeWebhookTest extends KernelTestCase
         return (new StripeWebhookController())->webhook(
             $request,
             new StripeBillingService('sk_test_fixture', 'https://example.test/fr'),
-            new \App\Service\Marketplace\Payments($em,$this->createMock(\App\Service\Marketplace\StripeGateway::class),new \App\Service\Marketplace\Policy($em),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class)),
+            new \App\Service\Marketplace\Payments($em,$this->createMock(\App\Service\Marketplace\StripeGateway::class),new \App\Service\Marketplace\Policy($em),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class),self::getContainer()->get(\App\Service\Marketplace\Invoicing::class)),
             new \App\Service\Marketplace\Confirmations($em,new \App\Service\Email\MailerManager($this->createMock(\Symfony\Component\Mailer\MailerInterface::class),new \Twig\Environment(new \Twig\Loader\ArrayLoader()),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class)),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class)),
             new EntiteSubscriptionRepository($registry),
             new PlanRepository($registry),

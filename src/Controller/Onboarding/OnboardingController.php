@@ -39,7 +39,14 @@ final class OnboardingController extends AbstractController
         $entite = new Entite();
         $form = $this->createForm(EntiteOnboardingType::class, $entite);
         if (!$request->isMethod('POST')) {
-            $form->get('planCode')->setData((string) $request->getSession()->get('pricing_selected_plan', ''));
+            $selectedCode = strtoupper(trim((string) $request->getSession()->get('pricing_selected_plan', '')));
+            // Restore the catalogue's actual code, including legacy code casing.
+            foreach ($plans as $plan) {
+                if (strtoupper(trim($plan->getCode())) === $selectedCode) {
+                    $form->get('planCode')->setData($plan->getCode());
+                    break;
+                }
+            }
             $form->get('interval')->setData('month');
         }
         if (!$request->isMethod('POST')) $form->get('referralCode')->setData((string)$request->getSession()->get('affiliate_code', ''));

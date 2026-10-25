@@ -222,15 +222,18 @@ final class DevisConventionQuickCreateTest extends KernelTestCase
 
     public function testClientQuotaFailureDoesNotCreateAnAccount(): void
     {
-        $usage = new EntiteUsageYear($this->entite, (int) date('Y'));
-        $usage->increment(50);
-        $this->em->persist($usage);
+        // Fill the quota through real memberships; the aggregate is no longer the source of truth.
+        for ($index = 0; $index < 50; ++$index) {
+            $learner = (new Utilisateur())->setEmail('existing-'.$index.'@quota.test')->setPassword('unused')->setNom('Existing')->setPrenom((string)$index);
+            $this->em->persist($learner);
+            $this->em->persist((new UtilisateurEntite())->setEntite($this->entite)->setUtilisateur($learner)->setCreateur($this->user)->setRoles([UtilisateurEntite::TENANT_STAGIAIRE]));
+        }
         $this->em->flush();
         $form = $this->openForm('client');
         $form->setValues(['devis_convention_client[prenom]' => 'Alex', 'devis_convention_client[nom]' => 'Durand', 'devis_convention_client[email]' => 'quota@example.test']);
         $this->client->submit($form);
         self::assertSame(422, $this->client->getResponse()->getStatusCode());
-        self::assertStringContainsString('Quota apprenants', $this->response()['html']);
+        self::assertStringContainsString('Quota de stagiaires', $this->response()['html']);
         self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM utilisateur WHERE email = ?', ['quota@example.test']));
     }
 

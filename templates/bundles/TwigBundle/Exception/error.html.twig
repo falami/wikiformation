@@ -1,43 +1,38 @@
-{% extends 'base.html.twig' %}
-
-{% block title %}Erreur {{ status_code }}{% endblock %}
-
-
-
-{% block stylesheets %}
-     <!-- ===============================================-->
-    <!--    Stylesheets-->
-    <!-- ===============================================-->
-    <style>
-        .fullscreen-container {
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-
-        body 
-        {
-            background-color: white !important;
-            color: black !important;
-        }
-    </style>
+{% extends 'error/layout.html.twig' %}
+{% set report = app.request.attributes.get('_error_report') %}
+{% set messages = {
+  403: ['Accès protégé', 'Cette page nécessite une autorisation. Connectez-vous avec le compte adapté ou contactez-nous si cet accès devrait vous être accordé.'],
+  404: ['Un chemin à retrouver.', 'Cette page est introuvable. Le lien a peut-être changé, ou la page n’est plus disponible. Reprenons depuis l’accueil.'],
+  405: ['Une action indisponible.', 'Cette action n’est pas disponible sur cette page. Revenez à l’accueil pour poursuivre votre navigation.'],
+  429: ['Prenons un instant.', 'Trop de demandes ont été reçues en peu de temps. Patientez quelques instants avant de réessayer.'],
+  500: ['Un contretemps technique.', 'Nous n’avons pas pu terminer votre demande. Vous pouvez nous signaler cette erreur pour nous aider à la résoudre.'],
+  503: ['Une courte interruption.', 'Le service est momentanément indisponible. Merci de réessayer dans quelques instants.']
+} %}
+{% set message = messages[status_code]|default(['Un imprévu est survenu.', 'Nous n’avons pas pu terminer votre demande. Retrouvez l’accueil ou signalez-nous le problème.']) %}
+{% block title %}Erreur {{ status_code }} · WikiFormation{% endblock %}
+{% block code %}{{ status_code }}{% endblock %}
+{% block panel %}
+  <span class="eyebrow">ERREUR {{ status_code }}</span>
+  <h2 id="auth-title">{{ message[0] }}</h2>
+  <p class="form-description">{{ message[1] }}</p>
+  <div class="error-actions">
+    <a class="verify-button" href="{{ path('app_public') }}">Retrouver l’accueil <span aria-hidden="true">↗</span></a>
+    <a class="error-secondary" href="{{ path('app_login') }}">Rejoindre mon espace</a>
+  </div>
+  <div class="resend-box">
+    <p>Un problème à nous signaler ?</p>
+    {% if report %}
+      <span>Le rapport technique est prêt. Un clic suffit pour l’envoyer à notre équipe.</span>
+      <form action="{{ path('app_error_report') }}" method="post" data-turbo="false">
+        <input type="hidden" name="token" value="{{ report.token }}">
+        <button class="resend-button" type="submit">Signaler cette erreur <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="error-reference">Référence de l’incident <strong>{{ report.reference }}</strong></div>
+      <small>Seules les informations techniques de cet incident sont envoyées à contact@wikiformation.fr. Aucun contenu de formulaire ni cookie n’est joint.</small>
+    {% else %}
+      <span>Notre équipe peut vous aider à reprendre votre parcours.</span>
+    {% endif %}
+    {% set mailbody = 'Bonjour,\n\nJ’ai rencontré une erreur ' ~ status_code ~ ' sur WikiFormation.\nRéférence : ' ~ (report.reference|default('non disponible')) ~ '\n\nCe que je cherchais à faire :\n' %}
+    <a class="cancel-link" href="mailto:contact@wikiformation.fr?subject={{ ('WikiFormation — Erreur ' ~ status_code)|url_encode }}&amp;body={{ mailbody|url_encode }}">{{ report ? 'Ou nous écrire par e-mail' : 'Contacter l’équipe par e-mail' }}</a>
+  </div>
 {% endblock %}
-
-
-{% block body %}
-
-    <div class="container fullscreen-container">
-        <div>
-            <h1 class="display-1 fw-bold">Erreur {{ status_code }}</h1>
-            <p>{{ status_text }}</p>
-            <p class="lead"><a href="{{ path('app_login') }}">Retour à l'accueil</a></p>
-            <p><small>Veuillez contacter le concepteur du site ou revenir en arrière</small></p>
-            <p><small><a href="mailto:contact@wikiformation.fr">Wiki Formation</a></small></p>
-            <p><small>Version: 1.0.0 - mise en ligne le 15/03/2026</small></p>
-            <a href="{{ path('app_public')}}" class="btn btn-lg btn-warning mt-3">Accueil</a>
-        </div>
-    </div>
-{% endblock %}
-

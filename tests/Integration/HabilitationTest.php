@@ -30,7 +30,10 @@ final class HabilitationTest extends KernelTestCase
         foreach ([[$this->admin,'TENANT_ADMIN'],[$this->trainer,'TENANT_FORMATEUR'],[$this->employer,'TENANT_ENTREPRISE'],[$this->trainee,'TENANT_STAGIAIRE'],[$this->other,'TENANT_STAGIAIRE']] as [$u,$role]) {
             $u->setEntite($this->tenant);$this->em->persist((new UtilisateurEntite())->setEntite($this->tenant)->setUtilisateur($u)->setCreateur($this->admin)->setRoles([$role]));
         }
-        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($this->tenant)->setStatus('active'));
+        // Ownership scenarios require two trainers and two companies in this organism.
+        $plan = (new \App\Entity\Billing\Plan())->setCode('HABILITATION')->setName('Isolation fixture')->setMaxApprenantsAn(50)->setMaxUtilisateurs(1)->setMaxFormateurs(2)->setMaxEntreprises(2)->setMaxProspects(50);
+        $this->em->persist($plan);
+        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($this->tenant)->setStatus('active')->setPlan($plan));
         $company=(new Entreprise())->setEntite($this->tenant)->setRaisonSociale('Entreprise exemple')->setCreateur($this->admin);$this->em->persist($company);$this->employer->setEntreprise($company);
         $template=(new HabilitationTemplate())->setEntite($this->tenant)->setTitre('Évaluation électrique')->setSchema((new HabilitationSchema())->example());$this->em->persist($template);
         $formation=(new Formation())->setTitre('Habilitation électrique')->setSlug('habilitation-test')->setEntite($this->tenant)->setCreateur($this->admin)->setHabilitationTemplate($template);$this->em->persist($formation);

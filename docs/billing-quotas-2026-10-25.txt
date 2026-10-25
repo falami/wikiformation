@@ -1,0 +1,114 @@
+Compteurs et contrôles des abonnements — 25 octobre 2026
+
+Règles validées par le propriétaire :
+- Utilisateurs : comptes actifs avec TENANT_ADMIN ou TENANT_DIRIGEANT, comptés une
+  seule fois même si les deux rôles sont présents. Les comptes uniquement
+  formateurs, commerciaux, OF, OPCO, entreprises ou stagiaires sont exclus.
+- Formateurs : union des comptes formateurs actifs et des fiches formateurs,
+  dédupliquée par utilisateur dans chaque organisme. Une fiche sans compte de
+  rattachement est comptée. Un rattachement suspendu/invité n’est pas actif.
+- Un compte administrateur et formateur consomme une place dans chaque catégorie.
+- Commerciaux : comptes actifs TENANT_COMMERCIAL, dans un compteur séparé des
+  utilisateurs de gestion. Un administrateur également commercial occupe une
+  place dans chaque catégorie. Invitation/suspension libère la place commerciale ;
+  réactivation et changement de rôle sont contrôlés.
+  Le plafond explicite TENANT_COMMERCIAL prime, puis l’alias commerciaux, puis
+  admins utilisé par les anciens plans, puis maxUtilisateurs pour un plan sans
+  configuration historique. Les capacités existantes sont conservées : Solo 1,
+  Pro 3, Organisme 10, Excellence_2026 10 ; l’ancien EXCELLENCE reste illimité.
+- Entreprises et prospects : nombre de fiches de l’organisme. Leur suppression
+  libère une place. Une limite à zéro signifie illimité, mais l’usage est affiché.
+- Stagiaires : une seule consommation par personne, organisme et année civile
+  (Europe/Paris), lors du rattachement actif ou d’une nouvelle inscription,
+  y compris e-learning. La réactivation d’un accès suspendu/expiré ou d’une
+  inscription annulée utilise également ce registre.
+  Les inscriptions multiples sont dédupliquées. Une suppression/annulation ne
+  rembourse pas la capacité annuelle déjà utilisée. Les offres illimitées restent
+  comptées. Les années précédentes ne consomment pas la capacité de l’année courante.
+
+Contrôle :
+QuotaUsage sert à la fois au tableau de bord et aux contrôles onFlush Doctrine.
+BillingQuotaSubscriber couvre les ajouts en lot, créations rapides, changements de
+rôle, réactivations et services qui persistent ces entités. Les ajouts sont vérifiés
+sur l’état projeté complet du flush, pas seulement sur les données déjà en base.
+Le contrôle verrouille les organismes concernés pendant les écritures sur MySQL,
+source et destination pour les transferts. Les suppressions sont aussi projetées.
+Les lectures de consommation, abonnements, plans et registre annuel sont des
+lectures verrouillées à jour : un snapshot MySQL REPEATABLE READ déjà ouvert
+ne permet pas d’ignorer un ajout concurrent. Les plans inchangés utilisent un
+verrou partagé pour laisser les autres organismes travailler simultanément.
+Les souscriptions et plans en attente dans le même flush sont pris en compte.
+La projection ne reprend que les champs réellement modifiés : un rôle ou statut
+modifié par une autre requête n’est pas remplacé par une copie périmée en mémoire.
+Une requête visant un compte/dossier/abonnement déplacé entre-temps doit recharger
+la page (HTTP 409) avant d’écrire. Les options d’apprenants sont dédupliquées à
+l’enregistrement et à la lecture : répéter le même code ne multiplie pas le quota.
+La consommation annuelle est persistée avec les écritures métier dans
+billing_learner_year_usage et récapitulée dans billing_entite_usage_year.
+Les contrôles anticipés historiques ne consomment plus le compteur.
+Les opérations qui ne font pas augmenter un quota restent possibles lorsqu’un
+organisme dépasse déjà une limite après une baisse d’offre.
+Les limites spécifiques de rôles explicitement configurées restent respectées.
+Les anciennes copies admins/formateurs du JSON ne contredisent plus les plafonds
+max_utilisateurs/max_formateurs annoncés dans l’offre. Le plafond commercial
+conserve sa propre compatibilité historique, décrite ci-dessus.
+Le support prioritaire est une caractéristique de l’offre, pas un compteur.
+
+Accès et parcours : le contrôle d’abonnement utilise l’organisme de la route
+consultée, et la page de facturation reste accessible pour régulariser une offre
+expirée. Les refus de quota sont propagés au formulaire ou au gestionnaire HTTP
+409, sans être remplacés par une erreur générique de base de données.
+La conversion d’un prospect en compte est transactionnelle ; les historiques
+sont rattachés après le premier flush validé, quand le compte a un identifiant.
+Un refus de quota n’enregistre ni compte incomplet ni conversion partielle.
+
+Déploiement :
+Appliquer la migration DoctrineMigrations\Version20261025193000 avant d’utiliser
+le nouveau code en production. Elle crée le registre annuel et reprend les
+rattachements actifs et inscriptions existants, dédupliqués par année de création.
+La reprise repose sur les données encore présentes : elle ne reconstitue pas des
+comptes/inscriptions supprimés avant cette migration. Ne pas lancer la migration
+pendant des écritures concurrentes ; prévoir une courte fenêtre de maintenance.
+Sur la base locale, migration appliquée. L’organisme 1 passe de 101 à 139
+stagiaires distincts en 2026. Sauvegarde des agrégats préalables :
+/tmp/wk-usage-before-20261025193000.json.
+Appliquer ensuite DoctrineMigrations\Version20261025203000 : reprise e-learning
+dans le même registre, avec dédoublonnage. Déjà appliquée sur la base locale,
+sauvegarde /tmp/wk-usage-before-20261025203000.json. Le seul accès e-learning
+local était déjà comptabilisé ; aucun double comptage ajouté. Contrôle en lecture
+seule des 9 organismes abonnés : agrégat annuel égal au registre pour chacun,
+aucun dépassement des plafonds génériques ou commerciaux configurés.
+Les commandes externes qui écriraient directement en SQL doivent utiliser le même
+mécanisme ou faire l’objet d’un contrôle séparé ; l’application passe par Doctrine.
+
+Vérifications :
+- BillingQuotaTest : quotas distincts, dédoublonnage annuel et multi-formations,
+  inscription directe, import en lot, illimité, changement d’année, rôles,
+  réactivation, suppression, séparation entre organismes et baisse d’offre.
+- Régressions : FormationQuickCreate, UtilisateurIdentity, InscriptionBatch,
+  Recruitment, DevisConventionQuickCreate, ConventionEditingParticipants,
+  WorkflowPortal et BillingCatalogue.
+- CommercialQuota / CommercialPlanLimit : capacités héritées et explicites,
+  séparation des rôles, états des comptes, lots, changements d’offre, affichage
+  HTTP du compteur, données modifiées concurremment et déplacement entre tenants.
+- BillingQuotaAtomicity : nouvelle souscription et nouveaux comptes dans un même
+  flush, transferts et suppressions indirectes, transaction appelante, erreur SQL,
+  absence de remboursement annuel à la suppression, réactivation, présentiel et
+  e-learning, utilisateur/statut modifié par une autre requête.
+- BillingAddonQuota : options actives/inactives, inconnues, répétées et offre
+  illimitée. SubscriptionAccess / DoctrineQuotaPropagation / ProspectQuotaConversion
+  vérifient les parcours HTTP, les erreurs 409 et l’absence de création partielle.
+
+Résultat final de l’audit renforcé :
+- Suite PHPUnit complète : 864 tests, 6 398 assertions, tous réussis.
+- Vérification des services Symfony et syntaxe des quatre templates concernés : OK.
+- MySQL : trois scénarios réussis, deux snapshots REPEATABLE READ périmés
+  (comptes et apprenants annuels) et deux processus réellement concurrents sur
+  la dernière place. Le second attend le verrou puis est refusé ; une seule
+  place est enregistrée. Schéma de test jetable supprimé après exécution.
+- Reproduction volontaire sur MySQL local avec droits de création d’un schéma :
+  php scripts/check-billing-quota-concurrency.php --run --local-docker
+  Le script impose un serveur local et un schéma aléatoire réservé aux tests ;
+  il ne modifie aucune table de la base applicative et nettoie son schéma.
+- Résultats complets de cette exécution : /tmp/wk-quota-audit-verified.xml
+  et /tmp/wk-quota-audit-verified.txt.

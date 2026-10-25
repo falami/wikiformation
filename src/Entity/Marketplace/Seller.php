@@ -5,6 +5,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: "marketplace_seller")]
 class Seller
 {
+    #[ORM\Column(length: 2)] public string $country = '';
+    #[ORM\Column(length: 10)] public string $postalCode = '';
+    #[ORM\Column(type: 'json')] public array $mandates = [];
     #[ORM\Id] #[ORM\GeneratedValue] #[ORM\Column]
     public ?int $id = null;
     #[ORM\OneToOne] #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]

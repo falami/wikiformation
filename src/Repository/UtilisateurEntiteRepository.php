@@ -259,13 +259,7 @@ class UtilisateurEntiteRepository extends ServiceEntityRepository
         Entite $entite,
         ?int $excludeUtilisateurEntiteId = null
     ): int {
-        $billableRoles = [
-            UtilisateurEntite::TENANT_ADMIN,
-            UtilisateurEntite::TENANT_DIRIGEANT,
-            UtilisateurEntite::TENANT_FORMATEUR,
-            UtilisateurEntite::TENANT_COMMERCIAL,
-            UtilisateurEntite::TENANT_OF,
-        ];
+        $billableRoles = \App\Service\Billing\QuotaUsage::BILLABLE_ROLES;
 
         return $this->countActiveForAnyRoleForEntite(
             $entite,

@@ -521,6 +521,8 @@ final class ProspectController extends AbstractController
 
       try {
           $em->flush();
+      } catch (\App\Exception\BillingQuotaExceededException $ex) {
+          throw $ex;
       } catch (\Throwable $ex) {
           return new JsonResponse([
               'success' => false,

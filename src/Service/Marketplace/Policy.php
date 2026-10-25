@@ -23,7 +23,7 @@ final class Policy {
  }
  public function seller(Utilisateur $user): Seller {
   $seller=$this->em->getRepository(Seller::class)->findOneBy(['user'=>$user]);
-  if (!$seller) { $seller=new Seller(); $seller->user=$user; $seller->email=$user->getEmail(); $this->em->persist($seller); $this->em->flush(); }
+  if (!$seller) { $seller=new Seller(); $seller->user=$user; $seller->email=$user->getEmail(); if ($this->platformSeller($user)) { $d=BillingRules::PLATFORM;$seller->legalName=$d['name'];foreach (['registration','address','email','taxNumber','taxExemption','country','postalCode'] as $key) $seller->$key=$d[$key]; } $this->em->persist($seller); $this->em->flush(); }
   return $seller;
  }
 }

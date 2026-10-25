@@ -56,8 +56,6 @@ final class ProspectConverter
 
           $this->findOrCreateLinkEntite($entite, $user, $currentUser);
 
-          $this->backfillEmailLogsToUser($entite, $p, $user);
-          $this->backfillInteractionsToUser($entite, $p, $user);
         }
 
         // Rattache les devis
@@ -78,6 +76,10 @@ final class ProspectConverter
 
         $p->markConverted();
         $this->em->flush();
+        if ($user) {
+          $this->backfillEmailLogsToUser($entite, $p, $user);
+          $this->backfillInteractionsToUser($entite, $p, $user);
+        }
 
         return new ProspectConversionResult($user, $entreprise);
       }
@@ -93,10 +95,6 @@ final class ProspectConverter
 
       // Lien prospect -> user
       $p->setLinkedUser($user);
-
-      // ✅ backfill emails + interactions
-      $this->backfillEmailLogsToUser($entite, $p, $user);
-      $this->backfillInteractionsToUser($entite, $p, $user);
 
       // ✅ lien utilisateur <-> entite
       $this->findOrCreateLinkEntite($entite, $user, $currentUser);
@@ -114,6 +112,10 @@ final class ProspectConverter
 
       $p->markConverted();
       $this->em->flush();
+      // Quotas validate the account and membership together. Only then does the
+      // account have an identifier for these updates, still inside the transaction.
+      $this->backfillEmailLogsToUser($entite, $p, $user);
+      $this->backfillInteractionsToUser($entite, $p, $user);
 
       return new ProspectConversionResult($user, null);
     });

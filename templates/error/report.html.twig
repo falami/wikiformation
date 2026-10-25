@@ -1,0 +1,15 @@
+{% extends 'error/layout.html.twig' %}
+{% block title %}Signalement · WikiFormation{% endblock %}
+{% block panel %}
+  <span class="eyebrow">VOTRE SIGNALEMENT</span>
+  {% if result == 'sent' %}
+    <h2 id="auth-title">Merci pour votre aide.</h2>
+    <p class="form-description" role="status">Votre rapport a été transmis à notre équipe à contact@wikiformation.fr. Sa référence nous permettra de retrouver l’incident et d’en rechercher la cause.</p>
+  {% else %}
+    <h2 id="auth-title">Restons en contact.</h2>
+    <p class="form-description" role="alert">{% if result == 'expired' %}Ce signalement a expiré ou n’est plus disponible. Vous pouvez nous écrire directement ou revenir sur la page concernée pour générer un nouveau rapport.{% elseif result == 'limited' %}Vous avez atteint la limite de signalements. Merci de patienter une heure ou de nous écrire directement.{% else %}Le rapport n’a pas pu être envoyé. Vous pouvez nous contacter directement par e-mail en précisant la référence affichée sur la page d’erreur.{% endif %}</p>
+    <a class="resend-button" href="mailto:contact@wikiformation.fr">Écrire à contact@wikiformation.fr</a>
+  {% endif %}
+  <a class="verify-button" href="{{ path('app_public') }}">Retrouver l’accueil <span aria-hidden="true">↗</span></a>
+  <a class="cancel-link" href="{{ path('app_login') }}">Rejoindre mon espace →</a>
+{% endblock %}

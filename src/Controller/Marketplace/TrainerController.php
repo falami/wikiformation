@@ -4,7 +4,7 @@ use App\Entity\{Entite,Utilisateur,UtilisateurEntite};
 use App\Entity\Elearning\ElearningCourse;
 use App\Entity\Marketplace\{Offer,Access,Purchase};
 use App\Form\Administrateur\ElearningCourseType;
-use App\Service\Marketplace\{Policy,Snapshots,Payments};
+use App\Service\Marketplace\{Policy,Snapshots,Payments,BillingRules};
 use App\Service\Slug\UniqueSlugger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -91,12 +91,31 @@ final class TrainerController extends AbstractController {
   $this->policy->trainer($this->getUser(),$entite);$seller=$this->policy->seller($this->getUser());$settings=$this->policy->settings();$platformSeller=$this->policy->platformSeller($this->getUser());
   if ($r->isMethod('POST')) {
    $this->denyCsrf($r,'seller');
-   $data=[];foreach (['legalName','registration','address','email','taxNumber','taxExemption'] as $key) $data[$key]=trim($r->request->getString($key));
+   $data=[];foreach (['legalName','registration','address','email','taxNumber','taxExemption','country','postalCode'] as $key) $data[$key]=trim($r->request->getString($key));
    if (!$data['legalName'] || !$data['registration'] || !$data['address'] || !filter_var($data['email'],FILTER_VALIDATE_EMAIL) || max(array_map('mb_strlen',$data))>255 || mb_strlen($data['registration'])>60 || mb_strlen($data['taxNumber'])>80 || !$r->request->getBoolean('accept')) $this->addFlash('danger','Complétez les coordonnées professionnelles et acceptez les conditions vendeur.');
-   else { foreach ($data as $key=>$value) $seller->$key=$value;$seller->termsAcceptedAt=new \DateTimeImmutable();$seller->termsVersion=$settings->termsVersion;$this->em->flush();$this->addFlash('success','Profil enregistré.'); }
+   else {
+    try {
+     $candidate=clone $seller;foreach ($data as $key=>$value) $candidate->$key=$value;
+     $identity=BillingRules::seller($candidate);
+     if (!$platformSeller && !$r->request->getBoolean('mandate')) throw new \DomainException('Acceptez le mandat pour activer la facturation automatique.');
+     foreach ($data as $key=>$value) $seller->$key=$value;
+     $seller->termsAcceptedAt=new \DateTimeImmutable();$seller->termsVersion=$settings->termsVersion;
+     if (!$platformSeller) $seller->mandates[]=['version'=>BillingRules::VERSION,'text'=>BillingRules::mandateText(),'acceptedAt'=>$seller->termsAcceptedAt->format(DATE_ATOM),'user'=>$this->getUser()->getId(),'seller'=>$identity,'revokedAt'=>null];
+     $this->em->flush();$this->addFlash('success','Profil et accord de facturation enregistrés.');
+    } catch (\DomainException $e) { $this->addFlash('danger',$e->getMessage()); }
+   }
   }
   $sales=$this->em->getRepository(Purchase::class)->findBy(['seller'=>$seller],['createdAt'=>'DESC'],100);
-  return $this->render('marketplace/seller.html.twig',compact('entite','seller','settings','sales','platformSeller'));
+  return $this->render('marketplace/seller.html.twig',compact('entite','seller','settings','sales','platformSeller')+['mandateText'=>BillingRules::mandateText()]);
+ }
+ #[Route('/vendeur/revoquer-mandat',name:'revoke_mandate',methods:['POST'])]
+ public function revokeMandate(Entite $entite,Request $r): Response {
+  $this->policy->trainer($this->getUser(),$entite);$this->denyCsrf($r,'revoke_mandate');
+  $seller=$this->policy->seller($this->getUser());
+  if ($seller->mandates) $seller->mandates[array_key_last($seller->mandates)]['revokedAt']=(new \DateTimeImmutable())->format(DATE_ATOM);
+  foreach ($this->em->getRepository(Offer::class)->findBy(['seller'=>$seller]) as $offer) $offer->published=false;
+  $this->em->flush();$this->addFlash('success','Mandat révoqué et offres retirées. Les commandes déjà conclues restent traitées.');
+  return $this->redirectToRoute('app_market_trainer_seller',['entite'=>$entite->getId()]);
  }
  #[Route('/stripe',name:'connect',methods:['POST'])]
  public function connect(Entite $entite,Request $r,Payments $payments): Response {

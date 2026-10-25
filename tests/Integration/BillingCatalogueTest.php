@@ -137,8 +137,21 @@ final class BillingCatalogueTest extends KernelTestCase
         $this->em->flush();
         $client = $this->client();
         $client->loginUser($user);
-        $crawler = $client->request('GET', $this->url('app_onboarding'));
+        $pricing = $client->request('GET', $this->url('app_public_pricing'));
+        $client->submit($pricing->filter('form.wf-offer-form')->eq(1)->form());
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $crawler = $client->followRedirect();
+        self::assertSame('PRO', $crawler->filter('input[name="entite_onboarding[planCode]"]')->attr('value'));
+        self::assertCount(1, $crawler->filter('.wk-plan.is-selected[aria-pressed="true"][data-plan="PRO"]'));
+
         self::assertSame(200, $client->getResponse()->getStatusCode());
+        // A remembered legacy code must match regardless of casing or whitespace.
+        $session = $client->getRequest()->getSession();
+        $session->set('pricing_selected_plan', ' pro ');
+        $session->save();
+        $crawler = $client->request('GET', $this->url('app_onboarding'));
+        self::assertSame('PRO', $crawler->filter('input[name="entite_onboarding[planCode]"]')->attr('value'));
+        self::assertCount(1, $crawler->filter('.wk-plan.is-selected[aria-pressed="true"][data-plan="PRO"]'));
         self::assertSame('month', $crawler->filter('input[name="entite_onboarding[interval]"]')->attr('value'));
         self::assertCount(0, $crawler->filter('[data-interval="year"]'));
         self::assertSame(1, $crawler->filter('#onboardingForm #planGrid')->count());

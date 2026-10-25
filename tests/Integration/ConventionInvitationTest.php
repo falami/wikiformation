@@ -36,7 +36,10 @@ final class ConventionInvitationTest extends WebTestCase
         $site = (new Site())->setEntite($e)->setCreateur($this->user)->setNom('Salle')->setSlug('invitation-test');
         $session = (new Session())->setEntite($e)->setCreateur($this->user)->setCode('SES-INVITE')->setSite($site)->setFormationIntituleLibre('Formation test');
         $this->c = (new ConventionContrat())->setEntite($e)->setCreateur($this->user)->setEntreprise($company)->setSession($session)->setNumero('CONV-INVITE')->setPdfPath('test.pdf')->setPdfGeneratedAt(new \DateTimeImmutable());
-        foreach ([$company, $site, $session, $this->c, (new \App\Entity\Billing\EntiteSubscription())->setEntite($e)->setStatus('active')] as $entity) $this->em->persist($entity);
+        // Ownership scenarios require two companies in this organism.
+        $plan = (new \App\Entity\Billing\Plan())->setCode('CONVENTIONINVITATION')->setName('Isolation fixture')->setMaxApprenantsAn(50)->setMaxUtilisateurs(1)->setMaxFormateurs(1)->setMaxEntreprises(2)->setMaxProspects(50);
+        $this->em->persist($plan);
+        foreach ([$company, $site, $session, $this->c, (new \App\Entity\Billing\EntiteSubscription())->setEntite($e)->setStatus('active')->setPlan($plan)] as $entity) $this->em->persist($entity);
         $this->em->flush();
     }
     protected function tearDown(): void
