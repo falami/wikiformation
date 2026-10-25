@@ -281,9 +281,11 @@ final class FormateurController extends AbstractController
         ]);
     }
 
-    #[Route('/supprimer/{id}', name: 'app_administrateur_formateur_supprimer', methods: ['GET'])]
-    public function delete(Entite $entite, EntityManagerInterface $em, Formateur $formateur): RedirectResponse
+    #[Route('/supprimer/{id}', name: 'app_administrateur_formateur_supprimer', methods: ['POST'])]
+    public function delete(Entite $entite, EntityManagerInterface $em, Formateur $formateur, Request $request): RedirectResponse
     {
+        if (!$this->isCsrfTokenValid('delete_formateur_' . $formateur->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page avant de supprimer.');
+
 
 
         $id = $formateur->getId();

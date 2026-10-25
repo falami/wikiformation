@@ -60,8 +60,10 @@ class UtilisateurEntiteRepository extends ServiceEntityRepository
             ->select('COUNT(ue.id)')
             ->andWhere('ue.utilisateur = :u')
             ->andWhere('ue.entite = :e')
+            ->andWhere('ue.status = :active')
             ->setParameter('u', $user)
             ->setParameter('e', $entite)
+            ->setParameter('active', UtilisateurEntite::STATUS_ACTIVE)
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -71,17 +73,16 @@ class UtilisateurEntiteRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('ue')
             ->leftJoin('ue.entite', 'e')->addSelect('e')
             ->andWhere('ue.utilisateur = :u')
+            ->andWhere('ue.status = :active')
+            ->setParameter('active', UtilisateurEntite::STATUS_ACTIVE)
             ->setParameter('u', $user);
 
-        $qb->addSelect("CASE WHEN JSON_CONTAINS(ue.roles, :admin) = 1 THEN 1 ELSE 0 END AS HIDDEN isAdmin")
-            ->setParameter('admin', json_encode(UtilisateurEntite::TENANT_ADMIN))
-            ->addOrderBy('isAdmin', 'DESC')
-            ->addOrderBy('e.id', 'ASC')
-            ->setMaxResults(1);
+        $memberships = $qb->orderBy('e.id', 'ASC')->getQuery()->getResult();
+        foreach ($memberships as $membership) {
+            if ($membership->isTenantAdmin()) return $membership->getEntite();
+        }
 
-        $ue = $qb->getQuery()->getOneOrNullResult();
-
-        return $ue?->getEntite();
+        return $memberships ? $memberships[0]->getEntite() : null;
     }
 
     /** @return UtilisateurEntite[] */
@@ -149,7 +150,7 @@ class UtilisateurEntiteRepository extends ServiceEntityRepository
     public function hasRoleInEntite(Utilisateur $user, Entite $entite, string $role): bool
     {
         $ue = $this->findMembership($user, $entite);
-        if (!$ue) return false;
+        if (!$ue || !$ue->isActive()) return false;
 
         $roles = $ue->getRoles() ?? [];
         return in_array($role, $roles, true);

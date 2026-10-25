@@ -245,6 +245,8 @@ final class EnginController extends AbstractController
         Request $request,
         EntityManagerInterface $em
     ): JsonResponse {
+        if (!$this->isCsrfTokenValid('reorder_engin_photos_' . $engin->getId(), $request->headers->get('X-CSRF-Token', ''))) throw $this->createAccessDeniedException('Rechargez la page.');
+
 
 
         $payload = json_decode($request->getContent() ?: '[]', true);
@@ -281,9 +283,11 @@ final class EnginController extends AbstractController
         EntityManagerInterface $em,
         Request $request
     ): Response {
+        if (!$this->isCsrfTokenValid('del_photo_' . $photo->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page.');
 
 
-        // (Optionnel) CSRF :
+
+        // La suppression est autorisée uniquement après validation du jeton ci-dessus.
         // if (!$this->isCsrfTokenValid('del_photo_'.$photo->getId(), $request->request->get('_token'))) {
         //     throw $this->createAccessDeniedException('CSRF invalide');
         // }

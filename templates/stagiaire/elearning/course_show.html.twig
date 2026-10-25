@@ -804,7 +804,7 @@
                   {# ===== RICHTEXT ===== #}
                   {% if type == 'richtext' %}
                     {% if b.content %}
-                      <div class="rtx">{{ b.content|raw }}</div>
+                      <div class="rtx">{{ blockHtml[b.id]|default('')|raw }}</div>
                     {% else %}
                       <div class="block-muted">Contenu non renseigné.</div>
                     {% endif %}
@@ -812,7 +812,7 @@
                   {# ===== IMAGE ===== #}
                   {% elseif type == 'image' %}
                     {% set imgUrl =
-                      b.mediaUrl
+                      blockUrls[b.id]
                       ?? (b.mediaFilename ? asset('uploads/elearning/' ~ b.mediaFilename) : null)
                     %}
                     {% if imgUrl %}
@@ -820,7 +820,7 @@
                         <img src="{{ imgUrl }}" alt="" class="media-img">
                       </div>
                       {% if b.content %}
-                        <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                        <div class="block-muted mt-2">{{ blockHtml[b.id]|default('')|raw }}</div>
                       {% endif %}
                     {% else %}
                       <div class="block-muted">Image manquante.</div>
@@ -828,7 +828,7 @@
 
                   {# ===== VIDEO (embed robuste) ===== #}
                   {% elseif type == 'video' %}
-                    {% set raw = (b.mediaUrl ?? b.content ?? '')|trim %}
+                    {% set raw = blockUrls[b.id]|default('') %}
                     {% set embed = '' %}
 
                     {# YouTube: watch?v=ID #}
@@ -890,7 +890,7 @@
                   {# ===== FILE ===== #}
                   {% elseif type == 'file' %}
                     {% set fileUrl =
-                      b.mediaUrl
+                      blockUrls[b.id]
                       ?? (b.mediaFilename ? asset('uploads/elearning/' ~ b.mediaFilename) : null)
                     %}
                     {% if fileUrl %}
@@ -908,7 +908,7 @@
                         </a>
                       </div>
                       {% if b.content %}
-                        <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                        <div class="block-muted mt-2">{{ blockHtml[b.id]|default('')|raw }}</div>
                       {% endif %}
                     {% else %}
                       <div class="block-muted">Fichier manquant.</div>
@@ -958,7 +958,7 @@
                         {% endfor %}
                       </div>
                       {% if b.content %}
-                        <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                        <div class="block-muted mt-2">{{ blockHtml[b.id]|default('')|raw }}</div>
                       {% endif %}
                     {% else %}
                       <div class="block-muted">Checklist vide.</div>
@@ -1057,14 +1057,14 @@
 
 
                     {% if b.content %}
-                      <div class="block-muted mt-2">{{ b.content|raw }}</div>
+                      <div class="block-muted mt-2">{{ blockHtml[b.id]|default('')|raw }}</div>
                     {% endif %}
 
 
                   {# ===== fallback ===== #}
                   {% else %}
                     {% if b.content %}
-                      <div class="rtx">{{ b.content|raw }}</div>
+                      <div class="rtx">{{ blockHtml[b.id]|default('')|raw }}</div>
                     {% else %}
                       <div class="block-muted">Contenu non renseigné.</div>
                     {% endif %}

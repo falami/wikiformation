@@ -90,6 +90,14 @@ class FormationContentController extends AbstractController
         }
 
         $form = $this->createForm(FormationContentNodeType::class, $node)->handleRequest($request);
+        if ($form->isSubmitted()) {
+            $parents = [];
+            foreach ($em->getRepository(FormationContentNode::class)->findBy(['formation' => $formation]) as $item) $parents[$item->getId()] = $item->getParent()?->getId();
+            $parents[$node->getId() ?? -1] = $node->getParent()?->getId();
+            if (!\App\Security\ElearningAccess::validParents($parents)) {
+                $form->get('parent')->addError(new \Symfony\Component\Form\FormError('Un chapitre ne peut pas être rattaché à lui-même ou à un de ses sous-chapitres.'));
+            }
+        }
         if ($form->isSubmitted() && $form->isValid()) {
             $node->setUpdatedAt(new \DateTime());
             $em->persist($node);
@@ -115,10 +123,10 @@ class FormationContentController extends AbstractController
     #[Route('/node/{node}/supprimer', name: 'app_administrateur_formation_content_node_delete', methods: ['POST'])]
     public function nodeDelete(Entite $entite, Formation $formation, FormationContentNode $node, EntityManagerInterface $em, Request $request): RedirectResponse|JsonResponse
     {
+        if (!$this->isCsrfTokenValid('del_node_' . $node->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page avant de supprimer.');
 
 
-        // (Optionnel) CSRF
-        // if (!$this->isCsrfTokenValid('del_node_'.$node->getId(), $request->request->get('_token'))) { ... }
+
 
         $em->remove($node);
         $em->flush();
@@ -134,32 +142,28 @@ class FormationContentController extends AbstractController
     #[Route('/node/reorder', name: 'app_administrateur_formation_content_node_reorder', methods: ['POST'])]
     public function nodeReorder(Entite $entite, Formation $formation, Request $request, EntityManagerInterface $em): JsonResponse
     {
-
-
-        // Payload attendu: [{id: 12, position:0, parentId:null}, ...]
-        $items = json_decode($request->getContent() ?: '[]', true);
-        if (!\is_array($items)) return new JsonResponse(['success' => false, 'message' => 'Payload invalide'], 400);
-
-        $repo = $em->getRepository(FormationContentNode::class);
-        foreach ($items as $row) {
-            $node = $repo->find((int)($row['id'] ?? 0));
-            if (!$node || $node->getFormation()?->getId() !== $formation->getId()) continue;
-
-            $node->setPosition((int)($row['position'] ?? 0));
-            $parentId = $row['parentId'] ?? null;
-            if ($parentId) {
-                $parent = $repo->find((int)$parentId);
-                if ($parent && $parent->getFormation()?->getId() === $formation->getId()) {
-                    $node->setParent($parent);
-                }
-            } else {
-                $node->setParent(null);
-            }
-        }
-        $em->flush();
-
-        return new JsonResponse(['success' => true]);
+    if (!$this->isCsrfTokenValid('reorder_nodes_'.$formation->getId(), $request->headers->get('X-CSRF-Token', ''))) {
+      return $this->json(['success'=>false,'message'=>'Session expirée. Rechargez la page.'],403);
     }
+    $items=json_decode($request->getContent(),true);
+    if (!is_array($items) || !array_is_list($items) || !$items || count($items)>5000) return $this->json(['success'=>false],400);
+    $nodes=[];$parents=[];$changes=[];
+    foreach ($em->getRepository(FormationContentNode::class)->findBy(['formation'=>$formation]) as $n) {
+      $nodes[$n->getId()]=$n;$parents[$n->getId()]=$n->getParent()?->getId();
+    }
+    foreach ($items as $row) {
+      if (!is_array($row) || !is_int($row['id']??null) || !isset($nodes[$row['id']]) || isset($changes[$row['id']])
+          || !is_int($row['position']??null) || $row['position']<0 || $row['position']>5000
+          || !array_key_exists('parentId',$row) || ($row['parentId']!==null && !is_int($row['parentId']))) return $this->json(['success'=>false],400);
+      $changes[$row['id']]=$row;$parents[$row['id']]=$row['parentId'];
+    }
+    if (!\App\Security\ElearningAccess::validParents($parents)) return $this->json(['success'=>false,'message'=>'Le déplacement créerait une structure invalide.'],400);
+    foreach ($changes as $id=>$row) {
+      $nodes[$id]->setPosition($row['position'])->setParent($row['parentId']===null ? null : $nodes[$row['parentId']]);
+    }
+    $em->flush();
+    return $this->json(['success'=>true]);
+  }
 
     #[Route('/node/{node}/block/ajouter', name: 'app_administrateur_formation_content_block_add', methods: ['GET', 'POST'])]
     #[Route('/block/{block}/modifier', name: 'app_administrateur_formation_content_block_edit', methods: ['GET', 'POST'])]
@@ -352,8 +356,7 @@ class FormationContentController extends AbstractController
                 // ⚠️ en dev seulement : renvoie l’erreur pour debug
                 return new JsonResponse([
                     'success' => false,
-                    'error'   => $e->getMessage(),
-                    'trace'   => $e->getTraceAsString(),
+                    'error'   => 'La ressource ne peut pas être enregistrée. Réessayez ou contactez votre administrateur.',
                 ], 500);
             }
             throw $e; // comportement normal en non-AJAX
@@ -375,6 +378,8 @@ class FormationContentController extends AbstractController
     #[Route('/block/{block}/supprimer', name: 'app_administrateur_formation_content_block_delete', methods: ['POST'])]
     public function blockDelete(Entite $entite, Formation $formation, ContentBlock $block, EntityManagerInterface $em, Request $request): RedirectResponse|JsonResponse
     {
+        if (!$this->isCsrfTokenValid('del_block_' . $block->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page avant de supprimer.');
+
 
 
         $node = $block->getNode();
@@ -392,19 +397,23 @@ class FormationContentController extends AbstractController
     #[Route('/block/reorder', name: 'app_administrateur_formation_content_block_reorder', methods: ['POST'])]
     public function blockReorder(Entite $entite, Formation $formation, Request $request, EntityManagerInterface $em): JsonResponse
     {
-
-
-        // Payload: [{id: 5, position:0}, ...]
-        $items = json_decode($request->getContent() ?: '[]', true);
-        if (!\is_array($items)) return new JsonResponse(['success' => false], 400);
-
-        $repo = $em->getRepository(ContentBlock::class);
-        foreach ($items as $row) {
-            $b = $repo->find((int)($row['id'] ?? 0));
-            if (!$b || $b->getNode()?->getFormation()?->getId() !== $formation->getId()) continue;
-            $b->setPosition((int)($row['position'] ?? 0));
-        }
-        $em->flush();
-        return new JsonResponse(['success' => true]);
+    if (!$this->isCsrfTokenValid('reorder_blocks_'.$formation->getId(), $request->headers->get('X-CSRF-Token', ''))) {
+      return $this->json(['success'=>false,'message'=>'Session expirée. Rechargez la page.'],403);
     }
+    $items=json_decode($request->getContent(),true);
+    if (!is_array($items) || !array_is_list($items) || !$items || count($items)>5000) return $this->json(['success'=>false],400);
+    $changes=[];
+    foreach ($items as $row) {
+      if (is_array($row) && isset($row['id']) && is_string($row['id']) && ctype_digit($row['id'])) $row['id']=(int)$row['id'];
+      if (!is_array($row) || !is_int($row['id']??null) || isset($changes[$row['id']])
+          || !is_int($row['position']??null) || $row['position']<0 || $row['position']>5000) return $this->json(['success'=>false],400);
+      $block=$em->find(ContentBlock::class,$row['id']);
+      if (!$block || $block->getNode()?->getFormation()?->getId()!==$formation->getId()) return $this->json(['success'=>false],400);
+      $changes[$row['id']]=[$block,$row['position']];
+    }
+    foreach ($changes as [$block,$position]) $block->setPosition($position);
+    $em->flush();
+    return $this->json(['success'=>true]);
+  }
+
 }

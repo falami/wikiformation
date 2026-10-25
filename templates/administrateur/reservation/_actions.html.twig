@@ -11,15 +11,10 @@
   </a>
 
   {# Supprimer (ouvre ta modale globale #deleteModal) #}
-  <button type="button"
-          class="btn btn-danger btn-sm delete-btn"
-          data-bs-toggle="modal"
-          data-bs-target="#deleteModal"
-          data-url="{{ path('app_administrateur_reservation_supprimer', { entite: entite.id, id: reservation.id }) }}"
-          data-bs-toggle="tooltip"
-          data-bs-title="Supprimer">
-    <i class="bi bi-trash"></i>
-  </button>
+  <form method="post" action="{{ path('app_administrateur_reservation_supprimer', { entite: entite.id, id: reservation.id }) }}" onsubmit="return confirm('Confirmer la suppression ?');">
+          <input type="hidden" name="_token" value="{{ csrf_token('delete_reservation_' ~ reservation.id) }}">
+          <button type="submit" class="btn btn-danger btn-sm" title="Supprimer"><i class="bi bi-trash me-2" aria-hidden="true"></i>Supprimer</button>
+        </form>
 
   {# Confirmer => créer l'inscription en AJAX (POST) #}
   {# Confirmer => créer l'inscription en AJAX (POST) #}
@@ -32,6 +27,7 @@
             class="btn btn-success btn-sm js-confirm-resa"
             data-url="{{ path('app_administrateur_reservation_confirmer_ajax', { entite: entite.id, id: reservation.id }) }}"
             data-id="{{ reservation.id }}"
+            data-token="{{ csrf_token('confirm_reservation_' ~ reservation.id) }}"
             data-user="{{ u ? ((u.prenom ?? '') ~ ' ' ~ (u.nom ?? ''))|trim : '—' }}"
             data-session="{{ (s.code ?? '—') ~ ' — ' ~ formationTitre }}"
             data-places="{{ reservation.places ?? 1 }}"

@@ -26,28 +26,35 @@ final class ElearningContentReorderController extends AbstractController
 
   #[Route('/reorder', name: 'reorder', methods: ['POST'])]
   public function reorder(
+    Entite $entite,
     ElearningCourse $course,
     Request $request,
     EntityManagerInterface $em
   ): JsonResponse {
     $payload = json_decode($request->getContent() ?: 'null', true);
 
-    if ($payload === null) {
+    if (!is_array($payload) || !$payload || count($payload)>5000) {
       return new JsonResponse(['success' => false, 'error' => 'Invalid JSON'], 400);
     }
 
     // objet unique OU tableau d’objets
     $items = \is_array($payload) && isset($payload[0]) ? $payload : [$payload];
 
-    // CSRF optionnel (si fourni)
-    $tokenValue = $items[0]['_token'] ?? null;
-    if ($tokenValue !== null) {
-      if (!$this->csrf->isTokenValid(new CsrfToken('reorder_nodes_' . $course->getId(), $tokenValue))) {
-        return new JsonResponse(['success' => false, 'error' => 'Bad CSRF token'], 403);
-      }
+    $tokenValue = $request->headers->get('X-CSRF-Token') ?: ($items[0]['_token'] ?? '');
+    if (!is_string($tokenValue) || !$this->csrf->isTokenValid(new CsrfToken('reorder_nodes_' . $course->getId(), $tokenValue))) {
+      return new JsonResponse(['success' => false, 'error' => 'Bad CSRF token'], 403);
     }
 
     $nodeRepo = $em->getRepository(ElearningNode::class);
+    $parents=[];$seen=[];
+    foreach ($nodeRepo->findBy(['course'=>$course]) as $node) $parents[$node->getId()]=$node->getParent()?->getId();
+    foreach ($items as $row) {
+      if (!is_array($row) || !is_int($row['id']??null) || !array_key_exists($row['id'],$parents) || isset($seen[$row['id']])
+          || !array_key_exists('parentId',$row) || ($row['parentId']!==null && !is_int($row['parentId']))
+          || !is_int($row['position']??null) || $row['position']<0 || $row['position']>5000) return new JsonResponse(['success'=>false,'error'=>'Invalid structure'],400);
+      $seen[$row['id']]=true;$parents[$row['id']]=$row['parentId'];
+    }
+    if (!\App\Security\ElearningAccess::validParents($parents)) return new JsonResponse(['success'=>false,'error'=>'Invalid structure'],400);
 
     try {
       $em->wrapInTransaction(function (EntityManagerInterface $em) use ($items, $nodeRepo, $course) {
@@ -99,7 +106,7 @@ final class ElearningContentReorderController extends AbstractController
     } catch (\Throwable $e) {
       return new JsonResponse([
         'success' => false,
-        'error'   => 'Reorder failed: ' . $e->getMessage(),
+        'error'   => 'Le déplacement n’a pas pu être enregistré. Rechargez la page.',
       ], 400);
     }
 

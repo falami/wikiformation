@@ -44,29 +44,15 @@ class SequenceNumberManager
 
         $this->conn->beginTransaction();
         try {
-            // 1) Lock la ligne (si elle existe)
-            $row = $this->conn->fetchAssociative(
-                "SELECT id, last FROM {$table} WHERE entite_id = :e AND year = :y FOR UPDATE",
+            // An atomic upsert also serializes the first allocation of a year.
+            // SELECT ... FOR UPDATE alone cannot lock a row that does not exist.
+            $sql = $this->conn->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\AbstractMySQLPlatform
+                ? "INSERT INTO {$table} (entite_id, year, last) VALUES (:e, :y, 1) ON DUPLICATE KEY UPDATE last = last + 1"
+                : "INSERT INTO {$table} (entite_id, year, last) VALUES (:e, :y, 1) ON CONFLICT (entite_id, year) DO UPDATE SET last = {$table}.last + 1";
+            $this->conn->executeStatement($sql, ['e' => $entiteId, 'y' => $y]);
+            $next = (int) $this->conn->fetchOne(
+                "SELECT last FROM {$table} WHERE entite_id = :e AND year = :y",
                 ['e' => $entiteId, 'y' => $y]
-            );
-
-            if (!$row) {
-                // 2) Crée la ligne, last = 0 (on va incrémenter juste après)
-                $this->conn->executeStatement(
-                    "INSERT INTO {$table} (entite_id, year, last) VALUES (:e, :y, 0)",
-                    ['e' => $entiteId, 'y' => $y]
-                );
-                $last = 0;
-            } else {
-                $last = (int) $row['last'];
-            }
-
-            // 3) Incrémente
-            $next = $last + 1;
-
-            $this->conn->executeStatement(
-                "UPDATE {$table} SET last = :next WHERE entite_id = :e AND year = :y",
-                ['next' => $next, 'e' => $entiteId, 'y' => $y]
             );
 
             $this->conn->commit();

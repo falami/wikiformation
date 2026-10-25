@@ -778,6 +778,7 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
                   <div id="detail-map-wrap">
                     <div class="text-muted">Aucune localisation disponible.</div>
                   </div>
+                  <template id="detail-map-template">{% include 'partials/_google_map.html.twig' only %}</template>
                 </div>
               </div>
             </div>
@@ -1019,6 +1020,7 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
 
     document.getElementById('sessionDetailSubtitle').textContent = 'Chargement...';
     document.getElementById('sessionDetailError').textContent = '';
+    document.getElementById('detail-map-wrap').replaceChildren();
     setSessionDetailLoadingState('loading');
     modal.show();
 
@@ -1068,14 +1070,9 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
       const mapWrap = document.getElementById('detail-map-wrap');
       if (s.mapQuery) {
         const q = encodeURIComponent(s.mapQuery);
-        mapWrap.innerHTML = `
-          <iframe
-            class="detail-map-frame"
-            src="https://www.google.com/maps?q=${q}&output=embed"
-            loading="lazy"
-            allowfullscreen>
-          </iframe>
-        `;
+        mapWrap.replaceChildren(document.getElementById('detail-map-template').content.cloneNode(true));
+        mapWrap.querySelector('[data-external-map]').dataset.mapSrc = `https://www.google.com/maps?q=${q}&output=embed`;
+        mapWrap.querySelector('[data-map-link]').href = `https://www.google.com/maps/search/?api=1&query=${q}`;
       } else {
         mapWrap.innerHTML = `<div class="text-muted">Aucune localisation disponible.</div>`;
       }

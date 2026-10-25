@@ -278,9 +278,11 @@ final class ReservationController extends AbstractController
         ]);
     }
 
-    #[Route('/supprimer/{id}', name: 'app_administrateur_reservation_supprimer', methods: ['GET'])]
-    public function delete(Entite $entite, EntityManagerInterface $em, Reservation $reservation): RedirectResponse
+    #[Route('/supprimer/{id}', name: 'app_administrateur_reservation_supprimer', methods: ['POST'])]
+    public function delete(Entite $entite, EntityManagerInterface $em, Reservation $reservation, Request $request): RedirectResponse
     {
+        if (!$this->isCsrfTokenValid('delete_reservation_' . $reservation->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page avant de supprimer.');
+
 
 
         $id = $reservation->getId();
@@ -320,8 +322,10 @@ final class ReservationController extends AbstractController
 
 
     #[Route('/confirmer/{id}/ajax', name: 'app_administrateur_reservation_confirmer_ajax', methods: ['POST'])]
-    public function confirmerAjax(Entite $entite, Reservation $reservation, EntityManagerInterface $em): JsonResponse
+    public function confirmerAjax(Entite $entite, Reservation $reservation, EntityManagerInterface $em, Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('confirm_reservation_' . $reservation->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page avant de confirmer.');
+
 
 
         /** @var Utilisateur $user */

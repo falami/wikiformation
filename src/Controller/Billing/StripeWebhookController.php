@@ -18,6 +18,8 @@ final class StripeWebhookController extends AbstractController
   public function webhook(
     Request $request,
     StripeBillingService $stripeBilling,
+    \App\Service\Marketplace\Payments $marketplace,
+    \App\Service\Marketplace\Confirmations $marketConfirmations,
     EntiteSubscriptionRepository $subRepo,
     PlanRepository $planRepo,
     EntityManagerInterface $em,
@@ -36,6 +38,19 @@ final class StripeWebhookController extends AbstractController
     }
 
     try {
+      if (in_array($event->type, ['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.expired'], true)) {
+        $marketId = $event->data->object->metadata->marketplace_purchase ?? null;
+        if ($marketId) {
+          $purchase = $em->find(\App\Entity\Marketplace\Purchase::class, $marketId);
+          if ($purchase) { $marketplace->sync($purchase); $marketConfirmations->send($purchase); }
+          return new Response('ok');
+        }
+      }
+      if (in_array($event->type, ['charge.refunded','charge.dispute.created','charge.dispute.closed'], true)) {
+        $obj = $event->data->object;
+        $paymentId = $obj->payment_intent ?? null;
+        if ($paymentId && $purchase = $em->getRepository(\App\Entity\Marketplace\Purchase::class)->findOneBy(['paymentId'=>$paymentId])) $marketplace->sync($purchase);
+      }
       switch ($event->type) {
         case 'invoice.paid': {
             $commissions->record($event->data->object->toArray());
@@ -50,20 +65,20 @@ final class StripeWebhookController extends AbstractController
             $subscriptionId = (string)($session->subscription ?? '');
             if (!$customerId || !$subscriptionId) break;
 
-            // ✅ AJOUTS
-            $stripeBilling->setCustomerTaxExemptNone($customerId);
-            $stripeBilling->enableAutomaticTaxOnSubscription($subscriptionId);
-
             $localId = (int)($session->client_reference_id ?? 0);
 
             $sub = $localId
               ? $subRepo->find($localId)
-              : $subRepo->findOneBy(['stripeCustomerId' => $customerId], ['id' => 'DESC']);
+              : $subRepo->findOneBy(['stripeCustomerId' => $customerId, 'stripeSubscriptionId' => null, 'status' => EntiteSubscription::STATUS_INCOMPLETE], ['id' => 'DESC']);
 
             if (!$sub) break;
+            if ($sub->getStripeCustomerId() !== $customerId || ($sub->getStripeSubscriptionId() && $sub->getStripeSubscriptionId() !== $subscriptionId)) {
+              throw new \DomainException('Checkout incompatible avec l’abonnement local.');
+            }
 
             // ✅ recharge après update (sinon tu lis l'ancienne config)
             $stripeSub = $stripeBilling->retrieveSubscription($subscriptionId);
+            if ((string) ($stripeSub->customer ?? '') !== $customerId) throw new \DomainException('Client Stripe incompatible.');
 
             $sub->setStripeSubscriptionId($subscriptionId);
             $this->syncFromStripeSubscription($sub, $stripeSub, $planRepo);
@@ -87,9 +102,9 @@ final class StripeWebhookController extends AbstractController
               $customerId = (string)($obj->customer ?? '');
               if ($customerId) {
                 $sub = $subRepo->findOneBy(
-                  ['stripeCustomerId' => $customerId, 'status' => EntiteSubscription::STATUS_INCOMPLETE],
+                  ['stripeCustomerId' => $customerId, 'stripeSubscriptionId' => null, 'status' => EntiteSubscription::STATUS_INCOMPLETE],
                   ['id' => 'DESC']
-                ) ?? $subRepo->findOneBy(['stripeCustomerId' => $customerId], ['id' => 'DESC']);
+                );
 
                 if ($sub && !$sub->getStripeSubscriptionId()) {
                   $sub->setStripeSubscriptionId($subscriptionId);
@@ -101,6 +116,7 @@ final class StripeWebhookController extends AbstractController
 
             // 2) IMPORTANT : recharger la sub complète depuis Stripe
             $stripeSub = $stripeBilling->retrieveSubscription($subscriptionId);
+            if ((string) ($stripeSub->customer ?? '') !== $sub->getStripeCustomerId()) throw new \DomainException('Client Stripe incompatible.');
 
             $this->syncFromStripeSubscription($sub, $stripeSub, $planRepo);
 
@@ -155,14 +171,15 @@ final class StripeWebhookController extends AbstractController
     // Gestion annulation (Stripe peut utiliser cancel_at_period_end OU cancel_at)
     $cancelAtTs = null;
 
-    if (!empty($stripeSub->canceled_at)) {
-      $cancelAtTs = (int) $stripeSub->canceled_at;
-    } elseif (!empty($stripeSub->ended_at)) {
-      $cancelAtTs = (int) $stripeSub->ended_at;
-    } elseif (!empty($stripeSub->cancel_at)) {
+    // canceled_at is when cancellation was requested, not the end of paid access.
+    if (!empty($stripeSub->cancel_at)) {
       $cancelAtTs = (int) $stripeSub->cancel_at;
     } elseif (!empty($stripeSub->cancel_at_period_end)) {
       $cancelAtTs = $periodEnd ?: (!empty($stripeSub->current_period_end) ? (int)$stripeSub->current_period_end : null);
+    } elseif (!empty($stripeSub->ended_at)) {
+      $cancelAtTs = (int) $stripeSub->ended_at;
+    } elseif (($stripeSub->status ?? '') === EntiteSubscription::STATUS_CANCELED && !empty($stripeSub->canceled_at)) {
+      $cancelAtTs = (int) $stripeSub->canceled_at;
     }
 
     $sub->setCanceledAt($cancelAtTs ? (new \DateTimeImmutable())->setTimestamp($cancelAtTs) : null);

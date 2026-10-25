@@ -1,5 +1,8 @@
 {% extends 'base_admin.html.twig' %}
-{% block title %}Paiement confirmé{% endblock %}
+{% set paymentConfirmed = fc and fc.status == 'completed' %}
+{% set paymentClosed = fc and fc.status in ['expired', 'canceled'] %}
+{% set paymentTitle = paymentConfirmed ? 'Paiement confirmé' : (paymentClosed ? 'Paiement non finalisé' : 'Confirmation en attente') %}
+{% block title %}{{ paymentTitle }}{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
@@ -25,17 +28,25 @@
   <div class="hero p-3 mb-4 d-flex gap-3 align-items-center">
     <div class="rounded-circle d-flex align-items-center justify-content-center"
          style="width:42px;height:42px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25)">
-      <i class="bi bi-check2-circle fs-4" style="color:var(--theme-color-secondaire)"></i>
+      <i class="bi {{ paymentConfirmed ? 'bi-check2-circle' : (paymentClosed ? 'bi-info-circle' : 'bi-clock-history') }} fs-4" style="color:var(--theme-color-secondaire)"></i>
     </div>
     <div class="flex-grow-1">
-      <h3 class="m-0 fw-bold">Paiement effectué</h3>
-      <div class="opacity-75">Ton paiement a été enregistré. Le statut sera confirmé par webhook.</div>
+      <h3 class="m-0 fw-bold">{{ paymentTitle }}</h3>
+      <div class="opacity-75">
+        {% if paymentConfirmed %}
+          Votre paiement a été confirmé et enregistré sur la facture.
+        {% elseif paymentClosed %}
+          Ce lien de paiement est fermé. Consultez la facture avant de lancer une nouvelle tentative.
+        {% else %}
+          Nous attendons la confirmation de votre paiement. Consultez le statut de la facture avant toute nouvelle tentative.
+        {% endif %}
+      </div>
     </div>
   </div>
 
   <div class="card-premium p-3">
     {% if fc %}
-      <div class="small text-muted">Session</div>
+      <div class="small text-muted">Référence du paiement</div>
       <div class="fw-semibold">{{ fc.stripeCheckoutSessionId }}</div>
 
       <hr>
@@ -46,8 +57,8 @@
           <div class="fw-semibold">{{ facture.numero ?? ('#' ~ facture.id) }}</div>
         </div>
         <div>
-          <div class="small text-muted">Statut checkout</div>
-          <div class="fw-semibold">{{ fc.status }}</div>
+          <div class="small text-muted">Statut du paiement</div>
+          <div class="fw-semibold">{{ paymentTitle }}</div>
         </div>
       </div>
 

@@ -19,7 +19,9 @@
         <link rel="alternate" hreflang="x-default" href="{{ path(app.request.attributes.get('_route'), app.request.attributes.get('_route_params')|merge({'_locale': app.request.locale == 'fr' ? 'en' : 'fr'})) }}">
         <meta property="og:locale" content="{{ app.request.locale == 'en' ? 'en_GB' : 'fr_FR' }}">
             
-        <script src="{{ asset('dist/js/cookie-consent.js') }}"></script>
+        <script src="{{ asset('dist/js/cookie-consent.js') }}?v=2"></script>
+        <link rel="stylesheet" href="{{ asset('dist/css/external-map.css') }}?v=1">
+        <script src="{{ asset('dist/js/external-map.js') }}?v=1" defer></script>
         <script defer src="{{ asset('dist/js/datatables-actions.js') }}?v=3"></script>
 
         {% block stylesheets %}
@@ -52,17 +54,7 @@
         {% block javascripts %}
         {% endblock %}
 
-        {% if app.request.cookies.get('cookieConsent') == 'accepted' %}
-            <!-- Google tag (gtag.js) -->
-            <script async src="https://www.googletagmanager.com/gtag/js?id=G-KKCHBDBP0H"></script>
-            <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-
-            gtag('config', 'G-KKCHBDBP0H');
-            </script>
-        {% endif %}
+        {# No audience tracking on authentication, account or administration pages. #}
 
         
     <link rel="stylesheet" href="{{ asset('dist/css/notifications.css') }}?v=2">

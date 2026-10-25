@@ -1,14 +1,19 @@
-<div id="cookie-banner" 
-     class="cookie-banner position-fixed bottom-0 start-0 end-0 bg-light shadow-lg p-3" 
-     style="z-index: 1050; display: none;">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
-    <div class="mb-2 mb-md-0 text-dark">
-      🍪 {{ 'cookies.message'|trans }}
-      <a href="{{ path('app_public_cookies') }}">{{ 'cookies.more'|trans }}</a>.
+{% set english = app.request.locale == 'en' %}
+<div id="cookie-banner" role="region" aria-labelledby="cookie-banner-title" hidden
+     class="position-fixed bottom-0 start-0 end-0 bg-white shadow-lg p-3 border-top" style="z-index:1080">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mx-auto" style="max-width:1200px">
+    <div class="text-dark">
+      <strong id="cookie-banner-title">{{ english ? 'Your privacy choices' : 'Vos préférences de confidentialité' }}</strong>
+      <p class="mb-0 mt-1 small">{{ english ? 'Essential cookies keep the site working. With your permission, Google Analytics measures visits to public pages. Refusing does not restrict access to the service.' : 'Les cookies nécessaires assurent le fonctionnement du site. Avec votre accord, Google Analytics mesure les visites des pages publiques. Refuser ne limite pas l’accès au service.' }}
+        <a href="{{ path('app_public_cookies') }}">{{ 'cookies.more'|trans }}</a>.
+      </p>
     </div>
-    <div>
-      <button id="accept-cookies" class="btn btn-success btn-sm me-2">{{ 'cookies.accept'|trans }}</button>
-      <button id="reject-cookies" class="btn btn-secondary btn-sm">{{ 'cookies.reject'|trans }}</button>
+    <div class="d-flex gap-2 flex-shrink-0">
+      <button id="reject-cookies" type="button" class="btn btn-outline-dark btn-sm px-3">{{ 'cookies.reject'|trans }}</button>
+      <button id="accept-cookies" type="button" class="btn btn-outline-dark btn-sm px-3">{{ 'cookies.accept'|trans }}</button>
     </div>
   </div>
 </div>
+<button id="cookie-preferences" data-manage-cookies type="button" hidden
+        class="btn btn-light btn-sm border shadow-sm position-fixed" style="bottom:.6rem;left:.6rem;z-index:1040"
+        aria-controls="cookie-banner">{{ english ? 'Cookie settings' : 'Gérer les cookies' }}</button>

@@ -460,7 +460,7 @@ textarea{ margin: 1rem 0 1rem 0 ; }
 
   {# ================== Blocs du chapitre (drag & drop) ================== #}
   <div class="card shadow-sm mt-4"
-       id="blocks-card"
+       id="blocks-card" data-csrf="{{ csrf_token('reorder_blocks_' ~ formation.id) }}"
        data-reorder-url="{{ path('app_administrateur_formation_content_block_reorder', { entite: entite.id, formation: formation.id }) }}">
     <div class="card-header bg-theme-tertiaire text-theme-quaternaire section-title">
       <i class="fa fa-diagram-project text-theme-secondaire me-2"></i> Blocs de « {{ node.titre }} »
@@ -590,7 +590,7 @@ textarea{ margin: 1rem 0 1rem 0 ; }
             try{
               const res = await fetch(reorderUrl, {
                 method:'POST',
-                headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+                headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-Token':blocksCard.dataset.csrf},
                 body: JSON.stringify(items)
               });
               if(!res.ok) throw new Error('HTTP '+res.status);

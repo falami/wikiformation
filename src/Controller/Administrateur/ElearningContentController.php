@@ -134,6 +134,15 @@ final class ElearningContentController extends AbstractController
     ])->handleRequest($request);
 
 
+    if ($form->isSubmitted()) {
+      $parents=[];
+      foreach ($em->getRepository(ElearningNode::class)->findBy(['course'=>$course]) as $item) $parents[$item->getId()]=$item->getParent()?->getId();
+      $parents[$node->getId() ?? -1]=$node->getParent()?->getId();
+      if (!\App\Security\ElearningAccess::validParents($parents)) {
+        $form->get('parent')->addError(new \Symfony\Component\Form\FormError('Un chapitre ne peut pas être rattaché à lui-même ou à un de ses sous-chapitres.'));
+      }
+    }
+
     if ($form->isSubmitted() && !$form->isValid()) {
       foreach ($form->getErrors(true) as $e) {
         $this->addFlash('danger', $e->getMessage());
@@ -255,11 +264,12 @@ final class ElearningContentController extends AbstractController
     EntityManagerInterface $em,
     Request $request
   ): RedirectResponse|JsonResponse {
-    // CSRF optionnel, comme formation (tu peux garder ton token si tu veux)
-    // if (!$this->isCsrfTokenValid('del_node_'.$node->getId(), (string) $request->request->get('_token'))) { ... }
-
-    if ($node->getCourse()?->getId() !== $course->getId()) {
+    if ($course->getEntite()?->getId() !== $entite->getId()
+        || $node->getCourse()?->getId() !== $course->getId()) {
       throw $this->createAccessDeniedException();
+    }
+    if (!$this->isCsrfTokenValid('del_node_'.$node->getId(), $request->request->getString('_token'))) {
+      throw $this->createAccessDeniedException('Rechargez la page avant de supprimer ce chapitre.');
     }
 
     $em->remove($node);
@@ -281,38 +291,27 @@ final class ElearningContentController extends AbstractController
     Request $request,
     EntityManagerInterface $em
   ): JsonResponse {
-    // Payload attendu: [{id: 12, position:0, parentId:null}, ...]
-    $items = json_decode($request->getContent() ?: '[]', true);
-    if (!\is_array($items)) {
-      return new JsonResponse(['success' => false, 'message' => 'Payload invalide'], 400);
+    if (!$this->isCsrfTokenValid('reorder_nodes_'.$course->getId(), $request->headers->get('X-CSRF-Token', ''))) {
+      return $this->json(['success'=>false,'message'=>'Session expirée. Rechargez la page.'],403);
     }
-
-    $repo = $em->getRepository(ElearningNode::class);
-
+    $items=json_decode($request->getContent(),true);
+    if (!is_array($items) || !array_is_list($items) || !$items || count($items)>5000) return $this->json(['success'=>false],400);
+    $nodes=[];$parents=[];$changes=[];
+    foreach ($em->getRepository(ElearningNode::class)->findBy(['course'=>$course]) as $n) {
+      $nodes[$n->getId()]=$n;$parents[$n->getId()]=$n->getParent()?->getId();
+    }
     foreach ($items as $row) {
-      /** @var ElearningNode|null $node */
-      $node = $repo->find((int)($row['id'] ?? 0));
-      if (!$node || $node->getCourse()?->getId() !== $course->getId()) continue;
-
-      $node->setPosition((int)($row['position'] ?? 0));
-
-      $parentId = $row['parentId'] ?? null;
-      if ($parentId) {
-        $parent = $repo->find((int)$parentId);
-        if ($parent && $parent->getCourse()?->getId() === $course->getId()) {
-          $node->setParent($parent);
-        }
-      } else {
-        $node->setParent(null);
-      }
-
-      if (method_exists($node, 'setUpdatedAt')) {
-        $node->setUpdatedAt(new \DateTime());
-      }
+      if (!is_array($row) || !is_int($row['id']??null) || !isset($nodes[$row['id']]) || isset($changes[$row['id']])
+          || !is_int($row['position']??null) || $row['position']<0 || $row['position']>5000
+          || !array_key_exists('parentId',$row) || ($row['parentId']!==null && !is_int($row['parentId']))) return $this->json(['success'=>false],400);
+      $changes[$row['id']]=$row;$parents[$row['id']]=$row['parentId'];
     }
-
+    if (!\App\Security\ElearningAccess::validParents($parents)) return $this->json(['success'=>false,'message'=>'Le déplacement créerait une structure invalide.'],400);
+    foreach ($changes as $id=>$row) {
+      $nodes[$id]->setPosition($row['position'])->setParent($row['parentId']===null ? null : $nodes[$row['parentId']]);
+    }
     $em->flush();
-    return new JsonResponse(['success' => true]);
+    return $this->json(['success'=>true]);
   }
 
   #[Route('/node/{node}/block/ajouter', name: 'block_add', methods: ['GET', 'POST'])]
@@ -494,8 +493,7 @@ final class ElearningContentController extends AbstractController
       if ($request->isXmlHttpRequest()) {
         return new JsonResponse([
           'success' => false,
-          'error'   => $e->getMessage(),
-          'trace'   => $e->getTraceAsString(),
+          'error'   => 'La ressource ne peut pas être enregistrée. Réessayez ou contactez votre administrateur.',
         ], 500);
       }
       throw $e;
@@ -521,8 +519,12 @@ final class ElearningContentController extends AbstractController
     EntityManagerInterface $em,
     Request $request
   ): RedirectResponse|JsonResponse {
-    if ($block->getNode()?->getCourse()?->getId() !== $course->getId()) {
+    if ($course->getEntite()?->getId() !== $entite->getId() || $block->getNode()?->getCourse()?->getId() !== $course->getId()) {
       throw $this->createAccessDeniedException();
+    }
+
+    if (!$this->isCsrfTokenValid('del_block_'.$block->getId(), $request->request->getString('_token'))) {
+      throw $this->createAccessDeniedException('Rechargez la page avant de supprimer cette ressource.');
     }
 
     $em->remove($block);
@@ -544,20 +546,22 @@ final class ElearningContentController extends AbstractController
     Request $request,
     EntityManagerInterface $em
   ): JsonResponse {
-    $items = json_decode($request->getContent() ?: '[]', true);
-    if (!\is_array($items)) return new JsonResponse(['success' => false], 400);
-
-    $repo = $em->getRepository(ElearningBlock::class);
-    foreach ($items as $row) {
-      /** @var ElearningBlock|null $b */
-      $b = $repo->find((int)($row['id'] ?? 0));
-      if (!$b || $b->getNode()?->getCourse()?->getId() !== $course->getId()) continue;
-
-      $b->setPosition((int)($row['position'] ?? 0));
+    if (!$this->isCsrfTokenValid('reorder_blocks_'.$course->getId(), $request->headers->get('X-CSRF-Token', ''))) {
+      return $this->json(['success'=>false,'message'=>'Session expirée. Rechargez la page.'],403);
     }
-
+    $items=json_decode($request->getContent(),true);
+    if (!is_array($items) || !array_is_list($items) || !$items || count($items)>5000) return $this->json(['success'=>false],400);
+    $changes=[];
+    foreach ($items as $row) {
+      if (!is_array($row) || !is_int($row['id']??null) || isset($changes[$row['id']])
+          || !is_int($row['position']??null) || $row['position']<0 || $row['position']>5000) return $this->json(['success'=>false],400);
+      $block=$em->find(ElearningBlock::class,$row['id']);
+      if (!$block || $block->getNode()?->getCourse()?->getId()!==$course->getId()) return $this->json(['success'=>false],400);
+      $changes[$row['id']]=[$block,$row['position']];
+    }
+    foreach ($changes as [$block,$position]) $block->setPosition($position);
     $em->flush();
-    return new JsonResponse(['success' => true]);
+    return $this->json(['success'=>true]);
   }
 
   #[Route('/node/slug-check', name: 'node_slug_check', methods: ['GET'])]

@@ -1,0 +1,44 @@
+{% extends 'marketplace/base.html.twig' %}
+{% block content %}
+<style>
+.mk-assign-head{background:#203343;color:white;border-radius:24px;padding:28px 32px;margin-bottom:24px}.mk-assign-head h1{font-size:30px;margin:12px 0}.mk-assign-head p{color:#c9d5df;margin:0}.mk-assign-filters{display:grid;grid-template-columns:1fr 1fr;gap:20px}.mk-assign-filters label{display:block;font-weight:700;margin-bottom:8px}.mk-assign-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:24px 0 12px}.mk-assign-tools button{border:1px solid #d7e1eb;border-radius:10px;background:white;padding:10px 14px;color:#203343;cursor:pointer}.mk-assign-list{max-height:520px;overflow:auto}.mk-assign-list .mk-check{margin:0 0 8px;align-items:center}.mk-assign-list label{flex:1;cursor:pointer}.mk-assign-list input{width:20px;height:20px;accent-color:#b88700;flex-shrink:0}.mk-assign-list [hidden]{display:none}.mk-assign-footer{position:sticky;bottom:0;background:white;border-top:1px solid #e2e8f0;padding:20px 0 0;margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:16px}.mk-assign-footer button:disabled{opacity:.5;cursor:not-allowed}@media(max-width:650px){.mk-assign-filters{grid-template-columns:1fr}.mk-assign-footer{flex-direction:column;align-items:stretch}.mk-assign-head{padding:24px}.mk-assign-list .mk-badge{font-size:11px}}
+</style>
+<section class="mk-assign-head">
+<span class="mk-kicker">Offrir un cours · {{ entite.nom }}</span>
+<h1>{{ course.titre }}</h1>
+<p>Retrouvez un stagiaire ou sélectionnez une de vos sessions pour offrir le cours à son groupe.</p>
+</section>
+<form class="mk-panel" method="post" data-course-assignment>
+<input type="hidden" name="_token" value="{{ csrf_token('assign_'~course.id) }}">
+<div class="mk-assign-filters">
+<div><label for="learner-search">Rechercher un stagiaire</label><input id="learner-search" type="search" placeholder="Nom, prénom ou e-mail" autocomplete="off"></div>
+<div><label for="session-filter">Mes sessions animées ou planifiées</label><select id="session-filter">
+<option value="">Tous les stagiaires de cet espace</option>
+{% for session in sessions %}<option value="{{ session.id }}">{{ session.code }} · {{ session.formationIntituleLibre ?: (session.formation ? session.formation.titre : 'Formation') }}{% if session.dateDebut %} · {{ session.dateDebut|date('d/m/Y') }}{% endif %}</option>{% endfor %}
+</select></div>
+</div>
+<p class="mk-note">Seules vos sessions dans cet espace sont proposées. Les inscriptions annulées et les absents sont exclus du groupe.</p>
+<div class="mk-assign-tools">
+<button type="button" data-select-visible>Sélectionner les résultats</button>
+<button type="button" data-clear-selection>Tout désélectionner</button>
+<span class="mk-note" data-result-count aria-live="polite"></span>
+</div>
+<div class="mk-assign-list">
+{% for member in learners %}
+{% set learner = member.utilisateur %}
+<div class="mk-check" data-learner-row data-search="{{ learner.prenom }} {{ learner.nom }} {{ learner.email }}" data-sessions="{{ learnerSessions[learner.id]|default([])|join(',') }}">
+<input id="learner-{{ learner.id }}" type="checkbox" name="learners[]" value="{{ learner.id }}" {% if owned[learner.id]|default(false) %}disabled{% endif %}>
+<label for="learner-{{ learner.id }}">{{ learner.prenom }} {{ learner.nom }}<br><span class="mk-note">{{ learner.email }}</span></label>
+{% if owned[learner.id]|default(false) %}<span class="mk-badge">Accès déjà disponible</span>{% endif %}
+</div>
+{% else %}<p>Aucun stagiaire actif dans cet espace.</p>{% endfor %}
+<p data-empty-results hidden>Aucun stagiaire ne correspond à ces filtres.</p>
+</div>
+<div class="mk-assign-footer">
+<div><strong data-selected-count aria-live="polite">Choisissez les bénéficiaires</strong><br><span class="mk-note">Accès gratuit, disponible dans leur bibliothèque.</span></div>
+<button class="mk-button" type="submit" {{ learners is empty ? 'disabled' : '' }}>Offrir le cours</button>
+</div>
+<p class="mk-note">Votre sélection est conservée lorsque vous changez de filtre. Pour les stagiaires d’une autre entité, changez d’espace.</p>
+</form>
+<script src="{{ asset('dist/js/marketplace-assign.js') }}" defer></script>
+{% endblock %}

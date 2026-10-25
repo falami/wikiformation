@@ -13,6 +13,9 @@ final class PaymentReturnController extends AbstractController
     {
         $sessionId = (string)$request->query->get('session_id');
         $fc = $sessionId ? $repo->findOneBySessionId($sessionId) : null;
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        if (!$fc || !$fc->getEntite()) throw $this->createNotFoundException();
+        $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::FACTURE_MANAGE, $fc->getEntite());
 
         return $this->render('billing/payment/success.html.twig', [
             'fc' => $fc,

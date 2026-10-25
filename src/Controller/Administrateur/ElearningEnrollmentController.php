@@ -177,6 +177,9 @@ final class ElearningEnrollmentController extends AbstractController
   #[Route('/update-dates', name: 'update_dates', methods: ['POST'])]
   public function updateDates(Entite $entite, ElearningCourse $course, Request $request): RedirectResponse
   {
+    if (!$this->isCsrfTokenValid('enrollment_dates_'.$course->getId(), $request->request->getString('_token'))) {
+      throw $this->createAccessDeniedException('Rechargez la page avant de modifier les dates.');
+    }
     $id = (int) $request->request->get('id', 0);
 
     /** @var ElearningEnrollment|null $enroll */

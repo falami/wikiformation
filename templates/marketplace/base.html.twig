@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}{% set brand = public_branding() %}
+{% block title %}Cours en ligne · WikiFormation{% endblock %}
+{% block body_attributes %}class="market-page"{% endblock %}
+{% block stylesheets %}<link rel="stylesheet" href="{{ asset('dist/css/marketplace.css') }}">{% endblock %}
+{% block body %}
+{% set navigation = market_navigation(app.user, entite|default(null)) %}
+{% if app.user %}
+<div class="mk-platform-bar">
+<nav aria-label="Navigation de la plateforme">
+<a href="{{ path('app_workspace') }}">← Mes espaces</a>
+{% if navigation.home %}<a class="mk-platform-return" href="{{ path(navigation.home, {entite:navigation.entity.id}) }}">{{ navigation.home == 'app_administrateur_dashboard_index' ? 'Mon administration' : 'Mon tableau de bord' }}</a>{% endif %}
+{% if is_granted('ROLE_SUPER_ADMIN') %}<a href="{{ path('app_super_admin_console', {entite:1}) }}">Super administration</a>{% endif %}
+</nav>
+<a href="{{ path('app_logout') }}">Déconnexion</a>
+</div>
+{% endif %}
+<header class="mk-nav"><a href="{{ path('app_public') }}"><img src="{{ asset(brand.logo) }}" alt="WikiFormation"></a><nav class="mk-links" aria-label="Cours en ligne"><a href="{{ path('app_market_catalogue') }}">Catalogue</a>{% if app.user %}<a href="{{ path('app_market_library') }}">Ma bibliothèque</a><a href="{{ path('app_market_cart') }}">Mon panier</a>{% if navigation.studio %}<a href="{{ path('app_market_trainer_index',{entite:navigation.entity.id}) }}">Mon studio</a>{% endif %}{% if is_granted('ROLE_SUPER_ADMIN') %}<a href="{{ path('app_market_admin_index') }}">Pilotage des ventes</a>{% endif %}{% else %}<a href="{{ path('app_login') }}">Se connecter</a>{% endif %}</nav></header><main class="mk-shell">{% for kind,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ kind }}" role="status">{{ message }}</div>{% endfor %}{% endfor %}{% block content %}{% endblock %}<footer class="mk-footer">WikiFormation · La formation, simplement. <a href="{{ path('app_market_terms') }}">Conditions et confidentialité</a></footer></main>{% endblock %}

@@ -26,7 +26,7 @@ Utiliser le secret de signature de cette destination. La route vérifie la signa
 ## o2switch : réglages à vérifier dans cPanel
 
 1. **Domaines** : la racine du domaine doit pointer vers le dossier `public` du projet. Le stockage `var/storage`, la configuration et les sources restent en dehors de la racine publique.
-2. **Sélectionner une version de PHP** : choisir PHP **8.3 minimum**, exigé par les dépendances actuellement installées ; PHP 8.4 est utilisé pour les tests locaux. Vérifier aussi la version du PHP utilisé en ligne de commande.
+2. **Sélectionner une version de PHP** : utiliser PHP **8.4** pour cette version verrouillée du projet (`endroid/qr-code` 6.1.3 exige PHP `^8.4`). PHP 8.4.25 est utilisé pour les tests locaux. Vérifier séparément les versions du serveur web, de Composer et des tâches cron ; la déclaration générale du projet ne remplace pas les exigences de `composer.lock`.
 3. **Extensions PHP** : vérifier notamment `pdo_mysql`, `curl`, `mbstring`, `intl`, `gd`, `fileinfo`, `dom`, `simplexml`, `xml`, `xmlreader`, `xmlwriter`, `zip`, ainsi que les extensions de base. Le contrôle Composer ci-dessous donne la liste exacte des exigences de la version déployée.
 4. **HTTPS**, connexion à la base et SMTP fonctionnels. En production : `APP_ENV=prod`, `APP_DEBUG=0`. Les URL générées doivent pointer sur le domaine réel ; l’`APP_URL` utilisée par le retour Stripe doit inclure `/fr` avec la configuration actuelle des routes.
 5. Donner à l’utilisateur PHP l’accès en écriture à `var/cache`, `var/log`, `var/storage` et aux répertoires d’uploads existants. Sauvegarder les fichiers privés avec la base.
@@ -57,10 +57,10 @@ La dernière commande est une **simulation** : elle n’envoie aucun email. Les 
 Dans **cPanel → Tâches cron**, sélectionner une exécution toutes les cinq minutes : minute `*/5`, les quatre autres champs `*`. Exemple de commande, à adapter au nom du compte et au répertoire du projet :
 
 ```sh
-cd /home/VOTRE_COMPTE/wikiformation && flock -n /home/VOTRE_COMPTE/.wikiformation-workflows.lock /opt/alt/php83/usr/bin/php bin/console app:workflows:run --execute --env=prod >> var/log/workflows-cron.log 2>&1
+cd /home/VOTRE_COMPTE/wikiformation && flock -n /home/VOTRE_COMPTE/.wikiformation-workflows.lock /CHEMIN/VERIFIE/PHP84 bin/console app:workflows:run --execute --env=prod >> var/log/workflows-cron.log 2>&1
 ```
 
-Le chemin PHP 8.3 est documenté par o2switch. Vérifier `php -v` avec ce binaire ; adapter le chemin si une autre version est utilisée. `flock` évite les exécutions simultanées. Vérifier régulièrement le journal et sa rotation. [Tâches cron o2switch](https://faq.o2switch.fr/cpanel/outils-avances/tache-planifiee-cron/)
+Remplacer `/CHEMIN/VERIFIE/PHP84` par le binaire PHP 8.4 réellement disponible sur l'hébergement et vérifier sa version avec `-v`. Ne pas réutiliser un ancien binaire PHP 8.3 pour ce verrou de dépendances. `flock` évite les exécutions simultanées. Vérifier régulièrement le journal et sa rotation. [Tâches cron o2switch](https://faq.o2switch.fr/cpanel/outils-avances/tache-planifiee-cron/)
 
 Activer cette commande après une recette avec un dossier dédié : seuls les dossiers activés dans Wikiformation sont traités. Il n’y a pas de worker Messenger à ajouter pour ce parcours, qui dispose de sa propre commande.
 

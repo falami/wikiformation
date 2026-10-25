@@ -28,13 +28,10 @@
 
     {% if not locked %}
       <li>
-        <button type="button"
-                class="dropdown-item d-flex align-items-center text-danger delete-btn"
-                data-bs-toggle="modal"
-                data-bs-target="#deleteModal"
-                data-url="{{ path('app_administrateur_entreprise_supprimer', { entite: entite.id, id: entreprise.id }) }}">
-          <i class="bi bi-trash me-2"></i> Supprimer
-        </button>
+        <form method="post" action="{{ path('app_administrateur_entreprise_supprimer', { entite: entite.id, id: entreprise.id }) }}" onsubmit="return confirm('Confirmer la suppression ?');">
+          <input type="hidden" name="_token" value="{{ csrf_token('delete_entreprise_' ~ entreprise.id) }}">
+          <button type="submit" class="dropdown-item d-flex align-items-center text-danger" title="Supprimer"><i class="bi bi-trash me-2" aria-hidden="true"></i>Supprimer</button>
+        </form>
       </li>
     {% else %}
       <li>

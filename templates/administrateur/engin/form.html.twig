@@ -453,7 +453,7 @@
 
           <div id="gallery-sortable"
                class="gallery-grid mt-3"
-               data-reorder-url="{% if engin.id %}{{ path('app_administrateur_engin_photos_reorder', {id: engin.id, entite: entite.id})|default('') }}{% endif %}">
+               data-reorder-csrf="{{ csrf_token('reorder_engin_photos_' ~ engin.id) }}" data-reorder-url="{% if engin.id %}{{ path('app_administrateur_engin_photos_reorder', {id: engin.id, entite: entite.id})|default('') }}{% endif %}">
             {% for p in engin.photos %}
               <div class="gallery-item" data-photo-id="{{ p.id }}">
                 <span class="drag-handle"><i class="fa fa-grip-vertical"></i></span>
@@ -834,7 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try{
         const res = await fetch(url, {
           method: 'POST',
-          headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+          headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-Token':dbContainer.dataset.reorderCsrf},
           body: JSON.stringify({ order: ids })
         });
         if (!res.ok) throw new Error('HTTP '+res.status);

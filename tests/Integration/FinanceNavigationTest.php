@@ -85,7 +85,7 @@ final class FinanceNavigationTest extends KernelTestCase
         self::assertSame(422, $client->getResponse()->getStatusCode());
         $client->catchExceptions(true);
         $client->request('GET', '/fr/administrateur/'.$this->other->getId().'/facture/'.$id.'/suivi-interne');
-        self::assertSame(403, $client->getResponse()->getStatusCode());
+        self::assertSame(404, $client->getResponse()->getStatusCode());
     }
 
     public function testQuoteInvoiceDraftCanBeSavedWithoutIssuanceFields(): void
@@ -264,7 +264,8 @@ final class FinanceNavigationTest extends KernelTestCase
         $client = $this->client();
         $crawler = $client->request('GET', $this->url('app_workspace'));
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        $form = $crawler->selectButton('Accéder au workspace')->form();
+        // Select the tenant switch form independently of its editorial button label.
+        $form = $crawler->filter('form[action$="/workspace/switch/'.$this->entite->getId().'"]')->form();
         $membership = $this->em->find(UtilisateurEntite::class, $membership->getId());
         $membership->setStatus(UtilisateurEntite::STATUS_SUSPENDED);
         $this->em->flush();

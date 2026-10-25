@@ -30,10 +30,11 @@ final class FactureCheckoutController extends AbstractController
         private readonly FactureCheckoutRepository $checkoutRepo,
         private readonly StripeCustomerMapRepository $customerMapRepo,
         #[Autowire('%env(STRIPE_SECRET_KEY)%')] private readonly string $stripeSecretKey,
+        private readonly \App\Service\Billing\FacturePaymentRecorder $recorder,
     ) {}
 
     #[Route('/{id}/checkout/start', name: 'checkout_start', methods: ['POST'], requirements: ['id' => '\d+'])]
-    public function start(Entite $entite, Facture $facture, Request $request): RedirectResponse
+    public function start(Entite $entite, Facture $facture, Request $request, \App\Service\Stripe\FactureCheckoutManager $manager): RedirectResponse
     {
         if ($facture->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
@@ -48,194 +49,13 @@ final class FactureCheckoutController extends AbstractController
             return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
         }
 
-        $remainingCents = InvoiceTotals::outstanding($facture);
-
-        if ($remainingCents <= 0) {
-            $this->addFlash('info', 'Cette facture est déjà réglée.');
-            return $this->redirectToRoute('app_administrateur_facture_show', [
-                'entite' => $entite->getId(),
-                'id' => $facture->getId(),
-            ]);
+        try {
+            $checkout = $manager->createCheckoutForFacture($facture);
+            return new RedirectResponse($checkout->getCheckoutUrl());
+        } catch (\Throwable $error) {
+            $this->addFlash('warning', 'Le paiement ne peut pas être ouvert pour le moment. Un paiement en cours doit être rapproché avec Stripe avant de créer un nouveau lien.');
+            return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
         }
-
-        $connect = $entite->getConnect();
-        if (!$connect || !$connect->isOnlinePaymentEnabled() || !$connect->isReadyForCheckout()) {
-            $this->addFlash('warning', "Paiement en ligne indisponible : Stripe Connect non prêt.");
-            return $this->redirectToRoute('app_administrateur_facture_show', [
-                'entite' => $entite->getId(),
-                'id' => $facture->getId(),
-            ]);
-        }
-
-        $connectedAccountId = $connect->getStripeAccountId();
-        if (!$connectedAccountId) {
-            $this->addFlash('warning', "Compte Stripe connecté introuvable.");
-            return $this->redirectToRoute('app_administrateur_facture_show', [
-                'entite' => $entite->getId(),
-                'id' => $facture->getId(),
-            ]);
-        }
-
-        $stripe = new \Stripe\StripeClient($this->stripeSecretKey);
-        $existing = $this->checkoutRepo->findLatestCreatedForFactureSince($facture, new \DateTimeImmutable('-2 hours'));
-        if ($existing && $existing->getCheckoutUrl()) {
-            if ($existing->getFactureAmountCents() === $remainingCents
-                && $existing->getAmountTotalCents() === $remainingCents) {
-                return new RedirectResponse($existing->getCheckoutUrl());
-            }
-            // An already published link must be expired at the provider before replacing it.
-            try {
-                if (!$existing->getStripeCheckoutSessionId()) throw new \RuntimeException('Identifiant de paiement manquant.');
-                $stripe->checkout->sessions->expire($existing->getStripeCheckoutSessionId(), [], ['stripe_account' => $connectedAccountId]);
-            } catch (\Throwable $error) {
-                $this->addFlash('warning', 'Le montant à régler a changé. Le précédent lien de paiement doit être désactivé avant d’en créer un nouveau. Réessayez dans quelques instants.');
-                return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
-            }
-            $existing->setStatus(FactureCheckout::STATUS_EXPIRED);
-            $this->em->flush();
-        }
-
-        /** @var Utilisateur|null $actor */
-        $actor = $this->getUser();
-
-        $payeurUser = method_exists($facture, 'getDestinataire') ? $facture->getDestinataire() : null;
-        $payeurEnt  = method_exists($facture, 'getEntrepriseDestinataire') ? $facture->getEntrepriseDestinataire() : null;
-
-        $serviceFeeCents = $connect->computeServiceFeeCents($remainingCents);
-
-        // snapshot checkout
-        $fc = new FactureCheckout();
-        $fc->setEntite($entite);
-        $fc->setFacture($facture);
-        $fc->setStatus(FactureCheckout::STATUS_CREATED);
-        $fc->setFactureAmountCents($remainingCents);
-        $fc->setAmountTotalCents($remainingCents);
-        $fc->setServiceFeeCents($serviceFeeCents);
-        $fc->setPayeurUtilisateur($payeurUser);
-        $fc->setPayeurEntreprise($payeurEnt);
-
-        $this->em->persist($fc);
-        $this->em->flush();
-
-        $successUrl = $request->getSchemeAndHttpHost()
-            . $this->generateUrl('app_administrateur_facture_checkout_success', ['entite' => $entite->getId()])
-            . '?session_id={CHECKOUT_SESSION_ID}';
-
-        $cancelUrl = $request->getSchemeAndHttpHost()
-            . $this->generateUrl('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
-
-        // ✅ base session params
-        $sessionParams = [
-            'mode' => 'payment',
-            'payment_method_types' => ['card'],
-            'success_url' => $successUrl,
-            'cancel_url' => $cancelUrl,
-
-            'billing_address_collection' => 'auto',
-            'customer_creation' => 'if_required',
-
-            'line_items' => [[
-                'quantity' => 1,
-                'price_data' => [
-                    'currency' => strtolower($facture->getDevise() ?? 'EUR'),
-                    'unit_amount' => $remainingCents,
-                    'product_data' => [
-                        'name' => sprintf('Paiement facture %s', $facture->getNumero() ?: ('#' . $facture->getId())),
-                    ],
-                ],
-            ]],
-
-            'metadata' => [
-                'type' => 'facture_checkout',
-                'entite_id' => (string) $entite->getId(),
-                'facture_id' => (string) $facture->getId(),
-                'facture_checkout_id' => (string) $fc->getId(),
-            ],
-        ];
-
-        if ($serviceFeeCents > 0) {
-            $sessionParams['payment_intent_data'] = [
-                'application_fee_amount' => $serviceFeeCents,
-                'metadata' => [
-                    'facture_checkout_id' => (string) $fc->getId(),
-                    'facture_id' => (string) $facture->getId(),
-                ],
-            ];
-        }
-
-        // ✅ PAYEUR (destinataire facture) -> email/name
-        $payeurEmail = null;
-        $payeurName  = null;
-
-        if ($payeurUser instanceof Utilisateur) {
-            $payeurEmail = trim((string) $payeurUser->getEmail()) ?: null;
-            $payeurName  = trim(($payeurUser->getPrenom() ?? '') . ' ' . ($payeurUser->getNom() ?? '')) ?: null;
-        } elseif ($payeurEnt) {
-            $payeurEmail = method_exists($payeurEnt, 'getEmail') ? (trim((string) $payeurEnt->getEmail()) ?: null) : null;
-            $payeurName  = method_exists($payeurEnt, 'getRaisonSociale@') ? (trim((string) $payeurEnt->getRaisonSociale()) ?: null) : null;
-        }
-
-        // fallback admin (si aucun email payeur)
-        if (!$payeurEmail && $actor instanceof Utilisateur) {
-            $payeurEmail = trim((string) $actor->getEmail()) ?: null;
-            $payeurName  = $payeurName ?: (trim(($actor->getPrenom() ?? '') . ' ' . ($actor->getNom() ?? '')) ?: null);
-        }
-
-        // ✅ mapping customer UNIQUEMENT si payeurUser
-        if ($payeurUser instanceof Utilisateur) {
-            $map = $this->customerMapRepo->findFor($connectedAccountId, $payeurUser);
-
-            if ($map) {
-                $sessionParams['customer'] = $map->getStripeCustomerId();
-            } elseif ($payeurEmail) {
-                $customer = $stripe->customers->create([
-                    'email' => $payeurEmail,
-                    'name'  => $payeurName,
-                    'metadata' => [
-                        'utilisateur_id' => (string) $payeurUser->getId(),
-                        'entite_id'      => (string) $entite->getId(),
-                        'source'         => 'wikiformation_facture',
-                        'facture_id'     => (string) $facture->getId(),
-                    ],
-                ], ['stripe_account' => $connectedAccountId]);
-
-                $map = (new StripeCustomerMap())
-                    ->setConnectedAccountId($connectedAccountId)
-                    ->setUtilisateur($payeurUser)
-                    ->setStripeCustomerId($customer->id);
-
-                $this->em->persist($map);
-                $this->em->flush();
-
-                $sessionParams['customer'] = $customer->id;
-            }
-        }
-
-        // sinon on préremplit par email
-        if (!isset($sessionParams['customer']) && $payeurEmail) {
-            $sessionParams['customer_email'] = $payeurEmail;
-        }
-
-        // ✅ Stripe rule: customer XOR customer_creation
-        if (isset($sessionParams['customer'])) {
-            $sessionParams['customer_update'] = [
-                'name'    => 'auto',
-                'address' => 'auto',
-            ];
-            unset($sessionParams['customer_creation']);
-            unset($sessionParams['customer_email']);
-        }
-
-        $session = $stripe->checkout->sessions->create(
-            $sessionParams,
-            ['stripe_account' => $connectedAccountId]
-        );
-
-        $fc->setStripeCheckoutSessionId($session->id);
-        $fc->setCheckoutUrl($session->url);
-        $this->em->flush();
-
-        return new RedirectResponse($session->url);
     }
 
     #[Route('/checkout/success', name: 'checkout_success', methods: ['GET'])]
@@ -282,87 +102,17 @@ final class FactureCheckoutController extends AbstractController
             ['stripe_account' => $connectedAccountId]
         );
 
-        $paymentStatus = (string)($session->payment_status ?? '');
-        if ($paymentStatus !== 'paid') {
-            $fc->setStatus(FactureCheckout::STATUS_EXPIRED);
-            $this->em->flush();
-
-            $this->addFlash('warning', "Paiement non confirmé (status: {$paymentStatus}).");
-            return $this->redirectToRoute('app_administrateur_facture_show', [
-                'entite' => $entite->getId(),
-                'id' => $facture->getId(),
-            ]);
+        try {
+            $recorded = $this->recorder->record($fc, $session->toArray(), $connectedAccountId);
+        } catch (\DomainException $error) {
+            $this->addFlash('warning', 'Le paiement nécessite un rapprochement avec Stripe. Aucun règlement supplémentaire n’a été enregistré.');
+            return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
         }
-
-        $paymentIntentId = (string)($session->payment_intent ?? '');
-        $amountTotal = (int)($session->amount_total ?? 0);
-        if ($amountTotal <= 0) $amountTotal = (int)$fc->getAmountTotalCents();
-
-        // ✅ si un paiement existe déjà (Stripe PI), on marque checkout et on recalcule facture
-        if ($paymentIntentId) {
-            $existingPaiement = $this->em->getRepository(Paiement::class)
-                ->findOneBy(['stripePaymentIntentId' => $paymentIntentId]);
-
-            if ($existingPaiement) {
-                $fc->setStatus(FactureCheckout::STATUS_COMPLETED);
-                $fc->setStripePaymentIntentId($paymentIntentId);
-                $this->recomputeFactureStatus($facture);
-                $this->em->flush();
-
-                $this->addFlash('success', 'Paiement déjà présent (Stripe).');
-                return $this->redirectToRoute('app_administrateur_facture_show', [
-                    'entite' => $entite->getId(),
-                    'id' => $facture->getId(),
-                ]);
-            }
+        if (!$recorded) {
+            // An asynchronous payment may still succeed; an unpaid session is not necessarily expired.
+            $this->addFlash('info', 'Le paiement est en attente de confirmation. Le règlement sera enregistré dès sa confirmation par Stripe.');
+            return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
         }
-
-        /** @var Utilisateur|null $actor */
-        $actor = $this->getUser();
-        if (!$actor instanceof Utilisateur) {
-            $this->addFlash('warning', "Session utilisateur manquante.");
-            return $this->redirectToRoute('app_administrateur_facture_show', [
-                'entite' => $entite->getId(),
-                'id' => $facture->getId(),
-            ]);
-        }
-
-        // ✅ Créer Paiement local + rattacher proprement
-        $paiement = new Paiement();
-        $paiement->setEntite($entite);
-        $paiement->setCreateur($actor);
-
-        $paiement->setMontantCents($amountTotal);
-        $paiement->setDevise(strtoupper((string)($facture->getDevise() ?? 'EUR')));
-        $paiement->setMode(ModePaiement::CB);
-        $paiement->setDatePaiement(new \DateTimeImmutable());
-        $paiement->setStripePaymentIntentId($paymentIntentId ?: null);
-
-        $paiement->setPayeurUtilisateur($fc->getPayeurUtilisateur());
-        $paiement->setPayeurEntreprise($fc->getPayeurEntreprise());
-
-        $paiement->setMeta([
-            'stripe' => [
-                'checkout_session_id' => $sessionId,
-                'connected_account' => $connectedAccountId,
-                'application_fee_cents' => $fc->getServiceFeeCents(),
-            ],
-        ]);
-
-        $paiement->setVentilationSource('stripe');
-
-        // important : relation bi-directionnelle
-        $facture->addPaiement($paiement);
-
-        $this->em->persist($paiement);
-
-        $fc->setStatus(FactureCheckout::STATUS_COMPLETED);
-        $fc->setStripePaymentIntentId($paymentIntentId ?: null);
-
-        // ✅ recalcul statut facture
-        $this->recomputeFactureStatus($facture);
-
-        $this->em->flush();
 
         $this->addFlash('success', 'Paiement enregistré ✅');
 

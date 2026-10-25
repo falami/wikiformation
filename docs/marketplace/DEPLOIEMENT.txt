@@ -1,0 +1,104 @@
+MARKETPLACE E-LEARNING — EXPLOITATION
+
+Fonctionnement livré
+- /formateur/{entite}/studio : création sans quota, contenu, affectations gratuites,
+  diffusion, profil vendeur et ventes propres. Le contenu est édité dans le
+  constructeur existant. Chaque organisme sélectionné limite les stagiaires proposés.
+- /cours-en-ligne : catalogue public ou membre, panier regroupé par vendeur,
+  bibliothèque, progression, export personnel et récapitulatifs.
+- /super/marketplace : taux de commission, conditions, ouverture des paiements,
+  chiffres encaissés et retrait des offres sans révocation des achats.
+- Le formateur est vendeur. Commission calculée sur le HT, frais Stripe réels
+  déduits de sa part par défaut. Les taux sont figés à la commande.
+- Chaque achat conserve son contenu et ses fichiers privés. Modifier ou retirer
+  une offre n'affecte pas les anciennes versions. Suppression physique empêchée
+  par les clés étrangères. Remboursement intégral/litige suspend l'accès ; un
+  remboursement partiel garde l'accès. Une résolution favorable le restaure.
+- Les quiz sont des auto-évaluations avec corrigé, sans certification automatique.
+- Le panier accepte plusieurs formateurs, avec un paiement distinct par vendeur.
+
+État initial
+Les ventes sont désactivées, le pourcentage n'est pas renseigné. Aucun paiement
+réel, compte Stripe réel ou reversement n'a été effectué par cette installation.
+La migration a été appliquée à la base Docker locale uniquement.
+
+Déploiement serveur
+1. Sauvegarder la base et les fichiers. Déployer le code puis exécuter :
+   php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261025013000' --up --no-interaction
+   php bin/console cache:clear --env=prod
+   Ne pas utiliser doctrine:schema:update --force.
+2. Sauvegarder var/marketplace/media avec la base, comme des documents pérennes.
+   Ce répertoire n'est PAS un cache. Il doit être partagé entre workers si
+   l'application est répartie sur plusieurs serveurs. Ne pas exposer var/ par HTTP.
+3. Configurer les clés Stripe et STRIPE_WEBHOOK_SECRET déjà utilisées par
+   StripeClientFactory/StripeWebhookController ; utiliser HTTPS et une URL
+   absolue correcte pour le contexte du routeur en CLI. Les vendeurs complètent
+   Stripe Connect Express. Les fonds sont encaissés sur la plateforme avec
+   on_behalf_of et reversés séparément au compte connecté après 14 jours.
+   Vérifier dans Stripe la prise en charge effective de ce modèle commercial,
+   les pays autorisés, la responsabilité des litiges et les frais Connect.
+4. Webhook existant /stripe/webhook (ou /fr/stripe/webhook selon routage déployé) :
+   checkout.session.completed, checkout.session.async_payment_succeeded,
+   checkout.session.expired, charge.refunded, charge.dispute.created,
+   charge.dispute.closed. Conserver aussi les événements abonnements existants.
+5. Cron toutes les 5 minutes, sur un seul ordonnanceur :
+   */5 * * * * cd /CHEMIN/DU/PROJET && /CHEMIN/PHP bin/console app:marketplace:reconcile --settle --env=prod >> /CHEMIN/LOG/marketplace.log 2>&1
+   Sans --settle : synchronise les paiements ET envoie les confirmations, mais
+   n'effectue pas les reversements. Les erreurs rendent un code de sortie non nul.
+   Monitorer les échecs et les commandes pending ; ne pas supprimer ces journaux
+   sans une politique de rotation. La commande ne crée pas de nouveau paiement.
+6. Compléter les conditions/notice dans le super admin ; fixer la commission.
+   Un changement de taux/frais/conditions oblige les vendeurs à réaccepter les
+   conditions avant un nouvel achat. Tester Stripe en mode test : succès, carte
+   refusée, retour interrompu, doublon webhook, remboursement partiel/intégral,
+   litige et reprise, compte connecté incomplet. Vérifier réception des e-mails.
+7. Après validation juridique/fiscale et recette Stripe, activer les ventes.
+   Aucun cron serveur ni endpoint Stripe externe n'est installé automatiquement.
+
+Points commerciaux à finaliser avant ouverture
+- Le récapitulatif ne remplace pas la facture du formateur. Définir la délivrance
+  des factures vendeur, les factures de commission I.T For You et la TVA de ces
+  commissions avec le comptable ; la commission stockée n'est pas un bénéfice net.
+- Compléter l'identité d'I.T For You, assistance, médiateur, garanties légales,
+  traitement des réclamations, droits sur les contenus et durée de service.
+- Examiner les obligations de plateforme applicables (dont déclarations DAC7,
+  information sur classement/modération, signalement de contenu illicite).
+- Le droit d'accès ne dépend pas du maintien de l'offre ; prévoir contractuellement
+  le traitement d'une fermeture définitive de plateforme et d'un retrait légal.
+- Les remboursements sont effectués dans Stripe ; le webhook/cron les répercute.
+  Une reprise peut échouer si le compte vendeur manque de fonds : la surveiller.
+- Un envoi d'e-mail accepté par le transport puis interrompu avant écriture en
+  base peut être réessayé : les confirmations sont au moins une fois, pas une
+  garantie d'envoi exactement unique. Les opérations monétaires ont une clé
+  d'idempotence et les reversements sont sérialisés par verrou de base.
+
+Protection des données
+Pas de numéro de carte conservé. Paiement hébergé Stripe, rôles contrôlés côté
+serveur, archives médias privées, versions des accords enregistrées, accès
+personnel et export JSON. Le vendeur voit ses ventes, pas l'annuaire global.
+Définir les durées de conservation par finalité, les procédures de droits et les
+contrats de sous-traitance ; ce code seul ne constitue pas une conformité RGPD.
+Les commandes et leurs consentements ne sont pas supprimés automatiquement :
+prévoir l'archivage légal puis l'anonymisation appropriée sans casser les droits.
+
+Sources de conception
+https://docs.stripe.com/connect/separate-charges-and-transfers
+https://www.cnil.fr/fr/passer-laction/les-durees-de-conservation-des-donnees
+https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/delais-de-reflexion-ou-de-retractation-comment-sappliquent-t-ils
+
+VENTES PROPRES DU SUPER ADMIN
+Depuis Version20261025023000, un cours appartenant à un utilisateur portant
+ROLE_SUPER_ADMIN donne lieu à une vente directe de la plateforme. Le choix est
+figé à la création de la commande (platform_sale) : il ne dépend plus des rôles
+ultérieurs de l'auteur. Les commandes historiques ne sont pas requalifiées.
+Aucun compte Connect n'est demandé, aucun on_behalf_of ni transfer_data n'est
+transmis et aucun reversement/reprise Connect n'est effectué pour ces ventes.
+La commission interne est de zéro ; les frais Stripe réels sont enregistrés à
+la charge de la plateforme. Les frais de traitement du paiement subsistent.
+Le super admin distingue ventes propres HT et commissions des tiers ; les
+remboursements partiels sont répartis au prorata du total de la commande et les
+litiges sont exclus du revenu affiché. Il ne s'agit pas d'un livre comptable.
+Accès : super admin > Pilotage des ventes > Créer et gérer mes propres cours.
+Renseigner les coordonnées légales d'I.T For You dans le profil vendeur.
+Migration serveur complémentaire :
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261025023000' --up --no-interaction

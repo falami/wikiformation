@@ -29,6 +29,7 @@ final class CheckoutController extends AbstractController
     TenantContext $tenant,
     StripeBillingService $stripe,
     EntityManagerInterface $em,
+    int $billingAppTrialDays,
   ): RedirectResponse {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
@@ -93,7 +94,7 @@ final class CheckoutController extends AbstractController
     // ✅ 6) Addons
     $addonPriceIds = [];
     $addonCodes = [];
-    foreach ($addons as $addonCode) {
+    foreach (array_unique(array_filter($addons, 'is_string')) as $addonCode) {
       $addon = $addonRepo->findOneBy(['code' => trim((string) $addonCode), 'isActive' => true]);
       if ($addon && $addon->getStripePriceId()) {
         $addonPriceIds[] = $addon->getStripePriceId();
@@ -101,12 +102,24 @@ final class CheckoutController extends AbstractController
       }
     }
 
+    // Serialize checkout reservations per organisation, before contacting Stripe.
+    $em->beginTransaction();
+    try {
+    $em->lock($entite, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
     // ✅ 7) Dernière sub de l'entité (pour blocage / customer)
     $last = $subRepo->findOneBy(['entite' => $entite], ['id' => 'DESC']);
 
-    if ($last && $last->isBlockingNewCheckout()) {
+    if ($last && ($last->isBlockingNewCheckout()
+        || ($last->getStripeSubscriptionId() && !in_array($last->getStatus(), ['canceled', 'incomplete_expired'], true)))) {
+      $em->commit();
       // portail Stripe (assure-toi que ta route accepte {entite})
       return $this->redirectToRoute('app_billing_portal', ['entite' => $entite->getId()]);
+    }
+    if ($last && $last->getStatus() === EntiteSubscription::STATUS_INCOMPLETE
+        && $last->getCreatedAt() > new \DateTimeImmutable('-32 minutes')) {
+      $em->commit();
+      $this->addFlash('info', 'Une souscription est déjà en cours. Terminez le paiement ouvert ou attendez son expiration avant de réessayer (32 minutes maximum).');
+      return $this->redirectToRoute('app_public_pricing');
     }
 
     // ✅ 8) Créer sub locale INCOMPLETE
@@ -125,10 +138,15 @@ final class CheckoutController extends AbstractController
 
     $em->persist($sub);
     $em->flush();
+    $em->commit();
+    } catch (\Throwable $error) {
+      if ($em->getConnection()->isTransactionActive()) $em->rollback();
+      throw $error;
+    }
 
     // ✅ 9) Trial
     $trialConsumed = $subRepo->entiteHasConsumedTrial($entite);
-    $trialDays = $trialConsumed ? 0 : 90;
+    $trialDays = $trialConsumed ? 0 : $billingAppTrialDays;
 
     // ✅ 10) Stripe checkout session
     $url = $stripe->createCheckoutSession(
@@ -139,20 +157,32 @@ final class CheckoutController extends AbstractController
       trialDays: $trialDays,
       allowPromotionCodes: true,
       localSubId: $sub->getId(),
+      expiresAt: time() + 1800,
     );
 
     return new RedirectResponse($url);
   }
 
   #[Route('/billing/success', name: 'app_billing_success')]
-  public function success(Request $request, StripeBillingService $stripe): Response
+  public function success(Request $request, StripeBillingService $stripe, EntiteSubscriptionRepository $subs, TenantContext $tenant): Response
   {
+    $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+    $entite = $tenant->getCurrentEntiteForUser($this->getUser());
+    if (!$entite) throw $this->createAccessDeniedException();
+    $this->denyAccessUnlessGranted(TenantPermission::BILLING_MANAGE, $entite);
     $sessionId = (string) $request->query->get('session_id');
     if (!$sessionId) {
       return $this->redirectToRoute('app_public_pricing');
     }
 
     $session = $stripe->retrieveCheckoutSession($sessionId);
+    $sub = $subs->find((int) ($session->client_reference_id ?? 0));
+    if (!$sub || $sub->getEntite()?->getId() !== $entite->getId()
+        || $sub->getStripeCustomerId() !== (string) ($session->customer ?? '')) throw $this->createNotFoundException();
+    if (($session->status ?? '') !== 'complete' || !in_array($session->payment_status ?? '', ['paid', 'no_payment_required'], true)) {
+      $this->addFlash('info', 'Votre paiement attend encore une confirmation.');
+      return $this->redirectToRoute('app_administrateur_billing', ['entite' => $entite->getId()]);
+    }
 
     return $this->render('billing/success.html.twig', [
       'session' => $session,

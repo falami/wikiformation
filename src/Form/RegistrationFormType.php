@@ -28,7 +28,7 @@ class RegistrationFormType extends AbstractType
                 'label' => 'auth.register.fields.first_name',
                 'attr'  => ['class' => 'form-control'],
                 'constraints' => [
-                    new NotBlank(['message' => 'auth.register.errors.first_name_required']),
+                    new NotBlank(message: 'auth.register.errors.first_name_required'),
                 ],
             ])
 
@@ -37,7 +37,7 @@ class RegistrationFormType extends AbstractType
                 'label' => 'auth.register.fields.last_name',
                 'attr'  => ['class' => 'form-control'],
                 'constraints' => [
-                    new NotBlank(['message' => 'auth.register.errors.last_name_required']),
+                    new NotBlank(message: 'auth.register.errors.last_name_required'),
                 ],
             ])
 
@@ -46,8 +46,8 @@ class RegistrationFormType extends AbstractType
                 'label' => 'auth.register.fields.email',
                 'attr'  => ['class' => 'form-control'],
                 'constraints' => [
-                    new NotBlank(['message' => 'auth.register.errors.email_required']),
-                    new Email(['message' => 'auth.register.errors.email_invalid']),
+                    new NotBlank(message: 'auth.register.errors.email_required'),
+                    new Email(message: 'auth.register.errors.email_invalid'),
                 ],
             ])
 
@@ -59,7 +59,7 @@ class RegistrationFormType extends AbstractType
                     '%policy_url%' => $this->router->generate('app_public_politique_confidentialite'),
                 ],
                 'constraints' => [
-                    new IsTrue(['message' => 'auth.register.errors.must_accept_privacy']),
+                    new IsTrue(message: 'auth.register.errors.must_accept_privacy'),
                 ],
             ])
 
@@ -80,15 +80,9 @@ class RegistrationFormType extends AbstractType
                     'label' => 'auth.register.fields.password',
                     'attr'  => ['class' => 'form-control'],
                     'constraints' => [
-                        new NotBlank(['message' => 'auth.register.errors.password_required']),
-                        new Length([
-                            'min' => 8,
-                            'minMessage' => 'auth.register.errors.password_min',
-                        ]),
-                        new Regex([
-                            'pattern' => "/^(?=.*[A-Z])(?=.*\d).{8,}$/",
-                            'message' => 'auth.register.errors.password_strength',
-                        ]),
+                        new NotBlank(message: 'auth.register.errors.password_required'),
+                        new Length(min: 8, minMessage: 'auth.register.errors.password_min'),
+                        new Regex(pattern: "/^(?=.*[A-Z])(?=.*\d).{8,}$/", message: 'auth.register.errors.password_strength'),
                     ],
                 ],
 

@@ -38,6 +38,7 @@ final class PublicElearningCatalogueController extends AbstractController
     $course = $em->getRepository(ElearningCourse::class)->findOneBy([
       'entite' => $entite,
       'slug' => $slug,
+      'isPublic' => true,
       'isPublished' => true,
     ]);
     if (!$course) throw $this->createNotFoundException();
@@ -73,32 +74,12 @@ final class PublicElearningCatalogueController extends AbstractController
       throw $this->createAccessDeniedException('CSRF invalide.');
     }
 
-    $order = (new ElearningOrder())
-      ->setEntite($entite)
-      ->setBuyer($buyer)
-      ->setStatus(OrderStatus::PENDING)
-      ->setReference('EL-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3))));
-
-    $item = (new ElearningOrderItem())
-      ->setNewOrder($order)
-      ->setCourse($course)
-      ->setQty(1)
-      ->setUnitPriceCents($course->getPrixCents())
-      ->setLineTotalCents($course->getPrixCents());
-
-    $order->setTotalCents($item->getLineTotalCents());
-    $order->addItem($item);
-
-    $em->persist($order);
-    $em->persist($item);
-    $em->flush();
-
-    // Ici tu branches Stripe ensuite (checkout session), ou paiement offline.
-    // Pour l’instant on redirige vers une page “en attente paiement”
-    return $this->redirectToRoute('app_public_catalogue_order_pending', [
-      'entite' => $entite->getId(),
-      'ref' => $order->getReference(),
-    ]);
+    $offer=$em->getRepository(\App\Entity\Marketplace\Offer::class)->findOneBy(['course'=>$course,'published'=>true]);
+    if (!$offer || (!$offer->publicVisible && !$offer->membersVisible)) {
+      $this->addFlash('warning','Ce cours n’est pas proposé à la vente actuellement.');
+      return $this->redirectToRoute('app_market_catalogue');
+    }
+    return $this->redirectToRoute('app_market_show',['id'=>$offer->id]);
   }
 
   #[IsGranted('ROLE_USER')]
@@ -106,7 +87,7 @@ final class PublicElearningCatalogueController extends AbstractController
   public function orderPending(Entite $entite, string $ref, EntityManagerInterface $em): Response
   {
     $order = $em->getRepository(ElearningOrder::class)->findOneBy(['entite' => $entite, 'reference' => $ref]);
-    if (!$order) throw $this->createNotFoundException();
+    if (!$order || $order->getBuyer()?->getId() !== $this->getUser()?->getId()) throw $this->createNotFoundException();
 
     return $this->render('public/catalogue/order_pending.html.twig', [
       'entite' => $entite,

@@ -87,6 +87,7 @@
 
         <form action="{{ path('app_administrateur_formation_content_node_delete', {entite: entite.id, formation: formation.id, node: node.id}) }}"
               method="post" class="d-inline">
+          <input type="hidden" name="_token" value="{{ csrf_token('del_node_' ~ node.id) }}">
           <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce chapitre ?')">
             <i class="fa fa-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer {{ node.titre }}</span>
           </button>
@@ -106,7 +107,7 @@
 {% endmacro %}
 
 {# 2) appels : passer entite et formation #}
-<ul class="tree" id="tree-root" data-reorder-url="{{ path('app_administrateur_formation_content_node_reorder', {entite: entite.id, formation: formation.id}) }}">
+<ul class="tree" id="tree-root" data-csrf="{{ csrf_token('reorder_nodes_' ~ formation.id) }}" data-reorder-url="{{ path('app_administrateur_formation_content_node_reorder', {entite: entite.id, formation: formation.id}) }}">
   {% for r in roots %}
     {{ _self.renderNode(r, entite, formation, loop.index) }}
   {% else %}
@@ -157,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
     const response = await fetch(tree.dataset.reorderUrl, {
       method: 'POST',
-      headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+      headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-Token':tree.dataset.csrf},
       body: JSON.stringify(payload)
     });
     if (!response.ok) throw new Error('save');

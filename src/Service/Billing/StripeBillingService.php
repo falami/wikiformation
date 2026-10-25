@@ -34,7 +34,7 @@ final class StripeBillingService
         'entite_id' => (string)$entite->getId(),
         'source' => 'wikiformation',
       ], $meta),
-    ]);
+    ], ['idempotency_key' => 'billing-customer-entite-' . $entite->getId()]);
 
     return $customer->id;
   }
@@ -60,6 +60,7 @@ final class StripeBillingService
     bool $allowPromotionCodes = true,
     ?string $couponId = null,
     ?int $localSubId = null,              // 👈 AJOUT
+    ?int $expiresAt = null,
   ): string {
     if (!$plan->isAvailableForNewSubscription($interval) || !$plan->isCheckoutConfigured($interval)) {
       throw new \DomainException('Cette offre mensuelle n’est pas disponible à la souscription.');
@@ -111,9 +112,10 @@ final class StripeBillingService
 
     if ($localSubId) {
       $params['client_reference_id'] = (string) $localSubId;
+      $params['subscription_data']['metadata']['local_subscription_id'] = (string) $localSubId;
     }
-
-    $session = $stripe->checkout->sessions->create($params);
+    if ($expiresAt !== null) $params['expires_at'] = $expiresAt;
+    $session = $stripe->checkout->sessions->create($params, $localSubId ? ['idempotency_key' => 'billing-checkout-' . $localSubId] : []);
 
 
 

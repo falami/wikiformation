@@ -57,7 +57,10 @@ for asset in \
   public/dist/css/unified-lists.css public/dist/css/session-ledger.css \
   public/dist/css/notifications.css public/dist/js/notifications.js \
   public/dist/css/admin-header.css public/dist/js/cookie-consent.js \
-  public/dist/css/list-filters.css public/dist/js/list-filters.js; do
+  public/dist/css/external-map.css public/dist/js/external-map.js \
+  public/dist/css/list-filters.css public/dist/js/list-filters.js \
+  public/dist/css/course-builder.css public/dist/js/course-builder.js \
+  public/dist/css/marketplace.css public/dist/js/marketplace-assign.js; do
   [[ -s "$asset" ]] || { echo "Missing or empty public asset: $asset" >&2; exit 1; }
 done
 
@@ -69,6 +72,8 @@ composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 php bin/console doctrine:migrations:migrate --no-interaction --env=prod
 php bin/console cache:clear --env=prod --no-debug --no-warmup
 php bin/console cache:warmup --env=prod --no-debug
+# AssetMapper URLs emitted by importmap() must exist in the production web root.
+php bin/console asset-map:compile --env=prod --no-debug
 php bin/console app:habilitations:sync --env=prod --no-debug
 chmod -R ug+rwX var
 printf 'Deployment completed. Backup: %s\n' "$BACKUP_DIR"

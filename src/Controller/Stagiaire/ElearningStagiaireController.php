@@ -17,6 +17,8 @@ use App\Entity\Elearning\ElearningNode;
 use App\Entity\Elearning\ElearningNodeProgress;
 use App\Service\Elearning\ElearningProgressCalculator;
 use App\Security\Permission\TenantPermission;
+use App\Security\ElearningAccess;
+use App\Service\DocumentStudio\Content;
 
 
 #[Route('/stagiaire/{entite}/elearning', name: 'app_stagiaire_elearning_')]
@@ -128,7 +130,7 @@ final class ElearningStagiaireController extends AbstractController
 
 
   #[Route('/course/{course}', name: 'course_show', methods: ['GET'], requirements: ['course' => '\d+'])]
-  public function courseShow(Entite $entite, ElearningCourse $course): Response
+  public function courseShow(Entite $entite, ElearningCourse $course, Content $html): Response
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -145,7 +147,7 @@ final class ElearningStagiaireController extends AbstractController
       'stagiaire' => $user,
     ]);
 
-    if (!$enroll) {
+    if (!$enroll || !ElearningAccess::enrollmentOpen($enroll)) {
       throw $this->createAccessDeniedException("Vous n'avez pas accès à ce cours.");
     }
 
@@ -181,15 +183,25 @@ final class ElearningStagiaireController extends AbstractController
     $completedNodeIds = array_map(static fn($r) => (int) $r['nid'], $completedNodeIds);
 
 
-    return $this->render('stagiaire/elearning/course_show.html.twig', [
+    $blockHtml=[];$blockUrls=[];
+    foreach ($courseFull->getNodes() as $node) foreach ($node->getBlocks() as $block) {
+      $blockHtml[$block->getId()]=$html->sanitize($block->getContent() ?? '');
+      $url=trim($block->getMediaUrl() ?: ($block->getContent() ?? ''));
+      $blockUrls[$block->getId()]=filter_var($url,FILTER_VALIDATE_URL) && in_array(strtolower((string)parse_url($url,PHP_URL_SCHEME)),['https','http'],true) ? $url : null;
+    }
+    $response=$this->render('stagiaire/elearning/course_show.html.twig', [
       'entite' => $entite,
       'course' => $courseFull,
       'enroll' => $enroll,
       'completedNodeIds' => $completedNodeIds,
       'progressPct' => (int) $enroll->getProgressPct(),
+      'blockHtml' => $blockHtml,
+      'blockUrls' => $blockUrls,
 
 
     ]);
+    $response->headers->set('Cache-Control','private, no-store');
+    return $response;
   }
 
 
@@ -218,7 +230,7 @@ final class ElearningStagiaireController extends AbstractController
       'course'    => $course,
       'stagiaire' => $user,
     ]);
-    if (!$enroll) {
+    if (!$enroll || !ElearningAccess::enrollmentOpen($enroll) || !ElearningAccess::nodePublished($node)) {
       return $this->json(['ok' => false, 'message' => 'Accès refusé.'], 403);
     }
 

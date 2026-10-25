@@ -43,4 +43,37 @@ final class CourseBuilderTest extends KernelTestCase
         $this->client->catchExceptions(true);$this->client->request('GET',$url);self::assertSame(404,$this->client->getResponse()->getStatusCode());
         $this->client->request('POST',$url.'/ordonner',$data);self::assertSame(404,$this->client->getResponse()->getStatusCode());
     }
+    public function testBlockEditorAndProtectedChapterDeletion(): void {
+        $e=$this->em->find(Entite::class,$this->entiteId);$u=$this->em->find(Utilisateur::class,$this->adminId);
+        $course=(new ElearningCourse())->setEntite($e)->setCreateur($u)->setTitre('Cours')->setSlug('delete-test');
+        $root=(new ElearningNode())->setEntite($e)->setCreateur($u)->setCourse($course)->setTitre('Chapitre')->setSlug('root');
+        $child=(new ElearningNode())->setEntite($e)->setCreateur($u)->setCourse($course)->setParent($root)->setTitre('Sous-chapitre')->setSlug('child');
+        $block=(new ElearningBlock())->setEntite($e)->setCreateur($u)->setNode($child)->setContent('Contenu');
+        foreach ([$course,$root,$child,$block] as $item) $this->em->persist($item);
+        $this->em->flush();$rootId=$root->getId();$childId=$child->getId();$blockId=$block->getId();
+        $url='/fr/administrateur/'.$e->getId().'/elearning/'.$course->getId().'/contenu';
+        $this->em->clear();
+        $this->client->request('GET',$url.'/block/'.$blockId.'/modifier');
+        self::assertSame(200,$this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('__choice__',$this->client->getResponse()->getContent());
+        $page=$this->client->request('GET',$url);
+        $token=$page->filter('#course-node-'.$rootId.' form input[name="_token"]')->first()->attr('value');
+        $this->client->catchExceptions(true);
+        $this->client->request('POST',$url.'/node/'.$rootId.'/supprimer',['_token'=>'invalid']);
+        self::assertSame(403,$this->client->getResponse()->getStatusCode());
+        self::assertNotNull($this->em->find(ElearningNode::class,$rootId));
+        $page=$this->client->request('GET',$url);
+        $blockToken=$page->filter('form[action$="/block/'.$blockId.'/supprimer"] input')->attr('value');
+        $this->client->request('POST',$url.'/block/'.$blockId.'/supprimer',['_token'=>'invalid']);
+        self::assertSame(403,$this->client->getResponse()->getStatusCode());
+        $this->client->request('POST',$url.'/block/'.$blockId.'/supprimer',['_token'=>$blockToken]);
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        $this->client->request('POST',$url.'/node/'.$rootId.'/supprimer',['_token'=>$token]);
+        self::assertSame(302,$this->client->getResponse()->getStatusCode());
+        $this->em->clear();
+        self::assertNull($this->em->find(ElearningNode::class,$rootId));
+        self::assertNull($this->em->find(ElearningNode::class,$childId));
+        self::assertNull($this->em->find(ElearningBlock::class,$blockId));
+    }
+
 }

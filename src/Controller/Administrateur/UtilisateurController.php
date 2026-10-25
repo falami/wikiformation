@@ -631,11 +631,24 @@ final class UtilisateurController extends AbstractController
       return $this->redirectToRoute('app_administrateur_utilisateur_index', ['entite' => $entite->getId()]);
     }
 
-    $id = $utilisateur->getId();
-    $this->em->remove($utilisateur);
+    $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([
+      'entite' => $entite, 'utilisateur' => $utilisateur,
+    ]);
+    if (!$membership instanceof UtilisateurEntite) {
+      throw $this->createNotFoundException('Utilisateur introuvable pour cette entité.');
+    }
+    if ($utilisateur === $this->getUser() || $utilisateur->isSuperAdmin()
+        || $membership->isTenantAdmin() || $entite->getCreateur()?->getId() === $utilisateur->getId()) {
+      $this->addFlash('warning', 'Cet accès administrateur ne peut pas être suspendu depuis cette action.');
+      return $this->redirectToRoute('app_administrateur_utilisateur_index', ['entite' => $entite->getId()]);
+    }
+
+    // An organisation can revoke its membership, never erase the shared account,
+    // purchases or records belonging to another organisation.
+    $membership->setStatus(UtilisateurEntite::STATUS_SUSPENDED);
     $this->em->flush();
 
-    $this->addFlash('success', 'Utilisateur #' . $id . ' supprimé.');
+    $this->addFlash('success', 'Accès suspendu dans cet espace. Le compte et son historique sont conservés.');
     return $this->redirectToRoute('app_administrateur_utilisateur_index', ['entite' => $entite->getId()]);
   }
 

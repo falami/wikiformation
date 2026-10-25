@@ -1282,13 +1282,10 @@ table.dataTable tbody tr:hover{ background: color-mix(in oklab, var(--sand) 35%,
                   </div>
 
                   <div class="mt-3 map-frame">
-                    {% if nextSession.gmapsEmbedUrl is defined and nextSession.gmapsEmbedUrl %}
-                      <iframe src="{{ nextSession.gmapsEmbedUrl }}" loading="lazy"
-                              referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
-                    {% else %}
-                      <iframe src="https://www.google.com/maps?q={{ nextSession.destAddress|url_encode }}&output=embed"
-                              loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
-                    {% endif %}
+                    {% include 'partials/_google_map.html.twig' with {
+                      map_src: nextSession.gmapsEmbedUrl|default('https://www.google.com/maps?q=' ~ nextSession.destAddress|url_encode ~ '&output=embed'),
+                      map_url: 'https://www.google.com/maps/search/?api=1&query=' ~ nextSession.destAddress|url_encode
+                    } only %}
                   </div>
                 </div>
               {% else %}

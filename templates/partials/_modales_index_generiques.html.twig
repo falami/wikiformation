@@ -19,12 +19,12 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="deleteModalLabel">Confirmation de suppression</h5>
+        <h5 class="modal-title" id="deleteModalLabel">{{ delete_title|default('Confirmation de suppression') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
       <div class="modal-body">
-        Êtes-vous sûr de vouloir supprimer <strong id="deleteItemName">cet élément</strong> ?
+        {% if delete_message is defined %}{{ delete_message }}{% else %}Êtes-vous sûr de vouloir supprimer <strong id="deleteItemName">cet élément</strong> ?{% endif %}
       </div>
 
       <div class="modal-footer">
@@ -32,7 +32,7 @@
 
         <form id="deleteForm" method="POST" action="">
           <input type="hidden" name="_token" id="deleteToken" value="">
-          <button type="submit" class="btn btn-danger">Supprimer</button>
+          <button type="submit" class="btn btn-danger">{{ delete_label|default('Supprimer') }}</button>
         </form>
       </div>
     </div>

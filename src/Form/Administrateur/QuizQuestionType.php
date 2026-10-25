@@ -47,40 +47,17 @@ final class QuizQuestionType extends AbstractType
                 'required' => false,
                 'attr' => ['class' => 'form-control']
             ])
-            ->add('options', CollectionType::class, [
-                'entry_type' => QcmOptionType::class,
+            ->add('choices', CollectionType::class, [
+                'entry_type' => QuizChoiceType::class,
                 'allow_add' => true,
                 'allow_delete' => true,
                 'by_reference' => false,
                 'prototype' => true,
-                'prototype_name' => '__o__',   // ✅ IMPORTANT
+                'prototype_name' => '__choice__',   // ✅ IMPORTANT
                 'required' => false,
             ])
 
         ;
-
-        // cacher choices pour TEXT ; pour BOOLEAN on pré-remplira deux choix
-        $b->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $e) {
-            /** @var QuizQuestion|null $q */
-            $q = $e->getData();
-            $form = $e->getForm();
-            $type = $q?->getType();
-
-            if ($type === QuestionType::TEXT) {
-                $form->remove('choices');
-            }
-        });
-
-
-
-        // ✅ SUPPRIMER ce bloc COMPLETEMENT
-        // $b->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $e) {
-        //     $q = $e->getData();
-        //     $form = $e->getForm();
-        //     if ($q?->getType() === QuestionType::TEXT) {
-        //         $form->remove('choices');
-        //     }
-        // });
 
         $b->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $e) {
             $data = $e->getData() ?? [];

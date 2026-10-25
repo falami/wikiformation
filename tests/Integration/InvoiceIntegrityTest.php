@@ -108,7 +108,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $client->catchExceptions(true);
         foreach ([['GET', 'show'], ['GET', 'edit'], ['POST', 'edit'], ['POST', 'delete'], ['GET', 'pdf'], ['GET', 'pdf_acquittee'], ['POST', 'send']] as [$method, $route]) {
             $client->request($method, $this->url($route, $foreign));
-            self::assertSame(403, $client->getResponse()->getStatusCode(), $route);
+            self::assertSame(404, $client->getResponse()->getStatusCode(), $route);
         }
         $client->request('POST', $this->url('delete'), ['_token' => 'invalid']);
         self::assertSame(403, $client->getResponse()->getStatusCode());
@@ -281,6 +281,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $amounts = [];
         $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
         $http->method('request')->willReturnCallback(static function ($method, $url, $headers, $params) use (&$amounts) {
+            if (strtoupper($method) === 'GET') return [json_encode(['id' => basename($url), 'object' => 'checkout.session', 'status' => 'open', 'url' => 'https://checkout.example.test/'.basename($url)]), 200, []];
             if (str_ends_with($url, '/customers')) return ['{"id":"cus_fixture","object":"customer"}', 200, []];
             self::assertStringEndsWith('/checkout/sessions', $url);
             self::assertCount(1, $params['line_items'], 'Platform commission must not be added as a second customer charge.');
@@ -314,7 +315,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
                 self::assertSame($expected, end($amounts));
             }
         }
-        self::assertSame([7000, 7000, 10000, 10000, 5000, 5000], $amounts);
+        self::assertSame([7000, 10000, 5000], $amounts, 'Both entry points must share one payable checkout per invoice.');
         foreach ($this->em->getRepository(\App\Entity\Billing\FactureCheckout::class)->findAll() as $checkout) {
             self::assertSame($checkout->getFactureAmountCents(), $checkout->getAmountTotalCents());
             self::assertGreaterThan(0, $checkout->getServiceFeeCents());
@@ -336,6 +337,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $http->method('request')->willReturnCallback(static function ($method, $url, $headers, $params) use (&$calls) {
             $calls[] = $url;
             if (str_ends_with($url, '/expire')) return ['{"id":"cs_old","object":"checkout.session","status":"expired"}', 200, []];
+            if (strtoupper($method) === 'GET') return [json_encode(['id' => basename($url), 'object' => 'checkout.session', 'status' => 'open', 'url' => 'https://checkout.example.test/'.basename($url)]), 200, []];
             if (str_ends_with($url, '/customers')) return ['{"id":"cus_fixture","object":"customer"}', 200, []];
             self::assertSame(5000, $params['line_items'][0]['price_data']['unit_amount']);
             return ['{"id":"cs_new","object":"checkout.session","url":"https://checkout.example.test/cs_new"}', 200, []];
@@ -347,7 +349,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $client->request('POST', $this->url('checkout_start'), ['_token' => $token]);
         self::assertSame(302, $client->getResponse()->getStatusCode());
         self::assertSame('https://checkout.example.test/cs_new', $client->getResponse()->headers->get('Location'));
-        self::assertStringEndsWith('/cs_old/expire', $calls[0]);
+        self::assertStringEndsWith('/cs_old/expire', $calls[1]);
         self::assertSame('expired', $this->em->getConnection()->fetchOne('SELECT status FROM billing_facture_checkout WHERE id = ?', [$old->getId()]));
         self::assertSame(5000, $this->em->getRepository(\App\Entity\Billing\FactureCheckout::class)->findOneBy(['stripeCheckoutSessionId' => 'cs_new'])->getFactureAmountCents());
     }
@@ -363,7 +365,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $this->em->flush();
         $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
         $http->expects(self::once())->method('request')->willReturnCallback(static function ($method, $url) {
-            self::assertStringEndsWith('/cs_old/expire', $url);
+            self::assertStringEndsWith('/cs_old', $url);
             throw new \RuntimeException('Provider unavailable');
         });
         \Stripe\ApiRequestor::setHttpClient($http);
@@ -388,6 +390,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $http->method('request')->willReturnCallback(static function ($method, $url, $headers, $params) use (&$calls) {
             $calls[] = $url;
             if (str_ends_with($url, '/expire')) return ['{"id":"cs_surcharge","object":"checkout.session","status":"expired"}', 200, []];
+            if (strtoupper($method) === 'GET') return [json_encode(['id' => basename($url), 'object' => 'checkout.session', 'status' => 'open', 'url' => 'https://checkout.example.test/'.basename($url)]), 200, []];
             if (str_ends_with($url, '/customers')) return ['{"id":"cus_fixture","object":"customer"}', 200, []];
             self::assertCount(1, $params['line_items']);
             self::assertSame(10000, $params['line_items'][0]['price_data']['unit_amount']);
@@ -398,7 +401,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $client->request('GET', $this->url('show'));
         $client->request('POST', $this->url('checkout_start'), ['_token' => $this->token($client, 'facture_checkout_' . $this->invoice->getId())]);
         self::assertSame('https://checkout.example.test/cs_principal', $client->getResponse()->headers->get('Location'));
-        self::assertStringEndsWith('/cs_surcharge/expire', $calls[0]);
+        self::assertStringEndsWith('/cs_surcharge/expire', $calls[1]);
         self::assertSame('expired', $this->em->getConnection()->fetchOne('SELECT status FROM billing_facture_checkout WHERE id = ?', [$old->getId()]));
         self::assertSame(10000, $this->em->getRepository(\App\Entity\Billing\FactureCheckout::class)->findOneBy(['stripeCheckoutSessionId' => 'cs_principal'])->getAmountTotalCents());
     }
@@ -414,7 +417,7 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
         $http->expects(self::once())->method('request')->willReturnCallback(static function ($method, $url) {
             self::assertStringEndsWith('/checkout/sessions/cs_settled', $url);
-            return ['{"id":"cs_settled","object":"checkout.session","payment_status":"paid","payment_intent":"pi_settled","amount_total":10000}', 200, []];
+            return ['{"id":"cs_settled","object":"checkout.session","mode":"payment","currency":"eur","payment_status":"paid","payment_intent":"pi_settled","amount_total":10000}', 200, []];
         });
         \Stripe\ApiRequestor::setHttpClient($http);
         $client = $this->client();
@@ -444,6 +447,105 @@ final class InvoiceIntegrityTest extends KernelTestCase
         }
         self::assertSame(0, $this->em->getRepository(\App\Entity\Billing\FactureCheckout::class)->count([]));
         self::assertSame('due', $this->em->getConnection()->fetchOne('SELECT status FROM facture WHERE id = ?', [$this->invoice->getId()]), 'Un avoir intégral ne constitue pas un paiement acquitté.');
+    }
+
+    public function testInvoiceCheckoutRetryAfterLostResponseKeepsTheSameDurableOperation(): void
+    {
+        $this->enableCheckout();
+        $requests = [];
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::exactly(2))->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use (&$requests) {
+            self::assertStringEndsWith('/checkout/sessions', $url);
+            self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM billing_facture_checkout'));
+            self::assertFalse($this->em->getConnection()->isTransactionActive(), 'Reservation must commit before the provider side effect.');
+            $key = array_values(array_filter($headers, static fn ($value) => str_starts_with($value, 'Idempotency-Key:')));
+            self::assertCount(1, $key);
+            $account = array_values(array_filter($headers, static fn ($value) => str_starts_with($value, 'Stripe-Account:')));
+            $requests[] = [$key, $account, $params];
+            if (count($requests) === 1) throw new \RuntimeException('Response lost after Stripe created the checkout');
+            return ['{"id":"cs_recovered","object":"checkout.session","url":"https://checkout.example.test/cs_recovered"}', 200, []];
+        });
+        \Stripe\ApiRequestor::setHttpClient($http);
+        $manager = self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class);
+        try { $manager->createCheckoutForFacture($this->invoice); self::fail('The first response must be lost.'); }
+        catch (\RuntimeException $error) { self::assertSame('Response lost after Stripe created the checkout', $error->getMessage()); }
+        $this->entite->getConnect()->setStripeAccountId('acct_changed')->setFeeFixedCents(999);
+        $this->invoice->setDevise('USD');
+        $this->em->flush();
+        $checkout = $manager->createCheckoutForFacture($this->invoice);
+        self::assertSame($requests[0], $requests[1]);
+        self::assertSame('cs_recovered', $checkout->getStripeCheckoutSessionId());
+        self::assertSame(1, $this->em->getRepository(\App\Entity\Billing\FactureCheckout::class)->count([]));
+    }
+
+    public function testOldUncertainInvoiceCheckoutCannotBeRecreatedAfterIdempotencyWindow(): void
+    {
+        $this->enableCheckout();
+        $checkout = (new \App\Entity\Billing\FactureCheckout())->setFacture($this->invoice)->setEntite($this->entite)->setFactureAmountCents(12000)->setAmountTotalCents(12000);
+        (new \ReflectionProperty($checkout, 'createdAt'))->setValue($checkout, new \DateTimeImmutable('-25 hours'));
+        $this->em->persist($checkout); $this->em->flush();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::never())->method('request'); \Stripe\ApiRequestor::setHttpClient($http);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('rapprocher');
+        self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class)->createCheckoutForFacture($this->invoice);
+    }
+
+    public function testKnownInvoiceCheckoutOlderThanTwoHoursIsStillReused(): void
+    {
+        $this->enableCheckout();
+        $checkout = (new \App\Entity\Billing\FactureCheckout())->setFacture($this->invoice)->setEntite($this->entite)->setFactureAmountCents(12000)->setAmountTotalCents(12000)
+            ->setStripeCheckoutSessionId('cs_existing')->setCheckoutUrl('https://checkout.example.test/cs_existing');
+        (new \ReflectionProperty($checkout, 'createdAt'))->setValue($checkout, new \DateTimeImmutable('-3 hours'));
+        $this->em->persist($checkout); $this->em->flush();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::once())->method('request')->willReturn(['{"id":"cs_existing","object":"checkout.session","status":"open","url":"https://checkout.example.test/cs_existing"}', 200, []]); \Stripe\ApiRequestor::setHttpClient($http);
+        self::assertSame($checkout, self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class)->createCheckoutForFacture($this->invoice));
+    }
+
+    public function testExpiredProviderCheckoutCanBeReplacedWithoutItsMissingWebhook(): void
+    {
+        $this->enableCheckout();
+        $old = (new \App\Entity\Billing\FactureCheckout())->setFacture($this->invoice)->setEntite($this->entite)->setFactureAmountCents(12000)->setAmountTotalCents(12000)
+            ->setStripeCheckoutSessionId('cs_expired')->setCheckoutUrl('https://checkout.example.test/cs_expired');
+        $this->em->persist($old); $this->em->flush();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::exactly(2))->method('request')->willReturnCallback(static function ($method, $url) {
+            if (strtoupper($method) === 'GET') return ['{"id":"cs_expired","object":"checkout.session","status":"expired"}', 200, []];
+            self::assertStringEndsWith('/checkout/sessions', $url);
+            return ['{"id":"cs_new","object":"checkout.session","url":"https://checkout.example.test/cs_new"}', 200, []];
+        });
+        \Stripe\ApiRequestor::setHttpClient($http);
+        $new = self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class)->createCheckoutForFacture($this->invoice);
+        self::assertSame('expired', $old->getStatus());
+        self::assertSame('cs_new', $new->getStripeCheckoutSessionId());
+    }
+
+    public function testCompletedButUnpaidProviderCheckoutCannotCreateAnotherCharge(): void
+    {
+        $this->enableCheckout();
+        $old = (new \App\Entity\Billing\FactureCheckout())->setFacture($this->invoice)->setEntite($this->entite)->setFactureAmountCents(12000)->setAmountTotalCents(12000)
+            ->setStripeCheckoutSessionId('cs_processing')->setCheckoutUrl('https://checkout.example.test/cs_processing');
+        $this->em->persist($old); $this->em->flush();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::once())->method('request')->willReturn(['{"id":"cs_processing","object":"checkout.session","status":"complete","payment_status":"unpaid"}', 200, []]);
+        \Stripe\ApiRequestor::setHttpClient($http);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('en cours de traitement');
+        self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class)->createCheckoutForFacture($this->invoice);
+    }
+
+    public function testInvoiceCheckoutRejectsAnOuterTransactionBeforeCallingStripe(): void
+    {
+        $this->enableCheckout();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::never())->method('request'); \Stripe\ApiRequestor::setHttpClient($http);
+        $this->em->beginTransaction();
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('transaction externe');
+            self::getContainer()->get(\App\Service\Stripe\FactureCheckoutManager::class)->createCheckoutForFacture($this->invoice);
+        } finally { $this->em->rollback(); }
     }
 
     private function enableCheckout(): void

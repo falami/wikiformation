@@ -14,7 +14,7 @@
         
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
         <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
-        <script src="{{ asset('dist/js/cookie-consent.js') }}"></script>
+        <script src="{{ asset('dist/js/cookie-consent.js') }}?v=2"></script>
         {% block stylesheets %}
         {% endblock %}
 
@@ -22,17 +22,7 @@
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
 
-        {% if app.request.cookies.get('cookieConsent') == 'accepted' %}
-            <!-- Google tag (gtag.js) -->
-            <script async src="https://www.googletagmanager.com/gtag/js?id=G-KKCHBDBP0H"></script>
-            <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-
-            gtag('config', 'G-KKCHBDBP0H');
-            </script>
-        {% endif %}
+        {# No audience tracking on authentication, account or administration pages. #}
         
     </head>
     <body {% block body_attributes %}{% endblock %}>

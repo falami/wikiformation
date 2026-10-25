@@ -82,6 +82,10 @@ final class TenantVoter extends Voter
       return $membership->hasRole(UtilisateurEntite::TENANT_STAGIAIRE);
     }
 
+    if (in_array($attribute, [TenantPermission::ELEARNING_CONTENT_MANAGE, TenantPermission::ELEARNING_CONTENT_REORDER_MANAGE], true)) {
+      return $isAdmin || $membership->hasRole(UtilisateurEntite::TENANT_FORMATEUR);
+    }
+
     // ✅ Extranet formateur
     if (in_array($attribute, self::FORMATEUR_ALLOWED, true)) {
       return $membership->hasRole(UtilisateurEntite::TENANT_FORMATEUR);

@@ -1,0 +1,23 @@
+{# Only anonymous, non-sensitive public pages. Never send query tokens or account URLs. #}
+{% set audience_routes = ['app_public', 'app_public_catalogue', 'app_public_formation', 'app_public_pricing', 'app_public_contact', 'app_public_cookies', 'app_public_cgv', 'app_public_cgu', 'app_public_mentions_legales', 'app_public_politique_confidentialite'] %}
+{% if not app.user and app.request.attributes.get('_route') in audience_routes
+    and app.request.host in ['wikiformation.fr', 'www.wikiformation.fr']
+    and app.request.cookies.get('cookieConsent') == 'accepted'
+    and app.request.cookies.get('cookieConsentVersion') == '2026-10-25' %}
+    <script async data-turbo-track="reload" src="https://www.googletagmanager.com/gtag/js?id=G-KKCHBDBP0H"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-KKCHBDBP0H', {
+            send_page_view: false,
+            allow_google_signals: false,
+            allow_ad_personalization_signals: false,
+            cookie_expires: 34128000,
+            cookie_update: false,
+            page_location: location.origin + location.pathname,
+            page_referrer: ''
+        });
+        gtag('event', 'page_view', {page_location: location.origin + location.pathname, page_referrer: ''});
+    </script>
+{% endif %}

@@ -1,0 +1,177 @@
+AUDIT AVANT OUVERTURE DES VENTES — WIKIFORMATION
+25 octobre 2026
+
+DÉCISION À CE STADE
+Ne pas ouvrir les ventes réelles sur la seule base de cet audit local.
+Des défauts importants ont été corrigés, mais la facturation de la marketplace,
+la validation contractuelle et la recette sur l'hébergement et Stripe réels
+restent des conditions de lancement. Aucun déploiement ni paiement réel n'a
+été effectué pendant cet audit. Les corrections sont dans le projet local.
+
+PÉRIMÈTRE ET PREUVES
+Revue du code Symfony, dépendances, configuration, accès multi-organismes,
+authentification, documents privés, abonnements, paiements de factures,
+marketplace, consentement, parcours e-learning, automatisations et déploiement.
+Exécution de la suite PHP, tests JavaScript, validations PHP/Twig/YAML et du
+conteneur de services, contrôle HTTP du serveur Apache/Docker local.
+Les tests Stripe utilisent des doubles de test ; aucun compte n'a été débité.
+Les tests d'intégration utilisent une base SQLite isolée. L'état de la base
+MySQL locale a été consulté en lecture seule, sans schema:update ni migration.
+
+Le routeur expose plus de 2 200 variantes de routes, localisations comprises.
+Ces contrôles ne signifient pas que chaque combinaison de rôle, de donnée et
+de navigateur a été parcourue manuellement. Ils ne constituent ni un pentest
+externe complet, ni une certification juridique, ni une garantie zéro bug.
+
+RÉSULTATS DE VÉRIFICATION
+Suite globale : 782 tests PHP, 5 979 assertions, zéro échec, zéro erreur et
+zéro test ignoré. Un avertissement du nouveau test de séquence a ensuite été
+corrigé en alignant ses savepoints sur la configuration de production : nouvelle
+exécution ciblée réussie (1 test, 28 assertions), sans avertissement.
+JavaScript : 39 tests réussis, plus les scénarios de frais contractuels.
+Syntaxe : 871 fichiers PHP, 488 templates Twig et 34 fichiers YAML valides.
+Le relevé final chiffré figure dans verification-2026-10-25.json, conservé dans
+ce même dossier après la dernière exécution de la suite.
+- Audit Composer initial : 70 avis de sécurité sur 21 paquets verrouillés.
+  Versions corrigées installées localement ; audit final : aucun avis connu,
+  aucun paquet abandonné signalé. Cela ne prouve pas l'absence de faille inconnue.
+- Contrôle local des pages accueil, login, inscription, tarifs, catalogue,
+  CGV, mentions légales, confidentialité et cookies : 9 réponses HTTP 200,
+  aucune page d'exception ; 7 ressources CSS/JS locales accessibles.
+- Fichier e-learning témoin existant : accès anonyme HTTP 404 sans contenu.
+  Le fichier de contrôle a été retiré. Répéter cette vérification en production.
+- Cache de production reconstruit et conteneur de services valide.
+- Base locale : 73 migrations présentes et exécutées, aucune en attente.
+  Cela ne renseigne pas l'état de la base de production.
+- Le schéma Doctrine présente encore des écarts historiques : types JSON,
+  noms d'index, commentaires et une table notification_receipt gérée en SQL.
+  Cette dernière est effectivement utilisée par l'application. Ne pas exécuter
+  doctrine:schema:update --force : il proposerait notamment de la supprimer.
+- Exigences PHP/extensions satisfaites sur PHP 8.4.25 local. Le paquet verrouillé
+  endroid/qr-code 6.1.3 exige PHP ^8.4 ; le précédent guide indiquant 8.3 a été
+  corrigé. Vérifier aussi les binaires CLI et cron de production.
+- Des avertissements de dépréciation Doctrine, RateLimiter et macros Twig
+  demeurent : ils ne bloquent pas ces versions, mais devront être traités avant
+  une prochaine montée majeure. Le cache doit être vidé après déploiement.
+
+CORRECTIONS PRINCIPALES
+1. Paiements et abonnements
+Contrôle de l'état réellement payé, du montant, de la devise, de la facture et
+de l'organisme avant enregistrement d'un paiement. Rejeux de webhook sans
+double comptabilisation ; droits vérifiés avant les appels au portail Stripe
+et avant la lecture des retours de paiement. Séparation configurable des secrets
+des deux destinations webhook. Protection des renouvellements d'abonnement
+contre les événements anciens et conservation de la période déjà payée.
+La durée d'essai utilise le paramètre 30 jours au lieu d'une valeur 90 codée.
+Reprise des reversements et remboursements marketplace après interruption,
+et restauration des accès lorsque le litige est résolu favorablement.
+La répartition interne de la facture électronique reste à 0,02 EUR HT facturé,
+dont 0,01 EUR de coût fournisseur et 0,01 EUR de marge plateforme. Le code et
+ses tests ne valident pas le contrat tarifaire réel avec le fournisseur. La page
+tarifs désigne SUPER PDP comme plateforme agréée, et WikiFormation comme solution
+connectée ; elle ne doit pas présenter WikiFormation comme titulaire de l'agrément.
+Voir le rapport paiements joint pour les liens Checkout, verrous et limites.
+
+2. Isolation et sécurité des données
+Contrôle des objets d'administration et des sous-objets de cours par organisme.
+Un identifiant étranger reçoit une 404. Suppressions historiques en GET retirées
+et jetons CSRF exigés sur les opérations corrigées. Contrôles des cycles et
+identifiants étrangers avant réorganisation des chapitres.
+Médias e-learning originaux protégés avant le service des fichiers statiques.
+Accès stagiaire suspendu, expiré ou futur refusé ; HTML pédagogique assaini.
+La suspension d'un utilisateur par un organisme conserve son compte global,
+ses autres rattachements et ses achats. Les liens suspendus sont exclus des
+recherches d'espace et des contrôles de rôle.
+
+3. Confidentialité
+Retrait effectif du consentement Analytics, expiration cohérente des choix,
+absence d'Analytics dans les espaces privés, de connexion et d'administration.
+Chargement public restreint et suppression des paramètres d'URL et du référent
+dans la configuration de mesure. Cartes Google visibles uniquement après clic
+explicite ; leur calcul d'itinéraire côté serveur reste un traitement distinct.
+Coordonnées du vendeur visibles au panier et confirmation durable fondée sur
+les coordonnées figées dans la commande, sans utiliser un profil modifié ensuite.
+Les informations contractuelles absentes ne sont pas inventées.
+
+4. Fiabilité et déploiement
+Allocation atomique des numéros de séquence, y compris la première création de
+l'année ; test du retour arrière transactionnel. Correction de deux erreurs
+SQLite déclenchées par la génération d'attestations et d'un test de navigation
+devenu obsolète. Contraintes du formulaire d'inscription modernisées.
+En-têtes nosniff, Referrer-Policy et SAMEORIGIN par défaut, en conservant les
+politiques documentaires plus strictes. Compilation AssetMapper ajoutée au
+script de déploiement et contrôle de présence des ressources marketplace/studio.
+
+CONDITIONS À LEVER AVANT LES VENTES
+A — Facturation des cours et des commissions (fonctionnel et comptable)
+Les récapitulatifs de commande et reçus Stripe ne constituent pas le circuit de
+facturation vendeur et commission attendu. Définir puis mettre en place qui
+émet les factures pour les formateurs, les ventes propres d'I.T For You et les
+commissions, avec TVA, numérotation, avoirs et rapprochement. Les chiffres du
+tableau de bord ne sont pas un livre comptable. Les remboursements de factures
+ordinaires nécessitent aussi une procédure de rapprochement et d'avoir.
+
+B — Contrats et information des acheteurs (validation métier/juridique)
+Compléter les véritables coordonnées, CGV, médiateur effectivement désigné,
+garanties numériques, réclamations, durée de fourniture/mises à jour et politique
+de fin de service. Vérifier les informations de chaque vendeur avant paiement.
+Déterminer les offres pour lesquelles le droit de rétractation s'applique et
+mettre à disposition le parcours en ligne requis pendant le délai applicable.
+L'exception de contenu numérique suppose des conditions précises ; les cases
+cochées seules ne dispensent pas de la confirmation durable et des garanties.
+Référence officielle consultée au 25/10/2026 :
+https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/delais-de-reflexion-ou-de-retractation-comment-sappliquent-t-ils
+
+C — Organisation RGPD (preuves et décisions hors dépôt)
+Valider rôles responsable/sous-traitant, registre, contrats de sous-traitance,
+prestataires et transferts, durées par finalité, archivage/purge, accès aux
+sauvegardes, traitement des demandes de droits et procédure d'incident.
+L'export e-learning ne couvre pas toutes les données de la plateforme.
+Inventorier également les services tiers, polices, CDN et vidéos ; vérifier
+leurs requêtes réseau dans l'environnement réellement publié.
+Référence consentement et retrait :
+https://cnil.fr/fr/cookies-et-autres-traceurs/que-dit-la-loi
+
+D — Recette technique sur l'environnement destiné aux clients
+Déployer d'abord sur un environnement de recette représentatif avec sauvegarde
+et restauration démontrée, puis vérifier :
+- PHP 8.4 web/CLI/cron, extensions, composer install depuis le verrou testé,
+  migrations revues, cache, ressources statiques, APP_ENV=prod et APP_DEBUG=0.
+- Secrets hors dépôt et propres à l'environnement. Des secrets de développement
+  sont suivis dans les fichiers d'environnement ; vérifier qu'aucun n'est réutilisé
+  en production et remplacer ceux qui l'auraient été, sans les publier dans les logs.
+- Règles Apache/proxy/CDN empêchant réellement l'accès aux fichiers privés,
+  HTTPS, cookies de session et caches, droits des répertoires et archives médias.
+- Chaque webhook configuré avec son propre secret et le bon compte Stripe,
+  événements nécessaires et alerte en cas d'échec. Un secret de CLI ne remplace
+  pas celui de la destination enregistrée dans Stripe.
+- Scénarios Stripe en mode test : succès, refus, authentification forte, abandon,
+  retour interrompu, expiration, double clic, webhook doublé ou désordonné,
+  remboursement partiel/intégral, litige gagné/perdu, reprise après interruption,
+  compte Connect incomplet et reversement indisponible. Comparer Stripe, base,
+  bibliothèque et tableaux de bord. Tester aussi une vente propre super-admin.
+- SMTP et réception des confirmations/OTP/rappels, SPF/DKIM/DMARC et supervision.
+- Crons réellement installés et surveillés : rapprochement marketplace,
+  rappels de session et autres automatisations activées. La commande marketplace
+  sans --settle synchronise ET envoie des confirmations ; ce n'est pas un dry-run.
+- Sauvegarde hors serveur, restauration base + fichiers + archives marketplace,
+  rétention et accès restreints. Définir la suspension des écritures pendant
+  les migrations et les conditions de retour arrière pour éviter la perte
+  de paiements reçus après la sauvegarde.
+Références Stripe :
+https://docs.stripe.com/webhooks
+https://docs.stripe.com/connect/separate-charges-and-transfers
+
+ÉTAT DE LA PRODUCTION OBSERVÉ
+La page HTTPS /fr/login a répondu 200 à un contrôle HEAD en lecture seule,
+avec cache privé/no-store et cookie Secure/HttpOnly/SameSite=Lax. Ce contrôle
+ne prouve pas le bon fonctionnement d'une connexion mobile, d'un achat, des
+webhooks, du SMTP ou des tâches planifiées. Aucun accès au tableau Stripe ni
+audit authentifié du serveur de production n'a été réalisé.
+
+RAPPORTS ET SUITE
+Voir aussi audit-access-2026-10-25.txt, audit-payments-2026-10-25.txt et
+audit-privacy-2026-10-25.txt dans ce dossier, ainsi que docs/marketplace/DEPLOIEMENT.txt.
+Conserver les ventes désactivées tant que les conditions A à D n'ont pas une
+preuve de résolution. Un résultat de tests vert valide les scénarios testés ;
+il ne suffit pas à autoriser seul une ouverture commerciale.

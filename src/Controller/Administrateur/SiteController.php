@@ -169,9 +169,11 @@ final class SiteController extends AbstractController
         ]);
     }
 
-    #[Route('/supprimer/{id}', name: 'app_administrateur_site_supprimer', methods: ['GET'])]
-    public function delete(Entite $entite, EntityManagerInterface $em, Site $site): RedirectResponse
+    #[Route('/supprimer/{id}', name: 'app_administrateur_site_supprimer', methods: ['POST'])]
+    public function delete(Entite $entite, EntityManagerInterface $em, Site $site, Request $request): RedirectResponse
     {
+        if (!$this->isCsrfTokenValid('delete_site_' . $site->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page avant de supprimer.');
+
 
 
         $id = $site->getId();

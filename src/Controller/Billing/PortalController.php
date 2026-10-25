@@ -10,11 +10,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class PortalController extends AbstractController
 {
-  #[Route('/administrateur/{entite}//billing/portal', name: 'app_billing_portal')]
+  #[Route('/administrateur/{entite}/billing/portal', name: 'app_billing_portal', methods: ['GET'])]
   public function portal(Entite $entite, EntiteSubscriptionRepository $subs, StripeBillingService $stripe): RedirectResponse
   {
-
-
+    $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+    $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, $entite);
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
@@ -25,7 +25,7 @@ final class PortalController extends AbstractController
 
     $returnUrl = $this->generateUrl(
       'app_administrateur_dashboard_index',
-      ['entite' => $entite],
+      ['entite' => $entite->getId()],
       \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL
     );
 

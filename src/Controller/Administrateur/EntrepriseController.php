@@ -270,9 +270,11 @@ final class EntrepriseController extends AbstractController
         ]);
     }
 
-    #[Route('/supprimer/{id}', name: 'app_administrateur_entreprise_supprimer', methods: ['GET'])]
-    public function delete(Entite $entite, EntityManagerInterface $em, Entreprise $entreprise): RedirectResponse
+    #[Route('/supprimer/{id}', name: 'app_administrateur_entreprise_supprimer', methods: ['POST'])]
+    public function delete(Entite $entite, EntityManagerInterface $em, Entreprise $entreprise, Request $request): RedirectResponse
     {
+        if (!$this->isCsrfTokenValid('delete_entreprise_' . $entreprise->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Rechargez la page avant de supprimer.');
+
         if ($entreprise->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException('Entreprise introuvable pour cette entité.');
         }

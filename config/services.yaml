@@ -121,6 +121,12 @@ services:
       $stripeSecretKey: "%stripe.secret_key%"
       $appUrl: "%app.url%"
 
+  # Stripe signs each webhook destination with its own secret. The fallback preserves
+  # existing installations until the separate invoice destination is configured.
+  App\Controller\Webhook\StripeWebhookController:
+    arguments:
+      $stripeWebhookSecret: "%env(default:stripe.webhook_secret:STRIPE_INVOICE_WEBHOOK_SECRET)%"
+
   App\Controller\Administrateur\SessionStagiairePieceController:
     arguments:
       $uploadDir: "%piece_dossier_dir%"

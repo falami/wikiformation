@@ -435,6 +435,7 @@ textarea{ margin: 1rem 0 1rem 0 ; }
   {# ================== Blocs du chapitre (drag & drop) ================== #}
   <div class="card shadow-sm mt-4"
      id="blocks-card"
+     data-csrf="{{ csrf_token('reorder_blocks_' ~ course.id) }}"
      data-reorder-url="{{ path('app_administrateur_elearning_content_block_reorder', {
         entite: entite.id,
         course: course.id
@@ -647,7 +648,7 @@ textarea{ margin: 1rem 0 1rem 0 ; }
             try{
               const res = await fetch(reorderUrl, {
                 method:'POST',
-                headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+                headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-Token':document.getElementById('blocks-card').dataset.csrf},
                 body: JSON.stringify(items)
               });
               if(!res.ok) throw new Error('HTTP '+res.status);
@@ -789,7 +790,7 @@ textarea{ margin: 1rem 0 1rem 0 ; }
             const idx = nextChoiceIndex(list);
             const tpl = qs('template.tpl-choice', wrap);
             const protoHtml = tpl ? tpl.innerHTML : '';
-            const proto = protoHtml.replace(/__name__/g, String(idx));
+            const proto = protoHtml.replace(/__choice__/g, String(idx));
 
             const node = styleChoiceNode(proto);
             if (!node) return;

@@ -114,7 +114,7 @@
     </style>
 
     {# --- Cookie consent (ton script) --- #}
-    <script src="{{ asset('dist/js/cookie-consent.js') }}"></script>
+    <script src="{{ asset('dist/js/cookie-consent.js') }}?v=2"></script>
 
     {# --- Données structurées JSON-LD --- #}
     <script type="application/ld+json">
@@ -157,18 +157,7 @@
     {# --- Bloc CSS page --- #}
     {% block stylesheets %}{% endblock %}
 
-    {# --- Google Analytics (avec consentement) --- #}
-    {% if app.request.cookies.get('cookieConsent') == 'accepted' %}
-      <!-- Google tag (gtag.js) -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-KKCHBDBP0H"></script>
-        <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-
-        gtag('config', 'G-KKCHBDBP0H');
-        </script>
-    {% endif %}
+    {% include '_public_analytics.html.twig' %}
   </head>
 
 

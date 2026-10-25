@@ -117,7 +117,7 @@ final class InvoiceFollowUpTest extends KernelTestCase
         $other = (new Entite())->setNom('Other')->setCreateur($this->user)->setPublic(false);
         $this->em->persist($other); $this->em->flush();
         $client->request('GET', '/fr/administrateur/'.$other->getId().'/facture/'.$invoice->getId().'/suivi');
-        self::assertSame(403, $client->getResponse()->getStatusCode());
+        self::assertSame(404, $client->getResponse()->getStatusCode());
         $client->request('POST', $url, ['invoice_follow_up' => ['renewalMonths' => '999', 'reminderMonths' => '1', '_token' => 'invalid']]);
         self::assertSame(422, $client->getResponse()->getStatusCode());
         $invoice = $this->em->find(Facture::class, $invoice->getId());

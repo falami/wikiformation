@@ -1,0 +1,103 @@
+AUDIT PRE-PRODUCTION — PRIVACITE, CONSENTEMENT ET INFORMATION CONSOMMATEUR
+WikiFormation — 25 octobre 2026
+Périmètre : code local Symfony ; contrôle documentaire des règles officielles ; aucun paiement, aucun e-mail réel et aucune modification de la base de production.
+Ce travail ne constitue pas une certification de conformité et ne remplace pas la validation des documents contractuels par un conseil compétent. Les contrats signés avec les prestataires, la configuration de production et les pratiques de l'entreprise ne sont pas vérifiables par le seul dépôt.
+
+1. CORRECTIONS TECHNIQUES REALISEES
+
+A. Retrait effectif du consentement audience (défaut confirmé, corrigé)
+Auparavant, refuser après acceptation laissait Google Analytics déjà chargé continuer à fonctionner. Le gestionnaire est maintenant persistant à travers les navigations Turbo, désactive la collecte, retire les seuls cookies GA et recharge complètement la page pour décharger le script. Les cookies d'authentification sont préservés. Ouvrir le panneau ne détruit plus le choix déjà enregistré.
+Le consentement et le refus ont la même durée de 180 jours. La version du texte est conservée ; les anciens consentements non versionnés ne chargent plus GA. Cookies Secure sous HTTPS et SameSite=Lax. Acceptation/refus ont une présentation équivalente ; un accès permanent « Gérer les cookies » est présent.
+Fichiers : public/dist/js/cookie-consent.js ; templates/_cookie_consent.html.twig ; templates/public/cookies.html.twig.
+
+B. Minimisation de l'audience (corrigé)
+Suppression de Google Analytics dans les layouts de compte, de connexion et d'administration. Sur le layout public, chargement limité aux visiteurs anonymes, à une liste explicite de pages publiques et aux domaines wikiformation.fr/www.wikiformation.fr, uniquement avec consentement valide. Aucun paramètre d'URL ni référent n'est envoyé dans la configuration page_view. Google signals et personnalisation publicitaire désactivés. Les navigations Turbo quittant ce périmètre forcent un rechargement pour ne pas conserver le script dans les espaces privés. Vérifier séparément la configuration du compte Google Analytics, ses fonctionnalités automatiques et ses clauses/transferts.
+Fichiers : templates/base.html.twig ; templates/base_admin.html.twig ; templates/base_public.html.twig ; templates/_public_analytics.html.twig.
+
+C. Protection de l'identité partagée et des achats contre une suppression tenant (défaut confirmé, corrigé)
+La route administrateur de suppression utilisateur effaçait l'objet Utilisateur global. Un administrateur d'un organisme pouvait ainsi affecter un compte utilisé dans un autre organisme et ses achats. Elle suspend désormais seulement le rattachement UtilisateurEntite de son organisme. Le compte global, les achats et les autres rattachements sont conservés. Les protections antérieures des comptes vérifiés/avec inscriptions sont conservées ; un compte administrateur, dirigeant, créateur d'entité ou super-admin ne peut pas être suspendu par cette action. Le libellé et la confirmation expliquent maintenant la portée locale.
+Les recherches de l'espace courant/par défaut et les contrôles de rôle locaux excluent les rattachements suspendus. Sans rattachement actif restant, le compte n'est pas supprimé et aucun espace tenant par défaut n'est choisi.
+Les deux actions super-admin de retrait de lien suppriment seulement UtilisateurEntite. La méthode globale UtilisateurManager::delete existe encore, mais aucun appel n'a été trouvé dans src. Ne pas la réutiliser pour un retrait tenant ni pour une demande RGPD sans procédure de conservation/anonymisation.
+Fichiers : src/Controller/Administrateur/UtilisateurController.php ; src/Repository/UtilisateurEntiteRepository.php ; templates/administrateur/utilisateur/_actions.html.twig ; templates/administrateur/utilisateur/index.html.twig ; templates/partials/_modales_index_generiques.html.twig.
+
+D. Droits et transparence (corrigé partiellement)
+Page des conditions marketplace structurée avec accès à la politique de confidentialité, aux droits, aux cookies et à l'export des données e-learning pour les utilisateurs connectés. Le texte de confidentialité ne présente plus le mot de passe comme « chiffré » : il décrit une empreinte non réversible. Aucun texte contractuel ni durée de conservation fictive n'a été inventé.
+Fichiers : templates/marketplace/terms.html.twig ; templates/public/politique_confidentialite.html.twig.
+
+E. Cartes Google côté navigateur (corrigé)
+Les dashboards formateur, stagiaire et entreprise affichent désormais un aperçu neutre local. Le bouton « Afficher la carte Google Maps » explique le chargement du service externe et les métadonnées transmises ; aucune iframe n'existe avant le clic. Le lien d'ouverture externe et l'adresse restent disponibles. Le script commun crée la carte uniquement pour une URL Google Maps HTTPS autorisée et sans référent ; il la retire lors de la fermeture de la modale et de la mise en cache Turbo. Aucun cookie ni suivi supplémentaire, aucune autorisation globale mémorisée.
+Fichiers : templates/partials/_google_map.html.twig ; public/dist/js/external-map.js ; public/dist/css/external-map.css ; templates/base_admin.html.twig ; templates/formateur/dashboard.html.twig ; templates/stagiaire/dashboard.html.twig ; templates/entreprise/dashboard.html.twig.
+
+F. Coordonnées professionnelles avant paiement et confirmation durable (corrigé)
+Le panier affiche maintenant les données professionnelles disponibles : nom, immatriculation, adresse, e-mail, numéro de TVA et mention d'exonération lorsqu'ils sont renseignés. Le mail de confirmation reprend ces mêmes catégories exclusivement depuis l'instantané purchase.consent.seller enregistré à l'achat, jamais depuis le profil vendeur courant. Les contenus sont échappés en HTML, l'adresse conserve ses retours à la ligne et les conditions contractuelles figées restent jointes au texte. Il ne s'agit pas d'une facture et cela ne complète pas les informations encore absentes du modèle (notamment téléphone/médiateur/clauses propres au vendeur).
+Fichiers : templates/marketplace/cart.html.twig ; src/Service/Marketplace/Confirmations.php.
+
+2. EXIGENCES AVANT OUVERTURE DES VENTES — NON RESOLUES PAR LE CODE SEUL
+
+PRIORITE HAUTE — Conditions de vente / information vendeur / garanties
+- Les CGV publiques, templates/public/cgv.html.twig:1549 et :1604, restent génériques sur la rétractation et mentionnent un dispositif de médiation sans identification de médiateur. Compléter les coordonnées du professionnel, le médiateur effectivement désigné, sa saisine, les garanties légales des contenus/services numériques et les mentions obligatoires applicables, la durée de fourniture/mises à jour, fonctionnalités/compatibilité, réclamations et modalités de fin d'accès.
+- Les textes marketplace paramétrables sont désactivés par défaut avec legalApproved=false ; l'activation vérifie un booléen et une longueur minimale de texte, ce qui ne vaut pas validation juridique. Ne pas activer les ventes avant remplissage et validation des vrais textes.
+- Le modèle vendeur dispose notamment du nom, immatriculation, adresse, e-mail et fiscalité, mais pas d'une politique contractuelle complète propre à chaque vendeur ni de coordonnées de médiation/téléphone structurées. Les données disponibles sont désormais affichées avant paiement et transmises sur support durable (correction F) ; vérifier et compléter les informations obligatoires encore manquantes.
+- Les pages légales publiques affichent aujourd'hui une « dernière mise à jour » avec now : cela change à chaque consultation et ne constitue pas un historique de versions. Utiliser une date/version réelle lors de l'approbation des documents.
+
+PRIORITE HAUTE — Rétractation et confirmation durable
+- Point positif : trois cases séparées non précochées existent au paiement ; l'acceptation des conditions, la demande d'accès immédiat et la reconnaissance de la perte du droit de rétractation sont contrôlées côté serveur ; la version des conditions et le consentement sont figés dans l'achat.
+- L'exception de rétractation d'un contenu numérique n'est pas acquise uniquement par une case : elle dépend aussi du début d'exécution demandé et d'une confirmation sur support durable. src/Service/Marketplace/Confirmations.php envoie le texte des conditions, le consentement et les coordonnées professionnelles figées après paiement via la commande planifiée. Il faut tester réellement cette chaîne en mode test, superviser les échecs et compléter l'information contractuelle manquante.
+- Selon la fiche DGCCRF consultée, depuis le 19 juin 2026, les contrats conclus via une interface en ligne nécessitent une fonction de rétractation en ligne visible, accessible gratuitement pendant le délai applicable, suivie d'un accusé de réception durable horodaté. Aucun parcours général de rétractation n'a été identifié. Faire déterminer l'application exacte aux offres, abonnements et cours selon leur nature et l'éventuelle exception valable de contenu numérique. Un lien vers Stripe pour résilier n'est pas à lui seul ce mécanisme.
+
+PRIORITE HAUTE — Facturation des ventes et commissions
+- docs/marketplace/DEPLOIEMENT.txt:59 précise lui-même que le récapitulatif n'est pas la facture du formateur. La délivrance des factures vendeur et des factures de commission I.T For You, les mentions TVA et les responsabilités restent à définir/valider avec le comptable. Le reçu Stripe ne résout pas automatiquement ce point. Les traitements paiement sont audités séparément par l'agent paiements.
+
+PRIORITE HAUTE — Gouvernance RGPD et durées de conservation
+- Politique templates/public/politique_confidentialite.html.twig:1602 décrit surtout des durées « nécessaires », sans tableau précis par finalité ni procédure démontrée. Définir comptes actifs/inactifs, demandes, prospection, dossiers de formation, données sensibles éventuelles, signatures, journaux, paiements/factures/contrats, sauvegardes. Documenter les bases légales, archivages à accès restreint et exceptions à l'effacement ; implémenter ensuite purge/anonymisation contrôlée. Aucune commande générale de purge/retention n'a été identifiée dans src/Command.
+- L'export marketplace /cours-en-ligne/mes-donnees est authentifié, limité à l'utilisateur et annoncé comme export e-learning. Il ne couvre pas l'intégralité des données de la plateforme. Une adresse de contact pour exercer les droits existe ; l'absence d'un bouton de suppression automatique n'est pas en soi une violation. Il faut une procédure opérationnelle vérifiée d'identification, d'inventaire/export, rectification, opposition, limitation, effacement ou refus justifié, avec réponse en principe sous un mois.
+- Clarifier le rôle d'I.T For You responsable de traitement pour les comptes/ventes et sous-traitant pour certains dossiers des organismes, au lieu de présenter une seule responsabilité globale. Vérifier les contrats article 28, registre des traitements, liste et contrats sous-traitants, hébergement/SMTP/Stripe/Google, transferts hors EEE, habilitations, processus de violation et sauvegardes. Ces preuves ne sont pas déductibles du dépôt.
+
+PRIORITE MOYENNE A HAUTE — Autres contenus tiers
+- Les cartes des trois dashboards ont été bloquées côté navigateur avant clic explicite (voir correction E). Le dashboard formateur effectue cependant un calcul d'itinéraire côté serveur via Google Routes avant le rendu, à partir des adresses d'origine/destination (src/Controller/Formateur/DashboardFormateurController.php, calcul distance/durée avant gmapsEmbedUrl). Ce calcul préexistant est conservé : qualifier sa base légale, la nécessité de transmettre l'adresse complète et l'information correspondante. Le blocage des iframes ne constitue pas un blocage de cette API serveur.
+- Inventorier également vidéos externes, Google Fonts et CDN ; minimiser/refuser les référents et héberger localement les ressources lorsque pertinent. Il n'a pas été possible de constater les cookies réseau effectifs des prestataires de production pendant cet audit local.
+
+PRIORITE MOYENNE — Prospection et journaux
+- L'inscription propose une case newsletter facultative et décochée. Aucun moteur de campagne ni lien de désinscription dédié n'a été identifié. Avant d'utiliser cette préférence pour de la prospection, enregistrer une preuve distincte/versionnée, assurer la désinscription simple et une liste d'opposition ; ne pas assimiler les e-mails transactionnels à une autorisation marketing.
+- Le stockage applicatif des journaux en production repose sur stderr (Monolog). La rotation/rétention réelle dépend de l'hébergeur ; vérifier limitation, masquage et accès. Les historiques e-mail peuvent contenir des données personnelles. La CNIL recommande généralement 6 à 12 mois pour les traces de sécurité, à adapter et justifier selon le risque ; ce n'est pas une durée unique pour tous les dossiers ou documents.
+
+3. VERIFICATIONS EFFECTUEES
+
+Après mise à jour des dépendances Composer par l'agent principal :
+- PHP 8.4.25, PHPUnit 11.5.55.
+- bin/phpunit tests/Integration/TenantMembershipRevocationTest.php : 4 tests, 23 assertions, succès. Cas : CSRF invalide, retrait local avec achat et deuxième entité préservés, dernier rattachement, auto-révocation administrateur bloquée, cible étrangère 404, stagiaire non autorisé 403.
+- bin/phpunit tests/Twig/AnalyticsPrivacyTest.php : 1 test, 10 assertions, succès. Consentement/version, espace public vs privé, domaine, localisation de page sans paramètres et sortie Turbo.
+- node --test tests/JavaScript/cookie-consent.test.cjs : 4 tests, succès. Absence/ancien consentement, expiration acceptation/refus, retrait effectif, cookies essentiels conservés, navigation Turbo et restauration de page.
+- bin/phpunit tests/Twig/ExternalMapPrivacyTest.php : 1 test, 10 assertions, succès. Aperçu initial sans iframe, image ou script externe ; action explicite et lien externe disponible.
+- node --test tests/JavaScript/external-map.test.cjs : 3 tests, succès. Aucune création d'iframe avant clic, une seule iframe après clic répété, refus des URL inattendues, réinitialisation à la fermeture de modale et au cache Turbo.
+- lint:twig sur 11 fichiers modifiés : succès, y compris après mise à jour des dépendances.
+- lint:twig supplémentaire sur le composant cartes, les trois dashboards et base_admin : 5 fichiers, succès.
+- bin/phpunit tests/Service/Marketplace/ConfirmationsTest.php tests/Twig/MarketplaceCartSellerTest.php : 2 tests, 33 assertions, succès. Identité vendeur disponible avant paiement, échappement HTML, confirmation fondée exclusivement sur les coordonnées figées malgré changement ultérieur du profil, confirmation non renvoyée une fois marquée comme envoyée. Transport mail simulé, aucun envoi réel.
+- lint:twig supplémentaire templates/marketplace/cart.html.twig : succès.
+- git diff --check sur les fichiers suivis de cet audit : succès.
+- Tests isolés SQLite en mémoire ; aucune suppression réelle, aucun mail, aucun paiement et aucune migration de production.
+
+4. REFERENCES OFFICIELLES CONSULTEES
+
+Cookies, consentement préalable, refus et retrait :
+https://cnil.fr/fr/cookies-et-autres-traceurs/que-dit-la-loi
+https://www.cnil.fr/sites/default/files/2026-01/recommandation_cookies_consolidee.pdf
+Information et droits des personnes (RGPD chapitre III) :
+https://www.cnil.fr/fr/reglement-europeen-protection-donnees/chapitre3
+Responsable et sous-traitant :
+https://www.cnil.fr/fr/responsable-de-traitement-et-sous-traitant-6-bonnes-pratiques-pour-respecter-les-donnees
+Journaux de sécurité :
+https://www.cnil.fr/fr/la-cnil-publie-une-recommandation-relative-aux-mesures-de-journalisation
+Prospection / durées :
+https://www.cnil.fr/fr/questions-reponses-sur-les-referentiels-relatifs-la-gestion-des-activites-commerciales-et-des
+Information précontractuelle et coordonnées :
+https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/le-contrat-un-accord-entre-des-parties-bien-informees-au-prealable
+Rétractation en ligne et règles applicables depuis juin 2026 :
+https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/delais-de-reflexion-ou-de-retractation-comment-sappliquent-t-ils
+Médiation et litiges :
+https://www.economie.gouv.fr/particuliers/mes-droits-conso/gerer-un-litige/achats-et-services-en-ligne-6-conseils-en-cas-de-litige
+Garantie légale de conformité, contenus/services numériques :
+https://www.service-public.gouv.fr/particuliers/vosdroits/F11094
+
+CONCLUSION DE PERIMETRE
+Les défauts techniques démontrés ci-dessus sont corrigés et couverts par des contrôles ciblés. L'ouverture commerciale ne peut pas être déclarée conforme ou sans risque sur cette base : information consommateur, facturation, documents contractuels, rétractation, organisation RGPD et vérification du déploiement réel restent des conditions concrètes à traiter avant le lancement.

@@ -1,0 +1,47 @@
+Audit accès / sécurité applicative — 25 octobre 2026
+Périmètre local uniquement, sans écriture de données métier réelles ni accès à la production.
+
+Constats corrigés et reproduits par tests
+1. P1 — Isolation des entités dans l'administration : plusieurs contrôleurs acceptaient un identifiant d'objet sans vérifier son organisme (ex. Site/modifier, contenus Formation). Un administrateur de A pouvait utiliser la route de A avec un objet de B. Ajout d'AdminResourceScope, appliqué avant les actions de l'espace administrateur : contrôle des objets liés à Entite et des relations Formation/Engin/Node; contrôle de la formation ou du cours pour les sous-objets. Les comptes Utilisateur globaux sont exclus de cette règle et relèvent des droits d'adhésion dédiés. Les réponses aux objets hors périmètre deviennent 404, même lorsque d'anciens contrôleurs répondaient 403.
+2. P1 — E-learning, éditions imbriquées : certaines pages d'édition rendaient un chapitre ou une ressource d'un autre cours avant tout contrôle. MarketplaceEditorGuard contrôle cours/entité, propriété du cours pour le formateur, chapitre et bloc avant GET et POST; protège également les inscriptions au cours.
+3. P1 — Ressources e-learning originales accessibles par URL statique : /uploads/elearning est désormais routé vers ProtectedUploadController par routes.yaml et .htaccess, avant la règle des fichiers existants. Accès seulement à un administrateur de l'entité, au formateur auteur, ou à un stagiaire ayant un accès valide et un chapitre publié (ancêtres compris). Contrôle de cohérence des entités, chemin réel borné au répertoire, cache privé/no-store, nosniff. Les ressources des achats Marketplace continuent à utiliser leurs instantanés privés.
+4. P1 — Ancien espace stagiaire : une inscription suspendue, expirée ou future permettait encore de consulter le cours et de modifier la progression. La fenêtre d'accès et le statut sont désormais vérifiés; les modifications de progression exigent aussi un chapitre publié.
+5. P1 — HTML de ressources rendu brut dans l'ancien espace stagiaire : assainissement par le service Content existant, suppression du HTML actif et validation des URL HTTP(S), afin de prévenir des scripts persistants chez les stagiaires.
+6. P1/P2 — Actions sans protection CSRF : suppression Site/Formateur/Entreprise/Réservation convertie de GET en POST avec jeton; confirmation de réservation, mise à jour des dates d'inscription e-learning, suppression des chapitres/blocs Formation, suppression/réorganisation des photos Formation/Engin et anciennes routes de réorganisation des chapitres/blocs désormais protégées. Les formulaires et requêtes JS transmettent les jetons.
+7. P2 — Réorganisation des contenus : validation intégrale des IDs, limites, appartenance au cours/formation et graphe des parents avant toute modification. Les cycles, doublons et IDs étrangers sont rejetés sans sauvegarde partielle. Les formulaires de chapitre rejettent également le rattachement à soi-même ou à un descendant. Les erreurs AJAX ne renvoient plus les exceptions/stack traces applicatives.
+
+Fichiers principaux
+- src/Security/AdminResourceScope.php, ElearningAccess.php (nouveaux)
+- src/EventSubscriber/MarketplaceEditorGuard.php
+- src/Controller/ProtectedUploadController.php, config/routes.yaml, public/.htaccess
+- src/Controller/Stagiaire/ElearningStagiaireController.php + templates/stagiaire/elearning/course_show.html.twig
+- src/Controller/Administrateur/{ElearningContentController,ElearningContentReorderController,ElearningEnrollmentController,FormationContentController,FormationContentReorderController,FormationController,EnginController,SiteController,FormateurController,EntrepriseController,ReservationController}.php
+- Templates correspondants pour jetons CSRF, formulaires POST et requêtes JS.
+- Tests nouveaux : tests/Integration/ElearningSecurityTest.php, tests/Integration/AdminResourceSecurityTest.php
+
+Vérifications effectuées après la mise à jour Composer
+- ElearningSecurityTest : 6 tests, 35 assertions, succès.
+- AdminResourceSecurityTest : 4 tests, 39 assertions, succès.
+- lint:twig ciblé : 19 fichiers valides.
+- Les tests utilisent exclusivement SQLite en mémoire. Le seul fichier disque de test est créé avec un nom audit aléatoire puis supprimé en tearDown.
+- La suite globale et les autres domaines sont contrôlés par l'agent principal; ce rapport n'en anticipe pas les résultats.
+
+Limites / vérifications indispensables pour le déploiement
+- Déployer la règle .htaccess avec le code; vérifier que le serveur de production applique les réécritures Apache (AllowOverride). Sur Nginx, une règle équivalente doit router les uploads privés avant le service statique. Sans cela, le contrôle PHP ne protège pas une URL de fichier existant. Le serveur réel n'a pas été audité ici.
+- Le garde central couvre les objets résolus dans les arguments des contrôleurs administrateur. Il ne remplace pas le contrôle des identifiants libres lus dans un POST, JSON ou une requête SQL; l'audit ne garantit pas l'absence de toute autre IDOR sur les centaines de routes.
+- Il bloque volontairement les objets d'un autre organisme ou dont l'entité est manquante. D'anciennes données métier incohérentes peuvent donc donner une 404 et nécessiter une correction de données. Les actions globales sans argument Entite et les comptes Utilisateur multi-organismes ne sont pas concernés.
+- Les archives sans référence ou avec plusieurs références au même fichier sont refusées par ProtectedUploadController (règle préexistante maintenue). Un ancien cours dupliqué réutilisant exactement le même nom de média peut nécessiter une copie du média pour un accès unique.
+- Le service d'assainissement HTML existant privilégie le texte sûr et peut retirer certains enrichissements (images/tableaux HTML intégrés); les blocs image/fichier/vidéo dédiés restent pris en charge.
+- Pas de pentest externe ni de simulation exhaustive de tous navigateurs et configurations de proxy/CDN. Auth/session mobile, déploiement, sauvegardes et comportements en production doivent être confirmés par recette. Aucun secret Stripe live ni envoi réel d'e-mail n'a été utilisé.
+- Aucune certification RGPD ou garantie « zéro bug » ne peut découler de ces seuls tests.
+
+Vérification HTTP Apache local supplémentaire
+- GET anonyme sur un fichier sentinelle temporaire créé dans public/uploads/elearning, via http://localhost:8888 : HTTP 404, Content-Type text/html; charset=UTF-8, Server Apache/2.4.68 (Debian), contenu sentinelle absent de la réponse.
+- La requête a exigé l'autorisation réseau hors sandbox; revue automatique acceptée. Aucun accès production ni fichier métier consulté.
+- La sentinelle a été supprimée dans le bloc finally, suppression vérifiée.
+- La règle locale Apache protège donc bien un fichier existant, avant le service statique. Il reste à vérifier la même configuration sur l'hébergement de production.
+
+Complément revue paiements / retour utilisateur
+- Revue indépendante du nouveau FactureCheckoutManager : inversion de verrous Facture→Checkout / Checkout→Facture signalée à l'agent paiements; celui-ci confirme l'alignement. Les autres modifications du manager restent sous sa responsabilité.
+- templates/billing/payment/success.html.twig corrigé : aucune annonce de paiement effectué tant que le checkout n'est pas completed; états created (confirmation en attente), expired/canceled (paiement non finalisé), completed (confirmé).
+- tests/Service/Billing/PaymentReturnStatusTest.php : route réelle pour les quatre statuts; 1 test, 18 assertions réussies.

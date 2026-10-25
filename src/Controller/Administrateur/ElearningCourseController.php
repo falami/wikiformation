@@ -154,6 +154,7 @@ final class ElearningCourseController extends AbstractController
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
+    if ($course && $course->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
     $isEdit = (bool) $course;
     $course ??= (new ElearningCourse())
       ->setEntite($entite)
@@ -199,6 +200,7 @@ final class ElearningCourseController extends AbstractController
     EntityManagerInterface $em,
     ElearningEnrollmentManager $manager
   ): Response {
+    if ($newOrder->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
     if (!$this->isCsrfTokenValid('order_paid_' . $newOrder->getId(), (string)$request->request->get('_token'))) {
       throw $this->createAccessDeniedException('CSRF invalide.');
     }

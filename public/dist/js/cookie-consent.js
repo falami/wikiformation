@@ -1,55 +1,68 @@
-// public/dist/js/cookie-consent.js
-document.addEventListener('DOMContentLoaded', function () {
-  const banner = document.getElementById('cookie-banner');
-  if (!banner) return; // si la bannière n'est pas sur la page, on sort
+(() => {
+  'use strict';
+  if (window.WikiCookieConsent) return;
 
-  // ——— Helpers cookie ———
-  function getCookie(name) {
-    return document.cookie
-      .split('; ')
-      .find(row => row.startsWith(name + '='))
-      ?.split('=')[1];
-  }
-  function setCookie(name, value, maxAgeSeconds) {
-    const secure = location.protocol === 'https:' ? '; Secure' : '';
-    document.cookie = `${name}=${value}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax${secure}`;
-  }
+  const VERSION = '2026-10-25';
+  const MAX_AGE = 180 * 24 * 60 * 60;
+  const ANALYTICS_ID = 'G-KKCHBDBP0H';
+  const getCookie = name => document.cookie.split(';').map(part => part.trim())
+    .find(part => part.startsWith(`${name}=`))?.slice(name.length + 1);
+  const setCookie = (name, value, age, domain = '') => {
+    document.cookie = `${name}=${value}; Path=/; Max-Age=${age}; SameSite=Lax${domain ? `; Domain=${domain}` : ''}${location.protocol === 'https:' ? '; Secure' : ''}`;
+  };
+  const choice = () => getCookie('cookieConsentVersion') === VERSION
+    && ['accepted', 'rejected'].includes(getCookie('cookieConsent')) ? getCookie('cookieConsent') : null;
 
-  // Afficher la bannière si aucun choix
-  if (!getCookie('cookieConsent')) {
-    banner.style.display = 'block';
-  }
-
-  // Bouton Accepter
-  const acceptBtn = document.getElementById('accept-cookies');
-  if (acceptBtn) {
-    acceptBtn.addEventListener('click', function () {
-      setCookie('cookieConsent', 'accepted', 31536000); // 1 an
-      banner.style.display = 'none';
-      // Twig lit les cookies côté serveur => rechargement pour appliquer (ex: GA)
-      location.reload();
-    });
+  function stopAnalytics() {
+    window[`ga-disable-${ANALYTICS_ID}`] = true;
+    if (typeof window.gtag === 'function') {
+      window.gtag('consent', 'update', {analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'});
+    }
+    // GA may have used a parent-domain cookie. Never delete authentication or session cookies.
+    const hostParts = location.hostname.split('.');
+    const domains = [''];
+    for (let index = 0; index < hostParts.length - 1; index++) domains.push(hostParts.slice(index).join('.'));
+    document.cookie.split(';').map(part => part.trim().split('=')[0])
+      .filter(name => /^(_ga(?:_|$)|_gid$|_gat(?:_|$))/.test(name))
+      .forEach(name => domains.forEach(domain => setCookie(name, '', 0, domain)));
   }
 
-  // Bouton Refuser
-  const rejectBtn = document.getElementById('reject-cookies');
-  if (rejectBtn) {
-    rejectBtn.addEventListener('click', function () {
-      setCookie('cookieConsent', 'rejected', 31536000);
-      banner.style.display = 'none';
-      // Pas de reload nécessaire sauf si tu veux aussi couper des scripts déjà injectés
-    });
+  function show(open) {
+    const banner = document.getElementById('cookie-banner');
+    if (banner) banner.hidden = !open;
+    const manage = document.getElementById('cookie-preferences');
+    if (manage) manage.hidden = open;
   }
 
-  // Lien "Gérer les cookies" (pas toujours présent)
-  const manageLink = document.getElementById('manage-cookies');
-  if (manageLink) {
-    manageLink.addEventListener('click', function (e) {
-      e.preventDefault();
-      // Efface le consentement actuel
-      setCookie('cookieConsent', '', 0);
-      // Ré-affiche la bannière
-      banner.style.display = 'block';
-    });
+  function save(value) {
+    const previous = choice();
+    if (value === 'rejected') stopAnalytics();
+    setCookie('cookieConsent', value, MAX_AGE);
+    setCookie('cookieConsentVersion', VERSION, MAX_AGE);
+    show(false);
+    // A full reload unloads already-injected trackers after withdrawal, including Turbo's persistent head.
+    if (value === 'accepted' || previous === 'accepted' || typeof window.gtag === 'function') location.reload();
   }
-});
+
+  function init() {
+    if (choice() !== 'accepted') stopAnalytics();
+    show(!choice());
+  }
+
+  document.addEventListener('click', event => {
+    const target = event.target.closest?.('#accept-cookies, #reject-cookies, #manage-cookies, [data-manage-cookies]');
+    if (!target) return;
+    event.preventDefault();
+    if (target.id === 'accept-cookies') save('accepted');
+    else if (target.id === 'reject-cookies') save('rejected');
+    else {
+      show(true);
+      document.getElementById('reject-cookies')?.focus();
+    }
+  });
+  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('turbo:load', init);
+  window.addEventListener('pageshow', init);
+  window.WikiCookieConsent = {init};
+  if (document.readyState !== 'loading') init();
+})();

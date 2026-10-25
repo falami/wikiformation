@@ -647,6 +647,7 @@ $(function(){
   const $ciErr   = $('#ci-error');
 
   let ciUrl = null;
+  let ciToken = null;
   let ciBusy = false;
 
   // (1) ouverture modale depuis le bouton action
@@ -658,6 +659,7 @@ $(function(){
     const $btn = $(this);
 
     ciUrl = $btn.data('url') || null;
+    ciToken = $btn.data('token') || '';
 
     // ⚠️ On récupère des infos depuis data-* si tu les ajoutes, sinon on fallback
     const resaId   = $btn.data('id') || $btn.closest('tr').find('td:eq(0)').text().trim() || '—';
@@ -701,6 +703,7 @@ $(function(){
     try {
       const res = await fetch(ciUrl, {
         method: 'POST',
+        body: new URLSearchParams({_token: ciToken}),
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
           'Accept': 'application/json'

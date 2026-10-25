@@ -6,6 +6,8 @@ namespace App\Controller;
 
 use App\Entity\{Attestation, ContratFormateur, ContratStagiaire, ConventionContrat, Depense, Devis, Emargement, Entite, EntitePreferences, Entreprise, EntrepriseDocument, Paiement, Utilisateur, UtilisateurEntite};
 use App\Security\DossierDocumentAccess;
+use App\Security\ElearningAccess;
+use App\Entity\Elearning\{ElearningBlock, ElearningEnrollment};
 use App\Security\Permission\TenantPermission;
 use App\Service\Delegation\DossierAccess;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,7 +32,7 @@ final class ProtectedUploadController extends AbstractController
         if (!$user instanceof Utilisateur || !$this->isGranted('IS_AUTHENTICATED_FULLY')) {
             throw $this->createNotFoundException();
         }
-        if (!in_array($directory, ['emargements', 'proofs', 'depense', 'signatures/organisme', 'tampons/organisme', 'entreprise/docs', 'pdf', 'devis', 'conventions'], true)
+        if (!in_array($directory, ['emargements', 'proofs', 'depense', 'signatures/organisme', 'tampons/organisme', 'entreprise/docs', 'pdf', 'devis', 'conventions', 'elearning'], true)
             || str_contains($file, '\\') || str_contains($file, "\0")
             || preg_match('~(^|/)\.{1,2}(/|$)~', $file)) {
             throw $this->createNotFoundException();
@@ -47,7 +49,7 @@ final class ProtectedUploadController extends AbstractController
             throw $this->createNotFoundException();
         }
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($path) ?: 'application/octet-stream';
-        $inline = in_array($mime, ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif'], true);
+        $inline = in_array($mime, ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'audio/mpeg'], true);
         $response = new BinaryFileResponse($path);
         $response->setContentDisposition($inline ? ResponseHeaderBag::DISPOSITION_INLINE : ResponseHeaderBag::DISPOSITION_ATTACHMENT, basename($path));
         $response->headers->set('Content-Type', $mime);
@@ -60,6 +62,7 @@ final class ProtectedUploadController extends AbstractController
 
     private function records(string $directory, string $file, string $relative): array
     {
+        if ($directory === 'elearning') return $this->em->getRepository(ElearningBlock::class)->findBy(['mediaFilename' => $file]);
         $paths = [$relative, '/'.$relative];
         if ($directory === 'emargements') return $this->em->getRepository(Emargement::class)->findBy(['signaturePath' => $paths]);
         if ($directory === 'proofs') return $this->em->getRepository(Paiement::class)->findBy(['justificatif' => $file]);
@@ -84,6 +87,14 @@ final class ProtectedUploadController extends AbstractController
         $entite = $record->getEntite();
         if (!$entite instanceof Entite || !$this->consistent($record, $entite)) return false;
         if ($this->isGranted(TenantPermission::ADMIN, $entite)) return true;
+
+        if ($record instanceof ElearningBlock) {
+            $course = $record->getNode()->getCourse();
+            if ($this->isGranted(TenantPermission::FORMATEUR, $entite) && $course->getCreateur()?->getId() === $user->getId()) return true;
+            if (!$this->isGranted(TenantPermission::STAGIAIRE, $entite) || !ElearningAccess::nodePublished($record->getNode())) return false;
+            $enrollment = $this->em->getRepository(ElearningEnrollment::class)->findOneBy(['entite'=>$entite,'course'=>$course,'stagiaire'=>$user]);
+            return $enrollment && ElearningAccess::enrollmentOpen($enrollment);
+        }
 
         if ($record instanceof Paiement || $record instanceof Depense || $record instanceof EntitePreferences) return false;
         if ($record instanceof Emargement) {
@@ -120,6 +131,10 @@ final class ProtectedUploadController extends AbstractController
 
     private function consistent(object $record, Entite $entite): bool
     {
+        if ($record instanceof ElearningBlock) {
+            return $record->getNode()?->getEntite()?->getId() === $entite->getId()
+                && $record->getNode()?->getCourse()?->getEntite()?->getId() === $entite->getId();
+        }
         foreach (['getSession', 'getEntreprise', 'getEntrepriseDestinataire', 'getFormateur', 'getFacture'] as $getter) {
             if (method_exists($record, $getter) && ($related = $record->$getter()) && $related->getEntite()?->getId() !== $entite->getId()) return false;
         }
