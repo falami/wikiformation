@@ -81,6 +81,16 @@ final class SubscriptionAccessTest extends KernelTestCase
         self::assertSame(302, $this->event('app_administrateur_dashboard', $this->second)->getResponse()?->getStatusCode());
     }
 
+    public function testCanceledSubscriptionWithFuturePeriodDoesNotPromiseAccess(): void
+    {
+        $subscription = $this->em->getRepository(EntiteSubscription::class)->findOneBy(['entite' => $this->second]);
+        $subscription->setStatus(EntiteSubscription::STATUS_CANCELED)->setCurrentPeriodEnd(new \DateTimeImmutable('+1 month'));
+        $this->em->flush();
+        $session = new Session(new MockArraySessionStorage());
+        self::assertSame(302, $this->event('app_administrateur_formation_index', $this->second, $session)->getResponse()?->getStatusCode());
+        self::assertSame(['Votre abonnement est terminé. Merci de souscrire à une offre pour continuer à utiliser WikiFormation.'], $session->getFlashBag()->get('billing_expired'));
+    }
+
     public function testActiveRouteOrganismIsAllowedEvenWhenSavedOrganismIsExpired(): void
     {
         $this->expire($this->first);

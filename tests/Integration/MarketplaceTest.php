@@ -73,6 +73,35 @@ final class MarketplaceTest extends KernelTestCase {
   $p=$this->purchase();$stripe=$this->createMock(StripeGateway::class);$stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>1,'currency'=>'eur']);
   try{$this->payments($stripe)->sync($p);self::fail('Expected mismatch');}catch(\DomainException){}self::assertSame(0,(int)$this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM marketplace_access'));
  }
+ public function testUnpaidAndExpiredCheckoutNeverUnlockCourses(): void {
+  $p=$this->purchase();$state='open';$stripe=$this->createMock(StripeGateway::class);
+  $stripe->method('session')->willReturnCallback(function() use($p,&$state){return ['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'unpaid','status'=>$state];});
+  $stripe->expects(self::never())->method('payment');$stripe->expects(self::never())->method('transfer');
+  $service=$this->payments($stripe);
+  foreach(['open','complete','expired','expired'] as $state){
+   $service->sync($p);
+   self::assertNull($p->paidAt);
+   self::assertSame(0,$this->em->getRepository(Access::class)->count([]));
+   self::assertSame(0,$this->em->getRepository(\App\Entity\Marketplace\Invoice::class)->count([]));
+  }
+  self::assertSame('expired',$p->status);
+ }
+ public function testUnconfirmedPaymentNeverUnlocksEvenIfCheckoutSaysPaid(): void {
+  $p=$this->purchase();$payment=[];$stripe=$this->createMock(StripeGateway::class);
+  $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_test']);
+  $stripe->method('payment')->willReturnCallback(function() use(&$payment){return $payment;});
+  $stripe->expects(self::never())->method('transfer');$service=$this->payments($stripe);
+  foreach([
+   ['status'=>'processing'],['status'=>'requires_action'],['status'=>'requires_payment_method'],
+   ['currency'=>'usd'],['amount_received'=>11999],
+  ] as $override){
+   $payment=array_replace(['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test']],$override);
+   $service->sync($p);
+   self::assertNull($p->paidAt);
+   self::assertSame(0,$this->em->getRepository(Access::class)->count([]));
+   self::assertSame(0,$this->em->getRepository(\App\Entity\Marketplace\Invoice::class)->count([]));
+  }
+ }
  public function testTenantScopeAndPrivateCatalogue(): void {
   $policy=new Policy($this->em);$entity=$this->offer->course->getEntite();$trainer=$this->seller->user;
   $this->em->persist((new UtilisateurEntite())->setUtilisateur($trainer)->setEntite($entity)->setCreateur($trainer)->setRoles(['TENANT_FORMATEUR']));

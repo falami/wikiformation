@@ -353,6 +353,27 @@
 
     {# ===== MAIN ===== #}
     <div class="col-lg-8">
+      {% if paperDeposits|default([]) is not empty %}
+        <section class="panel mb-3">
+          <div class="panel-hd">
+            <div class="panel-title"><i class="bi bi-file-earmark-check text-success"></i> Document signé déposé</div>
+          </div>
+          <div class="panel-bd">
+            <p class="small text-muted">Dépôt de session · Les documents ci-dessous ont été déposés comme conventions signées dans la session {{ c.session.code }}. Une session peut regrouper plusieurs conventions.</p>
+            {% for deposit in paperDeposits %}
+              <div class="{{ not loop.first ? 'border-top mt-3 pt-3 ' : '' }}d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                  <strong>Convention signée — document {{ loop.index }}</strong>
+                  <div class="small text-muted">Déposé le {{ deposit.uploadedAt|date('d/m/Y à H:i', 'Europe/Paris') }}</div>
+                  <span class="badge {{ deposit.valide ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-dark' }}">{{ deposit.valide ? 'Validé' : 'À valider' }}</span>
+                  {% if deposit.commentaireControle %}<div class="small mt-1">{{ deposit.commentaireControle }}</div>{% endif %}
+                </div>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_administrateur_session_pieces_view', {entite: entite.id, session: c.session.id, piece: deposit.id}) }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i> Voir le document</a>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
       <section class="panel mb-3 p-3">
         <h5>Historique des conventions</h5>
         <p class="text-muted">Les PDF conservés reproduisent chaque version avant modification. Une nouvelle version contractuelle nécessite de nouvelles signatures.</p>

@@ -250,7 +250,9 @@ final class StripeBillingService
           ['id' => $subscriptionItemId, 'price' => $newPriceId],
         ],
         'proration_behavior' => $prorate ? 'create_prorations' : 'none',
-        'proration_date' => time(),
+        // Laisser Stripe utiliser son heure courante, y compris celle de la
+        // Test Clock. L'application peut être plusieurs mois en arrière.
+        // La confirmation utilise également l'heure courante de Stripe.
         // On garde le cycle (sinon Stripe te met la période complète immédiatement)
         'billing_cycle_anchor' => 'unchanged',
       ],

@@ -21,6 +21,7 @@ use App\Entity\Entreprise;
 use App\Service\Sequence\ConventionContratNumberGenerator;
 use App\Security\Permission\TenantPermission;
 use App\Service\Convention\ConventionParticipants;
+use App\Service\Convention\ConventionPaperDeposits;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\Form\FormError;
 
@@ -84,7 +85,7 @@ final class ConventionContratController extends AbstractController
     }
 
     #[Route('/ajax', name: 'ajax', methods: ['POST'])]
-    public function ajax(Entite $entite, Request $request, EM $em): JsonResponse
+    public function ajax(Entite $entite, Request $request, EM $em, ConventionPaperDeposits $paperDeposits): JsonResponse
     {
         $start   = max(0, $request->request->getInt('start', 0));
         $length  = min(100, max(1, $request->request->getInt('length', 10)));
@@ -146,7 +147,8 @@ final class ConventionContratController extends AbstractController
             ->setMaxResults($length)
             ->getQuery()->getResult();
 
-        $data = array_map(function (ConventionContrat $c) use ($entite) {
+        $paperByConvention = $paperDeposits->forConventions($rows);
+        $data = array_map(function (ConventionContrat $c) use ($entite, $paperByConvention) {
             $sess = $c->getSession();
 
             return [
@@ -155,7 +157,10 @@ final class ConventionContratController extends AbstractController
                 'entreprise' => $c->getDestinataireLabel(),
                 'formation' => $c->getIntituleFormationEffectif() ?: '—',
                 'session'   => $sess?->getCode() ?? '—',
-                'suivi' => $this->renderView('administrateur/convention/_signature_status.html.twig', ['c' => $c]),
+                'suivi' => $this->renderView('administrateur/convention/_signature_status.html.twig', [
+                    'c' => $c,
+                    'paperDeposits' => $paperByConvention[$c->getId()] ?? [],
+                ]),
                 'details' => $this->renderView('administrateur/convention/_listing_details.html.twig', ['c' => $c]),
                 'actions'   => $this->renderView('administrateur/convention/_actions.html.twig', [
                     'c' => $c,
@@ -246,7 +251,7 @@ final class ConventionContratController extends AbstractController
     }
 
     #[Route('/{id}', name: 'show', methods: ['GET'])]
-    public function show(Entite $entite, ConventionContrat $c, \App\Service\Convention\ConventionHistory $history): Response
+    public function show(Entite $entite, ConventionContrat $c, \App\Service\Convention\ConventionHistory $history, ConventionPaperDeposits $paperDeposits): Response
     {
         $this->assertConventionTenant($entite, $c);
         /** @var Utilisateur $user */
@@ -257,6 +262,7 @@ final class ConventionContratController extends AbstractController
             'entite' => $entite,
             'revisions' => $history->list($c),
             'historyToken' => $history->token($c),
+            'paperDeposits' => $paperDeposits->forConventions([$c])[$c->getId()] ?? [],
         ]);
     }
 

@@ -16,7 +16,7 @@
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
 
-  <link rel="stylesheet" href="{{ asset('dist/css/billing-account.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/billing-account.css') }}?v=20261026-2">
 {% endblock %}
 
 
@@ -318,12 +318,13 @@
   </div>
 
 <div class="modal fade" id="changePlanModal" tabindex="-1" aria-labelledby="changePlanTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content" style="border-radius:18px;">
       <div class="modal-header">
-        <h5 class="modal-title fw-bold" id="changePlanTitle">
-          <i class="bi bi-arrow-repeat me-1"></i> Changer d’abonnement
-        </h5>
+        <div>
+          <div class="billing-dialog-eyebrow">VOTRE ABONNEMENT</div>
+          <h5 class="modal-title fw-bold" id="changePlanTitle">Faites évoluer votre offre</h5>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
 
@@ -345,15 +346,11 @@
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Périodicité</label>
-          <div class="form-control bg-light">Mensuelle · nouvelles souscriptions</div>
+          <div class="billing-dialog-cycle"><i class="bi bi-calendar3" aria-hidden="true"></i> Facturation mensuelle</div>
         </div>
 
-        <div class="alert alert-info gap-2 align-items-start mb-0" id="prorationBox" style="display:none;">
-          <i class="bi bi-calculator"></i>
-          <div>
-            <div class="fw-semibold">Prorata estimé</div>
-            <div class="small" id="prorationText">...</div>
-          </div>
+        <div class="billing-estimate" id="prorationBox" style="display:none;" role="status" aria-live="polite" aria-atomic="true">
+          <div id="prorationText"></div>
         </div>
 
         <div class="alert alert-danger mt-3 mb-0" id="changePlanError" style="display:none;"></div>
@@ -476,24 +473,29 @@
         const nextTax = Number(data.next_tax_cents ?? 0);
         const amountDue = Number(data.amount_due_cents ?? 0);
 
-        let lines = [];
-
-        lines.push(`Prorata HT : <strong>${money(proration, cur)}</strong>`);
-        if (prorationTax !== 0) lines.push(`TVA (prorata) : <strong>${money(prorationTax, cur)}</strong>`);
-
-        lines.push(`<div class="mt-1">Prochaine facture estimée TTC (prorata inclus) : <strong>${money(amountDue, cur)}</strong></div>`);
-
+        const row = (label, value) => `<div class="billing-estimate__row"><span>${label}</span><strong>${money(value, cur)}</strong></div>`;
+        let lines = [
+          `<div class="billing-estimate__hero">
+            <div class="billing-estimate__eyebrow"><i class="bi bi-receipt" aria-hidden="true"></i> Votre estimation <span>TTC</span></div>
+            <div class="billing-estimate__label">Prochaine facture estimée</div>
+            <div class="billing-estimate__amount">${money(amountDue, cur)}</div>
+            <div class="billing-estimate__caption">Prorata inclus · à la prochaine échéance</div>
+          </div><div class="billing-estimate__details">
+          <div class="billing-estimate__section">Ajustement de la période en cours</div>`,
+          row(proration < 0 ? 'Crédit au prorata HT' : 'Prorata HT', proration),
+          row('TVA sur le prorata', prorationTax),
+        ];
         if (nextPeriod !== 0 || nextTax !== 0) {
-          lines.push(`<hr class="my-2">`);
-          lines.push(`Prochaine période HT : <strong>${money(nextPeriod, cur)}</strong>`);
-          if (nextTax !== 0) lines.push(`TVA (prochaine période) : <strong>${money(nextTax, cur)}</strong>`);
-          lines.push(`<div class="mt-1">Période complète TTC, hors prorata : <strong>${money(nextPeriod + nextTax, cur)}</strong></div>`);
+          lines.push(`<div class="billing-estimate__section billing-estimate__section--next">Prochaine période complète</div>`);
+          lines.push(row('Abonnement HT', nextPeriod));
+          lines.push(row('TVA', nextTax));
+          lines.push(`<div class="billing-estimate__total"><span>Total TTC <small>hors prorata</small></span><strong>${money(nextPeriod + nextTax, cur)}</strong></div>`);
         }
+        lines.push('</div>');
+        prorationText.innerHTML = lines.join('');
 
-        prorationText.innerHTML = lines.join('<br>');
 
-
-        prorationBox.style.display = 'flex';
+        prorationBox.style.display = 'block';
         applyPlan.value = plan;
         applyInterval.value = interval;
         btnConfirm.disabled = false;

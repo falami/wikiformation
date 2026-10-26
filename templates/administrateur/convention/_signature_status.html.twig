@@ -1,13 +1,24 @@
 {% set recipientSigned = c.entreprise ? (c.signedByEntreprise or c.signatureDataUrlEntreprise) : (c.signedByStagiaire or c.signatureDataUrlStagiaire) %}
 {% set recipientDate = c.entreprise ? c.dateSignatureEntreprise : c.dateSignatureStagiaire %}
 <div style="min-width:175px">
-  {% if recipientSigned and c.signedByOf %}
-    <span class="badge bg-success-subtle text-success"><i class="bi bi-check2-all me-1"></i>Signée par les deux parties</span>
-  {% elseif recipientSigned or c.signedByOf %}
-    <span class="badge bg-warning-subtle text-dark"><i class="bi bi-pen me-1"></i>Partiellement signée</span>
+  {% if paperDeposits|default([]) is not empty %}
+    {% set deposit = paperDeposits|first %}
+    <span class="badge bg-success-subtle text-success"><i class="bi bi-file-earmark-check me-1"></i>Document signé déposé</span>
+    <div class="small mt-2">Dépôt de session · {{ deposit.valide ? 'Validé' : 'À valider' }}</div>
+    <div class="small text-muted">Déposé le {{ deposit.uploadedAt|date('d/m/Y à H:i', 'Europe/Paris') }}</div>
+    <a class="small d-inline-block mt-1" href="{{ path('app_administrateur_session_pieces_view', {entite: c.entite.id, session: c.session.id, piece: deposit.id}) }}" target="_blank" rel="noopener">Voir le document <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+    {% if paperDeposits|length > 1 %}
+      <div class="small"><a href="{{ path('app_administrateur_convention_show', {entite: c.entite.id, id: c.id}) }}">{{ paperDeposits|length }} documents déposés</a></div>
+    {% endif %}
   {% else %}
-    <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-clock me-1"></i>Non signée</span>
+    {% if recipientSigned and c.signedByOf %}
+      <span class="badge bg-success-subtle text-success"><i class="bi bi-check2-all me-1"></i>Signée par les deux parties</span>
+    {% elseif recipientSigned or c.signedByOf %}
+      <span class="badge bg-warning-subtle text-dark"><i class="bi bi-pen me-1"></i>Partiellement signée</span>
+    {% else %}
+      <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-clock me-1"></i>Non signée</span>
+    {% endif %}
+    <div class="small mt-2">{{ c.entreprise ? 'Entreprise' : 'Stagiaire' }} : {{ recipientSigned ? 'signé' : 'en attente' }}{% if recipientDate %}<br><span class="text-muted">{{ recipientDate|date('d/m/Y à H:i', 'Europe/Paris') }}</span>{% endif %}</div>
+    <div class="small mt-1">Organisme : {{ c.signedByOf ? 'signé' : 'en attente' }}{% if c.dateSignatureOf %}<br><span class="text-muted">{{ c.dateSignatureOf|date('d/m/Y à H:i', 'Europe/Paris') }}</span>{% endif %}</div>
   {% endif %}
-  <div class="small mt-2">{{ c.entreprise ? 'Entreprise' : 'Stagiaire' }} : {{ recipientSigned ? 'signé' : 'en attente' }}{% if recipientDate %}<br><span class="text-muted">{{ recipientDate|date('d/m/Y à H:i', 'Europe/Paris') }}</span>{% endif %}</div>
-  <div class="small mt-1">Organisme : {{ c.signedByOf ? 'signé' : 'en attente' }}{% if c.dateSignatureOf %}<br><span class="text-muted">{{ c.dateSignatureOf|date('d/m/Y à H:i', 'Europe/Paris') }}</span>{% endif %}</div>
 </div>

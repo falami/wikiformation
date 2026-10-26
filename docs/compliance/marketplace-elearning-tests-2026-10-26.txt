@@ -1,0 +1,40 @@
+RECETTE LOCALE — VENTES E-LEARNING FORMATEURS — 26 OCTOBRE 2026
+
+Exécution : PHP 8.4.25, PHPUnit 11.5.55.
+Commande : vendor/bin/phpunit tests/Integration/MarketplaceTest.php tests/Integration/ElearningSecurityTest.php tests/Service/Marketplace tests/Twig/MarketplaceCartSellerTest.php
+Résultat : 26 tests, 234 assertions, aucun échec.
+17 templates marketplace : syntaxe Twig valide. Conteneur : valide.
+
+Périmètre : bases SQLite isolées et passerelle Stripe simulée ; aucun paiement,
+reversement Connect ni email externe exécuté. Aucun paramètre de vente activé.
+
+Vérifications couvertes :
+- Vente désactivée, mandat absent, restrictions d'identité/adresse.
+- Panier, Checkout, reprise de commande, propriété des reçus et écrans vendeurs.
+- Accès aux cours après paiement vérifié, isolation des organismes et médias privés.
+- Contenu figé de l'achat, protection HTML et confirmation contractuelle.
+- Commission et TVA, frais de paiement, reversement, reprise après incident.
+- Factures privées immuables et avoirs partiels/cumulatifs au centime.
+- Répétition de synchronisation sans double document ni double transfert.
+- Suspension lors d'un litige et rétablissement après litige gagné.
+- Remboursement et contrôle des droits aux factures.
+
+Deux tests ajoutés :
+- Checkout impayé (ouvert, terminé, expiré et expiration répétée) : aucun accès,
+  aucune facture, aucune consultation de paiement ni reversement.
+- Checkout déclaré payé mais PaymentIntent en traitement, authentification
+  requise, moyen de paiement requis, devise incorrecte ou montant insuffisant :
+  aucun accès ni facture.
+
+Limites : ces tests ne constituent pas une recette réseau Stripe Connect.
+À réaliser sur l'hébergement cible configuré en TEST : onboarding formateur,
+publication réelle d'une offre témoin, Checkout accepté/refusé/3DS, livraison
+webhook signée, accès acheteur, notification mail de test, rapprochement des
+frais et transfert Connect, remboursement et reprise du transfert.
+Vérifier également sauvegarde/restauration des PDF et mandats et planification
+du rapprochement. Ne pas lancer --settle avec des clés live pour cette recette.
+
+Le rapport automatic-marketplace-invoicing-2026-10-25.txt décrit les points
+restant à valider avant ouverture commerciale, dont validation des documents
+contractuels et raccordement de ce journal à la facturation électronique.
+Aucune validation juridique ni certification de mise en production ici.

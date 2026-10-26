@@ -163,9 +163,6 @@ final class BillingAccessSubscriber implements EventSubscriberInterface
 
     // Annulé / fin d’accès
     if ($st === EntiteSubscription::STATUS_CANCELED) {
-      if ($periodEnd && $periodEnd > $now) {
-        return "Votre abonnement est annulé mais reste accessible jusqu’au {$fmt($periodEnd)}. Vous pouvez reprendre une offre à tout moment.";
-      }
       return "Votre abonnement est terminé. Merci de souscrire à une offre pour continuer à utiliser WikiFormation.";
     }
 
