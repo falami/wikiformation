@@ -11,6 +11,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: DepenseRepository::class)]
 #[ORM\Index(name: 'idx_depense_date', columns: ['date_depense'])]
 #[ORM\Index(name: 'idx_depense_entite', columns: ['entite_id'])]
+#[ORM\UniqueConstraint(name: 'UNIQ_DEPENSE_IMPORT_KEY', columns: ['import_key'])]
 class Depense
 {
   #[ORM\Id]
@@ -89,6 +90,17 @@ class Depense
 
 
 
+
+  #[ORM\Column(length: 64, nullable: true)]
+  private ?string $importKey = null;
+
+  #[ORM\Column(options: ['default' => false])]
+  private bool $amountsManual = false;
+
+  public function getImportKey(): ?string { return $this->importKey; }
+  public function setImportKey(?string $key): static { $this->importKey = $key; return $this; }
+  public function isAmountsManual(): bool { return $this->amountsManual; }
+  public function setAmountsManual(bool $manual): static { $this->amountsManual = $manual; return $this; }
 
   public function __construct()
   {

@@ -371,6 +371,15 @@ class ConventionContrat
         return null !== $this->dateSignatureOf;
     }
 
+    /** Statut de suivi : seule la signature du destinataire est requise. */
+    public function isSignedByRecipient(): bool
+    {
+        return $this->entreprise
+            ? ($this->isSignedByEntreprise() || (string) $this->signatureDataUrlEntreprise !== '')
+            : ($this->isSignedByStagiaire() || (string) $this->signatureDataUrlStagiaire !== '');
+    }
+
+    /** Une signature existante, quelle que soit la partie, protège le contenu du document. */
     public function isSigned(): bool
     {
         return $this->isSignedByStagiaire()

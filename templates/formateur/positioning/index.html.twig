@@ -379,6 +379,7 @@
 }
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block javascripts %}
@@ -388,6 +389,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
   <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}
 
 {% block body %}
@@ -487,13 +489,13 @@
 
   {% include 'flagMessage.html.twig' %}
 
-  <div class="filterbar trainer-filters mb-3">
-    <div class="filterbar__top">
+  <div class="filterbar trainer-filters mb-3 catalogue-filters wf-filters-theme">
+    <div class="filterbar__top catalogue-filters wf-filters-theme">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <div class="filter-icon"><i class="bi bi-funnel"></i></div>
         <div>
-          <div class="filterbar__title">Filtres</div>
-          <div class="filterbar__hint">Stagiaire, conclusion…</div>
+          <div class="filterbar__title catalogue-filters wf-filters-theme">Filtres</div>
+          <div class="filterbar__hint catalogue-filters wf-filters-theme">Stagiaire, conclusion…</div>
         </div>
       </div>
 
@@ -506,7 +508,7 @@
     </div>
 
     <div class="collapse d-md-block" id="filtersCollapse">
-      <div class="filterbar__body">
+      <div class="filterbar__body catalogue-filters wf-filters-theme">
         <div class="filtergrid">
 
           <div class="filter-control fcol-stagiaire">
@@ -552,8 +554,10 @@
     </div>
   </div>
 
-  <div class="table-card mb-4 p-3">
-    <table id="tableauAttempts" class="table table-hover align-middle mb-0 w-100">
+  <div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Positionnements à suivre", subtitle: "Retrouvez, filtrez et consultez les informations de votre liste.", mark: "Suivi pédagogique"} only %}
+
+    <table id="tableauAttempts" class="premium-table table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
           <th>Stagiaire</th>
@@ -654,16 +658,10 @@ $(function(){
       }
     },
 
-    dom:
-      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
-        + '<"dt-actions d-flex gap-2 align-items-center"B>'
-        + '<"dt-search"f>'
-      + '>'
-      + 'rt'
-      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+    dom: "<\"d-none\"B><\"catalogue-search-source\"f>rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
 
     buttons:['copy','csv','excel','pdf','print'],
-    lengthMenu:[[10,25,50,500],[10,25,50,500]],
+    lengthMenu:[[10,25,50,100,500],[10,25,50,100,500]],
     pageLength: 100,
 
     columns:[

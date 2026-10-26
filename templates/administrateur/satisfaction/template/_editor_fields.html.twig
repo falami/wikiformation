@@ -1,0 +1,52 @@
+{% macro question(q, number = 1) %}
+  <article class="qbox" data-question>
+    <div class="se-question-heading">
+      <div class="se-question-identity"><span class="drag-handle" title="Déplacer la question" aria-label="Déplacer la question"><i class="bi bi-grip-vertical" aria-hidden="true"></i></span><span class="se-overline">QUESTION <span data-question-number>{{ '%02d'|format(number) }}</span></span><span class="type-pill js-typepill"></span></div>
+      <div class="se-question-actions"><div class="form-check form-switch">{{ form_widget(q.required, {label: false, attr: {class: 'form-check-input'}}) }}<label class="form-check-label" for="{{ q.required.vars.id }}">Obligatoire</label></div><button type="button" class="se-icon-button se-remove js-remove-question" title="Supprimer la question" aria-label="Supprimer la question"><i class="bi bi-trash3" aria-hidden="true"></i></button></div>
+    </div>
+    {{ form_errors(q) }}
+    <div class="se-question-body">
+      {{ form_row(q.libelle, {label: 'Intitulé de la question', attr: {class: 'form-control se-question-input', placeholder: 'Que souhaitez-vous demander à vos stagiaires ?'}}) }}
+      <div class="se-question-options">
+        <div>{{ form_row(q.type, {help: '', attr: {class: 'form-select js-qtype'}}) }}</div>
+        <div data-metric-field>{{ form_row(q.metricKey, {label: 'Indicateur de suivi', help: '', attr: {class: 'form-select js-metrickey'}}) }}<div class="se-field-note js-metric-help"></div></div>
+      </div>
+      <div class="js-fields">
+        <div class="js-field js-for-scale js-for-stars" {{ q.type.vars.value != 'scale' ? 'hidden' }}>
+          {% if q.minValue is defined %}
+          <div class="se-question-options">
+            {{ form_row(q.minValue, {label: 'Note minimale', attr: {placeholder: '0'}}) }}
+            {{ form_row(q.maxValeur, {label: 'Note maximale', attr: {placeholder: '10'}}) }}
+          </div>
+          {{ form_row(q.metricMax, {label: 'Note maximale de l’indicateur', help: 'Base de calcul de vos statistiques, généralement identique à la note maximale.', attr: {placeholder: '10'}}) }}
+          {% else %}<div class="se-scale"><span>Échelle de réponse</span><div aria-label="Notes de 0 à 10">{% for n in 0..10 %}<span>{{ n }}</span>{% endfor %}</div><small>De 0 à 10</small></div>{% endif %}
+        </div>
+        <div class="js-field js-for-choice js-for-multichoice" {{ q.type.vars.value not in ['choice', 'multichoice'] ? 'hidden' }}>{{ form_row(q.choicesText, {label: 'Réponses proposées', help: 'Une réponse par ligne, dans l’ordre d’affichage souhaité.', attr: {class: 'form-control', rows: 3, placeholder: 'Très satisfait\nSatisfait\nPeu satisfait'}}) }}</div>
+        <div class="js-field js-for-text js-for-textarea" {{ q.type.vars.value not in ['text', 'textarea'] ? 'hidden' }}>{{ form_row(q.placeholder, {label: 'Exemple de réponse (facultatif)', attr: {class: 'form-control', placeholder: 'Ex. Ce que vous avez particulièrement apprécié…'}}) }}</div>
+      </div>
+      <details class="se-question-details" {{ q.help.vars.value or q.help.vars.errors|length ? 'open' }}><summary><i class="bi bi-chat-left-text" aria-hidden="true"></i> Ajouter une consigne <span>Facultatif</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div>{{ form_row(q.help, {label: 'Consigne affichée sous la question', attr: {class: 'form-control', rows: 2, placeholder: 'Précisez ce que vous attendez de cette réponse…'}}) }}</div></details>
+      <div hidden>{{ form_widget(q.position) }}</div>
+    </div>
+  </article>
+{% endmacro %}
+
+{% macro chapter(c, questionProto, prototype = false, number = 1) %}
+  <section class="chapter" data-chapter id="chapter-{{ c.vars.name }}">
+    <div class="se-chapter-heading">
+      <div class="se-chapter-identity"><span class="drag-handle" title="Déplacer le chapitre" aria-label="Déplacer le chapitre"><i class="bi bi-grip-vertical" aria-hidden="true"></i></span><span class="se-chapter-number" data-chapter-number>{{ '%02d'|format(number) }}</span><div><span class="se-overline">CHAPITRE</span><h3 data-chapter-summary>{{ c.titre.vars.value ?: 'Nouveau chapitre' }}</h3></div></div>
+      <div class="se-chapter-actions"><span class="se-count" data-chapter-question-count>{{ prototype ? 0 : c.questions|length }} question(s)</span><button type="button" class="se-icon-button js-toggle-chapter" aria-expanded="true" aria-label="Replier le chapitre" aria-controls="chapter-body-{{ c.vars.name }}"><i class="bi bi-chevron-up" aria-hidden="true"></i></button><button type="button" class="se-icon-button se-remove js-remove-chapter" title="Supprimer le chapitre" aria-label="Supprimer le chapitre"><i class="bi bi-trash3" aria-hidden="true"></i></button></div>
+    </div>
+    {{ form_errors(c) }}
+    <div class="chapter-body" id="chapter-body-{{ c.vars.name }}">
+      <div class="se-chapter-title-field">{{ form_row(c.titre, {label: 'Titre du chapitre', attr: {class: 'form-control js-chapter-title', placeholder: 'Ex. Votre expérience de formation'}}) }}<div hidden>{{ form_widget(c.position) }}</div></div>
+      {{ form_errors(c.questions) }}
+      {% set nextQuestionIndex = 0 %}
+      {% if not prototype %}{% for q in c.questions %}{% set nextQuestionIndex = max(nextQuestionIndex, q.vars.name + 1) %}{% endfor %}{% endif %}
+      <div class="questions" data-index="{{ nextQuestionIndex }}" data-question-prototype="{{ (prototype ? questionProto : questionProto|replace({'__chapter__': c.vars.name}))|e('html_attr') }}">
+        {% if not prototype %}{% for q in c.questions %}{{ _self.question(q, loop.index) }}{% endfor %}{% endif %}
+      </div>
+      <div class="questions-empty" {{ not prototype and c.questions|length ? 'hidden' }}><i class="bi bi-chat-square-text" aria-hidden="true"></i><span>Ce chapitre attend sa première question.</span></div>
+      <button type="button" class="btn se-add-question js-add-question"><span><i class="bi bi-plus-lg" aria-hidden="true"></i></span> Ajouter une question</button>
+    </div>
+  </section>
+{% endmacro %}

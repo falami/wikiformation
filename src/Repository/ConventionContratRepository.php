@@ -16,6 +16,16 @@ final class ConventionContratRepository extends ServiceEntityRepository
         parent::__construct($registry, ConventionContrat::class);
     }
 
+    /** DQL équivalent à isSignedByRecipient(), pour les statuts et filtres de suivi. */
+    public static function recipientSignedCondition(string $alias): string
+    {
+        return sprintf(
+            "((%1\$s.entreprise IS NOT NULL AND (%1\$s.dateSignatureEntreprise IS NOT NULL OR COALESCE(%1\$s.signatureDataUrlEntreprise, '') <> ''))"
+            . " OR (%1\$s.entreprise IS NULL AND (%1\$s.dateSignatureStagiaire IS NOT NULL OR COALESCE(%1\$s.signatureDataUrlStagiaire, '') <> '')))",
+            $alias,
+        );
+    }
+
     /** @return list<ConventionContrat> */
     public function findForDevis(Devis $devis): array
     {

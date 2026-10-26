@@ -1,0 +1,60 @@
+Vérification des dépenses — 26 octobre 2026
+
+Périmètre
+Import CSV/XLS/XLSX, prévisualisation, validation, pièces jointes, création et
+modification manuelles, photo/PDF avec proposition OCR. Pas de connexion bancaire
+automatique ajoutée dans cette intervention.
+
+Comportements renforcés
+- Montants exacts en centimes ; dates et données invalides refusées explicitement.
+- CSV UTF-8/Windows-1252/UTF-16, séparateurs courants et en-têtes bancaires décalés.
+- Débits uniquement ; devises étrangères refusées par le parseur bancaire actuel.
+- Bornes : fichier bancaire 10 Mo, aperçu 1 000 dépenses, justificatif 8 Mo.
+- Enregistrement du lot en transaction ; aucune sauvegarde partielle si une ligne
+  ou un justificatif échoue. Nettoyage des nouveaux fichiers après annulation.
+- Confirmation explicite des doublons probables ; protection persistante contre
+  le rejeu d'un import ou d'une création manuelle ; verrou d'import par organisme.
+- Données, catégories, fournisseurs et payeurs contrôlés côté serveur et par organisme.
+- Transmission des lignes en JSON pour éviter max_input_vars ; détection des
+  soumissions et pièces jointes manquantes ; conservation des modifications au retry.
+- HT + TVA = TTC contrôlé ; corrections des montants dans l'import conservées.
+- TVA non déduite automatiquement depuis le seul relevé bancaire : vérifier le
+  justificatif. Les anciennes écritures ne font pas l'objet d'une correction fiscale.
+- OCR partiel ou ambigu : valeurs inconnues conservées comme inconnues et avertissements.
+  Pas de taux forcé à 20 %, ni de total choisi arbitrairement dans le ticket.
+- Les montants d'un reçu à plusieurs taux sont conservés sans recalcul au taux unique.
+- Changement de photo : annulation/invalidation des réponses et propositions précédentes.
+- Vérification du type réel des fichiers ; CSRF ; erreurs fournisseur non exposées.
+- Un échec de remplacement conserve l'ancien justificatif ; suppression après sauvegarde.
+
+Validation exécutée dans le conteneur PHP 8.4
+183 tests PHP, 465 assertions : tous réussis.
+29 tests JavaScript : tous réussis.
+Syntaxe PHP, 7 templates Twig, mapping Doctrine et git diff --check : valides.
+Les tests d'intégration utilisent une base SQLite en mémoire et un stockage temporaire.
+Les scénarios de panne de stockage et de fournisseur OCR sont simulés.
+
+Commande des tests PHP ciblés
+php bin/phpunit tests/Unit/DepenseBankImportParserTest.php tests/Integration/ExpenseImportRulesTest.php tests/Unit/ExpenseImportInputTest.php tests/Unit/DepenseUploaderTest.php tests/Unit/ReceiptParserTest.php tests/Unit/ReceiptScanServiceTest.php tests/Unit/GoogleVisionOcrOutputTest.php tests/Integration/ExpenseWorkflowsTest.php tests/Integration/ExpenseReceiptEndpointTest.php tests/Integration/ExpenseProofPersistenceTest.php
+
+Commande des tests JavaScript
+node --test tests/JavaScript/expense-inputs.test.cjs
+
+Déploiement
+La migration Version20261026220000 a été appliquée à la base locale. Elle ajoute
+import_key (nullable, index unique) et amounts_manual (false par défaut).
+Le serveur wikiformation.fr n'a pas été déployé dans cette intervention.
+Déployer code + assets et exécuter cette migration en production avant de réouvrir
+les écritures de dépenses, selon le processus de sauvegarde/déploiement du projet :
+php bin/console doctrine:migrations:execute 'DoctrineMigrations\Version20261026220000' --up --no-interaction --env=prod
+Vider le cache de production après déploiement.
+
+Limites de cette validation
+Aucun appel réel à Google Vision ni test sur caméra mobile effectué. La lecture
+d'une photo réelle avec la configuration de production reste à vérifier après
+déploiement. Une proposition OCR doit toujours être contrôlée avant enregistrement.
+Les fichiers GCS temporaires sont nettoyés ; prévoir aussi une règle de rétention
+sur les seuls préfixes OCR pour couvrir les traitements distants terminés après
+expiration et les échecs de nettoyage. Aucun réglage du bucket n'a été modifié.
+Le verrou par organisme doit utiliser un stockage partagé si plusieurs serveurs
+applicatifs traitent les imports ; l'index unique protège les rejeux dans tous les cas.

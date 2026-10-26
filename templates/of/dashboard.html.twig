@@ -617,6 +617,8 @@ table.dataTable tbody tr:hover{
   }
 }
 </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
+<link rel="stylesheet" href="{{ asset('dist/css/trainer-session-ledger.css') }}?v=2">
 {% endblock %}
 
 {% block body %}
@@ -719,10 +721,10 @@ table.dataTable tbody tr:hover{
   </div>
 </div>
 
-<div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4">
+<div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4 catalogue-filters wf-filters-theme">
   <div class="input-group" style="max-width:580px;">
     <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
-    <input id="searchAll" type="text" class="form-control border-start-0" placeholder="Rechercher un stagiaire, une session, un code, une formation…">
+    <input data-list-search aria-label="Rechercher dans la liste" id="searchAll" type="text" class="form-control border-start-0" placeholder="Rechercher un stagiaire, une session, un code, une formation…">
   </div>
 
   <div class="ms-auto d-flex gap-2 flex-wrap">
@@ -737,17 +739,7 @@ table.dataTable tbody tr:hover{
 
 <div class="row g-4">
   <div class="col-12">
-    <div class="section-card">
-      <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
-        <h5 class="section-title mb-0">
-          <i class="bi bi-people me-1"></i> Inscriptions & sessions
-        </h5>
-        <span class="text-muted small">Vue consolidée par stagiaire et session</span>
-      </div>
-
-      <div class="card-body">
-        <div class="table-responsive dt-scroll p-1">
-          <table id="table-of-inscriptions" class="table table-striped align-middle compact w-100">
+    <div class="section-card partner-session-ledger mb-4"><div class="card-header d-flex align-items-center justify-content-between"><div><span class="ledger-eyebrow">VOTRE ACTIVITÉ DE FORMATION</span><h5 class="section-title mb-0">Inscriptions & sessions</h5><p class="ledger-description">Vos stagiaires, leurs formations et les sessions associées.</p></div><span class="ledger-label"><i class="bi bi-calendar-week me-2"></i>Planning & suivi</span></div><table id="table-of-inscriptions" class="table align-middle w-100">
             <thead>
               <tr>
                 <th>Stagiaire</th>
@@ -758,12 +750,8 @@ table.dataTable tbody tr:hover{
                 <th class="text-center">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              <tr><td colspan="6"></td></tr>
-            </tbody>
+            <tbody></tbody>
           </table>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -1077,6 +1065,7 @@ $(function(){
   let currentSessionPayload = null;
 
   const dt = $('#table-of-inscriptions').DataTable({
+    dom: "rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
     scrollX: true,
     autoWidth: false,
     responsive: false,
@@ -1086,11 +1075,11 @@ $(function(){
     },
     columns:[
       {data:'stagiaire'},
-      {data:'formation'},
-      {data:'code'},
-      {data:'dates'},
+      {data:'formation', render:(d,type) => type === 'display' ? '<div class="dt-formation"><div class="dt-formation-title"><i class="bi bi-mortarboard me-2" aria-hidden="true"></i>'+ (d || '—') +'</div></div>' : d},
+      {data:'code', className:'session-reference'},
+      {data:'dates', render:(d,type) => type === 'display' ? '<div class="dt-dates"><span class="dt-chip dt-chip-primary"><i class="bi bi-calendar-week" aria-hidden="true"></i>'+ (d || 'Dates à définir') +'</span></div>' : d},
       {
-        data:'statut',
+        data:'statut', className:'session-status',
         render: function(d){
           return formatStatusBadgeFromHtml(d);
         }
@@ -1443,4 +1432,5 @@ $(function(){
 
 });
 </script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}

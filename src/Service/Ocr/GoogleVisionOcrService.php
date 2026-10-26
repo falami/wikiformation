@@ -18,6 +18,7 @@ use Google\Cloud\Vision\V1\GcsDestination;
 use Google\Cloud\Vision\V1\GcsSource;
 use Google\Cloud\Vision\V1\InputConfig;
 use Google\Cloud\Vision\V1\OutputConfig;
+use Psr\Log\LoggerInterface;
 
 final class GoogleVisionOcrService
 {
@@ -26,6 +27,7 @@ final class GoogleVisionOcrService
     private readonly string $credentialsPath,
     private readonly ?string $gcsBucket = null,
     private readonly string $gcsPrefix = 'ocr-output',
+    private readonly ?LoggerInterface $logger = null,
   ) {}
 
   public function ocr(UploadedFile $file): array
@@ -33,9 +35,8 @@ final class GoogleVisionOcrService
     $mime = (string) $file->getMimeType();
     $path = $file->getPathname();
 
-    $ext = strtolower((string) $file->getClientOriginalExtension());
-    $isPdf  = str_contains($mime, 'pdf') || $ext === 'pdf';
-    $isTiff = str_contains($mime, 'tiff') || in_array($ext, ['tif', 'tiff'], true);
+    $isPdf  = $mime === 'application/pdf';
+    $isTiff = $mime === 'image/tiff';
 
     if ($isPdf || $isTiff) {
       return $this->ocrPdfOrTiffViaGcs($path, $mime ?: ($isPdf ? 'application/pdf' : 'image/tiff'));
@@ -46,8 +47,8 @@ final class GoogleVisionOcrService
 
   private function assertCreds(): void
   {
-    if (!is_file($this->credentialsPath)) {
-      throw new \RuntimeException('Fichier credentials introuvable: ' . $this->credentialsPath);
+    if (!is_file($this->credentialsPath) || !is_readable($this->credentialsPath)) {
+      throw new \RuntimeException('Le service de lecture des justificatifs n’est pas configuré.');
     }
   }
 
@@ -65,6 +66,8 @@ final class GoogleVisionOcrService
     return new StorageClient([
       'projectId' => $this->gcpProjectId,
       'keyFilePath' => $this->credentialsPath,
+      'requestTimeout' => 15,
+      'retries' => 1,
     ]);
   }
 
@@ -91,7 +94,7 @@ final class GoogleVisionOcrService
       $batch = new BatchAnnotateImagesRequest();
       $batch->setRequests([$req]);
 
-      $resp = $client->batchAnnotateImages($batch);
+      $resp = $client->batchAnnotateImages($batch, ['retrySettings' => ['retriesEnabled' => false, 'noRetriesRpcTimeoutMillis' => 20000]]);
       $responses = $resp->getResponses();
 
       if (count($responses) < 1) {
@@ -138,20 +141,22 @@ final class GoogleVisionOcrService
     $bucket = $storage->bucket($this->gcsBucket);
 
     $inputObject = sprintf('ocr-input/%s-%s', date('Ymd-His'), bin2hex(random_bytes(6)));
-    $bucket->upload(
-      fopen($localPath, 'rb'),
-      ['name' => $inputObject, 'contentType' => $mimeType]
-    );
-
     $gcsInputUri = sprintf('gs://%s/%s', $this->gcsBucket, $inputObject);
 
     $outputPrefix = trim($this->gcsPrefix, '/');
     $outputDir = sprintf('%s/%s-%s/', $outputPrefix, date('Ymd-His'), bin2hex(random_bytes(4)));
     $gcsOutputUri = sprintf('gs://%s/%s', $this->gcsBucket, $outputDir);
 
-    $client = $this->visionClient();
+    $client = null;
+    $stream = null;
 
     try {
+      $stream = fopen($localPath, 'rb');
+      if ($stream === false) {
+        throw new \RuntimeException('Impossible de lire le justificatif.');
+      }
+      $bucket->upload($stream, ['name' => $inputObject, 'contentType' => $mimeType]);
+      $client = $this->visionClient();
       $batchSize = 10;
 
       $gcsSource = new GcsSource();
@@ -179,9 +184,16 @@ final class GoogleVisionOcrService
       $batchRequest = new AsyncBatchAnnotateFilesRequest();
       $batchRequest->setRequests([$fileRequest]);
 
-      $operation = $client->asyncBatchAnnotateFiles($batchRequest);
+      $operation = $client->asyncBatchAnnotateFiles($batchRequest, ['retrySettings' => ['retriesEnabled' => false, 'noRetriesRpcTimeoutMillis' => 15000]]);
 
-      $operation->pollUntilComplete(['initialPollDelayMillis' => 500]);
+      if (!$operation->pollUntilComplete(['initialPollDelayMillis' => 500, 'maxPollDelayMillis' => 2000, 'totalPollTimeoutMillis' => 45000])) {
+        try {
+          $operation->cancel();
+        } catch (\Throwable $cancelError) {
+          $this->logger?->warning('Impossible d’annuler une lecture OCR expirée.', ['exception' => $cancelError]);
+        }
+        throw new \RuntimeException('La lecture du PDF a pris trop de temps. Réessayez avec une photo ou un document plus court.');
+      }
 
       if (!$operation->operationSucceeded()) {
         $status = $operation->getError();
@@ -201,7 +213,23 @@ final class GoogleVisionOcrService
         'lines' => array_values(array_filter(array_map('trim', $lines), fn($l) => $l !== '')),
       ];
     } finally {
-      $client->close();
+      $client?->close();
+      if (is_resource($stream)) {
+        fclose($stream);
+      }
+      // Documents and recognized text are temporary working files, not archives.
+      try {
+        $bucket->object($inputObject)->delete();
+      } catch (\Throwable $cleanupError) {
+        $this->logger?->warning('Nettoyage du justificatif OCR temporaire impossible.', ['exception' => $cleanupError]);
+      }
+      try {
+        foreach ($bucket->objects(['prefix' => $outputDir]) as $object) {
+          $object->delete();
+        }
+      } catch (\Throwable $cleanupError) {
+        $this->logger?->warning('Nettoyage du texte OCR temporaire impossible.', ['exception' => $cleanupError]);
+      }
     }
   }
 
@@ -215,16 +243,23 @@ final class GoogleVisionOcrService
       $jsonObjects[] = $object;
     }
 
-    usort($jsonObjects, fn($a, $b) => strcmp($a->name(), $b->name()));
+    if ($jsonObjects === []) {
+      throw new \RuntimeException('La lecture du document n’a produit aucun résultat.');
+    }
+    usort($jsonObjects, fn($a, $b) => strnatcmp($a->name(), $b->name()));
 
     foreach ($jsonObjects as $object) {
       $json = $object->downloadAsString();
-      $data = json_decode($json, true);
+      $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
-      if (!is_array($data) || !isset($data['responses']) || !is_array($data['responses'])) continue;
+      if (!is_array($data) || !isset($data['responses']) || !is_array($data['responses']) || $data['responses'] === []) {
+        throw new \RuntimeException('La lecture du document a renvoyé un résultat incomplet.');
+      }
 
       foreach ($data['responses'] as $resp) {
-        if (!is_array($resp)) continue;
+        if (!is_array($resp) || !empty($resp['error']['code'])) {
+          throw new \RuntimeException('Une page du document n’a pas pu être lue. Aucun montant n’a été prérempli.');
+        }
         if (isset($resp['fullTextAnnotation']['text'])) {
           $fullText .= $resp['fullTextAnnotation']['text'] . "\n";
         } elseif (isset($resp['textAnnotations'][0]['description'])) {

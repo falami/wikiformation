@@ -379,12 +379,12 @@
             <div class="d-flex gap-2 align-items-center flex-wrap">
               {# input principal : fichiers #}
               <input id="scanFile" type="file"
-                    accept="image/*,application/pdf"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
                     class="d-none">
 
               {# input camera dédié (mobile) : photo directe #}
               <input id="scanCamera" type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     capture="environment"
                     class="d-none">
 
@@ -407,13 +407,13 @@
           </div>
 
           {# Dropzone + aperçu #}
-          <div class="upload-drop mt-3" id="scanDropzone" style="cursor:pointer;">
+          <div class="upload-drop mt-3" id="scanDropzone" role="button" tabindex="0" aria-label="Choisir un justificatif à analyser" style="cursor:pointer;">
             <div class="d-flex align-items-start gap-3">
               <div class="fs-3"><i class="bi bi-receipt-cutoff"></i></div>
 
               <div class="flex-grow-1">
                 <div class="fw-bold" style="color:var(--ink)">Glisse ton reçu ici</div>
-                <div class="small text-muted">JPG/PNG/WebP ou PDF</div>
+                <div class="small text-muted">JPG/PNG/WebP ou PDF · 8 Mo maximum</div>
 
                 <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
                   <span class="badge rounded-pill text-bg-light border" id="scanFileBadge">
@@ -432,7 +432,7 @@
             <div id="scanPreview" class="mt-3" style="display:none;"></div>
           </div>
 
-          <div id="scanStatus" class="small mt-2 text-muted"></div>
+          <div id="scanStatus" class="small mt-2 text-muted" role="status" aria-live="polite"></div>
 
           <div id="scanProposal" class="mt-3" style="display:none;">
             <div class="p-3 border rounded-3" style="background:rgba(255,193,7,.08); border-color:rgba(255,193,7,.25) !important;">
@@ -560,13 +560,14 @@
       <div class="cardx mb-4">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-calculator-fill text-warning"></i> TVA & Montants</h5>
-          <span class="chip">Auto</span>
+          <span class="chip" id="expenseCalcMode">Auto</span>
         </div>
 
         <div class="p-3 p-md-4">
           <div class="row g-3 align-items-end">
 
-            <div class="col-md-4">
+            <div class="col-12">{{ form_row(form.amountsManual) }}</div>
+            <div class="col-md-4" id="expenseTaxRateField">
               {{ form_row(form.tauxTva) }}
             </div>
 
@@ -581,7 +582,7 @@
             
 
 
-            <div class="col-md-4">
+            <div class="col-md-4" id="expenseAutoCalc">
               <div class="mini-kpi">
                 <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
                   <div class="fw-bold"><i class="bi bi-lightning-charge-fill me-2"></i>Calcul assisté</div>
@@ -612,7 +613,7 @@
                 <span class="input-group-text euro-suffix">€</span>
               </div>
 
-              <div class="form-text"><i class="bi bi-sliders me-1"></i>Montant HT, le TTC sera automatiquement calculé.</div>
+              <div class="form-text" id="expenseHtHelp">Montant HT, le TTC sera automatiquement calculé.</div>
               {{ form_errors(form.montantHtCents) }}
             </div>
 
@@ -645,7 +646,7 @@
 
           </div>
 
-          <div class="form-text mt-2">
+          <div class="form-text mt-2" id="expenseAmountsHelp">
             Astuce : saisis <strong>TTC</strong> (reçu) pour obtenir automatiquement <strong>HT</strong> et <strong>TVA</strong>.
           </div>
         </div>
@@ -763,7 +764,7 @@
               <hr class="my-2" style="border-color: var(--stroke);">
 
               <div class="d-flex justify-content-between gap-3 py-1">
-                <span class="text-muted">Taux TVA</span>
+                <span class="text-muted" id="resume-rate-label">Taux TVA</span>
                 <span class="fw-semibold text-end" id="resume-taux">—</span>
               </div>
               <div class="d-flex justify-content-between gap-3 py-1">
@@ -1035,17 +1036,13 @@
 
 
 
+<script src="{{ asset('dist/js/expense-inputs.js') }}"></script>
+<script src="{{ asset('dist/js/expense-receipt.js') }}"></script>
 <script>
 /* =========================================================
    HELPERS (format FR)
 ========================================================= */
-function parseNumberFR(v){
-  if (v === null || v === undefined) return 0;
-  v = String(v).trim().replace(/\s/g,'').replace('\u202F','').replace(',', '.');
-  v = v.replace(/[^\d.\-]/g,'');
-  const n = parseFloat(v);
-  return isNaN(n) ? 0 : n;
-}
+function parseNumberFR(v){ return window.WikiExpenseInputs.parseNumber(v); }
 function formatMoneyFR(n){
   if (!isFinite(n)) n = 0;
   try {
@@ -1074,7 +1071,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // TomSelect
   function initTomSelect(selector, opts = {}){
     const el = document.querySelector(selector);
-    if (!el || el.tomselect) return el;
+    if (!el || el.tomselect || typeof TomSelect === 'undefined') return el;
     new TomSelect(el, Object.assign({
       create:false,
       plugins: el.multiple ? ['remove_button'] : [],
@@ -1094,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', function(){
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: new URLSearchParams(data)
+      body: new URLSearchParams({ ...data, _token: {{ csrf_token('expense_choices_' ~ entite.id)|json_encode|raw }} })
     }).then(async r => {
       const json = await r.json().catch(()=>null);
       if (!r.ok) throw (json || {message:'Erreur serveur'});
@@ -1405,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // Flatpickr
   if (window.flatpickr && window.flatpickr.l10ns?.fr) flatpickr.localize(flatpickr.l10ns.fr);
   document.querySelectorAll('.flatpickr-date').forEach(el => {
-    if (!el._fp) flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
+    if (window.flatpickr && !el._flatpickr) flatpickr(el, { dateFormat:'d/m/Y', allowInput:true });
   });
 
   // Elements
@@ -1445,33 +1442,41 @@ document.addEventListener('DOMContentLoaded', function(){
 
   };
 
+  const $manualAmounts = document.getElementById('{{ form.amountsManual.vars.id }}');
+  let expenseSubmitting = false;
+  function preserveAmounts(){ return $manualAmounts?.checked || $ttc?.form?.dataset.applyingReceipt === '1'; }
+
   // Live calc
   function recalcFromTtc(){
+    if (preserveAmounts()) return;
     const taux = parseFloat($taux?.value || '0') || 0;
-    const ttc  = parseNumberFR($ttc?.value || 0);
+    const ttc  = window.WikiExpenseInputs.toCents($ttc?.value || 0) / 100;
     if (!($ht && $tva && $ttc)) return;
-    if (ttc <= 0) return;
+    if (!Number.isFinite(ttc) || ttc <= 0) return;
 
     if (taux <= 0.0001){
       $ht.value  = formatMoneyFR(ttc);
       $tva.value = formatMoneyFR(0);
       return;
     }
-    const ht  = ttc / (1 + (taux/100));
-    const tv  = ttc - ht;
+    const htCents = Math.round(Math.round(ttc * 100) / (1 + taux / 100));
+    const ht = htCents / 100;
+    const tv = (Math.round(ttc * 100) - htCents) / 100;
 
     $ht.value  = formatMoneyFR(ht);
     $tva.value = formatMoneyFR(tv);
   }
 
   function recalcFromHt(){
+    if (preserveAmounts()) return;
     const taux = parseFloat($taux?.value || '0') || 0;
     const ht   = parseNumberFR($ht?.value || 0);
     if (!($ht && $tva && $ttc)) return;
-    if (ht <= 0) return;
+    if (!Number.isFinite(ht) || ht <= 0) return;
 
-    const tv  = ht * (taux/100);
-    const ttc = ht + tv;
+    const htCents = Math.round(ht * 100);
+    const tv = Math.round(htCents * taux / 100) / 100;
+    const ttc = (htCents + Math.round(tv * 100)) / 100;
 
     $tva.value = formatMoneyFR(tv);
     $ttc.value = formatMoneyFR(ttc);
@@ -1496,7 +1501,20 @@ document.addEventListener('DOMContentLoaded', function(){
     if ($resume.date)       $resume.date.textContent = isFilled($date?.value) ? $date.value.trim() : '—';
     if ($resume.devise)     $resume.devise.textContent = getSelectedText($devise) || '—';
 
-    if ($resume.taux)       $resume.taux.textContent = (parseFloat($taux?.value || '0') || 0).toString().replace('.', ',') + ' %';
+    const manualAmounts = !!$manualAmounts?.checked;
+    if ($resume.taux) $resume.taux.textContent = manualAmounts ? 'TVA du justificatif' : (parseFloat($taux?.value || '0') || 0).toString().replace('.', ',') + ' %';
+    const rateLabel = document.getElementById('resume-rate-label');
+    if (rateLabel) rateLabel.textContent = manualAmounts ? 'Calcul TVA' : 'Taux TVA';
+    const calcMode = document.getElementById('expenseCalcMode');
+    if (calcMode) calcMode.textContent = manualAmounts ? 'Montants du justificatif' : 'Auto';
+    document.getElementById('expenseTaxRateField')?.classList.toggle('d-none', manualAmounts);
+    document.getElementById('expenseAutoCalc')?.classList.toggle('d-none', manualAmounts);
+    const htHelp = document.getElementById('expenseHtHelp');
+    if (htHelp) htHelp.textContent = manualAmounts ? 'Montant HT relevé sur le justificatif.' : 'Montant HT, le TTC sera automatiquement calculé.';
+    const amountsHelp = document.getElementById('expenseAmountsHelp');
+    if (amountsHelp) amountsHelp.textContent = manualAmounts
+      ? 'Vérifiez HT, TVA et TTC sur le justificatif. Aucun montant ne sera recalculé automatiquement : HT + TVA doit être égal au TTC.'
+      : 'Saisissez le TTC et choisissez le taux de TVA pour calculer automatiquement le HT et la TVA.';
     if ($resume.deductible) $resume.deductible.textContent = ($ded && $ded.checked) ? 'Oui' : 'Non';
 
     if ($resume.ht)  $resume.ht.textContent  = (ht  > 0) ? (formatMoneyFR(ht)  + ' €') : '—';
@@ -1506,7 +1524,7 @@ document.addEventListener('DOMContentLoaded', function(){
     
 
 
-    const pct = parseNumberFR($pct?.value || 100);
+    const pct = parseNumberFR($pct?.value ?? 0);
     const pctClamped = Math.max(0, Math.min(100, pct));
     const isDed = ($ded && $ded.checked);
 
@@ -1525,11 +1543,20 @@ document.addEventListener('DOMContentLoaded', function(){
       $pct.disabled = !isDed;
     }
 
+    [$ht, $tva, $ttc].forEach(input => {
+      if (!input) return;
+      const cents = window.WikiExpenseInputs.toCents(input.value);
+      input.setCustomValidity(Number.isFinite(cents) && cents >= 0 ? '' : 'Saisissez un montant positif avec au maximum deux décimales.');
+    });
+    const totalsValid = Number.isFinite(ttc) && ttc > 0 && ht >= 0 && tv >= 0 &&
+      Math.round(ht * 100) + Math.round(tv * 100) === Math.round(ttc * 100);
+    if ($ttc && !$ttc.validationMessage && !totalsValid) $ttc.setCustomValidity('Vérifiez les montants : HT + TVA doit être égal au TTC, qui doit être positif.');
     const ok =
       isFilled($libelle?.value) &&
       isFilled($date?.value) &&
       isFilled($devise?.value) &&
-      (ttc > 0 || ht > 0);
+      ttc > 0 && ht >= 0 && tv >= 0 &&
+      Math.round(ht * 100) + Math.round(tv * 100) === Math.round(ttc * 100);
 
 
     if ($resume.pill){
@@ -1547,8 +1574,21 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     // disable submit buttons if incomplete
-    document.querySelectorAll('form[name="depense_form"] button[type="submit"]').forEach(b => b.disabled = !ok);
+    document.querySelectorAll('button[type="submit"]').forEach(b => { if (b.form === $ttc?.form) b.disabled = !ok || expenseSubmitting; });
   }
+
+  $manualAmounts?.addEventListener('change', () => {
+    if (!$manualAmounts.checked) recalcFromTtc();
+    refreshResume();
+  });
+  $ttc?.form?.addEventListener('submit', event => {
+    if (expenseSubmitting) { event.preventDefault(); return; }
+    refreshResume();
+    if (!$ttc.form.checkValidity()) { event.preventDefault(); $ttc.form.reportValidity(); return; }
+    expenseSubmitting = true;
+    refreshResume();
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) { expenseSubmitting = false; refreshResume(); } });
 
   // Listeners
   [$libelle,$cat,$four,$payeur,$date,$devise,$taux,$ded,$pct,$ht,$tva,$ttc].forEach(el=>{
@@ -1603,8 +1643,8 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="proof-card">
         <div class="proof-card-h">
           <div class="proof-meta">
-            <div class="proof-name">${title}</div>
-            <div class="proof-sub">${subtitle || ''}</div>
+            <div class="proof-name">${window.WikiExpenseInputs.escapeHtml(title)}</div>
+            <div class="proof-sub">${window.WikiExpenseInputs.escapeHtml(subtitle || '')}</div>
           </div>
           <div class="d-flex flex-wrap gap-2 justify-content-end">
             ${actionsHtml || ''}
@@ -1642,11 +1682,12 @@ document.addEventListener('DOMContentLoaded', function(){
     // confirm premium (simple et clair)
     if (!confirm('Supprimer définitivement le justificatif ?')) return;
 
-    const r = await fetch(deleteUrl, {
+    let r;
+    try { r = await fetch(deleteUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
       body: new URLSearchParams({ _token: token })
-    });
+    }); } catch (_) { alert('Impossible de joindre le serveur. Le justificatif n’a pas été supprimé. Réessayez.'); return; }
 
     const json = await r.json().catch(()=>null);
     if (!r.ok || !json?.ok){
@@ -1727,7 +1768,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const subtitle = `Justificatif enregistré • affichage inline`;
 
       const actionsHtml = `
-        <a class="btn btn-light btn-sm" style="border-color:var(--stroke);" target="_blank" href="${url}">
+        <a class="btn btn-light btn-sm" style="border-color:var(--stroke);" target="_blank" href="${window.WikiExpenseInputs.escapeHtml(url)}" rel="noopener">
           <i class="bi bi-box-arrow-up-right me-1"></i> Voir
         </a>
         <button type="button" class="btn btn-danger btn-sm" id="btnDeleteExistingProof">
@@ -1737,11 +1778,11 @@ document.addEventListener('DOMContentLoaded', function(){
 
       let contentHtml = '';
       if (isPdf(name)){
-        contentHtml = `<iframe class="proof-frame" src="${url}"></iframe>`;
+        contentHtml = `<iframe class="proof-frame" src="${window.WikiExpenseInputs.escapeHtml(url)}"></iframe>`;
       } else if (isImage(name)){
         contentHtml = `
           <div class="p-3">
-            <img src="${url}" alt="" style="max-width:100%; border-radius:14px; border:1px solid var(--stroke);">
+            <img src="${window.WikiExpenseInputs.escapeHtml(url)}" alt="" style="max-width:100%; border-radius:14px; border:1px solid var(--stroke);">
           </div>
         `;
       } else {
@@ -1786,9 +1827,10 @@ document.addEventListener('DOMContentLoaded', function(){
     dz.addEventListener('drop', (e)=>{
       const files = e.dataTransfer?.files;
       if (!files || !files.length) return;
-      $file.files = files;
-      renderProofPreview();
-      refreshResume();
+      const transfer = new DataTransfer();
+      transfer.items.add(files[0]);
+      $file.files = transfer.files;
+      $file.dispatchEvent(new Event('change', { bubbles: true }));
     });
   }
 
@@ -1817,356 +1859,20 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <script>
-(function(){
-  const $file      = document.getElementById('scanFile');
-  const $camera    = document.getElementById('scanCamera');
-  const $btnPick   = document.getElementById('btnScanPick');
-  const $btnCam    = document.getElementById('btnScanCamera');
-  const $btnClear  = document.getElementById('btnScanClear');
-  const $btnScan   = document.getElementById('btnScan');
-  const $status    = document.getElementById('scanStatus');
-  const $box       = document.getElementById('scanProposal');
-
-  const $dz        = document.getElementById('scanDropzone');
-  const $preview   = document.getElementById('scanPreview');
-  const $badge     = document.getElementById('scanFileBadge');
-  const $meta      = document.getElementById('scanFileMeta');
-
-  let lastProposal = null;
-  let objectUrl = null;
-
-  function euro(cents){
-    const v = (cents||0)/100;
-    return v.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
-  }
-  function humanSize(bytes){
-    const mb = bytes / 1024 / 1024;
-    if (mb >= 1) return mb.toFixed(2) + ' Mo';
-    const kb = bytes / 1024;
-    return kb.toFixed(0) + ' Ko';
-  }
-  function isPdf(f){
-    const name = (f?.name || '').toLowerCase();
-    return f?.type === 'application/pdf' || name.endsWith('.pdf');
-  }
-  function isImage(f){
-    return (f?.type || '').startsWith('image/');
-  }
-
-  function setFile(f){
-    if (!f) return;
-    const dt = new DataTransfer();
-    dt.items.add(f);
-    $file.files = dt.files;
-    render();
-  }
-
-
-  function formatPctFR(x){
-    const n = Number(x);
-    if (!isFinite(n)) return '—';
-    const s = n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
-    return s + ' %';
-  }
-
-  /**
-   * Renvoie un taux TVA "fiable" :
-   * - priorité à un taux fourni par l’API si présent
-   * - sinon calcule brut depuis HT/TTC (plus robuste que TVA/HT)
-   * - puis snap vers un taux légal si proche (20/10/5.5/2.1/0)
-   * - sinon conserve le brut (mais on pourra l’afficher "à vérifier")
-   */
-  function computeVatRatePct(proposal){
-    // 1) si l’API te renvoie déjà un taux : on le prend
-    const direct =
-      proposal?.tauxTva ??
-      proposal?.tauxTvaPct ??
-      proposal?.vatRate ??
-      proposal?.vatRatePct ??
-      null;
-
-    if (direct !== null && direct !== undefined && direct !== '') {
-      const d = Number(String(direct).replace(',', '.'));
-      if (isFinite(d) && d >= 0) return { pct: d, snapped: true, source: 'api' };
-    }
-
-    // 2) sinon on calcule depuis HT/TTC (évite dépendre d’une TVA OCR)
-    const ht  = Number(proposal?.montantHtCents || 0);
-    const ttc = Number(proposal?.montantTtcCents || 0);
-
-    if (!(ht > 0) || !(ttc > 0) || ttc <= ht) {
-      return { pct: 0, snapped: true, source: 'none' };
-    }
-
-    const raw = ((ttc - ht) / ht) * 100;
-
-    // 3) snap vers taux légaux si proche
-    const legal = [20, 10, 5.5, 2.1, 0];
-    let best = legal[0];
-    let bestDiff = Math.abs(raw - best);
-
-    for (const r of legal) {
-      const diff = Math.abs(raw - r);
-      if (diff < bestDiff) { bestDiff = diff; best = r; }
-    }
-
-    // tolérance : si on est à +/- 1 point, on considère que c’est une erreur OCR
-    const TOL = 1.0;
-    if (bestDiff <= TOL) {
-      return { pct: best, snapped: true, source: 'snapped' };
-    }
-
-    // sinon on garde le brut, mais on signalera qu’il est douteux
-    return { pct: raw, snapped: false, source: 'raw' };
-  }
-
-
-
-  function clear(){
-    lastProposal = null;
-    $box.style.display = 'none';
-    $status.textContent = '';
-    if (objectUrl){ URL.revokeObjectURL(objectUrl); objectUrl = null; }
-    $file.value = '';
-    if ($camera) $camera.value = '';
-    render();
-  }
-
-  function render(){
-    const f = $file.files?.[0] || null;
-
-    $btnClear.disabled = !f;
-    $btnScan.disabled  = !f;
-
-    if (!f){
-      $badge.innerHTML = `<i class="bi bi-dot me-1"></i> Aucun fichier`;
-      $meta.textContent = '';
-      $preview.style.display = 'none';
-      $preview.innerHTML = '';
-      return;
-    }
-
-    $badge.innerHTML = `<i class="bi bi-check2-circle me-1"></i> ${f.name}`;
-    $meta.textContent = `${humanSize(f.size)} • ${f.type || 'fichier'}`;
-
-    if (objectUrl){ URL.revokeObjectURL(objectUrl); }
-    objectUrl = URL.createObjectURL(f);
-
-    let html = `<div class="scan-thumb">`;
-
-    if (isPdf(f)){
-      html += `<iframe src="${objectUrl}"></iframe>`;
-    } else if (isImage(f)){
-      html += `<img src="${objectUrl}" alt="Aperçu reçu">`;
-    } else {
-      html += `<div class="p-3 small text-muted">
-                <i class="bi bi-file-earmark me-2"></i>
-                Aperçu non disponible pour ce type de fichier.
-              </div>`;
-    }
-
-    html += `</div>`;
-    $preview.innerHTML = html;
-    $preview.style.display = '';
-  }
-
-  // Buttons
-  $btnPick?.addEventListener('click', () => $file?.click());
-  $btnCam?.addEventListener('click', () => $camera?.click());
-  $btnClear?.addEventListener('click', clear);
-
-  // Click on dropzone => open picker
-  $dz?.addEventListener('click', (e) => {
-    // évite de déclencher si on sélectionne du texte
-    if ((window.getSelection?.().toString() || '').length) return;
-    $file?.click();
-  });
-
-  // Input changes
-  $file?.addEventListener('change', () => render());
-  $camera?.addEventListener('change', () => {
-    const f = $camera.files?.[0];
-    if (f) setFile(f);
-  });
-
-  // Drag & drop
-  if ($dz){
-    ['dragenter','dragover'].forEach(ev => $dz.addEventListener(ev, (e)=>{
-      e.preventDefault(); e.stopPropagation();
-      $dz.classList.add('is-dragover');
-    }));
-    ['dragleave','drop'].forEach(ev => $dz.addEventListener(ev, (e)=>{
-      e.preventDefault(); e.stopPropagation();
-      $dz.classList.remove('is-dragover');
-    }));
-    $dz.addEventListener('drop', (e)=>{
-      const f = e.dataTransfer?.files?.[0];
-      if (f) setFile(f);
-    });
-  }
-
-  // Analyse
-  $btnScan?.addEventListener('click', async () => {
-    lastProposal = null;
-    $box.style.display = 'none';
-
-    const f = $file.files?.[0];
-    if(!f){
-      $status.textContent = "Choisis un fichier (photo/PDF) d’abord.";
-      return;
-    }
-
-    $status.textContent = "Analyse en cours…";
-    $btnScan.disabled = true;
-
-    try{
-      const fd = new FormData();
-      fd.append('file', f);
-
-      const res = await fetch("{{ path('app_administrateur_depense_scan_receipt', { entite: entite.id }) }}", {
-        method: 'POST',
-        body: fd,
-        headers: { 'Accept': 'application/json' }
-      });
-
-      const json = await res.json();
-      if(!res.ok || !json.ok){
-        throw new Error(json.message || "Erreur d’analyse");
-      }
-
-      lastProposal = json.proposal;
-
-      document.getElementById('scanConfidence').textContent =
-        `Confiance : ${lastProposal.confidence || 0}% (à valider)`;
-
-      document.getElementById('pDate').textContent = lastProposal.date || '—';
-      document.getElementById('pTtc').textContent = euro(lastProposal.montantTtcCents);
-      const rate = computeVatRatePct(lastProposal);
-
-      document.getElementById('pTva').textContent =
-        rate.snapped
-          ? formatPctFR(rate.pct)
-          : (formatPctFR(rate.pct) + ' (à vérifier)');
-
-      document.getElementById('pHt').textContent  = euro(lastProposal.montantHtCents);
-
-      $box.style.display = '';
-      $status.textContent = "Proposition prête. Vérifie puis applique.";
-    }catch(e){
-      $status.textContent = "❌ " + (e.message || "Erreur");
-    }finally{
-      $btnScan.disabled = !($file.files?.[0]);
+document.addEventListener('DOMContentLoaded', function () {
+  window.WikiExpenseReceipt({
+    url: {{ path('app_administrateur_depense_scan_receipt', { entite: entite.id })|json_encode|raw }},
+    token: {{ csrf_token('expense_scan_' ~ entite.id)|json_encode|raw }},
+    fields: {
+      date: '{{ form.dateDepense.vars.id }}',
+      ht: '{{ form.montantHtCents.vars.id }}',
+      tva: '{{ form.montantTvaCents.vars.id }}',
+      ttc: '{{ form.montantTtcCents.vars.id }}',
+      rate: '{{ form.tauxTva.vars.id }}',
+      manual: '{{ form.amountsManual.vars.id }}',
+      proof: '{{ form.justificatifFile.vars.id }}',
     }
   });
-
-
-
-    const $btnApply = document.getElementById('btnApplyProposal');
-
-  // Champs du formulaire Symfony
-  const $fDate = document.getElementById('{{ form.dateDepense.vars.id }}');
-  const $fTtc  = document.getElementById('{{ form.montantTtcCents.vars.id }}');
-  const $fTva  = document.getElementById('{{ form.montantTvaCents.vars.id }}');
-  const $fHt   = document.getElementById('{{ form.montantHtCents.vars.id }}');
-  const $fTaux = document.getElementById('{{ form.tauxTva.vars.id }}');
-
-
-  // Input justificatif Symfony
-  const $justif = document.getElementById('{{ form.justificatifFile.vars.id }}');
-
-  function centsToInputMoney(cents){
-    const v = (Number(cents || 0) / 100);
-    // On retourne une valeur "champ" (sans symbole €)
-    return v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  function isoToFrDate(iso){
-    // Supporte "YYYY-MM-DD" ou "YYYY-MM-DDTHH:mm:ss"
-    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!m) return String(iso || '').trim();
-    return `${m[3]}/${m[2]}/${m[1]}`;
-  }
-
-  function setFilesOnInput(input, file){
-    if (!input || !file) return;
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-    // trigger change (pour ton preview + résumé)
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
-  function applyProposalToForm(){
-    if (!lastProposal) return;
-
-    // 1) Remplissage champs
-    if ($fDate && lastProposal.date) {
-      $fDate.value = isoToFrDate(lastProposal.date);
-      $fDate.dispatchEvent(new Event('input', { bubbles: true }));
-      $fDate.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    if ($fTtc) {
-      $fTtc.value = centsToInputMoney(lastProposal.montantTtcCents);
-      $fTtc.dispatchEvent(new Event('input', { bubbles: true }));
-      $fTtc.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    if ($fTva) {
-      $fTva.value = centsToInputMoney(lastProposal.montantTvaCents);
-      $fTva.dispatchEvent(new Event('input', { bubbles: true }));
-      $fTva.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    if ($fHt) {
-      $fHt.value = centsToInputMoney(lastProposal.montantHtCents);
-      $fHt.dispatchEvent(new Event('input', { bubbles: true }));
-      $fHt.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    // 2) Mettre automatiquement la photo/PDF scanné comme justificatif Symfony
-    const f = $file?.files?.[0] || null;
-    if (f && $justif) {
-      setFilesOnInput($justif, f);
-    }
-
-
-    // 1bis) appliquer le taux TVA (snap/legal si possible)
-    if ($fTaux) {
-      const rate = computeVatRatePct(lastProposal);
-      const pctRounded = Math.round(Number(rate.pct) * 100) / 100;
-
-      if ($fTaux.tagName === 'SELECT') {
-        const opts = Array.from($fTaux.options || []);
-        let best = null;
-        let bestDiff = Infinity;
-
-        for (const o of opts) {
-          const v = parseFloat(String(o.value).replace(',', '.'));
-          if (!isFinite(v)) continue;
-          const diff = Math.abs(v - pctRounded);
-          if (diff < bestDiff) { bestDiff = diff; best = o.value; }
-        }
-        if (best !== null) $fTaux.value = best;
-      } else {
-        $fTaux.value = String(pctRounded).replace('.', ',');
-      }
-
-      $fTaux.dispatchEvent(new Event('change', { bubbles: true }));
-      $fTaux.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-
-
-    // 3) Petit feedback
-    $status.textContent = "✅ Proposition appliquée au formulaire (et justificatif attaché).";
-  }
-
-  $btnApply?.addEventListener('click', applyProposalToForm);
-
-
-  // init
-  render();
-})();
+});
 </script>
-
-
 {% endblock %}

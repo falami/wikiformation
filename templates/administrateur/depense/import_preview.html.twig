@@ -336,46 +336,52 @@
   </div>
 
   {% include 'flagMessage.html.twig' %}
+  {% if importErrors|default([]) %}
+    <div class="alert alert-danger" role="alert"><strong>L’import n’a pas été enregistré.</strong><ul class="mb-0">{% for error in importErrors %}<li>{{ error }}</li>{% endfor %}</ul><div class="mt-2 small">Les justificatifs sélectionnés doivent être joints à nouveau après une erreur.</div></div>
+  {% endif %}
+  <div class="alert alert-info">Un relevé bancaire ne précise pas la TVA : vérifiez les taux et la déductibilité sur les justificatifs. Les doublons probables sont exclus par défaut.</div>
 
   <form method="post"
         action="{{ path('app_administrateur_depense_import_commit', {entite: entite.id}) }}"
         enctype="multipart/form-data"
-        id="importForm">
+        id="importForm" novalidate>
+    <input type="hidden" name="_token" value="{{ csrf_token('expense_import_commit_' ~ entite.id) }}">
+    <input type="hidden" name="importBatch" value="{{ importBatch }}">
+    <input type="hidden" name="rowsJson" id="importRowsJson" value="">
 
     <div class="row g-3">
       {% for p in proposals %}
         {% set key = (p.date ~ '|' ~ p.montantTtcCents) %}
         {% set isDup = dupMap[key] is defined %}
+        {% set existingDuplicateId = isDup ? dupMap[key].depenseId : null %}
         <div class="col-12">
-          <div class="imp-card {{ isDup ? 'dup' : '' }}" data-idx="{{ p.idx }}" data-dup="{{ isDup ? 1 : 0 }}">
+          <div class="imp-card {{ isDup ? 'dup' : '' }}" data-idx="{{ p.idx }}" data-dup="{{ isDup ? 1 : 0 }}" data-db-duplicate-id="{{ existingDuplicateId }}">
             <div class="imp-head">
               <div class="d-flex flex-wrap gap-2 align-items-center">
                 <span class="imp-badge"><i class="bi bi-hash"></i> {{ p.idx + 1 }}</span>
                 <span class="imp-badge"><i class="bi bi-calendar"></i> {{ p.dateFr ?: '—' }}</span>
                 <span class="imp-badge"><i class="bi bi-cash-coin"></i> {{ (p.montantTtcCents/100)|number_format(2, ',', ' ') }} €</span>
 
-                {% if isDup %}
                   <div class="dup-zone d-flex gap-2 {{ isDup ? '' : 'd-none' }}">
                     <span class="imp-badge dup-badge dup-label">
-                      <i class="bi bi-exclamation-triangle"></i> Doublon probable
+                      <i class="bi bi-exclamation-triangle"></i> <span class="dup-message">{{ existingDuplicateId ? 'Doublon probable' : 'Doublon possible dans ce fichier' }}</span>
                     </span>
 
-                    <a class="imp-badge dup-badge dup-link {{ isDup ? '' : 'disabled' }}"
+                    <a class="imp-badge dup-badge dup-link {{ existingDuplicateId ? '' : 'disabled d-none' }}"
                       href="#"
-                      {{ isDup ? ('data-existing-id="' ~ dupMap[key].depenseId ~ '"') : '' }}
+                      {% if existingDuplicateId %}data-existing-id="{{ existingDuplicateId }}"{% endif %}
                       aria-label="Voir existant (modal)"
-                      aria-disabled="{{ isDup ? 'false' : 'true' }}">
+                      aria-disabled="{{ existingDuplicateId ? 'false' : 'true' }}">
                       <i class="bi bi-eye"></i> Voir existant
                     </a>
                   </div>
-                {% endif %}
               </div>
 
               <div class="d-flex gap-2 align-items-center">
                 <div class="form-check form-switch">
                   <input class="form-check-input accept-switch" type="checkbox"
                          name="rows[{{ p.idx }}][accept]" value="1"
-                         id="accept_{{ p.idx }}" checked>
+                         id="accept_{{ p.idx }}" {{ (p.accept ?? not isDup) ? 'checked' : '' }}>
                   <label class="form-check-label" for="accept_{{ p.idx }}">Importer</label>
                 </div>
 
@@ -389,6 +395,10 @@
             
 
             <div class="p-3 p-md-4">
+              <div class="form-check mb-3 duplicate-confirm {{ isDup ? '' : 'd-none' }}">
+                <input class="form-check-input allow-duplicate" type="checkbox" name="rows[{{ p.idx }}][allowDuplicate]" value="1" id="allow_duplicate_{{ p.idx }}" {{ p.allowDuplicate|default(false) ? 'checked' : '' }}>
+                <label class="form-check-label" for="allow_duplicate_{{ p.idx }}">J’ai vérifié : cette opération est distincte du doublon signalé.</label>
+              </div>
 
 
               <div class="row g-3">
@@ -521,21 +531,21 @@
                       <div class="d-flex align-items-center justify-content-between gap-2"
                           style="min-height:42px; background: var(--bg-soft); border:1px solid var(--stroke2); border-radius:14px; padding:.5rem .75rem;">
                         <div class="small fw-semibold" style="color: var(--muted);">
-                          <span class="ded-label">{{ (p.tvaDeductible ?? 1) ? 'Oui' : 'Non' }}</span>
+                          <span class="ded-label">{{ (p.tvaDeductible ?? 0) ? 'Oui' : 'Non' }}</span>
                         </div>
 
                         <div class="form-check form-switch m-0">
                           <input class="form-check-input dedSwitch"
                                 type="checkbox"
                                 id="ded_{{ p.idx }}"
-                                {{ (p.tvaDeductible ?? 1) ? 'checked' : '' }}>
+                                {{ (p.tvaDeductible ?? 0) ? 'checked' : '' }}>
                           <label class="form-check-label visually-hidden" for="ded_{{ p.idx }}">TVA déductible</label>
                         </div>
                       </div>
 
                       <input type="hidden"
                             name="rows[{{ p.idx }}][tvaDeductible]"
-                            value="{{ (p.tvaDeductible ?? 1) ? 1 : 0 }}"
+                            value="{{ (p.tvaDeductible ?? 0) ? 1 : 0 }}"
                             class="dedVal">
                     </div>
 
@@ -562,7 +572,7 @@
                       <div class="input-group">
                         <input class="form-control pct money pctInput"
                               name="rows[{{ p.idx }}][tvaDeductiblePct]"
-                              value="{{ p.tvaDeductiblePct ?? 80 }}"
+                              value="{{ p.tvaDeductiblePct ?? 0 }}"
                               step="0.01" min="0" max="100" type="number">
                         <span class="input-group-text">%</span>
                       </div>
@@ -670,7 +680,7 @@
 
               <div class="mt-3 small text-muted">
                 <i class="bi bi-info-circle"></i>
-                Astuce : si tu touches le <strong>TTC</strong> ou le <strong>taux</strong>, HT/TVA se recalculent automatiquement.
+                Calcul depuis TTC et taux. Si vous corrigez HT ou TVA, vérifiez HT + TVA = TTC ; vos montants seront conservés.
               </div>
 
             </div>
@@ -696,6 +706,7 @@
       </div>
     </div>
 
+    <input type="hidden" name="payloadComplete" value="1">
   </form>
 
 
@@ -1066,17 +1077,12 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
 
+<script src="{{ asset('dist/js/expense-inputs.js') }}"></script>
 <script>
 /* =============================
   Helpers FR
 ============================= */
-function parseNumberFR(v){
-  if (v === null || v === undefined) return 0;
-  v = String(v).trim().replace(/\s/g,'').replace('\u202F','').replace(',', '.');
-  v = v.replace(/[^\d.\-]/g,'');
-  const n = parseFloat(v);
-  return isNaN(n) ? 0 : n;
-}
+function parseNumberFR(v){ return window.WikiExpenseInputs.parseNumber(v); }
 function formatMoneyFR(n){
   if (!isFinite(n)) n = 0;
   try {
@@ -1086,7 +1092,7 @@ function formatMoneyFR(n){
   }
 }
 function eurosToCents(euros){
-  return Math.max(0, Math.round((parseNumberFR(euros) || 0) * 100));
+  return window.WikiExpenseInputs.toCents(euros);
 }
 function centsToEuros(cents){
   return (parseInt(cents || 0, 10) || 0) / 100;
@@ -1119,7 +1125,7 @@ function postForm(url, data){
   return fetch(url, {
     method:'POST',
     headers:{ 'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8' },
-    body:new URLSearchParams(data)
+    body:new URLSearchParams({ ...data, _token: {{ csrf_token('expense_choices_' ~ entite.id)|json_encode|raw }} })
   }).then(async r => {
     const json = await r.json().catch(()=>null);
     if (!r.ok) throw (json || {message:'Erreur serveur'});
@@ -1183,6 +1189,45 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 
+
+  const importForm = document.getElementById('importForm');
+  let submitting = false;
+  importForm?.addEventListener('submit', event => {
+    if (submitting) { event.preventDefault(); return; }
+    const rows = {};
+    let selected = 0;
+    document.querySelectorAll('.imp-card').forEach(card => {
+      card.dispatchEvent(new Event('expense:sync'));
+      const accepted = card.querySelector('.accept-switch')?.checked;
+      const row = { accept: accepted ? '1' : '0', allowDuplicate: '0', hasProof: card.querySelector('input[type="file"]')?.files?.length ? '1' : '0' };
+      card.querySelectorAll('[name]').forEach(input => {
+        const match = input.name.match(/^rows\[([^\]]+)\]\[([^\]]+)\]$/);
+        if (!match || input.disabled || (input.type === 'checkbox' && !input.checked)) return;
+        row[match[2]] = input.value;
+      });
+      rows[card.dataset.idx] = row;
+      if (accepted) selected++;
+    });
+    if (!selected) { event.preventDefault(); alert('Sélectionnez au moins une ligne à importer.'); return; }
+    const invalid = Array.from(importForm.querySelectorAll('.imp-card')).filter(card => card.querySelector('.accept-switch')?.checked)
+      .flatMap(card => Array.from(card.querySelectorAll('input, select, textarea')))
+      .find(input => !input.checkValidity());
+    if (invalid) { event.preventDefault(); invalid.reportValidity(); return; }
+    document.getElementById('importRowsJson').value = JSON.stringify(rows);
+    // The JSON field keeps large batches safe from PHP max_input_vars truncation.
+    importForm.querySelectorAll('[name^="rows["]').forEach(input => { input.dataset.importDisabled = input.disabled ? '1' : '0'; input.disabled = true; });
+    submitting = true;
+    importForm.querySelectorAll('button[type="submit"]').forEach(button => { button.disabled = true; });
+  });
+  window.addEventListener('pageshow', event => {
+    if (!event.persisted || !importForm) return;
+    submitting = false;
+    importForm.querySelectorAll('[data-import-disabled]').forEach(input => {
+      input.disabled = input.dataset.importDisabled === '1'; delete input.dataset.importDisabled;
+    });
+    importForm.querySelectorAll('button[type="submit"]').forEach(button => { button.disabled = false; });
+  });
+
   const DUP_CHECK_URL = "{{ path('app_administrateur_depense_import_dup_check', { entite: entite.id }) }}";
 
   function debounce(fn, delay=250){
@@ -1198,6 +1243,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const ttcCentsEl = card.querySelector('.ttcCents');
     if (!dateEl || !ttcCentsEl) return;
 
+    const requestVersion = (Number(card.dataset.duplicateVersion) || 0) + 1;
+    card.dataset.duplicateVersion = String(requestVersion);
     const date = (dateEl.value || '').trim();            // Y-m-d (value flatpickr)
     const ttcCents = parseInt(ttcCentsEl.value || '0', 10) || 0;
 
@@ -1209,37 +1256,62 @@ document.addEventListener('DOMContentLoaded', function(){
 
     try{
       const res = await postForm(DUP_CHECK_URL, { date, ttcCents });
-      applyDupUI(card, res);
+      if (Number(card.dataset.duplicateVersion) === requestVersion && dateEl.value.trim() === date && ttcCentsEl.value === String(ttcCents)) applyDupUI(card, res);
     } catch(e){
       // en cas d'erreur serveur: on ne casse pas l'UI
     }
   }
 
-  function applyDupUI(card, res){
-    const exists = !!res?.exists;
-    const depenseId = res?.depenseId ? String(res.depenseId) : null;
+  function currentLocalDuplicateKeys(){
+    return window.WikiExpenseInputs.localDuplicateKeys(Array.from(document.querySelectorAll('.imp-card')).map(card => ({
+      removed: card.dataset.removed === '1',
+      date: (card.querySelector('input.js-date')?.value || '').trim(),
+      ttcCents: Number(card.querySelector('.ttcCents')?.value),
+    })));
+  }
 
+  function applyDupUI(card, res, localKeys = currentLocalDuplicateKeys()){
+    const depenseId = res?.exists && res?.depenseId ? String(res.depenseId) : '';
+    card.dataset.dbDuplicateId = depenseId;
+    const key = (card.querySelector('input.js-date')?.value || '').trim() + '|' + Number(card.querySelector('.ttcCents')?.value);
+    const exists = !!depenseId || localKeys.has(key);
+    const wasDuplicate = card.dataset.dup === '1';
     card.classList.toggle('dup', exists);
     card.setAttribute('data-dup', exists ? '1' : '0');
-
-    const zone = card.querySelector('.dup-zone');
-    const link = card.querySelector('.dup-link');
-
-    if (zone) zone.classList.toggle('d-none', !exists);
-
-    if (link){
-      if (exists && depenseId){
-        link.setAttribute('data-existing-id', depenseId);  // ✅ IMPORTANT
-        link.classList.remove('disabled');
-        link.setAttribute('aria-disabled', 'false');
-        link.href = '#';                                   // ✅ on garde le mode modal
-      } else {
-        link.removeAttribute('data-existing-id');
-        link.href = '#';
-        link.classList.add('disabled');
-        link.setAttribute('aria-disabled', 'true');
-      }
+    card.querySelector('.dup-zone')?.classList.toggle('d-none', !exists);
+    card.querySelector('.duplicate-confirm')?.classList.toggle('d-none', !exists);
+    const label = card.querySelector('.dup-message');
+    if (label) label.textContent = depenseId ? 'Doublon probable' : 'Doublon possible dans ce fichier';
+    if (exists && !wasDuplicate) {
+      const accept = card.querySelector('.accept-switch');
+      if (accept) accept.checked = false;
+      const override = card.querySelector('.allow-duplicate');
+      if (override) override.checked = false;
+      refreshSelectedCount();
     }
+    const link = card.querySelector('.dup-link');
+    if (link){
+      link.classList.toggle('d-none', !depenseId);
+      link.classList.toggle('disabled', !depenseId);
+      link.setAttribute('aria-disabled', depenseId ? 'false' : 'true');
+      if (depenseId) link.setAttribute('data-existing-id', depenseId);
+      else link.removeAttribute('data-existing-id');
+    }
+  }
+
+  function refreshLocalDuplicates(editedCard = null){
+    if (editedCard) {
+      // Any earlier database response refers to the old date/amount pair.
+      editedCard.dataset.dbDuplicateId = '';
+      const override = editedCard.querySelector('.allow-duplicate');
+      if (override) override.checked = false;
+      editedCard.dataset.duplicateVersion = String((Number(editedCard.dataset.duplicateVersion) || 0) + 1);
+    }
+    const localKeys = currentLocalDuplicateKeys();
+    document.querySelectorAll('.imp-card').forEach(card => {
+      const depenseId = card.dataset.dbDuplicateId;
+      applyDupUI(card, { exists: !!depenseId, depenseId }, localKeys);
+    });
   }
 
 
@@ -1262,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function initTomSelect(root=document){
     root.querySelectorAll('select.ts').forEach(el => {
-      if (el.tomselect) return;
+      if (el.tomselect || typeof TomSelect === 'undefined') return;
 
       new TomSelect(el, {
         create: false,
@@ -1277,6 +1349,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function initDatepickers(root=document){
     root.querySelectorAll('input.js-date').forEach(el => {
       if (el._flatpickr) return;
+      if (!window.flatpickr) { el.type = 'date'; return; }
 
       const def = el.dataset.defaultDate || el.value || null;
 
@@ -1350,7 +1423,9 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('cmpImportTVA').textContent = tvC ? moneyFromCents(tvC) : '—';
     document.getElementById('cmpImportTTC').textContent = ttcC ? moneyFromCents(ttcC) : '—';
 
-    document.getElementById('cmpImportTaux').textContent = (taux !== '—') ? (String(taux).replace('.', ',') + ' %') : '—';
+    const calculated = recalcFromTtcCents(ttcC, taux === '—' ? 0 : taux);
+    const manualAmounts = calculated.ht !== htC || calculated.tva !== tvC;
+    document.getElementById('cmpImportTaux').textContent = manualAmounts ? 'Montants du justificatif' : ((taux !== '—') ? (String(taux).replace('.', ',') + ' %') : '—');
     document.getElementById('cmpImportDed').textContent = ded ? 'Oui' : 'Non';
     document.getElementById('cmpImportDedPct').textContent = ded ? (String(dedPct).replace('.', ',') + ' %') : '0 %';
   }
@@ -1366,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('cmpExistTVA').textContent = data.montantTvaCents ? moneyFromCents(data.montantTvaCents) : '—';
     document.getElementById('cmpExistTTC').textContent = data.montantTtcCents ? moneyFromCents(data.montantTtcCents) : '—';
 
-    document.getElementById('cmpExistTaux').textContent = (data.tauxTva ?? null) !== null ? (String(data.tauxTva).replace('.', ',') + ' %') : '—';
+    document.getElementById('cmpExistTaux').textContent = data.amountsManual ? 'Montants du justificatif' : ((data.tauxTva ?? null) !== null ? (String(data.tauxTva).replace('.', ',') + ' %') : '—');
     document.getElementById('cmpExistDed').textContent = data.tvaDeductible ? 'Oui' : 'Non';
     document.getElementById('cmpExistDedPct').textContent = data.tvaDeductible ? (String(data.tvaDeductiblePct || 0).replace('.', ',') + ' %') : '0 %';
 
@@ -1421,8 +1496,15 @@ document.addEventListener('DOMContentLoaded', function(){
   // remove card
   document.querySelectorAll('.btnRemoveCard').forEach(btn => {
     btn.addEventListener('click', () => {
-      const col = btn.closest('.col-12');
-      if (col) col.remove();
+      const card = btn.closest('.imp-card');
+      if (!card) return;
+      card.dataset.removed = '1';
+      const accept = card.querySelector('.accept-switch');
+      if (accept) accept.checked = false;
+      const proof = card.querySelector('input[type="file"]');
+      if (proof) proof.value = '';
+      card.closest('.col-12').hidden = true;
+      refreshLocalDuplicates();
       refreshSelectedCount();
     });
   });
@@ -1438,7 +1520,7 @@ document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.imp-card').forEach(card => {
       const isDup = card.getAttribute('data-dup') === '1';
       const chk = card.querySelector('.accept-switch');
-      if (chk) chk.checked = !isDup;
+      if (chk) chk.checked = !isDup && card.dataset.removed !== '1';
     });
     refreshSelectedCount();
   });
@@ -1465,6 +1547,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const fourSel = card.querySelector('select.ts-four');
 
     function syncCentsFromEuros(){
+      [htEuro, tvaEuro, ttcEuro].forEach(input => {
+        const amount = eurosToCents(input?.value);
+        input?.setCustomValidity(Number.isFinite(amount) && amount >= 0 ? '' : 'Montant invalide : utilisez au maximum deux décimales.');
+      });
       if (htCents) htCents.value = String(eurosToCents(htEuro?.value || 0));
       if (tvaCents) tvaCents.value = String(eurosToCents(tvaEuro?.value || 0));
       if (ttcCents) ttcCents.value = String(eurosToCents(ttcEuro?.value || 0));
@@ -1472,6 +1558,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     function doRecalcFromTtcEuro(){
       const ttc = eurosToCents(ttcEuro?.value || 0);
+      if (!Number.isFinite(ttc) || ttc < 0) { syncCentsFromEuros(); return; }
       const r = recalcFromTtcCents(ttc, taux?.value || 0);
 
       // update € fields
@@ -1484,20 +1571,11 @@ document.addEventListener('DOMContentLoaded', function(){
       if (tvaCents) tvaCents.value = String(r.tva);
     }
 
+    card.addEventListener('expense:sync', syncCentsFromEuros);
+
     // init hidden from initial
     syncCentsFromEuros();
     refreshCardPreview(card);
-
-    // listeners money
-    ttcEuro?.addEventListener('input', () => {
-      doRecalcFromTtcEuro();
-      refreshCardPreview(card);
-    });
-
-    taux?.addEventListener('change', () => {
-      doRecalcFromTtcEuro();
-      refreshCardPreview(card);
-    });
 
     // si l'utilisateur touche HT/TVA manuellement : on sync cents + maj aperçu
     htEuro?.addEventListener('input', () => { syncCentsFromEuros(); refreshCardPreview(card); });
@@ -1512,6 +1590,7 @@ document.addEventListener('DOMContentLoaded', function(){
     ttcEuro?.addEventListener('input', () => {
       doRecalcFromTtcEuro();
       refreshCardPreview(card);
+      refreshLocalDuplicates(card);
       debouncedDupCheck();
     });
 
@@ -1519,14 +1598,14 @@ document.addEventListener('DOMContentLoaded', function(){
     taux?.addEventListener('change', () => {
       doRecalcFromTtcEuro();
       refreshCardPreview(card);
+      refreshLocalDuplicates(card);
       debouncedDupCheck();
     });
 
     // Quand date change (saisie manuelle)
-    card.querySelector('input.js-date')?.addEventListener('change', debouncedDupCheck);
+    card.querySelector('input.js-date')?.addEventListener('change', () => { refreshLocalDuplicates(card); debouncedDupCheck(); });
 
-    // Check initial
-    checkDuplicateForCard(card);
+    // Initial duplicates are already resolved in the server preview; only edited rows need another request.
 
 
     // déductible -> hidden value + pct enable
@@ -1538,7 +1617,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
         pct.disabled = !v;
         if (!v) pct.value = 0;
-        else if (parseFloat(pct.value || '0') <= 0) pct.value = 80;
+
 
         refreshCardPreview(card);
       };

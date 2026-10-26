@@ -166,7 +166,7 @@ final class PositioningQuestionnaireController extends AbstractController
       $this->addFlash('success', 'Questionnaire créé.');
 
       return $this->redirectToRoute('app_administrateur_positioning_questionnaire_edit', [
-        'entite' => $entite,
+        'entite' => $entite->getId(),
         'id' => $q->getId(),
       ]);
     }
@@ -200,7 +200,7 @@ final class PositioningQuestionnaireController extends AbstractController
       $this->addFlash('success', 'Questionnaire mis à jour.');
 
       return $this->redirectToRoute('app_administrateur_positioning_questionnaire_edit', [
-        'entite' => $entite,
+        'entite' => $entite->getId(),
         'id' => $q->getId(),
       ]);
     }
@@ -230,7 +230,7 @@ final class PositioningQuestionnaireController extends AbstractController
     }
 
     return $this->redirectToRoute('app_administrateur_positioning_questionnaire_index', [
-      'entite' => $entite,
+      'entite' => $entite->getId(),
     ]);
   }
 

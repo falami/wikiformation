@@ -137,6 +137,28 @@ final class ConventionContratTest extends TestCase
         self::assertTrue($convention->isSigned());
     }
 
+    public function testRecipientSignatureCompletesTrackingWithoutAnOrganismCountersignature(): void
+    {
+        $convention = (new ConventionContrat())->setEntreprise(new Entreprise());
+        self::assertFalse($convention->isSignedByRecipient());
+        $convention->setDateSignatureOf(new \DateTimeImmutable());
+        self::assertFalse($convention->isSignedByRecipient());
+        self::assertTrue($convention->isSigned(), 'La signature OF continue de protéger le contenu.');
+        $convention->setDateSignatureOf(null)->setDateSignatureEntreprise(new \DateTimeImmutable());
+        self::assertTrue($convention->isSignedByRecipient());
+        $convention->setDateSignatureEntreprise(null)->setSignatureDataUrlEntreprise('data:image/png;base64,signature');
+        self::assertTrue($convention->isSignedByRecipient());
+
+        $convention->setEntreprise(null)->setStagiaire(new Utilisateur());
+        self::assertFalse($convention->isSignedByRecipient(), 'La signature entreprise ne remplace pas celle du destinataire individuel.');
+        $convention->setDateSignatureStagiaire(new \DateTimeImmutable());
+        self::assertTrue($convention->isSignedByRecipient());
+        $convention->setDateSignatureStagiaire(null)->setSignatureDataUrlStagiaire('data:image/png;base64,signature');
+        self::assertTrue($convention->isSignedByRecipient());
+        $convention->setSignatureDataUrlStagiaire('');
+        self::assertFalse($convention->isSignedByRecipient());
+    }
+
     public function testCompanyConventionWithUnknownParticipantsIsValid(): void
     {
         $convention = $this->companyConvention()->setEffectifPrevisionnel(5);

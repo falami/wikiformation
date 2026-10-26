@@ -25,6 +25,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
 use App\Enum\StatusInscription;
+use App\Repository\ConventionContratRepository;
 
 
 #[Route('/entreprise/{entite}', name: 'app_entreprise_', requirements: ['entite' => '\d+'])]
@@ -84,7 +85,7 @@ final class DashboardEntrepriseController extends AbstractController
     $pendingConventions = $em->createQueryBuilder()->select('c', 's')->from(ConventionContrat::class, 'c')
       ->innerJoin('c.session', 's')
       ->andWhere('c.entite = :tenant AND s.entite = :tenant AND c.entreprise = :company')
-      ->andWhere("(c.dateSignatureEntreprise IS NULL OR c.signatureDataUrlEntreprise IS NULL OR c.signatureDataUrlEntreprise = '')")
+      ->andWhere('NOT ('.ConventionContratRepository::recipientSignedCondition('c').')')
       ->andWhere('s.status != :canceled')
       ->setParameter('tenant', $entite)->setParameter('company', $entreprise)
       ->setParameter('canceled', \App\Enum\StatusSession::CANCELED)

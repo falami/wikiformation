@@ -19,7 +19,17 @@ final class DepenseUploader
    */
   public function uploadProof(UploadedFile $file): string
   {
+    self::validateProof($file);
     return $this->uploader->upload($file, $this->uploadDepenseDir);
+  }
+
+  public static function validateProof(UploadedFile $file): void
+  {
+    if (!$file->isValid()) throw new \InvalidArgumentException('Le justificatif n’a pas été transmis correctement.');
+    if (!$file->getSize() || $file->getSize() > 8 * 1024 * 1024) throw new \InvalidArgumentException('Le justificatif doit être non vide et inférieur à 8 Mo.');
+    if (!in_array($file->getMimeType(), ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'], true)) {
+      throw new \InvalidArgumentException('Justificatif invalide : PDF, JPG, PNG ou WebP attendu.');
+    }
   }
 
   /**
@@ -39,7 +49,8 @@ final class DepenseUploader
   {
     if (!$filename) return;
 
-    $path = rtrim($this->uploadDepenseDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $filename;
+    $path = $this->absolutePath($filename);
+    if (!$path) return;
     if (is_file($path)) {
       @unlink($path);
     }
@@ -50,7 +61,7 @@ final class DepenseUploader
    */
   public function absolutePath(?string $filename): ?string
   {
-    if (!$filename) return null;
+    if (!$filename || basename($filename) !== $filename || str_contains($filename, '\\')) return null;
 
     return rtrim($this->uploadDepenseDir, DIRECTORY_SEPARATOR)
       . DIRECTORY_SEPARATOR

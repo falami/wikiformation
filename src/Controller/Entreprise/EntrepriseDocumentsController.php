@@ -30,6 +30,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
+use App\Repository\ConventionContratRepository;
 
 
 #[Route('/entreprise/{entite}/documents', name: 'app_entreprise_documents_', requirements: ['entite' => '\d+'])]
@@ -389,14 +390,12 @@ final class EntrepriseDocumentsController extends AbstractController
         ->setParameter('s', '%' . $searchV . '%');
     }
 
-    // signé = entreprise + OF + (stagiaire ou entreprise selon cas)
+    // La signature attendue est celle du destinataire de la convention.
     if ($signFilter !== 'all') {
       if ($signFilter === 'signed') {
-        $qb->andWhere('cc.dateSignatureOf IS NOT NULL')
-          ->andWhere('(cc.dateSignatureEntreprise IS NOT NULL OR cc.signatureDataUrlEntreprise IS NOT NULL)')
-          ->andWhere('(cc.dateSignatureStagiaire IS NOT NULL OR cc.signatureDataUrlStagiaire IS NOT NULL)');
+        $qb->andWhere(ConventionContratRepository::recipientSignedCondition('cc'));
       } elseif ($signFilter === 'pending') {
-        $qb->andWhere('(cc.dateSignatureOf IS NULL OR cc.dateSignatureEntreprise IS NULL OR cc.dateSignatureStagiaire IS NULL)');
+        $qb->andWhere('NOT ('.ConventionContratRepository::recipientSignedCondition('cc').')');
       }
     }
 
@@ -442,7 +441,7 @@ final class EntrepriseDocumentsController extends AbstractController
       $sessLabel = $session ? ($session->getCode() ?? ('Session #' . $session->getId())) : '—';
 
       $reviewUrl = $this->generateUrl('app_entreprise_convention_review', ['entite'=>$entite->getId(),'entreprise'=>$entreprise->getId(),'id'=>$cc->getId()]);
-      $reviewAction = $cc->getEntreprise()?->getId() === $entreprise->getId() && !$cc->getDateSignatureEntreprise()
+      $reviewAction = $cc->getEntreprise()?->getId() === $entreprise->getId() && !$cc->isSignedByRecipient()
         ? '<a class="btn btn-sm btn-primary" href="'.htmlspecialchars($reviewUrl, ENT_QUOTES).'"><i class="bi bi-pen"></i> Signer</a>' : '';
       if ($reviewAction && $cc->getPdfPath()) {
         $reviewAction .= $this->renderView('entreprise/documents/_invite_button.html.twig', ['c' => $cc, 'entite' => $entite, 'entreprise' => $entreprise]);
@@ -1301,17 +1300,10 @@ final class EntrepriseDocumentsController extends AbstractController
 
   private function badgeSignaturesConvention(ConventionContrat $cc): string
   {
-    $stagOk = ($cc->getDateSignatureStagiaire() !== null) || ((string)($cc->getSignatureDataUrlStagiaire() ?? '') !== '');
-    $entOk  = ($cc->getDateSignatureEntreprise() !== null) || ((string)($cc->getSignatureDataUrlEntreprise() ?? '') !== '');
-    $ofOk   = ($cc->getDateSignatureOf() !== null);
-
-    $html = '<div class="d-flex flex-wrap gap-1">';
-    $html .= $stagOk ? '<span class="badge bg-success-subtle text-success">Stagiaire</span>' : '<span class="badge bg-secondary-subtle text-secondary">Stagiaire</span>';
-    $html .= $entOk  ? '<span class="badge bg-success-subtle text-success">Entreprise</span>' : '<span class="badge bg-secondary-subtle text-secondary">Entreprise</span>';
-    $html .= $ofOk   ? '<span class="badge bg-success-subtle text-success">OF</span>' : '<span class="badge bg-secondary-subtle text-secondary">OF</span>';
-    $html .= '</div>';
-
-    return $html;
+    $recipient = $cc->getEntreprise() ? 'Entreprise' : 'Stagiaire';
+    return $cc->isSignedByRecipient()
+      ? '<span class="badge bg-success-subtle text-success"><i class="bi bi-check2-circle me-1"></i>Signée</span><div class="small mt-1">'.$recipient.' : signé</div>'
+      : '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-clock me-1"></i>Non signée</span><div class="small mt-1">'.$recipient.' : en attente</div>';
   }
 
 

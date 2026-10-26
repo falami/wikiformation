@@ -76,4 +76,63 @@ final class ExpenseImportRulesTest extends KernelTestCase
         $this->client->request('POST',$url,['_token'=>$token,'id'=>$rule->id,'action'=>'delete']);
         self::assertSame(0,$this->em->getRepository(\App\Entity\ExpenseImportRule::class)->count([]));
     }
+    public function testPriorityDisabledRulesAndZeroDeductibility(): void
+    {
+        $category = (new \App\Entity\DepenseCategorie())->setEntite($this->entite)->setLibelle('Transport');
+        $supplier = (new \App\Entity\DepenseFournisseur())->setEntite($this->entite)->setNom('SNCF');
+        $this->em->persist($category);
+        $this->em->persist($supplier);
+        foreach ([[1, false, true, 90.0], [10, true, true, 0.0], [20, true, true, 80.0]] as [$priority, $enabled, $deductible, $percentage]) {
+            $rule = new \App\Entity\ExpenseImportRule();
+            $rule->entite = $this->entite;
+            $rule->keyword = 'sncf';
+            $rule->category = $category;
+            $rule->supplier = $supplier;
+            $rule->priority = $priority;
+            $rule->enabled = $enabled;
+            $rule->deductible = $deductible;
+            $rule->percentage = $percentage;
+            $this->em->persist($rule);
+        }
+        $this->em->flush();
+        $engine = self::getContainer()->get(\App\Service\Depense\ExpenseImportRules::class);
+        $rows = [['libelle' => 'Paiement carte SNCF', 'tvaDeductiblePct' => 80.0]];
+        $result = $engine->apply($this->entite, $rows);
+        self::assertSame(0.0, $result[0]['tvaDeductiblePct']);
+        self::assertTrue($result[0]['tvaDeductible']);
+        self::assertSame($category->getId(), $result[0]['categorieId']);
+        self::assertSame($supplier->getId(), $result[0]['fournisseurId']);
+        $first = $this->em->getRepository(\App\Entity\ExpenseImportRule::class)->findOneBy(['priority' => 10]);
+        $first->deductible = false;
+        $first->percentage = 80.0;
+        $this->em->flush();
+        $result = $engine->apply($this->entite, $rows);
+        self::assertFalse($result[0]['tvaDeductible']);
+        self::assertSame(0.0, $result[0]['tvaDeductiblePct']);
+    }
+
+    public function testForeignClassificationAndInvalidStoredPercentageNeverApply(): void
+    {
+        $other = (new Entite())->setNom('Autre organisme')->setPublic(false)->setCreateur($this->user);
+        $category = (new \App\Entity\DepenseCategorie())->setEntite($this->entite)->setLibelle('Énergie');
+        $foreignCategory = (new \App\Entity\DepenseCategorie())->setEntite($other)->setLibelle('Énergie privée');
+        $supplier = (new \App\Entity\DepenseFournisseur())->setEntite($this->entite)->setNom('EDF');
+        foreach ([$other, $category, $foreignCategory, $supplier] as $item) {
+            $this->em->persist($item);
+        }
+        foreach ([[$foreignCategory, 80.0], [$category, 180.0]] as [$ruleCategory, $percentage]) {
+            $rule = new \App\Entity\ExpenseImportRule();
+            $rule->entite = $this->entite;
+            $rule->keyword = 'électricité';
+            $rule->category = $ruleCategory;
+            $rule->supplier = $supplier;
+            $rule->percentage = $percentage;
+            $this->em->persist($rule);
+        }
+        $this->em->flush();
+        $rows = [['libelle' => 'Facture ELECTRICITE', 'categorieId' => null, 'tvaDeductiblePct' => 0.0]];
+        $engine = self::getContainer()->get(\App\Service\Depense\ExpenseImportRules::class);
+        self::assertSame($rows, $engine->apply($this->entite, $rows));
+    }
+
 }

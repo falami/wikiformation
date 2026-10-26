@@ -772,6 +772,7 @@
       border-color:rgba(0,0,0,.08);
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=2">
 {% endblock %}
 
 {% block javascripts %}
@@ -786,6 +787,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
   <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+  <script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}
 
 {% block body %}<div class="container py-3"><a class="btn btn-warning" href="{{ path('app_market_admin_index') }}">Ventes de cours · Marketplace</a></div>
@@ -1041,6 +1043,8 @@
             type="text"
             class="form-control"
             id="searchEntites"
+            data-list-search
+            aria-label="Rechercher une entité"
             value="{{ qEnt }}"
             placeholder="Rechercher une entité…"
           >
@@ -1052,7 +1056,15 @@
     </div>
 
 
-    <div class="table-card p-3">
+    <div class="table-card premium-list mb-4">
+
+      <div class="ledger-heading">
+        <div>
+          <h3>Répertoire des entités</h3>
+          <p>Vos organismes, leurs coordonnées et leurs accès, réunis dans une vue claire.</p>
+        </div>
+        <span class="ledger-mark"><i class="bi bi-buildings" aria-hidden="true"></i>Entités de la plateforme</span>
+      </div>
 
       {% if entites is empty %}
 
@@ -1076,7 +1088,7 @@
 
         <table
           id="tableEntites"
-          class="table table-hover align-middle mb-0 w-100 platform-table"
+          class="table table-hover align-middle mb-0 w-100 platform-table premium-table"
         >
 
           <thead>
@@ -1087,7 +1099,7 @@
               <th>SIRET</th>
               <th>Ville</th>
               <th>Email</th>
-              <th class="actions-cell"></th>
+              <th class="actions-cell">Actions</th>
             </tr>
 
           </thead>
@@ -1098,8 +1110,8 @@
 
               <tr>
 
-                <td>
-                  {{ e.id }}
+                <td data-order="{{ e.id }}">
+                  <span class="ledger-subtle">#{{ e.id }}</span>
                 </td>
 
                 <td data-order="{{ e.nom }}">
@@ -1112,11 +1124,11 @@
 
                     <div>
 
-                      <div class="primary-label">
+                      <div class="ledger-primary">
                         {{ e.nom }}
                       </div>
 
-                      <div class="secondary-label">
+                      <div class="ledger-subtle">
                         Entité plateforme
                       </div>
 
@@ -1130,7 +1142,7 @@
 
                   {% if e.siret %}
 
-                    <span class="premium-pill">
+                    <span class="ledger-ref">
                       <i class="bi bi-hash"></i>
                       {{ e.siret }}
                     </span>
@@ -1149,7 +1161,7 @@
 
                   {% if e.ville %}
 
-                    <span class="premium-pill blue">
+                    <span class="ledger-pill">
                       <i class="bi bi-geo-alt"></i>
                       {{ e.ville }}
                     </span>
@@ -1188,7 +1200,7 @@
 
                 <td class="actions-cell">
 
-                  <div class="btn-group platform-actions">
+                  <div class="btn-group platform-actions ledger-actions">
 
                     <a
                       class="btn btn-sm action-main"
@@ -1357,6 +1369,8 @@
             type="text"
             class="form-control"
             id="searchUsers"
+            data-list-search
+            aria-label="Rechercher un utilisateur"
             value="{{ qUser }}"
             placeholder="Rechercher un utilisateur…"
           >
@@ -1368,7 +1382,15 @@
     </div>
 
 
-    <div class="table-card p-3">
+    <div class="table-card premium-list mb-4">
+
+      <div class="ledger-heading">
+        <div>
+          <h3>Répertoire des utilisateurs</h3>
+          <p>Retrouvez les comptes de la plateforme et gérez leurs rattachements.</p>
+        </div>
+        <span class="ledger-mark"><i class="bi bi-people" aria-hidden="true"></i>Comptes de la plateforme</span>
+      </div>
 
       {% if users is empty %}
 
@@ -1392,7 +1414,7 @@
 
         <table
           id="tableUsers"
-          class="table table-hover align-middle mb-0 w-100 platform-table"
+          class="table table-hover align-middle mb-0 w-100 platform-table premium-table"
         >
 
           <thead>
@@ -1402,7 +1424,7 @@
               <th>Utilisateur</th>
               <th>Email</th>
               <th>Société</th>
-              <th class="actions-cell"></th>
+              <th class="actions-cell">Actions</th>
             </tr>
 
           </thead>
@@ -1421,8 +1443,8 @@
 
               <tr>
 
-                <td>
-                  {{ u.id }}
+                <td data-order="{{ u.id }}">
+                  <span class="ledger-subtle">#{{ u.id }}</span>
                 </td>
 
                 <td
@@ -1440,11 +1462,11 @@
 
                     <div>
 
-                      <div class="primary-label">
+                      <div class="ledger-primary">
                         {{ u.prenom }} {{ u.nom }}
                       </div>
 
-                      <div class="secondary-label">
+                      <div class="ledger-subtle">
                         Compte utilisateur
                       </div>
 
@@ -1470,7 +1492,7 @@
 
                   {% if u.entreprise %}
 
-                    <span class="premium-pill green">
+                    <span class="ledger-pill">
                       <i class="bi bi-building"></i>
                       {{ u.entreprise.raisonSociale }}
                     </span>
@@ -1487,7 +1509,7 @@
 
                 <td class="actions-cell">
 
-                  <div class="btn-group platform-actions">
+                  <div class="btn-group platform-actions ledger-actions">
 
                     <a
                       class="btn btn-sm action-main"

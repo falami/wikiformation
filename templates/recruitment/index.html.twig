@@ -12,6 +12,7 @@
 
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=2">
 {% endblock %}
 {% block recruitment %}
 <header class="hab-hero"><div><div class="hab-eyebrow">SUPER ADMIN · VIVIER NATIONAL</div><h1>Les talents de demain.</h1><p>Étudiez les candidatures et proposez les bons formateurs aux organismes de votre choix.</p></div><a class="hab-btn" href="{{ path('app_recruitment') }}" target="_blank" rel="noopener">Voir la page publique ↗</a></header>
@@ -20,6 +21,59 @@
 {% if subject and subject not in subjects|column('text') %}<option value="{{ subject }}" selected>{{ subject }}</option>{% endif %}
 {% for matter in subjects %}<option value="{{ matter.text }}" {{ subject == matter.text ? 'selected' }}>{{ matter.text }}</option>{% endfor %}
 </select></label><label>Zone d’intervention<select name="department" data-recruit-select><option value="">Tous les départements</option>{% for d in departments %}<option value="{{ d.value }}" {{ department == d.value ? 'selected' }}>{{ d.text }}</option>{% endfor %}</select></label><label>Statut<select name="status"><option value="">Tous</option>{% for value,label in {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'} %}<option value="{{ value }}" {{ status == value ? 'selected' }}>{{ label }}</option>{% endfor %}</select></label><label>Tarif maximum HT (€)<input name="max" inputmode="decimal" value="{{ max }}" placeholder="Sans plafond"></label><label>Base du tarif<select name="basis"><option value="daily" {{ basis == 'daily' ? 'selected' }}>Par jour</option><option value="hourly" {{ basis == 'hourly' ? 'selected' }}>Par heure</option></select></label></div><div class="toolbar"><button class="hab-btn gold">Filtrer les candidatures</button><a class="hab-btn" href="{{ path('app_super_recruitment',{entite:entite.id}) }}">Réinitialiser</a></div></form></section>
-<section class="hab-panel"><h2>Candidatures</h2><div class="hab-table-wrap"><table class="hab-table"><thead><tr><th>Formateur</th><th>Expertises</th><th>Mobilité</th><th>Tarifs HT</th><th>Suivi</th><th></th></tr></thead><tbody>{% for a in applications %}<tr><td><strong>{{ a.firstName }} {{ a.lastName }}</strong><small>{{ a.email }}</small><small>{{ a.details.city }} · {{ a.details.postalCode }}</small></td><td>{% for s in a.subjects|slice(0,4) %}<span class="tag">{{ s }}</span>{% endfor %}{% if a.subjects|length > 4 %}<small>+ {{ a.subjects|length - 4 }} spécialités</small>{% endif %}</td><td>{{ a.nationwide ? 'Toute la France' : a.departments|join(', ') }}</td><td>{% if a.hourlyRate %}{{ (a.hourlyRate / 100)|number_format(2,',',' ') }} €/h<br>{% endif %}{% if a.dailyRate %}{{ (a.dailyRate / 100)|number_format(2,',',' ') }} €/j{% endif %}</td><td><span class="hab-badge">{{ {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'}[a.status] }}</span><small>{{ a.createdAt|date('d/m/Y','Europe/Paris') }}</small></td><td><a class="hab-btn" href="{{ path('app_super_recruitment_show',{entite:entite.id,id:a.id}) }}">Étudier le profil ↗</a></td></tr>{% else %}<tr><td colspan="6"><div class="hab-empty">Aucune candidature pour ces critères.</div></td></tr>{% endfor %}</tbody></table></div>
-<div class="toolbar">{% set filters={entite:entite.id,q:q,subject:subject,department:department,status:status,basis:basis,max:max} %}{% if page > 1 %}<a class="hab-btn" href="{{ path('app_super_recruitment',filters|merge({page:page-1})) }}">Précédent</a>{% endif %}<span>Page {{ page }}</span>{% if more %}<a class="hab-btn" href="{{ path('app_super_recruitment',filters|merge({page:page+1})) }}">Suivant</a>{% endif %}</div></section>
+<section class="table-card premium-list mb-4">
+  <div class="ledger-heading">
+    <div><h3>Candidatures</h3><p>Expertises, disponibilités géographiques et tarifs de vos futurs formateurs.</p></div>
+    <span class="ledger-mark"><i class="bi bi-person-badge" aria-hidden="true"></i>Vivier de formateurs</span>
+  </div>
+  <div class="hab-table-wrap">
+    <table class="hab-table premium-table">
+      <thead><tr><th>Formateur</th><th>Expertises</th><th>Mobilité</th><th class="ledger-money">Tarifs HT</th><th>Suivi</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for a in applications %}
+          <tr>
+            <td>
+              <div class="ledger-primary">{{ a.firstName }} {{ a.lastName }}</div>
+              <small class="ledger-subtle">{{ a.email }}</small>
+              <small class="ledger-subtle">{{ a.details.city }} · {{ a.details.postalCode }}</small>
+            </td>
+            <td class="ledger-category">
+              <div class="d-flex flex-wrap gap-1">{% for s in a.subjects|slice(0,4) %}<span class="ledger-pill">{{ s }}</span>{% endfor %}</div>
+              {% if a.subjects|length > 4 %}<small class="ledger-subtle">+ {{ a.subjects|length - 4 }} spécialités</small>{% endif %}
+            </td>
+            <td>{{ a.nationwide ? 'Toute la France' : a.departments|join(', ') }}</td>
+            <td class="ledger-money">
+              {% if a.hourlyRate %}<div><span class="ledger-amount ledger-amount--net">{{ (a.hourlyRate / 100)|number_format(2,',',' ') }} €/h</span></div>{% endif %}
+              {% if a.dailyRate %}<div{% if a.hourlyRate %} class="mt-1"{% endif %}><span class="ledger-amount ledger-amount--net">{{ (a.dailyRate / 100)|number_format(2,',',' ') }} €/j</span></div>{% endif %}
+            </td>
+            <td>
+              <span class="badge {{ {new:'bg-info',shortlisted:'bg-primary',accepted:'bg-success',archived:'bg-secondary'}[a.status] }}">{{ {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'}[a.status] }}</span>
+              <small class="ledger-subtle">{{ a.createdAt|date('d/m/Y','Europe/Paris') }}</small>
+            </td>
+            <td class="action-column text-end">
+              <div class="ledger-actions"><a class="btn btn-light btn-sm" href="{{ path('app_super_recruitment_show',{entite:entite.id,id:a.id}) }}">Étudier le profil <i class="bi bi-arrow-up-right ms-1" aria-hidden="true"></i></a></div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6"><div class="hab-empty">Aucune candidature pour ces critères.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% set filters={entite:entite.id,q:q,subject:subject,department:department,status:status,basis:basis,max:max} %}
+  <footer class="ledger-pagination">
+    <span>Page {{ page }}</span>
+    <nav aria-label="Pagination des candidatures">
+      <ul class="pagination mb-0">
+        <li class="page-item{{ page <= 1 ? ' disabled' }}">
+          {% if page > 1 %}<a class="page-link" href="{{ path('app_super_recruitment',filters|merge({page:page-1})) }}">Précédent</a>{% else %}<span class="page-link" aria-disabled="true">Précédent</span>{% endif %}
+        </li>
+        <li class="page-item active"><span class="page-link" aria-current="page">{{ page }}</span></li>
+        <li class="page-item{{ not more ? ' disabled' }}">
+          {% if more %}<a class="page-link" href="{{ path('app_super_recruitment',filters|merge({page:page+1})) }}">Suivant</a>{% else %}<span class="page-link" aria-disabled="true">Suivant</span>{% endif %}
+        </li>
+      </ul>
+    </nav>
+  </footer>
+</section>
 {% endblock %}

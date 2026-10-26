@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const btn  = e.currentTarget.querySelector('button[type=submit]');
       const old  = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Dépôt…';
       try{
-        await fetch("{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'} });
+        await fetch("{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'} });
         await loadAssets();
         showModal('Import terminé', 'Fichier(s) importé(s) dans la bibliothèque.', 'success');
       }catch(_){ showModal('Upload refusé', 'Vérifie la taille/format du fichier.', 'danger'); }
@@ -424,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const ok = await confirmDialog('Retirer ce lien de session ?', {title:'Supprimer le lien', confirmText:'Retirer', variant:'danger'});
             if(!ok) return;
             const form = new FormData(); form.append('id', btn.getAttribute('data-unassign-session'));
-            const res = await fetch("{{ path('app_formateur_supports_unassign_session',{entite:entite.id}) }}", {method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'}});
+            const res = await fetch("{{ path('app_formateur_supports_unassign_session',{entite:entite.id}) }}", {method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'}});
             if(res.ok) loadAssignments(); else showModal('Action refusée', 'Impossible de retirer ce lien.', 'danger');
           });
         });
@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const ok = await confirmDialog('Retirer ce lien stagiaire ?', {title:'Supprimer le lien', confirmText:'Retirer', variant:'danger'});
             if(!ok) return;
             const form = new FormData(); form.append('id', btn.getAttribute('data-unassign-user'));
-            const res = await fetch("{{ path('app_formateur_supports_unassign_user',{entite:entite.id}) }}", {method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'}});
+            const res = await fetch("{{ path('app_formateur_supports_unassign_user',{entite:entite.id}) }}", {method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'}});
             if(res.ok) loadAssignments(); else showModal('Action refusée', 'Impossible de retirer ce lien.', 'danger');
           });
         });
@@ -450,9 +450,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!CURRENT_SESSION_ID) return showModal('Session introuvable',"Impossible d'identifier la session.",'danger');
       const form = new FormData();
       form.append('assetId', CURRENT_ASSET_ID);
+      form.append('sessionId', CURRENT_SESSION_ID || '0');
       form.append('sessionIds[]', CURRENT_SESSION_ID);
       form.append('visible', $('visibleAll')?.checked ? '1' : '0');
-      const res = await fetch("{{ path('app_formateur_supports_assign_sessions',{entite:entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'} });
+      const res = await fetch("{{ path('app_formateur_supports_assign_sessions',{entite:entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'} });
       if(!res.ok) return showModal('Affectation refusée','Vérifie tes droits/paramètres.','danger');
       await loadAssignments(); showModal('Affectation effectuée','Lié à toute la session.','success');
     });
@@ -463,9 +464,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if(ids.length===0) return showModal('Sélection requise','Choisis au moins un stagiaire.','warning');
       const form = new FormData();
       form.append('assetId', CURRENT_ASSET_ID);
+      form.append('sessionId', CURRENT_SESSION_ID || '0');
       ids.forEach(id=> form.append('userIds[]', id));
       form.append('visible', $('visibleUsers')?.checked ? '1' : '0');
-      const res = await fetch("{{ path('app_formateur_supports_assign_users',{entite:entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest'} });
+      const res = await fetch("{{ path('app_formateur_supports_assign_users',{entite:entite.id}) }}", { method:'POST', body: form, headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'} });
       if(!res.ok) return showModal('Affectation refusée','Vérifie tes droits/paramètres.','danger');
       await loadAssignments(); showModal('Affectation effectuée','Lié au(x) stagiaire(s) sélectionné(s).','success');
     });

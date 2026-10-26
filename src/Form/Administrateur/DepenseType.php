@@ -144,6 +144,8 @@ class DepenseType extends AbstractType
 
       ->add('dateDepense', TextType::class, [
         'label' => '*Date de dépense',
+        'constraints' => [new Assert\NotBlank()],
+        'invalid_message' => 'Saisissez une date valide au format JJ/MM/AAAA.',
         'attr' => ['class' => 'form-control flatpickr-date', 'placeholder' => 'jj/mm/aaaa'],
       ])
 
@@ -152,6 +154,11 @@ class DepenseType extends AbstractType
         'attr' => ['class' => 'form-select'],
       ])
 
+      ->add('amountsManual', CheckboxType::class, [
+        'label' => 'Conserver les montants du justificatif (TVA saisie ou plusieurs taux)',
+        'required' => false,
+        'attr' => ['class' => 'form-check-input'],
+      ])
       ->add('tauxTva', ChoiceType::class, [
         'label' => 'TVA %',
         'choices' => [
@@ -173,7 +180,9 @@ class DepenseType extends AbstractType
 
       ->add('montantHtCents', MoneyType::class, [
         'label' => 'Montant HT',
+        'constraints' => [new Assert\Range(min: 0, max: 2000000000)],
         'divisor' => 100,
+        'empty_data' => '0',
         'currency' => false,
         'html5' => false,          // ✅ important (évite type="number")
         'grouping' => true,
@@ -187,7 +196,9 @@ class DepenseType extends AbstractType
 
       ->add('montantTvaCents', MoneyType::class, [
         'label' => 'Montant TVA',
+        'constraints' => [new Assert\Range(min: 0, max: 2000000000)],
         'divisor' => 100,
+        'empty_data' => '0',
         'currency' => false,
         'html5' => false,          // ✅
         'grouping' => true,
@@ -201,7 +212,9 @@ class DepenseType extends AbstractType
 
       ->add('montantTtcCents', MoneyType::class, [
         'label' => 'Montant TTC',
+        'constraints' => [new Assert\Range(min: 0, max: 2000000000)],
         'divisor' => 100,
+        'empty_data' => '0',
         'currency' => false,
         'html5' => false,          // ✅
         'grouping' => true,
@@ -233,7 +246,18 @@ class DepenseType extends AbstractType
       ])
     ;
 
-    $b->get('dateDepense')->addModelTransformer($this->dateFr);
+    $b->get('dateDepense')->addModelTransformer(new \Symfony\Component\Form\CallbackTransformer(
+      fn($value) => $this->dateFr->transform($value),
+      function ($value) {
+        try {
+          $date = $this->dateFr->reverseTransform($value);
+        } catch (\ValueError $error) {
+          throw new \Symfony\Component\Form\Exception\TransformationFailedException('La date est invalide.', 0, $error);
+        }
+        if (!$date instanceof \DateTimeImmutable) throw new \Symfony\Component\Form\Exception\TransformationFailedException('La date de dépense est obligatoire.');
+        return $date;
+      }
+    ));
   }
 
   public function configureOptions(OptionsResolver $r): void

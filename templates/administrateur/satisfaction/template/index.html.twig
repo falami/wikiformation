@@ -508,6 +508,7 @@
 
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block javascripts %}
@@ -515,6 +516,7 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}
 
 {% block body %}
@@ -600,13 +602,13 @@
 
   {% include 'flagMessage.html.twig' %}
 
-  <div class="filterbar mb-3">
-    <div class="filterbar__top">
+  <div class="filterbar mb-3 catalogue-filters wf-filters-theme">
+    <div class="filterbar__top catalogue-filters wf-filters-theme">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <div class="filter-icon"><i class="bi bi-funnel"></i></div>
         <div>
-          <div class="filterbar__title">Filtres</div>
-          <div class="filterbar__hint">Recherche + statut actif</div>
+          <div class="filterbar__title catalogue-filters wf-filters-theme">Filtres</div>
+          <div class="filterbar__hint catalogue-filters wf-filters-theme">Recherche + statut actif</div>
         </div>
       </div>
 
@@ -624,7 +626,7 @@
     </div>
 
     <div class="collapse d-md-block" id="filtersCollapse">
-      <div class="filterbar__body">
+      <div class="filterbar__body catalogue-filters wf-filters-theme">
         <div class="filtergrid">
 
           <div class="filter-control fcol-search">
@@ -632,7 +634,7 @@
             <div class="filterbox">
               <div class="filterrow">
                 <div class="filter-icon"><i class="bi bi-search"></i></div>
-                <input type="text" id="searchFilter" class="form-control form-control-sm"
+                <input data-list-search aria-label="Rechercher dans la liste" type="text" id="searchFilter" class="form-control form-control-sm"
                        placeholder="Titre / formation…" />
               </div>
             </div>
@@ -671,8 +673,10 @@
     </div>
   </div>
 
-  <div class="table-card mb-4 p-3">
-    <table id="tableauTemplates" class="table table-hover align-middle mb-0 w-100">
+  <div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Questionnaires de satisfaction stagiaire", subtitle: "Retrouvez, filtrez et consultez les informations de votre liste.", mark: "Satisfaction stagiaire"} only %}
+
+    <table id="tableauTemplates" class="premium-table table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
           <th>Titre</th>
@@ -723,7 +727,7 @@ $(function(){
     scrollX: true,
     scrollCollapse: true,
     deferRender: true,
-    dom: "rt<'d-flex flex-wrap justify-content-between align-items-center gap-2 p-2'lip>",
+    dom: "rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
 
     ajax:{
       url:"{{ path('app_administrateur_satisfaction_template_ajax', { entite: entite.id }) }}",

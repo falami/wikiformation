@@ -9,6 +9,9 @@ use App\Entity\{Depense, Entite, Utilisateur};
 use App\Form\Administrateur\DepenseType;
 use App\Service\Depense\DepenseUploader;
 use App\Service\Depense\ReceiptScanService;
+use App\Service\Depense\ExpenseImportInput;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Lock\LockFactory;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, JsonResponse};
@@ -42,6 +45,7 @@ final class DepenseController extends AbstractController
 
   public function __construct(
     private DepenseUploader $depenseUploader,
+    private LoggerInterface $logger,
   ) {}
 
   #[Route('', name: 'index', methods: ['GET'])]
@@ -347,7 +351,8 @@ final class DepenseController extends AbstractController
     $dep = (new Depense())
       ->setEntite($entite)
       ->setCreateur($user)
-      ->setPayeur($user);
+      ->setPayeur($user)
+      ->setTvaDeductible(false)->setTvaDeductiblePct(0);
 
     $sourceContract = null;
     if ($req->query->getInt('contrat') > 0) {
@@ -371,24 +376,50 @@ final class DepenseController extends AbstractController
     if (!$dep->getDevise()) $dep->setDevise('EUR');
     if ($dep->getTauxTva() === null) $dep->setTauxTva(20.0);
 
-    $form = $this->createForm(DepenseType::class, $dep, [
-      'entite' => $entite,
-    ])->handleRequest($req);
+    $submissions = $req->getSession()->get('expense_new_submissions', []);
+    $submissions = array_filter($submissions, static fn(array $item): bool => $item['expires'] > time());
+    $submittedData = $req->request->all('depense');
+    $submission = $req->isMethod('POST') ? (string)($submittedData['submissionToken'] ?? '') : bin2hex(random_bytes(24));
+    if (!$req->isMethod('POST')) {
+      $submissions[$submission] = ['entite'=>$entite->getId(), 'expires'=>time()+7200];
+      $req->getSession()->set('expense_new_submissions', array_slice($submissions, -10, null, true));
+    }
+    $form = $this->createForm(DepenseType::class, $dep, ['entite' => $entite]);
+    $form->add('submissionToken', \Symfony\Component\Form\Extension\Core\Type\HiddenType::class, ['mapped'=>false, 'data'=>$submission]);
+    $form->handleRequest($req);
+    if ($form->isSubmitted()) {
+      if (!isset($submissions[$submission]) || $submissions[$submission]['entite'] !== $entite->getId()) {
+        $form->addError(new \Symfony\Component\Form\FormError('Ce formulaire a expiré. Ouvrez une nouvelle dépense.'));
+      } else {
+        $dep->setImportKey(hash('sha256', 'manual:' . $entite->getId() . ':' . $user->getId() . ':' . $submission));
+        if ($em->getRepository(Depense::class)->findOneBy(['importKey'=>$dep->getImportKey()])) {
+          $this->addFlash('info', 'Cette dépense a déjà été enregistrée.');
+          return $this->redirectToRoute('app_administrateur_depense_index', ['entite'=>$entite->getId()]);
+        }
+      }
+    }
 
     if ($form->isSubmitted() && $sourceContract && $dep->isTvaDeductible() && !$form->get('justificatifFile')->getData()) {
       $form->get('justificatifFile')->addError(new \Symfony\Component\Form\FormError('Joignez la facture du formateur pour justifier la TVA déductible.'));
     }
 
+    if ($form->isSubmitted()) $this->validateExpenseAmounts($form, $dep);
+
     if ($form->isSubmitted() && $form->isValid()) {
       $this->recalcDepense($dep);
 
       $file = $form->get('justificatifFile')->getData();
-      if ($file) {
-        $dep->setJustificatifPath($this->depenseUploader->uploadProof($file));
+      $uploaded = null;
+      try {
+        if ($file) $dep->setJustificatifPath($uploaded = $this->depenseUploader->uploadProof($file));
+        $em->persist($dep);
+        $em->flush();
+      } catch (\Throwable $error) {
+        $this->depenseUploader->deleteIfExists($uploaded);
+        $this->logger->error('Expense creation failed.', ['exception' => $error]);
+        $form->addError(new \Symfony\Component\Form\FormError('Enregistrement impossible. Réessayez et sélectionnez à nouveau le justificatif.'));
+        return $this->render('administrateur/depense/form.html.twig', ['form'=>$form, 'title'=>'Nouvelle dépense', 'sourceContract'=>$sourceContract, 'entite'=>$entite], new Response(status: 422));
       }
-
-      $em->persist($dep);
-      $em->flush();
 
       $this->addFlash('success', 'Dépense créée.');
       return $this->redirectToRoute('app_administrateur_depense_index', ['entite' => $entite->getId()]);
@@ -416,18 +447,26 @@ final class DepenseController extends AbstractController
       'entite' => $entite,
     ])->handleRequest($req);
 
+    if ($form->isSubmitted()) $this->validateExpenseAmounts($form, $dep);
+
     if ($form->isSubmitted() && $form->isValid()) {
       $this->recalcDepense($dep);
 
       $file = $form->get('justificatifFile')->getData();
-      if ($file) {
-        // supprime l’ancien si existant
-        $this->depenseUploader->deleteIfExists($dep->getJustificatifPath());
-        $dep->setJustificatifPath($this->depenseUploader->uploadProof($file));
+      $oldProof = $dep->getJustificatifPath();
+      $uploaded = null;
+      try {
+        if ($file) $dep->setJustificatifPath($uploaded = $this->depenseUploader->uploadProof($file));
+        $dep->touch();
+        $em->flush();
+      } catch (\Throwable $error) {
+        $this->depenseUploader->deleteIfExists($uploaded);
+        $dep->setJustificatifPath($oldProof);
+        $this->logger->error('Expense update failed.', ['exception' => $error]);
+        $form->addError(new \Symfony\Component\Form\FormError('Enregistrement impossible. L’ancien justificatif a été conservé ; sélectionnez à nouveau le nouveau fichier.'));
+        return $this->render('administrateur/depense/form.html.twig', ['form'=>$form, 'title'=>'Éditer dépense', 'entite'=>$entite], new Response(status: 422));
       }
-
-      $dep->touch();
-      $em->flush();
+      if ($uploaded) $this->depenseUploader->deleteIfExists($oldProof);
 
       $this->addFlash('success', 'Dépense mise à jour.');
       return $this->redirectToRoute('app_administrateur_depense_index', ['entite' => $entite->getId()]);
@@ -440,6 +479,20 @@ final class DepenseController extends AbstractController
     ]);
   }
 
+  private function validateExpenseAmounts(\Symfony\Component\Form\FormInterface $form, Depense $expense): void
+  {
+    if (!$form->isSynchronized()) return;
+    if (!$expense->isAmountsManual() && $expense->getMontantTtcCents() <= 0 && round($expense->getMontantHtCents() * (1 + $expense->getTauxTva() / 100)) > 2000000000) {
+      $form->get('montantTtcCents')->addError(new \Symfony\Component\Form\FormError('Le montant TTC calculé dépasse la limite autorisée.'));
+    }
+    if ($expense->getMontantTtcCents() <= 0 && $expense->getMontantHtCents() <= 0) {
+      $form->get('montantTtcCents')->addError(new \Symfony\Component\Form\FormError('Saisissez un montant supérieur à zéro.'));
+    }
+    if ($expense->isAmountsManual() && ($expense->getMontantTtcCents() <= 0 || $expense->getMontantHtCents() + $expense->getMontantTvaCents() !== $expense->getMontantTtcCents())) {
+      $form->get('montantTvaCents')->addError(new \Symfony\Component\Form\FormError('Les montants du justificatif doivent vérifier HT + TVA = TTC.'));
+    }
+  }
+
   private function recalcDepense(Depense $d): void
   {
     // ✅ clamp du % 0..100 (toujours)
@@ -448,10 +501,10 @@ final class DepenseController extends AbstractController
     // ✅ si TVA non déductible => 0%
     if (!$d->isTvaDeductible()) {
       $d->setTvaDeductiblePct(0);
-    } elseif ($d->getTvaDeductiblePct() <= 0) {
-      // optionnel : si déductible mais pct vide/0, on remet 100
-      $d->setTvaDeductiblePct(100);
+
     }
+
+    if ($d->isAmountsManual()) return;
 
     $taux = max(0.0, (float)$d->getTauxTva());
     $ttc  = (int)$d->getMontantTtcCents();
@@ -503,6 +556,8 @@ final class DepenseController extends AbstractController
     EM $em,
     DepenseFournisseurRepository $repo
   ): JsonResponse {
+    if (!$this->isCsrfTokenValid('expense_choices_' . $entite->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException('Session expirée. Rechargez la page.');
+
     $nom   = trim((string) $request->request->get('nom', ''));
     $siret = trim((string) $request->request->get('siret', ''));
     $siret = $siret !== '' ? $siret : null;
@@ -577,11 +632,10 @@ final class DepenseController extends AbstractController
       return $this->redirectToRoute('app_administrateur_depense_index', ['entite' => $entite->getId()]);
     }
 
-    // 🧹 supprime le justificatif si présent
-    $this->depenseUploader->deleteIfExists($dep->getJustificatifPath());
-
+    $proof = $dep->getJustificatifPath();
     $em->remove($dep);
     $em->flush();
+    $this->depenseUploader->deleteIfExists($proof);
 
     // Si appel AJAX (DataTables), renvoie JSON
     if ($req->isXmlHttpRequest()) {
@@ -616,6 +670,8 @@ final class DepenseController extends AbstractController
     EM $em,
     DepenseCategorieRepository $repo
   ): JsonResponse {
+    if (!$this->isCsrfTokenValid('expense_choices_' . $entite->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException('Session expirée. Rechargez la page.');
+
     $libelle = trim((string)$request->request->get('libelle', ''));
     if ($libelle === '') {
       return $this->json(['ok' => false, 'message' => 'Libellé requis.'], 400);
@@ -674,6 +730,8 @@ final class DepenseController extends AbstractController
     EM $em,
     DepenseCategorieRepository $repo
   ): JsonResponse {
+    if (!$this->isCsrfTokenValid('expense_choices_' . $entite->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException('Session expirée. Rechargez la page.');
+
     if ($categorie->getEntite()?->getId() !== $entite->getId()) {
       throw new NotFoundHttpException();
     }
@@ -724,6 +782,8 @@ final class DepenseController extends AbstractController
     EM $em,
     DepenseFournisseurRepository $repo
   ): JsonResponse {
+    if (!$this->isCsrfTokenValid('expense_choices_' . $entite->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException('Session expirée. Rechargez la page.');
+
     // 🔒 sécurité entité
     if ($fournisseur->getEntite()?->getId() !== $entite->getId()) {
       throw new NotFoundHttpException();
@@ -873,6 +933,7 @@ final class DepenseController extends AbstractController
     DepenseFournisseurRepository $fourRepo,
     UtilisateurRepository $userRepo,
   ): Response {
+    if (!$this->isCsrfTokenValid('expense_import_preview_' . $entite->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException('Session expirée. Rechargez la page.');
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
@@ -880,8 +941,8 @@ final class DepenseController extends AbstractController
 
     /** @var UploadedFile|null $file */
     $file = $request->files->get('importFile');
-    if (!$file) {
-      $this->addFlash('danger', 'Aucun fichier reçu.');
+    if (!$file instanceof UploadedFile || !$file->isValid() || !$file->getSize() || $file->getSize() > 10 * 1024 * 1024) {
+      $this->addFlash('danger', 'Fichier absent, incomplet ou trop volumineux (maximum 10 Mo).');
       return $this->redirectToRoute('app_administrateur_depense_import', ['entite' => $entite->getId()]);
     }
 
@@ -892,7 +953,18 @@ final class DepenseController extends AbstractController
     }
 
     $tmp = $file->getPathname();
-    $rows = $parser->parse($tmp, $file->getClientOriginalName());
+    try {
+      $rows = $parser->parse($tmp, $file->getClientOriginalName());
+      if (!$rows) throw new \RuntimeException('Aucune dépense débitée trouvée dans le fichier.');
+      if (count($rows) > 1000) throw new \RuntimeException('Import limité à 1 000 dépenses à la fois. Séparez votre relevé en plusieurs fichiers.');
+    } catch (\RuntimeException $error) {
+      $this->addFlash('danger', $error->getMessage());
+      return $this->redirectToRoute('app_administrateur_depense_import', ['entite'=>$entite->getId()]);
+    } catch (\Throwable $error) {
+      $this->logger->warning('Expense import file could not be read.', ['exception'=>$error]);
+      $this->addFlash('danger', 'Fichier illisible ou endommagé. Vérifiez son format puis réessayez.');
+      return $this->redirectToRoute('app_administrateur_depense_import', ['entite'=>$entite->getId()]);
+    }
 
     // Pré-remplissage TVA par défaut (ex: 20, déductible oui, pct 100)
     $proposals = [];
@@ -901,7 +973,7 @@ final class DepenseController extends AbstractController
       $ttcCents = (int)$r['debitCents'];
 
       // défaut: on suppose TTC saisi => calc HT/TVA selon taux
-      $taux = 20.0;
+      $taux = 0.0;
       [$htCents, $tvaCents] = $this->calcFromTtc($ttcCents, $taux);
 
       $proposals[] = [
@@ -911,8 +983,8 @@ final class DepenseController extends AbstractController
         'libelle' => $r['libelle'],
         'devise' => 'EUR',
         'tauxTva' => $taux,
-        'tvaDeductible' => true,
-        'tvaDeductiblePct' => 80.0,
+        'tvaDeductible' => false,
+        'tvaDeductiblePct' => 0.0,
 
         'montantHtCents' => $htCents,
         'montantTvaCents' => $tvaCents,
@@ -933,11 +1005,18 @@ final class DepenseController extends AbstractController
     // listes pour selects
     $categories = $catRepo->qbForEntite($entite)->getQuery()->getResult();
     $fournisseurs = $fourRepo->qbForEntite($entite)->getQuery()->getResult();
-    $payeurs = $userRepo->createQueryBuilder('u')->orderBy('u.nom', 'ASC')->getQuery()->getResult();
+    $payeurs = $this->expensePayers($em, $entite);
+    $batch = bin2hex(random_bytes(24));
+    $batches = $request->getSession()->get('expense_import_batches', []);
+    $batches = array_filter($batches, static fn(array $b): bool => $b['expires'] > time());
+    $batches[$batch] = ['entite'=>$entite->getId(), 'user'=>$user->getId(), 'count'=>count($proposals), 'expires'=>time()+7200];
+    $request->getSession()->set('expense_import_batches', array_slice($batches, -10, null, true));
 
     return $this->render('administrateur/depense/import_preview.html.twig', [
       'entite' => $entite,
       'proposals' => $proposals,
+      'importBatch' => $batch,
+      'importErrors' => [],
       'dupMap' => $dupMap,
       'categories' => $categories,
       'fournisseurs' => $fournisseurs,
@@ -955,7 +1034,7 @@ final class DepenseController extends AbstractController
     $dateStr  = (string) $request->request->get('date', '');
     $ttcCents = (int) $request->request->get('ttcCents', 0);
 
-    $date = \DateTimeImmutable::createFromFormat('Y-m-d', $dateStr);
+    $date = ExpenseImportInput::date($dateStr);
     if (!$date || $ttcCents <= 0) {
       return $this->json(['exists' => false]);
     }
@@ -987,97 +1066,148 @@ final class DepenseController extends AbstractController
 
 
   #[Route('/import/commit', name: 'import_commit', methods: ['POST'])]
-  public function importCommit(
-    Entite $entite,
-    Request $request,
-    EM $em,
-  ): Response {
-    /** @var Utilisateur $user */
+  public function importCommit(Entite $entite, Request $request, EM $em, ExpenseImportInput $input, LockFactory $locks): Response
+  {
+    if (!$this->isCsrfTokenValid('expense_import_commit_' . $entite->getId(), (string)$request->request->get('_token'))) throw $this->createAccessDeniedException('Session expirée. Rechargez la page.');
     $user = $this->getUser();
-
-    $rows = $request->request->all('rows');
-    if (!$rows || !is_array($rows)) {
-      $this->addFlash('danger', 'Aucune ligne à importer.');
-      return $this->redirectToRoute('app_administrateur_depense_import', ['entite' => $entite->getId()]);
+    $batchId = (string)$request->request->get('importBatch', '');
+    $batches = $request->getSession()->get('expense_import_batches', []);
+    $batch = $batches[$batchId] ?? null;
+    if (!$batch || $batch['entite'] !== $entite->getId() || $batch['user'] !== $user->getId() || $batch['expires'] < time()) {
+      $this->addFlash('danger', 'Cet aperçu a expiré. Importez à nouveau le fichier.');
+      return $this->redirectToRoute('app_administrateur_depense_import', ['entite'=>$entite->getId()]);
+    }
+    if (!empty($batch['completed'])) {
+      $this->addFlash('info', 'Cet import a déjà été enregistré. Aucune dépense n’a été ajoutée une seconde fois.');
+      return $this->redirectToRoute('app_administrateur_depense_index', ['entite'=>$entite->getId()]);
+    }
+    try {
+      $json = $request->request->get('rowsJson');
+      if (is_string($json) && strlen($json) > 8 * 1024 * 1024) throw new \InvalidArgumentException();
+      $rows = is_string($json) && $json !== '' ? json_decode($json, true, 32, JSON_THROW_ON_ERROR) : $request->request->all('rows');
+      if ($request->request->get('payloadComplete') !== '1' || !is_array($rows) || count($rows) !== $batch['count'] || array_keys($rows) !== range(0, $batch['count'] - 1)) throw new \InvalidArgumentException();
+      foreach ($rows as $row) {
+        if (!is_array($row)) throw new \InvalidArgumentException();
+        foreach ($row as $value) if (!is_scalar($value) && $value !== null) throw new \InvalidArgumentException();
+      }
+    } catch (\Throwable) {
+      $this->addFlash('danger', 'Import incomplet ou invalide. Aucune dépense enregistrée : rechargez le fichier et réessayez avec moins de lignes.');
+      return $this->redirectToRoute('app_administrateur_depense_import', ['entite'=>$entite->getId()]);
     }
 
-    $created = 0;
-
-    foreach ($rows as $idx => $r) {
-      $accept = (bool)($r['accept'] ?? false);
-      if (!$accept) continue;
-
-      $date = \DateTimeImmutable::createFromFormat('Y-m-d', (string)($r['date'] ?? ''));
-      if (!$date) continue;
-
-      $ttcCents = (int)($r['montantTtcCents'] ?? 0);
-      $htCents  = (int)($r['montantHtCents'] ?? 0);
-      $tvaCents = (int)($r['montantTvaCents'] ?? 0);
-
-      // recalc “béton” si TTC présent (prioritaire)
-      $taux = (float)($r['tauxTva'] ?? 0);
-      if ($ttcCents > 0) {
-        [$htCents, $tvaCents] = $this->calcFromTtc($ttcCents, $taux);
-      } else {
-        // fallback HT
-        $tvaCents = (int) round($htCents * ($taux / 100));
-        $ttcCents = $htCents + $tvaCents;
+    $lock = $locks->createLock('expense-import-' . $entite->getId(), 300);
+    if (!$lock->acquire()) return $this->renderImportRetry($request, $entite, $em, $rows, $batchId, ['Un autre import est en cours. Réessayez dans quelques instants.']);
+    $uploaded = [];
+    try {
+      $errors = [];
+      $expenses = [];
+      $seen = [];
+      $allProofs = $request->files->get('proofs', []);
+      foreach ($rows as $index => $raw) {
+        $accept = $raw['accept'] ?? '0';
+        if (!in_array($accept, ['0', '1', 0, 1, false, true], true)) { $errors[] = 'Ligne ' . ($index + 1) . ' : choix d’import invalide.'; continue; }
+        if (in_array($accept, ['0', 0, false], true)) continue;
+        try {
+          $r = $input->validate($raw);
+          $key = hash('sha256', $batchId . ':' . $index);
+          if ($em->getRepository(Depense::class)->findOneBy(['importKey'=>$key])) continue;
+          $d = (new Depense())->setEntite($entite)->setCreateur($user)->setImportKey($key)
+            ->setLibelle($r['libelle'])->setDateDepense($r['dateObject'])->setDevise($r['devise'])
+            ->setTauxTva($r['tauxTva'])->setTvaDeductible($r['tvaDeductible'])
+            ->setTvaDeductiblePct($r['tvaDeductible'] ? $r['tvaDeductiblePct'] : 0);
+          [$ht, $vat] = $this->calcFromTtc($r['montantTtcCents'], $r['tauxTva']);
+          $d->setAmountsManual($ht !== $r['montantHtCents'] || $vat !== $r['montantTvaCents'])
+            ->setMontantHtCents($r['montantHtCents'])->setMontantTvaCents($r['montantTvaCents'])->setMontantTtcCents($r['montantTtcCents']);
+          foreach (['categorieId'=>[DepenseCategorie::class,'setCategorie'], 'fournisseurId'=>[DepenseFournisseur::class,'setFournisseur']] as $field=>$relation) {
+            if (!$r[$field]) continue;
+            $record = $em->getRepository($relation[0])->findOneBy(['id'=>$r[$field], 'entite'=>$entite]);
+            if (!$record) throw new \InvalidArgumentException('Catégorie ou fournisseur indisponible pour cet organisme.');
+            $d->{$relation[1]}($record);
+          }
+          if ($r['payeurId']) {
+            $payer = $em->getRepository(Utilisateur::class)->find($r['payeurId']);
+            $member = $payer ? $em->getRepository(\App\Entity\UtilisateurEntite::class)->findOneBy(['entite'=>$entite, 'utilisateur'=>$payer]) : null;
+            if (!$member || !$member->isActive()) throw new \InvalidArgumentException('Le payeur doit appartenir à cet organisme.');
+            $d->setPayeur($payer);
+          }
+          $duplicateKey = $r['date'].'|'.$r['devise'].'|'.$r['montantTtcCents'];
+          $duplicate = isset($seen[$duplicateKey]) || $em->createQueryBuilder()->select('COUNT(d.id)')->from(Depense::class, 'd')
+            ->where('d.entite = :entity AND d.devise = :currency AND d.montantTtcCents = :amount AND d.dateDepense BETWEEN :start AND :end')
+            ->setParameter('entity', $entite)->setParameter('currency', $r['devise'])->setParameter('amount', $r['montantTtcCents'])->setParameter('start', $r['dateObject'])->setParameter('end', $r['dateObject']->setTime(23,59,59))
+            ->getQuery()->getSingleScalarResult() > 0;
+          if ($duplicate && !$r['allowDuplicate']) throw new \InvalidArgumentException('Une dépense a déjà cette date et ce montant. Confirmez le doublon potentiel ou décochez la ligne.');
+          $seen[$duplicateKey] = true;
+          $proof = is_array($allProofs) ? ($allProofs[$index] ?? null) : null;
+          if ($proof !== null) {
+            if (!$proof instanceof UploadedFile) throw new \InvalidArgumentException('Justificatif invalide.');
+            DepenseUploader::validateProof($proof);
+          }
+          if (!empty($raw['hasProof']) && !$proof) throw new \InvalidArgumentException('Le justificatif sélectionné n’a pas été reçu. Sélectionnez-le à nouveau.');
+          $expenses[] = [$d, $proof];
+        } catch (\InvalidArgumentException $error) {
+          $errors[] = 'Ligne ' . ($index + 1) . ' : ' . $error->getMessage();
+        }
       }
-
-      $d = (new Depense())
-        ->setEntite($entite)
-        ->setCreateur($user)
-        ->setLibelle(trim((string)($r['libelle'] ?? '')))
-        ->setDateDepense($date)
-        ->setDevise((string)($r['devise'] ?? 'EUR'))
-        ->setTauxTva($taux)
-        ->setTvaDeductible((bool)($r['tvaDeductible'] ?? false))
-        ->setTvaDeductiblePct((float)($r['tvaDeductiblePct'] ?? 0))
-        ->setMontantHtCents($htCents)
-        ->setMontantTvaCents($tvaCents)
-        ->setMontantTtcCents($ttcCents);
-
-      // Preserve a configured zero percentage on deductible expenses.
-      if (!$d->isTvaDeductible()) {
-        $d->setTvaDeductiblePct(0);
+      if (!$expenses && !$errors) $errors[] = 'Aucune nouvelle ligne sélectionnée. Sélectionnez au moins une dépense à importer.';
+      if ($errors) return $this->renderImportRetry($request, $entite, $em, $rows, $batchId, $errors);
+      // Validate everything first; then save the batch atomically.
+      $em->getConnection()->beginTransaction();
+      try {
+        foreach ($expenses as [$expense, $proof]) {
+          if ($proof) {
+            $filename = $this->depenseUploader->uploadProof($proof);
+            $uploaded[] = $filename;
+            $expense->setJustificatifPath($filename);
+          }
+          $em->persist($expense);
+        }
+        $em->flush();
+        $em->getConnection()->commit();
+      } catch (\Throwable $error) {
+        if ($em->getConnection()->isTransactionActive()) $em->getConnection()->rollBack();
+        foreach ($uploaded as $filename) $this->depenseUploader->deleteIfExists($filename);
+        throw $error;
       }
-
-      // relations
-      $catId = $r['categorieId'] ?? null;
-      if ($catId) {
-        $cat = $em->getRepository(DepenseCategorie::class)->find((int)$catId);
-        if ($cat && $cat->getEntite()?->getId() === $entite->getId()) $d->setCategorie($cat);
-      }
-
-      $fourId = $r['fournisseurId'] ?? null;
-      if ($fourId) {
-        $four = $em->getRepository(DepenseFournisseur::class)->find((int)$fourId);
-        if ($four && $four->getEntite()?->getId() === $entite->getId()) $d->setFournisseur($four);
-      }
-
-      $payeurId = $r['payeurId'] ?? null;
-      if ($payeurId) {
-        $payeur = $em->getRepository(Utilisateur::class)->find((int)$payeurId);
-        if ($payeur) $d->setPayeur($payeur);
-      }
-
-    // justificatif par ligne : input name="proofs[IDX]"
-      /** @var UploadedFile|null $proof */
-      $allProofs = $request->files->get('proofs') ?? [];
-      $proof = $allProofs[$idx] ?? null;
-
-      if ($proof) {
-        $d->setJustificatifPath($this->depenseUploader->uploadProof($proof));
-      }
-
-      $em->persist($d);
-      $created++;
+      $batches[$batchId]['completed'] = true;
+      $request->getSession()->set('expense_import_batches', $batches);
+      $this->addFlash('success', count($expenses) . ' dépense(s) importée(s).');
+      return $this->redirectToRoute('app_administrateur_depense_index', ['entite'=>$entite->getId()]);
+    } catch (\Throwable $error) {
+      $this->logger->error('Expense import failed.', ['exception'=>$error, 'entite'=>$entite->getId()]);
+      $this->addFlash('danger', 'L’import n’a pas pu être enregistré. Aucune ligne de cette tentative n’a été ajoutée. Réessayez depuis un nouvel aperçu.');
+      return $this->redirectToRoute('app_administrateur_depense_import', ['entite'=>$entite->getId()]);
+    } finally {
+      $lock->release();
     }
+  }
 
-    $em->flush();
+  private function expensePayers(EM $em, Entite $entite): array
+  {
+    return $em->getRepository(Utilisateur::class)->createQueryBuilder('u')->distinct()
+      ->innerJoin('u.utilisateurEntites', 'ue')->where('ue.entite = :e AND ue.status = :status')
+      ->setParameter('e', $entite)->setParameter('status', 'active')->orderBy('u.nom', 'ASC')->getQuery()->getResult();
+  }
 
-    $this->addFlash('success', $created . ' dépense(s) importée(s).');
-    return $this->redirectToRoute('app_administrateur_depense_index', ['entite' => $entite->getId()]);
+  private function renderImportRetry(Request $request, Entite $entite, EM $em, array $rows, string $batch, array $errors): Response
+  {
+    $proposals = [];
+    foreach ($rows as $index=>$row) {
+      $date = ExpenseImportInput::date((string)($row['date'] ?? ''));
+      foreach (['montantHtCents','montantTvaCents','montantTtcCents','tauxTva','tvaDeductiblePct'] as $field) {
+        $value = str_replace(',', '.', (string)($row[$field] ?? '0'));
+        $row[$field] = is_numeric($value) && is_finite((float)$value) ? max(0, min(2000000000, (float)$value)) : 0;
+      }
+      foreach (['accept','tvaDeductible','allowDuplicate'] as $field) $row[$field] = in_array($row[$field] ?? false, [true, 1, '1'], true);
+      $proposals[] = array_replace(['libelle'=>'', 'devise'=>'EUR', 'tauxTva'=>0, 'tvaDeductible'=>false, 'tvaDeductiblePct'=>0,
+        'montantHtCents'=>0, 'montantTvaCents'=>0, 'montantTtcCents'=>0, 'categorieId'=>null, 'fournisseurId'=>null, 'payeurId'=>null, 'accept'=>false, 'allowDuplicate'=>false], $row, ['idx'=>$index, 'dateFr'=>$date?->format('d/m/Y'), 'date'=>$date?->format('Y-m-d')]);
+    }
+    return $this->render('administrateur/depense/import_preview.html.twig', [
+      'entite'=>$entite, 'proposals'=>$proposals, 'importBatch'=>$batch, 'importErrors'=>$errors,
+      'dupMap'=>$this->buildDuplicateMap($em, $entite, $proposals),
+      'categories'=>$em->getRepository(DepenseCategorie::class)->qbForEntite($entite)->getQuery()->getResult(),
+      'fournisseurs'=>$em->getRepository(DepenseFournisseur::class)->qbForEntite($entite)->getQuery()->getResult(),
+      'payeurs'=>$this->expensePayers($em, $entite),
+    ], new Response(status: 422));
   }
 
   /** @return array{0:int,1:int} */
@@ -1099,6 +1229,8 @@ final class DepenseController extends AbstractController
   private function buildDuplicateMap(EM $em, Entite $entite, array $proposals): array
   {
     $amounts = [];
+    $fileDuplicates = [];
+    $seenFile = [];
     $min = null;
     $max = null;
 
@@ -1110,6 +1242,9 @@ final class DepenseController extends AbstractController
       if ($ds) {
         $d = \DateTimeImmutable::createFromFormat('Y-m-d', (string)$ds);
         if ($d) {
+          $key = $d->format('Y-m-d') . '|' . $ttc;
+          if (isset($seenFile[$key])) $fileDuplicates[$key] = ['exists'=>true, 'depenseId'=>null];
+          $seenFile[$key] = true;
           $min = $min ? min($min, $d) : $d;
           $max = $max ? max($max, $d) : $d;
         }
@@ -1150,7 +1285,7 @@ final class DepenseController extends AbstractController
 
     $res = $qb->getQuery()->getArrayResult();
 
-    $map = [];
+    $map = $fileDuplicates;
     foreach ($res as $r) {
       // selon hydrator, dateDepense peut être string OU DateTime
       $dt = $r['dateDepense'];
@@ -1188,6 +1323,7 @@ final class DepenseController extends AbstractController
 
       'devise' => $dep->getDevise(),
       'tauxTva' => (float)$dep->getTauxTva(),
+      'amountsManual' => $dep->isAmountsManual(),
 
       'tvaDeductible' => (bool)$dep->isTvaDeductible(),
       'tvaDeductiblePct' => (float)$dep->getTvaDeductiblePct(),
@@ -1257,13 +1393,10 @@ final class DepenseController extends AbstractController
     }
 
     $path = $dep->getJustificatifPath();
-    if ($path) {
-      $this->depenseUploader->deleteIfExists($path);
-    }
-
     $dep->setJustificatifPath(null);
     $dep->touch();
     $em->flush();
+    $this->depenseUploader->deleteIfExists($path);
 
     return $this->json(['ok' => true]);
   }
@@ -1272,59 +1405,24 @@ final class DepenseController extends AbstractController
 
   #[Route('/scan-receipt', name: 'scan_receipt', methods: ['POST'])]
   public function scanReceipt(
+    Entite $entite,
     Request $req,
     ReceiptScanService $scanService
   ): JsonResponse {
-    // 🔒 sécurité (entité) : tu l’as déjà via IsGranted/UtilisateurEntiteManager ailleurs
-
-
-    $cred = $_SERVER['GOOGLE_APPLICATION_CREDENTIALS'] ?? getenv('GOOGLE_APPLICATION_CREDENTIALS') ?? '';
-    if (!$cred || !is_file($cred) || !is_readable($cred)) {
-      return $this->json([
-        'ok' => false,
-        'message' => 'Credentials introuvables ou illisibles',
-        'path' => $cred,
-        'is_file' => is_file($cred),
-        'readable' => is_readable($cred),
-        'host' => gethostname(),
-      ], 500);
+    if (!$this->isCsrfTokenValid('expense_scan_' . $entite->getId(), (string)$req->request->get('_token'))) {
+      return $this->json(['ok'=>false, 'message'=>'Session expirée. Rechargez la page.'], 403);
     }
-
-
-    /** @var UploadedFile|null $file */
     $file = $req->files->get('file');
-    if (!$file) {
-      return $this->json(['ok' => false, 'message' => 'Aucun fichier reçu.'], 400);
-    }
-
-    // ✅ autorise image + pdf (photo ticket ou justificatif PDF)
-    $allowed = [
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-    ];
-    $mime = $file->getMimeType() ?: '';
-    if (!in_array($mime, $allowed, true)) {
-      return $this->json(['ok' => false, 'message' => 'Format invalide (PDF/JPG/PNG/WebP).'], 400);
-    }
-
-    if ($file->getSize() > 8 * 1024 * 1024) {
-      return $this->json(['ok' => false, 'message' => 'Fichier trop lourd (max 8 Mo).'], 400);
-    }
-
+    if (!$file instanceof UploadedFile) return $this->json(['ok'=>false, 'message'=>'Aucun fichier reçu.'], 400);
     try {
+      DepenseUploader::validateProof($file);
       $proposal = $scanService->scan($file);
-
-      return $this->json([
-        'ok' => true,
-        'proposal' => $proposal, // champs + confidence + debug
-      ]);
-    } catch (\Throwable $e) {
-      return $this->json([
-        'ok' => false,
-        'message' => 'Analyse impossible : ' . $e->getMessage(),
-      ], 500);
+      return $this->json(['ok'=>true, 'proposal'=>$proposal]);
+    } catch (\InvalidArgumentException $error) {
+      return $this->json(['ok'=>false, 'message'=>$error->getMessage()], 422);
+    } catch (\Throwable $error) {
+      $this->logger->error('Receipt analysis failed.', ['exception'=>$error]);
+      return $this->json(['ok'=>false, 'message'=>'L’analyse est indisponible. Réessayez ou renseignez la dépense manuellement ; le justificatif peut toujours être joint.'], 502);
     }
   }
 }

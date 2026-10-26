@@ -167,29 +167,31 @@ table.dataTable tbody td{ vertical-align:middle; }
 </style>
 
 <link rel="stylesheet" href="{{ asset('dist/css/style.css')}}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="{{ asset('dist/css/support-library.css') }}?v=2">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 
 {% endblock %}
 
 {% block body %}
+<div class="support-library">
 
 
 
   {# ===== HERO (style QCM) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-      <div class="accent"></div>
+
 
       <div class="flex-grow-1">
         <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
           <div>
-            <h2 class="m-0 fw-bold">
+            <div class="library-eyebrow">ESPACE FORMATEUR · RESSOURCES PÉDAGOGIQUES</div>
+            <h1 class="m-0 fw-bold">
               <i class="bi bi-cloud-arrow-up me-2" style="color:var(--theme-color-secondaire)"></i>
               Ma bibliothèque de supports
-            </h2>
+            </h1>
 
             <div class="opacity-75 mt-1">
-              Liste, affectation, stagiaires & sessions.
+              Centralisez vos documents et partagez les bons supports avec chaque session.
             </div>
 
             <div class="d-flex gap-2 flex-wrap mt-3">
@@ -219,14 +221,15 @@ table.dataTable tbody td{ vertical-align:middle; }
           <div class="small text-muted">Derniers en premier</div>
         </div>
         <div class="panel-b">
-          <form id="libUploadForm" class="mb-2" method="post" enctype="multipart/form-data"
+          <form id="libUploadForm" class="library-upload mb-4" method="post" enctype="multipart/form-data"
                 action="{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}">
             <div class="d-flex gap-2 flex-wrap">
-              <input id="libFiles" type="file" name="files[]" multiple class="form-control" style="max-width:420px">
+              <label class="upload-title" for="libFiles"><i class="bi bi-cloud-arrow-up"></i> Ajouter des supports</label>
+              <input id="libFiles" required accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv" type="file" name="files[]" multiple class="form-control" style="max-width:420px">
               <button class="btn btn-gradient" type="submit"><i class="bi bi-upload"></i> Importer</button>
               <button class="btn btn-outline-secondary" type="button" id="btnClear"><i class="bi bi-x-circle"></i> Vider</button>
             </div>
-            <div class="form-text mt-1">Formats usuels (PDF, PPT(X), DOC(X), XLS(X), images).<br />50&nbsp;Mo max/fichier (config serveur).</div>
+            <div class="form-text mt-1">Formats usuels (PDF, PPT(X), DOC(X), XLS(X), images).<br />50&nbsp;Mo maximum par fichier · 20 fichiers par import.</div>
           </form>
 
           <table id="dtAssets" class="table table-sm table-hover w-100">
@@ -258,9 +261,9 @@ table.dataTable tbody td{ vertical-align:middle; }
             <div class="ca-ico"><i class="bi bi-file-earmark-text"></i></div>
             <div class="ca-body">
               <div class="ca-label">Sélection</div>
-              <div class="ca-name" id="currentAssetName">-</div>
+              <div class="ca-name" id="currentAssetName" aria-live="polite">Aucun document sélectionné</div>
             </div>
-            <div class="ms-auto small text-muted d-none d-xl-block">Clique un document à gauche</div>
+            <div class="ms-auto small text-muted d-none d-xl-block">Sélectionnez un document dans la bibliothèque</div>
           </div>
 
           <!-- Carte sessions -->
@@ -270,6 +273,7 @@ table.dataTable tbody td{ vertical-align:middle; }
               <span class="count-badge" id="countSessions">0 sélection</span>
             </div>
             <div class="p-2">
+              <div class="library-table-scroll">
               <table id="dtSessionsSelect" class="table table-sm table-striped w-100">
                 <thead>
                   <tr>
@@ -281,6 +285,7 @@ table.dataTable tbody td{ vertical-align:middle; }
                 </thead>
                 <tbody></tbody>
               </table>
+              </div>
               <div class="d-flex align-items-center justify-content-between mt-2">
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" id="visibleSess" checked>
@@ -291,6 +296,7 @@ table.dataTable tbody td{ vertical-align:middle; }
             </div>
           </section>
 
+          <p class="library-hint">Les stagiaires affichés sont ceux de la première session sélectionnée.</p>
           <!-- Carte stagiaires -->
           <section class="assign-card">
             <div class="ac-head">
@@ -298,6 +304,7 @@ table.dataTable tbody td{ vertical-align:middle; }
               <span class="count-badge" id="countUsers">0 sélection</span>
             </div>
             <div class="p-2">
+              <div class="library-table-scroll">
               <table id="dtUsersSelect" class="table table-sm table-striped w-100">
                 <thead>
                   <tr>
@@ -308,6 +315,7 @@ table.dataTable tbody td{ vertical-align:middle; }
                 </thead>
                 <tbody></tbody>
               </table>
+              </div>
               <div class="d-flex align-items-center justify-content-between mt-2">
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" id="visibleUsers" checked>
@@ -338,6 +346,7 @@ table.dataTable tbody td{ vertical-align:middle; }
     </div>
   </div>
 
+</div>
 {# Modales génériques #}
 <div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-3">
@@ -368,16 +377,15 @@ table.dataTable tbody td{ vertical-align:middle; }
 {# 3. DataTables (core + intégration Bootstrap 5 en un seul fichier pratique) #}
 <script src="https://cdn.datatables.net/v/bs5/dt-2.1.6/datatables.min.js"></script>
 
-<script type="text/javascript" src="https://cdn.datatables.net/v/bs5/jszip-2.5.0/dt-1.10.25/b-1.7.1/b-html5-1.7.1/b-print-1.7.1/date-1.1.1/fh-3.1.9/r-2.2.9/rg-1.1.3/sc-2.0.4/sp-1.3.0/datatables.min.js"></script>
 
 <script>
 /* ===== Modales utilitaires (showModal / confirmDialog) ===== */
 (function(){
-  function getBS(){ const c=(window.bootstrap||globalThis.bootstrap||bootstrap||null); return (c && c.Modal)?c:null; }
+  function getBS(){ const c=(window.bootstrap||null); return (c && c.Modal)?c:null; }
   window.showModal = function(title, html, variant='info'){
     const m=document.getElementById('appModal'), bs=getBS(); if(!m||!bs){ alert((title||'Info')+'\n\n'+(html||'')); return; }
     m.querySelector('#appModalTitle').textContent = title||'Information';
-    m.querySelector('#appModalBody').innerHTML    = html||'';
+    m.querySelector('#appModalBody').textContent = html||'';
     const ok=m.querySelector('.modal-footer .btn'); ok.className='btn';
     ok.classList.add({info:'btn-primary',success:'btn-success',warning:'btn-warning',danger:'btn-danger'}[variant]||'btn-primary');
     bs.Modal.getOrCreateInstance(m, {backdrop:true, focus:true}).show();
@@ -387,7 +395,7 @@ table.dataTable tbody td{ vertical-align:middle; }
 
 <script>
 (function(){
-  function getBS(){ const c=(window.bootstrap||globalThis.bootstrap||bootstrap||null); return (c && c.Modal)?c:null; }
+  function getBS(){ const c=(window.bootstrap||null); return (c && c.Modal)?c:null; }
 
   window.confirmDialog = function(message, {title='Confirmer', confirmText='Confirmer', variant='danger'} = {}){
     return new Promise(resolve=>{
@@ -410,7 +418,7 @@ table.dataTable tbody td{ vertical-align:middle; }
 
       // Remplissage sécurisé
       elTitle.textContent = title || 'Confirmer';
-      elBody.innerHTML    = message || 'Êtes-vous sûr ?';
+      elBody.textContent = message || 'Êtes-vous sûr ?';
       btnOk.textContent   = confirmText || 'Confirmer';
       btnOk.className     = 'btn ' + (variant==='danger' ? 'btn-danger'
                                    : variant==='warning' ? 'btn-warning'
@@ -461,11 +469,22 @@ document.addEventListener('DOMContentLoaded', function () {
       return 'bi-file-earmark-text-fill';
     };
 
+    async function checkedResponse(response) {
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json || json.success === false) {
+        throw new Error(json?.message || 'Action refusée ou connexion interrompue. Actualisez la page et réessayez.');
+      }
+      return json;
+    }
+    const selectedSessions = new Set();
+    const selectedUsers = new Set();
+    let assignmentRequest = 0;
     let CURRENT_ASSET_ID = null;
     const setCurrentAsset = (id, name) => {
-      CURRENT_ASSET_ID = id || null;
+      CURRENT_ASSET_ID = Number(id) > 0 ? Number(id) : null;
+      $('#dtAssets tbody tr').each(function(){ $(this).toggleClass('is-selected', dtAssets.row(this).data()?.id === CURRENT_ASSET_ID); });
       const el = document.getElementById('currentAssetName');
-      if (el) el.textContent = name || '-';
+      if (el) el.textContent = name || 'Aucun document sélectionné';
       loadAssignments();
     };
 
@@ -490,13 +509,13 @@ document.addEventListener('DOMContentLoaded', function () {
               </div>`;
           }
         },
-        { data:'uploadedAt' },
+        { data:'uploadedAt', render: (value, type, row) => type === 'sort' || type === 'type' ? row.uploadedAtSort : escapeHtml(value) },
         { data:null, orderable:false, className:'text-end action-col', render:(r)=>{
             const t = r.titre || r.originalName || 'Document';
             return `
               <div class="btn-group">
-                <a class="btn btn-sm btn-outline-secondary" href="${r.url}" target="_blank" title="Télécharger"><i class="bi bi-download"></i></a>
-                <button class="btn btn-sm btn-primary" data-choose data-id="${r.id}" data-name="${escapeHtml(t)}"><i class="bi bi-check2-circle"></i></button>
+                <a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" title="Télécharger" aria-label="Télécharger le document"><i class="bi bi-download"></i></a>
+                <button class="btn btn-sm btn-primary" title="Sélectionner ce document" aria-label="Sélectionner ce document" data-choose data-id="${r.id}" data-name="${escapeHtml(t)}"><i class="bi bi-check2-circle"></i></button>
               </div>`;
           }
         }
@@ -526,9 +545,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const btn=e.currentTarget.querySelector('button[type=submit]'); const old=btn?.innerHTML;
       if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Import…'; }
       try{
-        const r = await fetch("{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}", { method:'POST', body:new FormData(e.currentTarget), headers:{'X-Requested-With':'XMLHttpRequest'} });
-        if(!r.ok) throw new Error('HTTP '+r.status);
-        await r.json();
+        const r = await fetch("{{ path('app_formateur_supports_library_upload', {entite: entite.id}) }}", { method:'POST', body:new FormData(e.currentTarget), headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'} });
+        await checkedResponse(r);
         $('#dtAssets').DataTable().ajax.reload(null,false);
         const f=document.getElementById('libFiles'); if(f) f.value='';
         showModal('Import terminé', 'Fichier(s) importé(s) dans la bibliothèque.', 'success');
@@ -541,10 +559,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const dtSess = $('#dtSessionsSelect').DataTable({
       ajax:{ url:"{{ path('app_formateur_supports_sessions_feed', {entite: entite.id}) }}", dataSrc:'data' },
       columns:[
-        { data:null, orderable:false, render:(r)=>`<input type="checkbox" class="form-check-input" value="${r.id}">` },
-        { data:'code' },
-        { data:'formation' },
-        { data:'dates' }
+        { data:null, orderable:false, render:(r)=>`<input type="checkbox" class="form-check-input" aria-label="Sélectionner" value="${Number(r.id)}">` },
+        { data:'code', render: $.fn.dataTable.render.text() },
+        { data:'formation', render: $.fn.dataTable.render.text() },
+        { data:'dates', render: $.fn.dataTable.render.text() }
       ],
       order:[[1,'desc']], pageLength:10, lengthMenu:[10,25,50],
       dom:'t<"d-flex justify-content-between align-items-center mt-2"ip>',
@@ -555,6 +573,8 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#dtSessionsSelect tbody').on('click', 'tr', function(e){
       const cb = this.querySelector('input[type=checkbox]'); if(!cb) return;
       if(e.target !== cb) cb.checked = !cb.checked;
+      cb.checked ? selectedSessions.add(cb.value) : selectedSessions.delete(cb.value);
+      selectedUsers.clear();
       updateCounts();
 
       // ✅ Recharge la liste stagiaires pour la session sélectionnée
@@ -565,8 +585,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ===== DataTable : Utilisateurs (sélection) =====
     // Helper : 1ère session cochée
     function getSelectedSessionId(){
-      const cb = document.querySelector('#dtSessionsSelect input[type=checkbox]:checked');
-      return cb ? cb.value : null;
+      return selectedSessions.values().next().value || null;
     }
 
     // ===== DataTable : Utilisateurs (sélection) =====
@@ -579,9 +598,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       },
       columns:[
-        { data:null, orderable:false, render:(r)=>`<input type="checkbox" class="form-check-input" value="${r.id}">` },
-        { data:'nom' },
-        { data:'email' }
+        { data:null, orderable:false, render:(r)=>`<input type="checkbox" class="form-check-input" aria-label="Sélectionner" value="${Number(r.id)}">` },
+        { data:'nom', render: $.fn.dataTable.render.text() },
+        { data:'email', render: $.fn.dataTable.render.text() }
       ],
       order:[[1,'asc']], pageLength:10, lengthMenu:[10,25,50],
       dom:'t<"d-flex justify-content-between align-items-center mt-2"ip>',
@@ -592,13 +611,23 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#dtUsersSelect tbody').on('click', 'tr', function(e){
       const cb = this.querySelector('input[type=checkbox]'); if(!cb) return;
       if(e.target !== cb) cb.checked = !cb.checked;
+      cb.checked ? selectedUsers.add(cb.value) : selectedUsers.delete(cb.value);
       updateCounts();
     });
 
+    for (const [table, selection] of [[dtSess, selectedSessions], [dtUsers, selectedUsers]]) {
+      table.on('draw', () => {
+        table.rows({page:'current'}).nodes().toArray().forEach(row => {
+          const cb = row.querySelector('input[type=checkbox]');
+          if (cb) cb.checked = selection.has(cb.value);
+        });
+        updateCounts();
+      });
+    }
     // Compteurs
     function updateCounts(){
-      const s = $('#dtSessionsSelect input[type=checkbox]:checked').length;
-      const u = $('#dtUsersSelect input[type=checkbox]:checked').length;
+      const s = selectedSessions.size;
+      const u = selectedUsers.size;
       document.getElementById('countSessions').textContent = (s||0)+' sélection'+(s>1?'s':'');
       document.getElementById('countUsers').textContent    = (u||0)+' sélection'+(u>1?'s':'');
     }
@@ -611,12 +640,14 @@ document.addEventListener('DOMContentLoaded', function () {
       if(!as || !au) return;
       if(!CURRENT_ASSET_ID){ as.innerHTML='-'; au.innerHTML='-'; return; }
 
+      const requestId = ++assignmentRequest;
       try{
         const url = new URL("{{ path('app_formateur_supports_assignments_feed',{entite:entite.id}) }}", window.location.origin);
         url.searchParams.set('assetId', CURRENT_ASSET_ID);
-        const r = await fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(x=>x.json());
+        const r = await fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'}}).then(checkedResponse);
+        if (requestId !== assignmentRequest) return;
 
-        as.innerHTML=''; (r.sessions||[]).forEach(s=>{
+        as.innerHTML = r.sessions?.length ? '' : '<span class="library-hint">Aucune session liée.</span>';  (r.sessions||[]).forEach(s=>{
           as.insertAdjacentHTML('beforeend', `
             <div class="d-flex align-items-center justify-content-between border rounded p-2">
               <div><strong>${escapeHtml(s.code)}</strong> - ${escapeHtml(s.formation)}
@@ -627,7 +658,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>`);
         });
 
-        au.innerHTML=''; (r.users||[]).forEach(u=>{
+        au.innerHTML = r.users?.length ? '' : '<span class="library-hint">Aucun stagiaire lié.</span>';  (r.users||[]).forEach(u=>{
           au.insertAdjacentHTML('beforeend', `
             <div class="d-flex align-items-center justify-content-between border rounded p-2">
               <div>${escapeHtml(u.nom)} <span class="text-muted small ms-1">${escapeHtml(u.email)}</span></div>
@@ -638,6 +669,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
       }catch(err){
+        if (requestId !== assignmentRequest) return;
         as.innerHTML = '<div class="text-danger">Erreur de chargement.</div>';
         au.innerHTML = '<div class="text-danger">Erreur de chargement.</div>';
       }
@@ -647,7 +679,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Assigner
     async function assign(type){
       if(!CURRENT_ASSET_ID){ showModal('Sélection requise', 'Sélectionne d’abord un document.', 'warning'); return; }
-      const ids = Array.from(document.querySelectorAll(type==='sessions' ? '#dtSessionsSelect input:checked' : '#dtUsersSelect input:checked')).map(i=>i.value);
+      const ids = Array.from(type === 'sessions' ? selectedSessions : selectedUsers);
       if(!ids.length){ showModal('Sélection requise', type==='sessions'?'Choisis au moins une session.':'Choisis au moins un stagiaire.', 'warning'); return; }
 
       const btn = document.getElementById(type==='sessions'?'btnAssignSessions':'btnAssignUsers');
@@ -656,13 +688,14 @@ document.addEventListener('DOMContentLoaded', function () {
       try{
         const f = new FormData();
         f.append('assetId', CURRENT_ASSET_ID);
+        f.append('sessionId', getSelectedSessionId() || '0');
         ids.forEach(id => f.append(type==='sessions' ? 'sessionIds[]' : 'userIds[]', id));
         f.append('visible', document.getElementById(type==='sessions'?'visibleSess':'visibleUsers').checked ? '1' : '0');
 
         await fetch(type==='sessions'
             ? "{{ path('app_formateur_supports_assign_sessions',{entite:entite.id}) }}"
             : "{{ path('app_formateur_supports_assign_users',{entite:entite.id}) }}",
-          { method:'POST', body:f, headers:{'X-Requested-With':'XMLHttpRequest'} });
+          { method:'POST', body:f, headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'} }).then(checkedResponse);
 
         await loadAssignments();
         showModal('Affectation effectuée', type==='sessions'?'Lié aux sessions sélectionnées.':'Lié aux stagiaires sélectionnés.', 'success');
@@ -689,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = type==='session'
           ? "{{ path('app_formateur_supports_unassign_session',{entite:entite.id}) }}"
           : "{{ path('app_formateur_supports_unassign_user',{entite:entite.id}) }}";
-        await fetch(url, { method:'POST', body:f, headers:{'X-Requested-With':'XMLHttpRequest'} });
+        await fetch(url, { method:'POST', body:f, headers:{'X-Requested-With':'XMLHttpRequest', 'X-CSRF-Token': '{{ csrf_token('supports_library_' ~ entite.id) }}'} }).then(checkedResponse);
         await loadAssignments();
       }catch(err){ showModal('Action refusée', String(err.message||err), 'danger'); btn.disabled=false; btn.innerHTML=old; }
     });

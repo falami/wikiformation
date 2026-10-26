@@ -343,6 +343,7 @@
   {# ✅ DataTables + Buttons (comme Sessions) #}
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}">
 {% endblock %}
 
 {% block javascripts %}
@@ -417,7 +418,7 @@
             <div class="flex-grow-1">
               <div class="kpi-label">Envoyés</div>
               <div class="kpi-value" id="kpi-sent">—</div>
-              <div class="kpi-sub">Status ENVOYE</div>
+              <div class="kpi-sub">Transmis aux formateurs</div>
             </div>
           </div>
         </div>
@@ -432,7 +433,7 @@
             <div class="flex-grow-1">
               <div class="kpi-label">Signés</div>
               <div class="kpi-value" id="kpi-signed">—</div>
-              <div class="kpi-sub">Status SIGNE</div>
+              <div class="kpi-sub">Signature finalisée</div>
             </div>
           </div>
         </div>
@@ -447,7 +448,7 @@
             <div class="flex-grow-1">
               <div class="kpi-label">Archivés</div>
               <div class="kpi-value" id="kpi-archive">—</div>
-              <div class="kpi-sub">Status ARCHIVE</div>
+              <div class="kpi-sub">Contrats archivés</div>
             </div>
           </div>
         </div>
@@ -458,7 +459,7 @@
   {% include 'flagMessage.html.twig' %}
 
   {# FILTERBAR #}
-  <div class="filterbar mb-3">
+  <div class="filterbar catalogue-filters mb-3">
     <div class="filterbar__top">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <div class="filter-icon"><i class="bi bi-funnel"></i></div>
@@ -528,7 +529,7 @@
             <button id="btnReset" type="button" class="resetbox w-100" title="Réinitialiser les filtres">
               <span class="filterrow w-100">
                 <span class="filter-icon"><i class="bi bi-arrow-counterclockwise"></i></span>
-                <span class="resetbox__text flex-grow-1">Reset</span>
+                <span class="resetbox__text flex-grow-1">Réinitialiser</span>
                 <span class="resetbox__badge" id="resetCount" style="display:none;">0</span>
               </span>
             </button>
@@ -545,8 +546,12 @@
   </div>
 
   {# TABLE #}
-  <div class="table-card mb-4 p-3">
-    <table id="tableContrats" class="table table-hover align-middle mb-0 w-100">
+  <div class="table-card premium-list mb-4">
+    <div class="ledger-heading">
+      <div><h3>Contrats des formateurs</h3><p>Vos engagements, leurs signatures et le suivi de chaque session.</p></div>
+      <span class="ledger-mark"><i class="bi bi-file-earmark-check" aria-hidden="true"></i> Suivi des contrats</span>
+    </div>
+    <table id="tableContrats" class="table premium-table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
           <th>Numéro</th>
@@ -792,6 +797,20 @@ $(function(){
       {data:'actions'}
     ],
     columnDefs:[
+      {targets:0, createdCell: cell => {
+        const reference = document.createElement('span');
+        reference.className = 'ledger-ref';
+        reference.textContent = cell.textContent;
+        cell.replaceChildren(reference);
+      }},
+      {targets:5, createdCell: cell => {
+        const label = cell.textContent.trim();
+        const colors = {'Signé':'bg-success', 'Envoyé':'bg-info', 'Archivé':'bg-secondary', 'Brouillon':'bg-secondary'};
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (colors[label] || 'bg-secondary');
+        badge.textContent = label;
+        cell.replaceChildren(badge);
+      }},
       {targets:6, className:'action-column text-end', orderable:false, searchable:false},
       {targets:[1,2,4,5], orderable:false}
     ],

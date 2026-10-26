@@ -225,6 +225,7 @@
       visibility: visible !important;
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block body %}
@@ -276,7 +277,7 @@
 
   {% include 'flagMessage.html.twig' %}
 
-  <div class="filterbar p-3 mb-3">
+  <div class="filterbar p-3 mb-3 catalogue-filters wf-filters-theme">
     <div class="fw-bold mb-2"><i class="bi bi-funnel"></i> Filtres</div>
 
     <div class="row g-2 align-items-end">
@@ -327,8 +328,10 @@
     </div>
   </div>
 
-  <div class="table-card p-2">
-    <table id="dt" class="table table-hover align-middle mb-0 w-100">
+  <div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Affectations de satisfaction formateur", subtitle: "Retrouvez, filtrez et consultez les informations de votre liste.", mark: "Suivi des réponses"} only %}
+
+    <table id="dt" class="premium-table table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
           <th>#</th>
@@ -343,7 +346,7 @@
           <th>Créé</th>
           <th>Début</th>
           <th>Soumis</th>
-          <th class="action-column text-end"></th>
+          <th class="action-column text-end">Actions</th>
         </tr>
       </thead>
     </table>
@@ -410,6 +413,7 @@
 
         if (!dt) {
           dt = new DataTable('#dt', {
+    dom: "<\"catalogue-search-source\"f>rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
             serverSide: true,
             processing: true,
             searching: true,
@@ -582,4 +586,5 @@
       document.addEventListener('turbo:load', init);
     })();
   </script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}

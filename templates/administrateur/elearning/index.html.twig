@@ -179,6 +179,7 @@
       .hero{ border-radius: 16px; }
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block body %}
@@ -223,7 +224,7 @@
 
   {% include 'flagMessage.html.twig' %}
 
-  <div class="toolbar mb-3">
+  <div class="toolbar mb-3 catalogue-filters wf-filters-theme">
     <div class="d-flex flex-wrap gap-2 align-items-center">
       <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
         <span class="chip"><i class="bi bi-info-circle"></i> Recherche + export</span>
@@ -241,8 +242,10 @@
     </div>
   </div>
 
-  <div class="table-card mb-4 p-3">
-    <table id="tableauElearning" class="table table-hover align-middle mb-0" style="width:100%">
+  <div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Catalogue des cours", subtitle: "Retrouvez, filtrez et consultez les informations de votre liste.", mark: "E-learning"} only %}
+
+    <table id="tableauElearning" class="premium-table table table-hover align-middle mb-0" style="width:100%">
       <thead>
         <tr>
           <th style="width:80px">#</th>
@@ -290,13 +293,7 @@
           type: "POST",
         },
 
-        dom:
-          '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
-            + '<"dt-actions d-flex gap-2 align-items-center"B>'
-            + '<"dt-search"f>'
-          + '>'
-          + 'rt'
-          + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+        dom: "<\"d-none\"B><\"catalogue-search-source\"f>rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
 
         buttons: [
           { extend: 'copy',  title: 'Elearning_Cours', text: 'Copier' },
@@ -372,4 +369,5 @@
       $('#hero-last-refresh').text('Maj : ' + nowLabel());
     });
   </script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}

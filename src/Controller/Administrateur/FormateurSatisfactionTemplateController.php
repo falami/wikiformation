@@ -241,10 +241,17 @@ final class FormateurSatisfactionTemplateController extends AbstractController
       $fItems = $formationsByTid[$tid] ?? [];
       if ($fItems) {
         $formationsHtml = '';
-        foreach ($fItems as $ft) {
+        $remaining = count($fItems) - 10;
+        foreach ($fItems as $index => $ft) {
+          if ($index === 10) {
+            $formationsHtml .= '<details class="formation-overflow"><summary>'
+              . '<span class="formation-show-more">Afficher les ' . $remaining . ' autre' . ($remaining > 1 ? 's' : '') . ' formation' . ($remaining > 1 ? 's' : '') . '</span>'
+              . '<span class="formation-show-less">Réduire à 10 formations</span></summary><div class="mt-2">';
+          }
           $formationsHtml .= '<span class="badge bg-light text-dark me-1 mb-1"><i class="bi bi-mortarboard"></i> '
             . htmlspecialchars($ft, ENT_QUOTES) . '</span>';
         }
+        if ($remaining > 0) $formationsHtml .= '</div></details>';
       }
 
       $activeHtml = $t->isActive()

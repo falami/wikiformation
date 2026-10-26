@@ -114,6 +114,7 @@
 .pbar > span{ display:block; height:100%; width: var(--w,0%); background: linear-gradient(90deg, var(--theme-color-secondaire), color-mix(in srgb, var(--theme-color-secondaire) 55%, #fff 45%)); }
 
 </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block body %}
@@ -151,8 +152,11 @@
     </div>
   </div>
 
-  <div class="table-card mb-4 p-3">
-    <table id="tableStagiaireElearning"  class="table table-hover align-middle mb-0" style="width:100%">
+  <section class="filterbar catalogue-filters wf-filters-theme mb-3" data-list-filters="tableStagiaireElearning" aria-label="Filtres des cours"><div data-list-filter-controls></div></section>
+<div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Mes cours e-learning", subtitle: "Retrouvez, filtrez et consultez vos cours et leur progression.", mark: "Parcours en ligne"} only %}
+
+    <table id="tableStagiaireElearning"  class="premium-table table table-hover align-middle mb-0" style="width:100%">
       <thead>
         <tr>
           <th>Cours</th>
@@ -176,6 +180,7 @@
 <script>
 $(function(){
   $('#tableStagiaireElearning').DataTable({
+    dom: "<\"catalogue-search-source\"f>rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
     serverSide: true,
     processing: true,
     ajax: {
@@ -210,4 +215,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (el) el.textContent = 'Maj : ' + nowLabel();
 });
 </script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}

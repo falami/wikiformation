@@ -231,6 +231,7 @@
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/datatables.min.css"/>
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.css"/>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block javascripts %}
@@ -240,6 +241,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
   <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/b-3.0.2/b-html5-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}
 
 {% block body %}
@@ -347,7 +349,7 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ===== TOOLBAR ===== #}
-  <section class="filterbar trainer-filters mb-3" aria-label="Filtres de la liste">
+  <section class="filterbar trainer-filters mb-3 catalogue-filters wf-filters-theme" aria-label="Filtres de la liste">
     <div class="trainer-filter-grid" data-list-filter-controls><div class="trainer-filter-field"><label for="contratStatusFilter">Statut du contrat</label><select data-wf-multi id="contratStatusFilter" class="form-select form-select-sm">
             <option value="all">Tous</option>
             <option value="brouillon">Brouillon</option>
@@ -357,8 +359,10 @@
     <div class="trainer-filter-summary" aria-live="polite"></div>
   </section>
 
-  <div class="table-card mb-4 p-3">
-    <table id="tableauContrats" class="table table-hover align-middle mb-0" style="width:100%">
+  <div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Mes contrats formateur", subtitle: "Retrouvez, filtrez et consultez vos contrats.", mark: "Contrats formateur"} only %}
+
+    <table id="tableauContrats" class="premium-table table table-hover align-middle mb-0" style="width:100%">
       <thead>
         <tr>
           <th style="width:90px">#</th>
@@ -393,13 +397,7 @@ $(function () {
       }
     },
 
-    dom:
-      '<"dt-top d-flex flex-wrap gap-2 align-items-center justify-content-between"'
-        + '<"dt-actions d-flex gap-2 align-items-center"B>'
-        + '<"dt-search"f>'
-      + '>'
-      + 'rt'
-      + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
+    dom: "<\"d-none\"B><\"catalogue-search-source\"f>rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
 
     buttons: [
       { extend: 'copy',  title: 'Contrats', text: 'Copier' },

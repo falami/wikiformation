@@ -26,11 +26,11 @@
       <div class="form-check mb-2">
         {% if optForm.isCorrect is defined %}
           {{ form_widget(optForm.isCorrect, { attr: { class: 'form-check-input' } }) }}
-          <label class="form-check-label small fw-semibold" for="{{ optForm.isCorrect.vars.id }}">Bonne</label>
+          <label class="form-check-label small fw-semibold" for="{{ optForm.isCorrect.vars.id }}">Bonne réponse</label>
           {{ form_errors(optForm.isCorrect) }}
         {% elseif optForm.correct is defined %}
           {{ form_widget(optForm.correct, { attr: { class: 'form-check-input' } }) }}
-          <label class="form-check-label small fw-semibold" for="{{ optForm.correct.vars.id }}">Bonne</label>
+          <label class="form-check-label small fw-semibold" for="{{ optForm.correct.vars.id }}">Bonne réponse</label>
           {{ form_errors(optForm.correct) }}
         {% endif %}
       </div>
@@ -47,6 +47,8 @@
   </div>
 
   {# ===== Ligne 2 : vidéo + image ===== #}
+  <details class="q-option-media" {% if optForm.vars.value.image|default(null) or optForm.vars.value.videoUrl|default(null) or (optForm.imageFile is defined and optForm.imageFile.vars.errors|length) or (optForm.videoUrl is defined and optForm.videoUrl.vars.errors|length) %}open{% endif %}>
+  <summary><i class="bi bi-paperclip" aria-hidden="true"></i> Image ou vidéo <span>Facultatif</span></summary>
   <div class="row g-2 mt-1 align-items-end">
     <div class="col-12 col-md-6">
       {% if optForm.videoUrl is defined %}
@@ -101,4 +103,5 @@
     </div>
   </div>
 
+  </details>
 </div>

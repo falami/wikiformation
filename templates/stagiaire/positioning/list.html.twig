@@ -239,6 +239,7 @@ table.dataTable tbody td{ padding:.85rem .85rem !important; vertical-align: midd
   background: color-mix(in oklab, var(--theme-color-secondaire) 24%, white 76%);
 }
 </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block body %}
@@ -320,7 +321,7 @@ table.dataTable tbody td{ padding:.85rem .85rem !important; vertical-align: midd
 </div>
 
 {# ================= TOOLBAR ================= #}
-<div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4">
+<div class="toolbar d-flex flex-wrap gap-2 align-items-center mb-4 catalogue-filters wf-filters-theme">
   <div class="me-auto d-flex flex-wrap gap-2 align-items-center">
     <span class="pill"><i class="bi bi-funnel"></i> Statut</span>
     <select id="statusFilter" class="form-select form-select-sm" style="max-width:220px;">
@@ -338,9 +339,10 @@ table.dataTable tbody td{ padding:.85rem .85rem !important; vertical-align: midd
 </div>
 
 {# ================= TABLE ================= #}
-<div class="table-card">
-  <div class="table-responsive">
-    <table id="table-positioning" class="table table-hover align-middle mb-0 w-100">
+<div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Mes questionnaires de positionnement", subtitle: "Retrouvez, filtrez et consultez les informations de votre liste.", mark: "Positionnement"} only %}
+
+    <table id="table-positioning" class="premium-table table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
           <th style="width:140px;">Session</th>
@@ -353,7 +355,6 @@ table.dataTable tbody td{ padding:.85rem .85rem !important; vertical-align: midd
       <tbody>
       </tbody>
     </table>
-  </div>
 </div>
 
 {% endblock %}
@@ -374,6 +375,7 @@ $(function(){
   $('#hero-last-refresh').text('Maj : ' + nowLabel());
 
   const table = $('#table-positioning').DataTable({
+    dom: "<\"catalogue-search-source\"f>rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
     serverSide: true,
     processing: true,
     ajax: { url: "{{ path('app_stagiaire_positioning_ajax', { entite: entite.id }) }}", type:'POST' },
@@ -437,4 +439,5 @@ $(function(){
 
 });
 </script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}

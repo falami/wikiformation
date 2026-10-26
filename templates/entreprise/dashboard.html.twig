@@ -472,6 +472,7 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
 @media(max-width:767px){.enterprise-dashboard .hero{padding:22px!important}.enterprise-dashboard .card-body{padding:16px!important}.enterprise-dashboard .fc-toolbar{flex-direction:column;gap:12px}.enterprise-dashboard .card-header .small{display:none}}
 
 </style>
+<link rel="stylesheet" href="{{ asset('dist/css/trainer-session-ledger.css') }}?v=2">
 {% endblock %}
 
 {% block body %}
@@ -561,13 +562,8 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
 
   <div class="row g-4">
     <div class="col-12">
-      <div class="section-card">
-        <div class="card-header px-3 py-3 d-flex justify-content-between">
-          <h5 class="mb-0 fw-bold">Salariés & sessions</h5>
-          <div class="text-muted small">Parcours de vos salariés</div>
-        </div>
-        <div class="card-body p-4">
-          <table id="table-ent" class="table table-striped align-middle w-100">
+      <div class="section-card partner-session-ledger"><div class="card-header d-flex align-items-center justify-content-between"><div><span class="ledger-eyebrow">LE PARCOURS DE VOS SALARIÉS</span><h5 class="section-title mb-0">Salariés & sessions</h5><p class="ledger-description">Vos salariés, leurs formations et leurs prochaines sessions.</p></div><span class="ledger-label"><i class="bi bi-calendar-week me-2"></i>Planning & suivi</span></div><div class="card-body p-4">
+          <table id="table-ent" class="table align-middle w-100">
             <thead>
               <tr>
                 <th>Salarié</th>
@@ -581,7 +577,7 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
                 <th>sessionId</th>
               </tr>
             </thead>
-            <tbody><tr><td colspan="6"></td></tr></tbody>
+            <tbody></tbody>
           </table>
         </div>
       </div>
@@ -1148,10 +1144,10 @@ color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondai
       ajax:{ url: urls.dt, type:'POST' },
       columns:[
         {data:'salarié'},
-        {data:'formation'},
-        {data:'code'},
-        {data:'dates'},
-        {data:'statut', className:'text-center'},
+        {data:'formation', render:(d,type) => type === 'display' ? '<div class="dt-formation"><div class="dt-formation-title"><i class="bi bi-mortarboard me-2" aria-hidden="true"></i>'+ (d || '—') +'</div></div>' : d},
+        {data:'code', className:'session-reference'},
+        {data:'dates', render:(d,type) => type === 'display' ? '<div class="dt-dates"><span class="dt-chip dt-chip-primary"><i class="bi bi-calendar-week" aria-hidden="true"></i>'+ (d || 'Dates à définir') +'</span></div>' : d},
+        {data:'statut', className:'session-status'},
         {data:'actions', className:'text-center'},
         {data:'firstStartIso', visible:false, searchable:false},
         {data:'lastEndIso', visible:false, searchable:false},

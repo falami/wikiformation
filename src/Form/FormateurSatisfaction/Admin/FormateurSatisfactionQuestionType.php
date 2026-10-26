@@ -82,15 +82,10 @@ final class FormateurSatisfactionQuestionType extends AbstractType
         'label' => 'KPI Max',
         'required' => false,
       ])
-      ->add('choices', TextareaType::class, [
-        'label' => 'Choix (1 par ligne)',
-        'required' => false,
-        'attr' => ['rows' => 3],
-        'help' => 'Uniquement pour Choice / MultiChoice.',
-      ]);
+      ;
 
     // Pré-remplir choicesText depuis JSON (choices)
-    $builder->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $e) {
+    $builder->addEventListener(FormEvents::POST_SET_DATA, function (FormEvent $e) {
       $q = $e->getData();
       if (!$q instanceof FormateurSatisfactionQuestion) return;
 
@@ -111,7 +106,7 @@ final class FormateurSatisfactionQuestionType extends AbstractType
       if (!$q instanceof FormateurSatisfactionQuestion) return;
 
       $txt = (string) ($e->getForm()->get('choicesText')->getData() ?? '');
-      $lines = array_values(array_filter(array_map('trim', preg_split("/\R/u", $txt) ?: [])));
+      $lines = array_values(array_filter(array_map('trim', preg_split("/\R/u", $txt) ?: []), static fn(string $line): bool => $line !== ''));
       $q->setChoices($lines ?: null);
     });
   }

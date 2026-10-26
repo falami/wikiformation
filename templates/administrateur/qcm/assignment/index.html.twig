@@ -265,6 +265,7 @@
       visibility: visible !important;
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
 {% endblock %}
 
 {% block body %}
@@ -361,7 +362,7 @@
   </div>
 
   {# ✅ Filtres (premium filterbar) #}
-  <section class="filterbar qcm-filters mb-4" data-list-filters="dt" aria-labelledby="qcm-filter-title">
+  <section class="filterbar qcm-filters mb-4 catalogue-filters wf-filters-theme" data-list-filters="dt" aria-labelledby="qcm-filter-title">
     <div class="qcm-filter-heading">
       <div class="qcm-filter-heading-title"><span class="qcm-filter-icon"><i class="bi bi-sliders2"></i></span><div><h2 id="qcm-filter-title">Rechercher une affectation</h2><p>Retrouvez un participant, une session ou un questionnaire.</p></div></div>
       <button id="btnReset" class="qcm-filter-reset" type="button"><i class="bi bi-arrow-counterclockwise"></i> Effacer les filtres</button>
@@ -377,7 +378,9 @@
   </section>
 
   {# ✅ Table (premium table-card) #}
-  <div class="table-card p-2">
+  <div class="table-card premium-list mb-4">
+    {% include 'components/_premium_list_heading.html.twig' with {title: "Affectations des QCM", subtitle: "Retrouvez, filtrez et consultez les informations de votre liste.", mark: "Suivi des évaluations"} only %}
+
     <div class="d-flex flex-wrap align-items-center gap-2 p-3 bg-light rounded-4 mb-3">
       <label class="me-2"><input type="checkbox" id="selectQcmPage" class="form-check-input me-2">Sélectionner la page</label>
       <span id="qcmSelectionCount" class="small text-muted me-auto" aria-live="polite">0 sélectionnée</span>
@@ -385,7 +388,7 @@
       <button type="button" class="btn btn-outline-danger btn-sm" id="batchRemove" disabled>Retirer les affectations</button>
     </div>
     <div id="qcmBatchFeedback" role="status" class="px-3 mb-2"></div>
-    <table id="dt" class="table table-hover align-middle mb-0 w-100">
+    <table id="dt" class="premium-table table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
           <th>#</th>
@@ -461,6 +464,7 @@
 
         if (!dt) {
           dt = new DataTable('#dt', {
+    dom: "rt<\"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between\"lip>",
             serverSide: true,
             processing: true,
             searching: true,
@@ -718,4 +722,5 @@
       document.addEventListener('turbo:load', init);
     })();
   </script>
+<script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 {% endblock %}

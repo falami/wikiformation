@@ -1,6 +1,6 @@
 <button class="btn text-theme-secondaire toggle-btn btn-masquer">☰</button>
 
-<nav class="sidebar d-flex flex-column p-3 border-end">
+<nav class="sidebar d-flex flex-column p-3 border-end" data-scroll-key="sidebar-scroll:{{ app.user.id }}:{{ entite.id }}">
 	<button class="close-btn">&times;</button>
 
 	<div class="row text-center mb-1">
@@ -21,6 +21,14 @@
 	{% set canOF = is_granted('ENTITE_OF', entite) %}
 	{% set canOPCO = is_granted('ENTITE_OPCO', entite) %}
 	{% set canCommercial = is_granted('ENTITE_COMMERCIAL', entite) %}
+
+	{% set charterRoute = app.request.attributes.get('_route') %}
+	{% set isAdminCharter = charterRoute in [
+		'app_charter_admin', 'app_charter_new', 'app_charter_edit',
+		'app_charter_delete', 'app_charter_version_delete', 'app_charter_duplicate',
+		'app_charter_tracking', 'app_charter_export', 'app_charter_version_pdf'
+	] %}
+	{% set isTrainerCharter = charterRoute in ['app_charter_mine', 'app_charter_open', 'app_charter_sign'] %}
 
 	<ul class="nav flex-column">
 {% if is_granted('ROLE_PARTNER') %}<li class="nav-item"><a href="{{ path('app_partner_dashboard') }}"><span class="text-white"><i class="bi bi-person-heart"></i> Espace partenaire</span></a></li>{% endif %}
@@ -398,7 +406,7 @@
 						app.request.attributes.get('_route') == 'app_administrateur_formateurs_contrats_list' or
 						app.request.attributes.get('_route') starts with 'app_administrateur_documents_formateurs_' or
 						app.request.attributes.get('_route') == 'app_administrateur_formateur_modifier' or
-						app.request.attributes.get('_route') starts with 'app_charter_' or app.request.attributes.get('_route') in ['app_administrateur_planning_formateurs_index','app_admin_trainer_availability'] %}text-theme-secondaire{% else %}text-white{% endif %}" data-bs-toggle="collapse" data-bs-target="#submenuFormateur" aria-expanded="{% if app.request.attributes.get('_route') in [
+						isAdminCharter or app.request.attributes.get('_route') in ['app_administrateur_planning_formateurs_index','app_admin_trainer_availability'] %}text-theme-secondaire{% else %}text-white{% endif %}" data-bs-toggle="collapse" data-bs-target="#submenuFormateur" aria-expanded="{% if isAdminCharter or app.request.attributes.get('_route') in [
 											'app_administrateur_formateur_index',
 											'app_administrateur_formateurs_contrats_list',
 											'app_administrateur_documents_formateurs_index',
@@ -420,7 +428,7 @@
 						app.request.attributes.get('_route') == 'app_administrateur_formateurs_contrats_list' or
 						app.request.attributes.get('_route') starts with 'app_administrateur_documents_formateurs_' or
 						app.request.attributes.get('_route') == 'app_administrateur_formateur_modifier' or
-						app.request.attributes.get('_route') starts with 'app_charter_' or app.request.attributes.get('_route') in ['app_administrateur_planning_formateurs_index','app_admin_trainer_availability'] %}show{% endif %}" id="submenuFormateur">
+						isAdminCharter or app.request.attributes.get('_route') in ['app_administrateur_planning_formateurs_index','app_admin_trainer_availability'] %}show{% endif %}" id="submenuFormateur">
 					<ul class="list-unstyled badge fs-6 large fw-normal text-bg-light text-dark w-100">
 						
 							<a href="{{ path('app_administrateur_formateur_index', {'entite' : entite.id}) }}">
@@ -438,7 +446,7 @@
 								<span class="{% if app.request.attributes.get('_route') == 'app_administrateur_formateurs_contrats_list' %}text-theme-secondaire{% endif %}">{{ 'navbar.formateur.contract'|trans }}</span>
 							</a>
 						</li>
-                        <li><a href="{{ path('app_charter_admin',{entite:entite.id}) }}"><span class="{{ app.request.attributes.get('_route') starts with 'app_charter_' ? 'text-theme-secondaire' : '' }}">Chartes</span></a></li>
+                        <li><a href="{{ path('app_charter_admin',{entite:entite.id}) }}"><span class="{{ isAdminCharter ? 'text-theme-secondaire' : '' }}">Chartes</span></a></li>
 						<li><a href="{{ path('app_administrateur_rapport_index', {entite:entite.id}) }}">Rapports</a></li>
 
 						<li>
@@ -997,7 +1005,7 @@
 					</span>
 				</a>
 			</li>
-            <li><a href="{{ path('app_charter_mine',{entite:entite.id}) }}"><span class="text-white"><i class="bi bi-journal-check"></i> Chartes</span></a></li>
+            <li><a href="{{ path('app_charter_mine',{entite:entite.id}) }}"><span class="{{ isTrainerCharter ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-journal-check"></i> Chartes</span></a></li>
             <li><a href="{{ path('app_formateur_profile', {entite:entite.id}) }}"><span class="text-white"><i class="bi bi-person-badge"></i> Profil & diplômes</span></a></li>
 
 			<li class="nav-item">

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controller;
-use App\Entity\{Entite, Formateur, TrainerCharter, TrainerCharterVersion, TrainerCharterSignature};
+use App\Entity\{Entite, Formateur, TrainerCharter, TrainerCharterVersion, TrainerCharterSignature, Utilisateur};
 use App\Security\Permission\TenantPermission;
 use App\Service\TrainerCharter\CharterManager;
 use App\Service\Pdf\PdfManager;
@@ -195,6 +195,8 @@ final class TrainerCharterController extends AbstractController
     #[Route('/formateur/{entite}/chartes/{id}',name:'app_charter_sign',requirements:['id'=>'\d+'],methods:['GET','POST'])]
     public function sign(Entite $entite,int $id,Request $request): Response {
         $t=$this->own($entite);$s=$this->em->find(TrainerCharterSignature::class,$id);
+        $user = $this->getUser();
+        if (!$user instanceof Utilisateur) throw $this->createAccessDeniedException();
         if (!$s || $s->trainer->getId()!==$t->getId() || $s->version->charter->entite->getId()!==$entite->getId()) throw $this->createNotFoundException();
         $v=$s->version;$current=$this->manager->latest($v->charter)?->id===$v->id;$error=null;
         if ($request->isMethod('POST')) {
@@ -204,7 +206,7 @@ final class TrainerCharterController extends AbstractController
             if (!$request->request->getBoolean('consent') || mb_strlen($name)<3 || mb_strlen($name)>180) $error='Saisissez votre nom complet et confirmez votre engagement.';
             else {
                 $s->signedAt=new \DateTimeImmutable();
-                $s->evidence=['name'=>$name,'accountName'=>$this->trainerName($t),'email'=>$this->getUser()->getUserIdentifier(),'userId'=>$this->getUser()->getId(),'ip'=>$request->getClientIp(),'userAgent'=>mb_substr($request->headers->get('User-Agent',''),0,500),'digest'=>$v->digest,'consent'=>'J’ai lu cette version et je m’engage à respecter ses dispositions.','method'=>'Acceptation électronique depuis le compte authentifié avec saisie du nom et consentement explicite.'];
+                $s->evidence=['name'=>$name,'accountName'=>$this->trainerName($t),'email'=>$user->getUserIdentifier(),'userId'=>$user->getId(),'ip'=>$request->getClientIp(),'userAgent'=>mb_substr($request->headers->get('User-Agent',''),0,500),'digest'=>$v->digest,'consent'=>'J’ai lu cette version et je m’engage à respecter ses dispositions.','method'=>'Acceptation électronique depuis le compte authentifié avec saisie du nom et consentement explicite.'];
                 $pdf=$this->document($v,$s);$s->signedPdf=$pdf->getContent();$s->pdfDigest=hash('sha256',$s->signedPdf);
                 $this->em->flush();$this->addFlash('success','Votre charte est signée. Votre exemplaire est conservé dans cet espace.');
                 return $this->redirectToRoute('app_charter_sign',['entite'=>$entite->getId(),'id'=>$id]);

@@ -71,8 +71,9 @@ final class SatisfactionQuestionType extends AbstractType
       ->add('position', HiddenType::class, ['empty_data' => '1'])
     ;
 
-    // Pré-remplir choicesText depuis JSON (choices)
-    $b->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $e) {
+    // Le DataMapper initialise les champs non mappés après PRE_SET_DATA.
+    // Préremplir ensuite évite qu'il remplace les choix existants par null.
+    $b->addEventListener(FormEvents::POST_SET_DATA, function (FormEvent $e) {
       $q = $e->getData();
       if (!$q instanceof SatisfactionQuestion) return;
 
@@ -93,7 +94,10 @@ final class SatisfactionQuestionType extends AbstractType
       if (!$q instanceof SatisfactionQuestion) return;
 
       $txt = (string) ($e->getForm()->get('choicesText')->getData() ?? '');
-      $lines = array_values(array_filter(array_map('trim', preg_split("/\R/u", $txt) ?: [])));
+      $lines = array_values(array_filter(
+        array_map('trim', preg_split("/\R/u", $txt) ?: []),
+        static fn(string $line): bool => $line !== ''
+      ));
       $q->setChoices($lines ?: null);
     });
   }

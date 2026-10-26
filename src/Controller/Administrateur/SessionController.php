@@ -3,6 +3,7 @@
 namespace App\Controller\Administrateur;
 
 use App\Service\Filter\ChoiceFilter;
+use App\Repository\ConventionContratRepository;
 
 use App\Enum\StatusSession;
 use App\Service\Pdf\PdfManager;
@@ -401,9 +402,12 @@ final class SessionController extends AbstractController
                     "SELECT i.session_id AS sid,
                         COUNT(DISTINCT i.id) AS expected,
                         COUNT(DISTINCT CASE WHEN cc.id IS NOT NULL THEN i.id END) AS present,
-                        COUNT(DISTINCT CASE WHEN cc.date_signature_stagiaire IS NOT NULL
-                            OR cc.date_signature_entreprise IS NOT NULL
-                            OR cc.date_signature_of IS NOT NULL THEN i.id END) AS signed_any
+                        COUNT(DISTINCT CASE WHEN
+                            (cc.entreprise_id IS NOT NULL AND (cc.date_signature_entreprise IS NOT NULL
+                                OR COALESCE(cc.signature_data_url_entreprise, '') <> ''))
+                            OR (cc.entreprise_id IS NULL AND (cc.date_signature_stagiaire IS NOT NULL
+                                OR COALESCE(cc.signature_data_url_stagiaire, '') <> ''))
+                            THEN i.id END) AS signed_recipient
                      FROM inscription i
                      LEFT JOIN convention_contrat_inscription cci ON cci.inscription_id = i.id
                      LEFT JOIN convention_contrat cc ON cc.id = cci.convention_contrat_id
@@ -418,7 +422,7 @@ final class SessionController extends AbstractController
                     $stats['conv'][(int)$r['sid']] = [
                         'expected' => (int)$r['expected'],
                         'present'  => (int)$r['present'],
-                        'signed'   => (int)$r['signed_any'],
+                        'signed'   => (int)$r['signed_recipient'],
                     ];
                 }
 
@@ -1585,14 +1589,17 @@ final class SessionController extends AbstractController
                 ->where('i2.session = s')->andWhere('i2.status != :ins_annule')
                 ->andWhere('NOT EXISTS(' . $subExistsConv . ')')->getDQL();
 
+            $subSignedConv = $em->createQueryBuilder()
+                ->select('1')->from(ConventionContrat::class, 'cc3')
+                ->innerJoin('cc3.inscriptions', 'ci3')
+                ->where('cc3.session = s AND cc3.entite = :entite AND ci3 = i3')
+                ->andWhere(ConventionContratRepository::recipientSignedCondition('cc3'))
+                ->getDQL();
+
             $subEntrepriseConventionNonSignee = $em->createQueryBuilder()
                 ->select('1')->from(Inscription::class, 'i3')
-                ->innerJoin('i3.conventionContrats', 'cc3')
-                ->where('i3.session = s AND cc3.session = s AND cc3.entite = :entite')
-                ->andWhere('i3.status != :ins_annule')
-                ->andWhere('cc3.dateSignatureStagiaire IS NULL')
-                ->andWhere('cc3.dateSignatureEntreprise IS NULL')
-                ->andWhere('cc3.dateSignatureOf IS NULL')->getDQL();
+                ->where('i3.session = s')->andWhere('i3.status != :ins_annule')
+                ->andWhere('NOT EXISTS(' . $subSignedConv . ')')->getDQL();
             $filteredQb->setParameter('ins_annule', StatusInscription::ANNULE);
 
             // 4) émargement non signé (approx) + override “scan déposé”

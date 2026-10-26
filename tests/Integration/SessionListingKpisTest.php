@@ -252,6 +252,103 @@ final class SessionListingKpisTest extends KernelTestCase
         $this->assertMatchingCounts(['search'=>['value'=>'opc'], 'statusFilter'=>'draft'], [0,0,0,0]);
     }
 
+    #[\PHPUnit\Framework\Attributes\DataProvider('recipientSignatures')]
+    public function testConventionCoverageAndDossierFiltersRequireOnlyTheRecipientSignature(bool $company, string $setter, mixed $value, bool $signed): void
+    {
+        [$session, $inscription, $convention] = $this->conventionSession($company);
+        $convention->$setter($value);
+        $this->em->flush();
+        $cards = self::getContainer()->get(\App\Service\Session\ParticipantConventions::class)->forSession($session);
+        self::assertCount(1, $cards[$inscription->getId()]);
+        self::assertSame($signed, $cards[$inscription->getId()][0]['signed']);
+
+        $listing = $this->signatureListing();
+        self::assertStringContainsString(($signed ? '1' : '0') . '/1 inscriptions couvertes et signées', $listing['data'][0]['dossier']);
+        self::assertSame($signed ? 1 : 0, $this->signatureListing('complete')['recordsFiltered']);
+        self::assertSame($signed ? 0 : 1, $this->signatureListing('missing')['recordsFiltered']);
+    }
+
+    public static function recipientSignatures(): iterable
+    {
+        $date = new \DateTimeImmutable('2026-10-22 09:21:00');
+        yield 'entreprise, date seule' => [true, 'setDateSignatureEntreprise', $date, true];
+        yield 'entreprise, image seule' => [true, 'setSignatureDataUrlEntreprise', 'data:image/png;base64,existing', true];
+        yield 'entreprise, OF seul' => [true, 'setDateSignatureOf', $date, false];
+        yield 'entreprise, signature du stagiaire seule' => [true, 'setDateSignatureStagiaire', $date, false];
+        yield 'entreprise, image vide' => [true, 'setSignatureDataUrlEntreprise', '', false];
+        yield 'individuel, date seule' => [false, 'setDateSignatureStagiaire', $date, true];
+        yield 'individuel, image seule' => [false, 'setSignatureDataUrlStagiaire', 'data:image/png;base64,existing', true];
+        yield 'individuel, OF seul' => [false, 'setDateSignatureOf', $date, false];
+        yield 'individuel, signature entreprise seule' => [false, 'setDateSignatureEntreprise', $date, false];
+    }
+
+    public function testUnsignedDuplicateDoesNotInvalidateAnInscriptionAlreadyCoveredByASignedConvention(): void
+    {
+        [$session, $inscription, $convention] = $this->conventionSession(true);
+        $convention->setDateSignatureEntreprise(new \DateTimeImmutable());
+        $duplicate = (new \App\Entity\ConventionContrat())->setSession($session)->setEntite($this->entite)
+            ->setCreateur($this->admin)->setEntreprise($convention->getEntreprise())->setNumero('CONV-DUPLICATE')->addInscription($inscription);
+        $this->em->persist($duplicate);
+        $this->em->flush();
+
+        self::assertStringContainsString('1/1 inscriptions couvertes et signées', $this->signatureListing()['data'][0]['dossier']);
+        self::assertSame(1, $this->signatureListing('complete')['recordsFiltered']);
+        self::assertSame(0, $this->signatureListing('missing')['recordsFiltered']);
+    }
+
+    public function testPaperConventionStillCompletesSessionDossierWithoutInventingElectronicSignatures(): void
+    {
+        [$session, , $convention] = $this->conventionSession(true);
+        $piece = (new \App\Entity\SessionPiece())->setEntite($this->entite)->setCreateur($this->admin)
+            ->setSession($session)->setType(\App\Enum\SessionPieceType::CONVENTION_SIGNEE)->setFilename('paper-convention.pdf');
+        $this->em->persist($piece);
+        $this->em->flush();
+
+        self::assertStringContainsString('Déposé', $this->signatureListing()['data'][0]['dossier']);
+        self::assertSame(1, $this->signatureListing('complete')['recordsFiltered']);
+        self::assertSame(0, $this->signatureListing('missing')['recordsFiltered']);
+        self::assertFalse($convention->isSignedByRecipient());
+        self::assertNull($convention->getDateSignatureEntreprise());
+        self::assertNull($convention->getDateSignatureOf());
+    }
+
+    /** @return array{Session, Inscription, \App\Entity\ConventionContrat} */
+    private function conventionSession(bool $company): array
+    {
+        $session = $this->session('SES-SIGNATURE', $this->formation, \App\Enum\StatusSession::DONE, $this->pastDate);
+        $inscription = $this->inscription($session);
+        $session->addInscription($inscription);
+        $dossier = (new \App\Entity\DossierInscription())->setCreateur($this->admin)->setEntite($this->entite)->setInscription($inscription);
+        $inscription->setDossier($dossier);
+        $this->em->persist($dossier);
+        $convention = (new \App\Entity\ConventionContrat())->setSession($session)->setEntite($this->entite)
+            ->setCreateur($this->admin)->setNumero('CONV-SIGNATURE')->addInscription($inscription);
+        if ($company) {
+            $recipient = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Entreprise signataire');
+            $this->em->persist($recipient);
+            $convention->setEntreprise($recipient);
+        } else {
+            $convention->setStagiaire($this->admin);
+        }
+        $this->em->persist($convention);
+
+        return [$session, $inscription, $convention];
+    }
+
+    private function signatureListing(?string $dossierFilter = null): array
+    {
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->catchExceptions(false);
+        $client->loginUser($this->admin);
+        $filters = ['searchTerm' => 'SES-SIGNATURE'];
+        if ($dossierFilter !== null) $filters['dossierFilter'] = $dossierFilter;
+        $client->request('GET', self::getContainer()->get('router')->generate('app_administrateur_session_ajax', ['entite' => $this->entite->getId()]), $filters);
+        self::assertSame(200, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+
+        return json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+    }
+
     private function assertMatchingCounts(array $filters, array $expected): void
     {
         $client = new KernelBrowser(self::$kernel);

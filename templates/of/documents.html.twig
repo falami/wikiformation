@@ -5,7 +5,7 @@
 {% block stylesheets %}
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 
@@ -286,224 +286,33 @@
       white-space: nowrap;
     }
 
-    /* ================= DATATABLES ================= */
-    html, body{
-      max-width:100%;
-      overflow-x:hidden;
-    }
-
-    .dt-scroll{
-      width:100%;
-      overflow-x:auto !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .dt-scroll .dataTables_wrapper{
-      width:100%;
-    }
-
-    .dt-scroll table.dataTable{
-      width:100% !important;
-      min-width: 980px;
-    }
-
-    .table thead th{
-      font-weight:900;
-      color:var(--ink-2);
-      border-bottom:1px solid var(--line) !important;
-      white-space: nowrap;
-    }
-
-    table.dataTable tbody tr{
-      transition: background .15s ease;
-    }
-
-    table.dataTable tbody tr:hover{
-      background: color-mix(in oklab, var(--sand) 35%, white 65%);
-    }
-
-    .dataTables_wrapper .dataTables_filter input,
-    .dataTables_wrapper .dataTables_length select{
-      border:1px solid var(--line);
-      border-radius:.65rem;
-      padding:.45rem .75rem;
-      background:var(--card-2);
-      color:var(--ink);
-    }
-
-    .dataTables_wrapper .dataTables_paginate .paginate_button{
-      border-radius:.65rem !important;
-    }
-
-    .compact td,
-    .compact th{
-      padding:.75rem .8rem !important;
-      vertical-align: middle;
-    }
-
-    .status-pill{
-      display:inline-flex;
-      align-items:center;
-      gap:.35rem;
-      background: color-mix(in oklab, var(--amber) 12%, white 88%);
-      color: color-mix(in oklab, var(--amber) 60%, black 40%);
-      border:1px solid color-mix(in oklab, var(--amber) 35%, white 65%);
-      border-radius:999px;
-      padding:.25rem .55rem;
-      font-weight:800;
-      font-size:.8rem;
-    }
-
-    .doc-type-pill{
-      display:inline-flex;
-      align-items:center;
-      gap:.35rem;
-      border-radius:999px;
-      padding:.28rem .6rem;
-      font-weight:900;
-      font-size:.78rem;
-      border:1px solid color-mix(in oklab, var(--theme-color-principal) 18%, white 82%);
-      background: color-mix(in oklab, var(--theme-color-principal) 8%, white 92%);
-      color: color-mix(in oklab, var(--theme-color-principal) 72%, black 28%);
-    }
-
-    .file-cell{
+    /* Document-specific cells; the table uses the shared catalogue styles. */
+    .premium-list .file-cell{
       display:flex;
       align-items:center;
-      gap:.65rem;
-      min-width:0;
+      gap:10px;
+      min-width:180px;
+      max-width:280px;
     }
-
-    .file-ico{
-      width:36px;
+    .premium-list .file-ico{
+      width:32px;
       height:36px;
-      border-radius:.8rem;
+      border-radius:7px;
       display:grid;
       place-items:center;
       flex:0 0 auto;
-      background: color-mix(in oklab, var(--theme-color-principal) 10%, white 90%);
-      color: color-mix(in oklab, var(--theme-color-principal) 78%, black 22%);
-      border:1px solid color-mix(in oklab, var(--theme-color-principal) 14%, white 86%);
+      background:#f4f7fa;
+      color:#6b7c90;
+      border:1px solid #e5ebf1;
     }
-
-    .file-meta{
+    .premium-list .file-meta{min-width:0}
+    .premium-list .file-name.ledger-primary{
       min-width:0;
+      overflow-wrap:anywhere;
     }
-
-    .file-name{
-      font-weight:800;
-      color:var(--ink);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .file-sub{
-      font-size:.78rem;
-      color:var(--muted);
-    }
-
-    /* ================= ACTIONS DROPDOWN ================= */
-    .actions-wrap{
-      display:flex;
-      justify-content:flex-end;
-      align-items:center;
-      gap:.4rem;
-      flex-wrap:wrap;
-    }
-
-    .action-dd .btn-action{
-      display:inline-flex;
-      align-items:center;
-      gap:.45rem;
-      border-radius:.85rem;
-      font-weight:900;
-      border:1px solid color-mix(in oklab, var(--theme-color-secondaire) 45%, white 55%);
-      background: color-mix(in oklab, var(--theme-color-secondaire) 16%, white 84%);
-      color: color-mix(in oklab, var(--theme-color-secondaire) 55%, black 45%);
-    }
-
-    .action-dd .btn-action:hover,
-    .action-dd .btn-action:focus{
-      background: color-mix(in oklab, var(--theme-color-secondaire) 22%, white 78%);
-      box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--theme-color-secondaire) 22%, transparent 78%);
-    }
-
-    .action-dd .dropdown-menu{
-      border-radius: 1rem;
-      border:1px solid var(--line);
-      box-shadow: var(--ring);
-      overflow:hidden;
-      padding:.35rem;
-    }
-
-    .action-dd .dropdown-menu .dd-head{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding: .55rem .65rem .5rem;
-      margin: -.35rem -.35rem .35rem;
-      background: linear-gradient(135deg,
-        color-mix(in oklab, var(--theme-color-principal) 92%, black 8%),
-        color-mix(in oklab, var(--theme-color-principal) 72%, var(--theme-color-secondaire) 28%)
-      );
-      color:#fff;
-    }
-
-    .action-dd .dropdown-menu .dd-head .t{
-      font-weight: 950;
-      letter-spacing:.2px;
-    }
-
-    .action-dd .dropdown-menu :is(a, button){
-      width: 100%;
-      display:flex !important;
-      align-items:center;
-      justify-content:flex-start;
-      gap:.6rem;
-      padding:.55rem .65rem !important;
-      margin: .18rem 0 !important;
-      border-radius:.9rem !important;
-      border: 1px solid transparent !important;
-      background: transparent !important;
-      font-weight: 900 !important;
-      text-decoration: none !important;
-      line-height: 1.15;
-      color: var(--ink) !important;
-      box-shadow: none !important;
-      transition: transform .12s ease, background .12s ease, border-color .12s ease;
-    }
-
-    .action-dd .dropdown-menu :is(a, button):hover{
-      background: color-mix(in oklab, var(--sand) 45%, white 55%) !important;
-      border-color: color-mix(in oklab, var(--theme-color-principal) 14%, transparent 86%) !important;
-      transform: translateY(-1px);
-    }
-
-    .action-dd .dropdown-menu :is(a, button) i{
-      width: 1.25rem;
-      text-align:center;
-      font-size: 1.05rem;
-      opacity: .95;
-    }
-
-    .action-dd .dropdown-menu .btn-outline-success i,
-    .action-dd .dropdown-menu .btn-success i{ color: #16a34a; }
-
-    .action-dd .dropdown-menu .btn-outline-primary i,
-    .action-dd .dropdown-menu .btn-primary i{
-      color: color-mix(in oklab, var(--theme-color-principal) 70%, black 30%);
-    }
-
-    .action-dd .dropdown-menu .btn-outline-warning i,
-    .action-dd .dropdown-menu .btn-warning i{ color: #b45309; }
-
-    .action-dd .dropdown-menu .btn-outline-danger i,
-    .action-dd .dropdown-menu .btn-danger i{ color: #dc2626; }
-
-    .section-card{ position: relative; z-index: 1; }
-    #table-documents_wrapper{ position: relative; z-index: 50; }
-    #table-documents_wrapper .dropdown-menu{ z-index: 9999 !important; }
+    .premium-list .ledger-pill.document-type{max-width:150px;white-space:normal;line-height:1.5}
+    .premium-list .ledger-pill.document-status--valid{background:#e8f5ee;color:#27704b}
+    .premium-list .ledger-pill.document-status--pending{background:#fff3cd;color:#785b14}
 
     /* ================= MOBILE ================= */
     @media (max-width: 991.98px){
@@ -529,9 +338,6 @@
         width:100%;
       }
 
-      .dt-scroll table.dataTable{
-        min-width: 860px;
-      }
     }
 
 
@@ -670,6 +476,7 @@
       z-index: 2000 !important;
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=2">
 {% endblock %}
 
 {% block body %}
@@ -794,7 +601,9 @@
         <div class="input-group search-pro search-pro--sm">
           <span class="input-group-text"><i class="bi bi-search"></i></span>
           <input id="searchPieces"
-                type="text"
+                data-list-search
+                aria-label="Rechercher dans les documents"
+                type="search"
                 class="form-control"
                 placeholder="Rechercher une session, une formation, un fichier…">
         </div>
@@ -887,34 +696,29 @@
   </div>
 
   {# ===== TABLE ===== #}
-  <div class="section-card">
-    <div class="card-header d-flex align-items-center justify-content-between px-3 py-3">
-      <h5 class="section-title mb-0">
-        <i class="bi bi-folder2-open me-1"></i> Pièces de session
-      </h5>
-      <span class="text-muted small">Documents internes OF</span>
+  <div class="table-card premium-list mb-4">
+    <div class="ledger-heading">
+      <div>
+        <h3>Pièces de session</h3>
+        <p>Vos documents de formation et leur statut, réunis dans une vue claire.</p>
+      </div>
+      <span class="ledger-mark"><i class="bi bi-folder2-open" aria-hidden="true"></i>Documents internes OF</span>
     </div>
 
-    <div class="card-body">
-      <div class="dt-scroll p-1">
-        <table id="table-documents" class="table table-striped align-middle compact w-100">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Session</th>
-              <th>Formation</th>
-              <th>Type</th>
-              <th>Fichier</th>
-              <th>Statut</th>
-              <th class="text-end">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="7"></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <table id="table-documents" class="table table-hover align-middle mb-0 w-100 premium-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Session</th>
+          <th>Formation</th>
+          <th>Type</th>
+          <th>Fichier</th>
+          <th>Statut</th>
+          <th class="action-column">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
 </div>
@@ -923,10 +727,12 @@
 {% block javascripts %}
   {{ parent() }}
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+  <script src="{{ asset('dist/js/premium-lists.js') }}" defer></script>
 
   <script>
     $(function(){
@@ -948,8 +754,8 @@
       function wrapType(value){
         const text = stripHtml(value || '-');
         return `
-          <span class="doc-type-pill">
-            <i class="bi bi-tag-fill"></i>${escapeHtml(text)}
+          <span class="ledger-pill document-type">
+            ${escapeHtml(text)}
           </span>
         `;
       }
@@ -960,47 +766,17 @@
           <div class="file-cell">
             <div class="file-ico"><i class="bi bi-file-earmark-text-fill"></i></div>
             <div class="file-meta">
-              <div class="file-name" title="${escapeHtml(text)}">${escapeHtml(text)}</div>
-              <div class="file-sub">Pièce jointe de session</div>
+              <div class="file-name ledger-primary" title="${escapeHtml(text)}">${escapeHtml(text)}</div>
+              <div class="ledger-subtle">Pièce jointe de session</div>
             </div>
           </div>
         `;
       }
 
       function wrapStatus(value){
-        const raw = String(value || '');
-        const text = stripHtml(raw || 'Statut');
-        return `<span class="status-pill"><i class="bi bi-shield-check"></i>${escapeHtml(text)}</span>`;
-      }
-
-      function wrapActions(d, row){
-        const raw = (d || '').trim();
-        if(!raw) return '';
-
-        const key = String(row.session || row.formation || Math.random()).replace(/\W+/g,'_');
-        const menuId = 'doc_actions_' + key;
-
-        return `
-          <div class="actions-wrap">
-            <div class="dropdown action-dd">
-              <button class="btn btn-action btn-sm dropdown-toggle" type="button"
-                      id="${menuId}"
-                      data-bs-toggle="dropdown"
-                      data-bs-boundary="viewport"
-                      data-bs-display="static"
-                      aria-expanded="false">
-                <i class="bi bi-three-dots-vertical"></i> Actions
-              </button>
-
-              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="${menuId}">
-                <div class="dd-head">
-                  <div class="t"><i class="bi bi-lightning-charge me-1"></i> Actions</div>
-                </div>
-                ${raw}
-              </div>
-            </div>
-          </div>
-        `;
+        const text = stripHtml(value || 'Statut');
+        const valid = text === 'Validé';
+        return `<span class="ledger-pill document-status--${valid ? 'valid' : 'pending'}"><i class="bi bi-${valid ? 'check2-circle' : 'clock'} me-1" aria-hidden="true"></i>${escapeHtml(text)}</span>`;
       }
 
       function computeKpis(api){
@@ -1118,6 +894,7 @@
         scrollX: true,
         autoWidth: false,
         responsive: false,
+        dom: 'rt' + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
         language: {
           url: 'https://cdn.datatables.net/plug-ins/2.3.4/i18n/fr-FR.json'
         },
@@ -1134,9 +911,18 @@
           }
         },
         columns: [
-          { data:'date' },
-          { data:'session' },
-          { data:'formation' },
+          {
+            data:'date',
+            render: function(d, type){ return type === 'display' ? `<span class="ledger-subtle">${d}</span>` : d; }
+          },
+          {
+            data:'session',
+            render: function(d, type){ return type === 'display' ? `<span class="ledger-ref">${d}</span>` : d; }
+          },
+          {
+            data:'formation',
+            render: function(d, type){ return type === 'display' ? `<div class="ledger-primary">${d}</div>` : d; }
+          },
           {
             data:'type',
             orderable:false,
@@ -1155,8 +941,7 @@
             data:'actions',
             orderable:false,
             searchable:false,
-            className:'text-end',
-            render:function(d, type, row){ return wrapActions(d, row); }
+            className:'action-column'
           }
         ],
         drawCallback: function(){

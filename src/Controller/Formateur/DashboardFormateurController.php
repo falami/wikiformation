@@ -675,62 +675,66 @@ class DashboardFormateurController extends AbstractController
     }
 
     /** Upload vers la bibliothèque personnelle */
-    #[Route('/supports/library/upload', name: 'supports_library_upload', methods: ['POST'])]
-    public function libraryUpload(Entite $entite, Request $request, EntityManagerInterface $em): JsonResponse
+    private function checkLibraryCsrf(Entite $entite, Request $request): void
     {
-        /** @var Utilisateur $user */
-        $user = $this->getUser();
-
-        if (!$request->files->has('files')) {
-            return new JsonResponse(['success' => false, 'message' => 'Aucun fichier.'], 400);
+        if (!$this->isCsrfTokenValid('supports_library_'.$entite->getId(), $request->headers->get('X-CSRF-Token', $request->request->get('_token', '')))) {
+            throw $this->createAccessDeniedException('Jeton de sécurité invalide. Actualisez la page.');
         }
+    }
 
-        /** @var UploadedFile[] $files */
-        $files = $request->files->get('files');
-        $dir = $this->getParameter('kernel.project_dir') . '/public/uploads/supports/library';
-        if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    private function checkLibraryAsset(Entite $entite, SupportAsset $asset): void
+    {
+        if ($asset->getEntite()?->getId() !== $entite->getId()
+            || ($asset->getUploadedBy()?->getId() !== $this->getUser()?->getId() && !$this->isEntiteAdmin($entite))) {
+            throw $this->createAccessDeniedException();
+        }
+    }
 
-        $created = 0;
+    #[Route('/supports/library/upload', name: 'supports_library_upload', methods: ['POST'])]
+    public function libraryUpload(Entite $entite, Request $request, EntityManagerInterface $em, \Symfony\Component\Validator\Validator\ValidatorInterface $validator): JsonResponse
+    {
+        $this->checkLibraryCsrf($entite, $request);
+        $files = $request->files->get('files', []);
+        if (!is_array($files) || !$files || count($files) > 20) {
+            return $this->json(['success' => false, 'message' => 'Sélectionnez entre 1 et 20 fichiers.'], 400);
+        }
+        // Validate the whole batch before moving any file. Never trust the client MIME type.
         foreach ($files as $file) {
-            if (!$file instanceof UploadedFile) {
-                continue;
+            if (!$file instanceof UploadedFile || !$file->isValid()) {
+                return $this->json(['success' => false, 'message' => 'Fichier invalide ou limite du serveur dépassée.'], 400);
             }
-
-            $originalName = $file->getClientOriginalName();
-            $clientMime   = $file->getClientMimeType();
-            $clientSize   = $file->getSize();
-            $title        = pathinfo($originalName, PATHINFO_FILENAME);
-            $ext          = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'bin';
-
-            $newName = sprintf('asset_%s.%s', bin2hex(random_bytes(6)), $ext);
-            $file->move($dir, $newName);
-
-            $absPath   = rtrim($dir, '/') . '/' . $newName;
-            $finalSize = $clientSize ?: @filesize($absPath) ?: null;
-
-            if (!$clientMime && is_file($absPath)) {
-                $finfo = new \finfo(FILEINFO_MIME_TYPE);
-                $clientMime = $finfo->file($absPath) ?: null;
+            $errors = $validator->validate($file, new \Symfony\Component\Validator\Constraints\File(
+                maxSize: '50M', extensions: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv'],
+            ));
+            if (count($errors)) {
+                return $this->json(['success' => false, 'message' => 'Format non autorisé ou fichier supérieur à 50 Mo : '.$file->getClientOriginalName()], 422);
             }
-
-            $asset = (new SupportAsset())
-                ->setCreateur($user)
-                ->setUploadedBy($user)
-                ->setTitre($title)
-                ->setFilename($newName)
-                ->setOriginalName($originalName)
-                ->setMimeType($clientMime)
-                ->setSizeBytes($finalSize ? (int)$finalSize : null)
-                ->setUploadedAt(new \DateTimeImmutable())
-                ->setEntite($entite);
-
-            $em->persist($asset);
-            $created++;
         }
-
-        if ($created > 0) $em->flush();
-
-        return new JsonResponse(['success' => true, 'count' => $created]);
+        $dir = $this->getParameter('kernel.project_dir').'/public/uploads/supports/library';
+        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+            throw new \RuntimeException('Impossible de créer le dossier des supports.');
+        }
+        $paths = [];
+        try {
+            foreach ($files as $file) {
+                $name = $file->getClientOriginalName();
+                $mime = $file->getMimeType();
+                $size = $file->getSize();
+                $filename = 'asset_'.bin2hex(random_bytes(16)).'.'.strtolower($file->getClientOriginalExtension());
+                $file->move($dir, $filename);
+                $paths[] = $dir.'/'.$filename;
+                $asset = (new SupportAsset())->setCreateur($this->getUser())->setUploadedBy($this->getUser())
+                    ->setTitre(mb_substr(pathinfo($name, PATHINFO_FILENAME), 0, 100))->setFilename($filename)
+                    ->setOriginalName(mb_substr($name, 0, 255))->setMimeType($mime)->setSizeBytes($size)
+                    ->setUploadedAt(new \DateTimeImmutable())->setEntite($entite);
+                $em->persist($asset);
+            }
+            $em->flush();
+        } catch (\Throwable $error) {
+            foreach ($paths as $path) { if (is_file($path)) unlink($path); }
+            throw $error;
+        }
+        return $this->json(['success' => true, 'count' => count($paths)]);
     }
 
     /** Basculer visibilité d’un support lié à une session (AJAX) */
@@ -837,6 +841,7 @@ class DashboardFormateurController extends AbstractController
 
         $assets = $em->getRepository(SupportAsset::class)->createQueryBuilder('a')
             ->andWhere('a.uploadedBy = :me')->setParameter('me', $user)
+            ->andWhere('a.entite = :entite')->setParameter('entite', $entite)
             ->orderBy('a.uploadedAt', 'DESC')->getQuery()->getResult();
 
         $basePath = rtrim($request->getBasePath(), '/');
@@ -859,6 +864,8 @@ class DashboardFormateurController extends AbstractController
             };
 
             return [
+                'id' => $a->getId(),
+                'uploadedAtSort' => $a->getUploadedAt()?->format('Y-m-d H:i:s'),
                 'titre'       => $a->getTitre(),
                 'filename'    => $a->getFilename(),
                 'originalName' => $a->getOriginalName(),
@@ -988,18 +995,19 @@ class DashboardFormateurController extends AbstractController
 
     /** Feed des affectations d’un asset (sessions + users) */
     #[Route('/supports/library/assignments', name: 'supports_assignments_feed', methods: ['GET'])]
-    public function assignmentsFeed(Request $req, EntityManagerInterface $em): JsonResponse
+    public function assignmentsFeed(Entite $entite, Request $req, EntityManagerInterface $em): JsonResponse
     {
         $assetId = (int)$req->query->get('assetId');
         $asset = $em->getRepository(SupportAsset::class)->find($assetId);
-        if (!$asset) return new JsonResponse(['sessions' => [], 'users' => []]);
+        if (!$asset) return new JsonResponse(['sessions' => [], 'users' => []], 404);
+        $this->checkLibraryAsset($entite, $asset);
 
         // Sessions liées à l’asset, avec fenêtre min/max
         $sess = $em->createQueryBuilder()
             ->select('l.id as linkId, s.id as sessionId, s.code as code, fo.titre as formation, MIN(j.dateDebut) as d1, MAX(j.dateFin) as d2, COUNT(j.id) as nb')
             ->from(SupportAssignSession::class, 'l')
             ->join('l.session', 's')
-            ->join('s.formation', 'fo')
+            ->leftJoin('s.formation', 'fo')
             ->leftJoin('s.jours', 'j')
             ->andWhere('l.asset = :a')->setParameter('a', $asset)
             ->groupBy('l.id, s.id, fo.id, code')
@@ -1007,8 +1015,8 @@ class DashboardFormateurController extends AbstractController
             ->getQuery()->getArrayResult();
 
         $sessions = array_map(function ($r) {
-            $d1 = $r['d1'] instanceof \DateTimeInterface ? $r['d1']->format('d/m/Y H:i') : '';
-            $d2 = $r['d2'] instanceof \DateTimeInterface ? $r['d2']->format('d/m/Y H:i') : '';
+            $d1 = $r['d1'] ? (new \DateTimeImmutable((string)$r['d1']))->format('d/m/Y H:i') : '';
+            $d2 = $r['d2'] ? (new \DateTimeImmutable((string)$r['d2']))->format('d/m/Y H:i') : '';
             return [
                 'linkId'   => (int)$r['linkId'],
                 'sessionId' => (int)$r['sessionId'],
@@ -1043,19 +1051,29 @@ class DashboardFormateurController extends AbstractController
     #[Route('/supports/library/assign/sessions', name: 'supports_assign_sessions', methods: ['POST'])]
     public function assignSessions(Entite $entite, Request $req, EntityManagerInterface $em): JsonResponse
     {
+        $this->checkLibraryCsrf($entite, $req);
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
         $assetId = (int)$req->request->get('assetId');
-        $sessionIds = (array)$req->request->all('sessionIds');
+        $sessionIds = array_unique(array_map('intval', $req->request->all('sessionIds')));
         $visible = (bool)$req->request->get('visible', true);
 
         $asset = $em->getRepository(SupportAsset::class)->find($assetId);
-        if (!$asset) return new JsonResponse(['success' => false, 'message' => 'Asset introuvable'], 404);
+        if (!$asset) return new JsonResponse(['success' => false, 'message' => 'Document introuvable'], 404);
+        $this->checkLibraryAsset($entite, $asset);
         if ($asset->getUploadedBy()?->getId() !== $user->getId() && !$this->isEntiteAdmin($entite)) {
             return new JsonResponse(['success' => false], 403);
         }
 
+        if (!$sessionIds || count($sessionIds) > 200) return $this->json(['success' => false], 422);
+        foreach ($sessionIds as $sid) {
+            $targetSession = $em->find(Session::class, $sid);
+            if (!$targetSession || $targetSession->getEntite()?->getId() !== $entite->getId()
+                || (!$this->isAssignedTo($targetSession, $entite) && !$this->isEntiteAdmin($entite))) {
+                throw $this->createAccessDeniedException();
+            }
+        }
         $added = 0;
         foreach ($sessionIds as $sid) {
             $session = $em->getRepository(Session::class)->find((int)$sid);
@@ -1091,20 +1109,33 @@ class DashboardFormateurController extends AbstractController
     #[Route('/supports/library/assign/users', name: 'supports_assign_users', methods: ['POST'])]
     public function assignUsers(Entite $entite, Request $req, EntityManagerInterface $em): JsonResponse
     {
+        $this->checkLibraryCsrf($entite, $req);
         /** @var Utilisateur $me */
         $me = $this->getUser();
 
         $assetId = (int)$req->request->get('assetId');
-        $userIds = (array)$req->request->all('userIds');
+        $userIds = array_unique(array_map('intval', $req->request->all('userIds')));
         $visible = (bool)$req->request->get('visible', true);
 
         $asset = $em->getRepository(SupportAsset::class)->find($assetId);
-        if (!$asset) return new JsonResponse(['success' => false, 'message' => 'Asset introuvable'], 404);
+        if (!$asset) return new JsonResponse(['success' => false, 'message' => 'Document introuvable'], 404);
+        $this->checkLibraryAsset($entite, $asset);
 
         if ($asset->getUploadedBy()?->getId() !== $me->getId() && !$this->isEntiteAdmin($entite)) {
             return new JsonResponse(['success' => false], 403);
         }
 
+        $session = $em->find(Session::class, $req->request->getInt('sessionId'));
+        if (!$session || $session->getEntite()?->getId() !== $entite->getId()
+            || (!$this->isAssignedTo($session, $entite) && !$this->isEntiteAdmin($entite))) {
+            throw $this->createAccessDeniedException();
+        }
+        if (!$userIds || count($userIds) > 200) return $this->json(['success' => false], 422);
+        foreach ($userIds as $uid) {
+            if (!$em->getRepository(Inscription::class)->findOneBy(['session' => $session, 'stagiaire' => $uid])) {
+                throw $this->createAccessDeniedException();
+            }
+        }
         $added = 0;
         foreach ($userIds as $uid) {
             $target = $em->getRepository(Utilisateur::class)->find((int)$uid);
@@ -1138,6 +1169,7 @@ class DashboardFormateurController extends AbstractController
     #[Route('/supports/library/unassign/session', name: 'supports_unassign_session', methods: ['POST'])]
     public function unassignSession(Entite $entite, Request $req, EntityManagerInterface $em): JsonResponse
     {
+        $this->checkLibraryCsrf($entite, $req);
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -1146,6 +1178,8 @@ class DashboardFormateurController extends AbstractController
         if (!$link) return new JsonResponse(['success' => false], 404);
 
         $asset = $link->getAsset();
+        $this->checkLibraryAsset($entite, $asset);
+        if ($link->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
         if ($asset->getUploadedBy()?->getId() !== $user->getId() && !$this->isEntiteAdmin($entite)) {
             return new JsonResponse(['success' => false], 403);
         }
@@ -1160,6 +1194,7 @@ class DashboardFormateurController extends AbstractController
     #[Route('/supports/library/unassign/user', name: 'supports_unassign_user', methods: ['POST'])]
     public function unassignUser(Entite $entite, Request $req, EntityManagerInterface $em): JsonResponse
     {
+        $this->checkLibraryCsrf($entite, $req);
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -1168,6 +1203,8 @@ class DashboardFormateurController extends AbstractController
         if (!$link) return new JsonResponse(['success' => false], 404);
 
         $asset = $link->getAsset();
+        $this->checkLibraryAsset($entite, $asset);
+        if ($link->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
         if ($asset->getUploadedBy()?->getId() !== $user->getId() && !$this->isEntiteAdmin($entite)) {
             return new JsonResponse(['success' => false], 403);
         }
