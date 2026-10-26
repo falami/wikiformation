@@ -51,4 +51,45 @@ final class BillingAccessTest extends KernelTestCase
         $client=self::getContainer()->get('test.client');$client->disableReboot();
         $client->catchExceptions(true);$client->request('GET','/fr/billing/success?session_id=cs_private');self::assertSame(302,$client->getResponse()->getStatusCode());
     }
+    private function checkoutReturn(bool $authorized, string $customer, string $status = 'complete'): \Symfony\Component\HttpFoundation\Response
+    {
+        if ($authorized) {
+            $this->em->persist((new UtilisateurEntite())->setUtilisateur($this->user)->setCreateur($this->user)->setEntite($this->other)->setRoles(['TENANT_ADMIN']));
+            $this->em->flush();
+        }
+        $sub = $this->em->getRepository(EntiteSubscription::class)->findOneBy(['entite' => $this->other]);
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::once())->method('request')->willReturn([json_encode([
+            'id' => 'cs_return', 'object' => 'checkout.session',
+            'client_reference_id' => (string) $sub->getId(), 'customer' => $customer,
+            'status' => $status, 'payment_status' => $status === 'complete' ? 'paid' : 'unpaid',
+        ]), 200, []]);
+        ApiRequestor::setHttpClient($http);
+        $client = self::getContainer()->get('test.client');
+        $client->disableReboot(); $client->loginUser($this->user);
+        $client->request('GET', '/fr/billing/success?session_id=cs_return');
+        return $client->getResponse();
+    }
+    public function testCheckoutReturnUsesAuthorizedPaymentEntityInsteadOfSelectedEntity(): void
+    {
+        $response = $this->checkoutReturn(true, 'cus_'.$this->other->getId());
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('/administrateur/'.$this->other->getId().'/billing', $response->getContent());
+    }
+    public function testCheckoutReturnDeniesForeignEntity(): void
+    {
+        $response = $this->checkoutReturn(false, 'cus_'.$this->other->getId());
+        self::assertSame(403, $response->getStatusCode());
+    }
+    public function testCheckoutReturnRejectsMismatchedCustomer(): void
+    {
+        $response = $this->checkoutReturn(true, 'cus_wrong');
+        self::assertSame(404, $response->getStatusCode());
+    }
+    public function testIncompleteCheckoutReturnsToPaymentEntityBilling(): void
+    {
+        $response = $this->checkoutReturn(true, 'cus_'.$this->other->getId(), 'open');
+        self::assertSame(302, $response->getStatusCode());
+        self::assertStringContainsString('/administrateur/'.$this->other->getId().'/billing', $response->headers->get('Location'));
+    }
 }

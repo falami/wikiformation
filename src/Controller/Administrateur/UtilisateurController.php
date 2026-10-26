@@ -285,8 +285,8 @@ final class UtilisateurController extends AbstractController
 
     $form->handleRequest($request);
 
-    // Selecting an existing account must never overwrite its identity with the
-    // values entered in the creation form, or consume another subscription slot.
+    // Reuse the global identity without overwriting it. A new membership must
+    // still satisfy the target organism's subscription limits.
     if (!$isEdit && $form->isSubmitted()) {
       $submitted = $request->request->all($form->getName());
       if ($this->isCsrfTokenValid('utilisateur', (string) ($submitted['_token'] ?? ''))) {
@@ -301,6 +301,44 @@ final class UtilisateurController extends AbstractController
             return $this->redirectToRoute('app_administrateur_utilisateur_modifier', [
               'entite' => $entite->getId(), 'id' => $existing->getId(),
             ]);
+          }
+          // Validate the submitted choices normally. Only the duplicate-email
+          // violation is expected when attaching an existing global identity.
+          $canAttach = true;
+          foreach ($form->getErrors(true) as $error) {
+            $cause = $error->getCause();
+            if (!$cause instanceof \Symfony\Component\Validator\ConstraintViolationInterface
+                || !$cause->getConstraint() instanceof \Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity) {
+              $canAttach = false;
+            }
+          }
+          if ($canAttach) {
+            $roles = (array) $form->get('ueRoles')->getData();
+            if (!$canSetHighRoles) {
+              $roles = array_values(array_diff($roles, [UtilisateurEntite::TENANT_ADMIN, UtilisateurEntite::TENANT_DIRIGEANT]));
+            }
+            $roles = $roles ?: [UtilisateurEntite::TENANT_STAGIAIRE];
+            try {
+              $this->billingGuard->assertCanTransitionUtilisateurEntite(
+                entite: $entite,
+                currentRoles: $membership?->getRoles() ?? [],
+                currentStatus: $membership?->getStatus() ?? UtilisateurEntite::STATUS_INVITED,
+                futureRoles: $roles,
+                futureStatus: UtilisateurEntite::STATUS_ACTIVE,
+                excludeUtilisateurEntiteId: $membership?->getId(),
+              );
+              $membership ??= (new UtilisateurEntite())->setCreateur($user)->setUtilisateur($existing)->setEntite($entite);
+              $membership->setRoles($roles)->setStatus(UtilisateurEntite::STATUS_ACTIVE);
+              $membership->ensureCouleur();
+              $this->em->persist($membership);
+              $this->em->flush();
+              $this->addFlash('success', 'Le compte existant a été rattaché à cet organisme avec les rôles sélectionnés. Ses identifiants et ses informations personnelles sont conservés. Vous pouvez compléter ses informations propres à cet organisme.');
+              return $this->redirectToRoute('app_administrateur_utilisateur_modifier', [
+                'entite' => $entite->getId(), 'id' => $existing->getId(),
+              ]);
+            } catch (BillingQuotaExceededException $e) {
+              $this->addFlash('danger', $e->getMessage());
+            }
           }
         }
       }

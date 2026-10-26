@@ -164,12 +164,9 @@ final class CheckoutController extends AbstractController
   }
 
   #[Route('/billing/success', name: 'app_billing_success')]
-  public function success(Request $request, StripeBillingService $stripe, EntiteSubscriptionRepository $subs, TenantContext $tenant): Response
+  public function success(Request $request, StripeBillingService $stripe, EntiteSubscriptionRepository $subs): Response
   {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-    $entite = $tenant->getCurrentEntiteForUser($this->getUser());
-    if (!$entite) throw $this->createAccessDeniedException();
-    $this->denyAccessUnlessGranted(TenantPermission::BILLING_MANAGE, $entite);
     $sessionId = (string) $request->query->get('session_id');
     if (!$sessionId) {
       return $this->redirectToRoute('app_public_pricing');
@@ -177,7 +174,10 @@ final class CheckoutController extends AbstractController
 
     $session = $stripe->retrieveCheckoutSession($sessionId);
     $sub = $subs->find((int) ($session->client_reference_id ?? 0));
-    if (!$sub || $sub->getEntite()?->getId() !== $entite->getId()
+    $entite = $sub?->getEntite();
+    if (!$entite) throw $this->createNotFoundException();
+    $this->denyAccessUnlessGranted(TenantPermission::BILLING_MANAGE, $entite);
+    if (!$sub->getStripeCustomerId()
         || $sub->getStripeCustomerId() !== (string) ($session->customer ?? '')) throw $this->createNotFoundException();
     if (($session->status ?? '') !== 'complete' || !in_array($session->payment_status ?? '', ['paid', 'no_payment_required'], true)) {
       $this->addFlash('info', 'Votre paiement attend encore une confirmation.');
@@ -186,6 +186,7 @@ final class CheckoutController extends AbstractController
 
     return $this->render('billing/success.html.twig', [
       'session' => $session,
+      'entite' => $entite,
     ]);
   }
 

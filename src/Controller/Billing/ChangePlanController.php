@@ -75,63 +75,13 @@ final class ChangePlanController extends AbstractController
         true
       );
 
-      $dueNow = (int)($invoice->amount_due ?? $invoice->total ?? 0);
-
-      $lines = $invoice->lines->data ?? [];
-
-      $prorationCents = 0;
-      $nextPeriodCents = 0;
-      $prorationTaxCents = 0;
-      $nextTaxCents = 0;
-
-      $uiLines = [];
-
-      foreach ($lines as $line) {
-        $amount = (int)($line->amount ?? 0);
-        $isProration = !empty($line->proration);
-
-        $lineTax = 0;
-        if (!empty($line->tax_amounts) && is_array($line->tax_amounts)) {
-          foreach ($line->tax_amounts as $ta) {
-            $lineTax += (int)($ta->amount ?? 0);
-          }
-        }
-
-        if ($isProration) {
-          $prorationCents += $amount;
-          $prorationTaxCents += $lineTax;
-        } else {
-          $nextPeriodCents += $amount;
-          $nextTaxCents += $lineTax;
-        }
-
-
-        // (optionnel) utile pour comprendre les 0€ / crédits
-        $uiLines[] = [
-          'desc' => (string)($line->description ?? ''),
-          'proration' => (bool)$isProration,
-          'amount_cents' => $amount,
-          'tax_cents' => $lineTax,
-        ];
-      }
-
-      $amountDue = (int)($invoice->amount_due ?? 0);
+      $summary = \App\Service\Billing\SubscriptionChangePreview::summarize($invoice);
 
       return $this->json([
         'ok' => true,
         'currency' => $invoice->currency ?? 'eur',
 
-        'proration_cents' => $prorationCents,
-        'proration_tax_cents' => $prorationTaxCents,
-
-        'next_period_cents' => $nextPeriodCents,
-        'next_tax_cents' => $nextTaxCents,
-
-        // ✅ total Stripe “à payer maintenant”
-        'amount_due_cents' => $amountDue,
-
-        // debug UI
-        'lines' => $uiLines,
+        ...$summary,
       ]);
     } catch (\Stripe\Exception\InvalidRequestException $e) {
       if (str_contains($e->getMessage(), 'No upcoming invoices')) {

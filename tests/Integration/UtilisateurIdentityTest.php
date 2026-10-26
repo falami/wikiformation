@@ -29,6 +29,8 @@ final class UtilisateurIdentityTest extends KernelTestCase
         $mailer = $this->createMock(MailerInterface::class); $mailer->expects(self::never())->method('send');
         self::getContainer()->set(MailerInterface::class, $mailer);
         $this->em = self::getContainer()->get('doctrine')->getManager();
+        $this->em->getConfiguration()->addCustomStringFunction('JSON_CONTAINS', IdentityJsonContains::class);
+        $this->em->getConnection()->getNativeConnection()->sqliteCreateFunction('JSON_CONTAINS', static fn($json, $value) => (int) in_array(json_decode($value, true), json_decode($json, true), true));
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->admin = $this->user('identity-admin@example.test', 'Admin');
         $this->entite = (new Entite())->setNom('Organisme identité')->setPublic(false)->setCreateur($this->admin);
@@ -321,6 +323,48 @@ final class UtilisateurIdentityTest extends KernelTestCase
         self::assertSame(2, $this->em->getRepository(UtilisateurEntite::class)->count([]));
     }
 
+    public function testCreationAttachesForeignAccountWithoutChangingIdentityAndIsIdempotent(): void
+    {
+        $other = (new Entite())->setNom('Autre organisme')->setPublic(false)->setCreateur($this->admin);
+        $this->em->persist($other);
+        $existing = $this->user('shared@example.test', 'Identité conservée')->setEntite($other)->setIsVerified(true);
+        $this->membership($existing, $other, UtilisateurEntite::TENANT_ADMIN);
+        $this->em->flush();
+        $id = $existing->getId(); $otherId = $other->getId();
+        $client = $this->client();
+        $url = '/fr/administrateur/'.$this->entite->getId().'/utilisateur/ajouter';
+        $page = $client->request('GET', $url);
+        $values = $page->filter('form[name="utilisateur"]')->form()->getPhpValues();
+        $values['utilisateur']['email'] = ' SHARED@EXAMPLE.TEST ';
+        $values['utilisateur']['prenom'] = 'Ne pas remplacer';
+        $values['utilisateur']['nom'] = 'Autre';
+        $values['utilisateur']['ueRoles'] = [UtilisateurEntite::TENANT_STAGIAIRE];
+        // Invalid CSRF and forged privileged choices must not attach the account.
+        $invalid = $values; $invalid['utilisateur']['_token'] = 'invalid';
+        $client->request('POST', $url, $invalid);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $invalid = $values; $invalid['utilisateur']['ueRoles'] = ['ROLE_SUPER_ADMIN'];
+        $client->request('POST', $url, $invalid);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame(3, $this->em->getRepository(UtilisateurEntite::class)->count([]));
+        foreach ([1, 2] as $attempt) {
+            $client->request('POST', $url, $values);
+            self::assertSame(302, $client->getResponse()->getStatusCode());
+            self::assertSame($this->editUrl($id), $client->getResponse()->headers->get('Location'));
+        }
+        $this->em->clear();
+        $saved = $this->em->find(Utilisateur::class, $id);
+        self::assertSame('Identité conservée', $saved->getPrenom());
+        self::assertSame('unused', $saved->getPassword());
+        self::assertTrue($saved->isVerified());
+        self::assertSame($otherId, $saved->getEntite()->getId());
+        self::assertSame(3, $this->em->getRepository(Utilisateur::class)->count([]));
+        self::assertSame(4, $this->em->getRepository(UtilisateurEntite::class)->count([]));
+        $repo = $this->em->getRepository(UtilisateurEntite::class);
+        self::assertSame([UtilisateurEntite::TENANT_ADMIN], $repo->findOneBy(['utilisateur'=>$id,'entite'=>$otherId])->getRoles());
+        self::assertSame([UtilisateurEntite::TENANT_STAGIAIRE], $repo->findOneBy(['utilisateur'=>$id,'entite'=>$this->entite->getId()])->getRoles());
+    }
+
     public function testHttpCreationPersistsCanonicalEmailAndTenantRoleWithoutSendingMail(): void
     {
         $client = $this->client(); $url = '/fr/administrateur/'.$this->entite->getId().'/utilisateur/ajouter';
@@ -335,6 +379,34 @@ final class UtilisateurIdentityTest extends KernelTestCase
         self::assertNotNull($created); self::assertSame('Camille', $created->getPrenom());
         $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur'=>$created, 'entite'=>$this->entite->getId()]);
         self::assertSame([UtilisateurEntite::TENANT_STAGIAIRE], $membership->getRoles());
+    }
+
+    public function testAttachingExistingAdministratorHonorsManagementQuota(): void
+    {
+        $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur'=>$this->admin, 'entite'=>$this->entite])
+            ->setRoles([UtilisateurEntite::TENANT_DIRIGEANT]);
+        $plan = $this->em->getRepository(Plan::class)->findOneBy(['code'=>'IDENTITY_TEST']);
+        $plan->setMaxUtilisateurs(1);
+        $existing = $this->user('existing-admin@example.test', 'Compte existant');
+        $this->em->flush();
+        $id = $existing->getId();
+        $client = $this->client(); $url = '/fr/administrateur/'.$this->entite->getId().'/utilisateur/ajouter';
+        $page = $client->request('GET', $url);
+        $values = $page->filter('form[name="utilisateur"]')->form()->getPhpValues();
+        $values['utilisateur']['email'] = $existing->getEmail();
+        $values['utilisateur']['prenom'] = 'Autre'; $values['utilisateur']['nom'] = 'Nom';
+        $values['utilisateur']['ueRoles'] = [UtilisateurEntite::TENANT_ADMIN, UtilisateurEntite::TENANT_STAGIAIRE];
+        $client->request('POST', $url, $values);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Limite', $client->getResponse()->getContent());
+        self::assertNull($this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur'=>$id,'entite'=>$this->entite]));
+        $this->em->getRepository(Plan::class)->findOneBy(['code'=>'IDENTITY_TEST'])->setMaxUtilisateurs(2); $this->em->flush();
+        $client->request('POST', $url, $values);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $this->em->clear();
+        $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur'=>$id,'entite'=>$this->entite->getId()]);
+        self::assertEqualsCanonicalizing($values['utilisateur']['ueRoles'], $membership->getRoles());
+        self::assertSame('Compte existant', $membership->getUtilisateur()->getPrenom());
     }
 
     public function testExistingClientSelectionRequiresValidCsrf(): void
@@ -507,4 +579,9 @@ final class UtilisateurIdentityTest extends KernelTestCase
     { $client=self::getContainer()->get('test.client'); $client->disableReboot(); $client->catchExceptions(false); $client->loginUser($this->admin); return $client; }
     private function editUrl(int $id): string
     { return '/fr/administrateur/'.$this->entite->getId().'/utilisateur/modifier/'.$id; }
+}
+
+final class IdentityJsonContains extends \Scienta\DoctrineJsonFunctions\Query\AST\Functions\Mysql\JsonContains
+{
+    protected function validatePlatform(\Doctrine\ORM\Query\SqlWalker $sqlWalker): void {}
 }

@@ -1,0 +1,56 @@
+Tests d’intégration abonnements Stripe — 26 octobre 2026
+
+Périmètre : compte Stripe de test acct_1T0ju6LuoAi9UDIc, organisme local
+8 « Wiki Test Refus », abonnement local 46, abonnement Stripe
+sub_1UUV7ULuoAi9UDIcPAEe7DXe. Aucun paiement réel ou déploiement production.
+
+1. Renouvellement réussi confirmé via API Stripe : facture HEW6PFPS-0019,
+subscription_cycle, 3480 centimes EUR payés, créée à l’heure simulée du
+25 novembre 2026. Échéance locale initialement synchronisée au 25 décembre.
+2. Relais Stripe TEST vers localhost:8888/stripe/webhook démarré ; réponses HTTP 200.
+3. Carte de test pm_card_chargeCustomerFail attachée à ce client et définie
+sur cet abonnement seulement. Ancien moyen de paiement conservé pour restauration.
+4. Horloge de test avancée au 26 décembre 2026 à 18:00 UTC puis à 20:00 UTC
+pour permettre la finalisation. Facture HEW6PFPS-0020 : open, total 3480,
+amount_paid 0 ; abonnement Stripe past_due et statut local past_due confirmés.
+5. Ancien moyen de paiement rétabli ; paiement de la même facture via API de
+test : paid, amount_paid 3480. Abonnement local 46 revenu à active, échéance
+25 janvier 2027 17:22:07 UTC. Seules les lignes 45 (ancien essai) et 46 existent
+pour l’organisme 8 ; aucun nouvel abonnement local créé par ce scénario.
+
+Tests automatisés : 93 tests, 389 assertions, succès.
+Commande : php vendor/bin/phpunit tests/Service/Billing
+ tests/Integration/SubscriptionAccessTest.php tests/Integration/BillingCatalogueTest.php
+ tests/Integration/BillingAddonQuotaTest.php tests/Integration/BillingQuotaAtomicityTest.php
+ tests/Integration/BillingQuotaTest.php
+Les erreurs simulées de signature et de rapprochement dans les journaux sont
+attendues par les tests, pas des échecs de la suite.
+
+Comportement d’accès lu dans EntitlementService : past_due ne donne pas accès ;
+active avec échéance future donne accès. Le refus et la reprise ont été contrôlés
+en base et via Stripe, pas rejoués dans un navigateur durant cette session.
+La régularisation de cette session est un paiement API, pas un parcours portail.
+
+À poursuivre : 3D Secure succès/abandon, changements d’offre avec prorata,
+fin effective d’abonnement et récupération via portail, vérification de la
+configuration de production. Les courriels reçus et la délivrabilité ne sont
+pas validés ici. Aucun certificat de conformité ni garantie d’absence de bugs.
+
+La mention Dashboard « annulation automatique le 23 janvier » n’est pas une
+résiliation contractuelle dans l’objet contrôlé : cancel_at=null et
+cancel_at_period_end=false. Origine de cette mention Dashboard non confirmée.
+
+Documentation : https://docs.stripe.com/billing/testing
+https://docs.stripe.com/testing#declined-payments
+
+3D Secure — retour de paiement
+- Capture utilisateur : échec d’authentification affiché après le scénario FAIL.
+- Après nouvelle tentative : session Stripe complete/paid, livemode=false,
+  facture paid pour 3480 centimes, abonnement Stripe active.
+- Abonnement local 49, organisme 10 : active (lecture SQL).
+- Correction du retour success : autorisation BILLING_MANAGE sur l’organisme
+  rattaché à la session, indépendamment de l’organisme sélectionné. Vérification
+  du client Stripe conservée. Liens de retour vers la facturation concernée.
+- Régression : organisme autorisé différent, organisme interdit, client incorrect,
+  paiement incomplet. Suite Service/Billing : 40 tests, 178 assertions, succès.
+- Retour dans le navigateur utilisateur après correction encore à confirmer.
