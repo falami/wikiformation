@@ -138,7 +138,7 @@
     }
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}?v=3">
-  <link rel="stylesheet" href="{{ asset('dist/css/positioning-assignments.css') }}?v=20261027-1">
+  <link rel="stylesheet" href="{{ asset('dist/css/positioning-assignments.css') }}?v=20261027-2">
 {% endblock %}
 
 {% block body %}
@@ -260,11 +260,11 @@
 
   {# ===== Modal formateur ===== #}
   <div class="modal fade" id="modalEvaluator" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content" style="border-radius:18px;">
         <div class="modal-header">
           <h5 class="modal-title"><i class="bi bi-person-check"></i> Affecter un formateur</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
         </div>
         <div class="modal-body">
           <label class="form-label small text-muted fw-bold">Formateur évaluateur</label>
@@ -288,24 +288,24 @@
 
   {# ===== Modal session ===== #}
   <div class="modal fade" id="modalSession" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content" style="border-radius:18px;">
         <div class="modal-header">
           <h5 class="modal-title"><i class="bi bi-mortarboard"></i> Affecter une session</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
         </div>
 
         <div class="modal-body">
-          <label class="form-label small text-muted fw-bold">Session</label>
-          <select id="sessionSelect" class="form-select js-tomselect" data-placeholder="Choisir une session…">
-            <option value="">— Aucune —</option>
+          <p class="text-muted small">Recherchez par code, formation, date, lieu ou ville. Vous pouvez combiner plusieurs mots, par exemple « Excel Paris ».</p><label for="sessionSelect" class="form-label fw-semibold">Rechercher une session</label>
+          <select id="sessionSelect" class="form-select js-tomselect" data-placeholder="Code, formation, date, lieu, ville…">
+            <option value="">Aucune session</option>
             {% for s in sessions %}
-              <option value="{{ s.id }}">
-                {% if s.code is defined %}{{ s.code }}{% else %}Session #{{ s.id }}{% endif %}
-                {% if s.titre is defined %} — {{ s.titre }}{% endif %}
-              </option>
+              {% set dates = s.dateDebut ? s.dateDebut|date('d/m/Y') ~ (s.dateFin ? ' → ' ~ s.dateFin|date('d/m/Y') : '') : 'Dates à définir' %}
+              {% set location = s.site ? s.site.nom ~ (s.site.ville ? ' · ' ~ s.site.ville : '') : 'Lieu à définir' %}
+              <option value="{{ s.id }}" data-data="{{ {code: s.code|default('Session #' ~ s.id), formation: s.formationLabel, dates: dates, location: location}|json_encode|e('html_attr') }}">{{ s.code }} — {{ s.formationLabel }} — {{ dates }} — {{ location }}</option>
             {% endfor %}
           </select>
+          <p class="small text-muted mt-3 mb-0">Pour retirer le rattachement actuel, sélectionnez « Aucune session ».</p>
           <input type="hidden" id="sessionUrl" value="">
         </div>
 
@@ -341,6 +341,29 @@
       document.querySelectorAll('select.js-tomselect').forEach((el) => {
         if (el.tomselect) return;
 
+        if (el.id === 'sessionSelect') {
+          new TomSelect(el, {
+            plugins: ['clear_button'],
+            create: false, maxItems: 1, maxOptions: null,
+            allowEmptyOption: true,
+            searchField: ['code', 'formation', 'dates', 'location', 'text'],
+            searchConjunction: 'and',
+            placeholder: el.dataset.placeholder,
+            render: {
+              option(data, escape) {
+                if (!data.value) return '<div class="pa-session-option">Aucune session</div>';
+                return '<div class="pa-session-option"><span class="pa-session-code">' + escape(data.code || '') +
+                  '</span><strong>' + escape(data.formation || '') + '</strong><div class="pa-session-meta"><span>' +
+                  escape(data.dates || '') + '</span><span>' + escape(data.location || '') + '</span></div></div>';
+              },
+              item(data, escape) {
+                return '<div>' + escape(data.value ? (data.code + ' — ' + data.formation) : 'Aucune session') + '</div>';
+              },
+              no_results() { return '<div class="p-3 text-muted">Aucune session trouvée. Essayez un autre mot ou une autre date.</div>'; }
+            }
+          });
+          return;
+        }
         new TomSelect(el, {
           plugins: ['clear_button'],
           create: false,
@@ -373,7 +396,7 @@
           }
         },
         columns:[
-          {data:'id'},
+          {data:'id', visible:false, searchable:false},
           {data:'stagiaire'},
           {data:'questionnaire'},
           {data:'computedLevel', orderable:false, searchable:false},

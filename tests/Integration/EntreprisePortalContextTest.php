@@ -111,6 +111,20 @@ final class EntreprisePortalContextTest extends WebTestCase
             self::assertSelectorTextContains('#company-pending-sessions', '2 appréciations stagiaires manquantes');
             self::assertStringNotContainsString('émargement manquant', $client->getCrawler()->filter('#company-pending-sessions')->text());
 
+            // A real enterprise-only account can review its quote, but not another company's.
+            $quote = (new \App\Entity\Devis())->setEntite($em->find(Entite::class, $tenant->getId()))->setCreateur($em->find(Utilisateur::class, $user->getId()))
+                ->setEntrepriseDestinataire($em->find(Entreprise::class, $companies[0]->getId()))->setStatus(\App\Enum\DevisStatus::SENT)->setNumero('PORTAL-QUOTE');
+            $em->persist($quote); $em->flush();
+            $quoteUrl = $base.'/devis/'.$quote->getId().'/signature?entreprise='.$companies[0]->getId();
+            $client->request('GET', $quoteUrl); self::assertResponseIsSuccessful();
+            self::assertSelectorExists('#signature-form');
+            self::assertSelectorTextContains('#signature-form', 'Signer le devis');
+            $client->request('POST', $quoteUrl, ['consent'=>'1','_token'=>'invalid']); self::assertResponseStatusCodeSame(403);
+            $client->request('GET', $base.'/devis/'.$quote->getId().'/signature?entreprise='.$companies[1]->getId()); self::assertResponseStatusCodeSame(404);
+            $quote = $em->find(\App\Entity\Devis::class, $quote->getId());
+            $quote->setStatus(\App\Enum\DevisStatus::DRAFT); $em->flush();
+            $client->request('GET', $quoteUrl); self::assertResponseStatusCodeSame(404);
+
             $actor = $em->find(Utilisateur::class, $user->getId()); $actor->setEntreprise(null); $em->flush(); $client->loginUser($actor);
             $client->request('POST', $base.'/inscriptions/ajax?entreprise='.$companies[1]->getId()); self::assertResponseIsSuccessful();
             $actor = $em->find(Utilisateur::class, $user->getId());

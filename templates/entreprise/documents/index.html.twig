@@ -877,6 +877,12 @@
       document.getElementById('tab-satis-form')?.addEventListener('shown.bs.tab', ()=>{ initSatisForm(); adjustReadyTable(DT.satisForm); });
       document.getElementById('tab-assiduite')?.addEventListener('shown.bs.tab', ()=>{ initAssiduite(); adjustReadyTable(DT.assiduite); });
 
+      // Direct access from the company dashboard; listeners above initialise the table.
+      if (location.hash === '#pane-conventions') {
+        $('#convSign').val('pending');
+        bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-conventions')).show();
+      }
+
       // reload global
       document.getElementById('btnGlobalReload')?.addEventListener('click', ()=>{
         Object.values(DT).forEach(x => { try{ x?.ajax?.reload?.(null,false); }catch(e){} });

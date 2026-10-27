@@ -143,6 +143,7 @@ final class QcmAssignmentController extends AbstractController
     if ($search !== '') {
       $where .= " AND (
         CAST(a.id AS CHAR) LIKE :q OR
+        s.code LIKE :q OR
         q.titre LIKE :q OR
         u.nom LIKE :q OR
         u.prenom LIKE :q OR
@@ -176,7 +177,7 @@ final class QcmAssignmentController extends AbstractController
       0 => 'a.id',
       1 => 'u.nom',
       2 => 'u.email',
-      3 => 's.id',
+      3 => 's.code',
       4 => 'q.titre',
       5 => 'a.phase',
       6 => 'a.status',
@@ -197,6 +198,7 @@ final class QcmAssignmentController extends AbstractController
         u.nom,
         u.email,
         s.id AS sid,
+        s.code AS session_code,
         q.id AS qid,
         q.titre AS qtitre,
         t.id AS attempt_id, t.submitted_at AS attempt_submitted_at, t.score_points, t.max_points, t.score_percent
@@ -269,7 +271,7 @@ final class QcmAssignmentController extends AbstractController
         'id' => '<span class="mini-chip"><i class="bi bi-hash"></i> ' . $id . '</span>',
         'stagiaire' => htmlspecialchars(trim(($r['prenom'] ?? '') . ' ' . ($r['nom'] ?? '')) ?: '—', ENT_QUOTES),
         'email' => htmlspecialchars((string)($r['email'] ?? '—'), ENT_QUOTES),
-        'session' => '<span class="mini-chip"><i class="bi bi-calendar3"></i> #' . ((int)$r['sid']) . '</span>',
+        'session' => '<span class="mini-chip"><i class="bi bi-calendar3"></i> ' . htmlspecialchars((string)($r['session_code'] ?: 'Session sans référence'), ENT_QUOTES) . '</span>',
         'qcm' => htmlspecialchars((string)($r['qtitre'] ?? ''), ENT_QUOTES),
         'phase' => $phaseHtml,
         'status' => $statusHtml,

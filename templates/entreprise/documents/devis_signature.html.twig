@@ -1,0 +1,42 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Signature · {{ devis.numero }}{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    :root{
+      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
+      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
+      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
+      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
+    }
+  </style>
+
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+{% endblock %}
+{% block body %}
+<div class="container py-4" style="max-width:1000px">
+<a href="{{ path('app_entreprise_documents_index',{entite:entite.id,entreprise:entreprise.id}) }}" class="btn btn-outline-secondary mb-4">Retour aux documents</a>
+<div class="p-4 rounded-4 text-white mb-4" style="background:#233e50;border-top:3px solid #dfba58"><small>DEVIS DE FORMATION</small><h1 class="h3 mt-2">Consulter et signer</h1><p class="mb-0">{{ entreprise.raisonSociale }} · {{ devis.numero }}</p></div>
+{% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
+<section class="card rounded-4 p-4"><h2 class="h4">{{ devis.numero }}</h2><p class="text-muted">Consultez le devis avant de confirmer votre accord au nom de {{ entreprise.raisonSociale }}.</p>
+<a class="btn btn-outline-primary align-self-start mb-4" target="_blank" rel="noopener" href="{{ path('app_entreprise_devis_review',{entite:entite.id,entreprise:entreprise.id,id:devis.id,pdf:1}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>Lire le devis PDF</a>
+{% if signature %}<div class="alert alert-success">Signé le {{ signature.signedAt|date('d/m/Y à H:i', 'Europe/Paris') }} par {{ signature.signerName }}.</div>
+{% elseif unavailableReason %}<div class="alert alert-info">{{ unavailableReason }}</div>
+{% else %}
+<form method="post" id="signature-form">
+<div class="mb-4"><label for="signature-canvas" class="form-label fw-bold">Votre signature</label>
+<p class="text-muted small">Maintenez le bouton de la souris enfoncé pour tracer votre signature (ou utilisez votre doigt sur écran tactile), ou importez une image PNG contenant votre signature, avec votre cachet si vous le souhaitez.</p>
+<canvas id="signature-canvas" width="900" height="260" aria-label="Zone pour tracer votre signature" style="width:100%;height:220px;border:1px solid #ccd8e2;border-radius:12px;touch-action:none;cursor:crosshair;user-select:none;background:white"></canvas>
+<div class="d-flex gap-3 flex-wrap mt-2"><button type="button" class="btn btn-outline-secondary" id="signature-clear">Effacer</button><label class="btn btn-outline-secondary mb-0">Importer un PNG<input id="signature-upload" type="file" accept="image/png" class="visually-hidden"></label></div>
+<p id="signature-error" class="text-danger mt-2" role="alert"></p>
+<input type="hidden" name="signatureData" id="signature-data"></div><input type="hidden" name="_token" value="{{ csrf_token('company_quote_' ~ devis.id) }}"><div class="form-check mb-4"><input class="form-check-input" id="consent" name="consent" type="checkbox" value="1" required><label class="form-check-label" for="consent">J’ai lu ce devis, j’en accepte les conditions et je confirme être habilité à signer pour {{ entreprise.raisonSociale }}.</label></div><button class="btn btn-primary px-4 py-3" type="submit"><i class="bi bi-pen me-2"></i>Signer le devis</button></form>{% endif %}
+</section></div>
+
+{% endblock %}
+
+{% block javascripts_bottom %}
+{{ parent() }}
+<script>
+{% include 'convention_invitation/_signature.js.twig' %}
+</script>
+{% endblock %}

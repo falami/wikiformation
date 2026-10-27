@@ -47,6 +47,15 @@ final class QcmFormationAssignmentTest extends KernelTestCase
         $this->em->flush();
     }
 
+    public function testAssignmentPageRendersContent(): void
+    {
+        $client = $this->client();
+        $crawler = $client->request('GET', self::getContainer()->get('router')->generate('app_administrateur_qcm_assignment_index', ['entite' => $this->entite->getId()]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame(1, $crawler->filter('body > .content #dt')->count());
+        self::assertSame(1, $crawler->filter('body > .content #bulkSession')->count());
+    }
+
     protected function tearDown(): void
     {
         parent::tearDown();
@@ -95,6 +104,9 @@ final class QcmFormationAssignmentTest extends KernelTestCase
         self::assertSame(200, $client->getResponse()->getStatusCode());
         $rows = json_decode($client->getResponse()->getContent(), true)['data'];
         $result = array_values(array_filter($rows, fn($r) => $r['assignmentId'] === $assignment->getId()))[0];
+        self::assertStringContainsString($this->internal->getCode(), $result['session']);
+        $client->request('POST', $ajaxUrl, ['length' => 25, 'search' => ['value' => $this->internal->getCode()]]);
+        self::assertNotEmpty(json_decode($client->getResponse()->getContent(), true)['data']);
         self::assertStringContainsString('75,0 %', $result['result']);
         self::assertStringContainsString($resultUrl, $result['actions']);
 

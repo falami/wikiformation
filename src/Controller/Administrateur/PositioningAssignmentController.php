@@ -71,6 +71,8 @@ final class PositioningAssignmentController extends AbstractController
 
     // ✅ Liste des sessions de l’entité (tri PHP via getDateDebut())
     $sessions = $em->getRepository(Session::class)->createQueryBuilder('s')
+      ->leftJoin('s.formation', 'sessionFormation')->addSelect('sessionFormation')
+      ->leftJoin('s.site', 'sessionSite')->addSelect('sessionSite')
       ->andWhere('s.entite = :e')->setParameter('e', $entite)
       ->getQuery()->getResult();
 
@@ -88,8 +90,7 @@ final class PositioningAssignmentController extends AbstractController
       return $db <=> $da;
     });
 
-    // (optionnel) limiter après tri
-    $sessions = array_slice($sessions, 0, 200);
+    // All tenant sessions remain searchable, including older assignments.
 
 
 

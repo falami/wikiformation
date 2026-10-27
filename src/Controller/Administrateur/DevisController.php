@@ -37,6 +37,7 @@ class DevisController extends AbstractController
 
   public function __construct(
     private MailerManager $mailer,
+    private \App\Service\Devis\EntrepriseQuoteSignature $quoteSignatures,
     private ?PdfManager $pdf = null,
   ) {}
 
@@ -537,8 +538,8 @@ class DevisController extends AbstractController
       throw $this->createAccessDeniedException('Devis non autorisé pour cette entité.');
     }
 
-    if (!$id->getConventions()->isEmpty()) {
-      $this->addFlash('warning', 'Ce devis est lié à une convention. Dupliquez-le pour préparer une nouvelle proposition sans modifier les documents existants.');
+    if (!empty($id->getMeta()['enterprise_signature']) || !$id->getConventions()->isEmpty()) {
+      $this->addFlash('warning', 'Ce devis est signé ou lié à une convention. Dupliquez-le pour préparer une nouvelle proposition sans modifier les documents existants.');
       return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
     }
 
@@ -642,7 +643,7 @@ class DevisController extends AbstractController
   }
 
   #[Route('/{id}/pdf', name: 'pdf', methods: ['GET'])]
-  public function devisPdf(Entite $entite, Devis $id): Response
+  public function devisPdf(Entite $entite, Devis $id, \App\Service\Devis\EntrepriseQuoteSignature $signatures): Response
   {
     if (!$this->pdf) {
       throw $this->createNotFoundException('Service PDF non disponible.');
@@ -651,6 +652,8 @@ class DevisController extends AbstractController
     if ($id->getEntite()->getId() !== $entite->getId()) {
       throw $this->createAccessDeniedException('Devis non autorisé pour cette entité.');
     }
+
+    if ($signed = $signatures->signedResponse($id)) return $signed;
 
     $html = $this->renderDevisPdfHtml($entite, $id);
     $fileName = sprintf('DEVIS-%s', $id->getNumero() ?: $id->getId());
@@ -877,8 +880,8 @@ class DevisController extends AbstractController
     }
 
     // garde-fous : pas de suppression si déjà facturé
-    if ($devis->getFactureCreee() || $devis->getStatus() === DevisStatus::INVOICED || !$devis->getConventions()->isEmpty()) {
-      $this->addFlash('warning', 'Impossible de supprimer un devis lié à une facture ou à une convention.');
+    if (!empty($devis->getMeta()['enterprise_signature']) || $devis->getFactureCreee() || $devis->getStatus() === DevisStatus::INVOICED || !$devis->getConventions()->isEmpty()) {
+      $this->addFlash('warning', 'Impossible de supprimer un devis signé ou lié à une facture ou à une convention.');
       return $this->redirectToRoute('app_administrateur_devis_index', ['entite' => $entite->getId()]);
     }
 
@@ -1056,6 +1059,8 @@ class DevisController extends AbstractController
     if (!$this->pdf) {
       throw $this->createNotFoundException('Service PDF non disponible.');
     }
+
+    if ($signed = $this->quoteSignatures->signedResponse($devis)) return (string) file_get_contents($signed->getFile()->getPathname());
 
     // HTML de ton template PDF
     $html = $this->renderDevisPdfHtml($entite, $devis);

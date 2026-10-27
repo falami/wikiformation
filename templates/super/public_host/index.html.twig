@@ -680,12 +680,12 @@ body .host-floating-dropdown{
           + 'rt'
           + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
 
-        buttons:['copy','csv','excel','pdf','print'],
+        buttons:['copy','csv','excel','pdf','print'].map(extend => ({ extend, exportOptions: { columns: [1,2,3,4,5,6,7,8,9,10] } })),
         lengthMenu:[[10,25,50,100],[10,25,50,100]],
         pageLength: 100,
 
         columns:[
-          {data:'id'},
+          {data:'id', visible:false, searchable:false},
           {data:'name'},
           {data:'entite'},
           {data:'host'},
@@ -710,7 +710,6 @@ body .host-floating-dropdown{
 
         createdRow:function(row){
           const $row = $(row);
-          $row.find('td').eq(0).find('span').removeClass('fw-bold').addClass('ledger-ref');
           $row.find('.host-name').addClass('ledger-primary');
           $row.find('.host-code').addClass('ledger-pill');
           $row.find('.host-count').addClass('ledger-count');

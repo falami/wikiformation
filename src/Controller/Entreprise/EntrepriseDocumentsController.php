@@ -41,6 +41,7 @@ final class EntrepriseDocumentsController extends AbstractController
     private UtilisateurEntiteManager $utilisateurEntiteManager,
     private \App\Service\Entreprise\EntreprisePortalContext $portal,
     private \App\Service\Document\RealisationCertificate $certificates,
+    private \App\Service\Devis\EntrepriseQuoteSignature $quoteSignatures,
     private ?PdfManager $pdf = null,
   ) {}
 
@@ -249,16 +250,22 @@ final class EntrepriseDocumentsController extends AbstractController
         'id' => $d->getId(),
       ]);
 
+      $signAction = '';
+      if (!\App\Service\Devis\EntrepriseQuoteSignature::unavailableReason($d)) {
+        $url = $this->generateUrl('app_entreprise_devis_review', ['entite'=>$entite->getId(), 'entreprise'=>$entreprise->getId(), 'id'=>$d->getId()]);
+        $signAction = '<a class="btn btn-sm btn-primary" href="'.htmlspecialchars($url, ENT_QUOTES).'"><i class="bi bi-pen"></i> Signer</a>';
+      }
+
       $data[] = [
         'date' => $d->getDateEmission()?->format('d/m/Y') ?? '—',
         'numero' => $d->getNumero() ?: ('Devis #' . $d->getId()),
         'ttc' => number_format(((int)$d->getMontantTtcCents()) / 100, 2, ',', ' ') . ' €',
-        'status' => $this->statusBadgeDevis($d->getStatus()),
+        'status' => $this->statusBadgeDevis($d->getStatus()).(!empty($d->getMeta()['enterprise_signature']) ? ' <span class="badge bg-success">Signé</span>' : ''),
         'actions' => sprintf(
-          '<div class="d-flex gap-2 justify-content-end">
+          '<div class="d-flex gap-2 justify-content-end">%s
               <a class="btn btn-sm btn-outline-secondary" href="%s" target="_blank"><i class="bi bi-filetype-pdf"></i> PDF</a>
             </div>',
-          htmlspecialchars($pdfUrl, ENT_QUOTES)
+          $signAction, htmlspecialchars($pdfUrl, ENT_QUOTES)
         ),
       ];
     }
@@ -1180,6 +1187,8 @@ final class EntrepriseDocumentsController extends AbstractController
     if ($devis->getEntrepriseDestinataire()?->getId() !== $entreprise->getId()) throw $this->createAccessDeniedException();
 
     if ($devis->getStatus() === DevisStatus::DRAFT) throw $this->createNotFoundException('Devis non disponible.');
+
+    if ($signed = $this->quoteSignatures->signedResponse($devis)) return $signed;
 
     $html = $this->renderView('pdf/devis.html.twig', [
       'entite' => $entite,
