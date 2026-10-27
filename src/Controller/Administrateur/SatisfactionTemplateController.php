@@ -48,6 +48,24 @@ class SatisfactionTemplateController extends AbstractController
     ]);
   }
 
+  #[Route('/{id}/preview', name: 'preview', requirements: ['id' => '\d+'], methods: ['GET'])]
+  public function preview(Entite $entite, SatisfactionTemplate $template): Response
+  {
+    if ($template->getEntite()?->getId() !== $entite->getId()) {
+      throw $this->createNotFoundException();
+    }
+    $form = $this->createForm(\App\Form\Satisfaction\SatisfactionFillType::class, null, [
+      'template' => $template,
+      'entite_id' => $entite->getId(),
+      'csrf_protection' => false,
+    ]);
+    return $this->render('administrateur/satisfaction/template/preview.html.twig', [
+      'entite' => $entite,
+      'template' => $template,
+      'form' => $form->createView(),
+    ]);
+  }
+
   #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
   public function new(Entite $entite, Request $request, EM $em): Response
   {

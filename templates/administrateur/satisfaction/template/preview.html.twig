@@ -1,0 +1,45 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Aperçu — {{ template.titre }}{% endblock %}
+{% block stylesheets %}
+{{ parent() }}
+<style>
+.sat-preview{max-width:1050px;margin:24px auto 60px;color:#203647}
+.sat-preview header{background:#203647;color:white;border-radius:20px;padding:32px;margin-bottom:24px}
+.sat-preview h1{font-size:clamp(24px,3vw,36px);margin:12px 0 20px}
+.sat-preview .preview-label{font-size:11px;letter-spacing:.14em;color:#e8cb88;text-transform:uppercase}
+.sat-preview section{border:1px solid #dce5eb;border-radius:18px;margin-bottom:24px;background:#fff;overflow:hidden}
+.sat-preview h2{font-size:18px;padding:22px 26px;background:#f2f5f7;margin:0}
+.sat-preview .preview-question{padding:24px 26px;border-top:1px solid #e7edf1}
+.sat-preview legend,.sat-preview .form-label{font-size:15px;font-weight:600;margin-bottom:14px}
+.sat-preview .form-check{display:inline-block;margin:6px 20px 6px 0}
+.sat-preview .form-control,.sat-preview .form-select{border-radius:10px;border-color:#cfdbe4}
+.sat-preview .form-text{font-size:12px;color:#667e90}
+.sat-preview .preview-note{padding:18px 22px;border:1px solid #e7d7b0;border-radius:12px;background:#fcf8ee;margin-bottom:24px;font-size:14px}
+</style>
+{% endblock %}
+{% block body %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+<main class="sat-preview">
+<header>
+<span class="preview-label">Satisfaction stagiaire · Aperçu administrateur</span>
+<h1>{{ template.titre }}</h1>
+<div class="d-flex gap-2 flex-wrap">
+<a class="btn btn-light" href="{{ path('app_administrateur_satisfaction_template_index', {entite: entite.id}) }}">← Retour aux questionnaires</a>
+<a class="btn btn-warning" href="{{ path('app_administrateur_satisfaction_template_edit', {entite: entite.id, id: template.id}) }}">Modifier le questionnaire</a>
+</div>
+</header>
+<p class="preview-note">Vous pouvez essayer les réponses ci-dessous. Cet aperçu ne crée aucune affectation et n’enregistre aucune réponse.</p>
+{% for chapter in template.chapters %}
+<section aria-labelledby="preview-chapter-{{ chapter.id }}">
+<h2 id="preview-chapter-{{ chapter.id }}">{{ loop.index }}. {{ chapter.titre }}</h2>
+{% for question in chapter.questions %}
+{% set field = 'q_' ~ question.id %}
+{% if attribute(form, field) is defined %}
+<div class="preview-question">{{ form_row(attribute(form, field)) }}</div>
+{% endif %}
+{% else %}<p class="p-4 text-muted">Aucune question dans ce chapitre.</p>{% endfor %}
+</section>
+{% else %}<p class="preview-note">Ce questionnaire ne contient pas encore de chapitre.</p>{% endfor %}
+<p class="text-muted small text-end">Fin de l’aperçu · Aucune réponse n’est transmise.</p>
+</main>
+{% endblock %}
