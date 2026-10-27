@@ -92,6 +92,23 @@ final class FormateurSatisfactionTemplateController extends AbstractController
     ]);
   }
 
+  #[Route('/{id}/preview', name: 'preview', methods: ['GET'], requirements: ['id' => '\d+'])]
+  public function preview(Entite $entite, FormateurSatisfactionTemplate $t): Response
+  {
+    $ue = $this->uem->getUserEntiteLink($entite);
+    if (!$ue) throw $this->createAccessDeniedException();
+    if ($t->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+
+    $form = $this->createForm(\App\Form\FormateurSatisfaction\FormateurSatisfactionFillType::class, null, [
+      'template' => $t, 'stagiaires' => [], 'objectives' => [],
+      'disabled' => true, 'csrf_protection' => false,
+    ]);
+    return $this->render('administrateur/formateur/satisfaction/template/preview.html.twig', [
+      'entite' => $entite, 'utilisateurEntite' => $ue,
+      'template' => $t, 'form' => $form->createView(),
+    ]);
+  }
+
   #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
   public function edit(Entite $entite, FormateurSatisfactionTemplate $t, Request $request, EM $em): Response
   {
@@ -258,6 +275,7 @@ final class FormateurSatisfactionTemplateController extends AbstractController
         ? '<span class="badge bg-success"><i class="bi bi-check2-circle"></i> Actif</span>'
         : '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Inactif</span>';
 
+      $previewUrl = $this->generateUrl('app_administrateur_formateur_satisfaction_template_preview', ['entite' => $entite->getId(), 'id' => $t->getId()]);
       $editUrl = $this->generateUrl('app_administrateur_formateur_satisfaction_template_edit', [
         'entite' => $entite->getId(),
         'id' => $t->getId(),
@@ -269,6 +287,7 @@ final class FormateurSatisfactionTemplateController extends AbstractController
       $token = $csrf->getToken('del_fsat_tpl_' . $t->getId())->getValue();
 
       $actions = '
+              <a class="btn btn-sm btn-outline-secondary" href="' . $previewUrl . '"><i class="bi bi-eye"></i> Visualiser</a>
               <a class="btn btn-sm btn-outline-primary" href="' . $editUrl . '"><i class="bi bi-pencil"></i> Modifier</a>
               <form method="post" class="d-inline" action="' . $delUrl . '" onsubmit="return confirm(\'Supprimer ce template ?\');">
                 <input type="hidden" name="_token" value="' . $token . '">

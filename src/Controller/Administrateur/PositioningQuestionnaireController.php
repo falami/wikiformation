@@ -315,12 +315,25 @@ final class PositioningQuestionnaireController extends AbstractController
       throw $this->createNotFoundException();
     }
 
-    // On force le chargement trié (ton OrderBy existe déjà côté entity)
-    // Si un jour tu veux éviter du lazy, tu peux faire un fetch join repo.
-    return $this->render('administrateur/positioning/questionnaire/show.html.twig', [
+    $items = $em->getRepository(\App\Entity\PositioningItem::class)->createQueryBuilder('i')
+      ->join('i.chapter', 'c')
+      ->andWhere('c.questionnaire = :q')->setParameter('q', $q)
+      ->orderBy('c.position', 'ASC')->addOrderBy('c.id', 'ASC')
+      ->addOrderBy('i.position', 'ASC')->addOrderBy('i.id', 'ASC')
+      ->getQuery()->getResult();
+    // In-memory only: preview never creates an assignment or saves an attempt.
+    $attempt = (new \App\Entity\PositioningAttempt())->setQuestionnaire($q);
+    $form = $this->createForm(\App\Form\Stagiaire\PositioningFillType::class, $attempt, [
+      'items' => $items,
+      'csrf_protection' => false,
+    ]);
+    return $this->render('stagiaire/positioning/fill.html.twig', [
       'entite' => $entite,
-      'q' => $q,
-      'chapters' => $q->getChapters(),
+      'attempt' => $attempt,
+      'items' => $items,
+      'form' => $form->createView(),
+      'computedLevelInt' => null,
+      'preview' => true,
       'utilisateurEntite' => $ue,
     ]);
   }

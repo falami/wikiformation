@@ -1,6 +1,6 @@
 {# templates/stagiaire/positioning/fill.html.twig #}
 {% extends 'base_admin.html.twig' %}
-{% block title %}Remplir le positionnement{% endblock %}
+{% block title %}{{ preview|default(false) ? 'Aperçu stagiaire' : 'Remplir le positionnement' }}{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
@@ -378,6 +378,13 @@
 
 {% block body %}
 <div class="container-fluid px-3">
+  {% set preview = preview|default(false) %}
+  {% if preview %}
+  <div class="alert alert-light border d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3" role="status">
+    <div><strong>Aperçu côté stagiaire</strong><br><span class="small text-muted">Essayez les choix de réponse. Rien n’est enregistré ni envoyé.</span></div>
+    <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_positioning_questionnaire_edit', {entite: entite.id, id: attempt.questionnaire.id}) }}">Modifier le questionnaire</a>
+  </div>
+  {% endif %}
 
   <div class="hero p-3 mb-4 d-flex gap-3">
     <div class="accent"></div>
@@ -421,7 +428,7 @@
 
         <div class="d-flex gap-2 flex-wrap">
           <a class="btn btn-outline-theme btn-sm fw-semibold"
-            href="{{ path('app_stagiaire_positioning_list', {entite: entite.id}) }}">
+            href="{{ preview ? path('app_administrateur_positioning_questionnaire_index', {entite: entite.id}) : path('app_stagiaire_positioning_list', {entite: entite.id}) }}">
             <i class="bi bi-arrow-left"></i> Retour
           </a>
         </div>
@@ -465,7 +472,7 @@
     {% set groups = groups|merge([current]) %}
   {% endif %}
 
-  {{ form_start(form) }}
+  {% if preview %}<div class="positioning-preview">{% else %}{{ form_start(form) }}{% endif %}
 
   <div class="grid-card mb-3">
     <div class="p-3 border-bottom" style="background: linear-gradient(180deg, rgba(0,0,0,.015), transparent);">
@@ -475,7 +482,7 @@
           <div class="text-muted small">Si vous ne savez pas, passez à la question suivante.</div>
         </div>
 
-        <div class="d-flex gap-2">
+        {% if not preview %}<div class="d-flex gap-2">
           <button class="btn btn-outline-secondary btn-sm fw-semibold" type="submit" name="submit_save" value="1">
             <i class="bi bi-save"></i> Enregistrer
           </button>
@@ -483,7 +490,7 @@
                   data-bs-toggle="modal" data-bs-target="#modalSubmitFinal">
             <i class="bi bi-check2-circle"></i> Valider
           </button>
-        </div>
+        </div>{% endif %}
       </div>
     </div>
 
@@ -604,6 +611,7 @@
     </div>
   </div>
 
+  {% if not preview %}
   <div class="d-flex flex-wrap gap-2 justify-content-end mb-4">
     <button class="btn btn-outline-secondary fw-semibold" type="submit" name="submit_save" value="1">
       <i class="bi bi-save"></i> Enregistrer
@@ -667,6 +675,7 @@
     {% endif %}
 
     {{ form_end(form, { render_rest: false }) }}
+    {% else %}</div><p class="text-muted small text-end">Fin de l’aperçu · Les réponses d’essai ne sont pas conservées.</p>{% endif %}
 
 
 

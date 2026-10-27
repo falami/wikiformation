@@ -1,0 +1,56 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Aperçu — {{ template.titre }}{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <style>
+    .survey-preview{max-width:1100px;margin:auto;padding-bottom:32px;color:#294454}
+    .survey-preview .preview-hero{background:linear-gradient(120deg,#192f3e,#2b4e5b);color:#fff;border-radius:20px;padding:28px;margin-bottom:24px}
+    .survey-preview h1{font-size:28px;letter-spacing:-.03em}
+    .survey-preview .preview-chapter{border:1px solid #e0e8ef;border-radius:16px;background:#fff;padding:24px;margin-bottom:20px}
+    .survey-preview h2{font-size:19px;margin-bottom:22px;color:#294454}
+    .survey-preview .preview-question{padding:18px 0;border-top:1px solid #e9eef3}
+    .survey-preview .form-label,.survey-preview legend{font-size:15px;font-weight:600}
+    .survey-preview .form-control:disabled{background:#f8fafc;color:#526b7b;opacity:1}
+    .survey-preview .form-check-input:disabled~.form-check-label{opacity:1}
+    .survey-preview .form-text{color:#647b8d}
+    .survey-preview .question-meta{color:#6c8190;font-size:12px;margin-bottom:10px}
+    @media(max-width:767px){.survey-preview .preview-chapter,.survey-preview .preview-hero{padding:18px}}
+  </style>
+{% endblock %}
+{% block body %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+<div class="survey-preview">
+  <header class="preview-hero">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div><p class="small mb-2">APERÇU ADMINISTRATEUR · SATISFACTION FORMATEUR</p><h1>{{ template.titre }}</h1></div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-light btn-sm" href="{{ path('app_administrateur_formateur_satisfaction_template_index', {entite:entite.id}) }}"><i class="bi bi-arrow-left"></i> Retour</a>
+        <a class="btn btn-warning btn-sm" href="{{ path('app_administrateur_formateur_satisfaction_template_edit', {entite:entite.id,id:template.id}) }}"><i class="bi bi-pencil"></i> Modifier</a>
+      </div>
+    </div>
+    <p class="mb-0 small">Consultation uniquement : aucune réponse ni affectation n’est enregistrée.</p>
+  </header>
+  {% for chapter in template.chapters %}
+    <section class="preview-chapter">
+      <h2>{{ loop.index }}. {{ chapter.titre }}</h2>
+      {% for question in chapter.questions %}
+        <div class="preview-question">
+          <div class="question-meta">{{ question.type.label }} · {{ question.required ? 'Obligatoire' : 'Facultatif' }}</div>
+          {% set fieldName = 'q_' ~ question.id %}
+          {% if attribute(form, fieldName) is defined %}
+            {{ form_row(attribute(form, fieldName)) }}
+          {% else %}
+            <p class="fw-semibold">{{ question.libelle }}</p>
+            {% if question.help %}<p class="form-text">{{ question.help }}</p>{% endif %}
+          {% endif %}
+        </div>
+      {% else %}<p class="text-muted mb-0">Aucune question dans ce chapitre.</p>{% endfor %}
+    </section>
+  {% else %}<div class="preview-chapter">Ce questionnaire ne contient pas encore de chapitre.</div>{% endfor %}
+  <aside class="preview-chapter">
+    <h2>Compétences et stagiaires</h2>
+    <p class="mb-0">La partie d’évaluation des acquis est adaptée aux objectifs de la formation et aux stagiaires inscrits dans la session. Elle n’est pas renseignée dans cet aperçu du modèle.</p>
+  </aside>
+</div>
+{% endblock %}
