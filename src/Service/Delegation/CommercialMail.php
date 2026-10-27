@@ -60,7 +60,7 @@ final class CommercialMail
             $this->mailer->send($email);
             $log->setStatus('SENT');
         } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $error) {
-            $log->setStatus('FAILED')->setErrorMessage(mb_substr($error->getMessage(), 0, 1000));
+            $log->setStatus('FAILED')->setErrorMessage('Échec de l’envoi (' . $error::class . '). Vérifiez la configuration de messagerie.');
             $this->em->flush();
             throw new \DomainException('L’envoi a échoué. Vérifiez la configuration e-mail de l’organisme puis réessayez.');
         }

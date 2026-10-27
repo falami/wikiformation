@@ -1001,10 +1001,10 @@ class FactureController extends AbstractController
 
       $this->addFlash('success', "Facture envoyée à {$toEmail}.");
     } catch (\Throwable $e) {
-      $log->setStatus('FAILED')->setErrorMessage($e->getMessage());
+      $log->setStatus('FAILED')->setErrorMessage('Échec de l’envoi (' . $e::class . '). Vérifiez la configuration de messagerie.');
       $em->flush();
 
-      $this->addFlash('danger', "Erreur lors de l'envoi : " . $e->getMessage());
+      $this->addFlash('danger', 'L’envoi a échoué. Vérifiez la configuration de messagerie ou contactez le support.');
     }
 
     return $this->redirectToRoute('app_administrateur_facture_index', ['entite' => $entite->getId()]);

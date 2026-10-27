@@ -1,0 +1,139 @@
+AUDIT PUBLIC RGPD — 27/10/2026
+Périmètre : code local des pages publiques, authentification/inscription, recrutement,
+réservations, consentement cookies et notices. Complément au rapport général.
+Ce contrôle ne certifie pas la conformité de l'exploitation ni les contrats fournisseurs.
+Aucun e-mail réel envoyé, aucune base de production modifiée.
+
+CORRECTIONS APPLIQUÉES
+
+1. Google reCAPTCHA v3 était chargé par base_public sur toutes les pages, y compris
+   avant le choix cookies. Un faux grecaptcha dans le formulaire ne bloquait pas le
+   script réseau. Retrait du script et du champ Recaptcha3Type. Le contact fonctionne
+   avec CSRF Symfony, honeypot, contrôle de temps et limite serveur de cinq tentatives
+   par quinze minutes. L'identifiant du limiteur est un HMAC de l'IP et non l'IP brute.
+   Un dépassement renvoie 429 et Retry-After. Le Referer arbitraire ne contrôle plus
+   la redirection après soumission. Le log ne duplique plus le message brut d'exception.
+   Preuves : src/Form/ContactType.php ; Public/PublicController.php:262 ;
+   config/packages/rate_limiter.yaml:15 ; tests/Integration/PublicContactPrivacyTest.php.
+
+2. Retrait des appels Google Fonts/preconnect des pages publiques principales et
+   légales (les polices de repli CSS restent présentes). Les bibliothèques provenant
+   de jsDelivr/cdnjs ne sont PAS supprimées et ne sont PAS assimilées à des traceurs
+   d'audience : leurs requêtes techniques et destinataires sont explicités dans la
+   notice. Ne pas annoncer « aucune connexion externe » après ces corrections.
+   Preuves : templates/base_public.html.twig:12,66,69 ;
+   templates/public/politique_confidentialite.html.twig:1570.
+
+3. Les réservations utilisaient l'organisme par défaut du compte demandeur et
+   pouvaient exposer une formation privée par son slug. Elles sont maintenant
+   rattachées à l'organisme de la formation visible sur le domaine courant.
+   Une session doit appartenir à cette formation ET à cet organisme, être publiée,
+   sinon GET/POST renvoie 404 avant de collecter les données. Suppression du repli
+   vers l'utilisateur ID 1, inaccessible en théorie mais dangereux. Les commentaires
+   sont limités à 5 000 caractères côté serveur ; plus de demande de noms/e-mails
+   d'autres participants dans un champ libre. Réponse formulaire private/no-store.
+   Preuves : src/Controller/Public/ReservationController.php:24,33,54,63 ;
+   src/Form/Public/ReservationType.php:45 ;
+   tests/Integration/PublicReservationPrivacyTest.php.
+
+4. Information au point de collecte pour contact (page + pied de page), inscription,
+   candidature, demande d'ouverture de session et réservation. Responsables/finalités,
+   caractère obligatoire/facultatif, destinataires, droits et lien de notice sont
+   explicités. L'inscription demande la lecture de la notice, pas un « consentement
+   RGPD » servant de base à l'ensemble du service ; newsletter séparée et facultative.
+   Preuves : templates/public/_contact_privacy_notice.html.twig ;
+   templates/public/_reservation_privacy_notice.html.twig ;
+   templates/registration/register.html.twig:52 ; templates/recruitment/public.html.twig:53 ;
+   translations/messages.fr.yaml et messages.en.yaml (rgpd_label_html).
+
+5. Domaines white-label : les liens de notice plate-forme et cookies pointent vers
+   wikiformation.fr, car les mêmes routes sur un domaine client redirigeaient vers le
+   calendrier. Le formulaire de contact générique IT FOR YOU n'est plus affiché dans
+   le pied de page client ; l'interface oriente vers l'organisme pour son dossier.
+   Preuves : templates/base_public.html.twig:213 ; templates/_cookie_consent.html.twig:11 ;
+   testWhiteLabelVisitorsCanReachPlatformPrivacyInformation.
+
+6. Dates des cinq documents légaux/publics fixées au 27/10/2026 : elles ne changent
+   plus chaque jour sans révision. Correction de la politique : IT FOR YOU responsable
+   de ses propres comptes/clients/contact/sécurité ; organisme responsable des
+   dossiers de formation ; plateforme intervenant pour son compte. Hébergement et
+   messagerie de production chez o2switch selon confirmation utilisateur. Cette
+   confirmation ne vaut pas vérification du routage ni des contrats. Suppression
+   des garanties de transferts, sauvegardes et purges non
+   vérifiées. Critères de conservation, pas de promesse de purge automatique.
+   Droits : contact, espace compte, délai d'un mois/extension motivée, contrôle
+   d'identité proportionné, retrait, directives post-mortem, réclamation CNIL.
+   Preuves : templates/public/politique_confidentialite.html.twig:1355,1568,1587,1603,1736.
+
+CONTRÔLES EXISTANTS VÉRIFIÉS (PAS NOUVELLEMENT CRÉÉS)
+
+- Analytics seulement après cookie accepté ET version courante, visiteurs anonymes,
+  liste blanche de pages non sensibles et domaines wikiformation.fr/www uniquement.
+  URL sans query string/referrer ; Google Signals/publicité désactivés ; cookies
+  13 mois, pas de prolongation automatique. Pas d'analytics dans les espaces privés.
+- Accepter et refuser utilisent la même durée (180 jours) ; choix redemandé si version
+  ancienne ; retrait désactive GA, efface ses cookies accessibles et recharge la page
+  pour retirer les scripts déjà chargés. Sessions/authentification préservées.
+  Preuves : templates/_public_analytics.html.twig ; public/dist/js/cookie-consent.js ;
+  tests/Twig/AnalyticsPrivacyTest.php ; tests/JavaScript/cookie-consent.test.cjs.
+
+VALIDATION LOCALE
+
+- PHPUnit contact + réservations + rendu analytics : 10 tests, 87 assertions, OK.
+- Node consentement : 4 tests, OK (refus, acceptation, expiration, retrait, Turbo).
+- Lint Twig : 26 fichiers publics concernés, OK.
+- Lint YAML : limiteur et traductions FR/EN, 3 fichiers OK.
+- Syntaxe PHP contrôleurs/formulaires modifiés, OK ; diff --check ciblé OK.
+- Jeux de données SQLite en mémoire, e-mail mocké, aucun appel à Google/Stripe requis.
+- Les tests couvrent le destinataire inter-organismes, GET/POST hors périmètre,
+  restrictions white-label, session étrangère/non publiée/inexistante, CSRF, ajout
+  frauduleux d'un champ organisme et longueur du commentaire.
+
+POINTS RESTANTS À VALIDER / METTRE EN ŒUVRE
+
+A. Registre et contrats : absence de registre et de DPA clients confirmée par
+   l'utilisateur. Le texte public ne remplace pas ces pièces. Vérifier la liste et les
+   engagements effectifs d'o2switch (hébergement et messagerie), Stripe, Google et des fournisseurs CDN,
+   pays/sous-traitants ultérieurs/transferts. Un hébergement français ne suffit pas.
+B. Conservation : approuver un calendrier par finalité, règles d'archivage/restauration
+   et suppression réelle, y compris mails, sauvegardes et données des organismes.
+   Le code inspecté ne justifie pas de publier des durées opérationnelles inventées.
+C. White-label : aucune notice RGPD propre à chaque organisme n'est actuellement
+   configurée dans PublicHost. La politique plateforme et le nom d'organisme n'en
+   tiennent pas lieu : obtenir et exposer ses informations, contacts et durées.
+D. Candidatures : l'accord requis cumule étude et transmission aux organismes
+   sélectionnés (src/Service/Recruitment/Applications.php:65). Qualifier les bases,
+   séparer les finalités si nécessaire, documenter destinataires/proof/retrait et
+   conservation du vivier. Le nouveau paragraphe ne vaut pas validation du processus.
+E. Consentement : cookies versionnés testés, mais vérifier la capacité opérationnelle
+   à démontrer le choix, la configuration réelle du compte GA (rétention, traitements
+   secondaires/transferts) et à traiter le retrait au-delà du navigateur local.
+F. Ressources externes restantes : Bootstrap, Bootstrap Icons, Font Awesome,
+   Flatpickr, Tom Select, Fancybox selon la page ; jsDelivr/cdnjs reçoivent IP/UA.
+   Privilégier une copie locale maintenue et verrouillée des dépendances et compléter
+   les garanties fournisseurs ; la suppression de Google Fonts/reCAPTCHA n'élimine
+   pas ces destinataires. Les chargements privés maps/vidéos sont traités dans le
+   chantier principal et doivent être inclus dans le test navigateur final.
+G. Homonymie des slugs formation : contrainte unique par organisme, mais la fiche
+   publique globale findOnePublicBySlug choisit le premier résultat. Le contrôle
+   réservation empêche les hôtes étrangers ; une stratégie de liens publics uniques
+   par formation reste à harmoniser pour les doublons entre organismes.
+H. Vérification de déploiement : cookies HTTPS, script/iframe réseau avant/après choix,
+   CSP/headers, domaine custom, serveur/CDN/cache réels et délivrabilité de contact.
+   Le test local ne prouve pas la configuration de production.
+
+RÉFÉRENCES OFFICIELLES CONSULTÉES
+
+- CNIL, FAQ cookies, question 17 CAPTCHA (sécurité seule vs réutilisation fournisseur) :
+  https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies/FAQ
+- Information et transparence (finalités, bases, destinataires, durée/critères, droits) :
+  https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence
+- Identification des rôles responsable/sous-traitant :
+  https://www.cnil.fr/fr/rgpd-comment-bien-identifier-son-role
+- RGPD chapitre IV, article 28 :
+  https://www.cnil.fr/fr/reglement-europeen-protection-donnees/chapitre4
+- Exercice des droits : https://cnil.fr/fr/respecter-les-droits-des-personnes
+- Loi Informatique et Libertés, directives post-mortem :
+  https://www.cnil.fr/fr/le-cadre-national/la-loi-informatique-et-libertes
+- Recommandation cookies consolidée 2026 :
+  https://www.cnil.fr/sites/default/files/2026-01/recommandation_cookies_consolidee.pdf

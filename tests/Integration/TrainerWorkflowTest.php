@@ -60,6 +60,60 @@ final class TrainerWorkflowTest extends KernelTestCase
         }
     }
 
+    public function testGoogleRoutesRequiresExplicitCsrfProtectedRequest(): void
+    {
+        $old = [$_ENV['GOOGLE_MAPS_SERVER_KEY'] ?? null, $_SERVER['GOOGLE_MAPS_SERVER_KEY'] ?? null];
+        $_ENV['GOOGLE_MAPS_SERVER_KEY'] = $_SERVER['GOOGLE_MAPS_SERVER_KEY'] = 'test-key';
+        try {
+            $calls = [];
+            $http = new \Symfony\Component\HttpClient\MockHttpClient(function ($method, $url, $options) use (&$calls) {
+                $calls[] = json_decode($options['body'], true);
+                return new \Symfony\Component\HttpClient\Response\MockResponse('{"routes":[{"distanceMeters":10000,"duration":"1200s"}]}');
+            });
+            self::getContainer()->set('http_client', $http);
+            $this->session->getSite()->setAdresse('10 rue Site')->setVille('Paris')->setCodePostal('75001')->setPays('France');
+            $this->morning->setAdresse('20 rue Professionnelle')->setVille('Paris')->setCodePostal('75001')->setPays('France');
+            $this->morning->getUtilisateur()->setAdresse('30 rue Départ')->setVille('Paris')->setCodePostal('75001')->setPays('France');
+            $start = new \DateTimeImmutable('tomorrow 09:00', new \DateTimeZone('Europe/Paris'));
+            foreach ($this->session->getJours() as $offset => $day) {
+                $day->setDateDebut($start->modify('+'.($offset*4).' hours'))->setDateFin($start->modify('+'.($offset*4+3).' hours'));
+            }
+            $this->em->flush();
+            $client = $this->client(); $client->catchExceptions(true);
+            $path = '/fr/administrateur/'.$this->entite->getId().'/session/'.$this->session->getId();
+            $page = $client->request('GET', $path);
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            self::assertCount(0, $calls);
+            $client->request('POST', $path, ['travel_trainer' => $this->morning->getId()]);
+            self::assertSame(403, $client->getResponse()->getStatusCode());
+            self::assertCount(0, $calls);
+            $page = $client->request('GET', $path);
+            $form = $page->filter('input[name="travel_trainer"][value="'.$this->morning->getId().'"]')->ancestors()->filter('form')->first()->form();
+            $client->submit($form);
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            self::assertCount(1, $calls);
+            self::assertStringContainsString('20 rue Professionnelle', $calls[0]['origin']['address']);
+            // Only the requested trainer is disclosed, never every trainer on the page.
+            $client->loginUser($this->morning->getUtilisateur());
+            $path = '/fr/formateur/'.$this->entite->getId().'/dashboard';
+            $page = $client->request('GET', $path);
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            self::assertCount(1, $calls);
+            $client->request('POST', $path);
+            self::assertSame(403, $client->getResponse()->getStatusCode());
+            self::assertCount(1, $calls);
+            $page = $client->request('GET', $path);
+            $client->submit($page->selectButton('Calculer la distance avec Google')->form());
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            self::assertCount(2, $calls);
+        } finally {
+            foreach (['ENV', 'SERVER'] as $i => $type) {
+                if ($old[$i] === null) unset($GLOBALS['_'.$type]['GOOGLE_MAPS_SERVER_KEY']);
+                else $GLOBALS['_'.$type]['GOOGLE_MAPS_SERVER_KEY'] = $old[$i];
+            }
+        }
+    }
+
     public function testTrainerCreationIncludesCompanySiretVatAndProfessionalAddress(): void
     {
         $client = $this->client();

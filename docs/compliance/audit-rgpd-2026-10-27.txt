@@ -1,0 +1,253 @@
+WIKIFORMATION — AUDIT RGPD, CORRECTIONS ET DOSSIER DE CONFORMITÉ
+27 octobre 2026
+
+CONCLUSION ET ÉTAT DE LIVRAISON
+Audit transversal du code public et privé, corrections locales et tests terminés.
+Le registre, le projet de contrat clients et les procédures sont préparés.
+La conformité complète de l’exploitation n’est pas attestée : des éléments
+contractuels, organisationnels et techniques de production restent à établir.
+Les points ouverts ci-dessous font partie du résultat de l’audit, pas de contrôles
+réussis implicitement. Aucun déploiement, migration de production, envoi réel de
+courriel ou suppression de dossier personnel n’a été effectué.
+
+INFORMATIONS CONFIRMÉES ET LIMITES
+- L’exploitant confirme o2switch pour l’hébergement et la messagerie de production,
+  l’absence de registre RGPD
+  antérieur et l’absence de contrat de sous-traitance avec ses clients organismes.
+- Le SMTP local vise wikiformation.fr. Le fournisseur de messagerie de production
+  est confirmé par l’exploitant le 27/10/2026 ; le routage, les relais éventuels et
+  leurs garanties restent à vérifier dans les conditions applicables au compte.
+- La politique o2switch consultée est datée de septembre 2026 et tient lieu
+  d’accord de sous-traitance. Elle cite MailChannels en secours SMTP et BookMyName
+  pour les domaines. Vérifier l’offre et la version applicables au compte ;
+  cela ne remplace pas l’accord entre WikiFormation et chaque client organisme.
+  Source : https://www.o2switch.fr/du-rgpd.pdf
+- Le contrôle porte sur le dépôt local et les scénarios automatisés. Il ne constitue
+  ni une certification juridique, ni un pentest de production, ni une validation
+  de chaque route, fournisseur, configuration navigateur ou serveur distant.
+
+1. PÉRIMÈTRE ET MÉTHODE
+Inventaire statique de 164 fichiers de contrôleurs, dont 86 administrateur.
+Le routeur de test comporte 2 291 entrées (variantes de langue/domaine incluses),
+dont 1 362 déclarent une méthode d’écriture. Ces nombres décrivent l’inventaire,
+pas le nombre de routes testées dynamiquement.
+
+Revue transversale et approfondissement ciblé :
+- pages publiques, contact, inscription, réservation, recrutement, cookies,
+  analytics, notices de collecte et domaines en marque blanche ;
+- authentification, rattachements et rôles, séparation des organismes,
+  téléchargement de documents, liens à jeton, signatures, CSRF, réponses et logs ;
+- données de compte, inscriptions, dossiers, questionnaires, e-learning,
+  documents, paiements et facturation, communications et droits des personnes ;
+- sorties de données : cartographie, recherche d’adresses, itinéraires, vidéos,
+  OCR, SMTP, paiement et autres intégrations identifiées dans le modèle ;
+- registre, rôles responsable/sous-traitant, conservation, contrats, incidents,
+  sauvegardes et nécessité d’une analyse d’impact.
+
+Les contrôles antérieurs d’accès, documents, paiements et confidentialité ont été
+relus ; leurs protections ne sont pas présentées comme nouvellement créées.
+Les données de tests sont synthétiques, avec SQLite en mémoire et services mockés.
+
+2. CORRECTIONS LIVRÉES DANS LE CODE
+
+2.1 Public et collecte
+- Retrait du reCAPTCHA chargé automatiquement et des appels Google Fonts repérés
+  dans les pages publiques principales/légales. Protection du contact conservée
+  via CSRF, honeypot, contrôle de temps et limite serveur 5 tentatives / 15 minutes.
+  L’identifiant du limiteur dérive de l’IP par HMAC ; il n’est pas une IP en clair.
+- Réservations : organisme dérivé de la formation visible ; contrôle de la session,
+  de sa publication et du domaine client. Empêche des rattachements inter-organismes
+  et l’accès à une formation privée via ce formulaire. Commentaire limité et fin
+  de l’incitation à saisir librement les coordonnées d’autres participants.
+- Notices au point de collecte complétées, lecture de la politique distinguée du
+  consentement newsletter facultatif, dates de révision légales fixes.
+- Liens légaux sur domaines clients réparés, rôle de la plateforme et rôle de
+  l’organisme distingués. Suppression des assurances de conservation/sécurité
+  qui n’étaient pas étayées par les éléments inspectés.
+- Les choix cookies existants (refus, acceptation, retrait, version/expiration)
+  et l’exclusion de l’analytics des espaces privés ont été testés.
+
+2.2 Services externes et minimisation
+- Google Places/Maps dans les formulaires : activation explicite pour la page,
+  information sur les transmissions et saisie manuelle possible avant activation.
+- Google Routes dans les fiches de session et tableau de bord formateur : calcul
+  désormais déclenché par un POST protégé CSRF. Un simple affichage GET ne transmet
+  plus automatiquement les adresses de déplacement à ce service.
+- Cartes OpenStreetMap des pages utilisateur/site et de la création de site dans
+  une session : chargement des tuiles après action explicite. Nominatim n’est plus
+  appelé automatiquement lors de l’enregistrement d’un site. Suppression d’un cache
+  sessionStorage contenant des adresses. Texte des résultats rendu sans HTML brut.
+- Tests de concurrence sur les réponses d’adresse : une réponse tardive ne doit
+  pas écraser une modification manuelle, un point sur la carte ou une saisie récente.
+- Vidéos pédagogiques YouTube/Vimeo et fichiers vidéo : pas de lecteur/récupération
+  de métadonnées avant activation ; possibilité de fermer le lecteur. Fournisseurs
+  et schémas d’URL contrôlés. YouTube nocookie et Vimeo dnt réduisent l’exposition
+  sans justifier une promesse « aucun traitement tiers après lecture ».
+- Les cartes et lecteurs activés peuvent transmettre l’origine du site quand elle
+  est nécessaire au fonctionnement du fournisseur ; pas le chemin privé complet.
+- OCR dépenses : information sur l’envoi volontaire à Google Cloud Vision/Storage
+  et sur l’alternative manuelle ; pas de transmission automatique nouvellement ajoutée.
+- Formulaires d’aménagement : demande limitée aux adaptations utiles, consigne de
+  ne pas déposer de diagnostic, traitement ou pièce médicale. Cette minimisation
+  ne règle pas à elle seule la condition juridique de traitement des données sensibles.
+
+2.3 Backend, droits d’accès et journaux
+- Réponses privées/authentifiées et liens sensibles : private/no-store, pas de
+  validateurs de cache, no-referrer et noindex. Cela ne purge pas les caches anciens.
+- CSRF ajouté aux écritures d’émargement repérées, aux quatre envois AJAX
+  utilisateur/prospect et à l’ancienne route OCR désormais rattachée à l’organisme.
+- Images de signature réellement validées et réencodées ; simple préfixe base64
+  insuffisant. Accès aux devis vérifié sur le véritable destinataire.
+- Erreurs techniques neutralisées dans les réponses et nouveaux historiques
+  concernés. Processor Monolog en production : filtrage des clés sensibles,
+  adresses électroniques, URL et secrets courants ; diagnostic des exceptions
+  conservé sans arguments ni message brut. SQL retiré du handler principal.
+  Le filtrage n’est pas une garantie de détection de toute donnée dans un texte libre.
+- Tests de non-régression sur séparation des organismes, révocation de rattachement,
+  accès aux documents, délégation, signatures et e-learning.
+
+2.4 Droits des personnes
+- Espace /compte/confidentialite avec demandes d’accès, rectification, effacement,
+  limitation, opposition et portabilité ; référence aléatoire, historique, réponse
+  visible au titulaire et échéance initiale d’un mois calendaire.
+- Export JSON protégé par authentification/CSRF, liste explicite de champs et
+  restriction au compte courant. Il couvre compte, rattachements et résumé des
+  inscriptions : ce n’est pas un export exhaustif de toutes les données article 15.
+- Retrait de la préférence newsletter par le titulaire ; les administrateurs
+  d’organisme ne peuvent plus cocher cette préférence à la place d’un utilisateur.
+- Commande app:privacy:requests pour la file, les retards, la prise en charge et
+  les réponses ; app:privacy:inventory pour les métadonnées du modèle sans extraire
+  les dossiers personnels.
+- Aucune suppression automatique d’un compte/dossier sur simple demande : les
+  obligations de conservation, droits d’autres personnes et responsabilités clients
+  doivent être instruits. La procédure opérateur décrit ce travail et ses délais.
+
+3. VALIDATION FINALE
+- Suite PHPUnit entière : 1 131 tests, 7 657 assertions, succès.
+  Commande : /opt/homebrew/opt/php@8.4/bin/php bin/phpunit
+- Suite JavaScript : 100 tests, tous réussis.
+  Commande : node --test tests/JavaScript/*.test.cjs
+- Lint Twig : 501 templates valides ; YAML : 37 fichiers valides.
+- Lint du conteneur production : succès. Des dépréciations Doctrine/Symfony
+  préexistantes sont encore signalées, sans échec du contrôle.
+- Composer audit des dépendances PHP verrouillées : aucune alerte remontée lors
+  du contrôle. Ce résultat daté ne couvre pas toutes les ressources CDN JavaScript
+  et ne garantit pas l’absence de vulnérabilité inconnue.
+- Première passe globale : un test attendait encore le message brut d’une erreur
+  Doctrine. Test corrigé pour vérifier le message neutre, le contexte diagnostique
+  et le comportement de propagation ; nouvelle suite complète réussie ci-dessus.
+- Les totaux comprennent les tests de non-régression existants, pas uniquement
+  des tests nouveaux. Aucune recette réseau en navigateur de production réalisée.
+- Changements concurrents CGV/tarifs/navigation conservés ; ils ne sont pas
+  attribués à cet audit. Un espace final dans sidebar_administrateur.html.twig,
+  hors de ce lot, reste signalé par git diff --check global.
+
+4. ACTIONS RESTANTES — PRIORITÉS ET PREUVES ATTENDUES
+
+P0 — Mise en service technique avant utilisation du nouvel espace droits
+Responsable : exploitant / opérateur de déploiement.
+Appliquer la migration Version20261027024500 après essai et sauvegarde ; déployer
+le code, les assets et vider le cache. La migration a été appliquée le 27/10/2026
+dans le conteneur Docker local wikiformation_app après vérification à blanc,
+pour corriger l’erreur de table absente sur /fr/compte/confidentialite.
+La commande app:privacy:requests lit désormais correctement la table (0 demande).
+La migration reste à appliquer en production ; aucun changement distant effectué.
+Configurer une surveillance quotidienne de la file et de la boîte de contact.
+La réponse dans le compte ne déclenche pas de notification e-mail automatique.
+Preuves : migration appliquée, recette du compte, opérateur/suppléant et suivi.
+
+P1 — Dossier contractuel, prestataires et transferts
+Responsable : exploitant et conseil juridique / DPO si désigné.
+Compléter, faire valider juridiquement et contractualiser le projet article 28
+avec chaque client ; obtenir les conditions applicables des prestataires, leurs
+rôles, régions, destinataires ultérieurs et garanties de transfert pertinentes.
+Documenter le circuit SMTP o2switch et ses relais éventuels ; confirmer Google par
+produit/projet, Stripe, SuperPDP, services IA/CDN et prestataires réellement activés.
+Ne pas déduire « tout reste en France » d’o2switch.
+Preuves : accords/version/date, annexe prestataires, instructions et autorisations.
+
+P1 — Données sensibles et habilitations
+Responsable : chaque organisme et exploitant pour ses mesures de sous-traitant.
+Les champs d’aménagement peuvent révéler santé/handicap. Documenter une base
+article 6 ET une condition article 9 appropriée, le besoin de chaque destinataire,
+une durée spécifique et la nécessité d’AIPD. Ne pas demander systématiquement
+un dossier médical. Examiner les données existantes et les accès au détail.
+Preuves : justification, périmètre restreint, minimisation et conclusion de risque.
+
+P1 — Conservation, archivage, restitution et effacement effectifs
+Responsable : exploitant + responsables clients + comptable/conseil selon pièces.
+Approuver des durées par finalité : compte, dossier pédagogique, preuve signée,
+comptabilité, prospection, réponses détaillées, logs, pièces OCR et sauvegardes.
+Mettre en œuvre les purges/archives contrôlées correspondantes une fois les règles
+validées ; intégrer fichiers orphelins, exports et restauration de sauvegarde.
+Pas de purge métier nouvelle exécutée et pas de durée universelle « Qualiopi ».
+Preuves : calendrier validé, inventaire, exécution vérifiable et tests restauration.
+
+P1 — Contrôles réels chez o2switch et sur tous les domaines
+Responsable : exploitation.
+DocumentRoot public/, règles Apache effectives, accès anonymes aux fichiers
+privés refusés, HTTPS et cookies Secure, APP_DEBUG désactivé, cache/CDN privé,
+droits fichiers/DB, MFA opérateur, secrets, sauvegardes et journaux serveur.
+Des documents privés sont encore physiquement sous public et protégés par règles
+d’accès : vérifier ces règles en production et envisager un stockage hors docroot.
+Examiner accès/rotation des anciens logs, durée des sessions (30 jours configurés),
+lifecycle des objets OCR en cas d’échec de nettoyage cloud et caches historiques.
+Preuves : recette sentinelle, configuration exportée sans secrets, restauration testée.
+
+P1 — Information propre aux clients, candidatures et marketing
+Responsable : exploitant + organismes.
+La politique plateforme ne remplace pas celle de l’organisme : prévoir les notices
+propres aux domaines clients (contacts, finalités, bases, durées et destinataires).
+Qualifier séparément étude de candidature et transmission aux organismes ; revoir
+l’accord actuellement groupé et la conservation du vivier avant d’en élargir l’usage.
+Documenter la preuve de consentement marketing et les retraits ; les booléens
+historiques ne constituent pas une preuve complète. Aucun envoi marketing réalisé.
+Preuves : notices réellement affichées, parcours approuvés, historique probant.
+
+P2 — Réduction supplémentaire des destinataires techniques et durcissement
+Héberger localement les dépendances CDN lorsque pertinent, verrouiller leurs
+versions et gérer les mises à jour. Les CDN restants reçoivent encore IP/UA.
+Recetter dans un navigateur réel les refus/retraits cookies et activations de
+cartes/lecteurs, y compris sur domaines clients. Vérifier la configuration GA réelle.
+Harmoniser les slugs publics de formations : unicité actuelle par organisme mais
+recherche globale pouvant choisir le premier homonyme. Les réservations sont
+protégées par les contrôles ajoutés ; la stratégie de lien reste à harmoniser.
+
+Anomalie métier distincte signalée : DevisController::sendDevis peut afficher le
+succès et passer à SENT après une erreur SMTP. L’exposition de l’erreur technique
+a été corrigée ; ce comportement métier historique n’est pas modifié dans ce lot.
+
+5. DOCUMENTS LIVRÉS
+- registre-traitements-2026-10-27.txt : 9 fiches de traitements propres à la
+  plateforme et 15 catégories opérées pour les organismes, inventaire fournisseurs,
+  actions et champs restant à compléter/valider.
+- accord-sous-traitance-projet-2026-10-27.txt : projet article 28 et annexes à
+  compléter, faire valider et signer ; ce n’est pas un contrat déjà conclu.
+- procedures-rgpd-2026-10-27.txt : déploiement, droits, conservation, incidents,
+  responsables et dossier de preuves.
+- public-privacy-audit-2026-10-27.txt et backend-privacy-audit-2026-10-27.txt :
+  constats détaillés, fichiers et tests de chaque volet.
+
+6. RÉFÉRENCES PRINCIPALES CONSULTÉES
+CNIL — Registre :
+https://www.cnil.fr/fr/RGPD-le-registre-des-activites-de-traitement
+CNIL — RGPD chapitre IV (articles 28, 30, 32 à 37 notamment) :
+https://www.cnil.fr/fr/reglement-europeen-protection-donnees/chapitre4
+CNIL — Rôles responsable et sous-traitant :
+https://www.cnil.fr/fr/rgpd-comment-bien-identifier-son-role
+CNIL — Information et transparence :
+https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence
+CNIL — Cookies :
+https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies/comment-mettre-mon-site-web-en-conformite
+CNIL — Sécurité :
+https://www.cnil.fr/fr/guide-de-la-securite-des-donnees-personnelles
+CNIL — Durées :
+https://www.cnil.fr/fr/passer-laction/les-durees-de-conservation-des-donnees
+CNIL — Violations :
+https://cnil.fr/fr/violations-de-donnees-personnelles-les-regles-suivre
+Code de commerce, article L123-22 (pièces comptables ; pas toute donnée personnelle) :
+https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219327
+
+Décisions et validation finale de l’exploitant : [À RENSEIGNER]
+Date de déploiement / preuves de production : [À RENSEIGNER]
+Prochaine revue et responsables des actions ouvertes : [À RENSEIGNER]

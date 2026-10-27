@@ -2042,6 +2042,7 @@ $(function(){
 
     const form = new FormData();
     form.append('signatureData', dataUrl);
+    form.append('_token', {{ csrf_token('attendance_' ~ entite.id)|json_encode|raw }});
     form.append('periode', window.CURRENT_PERIODE);
     form.append('date', toFr(STATE.date)); // ton endpoint attend du d/m/Y
 
@@ -2085,6 +2086,7 @@ $(function(){
 
     const form = new FormData();
     form.append('periode', periode);
+    form.append('_token', {{ csrf_token('attendance_' ~ entite.id)|json_encode|raw }});
     form.append('date', toFr(STATE.date));
 
     const res = await fetch(url, {

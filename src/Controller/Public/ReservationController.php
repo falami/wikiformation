@@ -4,33 +4,45 @@ namespace App\Controller\Public;
 
 use App\Entity\{Reservation, Formation, Session, Utilisateur};
 use App\Enum\StatusReservation;
+use App\Enum\StatusSession;
 use App\Form\Public\ReservationType;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use App\Service\Utilisateur\UtilisateurManager;
+use App\Service\Public\PublicContext;
 
 #[Route('/formation', name: 'app_public_reservation_')]
 class ReservationController extends AbstractController
 {
     public function __construct(
         private EM $em,
-        private readonly UtilisateurManager $utilisateurManager,
+        private readonly PublicContext $publicContext,
     ) {}
 
     #[IsGranted('ROLE_USER')]
     #[Route('/{slug}/reservation', name: 'new', methods: ['GET', 'POST'])]
     public function new(string $slug, Request $request): Response
     {
-        /** @var Utilisateur $user */
         $user = $this->getUser();
+        if (!$user instanceof Utilisateur) {
+            throw $this->createAccessDeniedException();
+        }
 
-        $formation = $this->em->getRepository(Formation::class)
-            ->findOneBy(['slug' => $slug]);
+        // Slugs are unique per organism, not globally. Resolve only a formation
+        // actually exposed on this host before showing or collecting any data.
+        $candidates = $this->em->getRepository(Formation::class)
+            ->findBy(['slug' => $slug, 'isPublic' => true], ['id' => 'ASC']);
+        $formation = null;
+        foreach ($candidates as $candidate) {
+            if ($this->publicContext->allowsFormation($candidate)) {
+                $formation = $candidate;
+                break;
+            }
+        }
 
-        if (!$formation) {
+        if (!$formation || !$formation->getEntite()) {
             throw $this->createNotFoundException('Formation introuvable.');
         }
 
@@ -39,29 +51,27 @@ class ReservationController extends AbstractController
         $reservation->setUtilisateur($user);
         $reservation->setDateReservation(new \DateTimeImmutable());
 
-        if ($user !== null) {
-            $reservation->setCreateur($user);
-            $reservation->setEntite($user->getEntite());
-        } else {
-            $user = $this->utilisateurManager->getRepository()->findOneBy(['id' => 1]);
-            $reservation->setCreateur($user);
-            $reservation->setEntite($user->getEntite());
-        }
+        $reservation->setCreateur($user);
+        $reservation->setEntite($formation->getEntite());
 
         // Si un ID de session est passé, on lie la session
+        $session = null;
         $sessionId = $request->query->getInt('session', 0);
-        if ($sessionId > 0) {
+        if ($request->query->has('session')) {
             $session = $this->em->getRepository(Session::class)->find($sessionId);
 
-            if ($session && $session->getFormation() === $formation) {
+            if ($sessionId > 0 && $session
+                && $session->getFormation()?->getId() === $formation->getId()
+                && $session->getEntite()?->getId() === $formation->getEntite()->getId()
+                && $session->getStatus() === StatusSession::PUBLISHED
+            ) {
                 $reservation->setSession($session);
                 $reservation->setStatus(StatusReservation::PENDING); // pré-réservation sur une session existante
                 // montant "théorique" = tarif de la session ou prix formation
                 $montant = $session->getMontantCents() ?? $formation->getPrixBaseCents();
                 $reservation->setMontantCents($montant ?? 0);
             } else {
-                // sécurité : session invalide => on ignore
-                $this->addFlash('danger', 'La session sélectionnée n’est pas valide.');
+                throw $this->createNotFoundException('Session introuvable.');
             }
         } else {
             // Pas de session : demande d’ouverture de session
@@ -93,10 +103,12 @@ class ReservationController extends AbstractController
             ]);
         }
 
-        return $this->render('public/reservation/new.html.twig', [
+        $response = $this->render('public/reservation/new.html.twig', [
             'formation' => $formation,
             'form'      => $form->createView(),
-            'session'   => isset($session) ? $session : null,
+            'session'   => $session,
         ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+        return $response;
     }
 }

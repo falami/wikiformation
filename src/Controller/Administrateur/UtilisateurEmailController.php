@@ -127,6 +127,9 @@ final class UtilisateurEmailController extends AbstractController
   public function send(Entite $entite, Utilisateur $u, Request $request): JsonResponse
   {
     $this->guardEntite($entite, $u);
+    if (!$this->isCsrfTokenValid('send_email_user_' . $entite->getId() . '_' . $u->getId(), $request->request->get('_token'))) {
+      return $this->json(['ok' => false, 'error' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+    }
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
@@ -211,9 +214,9 @@ final class UtilisateurEmailController extends AbstractController
       $this->mailer->sendHtml($entite, $to, $subject, $html, $text);
       $log->setStatus('SENT')->setSentAt(new \DateTimeImmutable());
     } catch (\Throwable $e) {
-      $log->setStatus('FAILED')->setErrorMessage($e->getMessage());
+      $log->setStatus('FAILED')->setErrorMessage('Échec de l’envoi (' . $e::class . '). Vérifiez la configuration de messagerie.');
       $this->em->flush();
-      return $this->json(['ok' => false, 'error' => 'Envoi échoué : ' . $e->getMessage()], 500);
+      return $this->json(['ok' => false, 'error' => 'L’envoi a échoué. Vérifiez la configuration de messagerie ou contactez le support.'], 500);
     }
 
     // ✅ Historique (rattaché utilisateur)

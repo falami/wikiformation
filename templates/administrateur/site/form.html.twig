@@ -437,10 +437,13 @@
                 </div>
               </div>
 
-              <div id="site-map"></div>
+              <p class="small text-muted">Afficher la carte transmet à OpenStreetMap votre adresse IP et la zone consultée. Vous pouvez enregistrer l’adresse sans utiliser la carte.</p>
+              <button type="button" class="btn btn-outline-theme btn-sm mb-2" id="btn-enable-site-map">Afficher la carte OpenStreetMap</button>
+              <span class="small text-muted" id="site-map-status" role="status"></span>
+              <div id="site-map" hidden></div>
 
               <div class="form-text mt-2">
-                Lat/Lng se remplissent automatiquement. (Tu peux les rendre obligatoires si tu veux.)
+                Les coordonnées sont facultatives et se remplissent lorsque vous choisissez une localisation.
               </div>
             </div>
 
@@ -455,7 +458,6 @@
             </div>
           </div>
 
-          <div class="form-text mt-2">Astuce : tu pourras brancher Leaflet/autocomplete plus tard.</div>
         </div>
       </div>
 
@@ -614,7 +616,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // ✅ Règle de complétude (ajuste si tu veux)
   // - requis: nom + adresse + codePostal + ville
   // - lat/lng optionnels (mets à true si tu veux les rendre obligatoires)
-  const requireLatLng = true;
+  const requireLatLng = false;
 
   function isComplete(){
     const okBusiness = !!(getVal(idNom) && getVal(idAdresse) && getVal(idCp) && getVal(idVille));
@@ -636,6 +638,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function setLatLng(lat, lng, {pan=true, source='manual'} = {}){
     if (!latInput || !lngInput) return;
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return;
 
     lastLatLngSource = source;
 
@@ -650,7 +653,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
     if (display) display.textContent = `${latFixed} / ${lngFixed}`;
 
-    if (marker){
+    // Updating coordinates (including a Google suggestion) must not activate OSM.
+    if (!map) return;
+
+    if (map && marker){
       marker.setLatLng([lat, lng]);
     } else {
       marker = L.marker([lat, lng], {draggable:true}).addTo(map);
@@ -681,9 +687,17 @@ document.addEventListener('DOMContentLoaded', function(){
     refresh();
   }
 
-  let map, marker;
+  let map = null, marker = null;
 
-  if (mapEl){
+  function activateSiteMap(){
+    if (!mapEl) return;
+    const status = document.getElementById('site-map-status');
+    if (typeof L === 'undefined') {
+      if (status) status.textContent = 'La carte est indisponible. La saisie manuelle reste possible.';
+      return;
+    }
+    if (map) { map.invalidateSize(); return; }
+    mapEl.hidden = false;
     // valeurs existantes (édition)
     const existingLat = parseFloat((latInput?.value || '').replace(',', '.'));
     const existingLng = parseFloat((lngInput?.value || '').replace(',', '.'));
@@ -699,6 +713,8 @@ document.addEventListener('DOMContentLoaded', function(){
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
+    document.getElementById('btn-enable-site-map').disabled = true;
+    if (status) status.textContent = 'Carte activée pour cette page.';
 
     // si édition -> place le marqueur directement
     if (Number.isFinite(existingLat) && Number.isFinite(existingLng)){
@@ -709,6 +725,11 @@ document.addEventListener('DOMContentLoaded', function(){
     map.on('click', (e) => {
       setLatLng(e.latlng.lat, e.latlng.lng, {source:'manual'});
     });
+
+    setTimeout(() => map.invalidateSize(), 150);
+  }
+
+  document.getElementById('btn-enable-site-map')?.addEventListener('click', activateSiteMap);
 
 
     // boutons
@@ -723,7 +744,7 @@ document.addEventListener('DOMContentLoaded', function(){
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             setLatLng(pos.coords.latitude, pos.coords.longitude);
-            map.setZoom(15);
+            map?.setZoom(15);
             btnGeoloc.disabled = false;
           },
           () => {
@@ -740,9 +761,6 @@ document.addEventListener('DOMContentLoaded', function(){
       btnClear.addEventListener('click', clearLatLng);
     }
 
-    // fix affichage si la carte est dans un layout qui change
-    setTimeout(() => map.invalidateSize(), 150);
-  }
 
 
 

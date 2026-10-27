@@ -122,6 +122,9 @@ final class ProspectEmailController extends AbstractController
   public function send(Entite $entite, Prospect $prospect, Request $request): JsonResponse
   {
     $this->guardOwnership($entite, $prospect);
+    if (!$this->isCsrfTokenValid('send_email_prospect_' . $entite->getId() . '_' . $prospect->getId(), $request->request->get('_token'))) {
+      return $this->json(['ok' => false, 'error' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+    }
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
@@ -208,9 +211,9 @@ final class ProspectEmailController extends AbstractController
       $log->setSentAt(new \DateTimeImmutable());
     } catch (\Throwable $e) {
       $log->setStatus('FAILED');
-      $log->setErrorMessage($e->getMessage());
+      $log->setErrorMessage('Échec de l’envoi (' . $e::class . '). Vérifiez la configuration de messagerie.');
       $this->em->flush();
-      return $this->json(['ok' => false, 'error' => 'Envoi échoué : ' . $e->getMessage()], 500);
+      return $this->json(['ok' => false, 'error' => 'L’envoi a échoué. Vérifiez la configuration de messagerie ou contactez le support.'], 500);
     }
 
     $interaction = (new ProspectInteraction())

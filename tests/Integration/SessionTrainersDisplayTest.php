@@ -258,7 +258,9 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         $client->loginUser($user);
         $url = self::getContainer()->get('router')->generate('app_formateur_session_sign', ['entite' => $this->entite->getId(), 'id' => $this->session->getId()]);
         try {
-            $client->request('POST', $url, ['date' => '2107-06-15', 'periode' => 'AM', 'dataUrl' => 'data:image/png;base64,' . base64_encode('test-signature')]);
+            $client->request('GET', self::getContainer()->get('router')->generate('app_formateur_session_show', ['entite' => $this->entite->getId(), 'id' => $this->session->getId()]));
+            $token = $this->attendanceToken($client);
+            $client->request('POST', $url, ['date' => '2107-06-15', 'periode' => 'AM', 'dataUrl' => $this->png(), '_token' => $token]);
             self::assertSame(200, $client->getResponse()->getStatusCode());
             self::assertTrue(json_decode($client->getResponse()->getContent(), true)['success']);
             $signature = $this->em->getRepository(\App\Entity\Emargement::class)->findOneBy(['session' => $this->session, 'utilisateur' => $user, 'role' => 'trainer']);
@@ -292,7 +294,7 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         $client->request('GET', $router->generate('app_stagiaire_emargement_feed', ['entite' => $this->entite->getId(), 'session' => $this->session->getId(), 'date' => '2026-10-05']));
         self::assertSame('data:image/png;base64,test', json_decode($client->getResponse()->getContent(), true)['me']['am']['url']);
         $url = $router->generate('app_stagiaire_emargement_sign', $params);
-        $data = ['date' => '06/10/2026', 'periode' => 'AM', 'signatureData' => 'data:image/png;base64,test'];
+        $data = ['date' => '06/10/2026', 'periode' => 'AM', 'signatureData' => 'data:image/png;base64,test', '_token' => $this->attendanceToken($client)];
         $client->request('POST', $url, $data);
         self::assertSame(400, $client->getResponse()->getStatusCode());
         $this->em->find(Session::class, $this->session->getId())->setTypeFinancement(\App\Enum\TypeFinancement::OUI); $this->em->flush();
@@ -302,6 +304,51 @@ final class SessionTrainersDisplayTest extends KernelTestCase
         $this->em->remove($this->em->find(\App\Entity\Inscription::class, $inscription->getId())); $this->em->flush();
         $client->request('GET', $router->generate('app_stagiaire_emargement_feed', ['entite' => $this->entite->getId(), 'session' => $this->session->getId()]));
         self::assertSame(403, $client->getResponse()->getStatusCode());
+    }
+
+    public function testAttendanceWritesRejectMissingAndInvalidCsrfAndDisguisedImages(): void
+    {
+        $actor = $this->referent->getUtilisateur();
+        $actor->setRoles(['ROLE_SUPER_ADMIN']);
+        $actor->addUtilisateurEntite((new UtilisateurEntite())->setUtilisateur($actor)->setEntite($this->entite)->setCreateur($this->admin)->setRoles(['TENANT_FORMATEUR', 'TENANT_STAGIAIRE']));
+        $this->em->persist((new \App\Entity\Inscription())->setSession($this->session)->setEntite($this->entite)->setCreateur($this->admin)->setStagiaire($actor));
+        $this->em->flush();
+        $client = new KernelBrowser(self::$kernel); $client->disableReboot(); $client->catchExceptions(false); $client->loginUser($actor);
+        $router = self::getContainer()->get('router');
+        $params = ['entite' => $this->entite->getId(), 'id' => $this->session->getId(), 'user' => $actor->getId()];
+        $client->request('GET', $router->generate('app_formateur_session_show', $params));
+        $token = $this->attendanceToken($client);
+        $data = ['date' => '05/10/2026', 'periode' => 'AM', 'signatureData' => 'data:image/png;base64,'.base64_encode('not a PNG')];
+        foreach (['app_formateur_emargement_sign', 'app_formateur_emargement_sign_user', 'app_formateur_emargement_unsign', 'app_stagiaire_emargement_sign', 'app_stagiaire_emargement_unsign'] as $route) {
+            $url = $router->generate($route, $params);
+            foreach ([null, 'invalid'] as $badToken) {
+                $client->request('POST', $url, $data + ($badToken ? ['_token' => $badToken] : []));
+                self::assertSame(403, $client->getResponse()->getStatusCode(), $route);
+                self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('no-store'));
+            }
+        }
+        foreach (['app_formateur_emargement_sign', 'app_formateur_emargement_sign_user', 'app_stagiaire_emargement_sign'] as $route) {
+            $client->request('POST', $router->generate($route, $params), $data + ['_token' => $token]);
+            self::assertSame(400, $client->getResponse()->getStatusCode(), $client->getResponse()->getContent());
+        }
+        $client->request('POST', $router->generate('app_formateur_session_sign', $params), ['date' => '2026-10-05', 'periode' => 'AM', 'dataUrl' => $this->png()]);
+        self::assertSame(403, $client->getResponse()->getStatusCode(), 'Legacy forwarding route must also enforce CSRF.');
+        self::assertSame(0, $this->em->getRepository(\App\Entity\Emargement::class)->count([]));
+    }
+
+    private function attendanceToken(KernelBrowser $client): string
+    {
+        $stack = self::getContainer()->get('request_stack');
+        $stack->push($client->getRequest());
+        try { return self::getContainer()->get('security.csrf.token_manager')->getToken('attendance_'.$this->entite->getId())->getValue(); }
+        finally { $client->getRequest()->getSession()->save(); $stack->pop(); }
+    }
+
+    private function png(): string
+    {
+        $image = imagecreatetruecolor(10, 10);
+        ob_start(); imagepng($image); $bytes = ob_get_clean(); imagedestroy($image);
+        return 'data:image/png;base64,'.base64_encode($bytes);
     }
 
     private function show(): \Symfony\Component\DomCrawler\Crawler

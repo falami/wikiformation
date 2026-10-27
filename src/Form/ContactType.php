@@ -14,10 +14,6 @@ use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 // Contraintes
 use Symfony\Component\Validator\Constraints as Assert;
 
-// reCAPTCHA v3
-use Karser\Recaptcha3Bundle\Form\Recaptcha3Type;
-use Karser\Recaptcha3Bundle\Validator\Constraints\Recaptcha3;
-
 class ContactType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $b, array $o): void
@@ -69,12 +65,6 @@ class ContactType extends AbstractType
                 'data' => (string) (new \DateTimeImmutable())->getTimestamp(),
             ])
 
-            // reCAPTCHA v3 (invisible)
-            ->add('captcha', Recaptcha3Type::class, [
-                'mapped' => false,
-                'constraints' => [new Recaptcha3()],
-                'action_name' => 'contact', // libre, pour tes analytics reCAPTCHA
-            ])
         ;
     }
 

@@ -42,10 +42,12 @@ class ReservationType extends AbstractType
             ->add('commentaire', TextareaType::class, [
                 'label' => 'Informations complémentaires',
                 'required' => false,
+                'constraints' => [new Assert\Length(max: 5000)],
                 'attr' => [
                     'class' => 'form-control',
                     'rows' => 4,
-                    'placeholder' => 'Précisez vos contraintes, le niveau des stagiaires, etc. Dans l\'éventualité ou vous souhaitez réserver plusieurs place, n\'hésitez pas à renseigner le nom, prénom et email des participants pur leur création de compte',
+                    'maxlength' => 5000,
+                    'placeholder' => 'Précisez vos disponibilités et vos besoins pédagogiques. Ne renseignez pas de données de santé ni les coordonnées d’autres participants.',
                 ],
             ])
         ;

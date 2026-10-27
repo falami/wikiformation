@@ -23,7 +23,7 @@ test('creates one external iframe only after an explicit click', () => {
   b.click();b.click();b.run();
   assert.equal(b.created.length, 1);assert.equal(b.canvas.children.length, 1);
   assert.equal(b.created[0].src, 'https://www.google.com/maps?q=Paris&output=embed');
-  assert.equal(b.created[0].referrerPolicy, 'no-referrer');assert.equal(b.created[0].focused, true);
+  assert.equal(b.created[0].referrerPolicy, 'strict-origin');assert.equal(b.created[0].focused, true);
   assert.equal(b.placeholder.hidden, true);
 });
 test('refuses malformed and unexpected external URLs', () => {

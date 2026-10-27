@@ -477,9 +477,7 @@
   window.initGmpPlaces = function(){ /* vide : on initialise dans le JS plus bas */ };
 </script>
 
-<script
-  src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&language=fr&region=FR&loading=async&callback=initGmpPlaces"
-  async>
+<script type="text/plain" data-google-maps-src="https://maps.googleapis.com/maps/api/js?key={{ googleMapsBrowserKey }}&libraries=places&language=fr&region=FR&loading=async&callback=initGmpPlaces">
 </script>
 
 
@@ -1298,12 +1296,10 @@
             </div>
 
             <div class="col-md-12">
-              <label class="form-label">Adresse</label>
-
-              <gmp-place-autocomplete id="new-site-autocomplete"></gmp-place-autocomplete>
-
-              <input type="hidden" name="adresse" id="new-site-adresse">
-              <div class="form-text">Astuce : commence à taper, l’auto-pin placera le point.</div>
+              <label class="form-label" for="new-site-adresse">Adresse</label>
+              <input type="text" name="adresse" id="new-site-adresse" class="form-control" autocomplete="street-address">
+              <div class="form-text">Saisie manuelle disponible. L’aide Google est facultative et s’active depuis le formulaire principal.</div>
+              <gmp-place-autocomplete id="new-site-autocomplete" aria-label="Suggestion Google facultative"></gmp-place-autocomplete>
               
 
 
@@ -1362,6 +1358,8 @@
             </div>
           </div>
 
+          <p class="small text-muted">La carte OpenStreetMap transmet votre adresse IP et la zone affichée ; la recherche transmet l’adresse du site à Nominatim.</p>
+          <button type="button" class="btn btn-sm btn-outline-dark mb-2" id="btn-newsite-map-enable">Afficher et localiser avec OpenStreetMap</button>
           <div id="new-site-map" style="height:300px;border-radius:16px;border:1px solid var(--stroke);"></div>
 
           <div class="mt-2 small text-muted">
@@ -2326,7 +2324,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // --- Leaflet state
   let map = null;
   let marker = null;
-  let geocodeTimer = null;
+  let addressRevision = 0;
   let lastQueryKey = null;
   let lastLatLngSource = 'auto'; // auto|manual
   let pendingLatLng = null;
@@ -2335,6 +2333,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function normalize(s){ return (s || '').toString().trim(); }
 
   function setLatLng(lat, lng, { pan=true, source='manual' } = {}){
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return;
+    // A user-selected point wins over any outstanding provider response.
+    if (source === 'manual') ++addressRevision;
     lastLatLngSource = source;
 
     const latF = pad6(lat), lngF = pad6(lng);
@@ -2364,7 +2365,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function initMapIfNeeded(){
-    if (map || !mapDiv) return;
+    if (map || !mapDiv || typeof L === 'undefined') return;
 
     map = L.map('new-site-map', { scrollWheelZoom: true }).setView([46.603354, 1.888334], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -2379,6 +2380,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function clearLatLng(){
+    ++addressRevision;
+    pendingLatLng = null;
+    lastQueryKey = null;
     lastLatLngSource = 'auto';
     if (latEl) latEl.value = '';
     if (lngEl) lngEl.value = '';
@@ -2414,6 +2418,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const key = q.toLowerCase();
     if (key === lastQueryKey) return;
     lastQueryKey = key;
+    const revision = ++addressRevision;
 
     try{
       const url = new URL('https://nominatim.openstreetmap.org/search');
@@ -2421,30 +2426,35 @@ document.addEventListener('DOMContentLoaded', function () {
       url.searchParams.set('limit', '1');
       url.searchParams.set('q', q);
 
-      const res = await fetch(url.toString(), { headers: { 'Accept':'application/json' }});
-      if (!res.ok) return;
+      const res = await fetch(url.toString(), { credentials: 'omit', referrerPolicy: 'no-referrer', headers: { 'Accept':'application/json' }});
+      if (!res.ok) {
+        if (revision === addressRevision) lastQueryKey = null;
+        return;
+      }
 
       const data = await res.json();
-      if (!Array.isArray(data) || !data.length) return;
+      if (revision !== addressRevision) return;
+      if (!Array.isArray(data) || !data.length) { lastQueryKey = null; return; }
 
       const lat = parseFloat(data[0].lat);
       const lon = parseFloat(data[0].lon);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) { lastQueryKey = null; return; }
 
       setLatLng(lat, lon, { source:'auto', pan:true });
-    } catch(e){}
+    } catch(e){ if (revision === addressRevision) lastQueryKey = null; }
   }
 
-  function scheduleGeocode(){
-    clearTimeout(geocodeTimer);
-    geocodeTimer = setTimeout(geocodeAndPlace, 650);
-  }
+  // Manual edits invalidate coordinates without disclosing another address.
+  [addrEl, cpEl, villeEl, paysEl, deptEl, regEl].forEach(field => {
+    field?.addEventListener('input', clearLatLng);
+    field?.addEventListener('change', clearLatLng);
+  });
 
   // ✅ Bootstrap modal hooks
-  modalEl.addEventListener('shown.bs.modal', () => {
+  document.getElementById('btn-newsite-map-enable')?.addEventListener('click', () => {
     initMapIfNeeded();
     setTimeout(() => map && map.invalidateSize(true), 180);
-    scheduleGeocode();
+    geocodeAndPlace();
   });
 
   document.getElementById('btn-newsite-clear')?.addEventListener('click', clearLatLng);
@@ -2456,21 +2466,16 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     btnGeoloc.disabled = true;
+    const revision = ++addressRevision;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLatLng(pos.coords.latitude, pos.coords.longitude, { source:'manual', pan:true });
+        if (revision === addressRevision) setLatLng(pos.coords.latitude, pos.coords.longitude, { source:'manual', pan:true });
         btnGeoloc.disabled = false;
       },
       () => { alert("Impossible de récupérer ta position."); btnGeoloc.disabled = false; },
       { enableHighAccuracy:true, timeout:8000 }
     );
   });
-
-  [addrEl, cpEl, villeEl].forEach(el=>{
-    el?.addEventListener('input', scheduleGeocode);
-    el?.addEventListener('change', scheduleGeocode);
-  });
-  [paysEl, deptEl].forEach(el=> el?.addEventListener('change', scheduleGeocode));
 
   // =================== GOOGLE PLACES (gmp-place-autocomplete) ===================
   function comp(components, type){
@@ -2491,9 +2496,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!acEl || !window.google?.maps?.places?.PlaceAutocompleteElement) return;
 
     acEl.addEventListener('gmp-select', async ({ placePrediction }) => {
+      const revision = ++addressRevision;
       try{
         const place = placePrediction.toPlace();
         await place.fetchFields({ fields: ['id','formattedAddress','location','addressComponents'] });
+        if (revision !== addressRevision) return;
 
         const comps = place.addressComponents || [];
         const streetNumber = comp(comps, 'street_number');
@@ -2532,7 +2539,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  waitForGoogle(initPlaces);
+  document.addEventListener('wiki:enable-google-maps', () => waitForGoogle(initPlaces), {once: true});
 });
 </script>
 

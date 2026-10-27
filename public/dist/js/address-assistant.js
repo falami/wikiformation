@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  document.addEventListener('wiki:enable-google-maps', () => {
   const boot = document.querySelector('[data-address-assistant-key]');
   if (!boot) return;
   let loading;
@@ -17,6 +18,7 @@
       window.initAddressAssistant = () => {};
       script.src = 'https://maps.googleapis.com/maps/api/js?' + new URLSearchParams({key: boot.dataset.addressAssistantKey, loading: 'async', callback: 'initAddressAssistant', v: 'weekly', language: 'fr', region: 'FR'});
       script.async = true;
+      script.referrerPolicy = 'strict-origin';
       script.onerror = () => { clearInterval(poll); clearTimeout(timeout); reject(new Error('Network')); };
       document.head.append(script);
     });
@@ -104,4 +106,5 @@
   function scan() { document.querySelectorAll('input[name$="[adresse]"]').forEach(enhance); }
   scan();
   new MutationObserver(scan).observe(document.body, {childList: true, subtree: true});
+  }, {once: true});
 })();

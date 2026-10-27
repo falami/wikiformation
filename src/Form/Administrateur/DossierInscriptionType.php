@@ -101,7 +101,7 @@ class DossierInscriptionType extends AbstractType
                     'placeholder' => 'Préciser les aménagements nécessaires',
                 ],
                 'constraints' => [new Length(max: 255)],
-                'help' => 'Exemples : accessibilité, matériel adapté, temps supplémentaire, etc.',
+                'help' => 'Indiquez uniquement les adaptations utiles (accessibilité, matériel, temps supplémentaire). Ne renseignez ni diagnostic, ni traitement médical, et ne joignez pas de document médical ici. Réservez les échanges sensibles au référent habilité de l’organisme.',
             ])
 
             ->add('pieces', CollectionType::class, [

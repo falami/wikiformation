@@ -841,33 +841,13 @@ pre.code{
             {% if b.mediaUrl %}
               {% set videoUrl = b.mediaUrl|default(b.content) %}
               {% if videoUrl %}
-                {% set embedUrl = videoUrl %}
-                {% if 'youtube.com' in videoUrl or 'youtu.be' in videoUrl %}
-                  {% set videoId = '' %}
-                  {% if 'v=' in videoUrl %}
-                    {% set videoId = videoUrl|split('v=')[1]|split('&')[0] %}
-                  {% elseif 'youtu.be/' in videoUrl %}
-                    {% set videoId = videoUrl|split('youtu.be/')[1]|split('?')[0] %}
-                  {% endif %}
-                  {% set embedUrl = 'https://www.youtube-nocookie.com/embed/' ~ videoId %}
-                {% elseif 'vimeo.com' in videoUrl %}
-                  {% set videoId = videoUrl|split('/')|last %}
-                  {% set embedUrl = 'https://player.vimeo.com/video/' ~ videoId %}
-                {% endif %}
-
                 <div class="video-embed">
-                  <iframe
-                    src="{{ embedUrl }}"
-                    title="Video"
-                    frameborder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowfullscreen
-                    loading="lazy"></iframe>
+                  {% include 'partials/_external_video.html.twig' with {video_src: videoUrl} only %}
                 </div>
               {% endif %}
             {% elseif b.content %}
               <div class="video-embed">
-                <iframe src="{{ b.content }}" title="Video" frameborder="0" allowfullscreen loading="lazy"></iframe>
+                {% include 'partials/_external_video.html.twig' with {video_src: b.content} only %}
               </div>
             {% endif %}
 

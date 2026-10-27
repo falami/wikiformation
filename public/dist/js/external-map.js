@@ -27,7 +27,7 @@
     }
     const frame = document.createElement('iframe');
     frame.title = 'Carte Google Maps du lieu de formation';
-    frame.referrerPolicy = 'no-referrer';
+    frame.referrerPolicy = 'strict-origin'; // Domain only, required for restricted Maps browser keys.
     frame.allowFullscreen = true;
     frame.src = url.href;
     canvas.append(frame);

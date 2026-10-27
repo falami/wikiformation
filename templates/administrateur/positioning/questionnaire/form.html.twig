@@ -12,7 +12,7 @@
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/satisfaction-editor.css') }}?v=2">
-  <link rel="stylesheet" href="{{ asset('dist/css/positioning-editor.css') }}?v=1">
+  <link rel="stylesheet" href="{{ asset('dist/css/positioning-editor.css') }}?v=20261027-2">
 {% endblock %}
 {% block body %}
 {% form_theme form 'bootstrap_5_layout.html.twig' %}
@@ -53,27 +53,15 @@
       {% if is_edit %}<a class="btn se-btn-quiet pe-new" href="{{ path('app_administrateur_positioning_questionnaire_new', {entite: entite.id}) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Nouveau questionnaire</a>{% endif %}
     </aside>
     <main class="se-canvas" aria-label="Contenu du questionnaire">
-      <div class="se-canvas-heading"><div><span class="se-overline">02 / LE CONTENU</span><h2>Chapitres & compétences</h2><p>Structurez les savoir-faire à évaluer, étape par étape.</p></div>{% if is_edit %}<a class="btn se-btn-dark" href="{{ path('app_administrateur_positioning_chapter_new', {entite: entite.id, questionnaire: q.id}) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Ajouter un chapitre</a>{% endif %}</div>
+      <div class="se-canvas-heading"><div><span class="se-overline">02 / LE CONTENU</span><h2>Chapitres & compétences</h2><p>Un chapitre regroupe un thème. Un sous-chapitre précise ce thème. Une compétence décrit ce que le stagiaire sait faire.</p></div>{% if is_edit %}<a class="btn se-btn-dark" href="{{ path('app_administrateur_positioning_chapter_new', {entite: entite.id, questionnaire: q.id}) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Ajouter un chapitre</a>{% endif %}</div>
       {% if is_edit %}
-      <div class="se-reorder-hint"><i class="bi bi-grip-vertical" aria-hidden="true"></i> Déplacez les poignées pour réorganiser le contenu. L’ordre est enregistré automatiquement.</div>
+      <div class="se-reorder-hint"><i class="bi bi-grip-vertical" aria-hidden="true"></i> Déplacez les poignées pour réordonner les éléments d’un même niveau. L’ordre est enregistré automatiquement.</div>
       <div id="positioningOrderState" role="status" class="pe-order-state"></div>
       <div id="chapters-sortable" data-csrf="{{ csrf_token('reorder_positioning') }}" data-reorder-url="{{ path('app_administrateur_positioning_questionnaire_chapter_reorder', {entite: entite.id, questionnaire: q.id}) }}">
-      {% for ch in q.chapters %}
-        <section class="chapter" data-id="{{ ch.id }}" id="chapter-{{ ch.id }}">
-          <div class="se-chapter-heading">
-            <div class="se-chapter-identity"><span class="drag-handle drag-handle-chapter" title="Déplacer le chapitre"><i class="bi bi-grip-vertical" aria-hidden="true"></i></span><span class="se-chapter-number pos-badge">{{ '%02d'|format(loop.index) }}</span><div><span class="se-overline">CHAPITRE</span><h3>{{ ch.title }}</h3>{% if ch.parent %}<div class="pe-parent">Sous-chapitre de {{ ch.parent.title }}</div>{% endif %}</div></div>
-            <div class="se-chapter-actions"><span class="se-count">{{ ch.items|length }} compétence{{ ch.items|length > 1 ? 's' }}</span><button type="button" class="se-icon-button js-toggle-chapter" aria-label="Replier le chapitre" aria-expanded="true" aria-controls="chapter-body-{{ ch.id }}"><i class="bi bi-chevron-up" aria-hidden="true"></i></button><a class="se-icon-button" title="Modifier le chapitre" aria-label="Modifier le chapitre" href="{{ path('app_administrateur_positioning_chapter_edit', {entite: entite.id, questionnaire: q.id, id: ch.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i></a><form method="post" class="d-inline" action="{{ path('app_administrateur_positioning_chapter_delete', {entite: entite.id, questionnaire: q.id, id: ch.id}) }}" onsubmit="return confirm('Supprimer ce chapitre et toutes ses compétences ?');"><input type="hidden" name="_token" value="{{ csrf_token('del_ch_' ~ ch.id) }}"><button class="se-icon-button se-remove" title="Supprimer le chapitre" aria-label="Supprimer le chapitre"><i class="bi bi-trash3" aria-hidden="true"></i></button></form></div>
-          </div>
-          <div class="chapter-body" id="chapter-body-{{ ch.id }}">
-            <div class="items-sortable" data-chapter-id="{{ ch.id }}" data-reorder-url="{{ path('app_administrateur_positioning_questionnaire_item_reorder', {entite: entite.id, questionnaire: q.id, chapter: ch.id}) }}">
-              {% for it in ch.items %}
-              <article class="item pe-item" data-id="{{ it.id }}"><span class="drag-handle drag-handle-item" title="Déplacer la compétence"><i class="bi bi-grip-vertical" aria-hidden="true"></i></span><div class="pe-item-content"><div class="pe-item-meta"><span class="se-overline">COMPÉTENCE <span class="pos-badge">{{ '%02d'|format(loop.index) }}</span></span><span class="pe-level">Niveau {{ it.level }}</span></div><p>{{ it.label|nl2br }}</p></div><div class="pe-item-actions"><a class="se-icon-button" title="Modifier la compétence" aria-label="Modifier la compétence" href="{{ path('app_administrateur_positioning_item_edit', {entite: entite.id, questionnaire: q.id, chapter: ch.id, id: it.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i></a><form method="post" action="{{ path('app_administrateur_positioning_item_delete', {entite: entite.id, questionnaire: q.id, chapter: ch.id, id: it.id}) }}" onsubmit="return confirm('Supprimer cette compétence ?');"><input type="hidden" name="_token" value="{{ csrf_token('del_it_' ~ it.id) }}"><button class="se-icon-button se-remove" title="Supprimer la compétence" aria-label="Supprimer la compétence"><i class="bi bi-trash3" aria-hidden="true"></i></button></form></div></article>
-              {% else %}<div class="questions-empty"><i class="bi bi-list-check" aria-hidden="true"></i><span>Ajoutez la première compétence de ce chapitre.</span></div>{% endfor %}
-            </div>
-            <a class="btn se-add-question" href="{{ path('app_administrateur_positioning_item_new', {entite: entite.id, questionnaire: q.id, chapter: ch.id}) }}"><span><i class="bi bi-plus-lg" aria-hidden="true"></i></span> Ajouter une compétence</a>
-          </div>
-        </section>
-      {% else %}<div class="se-empty"><i class="bi bi-journal-plus" aria-hidden="true"></i><h3>Tout commence par un chapitre.</h3><p>Ajoutez votre premier chapitre, puis les compétences à évaluer.</p></div>{% endfor %}
+{% import 'administrateur/positioning/questionnaire/_tree.html.twig' as tree %}
+      {% for ch in q.chapters|filter(ch => ch.parent is null) %}
+        {{ tree.chapter(ch, q, entite, loop.index) }}
+      {% else %}<div class="se-empty"><h3>Votre premier thème à évaluer</h3><p>Créez un chapitre, par exemple « Utiliser un ordinateur », puis ajoutez les compétences à évaluer.</p></div>{% endfor %}
       </div>
       {% else %}<div class="se-empty pe-create"><i class="bi bi-journal-plus" aria-hidden="true"></i><h3>Préparons votre questionnaire.</h3><p>Enregistrez ses paramètres pour ajouter vos chapitres et compétences.</p></div>{% endif %}
     </main>
@@ -84,5 +72,5 @@
 {% block javascripts %}
   {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-  <script src="{{ asset('dist/js/positioning-editor.js') }}?v=1" defer></script>
+  <script src="{{ asset('dist/js/positioning-editor.js') }}?v=20261027-2" defer></script>
 {% endblock %}

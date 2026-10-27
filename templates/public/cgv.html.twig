@@ -5,9 +5,6 @@
 
 {% block stylesheets %}
     {{ parent() }}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 
     <style>
@@ -1074,69 +1071,6 @@
 {% block body %}
     {% include 'header_public.html.twig' %}
 
-    {% set abonnements = [
-        {
-            'type': 'Essentiel',
-            'icon': 'rocket-takeoff',
-            'subtitle': 'Idéal pour les petits organismes de formation en croissance.',
-            'price_monthly': '199 €',
-            'price_yearly': '1 908 €',
-            'badge': null,
-            'color': '#2E6BFF',
-            'features': [
-                'Jusqu\'à 500 apprenants par an',
-                'Jusqu\'à 4 administrateurs',
-                'Jusqu\'à 20 formateurs',
-                'Paiement mensuel ou annuel via Stripe'
-            ]
-        },
-        {
-            'type': 'Professionnel',
-            'icon': 'briefcase',
-            'subtitle': 'La solution complète pour structurer et piloter votre organisme.',
-            'price_monthly': '399 €',
-            'price_yearly': '3 828 €',
-            'badge': 'Recommandé',
-            'color': '#11B981',
-            'features': [
-                'Jusqu\'à 1 500 apprenants par an',
-                'Jusqu\'à 8 administrateurs',
-                'Support prioritaire inclus',
-                'Facturation récurrente mensuelle ou annuelle'
-            ]
-        },
-        {
-            'type': 'Expert',
-            'icon': 'bar-chart-line',
-            'subtitle': 'Une formule avancée pour accompagner la montée en puissance de votre structure.',
-            'price_monthly': '549 €',
-            'price_yearly': '5 268 €',
-            'badge': null,
-            'color': '#F59E0B',
-            'features': [
-                'Jusqu\'à 2 500 apprenants par an',
-                'Jusqu\'à 12 administrateurs',
-                'Environnement adapté aux structures plus développées',
-                'Paiement sécurisé et gestion fluide des renouvellements'
-            ]
-        },
-        {
-            'type': 'Excellence',
-            'icon': 'gem',
-            'subtitle': 'Optimisez vos performances avec des outils puissants et stratégiques.',
-            'price_monthly': '799 €',
-            'price_yearly': '7 668 €',
-            'badge': null,
-            'color': '#7C3AED',
-            'features': [
-                'Formule premium de très haut niveau',
-                'Accès à l\'environnement le plus avancé de la plateforme',
-                'Pensée pour les structures exigeantes et ambitieuses',
-                'Souscription mensuelle ou annuelle'
-            ]
-        }
-    ] %}
-
     <main class="cgv-page">
 
         <section class="cgv-hero">
@@ -1180,7 +1114,7 @@
                             <div class="hero-contract-grid">
                                 <div class="hero-contract-item">
                                     <span>Dernière mise à jour</span>
-                                    <strong>{{ "now"|date("d/m/Y") }}</strong>
+                                    <strong>27/10/2026</strong>
                                 </div>
                                 <div class="hero-contract-item">
                                     <span>Mode de règlement</span>
@@ -1188,7 +1122,7 @@
                                 </div>
                                 <div class="hero-contract-item">
                                     <span>Facturation</span>
-                                    <strong>Mensuelle ou annuelle</strong>
+                                    <strong>Mensuelle</strong>
                                 </div>
                                 <div class="hero-contract-item">
                                     <span>Accès</span>
@@ -1219,7 +1153,7 @@
                         <div class="trust-icon"><i class="bi bi-arrow-repeat"></i></div>
                         <div>
                             <strong>Formules récurrentes</strong>
-                            <span>Les abonnements peuvent être souscrits en mensualisation ou en facturation annuelle.</span>
+                            <span>Les nouvelles souscriptions sont proposées avec une facturation mensuelle.</span>
                         </div>
                     </div>
                     <div class="trust-item">
@@ -1272,7 +1206,7 @@
 
                         <div class="sidebar-meta">
                             <span class="sidebar-meta-label">Document contractuel</span>
-                            <strong>Version en vigueur au {{ "now"|date("d/m/Y") }}</strong>
+                            <strong>Version du 27/10/2026</strong>
                         </div>
                     </div>
                 </aside>
@@ -1289,7 +1223,7 @@
                             <div class="overview-card">
                                 <div class="overview-icon"><i class="bi bi-arrow-repeat"></i></div>
                                 <h3>Formules récurrentes</h3>
-                                <p>Les offres sont disponibles en mensualisation ou en facturation annuelle.</p>
+                                <p>Les offres actuelles sont disponibles en facturation mensuelle.</p>
                             </div>
                             <div class="overview-card">
                                 <div class="overview-icon"><i class="bi bi-sliders"></i></div>
@@ -1343,40 +1277,47 @@
                             </p>
 
                             <div class="plans-grid">
-                                {% for abonnement in abonnements %}
-                                    <article class="plan-card {% if abonnement.badge %}featured{% endif %}">
-                                        <div class="plan-topbar" style="background: {{ abonnement.color }};"></div>
+                                {% for plan in plans %}
+                                    {% set featured = plan.code|upper == 'PRO' %}
+                                    {% set color = plan.accentColor|default('#203448') %}
+                                    {% set icon = plan.code|upper == 'SOLO' ? 'rocket-takeoff' : (plan.code|upper == 'PRO' ? 'briefcase' : (plan.code|upper == 'ORGANISME' ? 'building' : 'gem')) %}
+                                    <article class="plan-card {% if featured %}featured{% endif %}">
+                                        <div class="plan-topbar" style="background: {{ color }};"></div>
 
                                         <div class="plan-header">
-                                            <div class="plan-icon" style="background: {{ abonnement.color }};">
-                                                <i class="bi bi-{{ abonnement.icon }}"></i>
+                                            <div class="plan-icon" style="background: {{ color }};">
+                                                <i class="bi bi-{{ icon }}"></i>
                                             </div>
 
                                             <div class="plan-meta">
-                                                <p class="plan-name">{{ abonnement.type }}</p>
-                                                <p class="plan-subtitle">{{ abonnement.subtitle }}</p>
-                                                {% if abonnement.badge %}
+                                                <p class="plan-name">{{ plan.name }}</p>
+                                                <p class="plan-subtitle">{{ plan.tagline }}</p>
+                                                {% if featured %}
                                                     <span class="plan-badge">
                                                         <i class="bi bi-stars"></i>
-                                                        {{ abonnement.badge }}
+                                                        Recommandé
                                                     </span>
                                                 {% endif %}
                                             </div>
                                         </div>
 
                                         <div class="plan-pricing">
-                                            <span class="plan-price">{{ abonnement.price_monthly }}</span>
+                                            <span class="plan-price">{{ (plan.priceMonthlyCents / 100)|number_format(2, ',', ' ') }} €</span>
                                             <span class="plan-period">/ mois HT</span>
                                         </div>
 
-                                        <p class="plan-annual">Soit {{ abonnement.price_yearly }} / an</p>
+                                        <p class="plan-annual">Facturation mensuelle</p>
 
                                         <div class="plan-divider"></div>
 
                                         <ul class="plan-features">
-                                            {% for feature in abonnement.features %}
-                                                <li>{{ feature }}</li>
-                                            {% endfor %}
+                                            <li>{{ plan.maxApprenantsLabel }}</li>
+                                            <li>{{ plan.maxUtilisateurs == 1 ? '1 utilisateur gestionnaire' : plan.maxUtilisateursLabel }}</li>
+                                            <li>{{ plan.maxFormateursLabel }}</li>
+                                            <li>{{ plan.maxCommerciauxLabel }}</li>
+                                            <li>{{ plan.maxEntreprisesLabel }}</li>
+                                            <li>{{ plan.maxProspectsLabel }}</li>
+                                            <li>{{ plan.supportPrioritaire ? 'Support prioritaire' : 'Support standard' }}</li>
                                         </ul>
                                     </article>
                                 {% endfor %}
@@ -1396,8 +1337,9 @@
                         <div class="section-body">
                             <p>
                                 Les prix applicables sont ceux affichés sur la plateforme au moment de la souscription.
-                                Les abonnements WikiFormation sont proposés en formule mensuelle et, lorsque l’option est disponible,
-                                en formule annuelle. Les montants sont indiqués avant validation définitive de la commande.
+                                Les nouvelles souscriptions WikiFormation sont proposées en formule mensuelle.
+                                Les montants sont indiqués hors taxes, la TVA applicable étant précisée avant validation définitive de la commande.
+                                Les abonnements existants conservent leurs conditions jusqu’à un changement demandé par leur titulaire.
                             </p>
 
                             <div class="callout callout-gold">
@@ -1405,8 +1347,7 @@
                                 <div class="callout-body">
                                     <p>
                                         <strong>À titre indicatif :</strong> la gamme comprend les formules
-                                        <strong>Essentiel</strong>, <strong>Professionnel</strong>, <strong>Expert</strong>
-                                        et <strong>Excellence</strong>, avec des niveaux tarifaires et capacités distincts
+                                        {% for plan in plans %}<strong>{{ plan.name }}</strong>{{ not loop.last ? ', ' : '' }}{% endfor %}, avec des niveaux tarifaires et capacités distincts
                                         présentés ci-dessus.
                                     </p>
                                 </div>
@@ -1615,7 +1556,7 @@
                     </article>
 
                     <p class="doc-footer">
-                        Dernière mise à jour : <strong>{{ "now"|date("d/m/Y") }}</strong>
+                        Dernière mise à jour : <strong>27/10/2026</strong>
                         &nbsp;·&nbsp;
                         <a href="{{ path('app_public_cgu') }}">CGU</a>
                         &nbsp;·&nbsp;

@@ -55,7 +55,7 @@ final class StripeWebhookController extends AbstractController
                     $this->recorder->record($fc, $session->toArray(), $event->account ?? null);
                 } catch (\Throwable $error) {
                     // Keep failed reconciliation retryable; never acknowledge an unrecorded payment.
-                    error_log('[STRIPE INVOICE WEBHOOK] Reconciliation failed: ' . $error->getMessage());
+                    error_log('[STRIPE INVOICE WEBHOOK] Reconciliation failed: ' . $error::class);
                     return new Response('synchronization_failed', 500);
                 }
                 return new Response('OK', 200);

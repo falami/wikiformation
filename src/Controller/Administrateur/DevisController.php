@@ -959,7 +959,7 @@ class DevisController extends AbstractController
       $error = null;
     } catch (\Throwable $e) {
       $status = 'FAILED';
-      $error = $e->getMessage();
+      $error = 'Échec de l’envoi (' . $e::class . '). Vérifiez la configuration de messagerie.';
     }
 
 

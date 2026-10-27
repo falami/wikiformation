@@ -169,7 +169,7 @@ final class ReservationController extends AbstractController
                 'recordsTotal' => 0,
                 'recordsFiltered' => 0,
                 'data' => [],
-                'error' => $e->getMessage(),
+                'error' => 'La liste des réservations est temporairement indisponible.',
             ], 500);
         }
     }

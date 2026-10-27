@@ -77,6 +77,26 @@ final class BillingCatalogueTest extends KernelTestCase
         }
     }
 
+    public function testCgvUsesThePublicCatalogueAndReflectsPriceChanges(): void
+    {
+        $plan = $this->em->getRepository(Plan::class)->findOneBy(['code' => 'SOLO']);
+        $plan->setPriceMonthlyCents(3150);
+        $this->em->flush();
+        $client = $this->client();
+        $crawler = $client->request('GET', $this->url('app_public_cgv'));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame(['Solo', 'Pro', 'Organisme', 'Excellence'], $crawler->filter('.plan-name')->each(fn($node) => $node->text()));
+        self::assertSame(['31,50 €', '59,00 €', '99,00 €', '150,00 €'], $crawler->filter('.plan-price')->each(fn($node) => $node->text()));
+        foreach ($this->em->getRepository(Plan::class)->findPublicOffers() as $index => $offer) {
+            $features = $crawler->filter('.plan-features')->eq($index)->text();
+            self::assertStringContainsString($offer->getMaxApprenantsLabel(), $features);
+            self::assertStringContainsString($offer->getMaxFormateursLabel(), $features);
+            self::assertStringContainsString($offer->getMaxCommerciauxLabel(), $features);
+        }
+        self::assertStringNotContainsString('/ an', $crawler->filter('.plans-grid')->text());
+        self::assertStringNotContainsString('Essentiel', $crawler->filter('main')->text());
+    }
+
     public function testHomeAndPricingRenderTheSameMonthlyOffersWithoutStripe(): void
     {
         $client = $this->client();

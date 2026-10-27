@@ -1,5 +1,6 @@
 {# templates/base_public.html.twig #}
 {% set brand = public_branding() %}
+{% set platform_legal_origin = brand.hasCustomHost ? 'https://wikiformation.fr' : '' %}
 <!DOCTYPE html>
 <html lang="{{ app.request.locale|default('fr') }}">
   <head>
@@ -60,7 +61,6 @@
 
     {# --- Preconnect / Perf --- #}
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     {# --- CSS vendors --- #}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
@@ -103,6 +103,7 @@
 
 
     {% set brand = public_branding() %}
+{% set platform_legal_origin = brand.hasCustomHost ? 'https://wikiformation.fr' : '' %}
 
     <style>
       :root{
@@ -209,18 +210,22 @@
           <div class="col-lg-3 col-md-6">
             <h6 class="fw-semibold text-uppercase mb-3">{{ 'footer.info.title'|trans }}</h6>
             <ul class="list-unstyled small">
-              <li><a href="{{ path('app_public_politique_confidentialite') }}">{{ 'footer.info.privacy'|trans }}</a></li>
-              <li><a href="{{ path('app_public_mentions_legales') }}">{{ 'footer.info.legal'|trans }}</a></li>
-              <li><a href="{{ path('app_public_cgv') }}">{{ 'footer.info.cgv'|trans }}</a></li>
-              <li><a href="{{ path('app_public_cgu') }}">{{ 'footer.info.cgu'|trans }}</a></li>
-              <li><a href="{{ path('app_public_cookies') }}" id="manage-cookies">{{ 'footer.info.cookies'|trans }}</a></li>
+              <li><a href="{{ platform_legal_origin ~ path('app_public_politique_confidentialite') }}">{{ 'footer.info.privacy'|trans }}</a></li>
+              <li><a href="{{ platform_legal_origin ~ path('app_public_mentions_legales') }}">{{ 'footer.info.legal'|trans }}</a></li>
+              <li><a href="{{ platform_legal_origin ~ path('app_public_cgv') }}">{{ 'footer.info.cgv'|trans }}</a></li>
+              <li><a href="{{ platform_legal_origin ~ path('app_public_cgu') }}">{{ 'footer.info.cgu'|trans }}</a></li>
+              <li><a href="{{ platform_legal_origin ~ path('app_public_cookies') }}" id="manage-cookies">{{ 'footer.info.cookies'|trans }}</a></li>
             </ul>
           </div>
           
 
           <div class="col-lg-3 col-md-6">
             <h6 class="fw-semibold text-uppercase mb-3">{{ 'footer.contact.title'|trans }}</h6>
-            {{ render(path('app_public_footer_contact_form')) }}
+            {% if not brand.hasCustomHost %}
+              {{ render(path('app_public_footer_contact_form')) }}
+            {% else %}
+              <p class="small">Pour votre dossier de formation et vos données, contactez l’organisme indiqué sur vos documents. Pour une demande concernant la plateforme : <a href="mailto:contact@wikiformation.fr">contact@wikiformation.fr</a>.</p>
+            {% endif %}
           </div>
         </div>
 
@@ -236,37 +241,6 @@
     {% block javascripts %}{% endblock %}
 
 
-    <script src="https://www.google.com/recaptcha/api.js?render=6Lejf08sAAAAACFzxVGzBQRBElyWiar71PZwIH3q"></script>
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const forms = document.querySelectorAll('form.footer-form, form[name="contact"]');
-        if (!forms.length) return;
-
-        forms.forEach((form) => {
-          const captchaInput = form.querySelector('input[name$="[captcha]"]');
-          if (!captchaInput) return;
-
-          form.addEventListener('submit', async (e) => {
-            if (captchaInput.value) return;
-
-            e.preventDefault();
-
-            grecaptcha.ready(async () => {
-              try {
-                const token = await grecaptcha.execute('6Lejf08sAAAAACFzxVGzBQRBElyWiar71PZwIH3q', {
-                  action: 'contact'
-                });
-
-                captchaInput.value = token;
-                form.submit();
-              } catch (err) {
-                console.error('Erreur reCAPTCHA:', err);
-              }
-            });
-          });
-        });
-      });
-    </script>
 
   </body>
 </html>

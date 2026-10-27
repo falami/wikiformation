@@ -33,12 +33,24 @@ final class DoctrineQuotaPropagationTest extends TestCase
         (new DoctrineManager($em, $logger))->$operation($entity, 'Database failure: ');
     }
 
-    public function testUnexpectedDatabaseErrorsKeepExistingFailureBehavior(): void
+    #[DataProvider('operations')]
+    public function testUnexpectedDatabaseErrorsKeepExistingFailureBehavior(string $operation, string $ormOperation): void
     {
+        $entity = new \stdClass();
+        $error = new \RuntimeException('Unavailable: database-password secret');
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('flush')->willThrowException(new \RuntimeException('Unavailable'));
+        $em->expects(self::once())->method($ormOperation)->with($entity);
+        $em->expects(self::once())->method('flush')->willThrowException($error);
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())->method('critical')->with('Database failure: Unavailable');
-        self::assertFalse((new DoctrineManager($em, $logger))->saveInDb(new \stdClass(), 'Database failure: '));
+        $logger->expects(self::once())->method('critical')->with(
+            self::callback(static function (string $message) use ($error): bool {
+                self::assertSame('Database failure', $message);
+                self::assertStringNotContainsString($error->getMessage(), $message);
+                self::assertStringNotContainsString('secret', $message);
+                return true;
+            }),
+            ['exception' => $error],
+        );
+        self::assertFalse((new DoctrineManager($em, $logger))->$operation($entity, 'Database failure: '));
     }
 }

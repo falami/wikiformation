@@ -19,7 +19,7 @@ final class EntrepriseResolver
     try {
       $best = $this->sirene->searchEtablissement($q, $cp, $ville);
     } catch (\Throwable $e) {
-      return ['success' => false, 'message' => 'INSEE indisponible: ' . $e->getMessage()];
+      return ['success' => false, 'message' => 'La recherche INSEE est temporairement indisponible. Réessayez plus tard.'];
     }
 
     if (!$best) {

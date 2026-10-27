@@ -44,6 +44,14 @@ final class PositioningChapterController extends AbstractController
       ->setEntite($entite)
       ->setQuestionnaire($questionnaire);
 
+    if ($req->query->has('parent')) {
+      $parent = $chapterRepo->find($req->query->getInt('parent'));
+      if (!$parent || $parent->getQuestionnaire()?->getId() !== $questionnaire->getId()) {
+        throw $this->createNotFoundException();
+      }
+      $chapter->setParent($parent);
+    }
+
     // ✅ N+1 automatique
     $chapter->setPosition($chapterRepo->getNextPositionForQuestionnaire($questionnaire));
 

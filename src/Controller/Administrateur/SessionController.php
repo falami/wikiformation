@@ -16,7 +16,6 @@ use App\Service\Email\MailerManager;
 use App\Form\Administrateur\SessionType;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
-use App\Service\Geocoding\NominatimGeocoder;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\Satisfaction\SatisfactionAssigner;
 use Symfony\Component\String\Slugger\AsciiSlugger;
@@ -2035,10 +2034,11 @@ final class SessionController extends AbstractController
         return $this->redirectToRoute('app_administrateur_session_show', ['entite' => $entite->getId(), 'id' => $session->getId()]);
     }
 
-    #[Route('/{id}', name: 'app_administrateur_session_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_administrateur_session_show', methods: ['GET', 'POST'])]
     public function show(
         Entite $entite,
         Session $session,
+        Request $request,
         EntityManagerInterface $em,
         HttpClientInterface $http,
         \App\Service\Avatar\FormateurAvatarResolver $avatarResolver,
@@ -2051,6 +2051,11 @@ final class SessionController extends AbstractController
 
         if ($session->getEntite()?->getId() !== $entite->getId()) {
             throw $this->createNotFoundException();
+        }
+
+        $requestedTrainer = $request->isMethod('POST') ? $request->request->getInt('travel_trainer') : 0;
+        if ($request->isMethod('POST') && (!$requestedTrainer || !$this->isCsrfTokenValid('session_travel_'.$session->getId(), $request->request->getString('_token')))) {
+            throw $this->createAccessDeniedException('Formulaire expiré. Rechargez la session.');
         }
 
         // Les créneaux définissent les intervenants effectifs de la session.
@@ -2153,7 +2158,7 @@ final class SessionController extends AbstractController
                 $route = $data['routes'][0] ?? null;
 
                 if (!$route || !isset($route['distanceMeters']) || !is_numeric($route['distanceMeters']) || $route['distanceMeters'] < 0) {
-                    return ['ok' => false, 'error' => $data['error']['message'] ?? 'Aucune route trouvée'];
+                    return ['ok' => false, 'error' => 'Aucun itinéraire disponible pour ces adresses.'];
                 }
 
                 $meters = (int) ($route['distanceMeters'] ?? 0);
@@ -2166,7 +2171,7 @@ final class SessionController extends AbstractController
                     'durationText' => $formatDuration($duration),
                 ];
             } catch (\Throwable $e) {
-                return ['ok' => false, 'error' => $e->getMessage()];
+                return ['ok' => false, 'error' => 'Le calcul de l’itinéraire est momentanément indisponible.'];
             }
         };
 
@@ -2201,7 +2206,7 @@ final class SessionController extends AbstractController
             }
 
             // 1) distance / durée via Routes API (server key)
-            $r = $computeRoutes($originAddress, $destAddress);
+            $r = $requestedTrainer === $fid ? $computeRoutes($originAddress, $destAddress) : ['ok' => false, 'error' => null];
             if ($r['ok'] ?? false) {
                 $meters = (int) ($r['distanceMeters'] ?? 0);
 
@@ -2212,7 +2217,7 @@ final class SessionController extends AbstractController
                 $travelByFormateurId[$fid]['estimate'] = $estimate;
                 if ($estimate !== null) $travelByFormateurId[$fid]['costText'] = number_format($estimate['amount'], 2, ',', ' ') . ' €';
             } else {
-                $travelByFormateurId[$fid]['gmapsError'] = $r['error'] ?? 'Erreur Routes API';
+                $travelByFormateurId[$fid]['gmapsError'] = $r['error'] ?? null;
             }
 
             // 2) url iframe directions via Maps Embed (browser key)
@@ -2793,7 +2798,6 @@ final class SessionController extends AbstractController
         Entite $entite,
         Request $request,
         EntityManagerInterface $em,
-        NominatimGeocoder $geocoder
     ): JsonResponse {
 
 
@@ -2856,29 +2860,8 @@ final class SessionController extends AbstractController
             $site->setLongitude((float) $longitude);
         }
 
-        // 2) Sinon, on tente un géocodage Nominatim à partir de l’adresse
-        if ($site->getLatitude() === null || $site->getLongitude() === null) {
-            $parts = [];
-            if ($adresse) {
-                $parts[] = $adresse;
-            }
-            if ($codePostal || $ville) {
-                $parts[] = trim(($codePostal ?: '') . ' ' . ($ville ?: ''));
-            }
-            if ($pays) {
-                $parts[] = $pays;
-            }
-
-            $fullAddress = implode(', ', $parts);
-
-            if ($fullAddress !== '') {
-                $coords = $geocoder->geocode($fullAddress);
-                if ($coords) {
-                    $site->setLatitude($coords['lat']);
-                    $site->setLongitude($coords['lng']);
-                }
-            }
-        }
+        // Les coordonnées sont facultatives. Ne pas transmettre l'adresse à un
+        // tiers lors d'un simple enregistrement : la localisation est explicite dans le formulaire.
 
         $em->persist($site);
         $em->flush();

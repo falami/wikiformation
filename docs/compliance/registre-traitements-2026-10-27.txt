@@ -1,0 +1,276 @@
+WIKIFORMATION — REGISTRES DES TRAITEMENTS, PRÉREMPLISSAGE TECHNIQUE
+Version de travail : 27 octobre 2026 — à valider, compléter, signer et maintenir
+
+PÉRIMÈTRE ET STATUT
+Ce document recense les catégories fonctionnelles identifiées dans le code local, ses entités Doctrine, formulaires, contrôleurs et services. Il ne prouve ni l'activation réelle de chaque module, ni la conformité des contrats, ni la configuration de production. Les données réelles n'ont pas été exportées ou effacées pour le rédiger.
+Il contient deux registres : A, les traitements propres à l'exploitant de WikiFormation ; B, les catégories de traitements exécutés pour les organismes clients. Lorsque l'exploitant utilise aussi le logiciel pour ses propres formations, il doit compléter une fiche B en tant que responsable de ces formations. Un même compte partagé entre organismes ne permet pas de confondre leurs responsabilités.
+Les bases légales ci-dessous sont des hypothèses à confirmer par finalité et par responsable. Le consentement n'est pas une base universelle pour tout le service. Les durées non qualifiées sont marquées « à définir » ; aucune durée numérique de dossier n'a été inventée et aucune purge générale n'est activée.
+
+IDENTIFICATION ET PILOTAGE — CHAMPS À COMPLÉTER
+Exploitant responsable / sous-traitant : dénomination légale exacte, forme, immatriculation, siège, représentant et coordonnées [À COMPLÉTER ET VÉRIFIER]. Les éléments I.T. For You / WikiFormation présents dans l'application ne remplacent pas cette vérification.
+Contact de droits communiqué dans le service : contact@wikiformation.fr. Responsable effectif de cette boîte, suppléant et fréquence de relève [À COMPLÉTER].
+Délégué à la protection des données : désignation et coordonnées [À DÉTERMINER] ; documenter l'analyse de nécessité d'une désignation. Ne pas appeler ce contact « DPO » sans désignation réelle.
+Référent sécurité, référent incidents, personnes autorisées à utiliser les commandes opérateur, engagements de confidentialité [À COMPLÉTER].
+Hébergement et messagerie de production : o2switch confirmé par l'exploitant le 27/10/2026. Offre, entité contractante, lieux de stockage principal/sauvegarde, accès du support, sous-traitants ultérieurs, DPA, mesures et délais de suppression [À VÉRIFIER PAR CONTRAT].
+Fournisseurs : o2switch pour SMTP et boîtes e-mail ; Stripe, Google et autres intégrations effectivement activées, CDN, support, sauvegardes [VOIR INVENTAIRE C ; IDENTITÉS CONTRACTUELLES ET PAYS À COMPLÉTER].
+Registre antérieur / contrats article 28 : l'exploitant indique ne pas en disposer. Ce brouillon ne vaut pas acceptation d'un contrat ni instruction d'un organisme.
+Date d'approbation, approbateur, preuve d'information des personnes, revue périodique et historique des changements [À COMPLÉTER].
+
+RÈGLES COMMUNES DE LECTURE
+S1 — Contrôles applicatifs observés : authentification ; rôles et périmètres d'organisme ; routes privées pour de nombreux documents ; contrôles CSRF des formulaires ; empreintes de mots de passe ; historique de certains actes signés. Leur existence ne démontre pas une revue exhaustive des droits ou une exploitation sûre.
+S2 — À démontrer en production : HTTPS/TLS, secrets, mises à jour, droits fichiers/DB, absence de debug, confinement des documents et sauvegardes, accès nominatif administrateur, revue des habilitations, restauration testée, surveillance incidents et journalisation minimisée.
+R1 — Conservation observée : la plupart des données métier restent en base sans échéancier général de purge. Un statut inactif, un retrait de lien ou un masquage n'est pas un effacement.
+R2 — Conservation à approuver : durée active, événement de départ, archivage intermédiaire restreint, durée maximale, gel contentieux, sort des fichiers/snapshots/logs/sauvegardes et instruction de fin de contrat. Une obligation de conserver une facture n'autorise pas à garder indéfiniment tout le profil, les évaluations ou les données de santé.
+T1 — Transferts : aucun fournisseur n'est déclaré « sans transfert » sur la seule base d'un domaine ou de l'hébergeur. Vérifier lieux, accès de support, contrats et garanties du chapitre V ; documenter les analyses et mesures appropriées avant activation.
+
+A — REGISTRE DU RESPONSABLE DE TRAITEMENT : ACTIVITÉS PROPRES À LA PLATEFORME
+
+A01 | Comptes, connexion et préférences personnelles
+Finalité : créer le compte, authentifier, protéger l'accès, gérer coordonnées, signature personnelle et espaces associés.
+Personnes / données : titulaires de compte ; identité, e-mail, téléphone, adresse, date de naissance lorsque renseignée, photo, empreinte de mot de passe, vérification e-mail, jetons et codes d'authentification, préférences, rattachements et rôles.
+Références : Utilisateur, UtilisateurEntite, PersonalSignature ; RegistrationController, AccountPreferencesController, mécanismes de connexion/2FA.
+Destinataires : titulaire ; personnel de plateforme habilité ; administrateurs d'organisme dans leur périmètre ; o2switch ; SMTP pour messages de sécurité. T1 à qualifier.
+Base envisagée : contrat pour l'accès demandé ; intérêt légitime de sécurité à documenter ; obligations particulières à identifier. Les préférences marketing sont séparées en A05.
+Conservation : R1/R2. Définir comptes inactifs, durée des jetons et logs, conservation de la preuve de droits, restrictions après fin de rattachement. La suspension tenant ne supprime pas le compte global partagé.
+Sécurité / action : S1/S2 ; interdire réutilisation d'un export d'entité complet ; supprimer les modèles de signature inutilisés à la demande sans altérer les actes déjà signés qui doivent être examinés séparément.
+
+A02 | Abonnements SaaS, quotas et paiement
+Finalité : gérer essais, offres, changements/annulations, facturation du service et décompte d'usage.
+Personnes / données : contacts clients, administrateurs, comptes comptés dans les quotas ; identifiants Stripe, statut et dates d'abonnement, facturation, références de paiement, nombre d'apprenants annuels et lien compte lorsque présent.
+Références : Billing/EntiteSubscription, StripeCustomerMap, EntiteUsageYear, LearnerYearUsage, EntiteConnect, FactureCheckout ; services Billing.
+Destinataires : plateforme habilitée, client concerné, Stripe, prestataires comptables éventuels [À IDENTIFIER].
+Base envisagée : contrat et obligations comptables applicables ; sécurité/fraude distincte à qualifier.
+Conservation : R1/R2 ; distinguer preuve comptable, identifiants de service et métriques d'usage. LearnerYearUsage détache le compte lors d'une suppression pour préserver le compteur, sans prouver l'anonymisation de tous les autres liens.
+Sécurité / action : S1/S2 ; pas de carte bancaire complète attendue en DB ; vérifier contrat Stripe, webhooks, données réellement transmises et accès opérateur.
+
+A03 | Marketplace e-learning, vendeurs et commissions
+Finalité : publier les offres, gérer achats et droits d'accès acquis, paiements/reversements, factures et litiges.
+Personnes / données : acheteurs, vendeurs formateurs ; identité vendeur/acheteur, coordonnées professionnelles, immatriculation/fiscalité, commandes, montants, références de paiement et reversement, preuve d'acceptation, versions de contenus, progression, contestations.
+Références : Marketplace/Offer, Purchase, Access, Seller, Invoice, Settings ; services Marketplace ; exporter distinct /cours-en-ligne/mes-donnees.
+Destinataires : acheteur, vendeur dans le périmètre du contrat, plateforme, Stripe, comptables [À IDENTIFIER]. Qualification responsable autonome ou conjoint du vendeur à documenter.
+Base envisagée : contrat, obligations légales de facturation ; preuve juridique et lutte contre fraude à qualifier. Le consentement à la fourniture immédiate n'est pas assimilable à un consentement marketing.
+Conservation : R1/R2 ; snapshots figés et preuves conservés, droits acquis à préserver ; distinguer données comptables, données pédagogiques et fichiers de cours. Les contraintes RESTRICT protègent l'historique mais ne sont pas une politique de conservation.
+Sécurité / action : S1/S2, liens d'accès acheteur ; vérifier contrats vendeurs, destinataires exacts et procédure de contestation/droits.
+
+A04 | Recrutement et mise en relation des formateurs
+Finalité : recevoir des candidatures, examiner compétences/disponibilités, proposer un rattachement à un organisme.
+Personnes / données : candidats, formateurs, contacts recruteurs ; nom, e-mail, téléphone, CV/PDF/photo, spécialités, départements, tarifs, commentaires et décision, historique des propositions.
+Références : TrainerApplication, RecruitmentPlacement, RecruitmentController, services Recruitment ; certains profils TrainerProfile/TrainerCv selon usage.
+Destinataires : recruteurs plateforme habilités, organismes destinataires d'une candidature dans le périmètre autorisé, hébergeur, SMTP éventuel.
+Base envisagée : mesures précontractuelles demandées ; intérêt légitime à documenter pour recherche/mise en relation ; conservation en vivier à qualifier séparément et expliquer.
+Conservation : R1/R2 ; createdAt et consentedAt existent mais pas d'échéancier de purge des candidatures/CV identifié. Définir délai après décision, sort du vivier, photos/PDF et notes.
+Sécurité / action : S1/S2 ; distinguer examen privé et publication publique, limiter notes et pièces, information avant transmission à un organisme, gérer retrait et destinataires informés.
+
+A05 | Communication commerciale propre et newsletter
+Finalité : proposer les actualités ou offres lorsque le canal et la situation autorisent cette prospection.
+Personnes / données : contacts et utilisateurs ; adresse, préférence booléenne newsletter, éventuellement contenu/ciblage des campagnes [MOTEUR DE CAMPAGNE NON IDENTIFIÉ].
+Références : RegistrationController, RegistrationFormType, Utilisateur.newsletter ; retrait dans AccountPrivacyController.
+Destinataires : équipe de prospection habilitée, prestataire de campagne à déterminer si utilisé.
+Base envisagée : consentement lorsque requis ; exceptions professionnelles/client à qualifier précisément. Le statut de client ou l'acceptation RGPD ne constitue pas une autorisation générale.
+Conservation : R1/R2 ; preuve versionnée de l'opt-in historique absente. Conserver séparément et de façon minimale l'opposition nécessaire au respect du retrait, selon durée justifiée.
+Sécurité / action : le champ administrateur permettant d'activer la newsletter d'autrui a été retiré ; retrait autonome ajouté. Ne pas exploiter une liste historique comme preuve de consentement sans qualification. Avant campagne : preuve, version du texte, source, date, désinscription simple dans chaque message, propagation au prestataire et liste d'opposition.
+
+A06 | Site public, cookies, audience et contenus externes
+Finalité : fournir le site, mémoriser les choix essentiels et, si activée et autorisée, mesurer l'audience.
+Personnes / données : visiteurs ; métadonnées HTTP, choix cookies, identifiants d'audience selon consentement ; accès éventuel aux services externes après action.
+Références : cookie-consent.js, _cookie_consent, _public_analytics, base_public ; ExternalMap ; ressources CDN et médias intégrés.
+Destinataires : hébergeur, fournisseurs externes effectivement chargés, Google si audience/cartographie utilisée. T1.
+Base envisagée : intérêt légitime/nécessité pour service et sécurité ; consentement pour traceurs non exemptés. Les éventuelles exemptions doivent être démontrées, pas supposées.
+Conservation : choix cookies applicatif 180 jours dans le code ; politique réelle de stockage fournisseur et journaux à vérifier. Les durées de cookies ne déterminent pas celles de la base ou des exports d'audience.
+Sécurité / action : vérifier réseau/cookies en production avant refus, après acceptation, après retrait et dans les espaces privés ; compléter liste des traceurs et contrats. Les appels serveur ne sont pas contrôlés par le seul bandeau navigateur.
+
+A07 | Assistance, erreurs et sécurité opérationnelle
+Finalité : aider les personnes, diagnostiquer incidents, protéger le service, détecter abus.
+Personnes / données : utilisateurs et opérateurs ; référence d'incident, route/statut/type d'erreur, métadonnées techniques et journaux ; contenu des contacts éventuels à minimiser.
+Références : ErrorReport, ErrorReportSubscriber, ErrorReportController, AuditLog, Monolog, caches de sécurité.
+Destinataires : support et exploitation habilités, contact@wikiformation.fr, hébergeur/SMTP ; prestataire de supervision éventuel à identifier.
+Base envisagée : contrat d'assistance et/ou intérêt légitime de sécurité documenté ; obligation de gestion des violations selon situation.
+Conservation : le cache du signalement d'erreur expire en une heure ; les logs et e-mails associés ne disparaissent pas avec ce cache. R2 pour journalisation, messagerie, tickets et pièces jointes.
+Sécurité / action : supprimer secrets, corps de requêtes, cookies, URL sensibles et données non nécessaires ; accès et rotation de production à vérifier. Éviter traces complètes contenant paramètres métier ; prévoir registre des violations et procédure de notification.
+
+A08 | Exercice des droits et suivi de conformité
+Finalité : réceptionner, instruire, répondre et prouver le suivi des demandes des personnes.
+Personnes / données : demandeur et opérateur ; référence, lien compte, droit choisi, précisions limitées, dates/échéance initiale, réponse et historique opérateur. Ne pas demander de pièce d'identité par défaut.
+Références : Privacy/DataRightsRequest ; AccountPrivacyController ; app:privacy:requests ; export de compte limité par AccountDataExport.
+Destinataires : titulaire et référents habilités ; organisme responsable lorsque le dossier lui appartient, après vérification du périmètre.
+Base envisagée : obligation légale de répondre aux droits ; preuve minimale en cas de contestation à qualifier.
+Conservation : R2 à approuver après clôture, y compris réponse libre et pièces externes. Aucun purgeur activé. La suppression d'un compte détache le propriétaire de la demande sans effacer automatiquement son texte.
+Sécurité / action : authentification complète, CSRF, accès au seul titulaire, export sans secrets par liste explicite, no-store ; opérateur CLI privé, liste sans identité par défaut. Relève quotidienne de la file et de l'e-mail, réponse initiale sous un mois, motivation/notification de toute prolongation applicable. Évaluer les exceptions à l'effacement sans fermer la demande automatiquement.
+
+A09 | Partenaires / apporteurs d'affaires
+Finalité : gérer partenaires, recommandations et rémunérations.
+Personnes / données : partenaires, prospects/clients recommandés, opérateurs ; coordonnées, identifiants de recommandation, statuts, commissions, preuve des conditions, paiement.
+Références : Partner/Partner, Referral, Commission, PartnerTerms ; PartnerController ; PartnerStripeGateway.
+Destinataires : plateforme/partenaire dans son périmètre, Stripe et comptabilité éventuelle.
+Base envisagée : contrat et obligations comptables ; prospection distincte à qualifier.
+Conservation : R1/R2 ; différencier prospects non convertis, suivi commercial et pièces de commission.
+Sécurité / action : vérifier information des personnes recommandées, visibilité des données, preuve des instructions et transfert à Stripe.
+
+B — REGISTRE DU SOUS-TRAITANT : CATÉGORIES D'ACTIVITÉS POUR LES ORGANISMES
+POUR CHAQUE CLIENT, joindre une fiche : dénomination/siège/contact responsable, DPO éventuel, contrat article 28 signé, services activés, personnes habilitées, sous-traitants autorisés, pays/transferts, instructions de conservation/restitution/effacement, date de fin de prestation et éventuels gels.
+La plateforme ne choisit pas à la place du client une base légale pour ses salariés ou stagiaires. Les pistes ci-dessous aident chaque responsable à documenter son traitement ; leur validation lui appartient. L'employeur, l'OPCO et l'OF peuvent être des responsables distincts selon les finalités ; ils ne reçoivent pas automatiquement tous les détails pédagogiques ou médicaux.
+
+B01 | Référentiel organisme, contacts, délégations et habilitations
+Opérations : créer/rattacher comptes, rôles, contacts entreprise, OPCO, commerciaux et formateurs, attribuer portefeuilles et droits.
+Personnes / données : administrateurs, collaborateurs, contacts clients, représentants ; identité, coordonnées, fonction, rattachements, droits et statut.
+Références : UtilisateurEntite, Entite, EntitePreferences, Entreprise, DossierDelegation, CommercialActivity, Formateur.
+Destinataires : client et membres habilités dans son périmètre ; plateforme en support ; o2switch.
+Base client à qualifier : contrat, gestion de relation professionnelle ou intérêt légitime ; obligations selon activité. Conservation R1/R2 avec départ d'un collaborateur, fin de mandat et compte partagé.
+Sécurité/actions : S1/S2 ; revue des rôles et délégations ; ne pas supprimer l'identité globale pour retirer un membre d'un organisme.
+
+B02 | Prospection et relation commerciale de l'organisme
+Opérations : gestion des prospects, interactions, campagnes ou messages, conversion en client, suivi commercial.
+Personnes / données : prospects, contacts d'entreprises, commerciaux ; identité/contact, notes, statut, historique, pièces et messages.
+Références : Prospect, ProspectInteraction, CommercialActivity, EmailLog/EmailTemplate, Devis.
+Destinataires : commerciaux affectés, administrateurs client, SMTP ; autres destinataires explicitement choisis par le client.
+Base client à qualifier : précontractuel demandé, intérêt légitime professionnel, consentement électronique si requis. Conservation R1/R2 par dernière interaction pertinente et statut ; ne pas utiliser une simple création ou un envoi unilatéral comme prolongation indéfinie.
+Sécurité/actions : périmètre portefeuille ; preuve de collecte/information, opposition et désinscription, limitation des notes et du HTML de messages conservé.
+
+B03 | Inscriptions, planning, participants, réservations et formation
+Opérations : inscrire, planifier, communiquer, suivre financement et présence, produire tableaux de bord.
+Personnes / données : stagiaires, salariés, formateurs, contacts entreprise/OPCO ; identité, coordonnées, naissance si nécessaire, formation/session/site, horaires, statuts, tarifs/montants, assiduité.
+Références : Inscription, DossierInscription, Session, SessionJour, Reservation, Formation, Site, SessionStartReminderDelivery.
+Destinataires : client, personne, formateur affecté et entreprise/OPCO dans le seul besoin légitime, SMTP pour convocations/relances.
+Base client à qualifier : contrat/mesures précontractuelles et obligations de formation ; salariés non parties au contrat à qualifier séparément. Conservation R1/R2 par finalité pédagogique, preuve, financeur et contentieux.
+Sécurité/actions : séparation des organismes et sessions ; minimiser copies de listes et exports ; effacer/restituer après échéances approuvées et vérifier fichiers historiques.
+
+B04 | Aménagements de formation et données potentiellement sensibles
+Opérations : préparer les adaptations nécessaires à l'accueil et à la formation.
+Personnes / données : stagiaires ; indicateur amenagementHandicap et detailsAmenagement, éventuelles pièces/commentaires révélant la santé ou un handicap.
+Références : DossierInscription, DossierInscriptionType, PieceDossier, champs libres des dossiers/évaluations.
+Destinataires : seulement personnes ayant besoin de l'information d'adaptation ; définir référent et séparation des accès. Ne pas transmettre automatiquement diagnostic/pièce médicale à employeur/formateur/plateforme.
+Base client à qualifier : base article 6 ET exception article 9 appropriée. L'existence d'un champ ou la mention « RGPD » ne fournit pas cette exception. Une AIPD doit être envisagée selon échelle, sensibilité et critères de risque.
+Conservation : durée spécifique liée au besoin réel d'aménagement et aux justifications légales éventuelles ; R2, sans reprendre automatiquement la durée des factures/dossiers généraux.
+Sécurité/actions : priorité haute ; limiter aux mesures d'adaptation, proscrire diagnostic dans texte libre, granularité des habilitations, chiffrement/archivage à qualifier et supprimer le superflu après examen.
+
+B05 | Conventions, contrats, signatures et émargements
+Opérations : établir, faire signer, historiser, conserver et présenter les preuves ; accès invités/QR limités.
+Personnes / données : stagiaires, représentants d'entreprise, formateurs, signataires organisme ; coordonnées, contenu contractuel, signature dessin/image, heure, IP/agent utilisateur de certains actes, empreinte de document, versions et jetons d'invitation.
+Références : ConventionContrat, ConventionRevision, ConventionSignatureInvitation, ContratStagiaire, ContratFormateur, ContratFormateurRevision, Emargement, SessionParticipantAccess, TrainerCharter/Version/Signature, Automation/WorkflowParticipant.
+Destinataires : parties habilitées, organisme et auditeurs autorisés ; SMTP invitations ; support restreint.
+Base client à qualifier : contrat et preuve/obligations applicables. Une image de signature n'est pas automatiquement une donnée biométrique de reconnaissance ; vérifier tout usage ultérieur.
+Conservation : R1/R2 ; distinguer actes signés, brouillons, images de modèles, jetons expirés et preuves techniques. Les restrictions d'effacement des actes doivent être justifiées et expliquées.
+Sécurité/actions : protéger originaux, versions, fichiers et invitations ; prévoir révocation, expiration et nettoyage des jetons ; ne pas régénérer un document signé silencieusement.
+
+B06 | Positionnement, QCM, satisfaction et évaluations
+Opérations : affecter questionnaires, collecter réponses, calculer scores, préparer conseils pédagogiques et rapports.
+Personnes / données : stagiaires/formateurs ; réponses, scores, appréciations, champs libres, dates de tentatives/soumission, conclusions et évaluations d'objectifs.
+Références : Positioning*, Qcm*, Quiz*, Satisfaction*, FormateurSatisfaction*, FormateurObjectiveEvaluation, RapportFormateur.
+Destinataires : personne, responsables pédagogiques/formateurs autorisés et client selon finalité ; financeur/employeur seulement pour informations nécessaires et annoncées.
+Base client à qualifier : gestion contractuelle/pédagogique ou obligations pertinentes ; enquêtes et publication distinctes à qualifier. Les règles automatiques de score ne prouvent pas à elles seules l'existence ou l'absence d'une décision article 22.
+Conservation : R1/R2 ; distinguer réponses détaillées, résultats utiles, agrégats effectivement anonymes, relances. Ne pas traiter une agrégation réidentifiable comme anonyme.
+Sécurité/actions : minimisation commentaires, encadrement données sensibles spontanées, droits d'accès/correction et examen humain des résultats contestés.
+
+B07 | Documents et supports pédagogiques
+Opérations : déposer, affecter, transmettre, télécharger et archiver supports/pièces/attestations.
+Personnes / données : stagiaires, représentants, formateurs ; fichiers libres, noms de fichiers, preuves, attestations, signatures, métadonnées d'affectation.
+Références : SessionPiece, PieceDossier, EntrepriseDocument, SupportDocument/Asset/AssignSession/AssignUser, Attestation, DocumentTemplate, ContentBlock.
+Destinataires : destinataires affectés et personnel habilité ; prestataires stockage/SMTP si transmission ; publication uniquement lorsque voulue et autorisée.
+Base client à qualifier : nécessaire au service/formation et obligations ; diffusion publique séparée. Conservation R1/R2 couvrant DB, anciens fichiers, versions, répertoires et liens.
+Sécurité/actions : contrôles privés, types/tailles de fichier, chemins, antivirus si adapté, éviter pièces identifiantes non nécessaires ; supprimer fichiers orphelins seulement après inventaire et validation.
+
+B08 | E-learning fourni par l'organisme
+Opérations : affecter accès et périodes, délivrer cours, suivre progression, quiz et commandes éventuelles.
+Personnes / données : apprenants et auteurs ; inscription, statut, chapitres/progression, dates, résultats, commandes/prix et contenu auteur.
+Références : ElearningCourse/Node/Block/Enrollment/NodeProgress/Order/OrderItem, Quiz* ; à distinguer des achats marketplace A03.
+Destinataires : apprenant, formateur et organisme habilités ; hébergement, paiement éventuel et prestataires médias réellement sollicités.
+Base client à qualifier : contrat, pédagogie et obligations appropriées ; suivi non nécessaire à la formation à examiner séparément. Conservation R1/R2 par accès, résultats, preuve et comptabilité.
+Sécurité/actions : accès par inscription/droit, maîtrise vidéos externes, information du suivi, export des résultats individuels sans livrer contenus protégés d'autrui.
+
+B09 | Gestion des formateurs, CV, diplômes, disponibilités et déplacements
+Opérations : gérer qualifications, contrats/charte, affectation de sessions, demandes de disponibilité, agenda et remboursements.
+Personnes / données : formateurs ; CV, diplôme, coordonnées, photo, spécialités, tarifs, contrats, disponibilités, périodes occupées d'un calendrier, adresse de départ et de destination si itinéraire demandé.
+Références : Formateur, TrainerProfile/Cv/Diploma/Inquiry, TrainerReminderDelivery, ContratFormateur ; services TrainerProfile, Geocoding/GoogleRoutes selon activation.
+Destinataires : organisme et formateur ; public uniquement pour les éléments publiés ; fournisseur de calendrier/cartographie selon option et instruction ; SMTP.
+Base client à qualifier : contrat/gestion de prestation et intérêt légitime documenté ; publication, calendrier externe et itinéraire à examiner distinctement.
+Conservation : R1/R2 ; supprimer secrets de calendrier révoqués et périodes occupées inutiles, distinguer qualifications actuelles et justificatifs historiques ; ne pas conserver trajets sans finalité.
+Sécurité/actions : secrets chiffrés selon service, filtrage des contenus de calendriers, information avant publication/tiers, autorisation et minimisation des adresses.
+
+B10 | Factures, devis, avoirs, paiements, dépenses et fiscalité
+Opérations : établir et conserver pièces, gérer règlements/justificatifs, rapports comptables et taxes.
+Personnes / données : clients, contacts, formateurs/fournisseurs et payeurs ; identité, coordonnées, immatriculation/fiscalité, prestations, montants, références et pièces justificatives.
+Références : Facture, LigneFacture, Devis/LigneDevis, Avoir, Paiement, Depense/DepenseFournisseur/ExpenseImportRule, FiscalProfile, TaxRule, TaxComputation et numérotations.
+Destinataires : client et destinataire de la pièce ; comptable, Stripe si paiement, autorités/financeurs selon obligations et habilitation.
+Base client à qualifier : contrat puis obligations comptables/fiscales et défense des droits. Conservation : pièces comptables selon textes effectivement applicables à valider avec le comptable ; autres données R2. La conservation des snapshots est technique, pas une justification de durée indéfinie.
+Sécurité/actions : pièces émises immuables, corrections tracées ; habilitations, exports sécurisés, logs sans contenu financier non nécessaire.
+
+B11 | Facturation électronique et consommation associée
+Opérations : raccordement OAuth, émission/réception, suivi des statuts, preuve d'instructions, consommation facturable.
+Personnes / données : contacts et parties à la facture ; données structurées de factures, documents, statuts, secrets OAuth, référence distante et événements.
+Références : EInvoiceConnection/Transmission/Received/Usage/UsageBatch, services EInvoicing, SUPER PDP.
+Destinataires : organisme, plateforme agréée choisie, destinataire légal et éventuels intervenants de la chaîne ; liste exacte à contractualiser. T1.
+Base client à qualifier : obligations applicables et contrat de service, instruction précise de transmission. Conservation R1/R2 ; différencier factures/preuves et jetons techniques expirés.
+Sécurité/actions : secret stocké chiffré, accès et révocation ; DPA, mandat/instructions, pays et sous-traitants de la plateforme à documenter.
+
+B12 | Qualité, habilitations, bilans, réclamations et obligations de formation
+Opérations : tenir preuves qualité, traiter réclamations/non-conformités, évaluer habilitations, produire attestations et bilans.
+Personnes / données : stagiaires, employeurs, formateurs, plaignants ; identité, avis/résultats, documents, faits rapportés, notes, décisions et agrégats.
+Références : QualityRecord, HabilitationTemplate/Dossier/Revision, BpfDeclaration ; services Bpf, PasseportPrevention, Quality.
+Destinataires : référents client habilités, personne/employeur suivant finalité, organismes de contrôle/financeurs/destinataires officiels si nécessaire et annoncé.
+Base client à qualifier : obligations précises et preuve/gestion qualité ; données sensibles et accusations à traiter avec restrictions supplémentaires.
+Conservation : R1/R2 spécifique par preuve, déclaration et réclamation ; aucune conservation générale « Qualiopi » ne justifie tous les détails personnels.
+Sécurité/actions : distinguer évaluation et décision d'employeur ; limiter texte libre, valider destinataire des exports officiels et information des personnes ; analyse de risque/AIPD selon situation.
+
+B13 | Automatisation des parcours, notifications et échanges
+Opérations : déclencher tâches, invitations, relances, notifications, suivre délivrance et statut.
+Personnes / données : participants et contacts ; coordonnées, référence de dossier/session, état des tâches, dates d'envoi, contenu des messages/logs et réponses.
+Références : Automation/TrainingWorkflow/WorkflowParticipant/WorkflowTask, NotificationEvent, EmailLog, EmailTemplate, TrainerReminderDelivery, SessionStartReminderDelivery.
+Destinataires : personne concernée, client, SMTP, plateforme de support habilitée.
+Base client à qualifier : finalité du message sous-jacent ; transactionnel ≠ marketing. Conservation R1/R2 ; le HTML complet et les erreurs d'envoi ne doivent pas survivre sans limite à leur finalité.
+Sécurité/actions : minimiser destinataires/contenu, distinguer copie de preuve et journal opérationnel, limiter pièces jointes, empêcher divulgation interorganismes.
+
+B14 | Publication de catalogues et domaines en marque blanche
+Opérations : exposer catalogue, calendrier, cours/boutique et profils selon choix de l'organisme.
+Personnes / données : contacts publics, formateurs et éventuels auteurs ; contenus/coordonnées publiés, noms/photos si présents, métadonnées visiteurs.
+Références : PublicHost, Formation/FormationPhoto, pages publiques de catalogue et paramètres de modules.
+Destinataires : public et moteurs de recherche pour les éléments publiés ; hébergeur et fournisseurs externes selon page.
+Base client à qualifier : communication professionnelle/contrat ; droits image et publication d'informations individuelles distincts à vérifier. Conservation R1/R2 après dépublication, index et caches externes à traiter.
+Sécurité/actions : autorisation des domaines, séparation des organismes, choix explicite de publication, information adaptée aux domaines et cookies réellement chargés.
+
+B15 | Hébergement, sauvegarde, assistance et maintenance des dossiers clients
+Opérations : héberger les catégories B01–B14, sauvegarder/restaurer, diagnostiquer sur instruction, gérer incidents et fin de contrat.
+Personnes / données : toutes catégories B selon intervention ; métadonnées d'accès opérateur et copies techniques.
+Destinataires : seuls opérateurs habilités et sous-traitants ultérieurs autorisés, notamment o2switch confirmé ; chaîne exacte à documenter.
+Base : instruction du responsable client, contrat article 28 ; aucun usage commercial/entraînement IA autonome des dossiers clients autorisé par ce registre.
+Conservation : R2 couvrant copies locales de développement, temporaires, sauvegardes, journaux, exports de support et retour/effacement en fin de prestation ; vérifier la purge après restauration.
+Sécurité/actions : S2, accès temporaires et tracés, test avec données synthétiques, chiffrement sauvegardes, preuve des effacements, assistance aux droits/incidents et audits.
+
+C — FOURNISSEURS, TRANSFERTS ET SORTIES DE DONNÉES À QUALIFIER
+o2switch : hébergement confirmé ; offre, localisation réelle et preuves contractuelles à annexer. L’accord public de septembre 2026 mentionne MailChannels comme secours SMTP et BookMyName pour les domaines ; vérifier leur applicabilité au compte. Source : https://www.o2switch.fr/du-rgpd.pdf
+SMTP/messagerie : o2switch confirmé pour la production par l'exploitant le 27/10/2026 ; le transport local vise wikiformation.fr. Restent à documenter le routage et les éventuels relais de secours, sous-traitants, stockage, pays, logs, pièces jointes et durées. Cette confirmation ne vaut pas vérification du circuit technique réel.
+Stripe : abonnements, commandes, commissions et paiements ; rôles par produit, identité contractante, transferts et annexes à vérifier.
+Google : Analytics, Maps/Routes, services Cloud/Document AI/stockage/traduction selon configuration ; vérifier chaque API et données réellement transmises. Une clé disponible ne signifie pas qu'un traitement est activé ni juridiquement autorisé.
+OpenAI / services IA présents : demandes de génération/analyse selon fonctionnalités ; modèle, fournisseur, finalités, base, minimisation, entraînement/rétention, pays et DPA à valider avant envoi de données personnelles.
+SUPER PDP : facturation électronique/OAuth ; identité contractante, mandat, DPA, destinataires et conservation propres à vérifier.
+Agenda distant : flux calendrier indiqué par le formateur ; serveur tiers et données téléchargées ; minimisation aux périodes occupées, secrets et révocation à vérifier.
+CDN, polices et médias externes : métadonnées HTTP des visiteurs ; inventaire réseau des domaines effectivement appelés et hébergement local à privilégier lorsque pertinent.
+Cartographie/géocodage additionnel : Nominatim/OSM et autres services présents selon configuration ; requêtes d'adresses, logs, base et information à qualifier.
+Exports manuels, PDF, CSV, ZIP, e-mails et impressions : inventaire des opérateurs/destinataires, lieux de stockage, durée et suppression ; un téléchargement quitte le contrôle automatique du logiciel.
+Pour chacun : identité exacte | rôle | finalité | données | pays stockage/support | sous-traitants ultérieurs | contrat art.28 | garantie chapitre V/évaluation | durée/effacement | date de vérification | preuve documentaire.
+
+D — PLAN DE CONSERVATION ET DES DROITS À FINALISER
+1. Faire approuver les champs R2 pour chaque fiche, en séparant comptes, dossiers pédagogiques, justificatifs, données sensibles, prospection, sécurité et sauvegardes.
+2. Rapprocher l'inventaire du modèle avec les systèmes réels. La commande « php bin/console app:privacy:inventory » produit uniquement noms de tables/entités, associations au compte et champs date, sans lire de contenu personnel. Elle ne couvre pas tous les fichiers ou systèmes externes.
+3. Définir règles écrites de gel légal et matrice d'effacement/anonymisation ; tester sur copies synthétiques, compter et faire examiner avant toute action réelle. Pas de purge destructive automatique sans règles validées.
+4. Organiser la restitution/effacement de fin de prestation, les comptes partagés, acheteurs marketplace, archives restreintes et pièces signées. Ne jamais utiliser UtilisateurManager::delete comme réponse générale aux droits.
+5. Déployer la migration des demandes de droits avant d'exposer la nouvelle page, puis surveiller quotidiennement « php bin/console app:privacy:requests » et la boîte contact. « --overdue » retourne 1 si une échéance initiale est dépassée.
+6. Opérateur habilité : consulter une seule demande avec sa référence et « --details » dans un terminal privé ; passer à « --status=processing --operator=identifiant » ; instruire avec les responsables, contrôler tiers et exceptions ; publier une réponse approuvée via « --status=answered --operator=identifiant --response-file=/chemin/prive/reponse.txt ». Le texte sera visible au demandeur. Aucun e-mail ni effacement automatique n'est déclenché. Informer la personne par le canal convenu et garder la preuve de remise.
+7. Ne pas considérer l'export immédiat de compte comme une réponse exhaustive à un droit d'accès/portabilité. Inventorier documents, réponses, historiques, messages, calendriers, achats et copies sous-traitants ; protéger les données des tiers. L'export e-learning couvre un autre périmètre limité.
+8. Documenter les demandes reçues hors application, l'identification proportionnée, les représentants et demandes de personnes sans accès au compte, les réponses motivées et voies de réclamation. Le formulaire authentifié ne remplace pas l'e-mail.
+9. Examiner nécessité d'une AIPD, notamment données d'aménagement/santé, volumes, mineurs, évaluations/suivi systématiques et croisements ; documenter la conclusion et les mesures. Aucun diagnostic d'exemption générale n'est posé par cet audit.
+
+E — SOURCES OFFICIELLES CONSULTÉES LE 27 OCTOBRE 2026
+CNIL, registre : https://www.cnil.fr/fr/RGPD-le-registre-des-activites-de-traitement
+CNIL, RGPD chapitre IV (articles 28 et 30) : https://www.cnil.fr/fr/reglement-europeen-protection-donnees/chapitre4
+CNIL, identification des rôles : https://www.cnil.fr/fr/rgpd-comment-bien-identifier-son-role
+CNIL, guide sous-traitant : https://www.cnil.fr/sites/cnil/files/atoms/files/rgpd-guide_sous-traitant-cnil.pdf
+CNIL, durées de conservation : https://www.cnil.fr/fr/passer-laction/les-durees-de-conservation-des-donnees
+CNIL, réponse aux droits : https://www.cnil.fr/fr/respecter-les-droits-des-personnes/repondre-aux-demandes-dexercice-des-droits
+CNIL, accès : https://www.cnil.fr/fr/repondre-une-demande-de-droit-dacces
+CNIL, portabilité : https://www.cnil.fr/fr/respecter-les-droits-des-personnes/professionnels-comment-repondre-une-demande-de-droit-la-portabilite
+
+APPROBATION
+Responsable/qualité du signataire : [À COMPLÉTER]
+Date et version approuvée : [À COMPLÉTER]
+Durées, bases et destinataires approuvés : [ANNEXES À COMPLÉTER]
+Prochaine revue et événement déclencheur (nouveau fournisseur, module ou finalité) : [À COMPLÉTER]

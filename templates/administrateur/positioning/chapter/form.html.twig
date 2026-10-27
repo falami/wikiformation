@@ -1,61 +1,25 @@
-{# templates/administrateur/positioning/chapter/show.html.twig #}
 {% extends 'base_admin.html.twig' %}
-{% block title %}{{ is_edit ? 'Modifier' : 'Nouveau' }} chapitre{% endblock %}
-
-
+{% block title %}{{ is_edit ? 'Modifier' : 'Créer' }} un chapitre{% endblock %}
 {% block stylesheets %}
-  {{ parent() }}
-  <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  
-  <style>
-    :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-    }
-
-  </style>
-
-
-
-
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/css/satisfaction-editor.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/positioning-editor.css') }}?v=20261027-2">
 {% endblock %}
-
-
 {% block body %}
-<div class="container-fluid px-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h2 class="fw-bold mb-0">{{ is_edit ? 'Modifier' : 'Créer' }} un chapitre</h2>
-      <div class="text-muted">Questionnaire : {{ questionnaire.title }}</div>
-    </div>
-    <a class="btn btn-outline-secondary fw-semibold"
-       href="{{ path('app_administrateur_positioning_questionnaire_edit', { entite: entite.id, id: questionnaire.id }) }}">
-      <i class="bi bi-arrow-left"></i> Retour
-    </a>
-  </div>
-
-  {% include 'flagMessage.html.twig' %}
-
-  <div class="card p-3">
-    {{ form_start(form) }}
-      <div class="mb-3">
-        <label class="form-label fw-bold">Titre</label>
-        {{ form_widget(form.title, { attr: { class:'form-control' }}) }}
-      </div>
-
-      <div class="row g-2">
-        <div class="col-md-8">
-          <label class="form-label fw-bold">Parent</label>
-          {{ form_widget(form.parent, { attr: { class:'form-select' }}) }}
-        </div>
-      </div>
-
-      <div class="d-grid mt-3">
-        <button class="btn btn-warning fw-semibold"><i class="bi bi-save"></i> Enregistrer</button>
-      </div>
-    {{ form_end(form) }}
-  </div>
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% set back = path('app_administrateur_positioning_questionnaire_edit', {entite: entite.id, id: questionnaire.id}) %}
+<div class="satisfaction-editor positioning-editor pe-chapter-form">
+<nav class="se-breadcrumb"><a href="{{ back }}">← Retour au questionnaire</a></nav>
+<header class="se-canvas-heading"><div><span class="se-overline">{{ questionnaire.title }}</span><h1>{{ is_edit ? 'Modifier' : 'Ajouter' }} {{ chapter.parent ? 'un sous-chapitre' : 'un chapitre' }}</h1><p>Un thème clair, puis les compétences que vous souhaitez évaluer.</p></div></header>
+{% include 'flagMessage.html.twig' %}
+<section class="se-panel"><div class="se-panel-body">
+{{ form_start(form) }}
+{{ form_errors(form) }}
+{{ form_row(form.title, {attr: {placeholder: 'Ex. Utiliser un ordinateur', autofocus: true}}) }}
+{{ form_row(form.parent) }}
+<div class="pe-guide"><strong>Comment organiser votre questionnaire ?</strong><p>Chapitre : Utiliser un ordinateur<br>↳ Sous-chapitre (facultatif) : Naviguer sur Internet<br>↳ Compétence à évaluer : Effectuer une recherche en ligne</p></div>
+<div class="se-save-actions"><a class="btn se-btn-quiet" href="{{ back }}">Annuler</a><button class="btn se-btn-gold" type="submit">{{ is_edit ? 'Enregistrer les modifications' : 'Créer et revenir au questionnaire' }}</button></div>
+{{ form_end(form) }}
+</div></section>
 </div>
 {% endblock %}

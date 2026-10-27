@@ -10,7 +10,8 @@ class Element {
   setAttribute(){}
   closest(){return null;}
 }
-async function setup() {
+async function setup(activate = true) {
+ const events = {};
  const groups = [0,1].map(i=> {
    const fields = Object.fromEntries(['adresse','codePostal','ville','latitude','longitude','googlePlaceId','formattedAddress','pays','complement'].map(k=>[k,new Element()]));
    const form={name:'test',elements:Object.values(fields)};
@@ -19,8 +20,9 @@ async function setup() {
    return fields;
  });
  const google={maps:{importLibrary:async()=>({PlaceAutocompleteElement:Element}),Map:class{setCenter(){}},Circle:class{setCenter(){}}}};
- const document={body:{},querySelector:()=>({dataset:{addressAssistantKey:'key'}}),querySelectorAll:()=>groups.map(g=>g.adresse),createElement:()=>{const panel=new Element();panel.parts=Object.fromEntries(['search','status','map','caption'].map(k=>[`[data-${k}]`,new Element()]));panel.parts.details=new Element();panel.querySelector=s=>panel.parts[s];return panel;}};
+ const document={addEventListener:(name, fn)=>{events[name]=fn;},body:{},querySelector:()=>({dataset:{addressAssistantKey:'key'}}),querySelectorAll:()=>groups.map(g=>g.adresse),createElement:()=>{const panel=new Element();panel.parts=Object.fromEntries(['search','status','map','caption'].map(k=>[`[data-${k}]`,new Element()]));panel.parts.details=new Element();panel.querySelector=s=>panel.parts[s];return panel;}};
  vm.runInNewContext(fs.readFileSync('public/dist/js/address-assistant.js','utf8'),{document,window:{google},google,MutationObserver:class{observe(){}},Event:class{constructor(type){this.type=type;}}});
+ if (activate) events['wiki:enable-google-maps']();
  await new Promise(r=>setImmediate(r));
  return groups;
 }
@@ -37,4 +39,8 @@ test('Late selection cannot overwrite a newer manual edit',async()=>{
  const pending=a.panel.parts['[data-search]'].children[0].dispatchEvent({type:'gmp-select',placePrediction:{toPlace:()=>p}});
  a.adresse.value='Nouvelle adresse';await a.adresse.dispatchEvent({type:'input'});finish();await pending;
  assert.equal(a.adresse.value,'Nouvelle adresse');assert.equal(a.latitude.value,'');
+});
+
+test('Address suggestions do not initialize before explicit activation, even with Google already present', async()=>{
+ const [a]=await setup(false); assert.equal(a.panel, undefined);
 });

@@ -416,7 +416,7 @@ final class DashboardOrganismeFormationController extends AbstractController
         } catch (\Throwable $e) {
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Erreur serveur : ' . $e->getMessage(),
+                'message' => 'Les informations de la session sont temporairement indisponibles.',
             ], 500);
         }
     }

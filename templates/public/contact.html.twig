@@ -6,9 +6,6 @@
 
 {% block stylesheets %}
     {{ parent() }}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 
     <style>
@@ -977,9 +974,7 @@
                             </div>
                         </div>
 
-                        <div class="d-none">
-                            {{ form_row(form.captcha) }}
-                        </div>
+                        {% include 'public/_contact_privacy_notice.html.twig' %}
 
                         <div class="hp-row" aria-hidden="true">
                             {{ form_row(form.website) }}
@@ -1127,24 +1122,6 @@
 
 {% block javascripts %}
     {{ parent() }}
-
-    <script>
-    (function () {
-        var hasConsent = document.cookie.indexOf('cookieConsent=accepted') !== -1;
-        var greNotLoaded = (typeof window.grecaptcha === 'undefined');
-        if (!hasConsent || greNotLoaded) {
-            window.grecaptcha = {
-                ready: function (cb) { try { cb && cb(); } catch (e) {} },
-                execute: function () { return Promise.resolve(''); }
-            };
-        }
-        window.addEventListener('unhandledrejection', function (e) {
-            if (e && (e.reason === null || typeof e.reason === 'undefined')) {
-                e.preventDefault();
-            }
-        });
-    })();
-    </script>
 
     <script>
     (function () {

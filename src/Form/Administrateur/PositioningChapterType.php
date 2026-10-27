@@ -17,18 +17,27 @@ final class PositioningChapterType extends AbstractType
     /** @var PositioningQuestionnaire $q */
     $q = $o['questionnaire'];
 
+    $current = $b->getData();
+    $choices = $q->getChapters()->filter(static function (PositioningChapter $candidate) use ($current): bool {
+      $seen = [];
+      for ($node = $candidate; $node !== null; $node = $node->getParent()) {
+        $key = spl_object_id($node);
+        if ($node === $current || isset($seen[$key])) return false;
+        $seen[$key] = true;
+      }
+      return true;
+    })->toArray();
+
     $b
-      ->add('title', TextType::class, ['label' => 'Titre'])
+      ->add('title', TextType::class, ['label' => 'Nom du chapitre'])
       ->add('parent', EntityType::class, [
         'class' => PositioningChapter::class,
         'required' => false,
-        'placeholder' => '- Aucun (chapitre racine) -',
-        'choice_label' => fn(PositioningChapter $c) => $c->getTitle(),
-        'query_builder' => function ($repo) use ($q) {
-          return $repo->createQueryBuilder('c')
-            ->andWhere('c.questionnaire = :q')->setParameter('q', $q)
-            ->orderBy('c.position', 'ASC')->addOrderBy('c.id', 'ASC');
-        },
+        'label' => 'Ranger dans un chapitre',
+        'help' => 'Choisissez un chapitre pour créer un sous-chapitre. Sinon, laissez « Chapitre principal ».',
+        'placeholder' => 'Chapitre principal (aucun rattachement)',
+        'choice_label' => fn(PositioningChapter $c) => ($c->getParent() ? $c->getParent()->getTitle() . ' › ' : '') . $c->getTitle(),
+        'choices' => $choices,
       ]);
   }
 

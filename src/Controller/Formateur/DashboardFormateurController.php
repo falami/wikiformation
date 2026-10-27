@@ -105,9 +105,13 @@ class DashboardFormateurController extends AbstractController
     /* =========================================================
      * DASHBOARD
      * ========================================================= */
-    #[Route('/dashboard', name: 'dashboard', methods: ['GET'])]
-    public function dashboard(Entite $entite, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\TrainerCharter\CharterManager $charters): Response
+    #[Route('/dashboard', name: 'dashboard', methods: ['GET', 'POST'])]
+    public function dashboard(Entite $entite, Request $request, EntityManagerInterface $em, SessionRepository $sessions, \App\Service\Session\TrainerSessionFollowUp $followUp, \App\Service\Session\SessionLifecycle $lifecycle, \App\Service\TrainerCharter\CharterManager $charters): Response
     {
+        $calculateTravel = $request->isMethod('POST');
+        if ($calculateTravel && !$this->isCsrfTokenValid('trainer_travel_'.$entite->getId(), $request->request->getString('_token'))) {
+            throw $this->createAccessDeniedException('Formulaire expiré. Rechargez la page.');
+        }
         $this->habilitationAssignments->synchronize($entite);
     $lifecycle->synchronize($entite);
         /** @var Utilisateur $user */
@@ -206,7 +210,7 @@ class DashboardFormateurController extends AbstractController
 
                 $serverKey = (string) $this->getParameter('GOOGLE_MAPS_SERVER_KEY');
 
-                if ($origin !== '' && $dest !== '' && $serverKey) {
+                if ($calculateTravel && $origin !== '' && $dest !== '' && $serverKey) {
                     try {
                         $payload = [
                             'origin' => [
@@ -232,14 +236,14 @@ class DashboardFormateurController extends AbstractController
                             ],
                             'json' => $payload,
                             'timeout' => 8,
+                            'max_duration' => 10,
                         ]);
 
                         $json = $resp->toArray(false);
 
                         $route = $json['routes'][0] ?? null;
                         if (!$route) {
-                            $gmapsError = 'Routes API: aucune route retournée'
-                                . (isset($json['error']['message']) ? (' - ' . $json['error']['message']) : '');
+                            $gmapsError = 'Aucun itinéraire disponible pour ces adresses.';
                         } else {
                             $meters = (int) ($route['distanceMeters'] ?? 0);
                             $dur    = (string) ($route['duration'] ?? '');
@@ -262,10 +266,10 @@ class DashboardFormateurController extends AbstractController
                             }
                         }
                     } catch (\Throwable $e) {
-                        $gmapsError = 'Routes API exception: ' . $e->getMessage();
+                        $gmapsError = 'Le calcul de l’itinéraire est momentanément indisponible.';
                     }
                 } else {
-                    $gmapsError = 'Origin/Destination manquante (adresse profil ou adresse site) ou clé server absente';
+                    $gmapsError = $calculateTravel ? 'Calcul indisponible : vérifiez les adresses et la configuration du service.' : null;
                 }
 
 

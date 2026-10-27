@@ -29,7 +29,7 @@ class DoctrineManager
         } catch (BillingQuotaExceededException $e) {
             throw $e;
         } catch (\Exception $e) {
-            $this->logger->critical($messageErreur . $e->getMessage());
+            $this->logger->critical(rtrim($messageErreur, " \t\n\r\0\x0B:"), ['exception' => $e]);
             return false;
         }
 
@@ -43,7 +43,7 @@ class DoctrineManager
         } catch (BillingQuotaExceededException $e) {
             throw $e;
         } catch (\Exception $e) {
-            $this->logger->critical($messageErreur . $e->getMessage());
+            $this->logger->critical(rtrim($messageErreur, " \t\n\r\0\x0B:"), ['exception' => $e]);
             return false;
         }
     }

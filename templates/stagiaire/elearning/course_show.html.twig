@@ -829,63 +829,13 @@
                   {# ===== VIDEO (embed robuste) ===== #}
                   {% elseif type == 'video' %}
                     {% set raw = blockUrls[b.id]|default('') %}
-                    {% set embed = '' %}
-
-                    {# YouTube: watch?v=ID #}
-                    {% if raw and ('youtube.com/watch' in raw) and ('v=' in raw) %}
-                      {% set id = raw|split('v=')|last|split('&')|first %}
-                      {% set embed = 'https://www.youtube-nocookie.com/embed/' ~ id %}
-
-                    {# YouTube: youtu.be/ID #}
-                    {% elseif raw and ('youtu.be/' in raw) %}
-                      {% set id = raw|split('youtu.be/')|last|split('?')|first|split('&')|first %}
-                      {% set embed = 'https://www.youtube-nocookie.com/embed/' ~ id %}
-
-                    {# YouTube: déjà embed #}
-                    {% elseif raw and ('youtube.com/embed/' in raw) %}
-                      {% set embed = raw %}
-
-                    {# Vimeo: vimeo.com/ID #}
-                    {% elseif raw and ('vimeo.com/' in raw) %}
-                      {% set id = raw|split('vimeo.com/')|last|split('?')|first|split('&')|first %}
-                      {% set embed = 'https://player.vimeo.com/video/' ~ id %}
-
-                    {% endif %}
-
-                    {% if embed %}
+                    {% if raw %}
                       <div class="media-card">
-                        <div class="video-wrap">
-                          <iframe
-                            src="{{ embed|e('html_attr') }}"
-                            loading="lazy"
-                            allowfullscreen
-                            referrerpolicy="strict-origin-when-cross-origin"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share">
-                          </iframe>
-                        </div>
+                        {% include 'partials/_external_video.html.twig' with {video_src: raw} only %}
                       </div>
-
-                    {% elseif raw and (raw ends with '.mp4' or raw ends with '.webm' or raw ends with '.ogg') %}
-                      <div class="media-card">
-                        <div class="video-wrap" style="padding-top:56.25%">
-                          <video src="{{ raw|e('html_attr') }}" controls playsinline style="position:absolute;inset:0;width:100%;height:100%"></video>
-                        </div>
-                      </div>
-
-                    {% elseif raw %}
-                      <div class="block-muted">
-                        URL vidéo non reconnue pour l’embed.
-                        <div class="mt-2">
-                          <a class="btn btn-sm btn-warning btn-pill" href="{{ raw|e('html_attr') }}" target="_blank" rel="noopener">
-                            <i class="bi bi-box-arrow-up-right"></i> Ouvrir la vidéo
-                          </a>
-                        </div>
-                      </div>
-
                     {% else %}
                       <div class="block-muted">URL vidéo manquante.</div>
                     {% endif %}
-
 
                   {# ===== FILE ===== #}
                   {% elseif type == 'file' %}

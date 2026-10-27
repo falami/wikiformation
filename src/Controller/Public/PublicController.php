@@ -28,6 +28,8 @@ use App\Form\ContactType;
 use Symfony\Component\Mailer\MailerInterface;
 use App\Service\Public\PublicContext;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 #[Route('/')]
 final class PublicController extends AbstractController
@@ -261,7 +263,9 @@ final class PublicController extends AbstractController
     public function contact(
         Request $request,
         MailerInterface $mailer,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        #[Autowire(service: 'limiter.public_contact')] RateLimiterFactory $contactLimiter,
+        #[Autowire(param: 'kernel.secret')] string $contactSecret,
     ): Response {
         if ($this->publicContext->hasCustomHost()) {
             return $this->redirectToRoute('app_public_formation');
@@ -270,10 +274,19 @@ final class PublicController extends AbstractController
         $form = $this->createForm(ContactType::class);
         $form->handleRequest($request);
 
-        $referer = $request->headers->get('referer');
+        // Never redirect to an untrusted Referer; it may disclose the contact outcome externally.
         $fallbackRedirect = $this->generateUrl('app_public_contact');
 
         if ($form->isSubmitted()) {
+            // A first-party anti-abuse control; no third-party script or raw IP cache key.
+            $key = hash_hmac('sha256', 'public-contact:' . ($request->getClientIp() ?? 'unknown'), $contactSecret);
+            $limit = $contactLimiter->create($key)->consume();
+            if (!$limit->isAccepted()) {
+                return new Response('Trop de messages. Réessayez dans quelques minutes.', 429, [
+                    'Retry-After' => (string) max(1, $limit->getRetryAfter()->getTimestamp() - time()),
+                    'Cache-Control' => 'private, no-store',
+                ]);
+            }
             if (!$form->isValid()) {
                 $messages = [];
                 foreach ($form->getErrors(true) as $error) {
@@ -286,25 +299,25 @@ final class PublicController extends AbstractController
 
                 $this->addFlash('danger', implode(' • ', array_unique($messages)));
 
-                return $this->redirect($referer ?: $fallbackRedirect);
+                return $this->redirect($fallbackRedirect);
             }
 
             // Honeypot
             if ($form->get('website')->getData()) {
                 $logger->warning('Spam détecté via honeypot sur le formulaire de contact.');
                 $this->addFlash('danger', 'Une erreur est survenue.');
-                return $this->redirect($referer ?: $fallbackRedirect);
+                return $this->redirect($fallbackRedirect);
             }
 
             // Tempo minimale
             $startedAt = (int) $form->get('startedAt')->getData();
-            if ($startedAt > 0 && (time() - $startedAt) < 2) {
+            if ($startedAt <= 0 || (time() - $startedAt) < 2 || (time() - $startedAt) > 86400) {
                 $logger->warning('Soumission trop rapide du formulaire de contact.', [
                     'delta' => time() - $startedAt,
                 ]);
 
                 $this->addFlash('danger', 'Veuillez réessayer.');
-                return $this->redirect($referer ?: $fallbackRedirect);
+                return $this->redirect($fallbackRedirect);
             }
 
             $data = $form->getData();
@@ -326,14 +339,13 @@ final class PublicController extends AbstractController
                 $this->addFlash('success', 'Votre message a bien été envoyé !');
             } catch (\Throwable $e) {
                 $logger->error('Échec envoi formulaire de contact', [
-                    'message' => $e->getMessage(),
                     'exception' => $e,
                 ]);
 
                 $this->addFlash('danger', "L'envoi a échoué. Réessayez plus tard.");
             }
 
-            return $this->redirect($referer ?: $fallbackRedirect);
+            return $this->redirect($fallbackRedirect);
         }
 
         return $this->render('public/contact.html.twig', [
@@ -380,12 +392,14 @@ final class PublicController extends AbstractController
     }
 
     #[Route('/cgv', name: 'app_public_cgv')]
-    public function cgv(): Response
+    public function cgv(PlanRepository $plans): Response
     {
         if ($this->publicContext->hasCustomHost()) {
             return $this->redirectToRoute('app_public_formation');
         }
-        return $this->render('public/cgv.html.twig');
+        return $this->render('public/cgv.html.twig', [
+            'plans' => $plans->findPublicOffers(),
+        ]);
     }
 
 

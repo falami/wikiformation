@@ -221,6 +221,7 @@
         data.append('date', block.dataset.date);
         data.append('periode', block.dataset.period);
         data.append('signatureData', pad.toDataURL('image/png'));
+        data.append('_token', {{ csrf_token('attendance_' ~ entite.id)|json_encode|raw }});
         const response = await fetch('{{ path("app_formateur_emargement_sign", {entite:entite.id, id:session.id}) }}', {method:'POST', body:data});
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.message || 'La signature n’a pas pu être enregistrée.');

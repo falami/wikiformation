@@ -22,6 +22,7 @@ class EmargementController extends AbstractController
 {
     public function __construct(
         private UtilisateurEntiteManager $utilisateurEntiteManager,
+        private \App\Service\PersonalSignatureImage $signatureImages,
     ) {}
 
     #[Route('/absence', name: 'absence', methods: ['POST'])]
@@ -317,6 +318,10 @@ class EmargementController extends AbstractController
         EmargementRepository $repo,
         EntityManagerInterface $em
     ): JsonResponse {
+        if (!$this->isCsrfTokenValid('attendance_' . $entite->getId(), $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'message' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+        }
+
         $this->assertCanManageSession($entite, $id);
 
         // Vérifier que $user est inscrit à la session
@@ -378,9 +383,14 @@ class EmargementController extends AbstractController
         // Stockage fichier (chemin unifié)
         $oldPath = $existing->getSignaturePath();
         try {
+            $dataUrl = $this->signatureImages->normalize($dataUrl);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+        try {
             $path = $this->storeSignaturePngForUser($dataUrl, $id->getId(), $day, $periodeStr, 'stagiaire', $user->getId());
         } catch (\Throwable $e) {
-            return new JsonResponse(['success' => false, 'message' => 'store_failed: ' . $e->getMessage()], 500);
+            return new JsonResponse(['success' => false, 'message' => 'La signature n’a pas pu être enregistrée. Réessayez ou contactez votre organisme.'], 500);
         }
         if ($oldPath && $oldPath !== $path) {
             $this->deleteFileSilently($oldPath);
@@ -412,6 +422,10 @@ class EmargementController extends AbstractController
         EmargementRepository $repo,
         EntityManagerInterface $em
     ): JsonResponse {
+        if (!$this->isCsrfTokenValid('attendance_' . $entite->getId(), $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'message' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+        }
+
         $this->assertCanManageSession($entite, $id);
         if (!$id->isEmargementRequis()) {
             return new JsonResponse(['success' => false, 'message' => 'Les émargements ne sont pas disponibles pour cette session.'], 403);
@@ -470,9 +484,14 @@ class EmargementController extends AbstractController
         $oldPath = $ema->getSignaturePath();
 
         try {
+            $dataUrl = $this->signatureImages->normalize($dataUrl);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+        try {
             $path = $this->storeSignaturePngForUser($dataUrl, $id->getId(), $date, $periodeStr, 'trainer', $user->getId());
         } catch (\Throwable $e) {
-            return new JsonResponse(['success' => false, 'error' => 'store_failed: ' . $e->getMessage()], 500);
+            return new JsonResponse(['success' => false, 'error' => 'La signature n’a pas pu être enregistrée. Réessayez ou contactez votre organisme.'], 500);
         }
 
         if ($oldPath && $oldPath !== $path) {
@@ -504,6 +523,10 @@ class EmargementController extends AbstractController
         EmargementRepository $repo,
         EntityManagerInterface $em
     ): JsonResponse {
+        if (!$this->isCsrfTokenValid('attendance_' . $entite->getId(), $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'message' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+        }
+
         $this->assertCanManageSession($entite, $id);
 
         /** @var Utilisateur $user */

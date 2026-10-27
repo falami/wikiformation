@@ -11,7 +11,8 @@ class Element {
   setAttribute() {}
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
-async function setup(key = 'test-key') {
+async function setup(key = 'test-key', activate = true) {
+  const events = {};
   const address = new Element(), postal = new Element(), city = new Element();
   const selectors = Object.fromEntries(['status','map','empty','caption','locate','search'].map(name => [`[data-address-${name}]`, new Element()]));
   const root = {dataset:{addressId:'address',postalId:'postal',cityId:'city',googleKey:key},querySelector:s=>selectors[s]};
@@ -22,7 +23,8 @@ async function setup(key = 'test-key') {
     Map:class {constructor(_, options){centers.push(options.center);} setCenter(center){centers.push(center);} setZoom(){}},
     Circle:class {setCenter(){}}
   }};
-  vm.runInNewContext(source,{document:{querySelector:()=>root,getElementById:id=>({address,postal,city})[id]},window:{google},google,Event:class{constructor(type){this.type=type;}},setTimeout:()=>1,clearTimeout(){},URLSearchParams});
+  vm.runInNewContext(source,{document:{addEventListener:(name,fn)=>{events[name]=fn;},querySelector:()=>root,getElementById:id=>({address,postal,city})[id]},window:{google},google,Event:class{constructor(type){this.type=type;}},setTimeout:()=>1,clearTimeout(){},URLSearchParams});
+  if (activate) events['wiki:enable-google-maps']();
   await tick();
   return {address,postal,city,selectors,centers,setGeocoder:fn=>{geocode=fn;},search:selectors['[data-address-search]'].children[0]};
 }
@@ -44,4 +46,8 @@ test('Missing key preserves manual entry and reports unavailable suggestions',as
   assert.equal(f.search,undefined); assert.equal(f.selectors['[data-address-locate]'].disabled,true);
   assert.match(f.selectors['[data-address-status]'].textContent,/manuellement/);
   f.address.value='Adresse manuelle'; await f.address.dispatchEvent({type:'input'}); assert.equal(f.address.value,'Adresse manuelle');
+});
+
+test('Client address never loads Google or geocodes an existing address without activation',async()=>{
+ const f=await setup('test-key', false);assert.equal(f.search,undefined);assert.equal(f.centers.length,0);
 });

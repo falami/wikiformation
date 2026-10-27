@@ -93,7 +93,7 @@ final class ChangePlanController extends AbstractController
         ], 200);
       }
 
-      return $this->json(['ok' => false, 'error' => $e->getMessage()], 400);
+      return $this->json(['ok' => false, 'error' => 'L’estimation du changement d’offre est temporairement indisponible.'], 400);
     }
   }
 

@@ -33,7 +33,7 @@ final class StripeWebhookController extends AbstractController
     try {
       $event = Webhook::constructEvent($payload, (string)$sig, $stripeWebhookSecret);
     } catch (\Throwable $e) {
-      error_log('[STRIPE WEBHOOK] INVALID: ' . $e->getMessage());
+      error_log('[STRIPE WEBHOOK] INVALID: ' . $e::class);
       return new Response('invalid', 400);
     }
 
@@ -133,8 +133,7 @@ final class StripeWebhookController extends AbstractController
     } catch (\Throwable $e) {
       // Un événement non synchronisé doit rester réessayable par Stripe.
       // Les traitements ci-dessus mettent à jour l'abonnement existant.
-      error_log('[STRIPE WEBHOOK] ERROR ' . $event->type . ' : ' . $e->getMessage());
-      error_log($e->getTraceAsString());
+      error_log('[STRIPE WEBHOOK] ERROR ' . $event->type . ' : ' . $e::class);
       return new Response('synchronization_failed', 500);
     }
 

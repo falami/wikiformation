@@ -101,7 +101,7 @@ class DossierInscriptionStagiaireType extends AbstractType
                     'placeholder' => 'Préciser les aménagements nécessaires',
                 ],
                 'constraints' => [new Length(max: 255)],
-                'help' => 'Exemples : accessibilité, matériel adapté, temps supplémentaire, etc.',
+                'help' => 'Indiquez uniquement les adaptations utiles (accessibilité, matériel, temps supplémentaire). Ne renseignez ni diagnostic, ni traitement médical, et ne joignez pas de document médical ici. Pour un échange confidentiel, contactez le référent de votre organisme.',
             ])
 
             ->add('pieces', CollectionType::class, [

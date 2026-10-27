@@ -32,11 +32,36 @@
         const chapter = document.getElementById(link.getAttribute('href').slice(1));
         if (chapter) {
           event.preventDefault();
+          let ancestor = chapter.parentElement.closest('.chapter');
+          while (ancestor) { open(ancestor, true); ancestor = ancestor.parentElement.closest('.chapter'); }
           open(chapter, true);
           chapter.scrollIntoView({block: 'start', behavior: 'smooth'});
         }
       }
     });
+    if (chapters) refreshTree();
+    function refreshTree() {
+      const outline = editor.querySelector('#positioningOutline');
+      if (outline) outline.replaceChildren();
+      function visit(list, prefix) {
+        Array.from(list.children).filter(node => node.matches('.chapter')).forEach((chapter, index) => {
+          const number = prefix ? prefix + '.' + (index + 1) : String(index + 1);
+          chapter.querySelector('.pos-badge').textContent = number;
+          if (outline) {
+            const li = document.createElement('li');
+            const link = document.createElement('a');
+            link.href = '#' + chapter.id;
+            link.textContent = number + ' · ' + chapter.querySelector('h3').textContent;
+            li.style.paddingLeft = (prefix.split('.').filter(Boolean).length * 12) + 'px';
+            li.appendChild(link);
+            outline.appendChild(li);
+          }
+          const children = chapter.querySelector('.pe-children');
+          if (children) visit(children, number);
+        });
+      }
+      visit(chapters, '');
+    }
     if (!chapters || typeof Sortable !== 'function') return;
     const notice = editor.querySelector('#positioningOrderState');
     const instances = [];
@@ -70,12 +95,13 @@
             const response = await fetch(list.dataset.reorderUrl, {
               method: 'POST',
               headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
-              body: JSON.stringify({_token: chapters.dataset.csrf, orderedIds: nodes(list, selector).map(node => Number(node.dataset.id))})
+              body: JSON.stringify({_token: chapters.dataset.csrf, orderedIds: (selector === '.chapter' ? Array.from(chapters.querySelectorAll('.chapter')) : nodes(list, selector)).map(node => Number(node.dataset.id))})
             });
             if (!response.ok) throw new Error('Reorder failed');
             const result = await response.json();
             if (result.ok === false) throw new Error('Reorder rejected');
-            renumber(list, selector);
+            if (selector === '.chapter') refreshTree();
+            else renumber(list, selector);
             notice.textContent = 'Ordre enregistré';
           } catch (_) {
             previous.forEach(node => list.appendChild(node));
@@ -88,6 +114,7 @@
       }));
     }
     attach(chapters, '.chapter', '.drag-handle-chapter');
+    chapters.querySelectorAll('.pe-children').forEach(list => attach(list, '.chapter', '.drag-handle-chapter'));
     chapters.querySelectorAll('.items-sortable').forEach(list => attach(list, '.item', '.drag-handle-item'));
   }
   document.addEventListener('DOMContentLoaded', boot);

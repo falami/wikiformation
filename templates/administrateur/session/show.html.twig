@@ -1104,13 +1104,17 @@ body{ overflow-x:hidden; }
                         </div>
                       </div>
 
+                      {% if travel.originAddress and travel.destAddress %}
+                        <form method="post" action="{{ path('app_administrateur_session_show', {entite: entite.id, id: session.id}) }}" class="mt-3">
+                          <input type="hidden" name="_token" value="{{ csrf_token('session_travel_' ~ session.id) }}">
+                          <input type="hidden" name="travel_trainer" value="{{ f.id }}">
+                          <p class="small text-muted">Ce calcul transmet à Google les adresses du formateur et du site. Vérifiez que cette utilisation est prévue par votre organisme et portée à la connaissance du formateur.</p>
+                          <button type="submit" class="btn btn-sm btn-outline-dark">Calculer les frais avec Google</button>
+                        </form>
+                      {% endif %}
                       {% if travel.gmapsEmbedUrl %}
                         <div class="mt-3 map-frame">
-                          <iframe src="{{ travel.gmapsEmbedUrl }}"
-                                  title="Itinéraire de {{ u ? u.prenom ~ ' ' ~ u.nom : 'ce formateur' }} vers le site"
-                                  loading="lazy"
-                                  referrerpolicy="no-referrer-when-downgrade"
-                                  allowfullscreen></iframe>
+                          {% include 'partials/_google_map.html.twig' with {map_src: travel.gmapsEmbedUrl} only %}
                         </div>
                       {% endif %}
                     </details>

@@ -25,6 +25,7 @@ class StagiaireEmargementController extends AbstractController
 {
     public function __construct(
         private UtilisateurEntiteManager $utilisateurEntiteManager,
+        private \App\Service\PersonalSignatureImage $signatureImages,
     ) {}
     /**
      * FEED pour le modal (MOI + formateur)
@@ -147,6 +148,10 @@ class StagiaireEmargementController extends AbstractController
         InscriptionRepository $inscriptions,
         EntityManagerInterface $em
     ): JsonResponse {
+        if (!$this->isCsrfTokenValid('attendance_' . $entite->getId(), $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'message' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+        }
+
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -219,6 +224,11 @@ class StagiaireEmargementController extends AbstractController
 
         // Écrire le PNG
         try {
+            $dataUrl = $this->signatureImages->normalize($dataUrl);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+        try {
             $path = $this->storeSignaturePng(
                 $dataUrl,
                 $id->getId(),
@@ -227,7 +237,7 @@ class StagiaireEmargementController extends AbstractController
                 'stagiaire-' . $user->getId()
             );
         } catch (\Throwable $e) {
-            return new JsonResponse(['success' => false, 'message' => 'Échec stockage: ' . $e->getMessage()], 500);
+            return new JsonResponse(['success' => false, 'message' => 'La signature n’a pas pu être enregistrée. Réessayez ou contactez votre organisme.'], 500);
         }
 
         $now = new \DateTimeImmutable();
@@ -259,6 +269,10 @@ class StagiaireEmargementController extends AbstractController
         InscriptionRepository $inscriptions,
         EntityManagerInterface $em
     ): JsonResponse {
+        if (!$this->isCsrfTokenValid('attendance_' . $entite->getId(), $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'message' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+        }
+
         /** @var Utilisateur $user */
         $user = $this->getUser();
 

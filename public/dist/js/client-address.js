@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  document.addEventListener('wiki:enable-google-maps', () => {
   const root = document.querySelector('[data-client-address]');
   if (!root) return;
   const address = document.getElementById(root.dataset.addressId);
@@ -107,6 +108,8 @@
   const params = new URLSearchParams({key: root.dataset.googleKey, loading: 'async', callback: 'initClientAddressGoogle', language: 'fr', region: 'FR', v: 'weekly'});
   script.src = 'https://maps.googleapis.com/maps/api/js?' + params;
   script.async = true;
+      script.referrerPolicy = 'strict-origin';
   script.onerror = unavailable;
   document.head.append(script);
+  }, {once: true});
 })();

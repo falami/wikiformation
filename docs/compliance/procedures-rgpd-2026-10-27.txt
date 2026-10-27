@@ -1,0 +1,148 @@
+WIKIFORMATION — PROCÉDURES RGPD ET MISE EN SERVICE
+27 octobre 2026 — Document de travail interne
+
+État : procédures préparées, responsables et preuves d’exécution à renseigner.
+Il ne s’agit pas d’une attestation que ces opérations existent déjà en production.
+
+A. Responsable et calendrier de suivi
+Désigner un responsable opérationnel de la protection des données et un suppléant.
+Renseigner leur contact dans le registre. Documenter si un DPO est obligatoire :
+organisme public, suivi systématique régulier à grande échelle, ou traitement à
+grande échelle de données sensibles/pénales dans les activités de base. Ni le
+nombre de salariés seul, ni l’utilisation d’un logiciel ne permettent de trancher.
+
+Évaluer le besoin d’AIPD pour les évaluations/scoring, suivi des apprenants,
+personnes vulnérables, données de santé/handicap, rapprochements de fichiers,
+géolocalisation et décisions ayant des effets significatifs. Documenter le volume,
+les usages réels, les critères et la décision ; pas de conclusion automatique
+« non nécessaire » à partir du code. Si le risque résiduel élevé ne peut être
+réduit, examiner la consultation préalable de la CNIL avant traitement.
+
+Chaque jour ouvré : file des demandes, boîte de contact et alertes sécurité.
+Chaque mois : suivi des échéances, anomalies d’accès, sous-traitants et changements.
+À chaque nouvelle finalité/prestataire/module : registre, notice, bases légales,
+minimisation, conservation, contrat et réévaluation des risques.
+Conserver notamment les conditions effectivement applicables au compte o2switch,
+avec la version de son accord de sous-traitance : https://www.o2switch.fr/du-rgpd.pdf
+Le document public trouvé ne prouve pas à lui seul la contractualisation du compte.
+o2switch est confirmé par l’exploitant pour l’hébergement et la messagerie de
+production le 27/10/2026 ; vérifier également les relais SMTP et secours applicables.
+
+B. Déploiement technique — opérateur habilité
+Les changements sont dans le dépôt local ; aucun déploiement de production ni
+aucune migration des données métier n’a été exécuté pendant cet audit.
+- Sauvegarder et vérifier la procédure de restauration avant la livraison.
+- Revoir la migration Version20261027024500 créant la file des demandes RGPD.
+  L’appliquer dans le déploiement habituel après essai en préproduction.
+- Déployer également les fichiers JS/CSS et les règles public/.htaccess.
+- Vider/réchauffer le cache applicatif selon la procédure de livraison.
+- Contrôler connexion, /compte/confidentialite et export avec un compte de recette.
+- Vérifier anonymement en production qu’un fichier privé existant ne peut pas
+  être récupéré via son URL statique. Utiliser une sentinelle de recette et la
+  supprimer ensuite ; ne pas diffuser l’URL d’une vraie pièce personnelle.
+- Vérifier HTTPS, Secure/HttpOnly/SameSite, absence de debug/profiler, répertoire
+  racine public/, clés non accessibles, règles proxy/CDN et no-store effectif.
+- Recetter refus/acceptation/retrait cookies avec une nouvelle session navigateur ;
+  vérifier le réseau, les cookies tiers et les domaines white-label également.
+- Recetter cartes/adresses/vidéos : pas de connexion au fournisseur avant activation,
+  saisie manuelle conservée, chargement après action, retour sans choix persistant.
+- Activer la supervision humaine de la file RGPD AVANT d’annoncer le service.
+
+C. Demandes de droits
+Environnement cible et accès shell doivent être vérifiés avant toute commande.
+Liste sans contenu personnel : php bin/console app:privacy:requests
+Alertes de retard : php bin/console app:privacy:requests --overdue
+Le code de sortie 1 signifie demandes en retard ; brancher la supervision réelle.
+Consultation ciblée, terminal privé :
+  php bin/console app:privacy:requests REFERENCE --details
+Traitement :
+  php bin/console app:privacy:requests REFERENCE --status=processing --operator=IDENTIFIANT_INTERNE
+Réponse après réalisation/qualification :
+  php bin/console app:privacy:requests REFERENCE --status=answered --operator=IDENTIFIANT_INTERNE --response-file=/chemin/prive/reponse.txt
+
+La réponse est visible dans le compte ; aucun e-mail automatique n’est envoyé.
+Informer la personne par le canal convenu et conserver la preuve de remise.
+Ne pas laisser une réponse uniquement dans un compte auquel elle n’accède plus.
+Le marquage « répondu » n’efface pas les données et ne réalise pas la demande.
+
+1. Enregistrer aussi les demandes reçues par e-mail/courrier dans un dossier
+   restreint avec date de réception, identité utile, objet et échéance.
+2. Vérifier l’identité de manière proportionnée ; ne pas exiger systématiquement
+   une copie d’identité. Restreindre puis supprimer une preuve dès qu’inutile.
+3. Qualifier le responsable : plateforme, organisme client, ou les deux. Ne pas
+   déplacer le délai légal en attendant une équipe interne. Alerter le client.
+4. Répondre en principe dans un mois. Une prolongation admissible doit être
+   motivée et annoncée dans le premier mois ; l’échéance initiale du logiciel
+   n’est pas un calcul complet de toutes les exceptions réglementaires.
+5. Pour l’accès : l’export autonome est un sous-ensemble des données de compte.
+   Rechercher aussi fichiers, signatures, messages, logs, archives et prestataires.
+   Protéger les droits d’autrui et vérifier les destinataires avant transmission.
+6. Pour rectification/effacement : qualifier les obligations légales et litiges,
+   traiter les copies et destinataires concernés, respecter les autres organismes.
+   Suspendre une adhésion n’est pas effacer les données. Anonymiser réellement si
+   choisi ; remplacer le nom tout en gardant un identifiant réidentifiable ne suffit pas.
+7. Ne pas confondre consentement newsletter, contrat de service et obligations
+   légales. Le retrait newsletter est disponible ; les anciens booléens d’opt-in
+   ne prouvent pas à eux seuls un consentement valable/versionné pour une campagne.
+8. Conserver le dossier de traitement selon la durée documentée approuvée,
+   puis limiter/effacer les éléments devenus inutiles.
+
+D. Conservation — décisions nécessaires, pas de purge globale arbitraire
+L’inventaire technique se produit sans lire les personnes :
+  php bin/console app:privacy:inventory
+Pour chaque traitement : finalité, catégories, point de départ, durée active,
+archive éventuelle, fondement, habilitations, sort final, sauvegardes, exceptions.
+
+- Comptabilité : vérifier l’application de L123-22 (10 ans pour documents comptables
+  et pièces justificatives). Ce délai n’autorise pas à garder tous les dossiers,
+  profils, résultats, adresses ou logs 10 ans. Définir précisément le départ.
+- Formation : durées à justifier par documents, obligations du financeur, preuve
+  de prestation et recours applicables. Ne pas inventer une durée universelle
+  « Qualiopi/RGPD » pour tous les clients et toutes les données.
+- Prospects/candidats/support : déterminer fin de besoin, dernier contact utile,
+  archive éventuelle et opposition ; valider les règles avant campagne.
+- Sécurité : borner logs, rapports d’erreur, IP et accès à l’usage de sécurité.
+  La rotation stderr/logs o2switch n’a pas été attestée.
+- OCR : le code tente le nettoyage GCS, y compris sur erreur ; vérifier une règle
+  de cycle de vie du bucket couvrant les objets orphelins et les versions.
+- Sauvegardes : durée maximum, chiffrement, accès, rotation et destruction à
+  obtenir d’o2switch. Documenter la réapplication des effacements après restauration.
+- Conventions papier : conserver et protéger aussi les originaux/scans ; accès
+  limité, durée justifiée et destruction confidentielle à l’échéance.
+
+Mettre ensuite en œuvre des purges par catégorie : simulation, liste approuvée,
+exclusion des litiges/obligations, export éventuel, contrôle croisé des relations,
+exécution traçable, suppression des fichiers et contrôle postérieur. Aucune purge
+générale ni suppression de dossiers réels n’a été faite dans cette intervention.
+
+E. Incident / violation de données
+Consigner tout incident : date de détection/connaissance, systèmes, personnes et
+données potentiellement touchées, disponibilité/confidentialité/intégrité,
+chronologie, mesures et décision motivée de notification.
+Contenir sans détruire les preuves : révoquer les accès compromis, isoler le
+service, corriger, vérifier sauvegardes et périmètre, faire intervenir l’hébergeur.
+Si WikiFormation est sous-traitant : alerter le client sans délai indu, même avant
+l’enquête complète ; lui fournir les éléments puis mises à jour nécessaires.
+Pour ses propres traitements : évaluer le risque. Si notification requise,
+notifier la CNIL dans les meilleurs délais, si possible sous 72 h après prise de
+connaissance ; justifier un retard et compléter progressivement si nécessaire.
+Si risque élevé : informer les personnes sans délai indu, sauf exception applicable.
+Les décisions de non-notification sont également documentées. Ne pas attendre
+une certitude absolue ou la réparation pour lancer cette évaluation.
+
+F. Preuves à conserver dans un espace restreint hors dépôt public
+Registres approuvés et versions, analyses bases légales/intérêt légitime, notices,
+contrats signés, liste fournisseurs et garanties de transfert, AIPD si applicable,
+revues d’accès, formations du personnel, tests restauration, incidents, demandes,
+calendrier et preuves de suppression, versions déployées et résultats de recette.
+Ne pas y ajouter de secrets, exports complets de stagiaires ou copies d’identité
+sans nécessité. Le présent dépôt contient des modèles, pas les dossiers individuels.
+
+Références officielles consultées le 27/10/2026 :
+https://www.cnil.fr/fr/guide-de-la-securite-des-donnees-personnelles
+https://www.cnil.fr/fr/passer-laction/les-durees-de-conservation-des-donnees
+https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219327
+https://cnil.fr/fr/passer-laction/les-droits-des-personnes-sur-leurs-donnees
+https://cnil.fr/fr/violations-de-donnees-personnelles-les-regles-suivre
+https://www.cnil.fr/fr/le-delegue-la-protection-des-donnees-dpo/devenir-delegue-la-protection-des-donnees
+https://www.legifrance.gouv.fr/jorf/article_jo/JORFARTI000037559519

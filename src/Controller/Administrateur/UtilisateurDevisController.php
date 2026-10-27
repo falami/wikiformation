@@ -48,9 +48,7 @@ final class UtilisateurDevisController extends AbstractController
       throw $this->createAccessDeniedException('Devis non autorisé pour cette entité.');
     }
 
-    // ✅ Adapte ici selon TON modèle : devis->getUtilisateur() OU devis->getStagiaire() OU via entreprise etc.
-    // Hypothèse : $devis->getUtilisateur() existe
-    if (method_exists($devis, 'getUtilisateur') && $devis->getDestinataire()?->getId() !== $u->getId()) {
+    if ($devis->getDestinataire()?->getId() !== $u->getId()) {
       throw $this->createAccessDeniedException('Ce devis n’est pas rattaché à cet utilisateur.');
     }
   }
@@ -82,6 +80,7 @@ final class UtilisateurDevisController extends AbstractController
       'to'       => $u->getEmail() ?? '',
       'subject'  => $this->defaultSubject($entite, $devis),
       'idemKey'  => $this->idemKey(),
+      'csrfTokenId' => 'user_devis_send_' . $u->getId() . '_' . $devis->getId(),
       'defaultMessage' => "Bonjour {$u->getPrenom()},\n\nVeuillez trouver votre devis en pièce jointe.\n\nCordialement,\n" . ($entite->getNom() ?? ''),
       'attachPdfDefault' => true,
       'previewUrl' => $this->generateUrl('app_administrateur_utilisateur_devis_preview', [
@@ -135,6 +134,9 @@ final class UtilisateurDevisController extends AbstractController
   {
     $this->guardEntite($entite, $u);
     $this->assertDevisForUser($entite, $u, $devis);
+    if (!$this->isCsrfTokenValid('user_devis_send_' . $u->getId() . '_' . $devis->getId(), $request->request->get('_token'))) {
+      return $this->json(['ok' => false, 'error' => 'Votre page a expiré. Actualisez-la avant de réessayer.'], 403);
+    }
     /** @var Utilisateur $user */
     $user = $this->getUser();
 
@@ -229,9 +231,9 @@ final class UtilisateurDevisController extends AbstractController
 
       $log->setStatus('SENT')->setSentAt(new \DateTimeImmutable());
     } catch (\Throwable $e) {
-      $log->setStatus('FAILED')->setErrorMessage($e->getMessage());
+      $log->setStatus('FAILED')->setErrorMessage('Échec de l’envoi (' . $e::class . '). Vérifiez la configuration de messagerie.');
       $this->em->flush();
-      return $this->json(['ok' => false, 'error' => 'Envoi échoué : ' . $e->getMessage()], 500);
+      return $this->json(['ok' => false, 'error' => 'L’envoi a échoué. Vérifiez la configuration de messagerie ou contactez le support.'], 500);
     }
 
     // ✅ Interaction

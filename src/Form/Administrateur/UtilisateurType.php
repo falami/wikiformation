@@ -135,10 +135,6 @@ final class UtilisateurType extends AbstractType
                 'required' => false,
                 'disabled' => $locked || $identityLocked,
             ])
-            ->add('newsletter', CheckboxType::class, [
-                'required' => false,
-                'disabled' => $locked,
-            ])
             ->add('ueRoles', ChoiceType::class, [
                 'mapped' => false,
                 'required' => true,

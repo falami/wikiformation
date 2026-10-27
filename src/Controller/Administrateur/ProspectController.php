@@ -283,7 +283,7 @@ final class ProspectController extends AbstractController
         $this->addFlash('success', 'Prospect converti : client créé/associé. Prospect désactivé, historique conservé.');
       }
     } catch (\Throwable $e) {
-      $this->addFlash('danger', 'Conversion impossible : ' . $e->getMessage());
+      $this->addFlash('danger', $e instanceof \App\Exception\BillingQuotaExceededException ? $e->getMessage() : 'La conversion n’a pas abouti. Vérifiez les coordonnées du prospect ou contactez le support.');
     }
 
     return $this->redirectToRoute('app_administrateur_prospect_show', [

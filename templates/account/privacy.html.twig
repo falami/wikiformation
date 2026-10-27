@@ -1,0 +1,46 @@
+{% extends entite ? 'base_admin.html.twig' : 'base.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}Mes données personnelles · WikiFormation{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/preferences.css') }}">{% endblock %}
+{% block body %}
+<div class="preferences">
+  <header class="pref-hero"><div class="eyebrow">Mon compte · Confidentialité</div><h1>Mes données personnelles</h1><p>Consultez vos informations, gérez votre préférence newsletter et exercez vos droits.</p></header>
+  {% include 'flagMessage.html.twig' %}
+  <div class="pref-layout">
+    {% include 'account/_navigation.html.twig' %}
+    <main>
+      <section class="pref-panel mb-4">
+        <h2>Récupérer mes informations</h2>
+        <p>Cet export JSON contient vos coordonnées de compte, vos rattachements aux organismes et un résumé de vos inscriptions. Il ne contient pas l’intégralité des documents, évaluations ou historiques vous concernant.</p>
+        <form method="post" action="{{ path('app_account_privacy_export') }}" data-turbo="false"><input type="hidden" name="_token" value="{{ csrf_token('account_privacy_export') }}"><button class="btn btn-primary">Télécharger mes données de compte</button></form>
+        <p class="mt-3"><a href="{{ path('app_market_data_export') }}" data-turbo="false">Télécharger mes achats et parcours e-learning</a></p>
+        <p>Pour une copie complète ou des éléments complémentaires, choisissez « Accès à mes données » ci-dessous. Les données des autres personnes sont protégées.</p>
+      </section>
+      <section class="pref-panel mb-4">
+        <h2>Newsletter</h2>
+        <p>Préférence enregistrée : <strong>{{ app.user.newsletter ? 'Activée' : 'Désactivée' }}</strong>.</p>
+        {% if app.user.newsletter %}<form method="post" action="{{ path('app_account_privacy_newsletter_withdraw') }}"><input type="hidden" name="_token" value="{{ csrf_token('account_privacy_newsletter') }}"><button class="btn btn-outline-secondary">Désactiver la newsletter</button></form>{% endif %}
+        <p class="mt-3">Cette préférence concerne la prospection. Les messages nécessaires à votre compte, à vos commandes et à vos formations sont distincts.</p>
+      </section>
+      <section class="pref-panel mb-4">
+        <h2>Exercer mes droits</h2>
+        <p>Votre demande est enregistrée avec une référence et reste consultable ici. Une réponse doit vous être apportée en principe sous un mois. Si un délai supplémentaire est justifié, vous devez en être informé dans ce premier mois.</p>
+        <div class="pref-note">Une demande d’effacement fait l’objet d’un examen : certaines pièces peuvent devoir être conservées pour une obligation légale ou un litige. Les dossiers de formation sont examinés avec l’organisme responsable. L’envoi de cette demande ne supprime pas automatiquement votre compte.</div>
+        {{ form_start(form) }}{{ form_widget(form) }}<div class="pref-actions"><button class="btn btn-primary">Enregistrer ma demande</button></div>{{ form_end(form) }}
+        <p class="mt-3">Vous pouvez aussi écrire à <a href="mailto:contact@wikiformation.fr">contact@wikiformation.fr</a>, notamment si vous ne pouvez plus vous connecter, ou <a href="https://www.cnil.fr/fr/adresser-une-plainte" target="_blank" rel="noopener noreferrer">saisir la CNIL</a>.</p>
+      </section>
+      <section class="pref-panel">
+        <h2>Mes demandes</h2>
+        {% for item in requests %}
+          <article class="border rounded p-3 mb-3">
+            <h3 class="h5">{{ item.typeLabel }} <small class="text-muted">{{ item.reference }}</small></h3>
+            <p>{{ item.statusLabel }} · Reçue le {{ item.requestedAt|date('d/m/Y') }} · Réponse initiale attendue au plus tard le {{ item.dueAt|date('d/m/Y') }}</p>
+            {% if item.details %}<p style="white-space:pre-wrap">{{ item.details }}</p>{% endif %}
+            {% if item.response %}<h4 class="h6">Réponse du {{ item.answeredAt|date('d/m/Y') }}</h4><p style="white-space:pre-wrap">{{ item.response }}</p>{% endif %}
+          </article>
+        {% else %}<p>Aucune demande enregistrée.</p>{% endfor %}
+      </section>
+    </main>
+  </div>
+</div>
+{% endblock %}
