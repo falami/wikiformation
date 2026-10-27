@@ -137,6 +137,24 @@ final class QcmController extends AbstractController
     ]);
   }
 
+  #[Route('/{id}/preview', name: 'preview', requirements: ['id' => '\d+'], methods: ['GET'])]
+  public function preview(Entite $entite, Qcm $qcm, EM $em): Response
+  {
+    if ($qcm->getEntite()?->getId() !== $entite->getId()) {
+      throw $this->createNotFoundException();
+    }
+
+    $response = $this->render('administrateur/qcm/preview.html.twig', [
+      'entite' => $entite,
+      'qcm' => $qcm,
+      'questions' => $em->getRepository(QcmQuestion::class)->findBy(
+        ['qcm' => $qcm], ['ordre' => 'ASC', 'id' => 'ASC']
+      ),
+    ]);
+    $response->headers->set('Cache-Control', 'private, no-store');
+    return $response;
+  }
+
   #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
   public function new(Entite $entite, Request $req, EM $em): Response
   {
@@ -396,7 +414,8 @@ final class QcmController extends AbstractController
         : '<span class="badge-soft off"><i class="bi bi-slash-circle"></i> Non</span>';
 
       $actions = sprintf(
-        '<a class="btn btn-sm btn-outline-primary" href="%s"><i class="bi bi-pencil"></i> Modifier</a>',
+        '<div class="d-inline-flex gap-2"><a class="btn btn-sm btn-outline-primary" href="%s"><i class="bi bi-eye"></i> Visualiser</a><a class="btn btn-sm btn-outline-primary" href="%s"><i class="bi bi-pencil"></i> Modifier</a></div>',
+        $this->generateUrl('app_administrateur_qcm_preview', ['entite' => $entite->getId(), 'id' => $id]),
         $this->generateUrl('app_administrateur_qcm_edit', ['entite' => $entite->getId(), 'id' => $id])
       );
 

@@ -2177,7 +2177,13 @@
       chartCash = new Chart(elCash,{
         type:'line',
         data:{
-          labels:d.cashByMonth?.labels || [],
+          labels:(d.cashByMonth?.labels || []).map(label => {
+            const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(label));
+            if (!match) return label;
+            const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+              'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            return `${months[Number(match[2]) - 1]} ${match[1]}`;
+          }),
           datasets:[{
             label:'€ encaissés',
             data:d.cashByMonth?.data || [],

@@ -1,0 +1,74 @@
+{% extends 'base_admin.html.twig' %}
+
+{% block title %}Visualiser — {{ qcm.titre }}{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    .qcm-preview { max-width: 1100px; margin: 0 auto; color: #233342; }
+    .qcm-preview .preview-panel { background: #fff; border: 1px solid #dfe6ef; border-radius: 20px; padding: clamp(1rem, 3vw, 2rem); margin-bottom: 1.25rem; }
+    .qcm-preview .preview-heading { border-top: 4px solid #ffc107; background: linear-gradient(110deg, #fff, #fffbef); }
+    .qcm-preview .preview-option { display: flex; align-items: flex-start; gap: .75rem; padding: .85rem 1rem; margin-bottom: .6rem; border: 1px solid #dfe6ef; border-radius: 12px; cursor: pointer; }
+    .qcm-preview .preview-option:has(input:checked) { background: #fff8df; border-color: #d5a520; }
+    .qcm-preview .preview-media { max-height: 320px; object-fit: contain; }
+    .qcm-preview .preview-text { white-space: pre-line; overflow-wrap: anywhere; }
+    .qcm-preview summary { cursor: pointer; font-weight: 600; }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+  <div class="qcm-preview">
+    <header class="preview-panel preview-heading">
+      <div class="d-flex flex-wrap gap-2 justify-content-between align-items-start mb-3">
+        <span class="badge text-bg-light">Aperçu du questionnaire</span>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-secondary" href="{{ path('app_administrateur_qcm_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left"></i> Retour à la liste</a>
+          <a class="btn btn-outline-primary" href="{{ path('app_administrateur_qcm_edit', {entite: entite.id, id: qcm.id}) }}"><i class="bi bi-pencil"></i> Modifier</a>
+        </div>
+      </div>
+      <h1 class="h3">{{ qcm.titre }}</h1>
+      {% if qcm.description %}<p class="preview-text">{{ qcm.description }}</p>{% endif %}
+      {% set totalPoints = 0 %}
+      {% for question in questions %}{% set totalPoints = totalPoints + (question.pointsMax ?? 0) %}{% endfor %}
+      <p class="mb-2">{{ questions|length }} question(s) · {{ totalPoints }} point(s) · {{ qcm.isActive ? 'Actif' : 'Inactif' }}</p>
+      <p class="text-muted mb-0">Vous pouvez sélectionner des réponses pour parcourir le questionnaire. Aucun résultat n’est enregistré. Le corrigé est réservé à cet aperçu administrateur.</p>
+    </header>
+
+    {% for question in questions %}
+      <section class="preview-panel" aria-labelledby="question-title-{{ question.id }}">
+        <p class="small text-muted">Question {{ loop.index }} · {{ question.type.value == 'multiple' ? 'Plusieurs réponses possibles' : 'Une seule réponse' }} · {{ question.pointsMax ?? 0 }} point(s)</p>
+        <h2 class="h5 preview-text mb-3" id="question-title-{{ question.id }}">{{ question.enonce }}</h2>
+        {% if question.image %}<img class="img-fluid preview-media mb-3" src="{{ asset('uploads/qcm/questions/' ~ question.image) }}" alt="Illustration de la question {{ loop.index }}">{% endif %}
+        {% if question.videoUrl %}{% include 'partials/_external_video.html.twig' with {video_src: question.videoUrl} only %}{% endif %}
+        <div role="group" aria-labelledby="question-title-{{ question.id }}">
+          {% for option in question.options %}
+            <label class="preview-option" for="preview-option-{{ option.id }}">
+              <input class="form-check-input flex-shrink-0" type="{{ question.type.value == 'multiple' ? 'checkbox' : 'radio' }}" name="preview-question-{{ question.id }}" id="preview-option-{{ option.id }}" value="{{ option.id }}">
+              <span>
+                <span class="preview-text">{{ option.label }}</span>
+                {% if option.image %}<img class="img-fluid preview-media d-block mt-2" src="{{ asset('uploads/qcm/options/' ~ option.image) }}" alt="Illustration de la réponse {{ loop.index }}">{% endif %}
+              </span>
+            </label>
+            {% if option.videoUrl %}{% include 'partials/_external_video.html.twig' with {video_src: option.videoUrl} only %}{% endif %}
+          {% else %}
+            <p class="text-muted">Aucune réponse proposée pour cette question.</p>
+          {% endfor %}
+        </div>
+        <details class="mt-3">
+          <summary>Afficher le corrigé</summary>
+          <ul class="mt-2 mb-0">
+            {% for option in question.options|filter(option => option.isCorrect) %}
+              <li class="preview-text">{{ option.label }}</li>
+            {% else %}
+              <li>Aucune bonne réponse configurée.</li>
+            {% endfor %}
+          </ul>
+        </details>
+      </section>
+    {% else %}
+      <div class="preview-panel text-center">Ce questionnaire ne contient pas encore de questions.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

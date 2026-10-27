@@ -74,7 +74,7 @@ final class PublicContext
             return false;
         }
 
-        // Host global Wikiformation : toutes les formations publiques
+        // Host global Wiki Formation : toutes les formations publiques
         // sauf celles que tu as explicitement retirées
         if ($host->isShowAllPublicFormations()) {
             if ($formation->isExcludeFromGlobalCatalogue()) {

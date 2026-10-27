@@ -27,7 +27,7 @@ final class EntiteOnboardingType extends AbstractType
                 'required' => true,
                 'attr' => [
                     'class' => 'form-control form-control-lg',
-                    'placeholder' => 'Ex. WikiFormation Academy',
+                    'placeholder' => 'Ex. Wiki Formation Academy',
                     'autocomplete' => 'organization',
                 ],
                 'constraints' => [

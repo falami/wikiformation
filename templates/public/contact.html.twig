@@ -828,6 +828,7 @@
         }
 
     </style>
+    <link rel="stylesheet" href="{{ asset('dist/css/contact-premium.css') }}?v=20261027-1">
 {% endblock %}
 
 {% block body %}
@@ -846,14 +847,10 @@
                     {{ 'contact.hero.chip'|trans }}
                 </span>
 
-                <h1 class="hero-title">
-                    {{ 'contact.hero.title'|trans|raw|replace({'WikiFormation': '<span class="accent">WikiFormation</span>'}) }}
-                </h1>
-
-                <p class="hero-subtitle">
-                    {{ 'contact.hero.subtitle'|trans }}
-                </p>
-
+                {% set english = app.request.locale == 'en' %}
+                <h1 class="hero-title">{{ english ? 'Great projects begin' : 'Les beaux projets commencent' }}<br><em>{{ english ? 'with a conversation.' : 'par un échange.' }}</em></h1>
+                <p class="hero-subtitle">{{ english ? 'A question, a project, a demo? Tell us what you have in mind. We’ll help you take the next step.' : 'Une question, un projet, une démonstration ? Parlez-nous de vos besoins. Nous vous aidons à avancer.' }}</p>
+                <a class="contact-hero-link" href="#contact-form">{{ english ? 'Let’s talk about your project' : 'Parlons de votre projet' }} <i class="bi bi-arrow-down" aria-hidden="true"></i></a>
                 <div class="hero-kpis">
                     <span class="hero-kpi">
                         <i class="bi bi-lightning-charge"></i>
@@ -880,7 +877,7 @@
         <div class="contact-shell">
             <div class="contact-grid">
 
-                <section class="main-card">
+                <section class="main-card" id="contact-form" aria-labelledby="contact-form-title">
                     <div class="main-card-head">
                         <div class="main-head-left">
                             <div class="main-icon">
@@ -888,7 +885,7 @@
                             </div>
 
                             <div>
-                                <h2 class="main-title">{{ 'contact.form.title'|trans }}</h2>
+                                <h2 class="main-title" id="contact-form-title">{{ 'contact.form.title'|trans }}</h2>
                                 <p class="main-subtitle">{{ 'contact.form.subtitle'|trans }}</p>
                             </div>
                         </div>
@@ -922,7 +919,7 @@
                                 <i class="bi bi-person field-icon center"></i>
                                 <div class="field-card">
                                     <div class="form-floating">
-                                        {{ form_widget(form.nom, {'attr': {'class': 'form-control', 'placeholder': ' '}}) }}
+                                        {{ form_widget(form.nom, {'attr': {'class': 'form-control', 'placeholder': ' ', 'autocomplete': 'name'}}) }}
                                         {{ form_label(form.nom, 'contact.form.fields.name'|trans) }}
                                     </div>
                                 </div>
@@ -933,7 +930,7 @@
                                 <i class="bi bi-envelope field-icon center"></i>
                                 <div class="field-card">
                                     <div class="form-floating">
-                                        {{ form_widget(form.email, {'attr': {'class': 'form-control', 'placeholder': ' '}}) }}
+                                        {{ form_widget(form.email, {'attr': {'class': 'form-control', 'placeholder': ' ', 'autocomplete': 'email'}}) }}
                                         {{ form_label(form.email, 'contact.form.fields.email'|trans) }}
                                     </div>
                                 </div>
@@ -950,28 +947,6 @@
                                 </div>
                             </div>
                             {{ form_errors(form.message) }}
-                        </div>
-
-                        <div class="meta-row">
-                            <div class="mini-panel">
-                                <p class="mini-panel-title">
-                                    <i class="bi bi-lock"></i>
-                                    {{ 'contact.info.rgpd'|trans }}
-                                </p>
-                                <p class="mini-panel-text">
-                                    {{ 'contact.bottom.note'|trans }}
-                                </p>
-                            </div>
-
-                            <div class="mini-panel">
-                                <p class="mini-panel-title">
-                                    <i class="bi bi-magic"></i>
-                                    WikiFormation
-                                </p>
-                                <p class="mini-panel-text">
-                                    Une plateforme pensée pour simplifier l’administratif, fluidifier les échanges et professionnaliser votre gestion de formation.
-                                </p>
-                            </div>
                         </div>
 
                         {% include 'public/_contact_privacy_notice.html.twig' %}
