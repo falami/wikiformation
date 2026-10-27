@@ -649,6 +649,33 @@ final class TrainerWorkflowTest extends KernelTestCase
         $this->em->persist($c); $this->em->flush(); return $c;
     }
 
+    public function testSupportTraineesIncludeAllSelectedSessionsWithoutDuplicates(): void
+    {
+        $second = (new Session())->setEntite($this->entite)->setCreateur($this->admin)
+            ->setFormation($this->session->getFormation())->setSite($this->session->getSite())->setCode('SES-SUPPORT');
+        $this->em->persist($second);
+        $this->em->persist((new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)->setSession($second)->setStagiaire($this->admin));
+        $this->em->flush();
+        $client = $this->client();
+        $url = $this->url('app_formateur_supports_trainees_feed');
+        $ids = [$this->session->getId(), $second->getId()];
+        $client->request('GET', $url, ['sessionIds' => $ids]);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame([$this->admin->getId()], array_column(json_decode($client->getResponse()->getContent(), true)['data'], 'id'));
+
+        $this->em->persist((new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)->setSession($this->session)->setStagiaire($this->admin));
+        $this->em->flush();
+        $client->request('GET', $url, ['sessionIds' => $ids]);
+        self::assertCount(1, json_decode($client->getResponse()->getContent(), true)['data']);
+        $client->request('GET', $url, ['sessionId' => $second->getId()]);
+        self::assertCount(1, json_decode($client->getResponse()->getContent(), true)['data']);
+        $client->request('GET', $url);
+        self::assertSame([], json_decode($client->getResponse()->getContent(), true)['data']);
+        $client->request('GET', $url, ['sessionIds' => [$second->getId(), 999999]]);
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+        self::assertSame([], json_decode($client->getResponse()->getContent(), true)['data']);
+    }
+
     private function client(): KernelBrowser
     {
         $client = new KernelBrowser(self::$kernel); $client->disableReboot(); $client->catchExceptions(false); $client->loginUser($this->admin); return $client;

@@ -296,7 +296,7 @@ table.dataTable tbody td{ vertical-align:middle; }
             </div>
           </section>
 
-          <p class="library-hint">Les stagiaires affichés sont ceux de la première session sélectionnée.</p>
+          <p class="library-hint">Les stagiaires de toutes les sessions sélectionnées sont affichés, sans doublons.</p>
           <!-- Carte stagiaires -->
           <section class="assign-card">
             <div class="ac-head">
@@ -578,23 +578,26 @@ document.addEventListener('DOMContentLoaded', function () {
       updateCounts();
 
       // ✅ Recharge la liste stagiaires pour la session sélectionnée
+      const pending = dtUsers.settings()[0].jqXHR;
+      if (pending && pending.readyState !== 4) pending.abort();
       dtUsers.ajax.reload(null, true);
     });
 
 
     // ===== DataTable : Utilisateurs (sélection) =====
-    // Helper : 1ère session cochée
-    function getSelectedSessionId(){
-      return selectedSessions.values().next().value || null;
-    }
-
     // ===== DataTable : Utilisateurs (sélection) =====
     const dtUsers = $('#dtUsersSelect').DataTable({
       ajax: {
         url: "{{ path('app_formateur_supports_trainees_feed', {entite: entite.id}) }}",
         dataSrc: 'data',
+        error: function (_xhr, status) {
+          if (status === 'abort') return;
+          selectedUsers.clear();
+          dtUsers.clear().draw();
+          showModal('Chargement impossible', 'Impossible de charger les stagiaires des sessions sélectionnées. Réessaie en sélectionnant à nouveau une session.', 'danger');
+        },
         data: function (d) {
-          d.sessionId = getSelectedSessionId() || 0; // IMPORTANT
+          d.sessionIds = Array.from(selectedSessions);
         }
       },
       columns:[

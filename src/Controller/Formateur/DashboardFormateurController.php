@@ -948,16 +948,22 @@ class DashboardFormateurController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-        $sessionId = (int) $request->query->get('sessionId');
-        if ($sessionId <= 0) {
+        $sessionIds = $request->query->all('sessionIds');
+        if (!$sessionIds) {
+            $sessionIds = [(int) $request->query->get('sessionId', 0)];
+        }
+        $sessionIds = array_values(array_unique(array_filter(array_map('intval', $sessionIds), static fn (int $id): bool => $id > 0)));
+        if (!$sessionIds) {
             return new JsonResponse(['data' => []]);
         }
 
-        // Sécurité: la session doit appartenir à l'entité + au formateur connecté
-        $session = $em->getRepository(Session::class)->find($sessionId);
-        if (!$session || $session->getEntite()?->getId() !== $entite->getId()
-            || (!$this->isAssignedTo($session, $entite) && !$this->isEntiteAdmin($entite))) {
-            return new JsonResponse(['data' => []], 403);
+        // Validate every selected session before returning any participant data.
+        foreach ($sessionIds as $sessionId) {
+            $session = $em->getRepository(Session::class)->find($sessionId);
+            if (!$session || $session->getEntite()?->getId() !== $entite->getId()
+                || (!$this->isAssignedTo($session, $entite) && !$this->isEntiteAdmin($entite))) {
+                return new JsonResponse(['data' => [], 'error' => 'Une session sélectionnée n’est pas accessible.'], 403);
+            }
         }
 
         // Liste des stagiaires inscrits à la session (distinct)
@@ -966,7 +972,7 @@ class DashboardFormateurController extends AbstractController
             ->from(Inscription::class, 'i')
             ->join('i.stagiaire', 'u')
             ->join('i.session', 's')
-            ->andWhere('s.id = :sid')->setParameter('sid', $sessionId)
+            ->andWhere('s.id IN (:sids)')->setParameter('sids', $sessionIds)
             ->andWhere('i.stagiaire IS NOT NULL')
             ->orderBy('u.nom', 'ASC')
             ->addOrderBy('u.prenom', 'ASC')

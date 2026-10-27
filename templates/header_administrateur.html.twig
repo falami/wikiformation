@@ -1,364 +1,104 @@
-{# templates/header_administrateur.html.twig #}
-<nav class="navbar navbar-expand-lg bg-body-tertiary adminTopNav">
-  <div class="container-fluid">
-
-    <div class="d-flex w-100 d-lg-none">
-      <a class="navbar-brand text-warning flex-grow-1 text-lg-start" href="{{ path('app_administrateur_dashboard_index', {'entite': entite.id}) }}">
-        {% if entite.logoMenu == null %}
-          <strong>{{ entite.nom }}</strong>
-        {% else %}
-          <img src="{{ asset('uploads/photos/entite/logo/') }}{{ entite.logoMenu }}" width="100" height="40" alt="{{ 'home.hero.alt_logo'|trans }}">
-        {% endif %}
-      </a>
-      <button class="navbar-toggler" type="button"
-              data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
-              aria-controls="navbarSupportedContent" aria-expanded="false"
-              aria-label="{{ 'navbar.toggle'|trans }}">
-        <span class="navbar-toggler-icon"></span>
+{# Navigation métier commune sur ordinateur et mobile dans workspaceSidebar. #}
+<nav class="navbar adminTopNav wn-topbar" aria-label="Barre d’outils de votre espace">
+  <div class="container-fluid wn-topbar-inner">
+    <div class="wn-topbar-leading">
+      <button type="button" class="wn-menu-toggle" data-navigation-toggle
+              aria-controls="workspaceSidebar" aria-expanded="false" aria-label="Ouvrir le menu de navigation">
+        <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
       </button>
+      <div class="wn-page-context">
+        <span class="wn-context-kicker">Espace de travail</span>
+        <span class="wn-page-title" id="workspacePageTitle">Vue d’ensemble</span>
+      </div>
     </div>
 
-    <div class="d-none d-lg-flex">
-      <a class="navbar-brand text-warning flex-grow-1 text-lg-start" href="{{ path('app_administrateur_site_index', {'entite': entite.id}) }}">
-        <strong>{{ entite.nom }}</strong>
-      </a>
-      <button class="navbar-toggler" type="button"
-              data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
-              aria-controls="navbarSupportedContent" aria-expanded="false"
-              aria-label="{{ 'navbar.toggle'|trans }}">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-    </div>
-
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        {# ✅ ===== MENUS MANQUANTS (ajoutés sans casser ton existant) ===== #}
-
-        {% if is_granted('ENTITE_ADMIN', entite) %}
-
-        {# ===== COMPTES ===== #}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-people"></i> Comptes
-          </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_prospect_index', {'entite': entite.id}) }}"><i class="bi bi-person-add me-2"></i>{{ 'navbar.prospect.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_prospect_new', {'entite': entite.id}) }}"><i class="bi bi-person-add me-2"></i>{{ 'navbar.prospect.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_utilisateur_index', {'entite': entite.id}) }}"><i class="bi bi-person-workspace me-2"></i>{{ 'navbar.utilisateur.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_utilisateur_ajouter', {'entite': entite.id}) }}"><i class="bi bi-person-add me-2"></i>{{ 'navbar.utilisateur.add'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_planning_stagiaires_index', {'entite': entite.id}) }}"><i class="bi bi-calendar3 me-2"></i>{{ 'navbar.utilisateur.planning'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formateur_index', {'entite': entite.id}) }}"><i class="fa-regular fa-user me-2"></i>{{ 'navbar.formateur.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formateur_ajouter', {'entite': entite.id}) }}"><i class="bi bi-person-add me-2"></i>{{ 'navbar.formateur.add'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formateurs_contrats_list', {'entite': entite.id}) }}"><i class="bi bi-pencil-square me-2"></i>{{ 'navbar.formateur.contract'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_charter_admin', {'entite': entite.id}) }}"><i class="bi bi-file-medical me-2"></i>Chartes</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_rapport_index', {entite: entite.id}) }}"><i class="bi bi-file-medical me-2"></i>Rapports</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_documents_formateurs_index', {entite: entite.id}) }}"><i class="bi bi-folder2-open me-2"></i>Documents</a></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_planning_formateurs_index', {'entite': entite.id}) }}"><i class="bi bi-calendar3 me-2"></i>{{ 'navbar.formateur.planning'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_admin_trainer_availability', {'entite': entite.id}) }}"><i class="bi bi-calendar3 me-2"></i>Disponibilités</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_entreprise_index', {'entite': entite.id}) }}"><i class="bi bi-building me-2"></i>{{ 'navbar.company.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_entreprise_ajouter', {'entite': entite.id}) }}"><i class="bi bi-building-add me-2"></i>{{ 'navbar.company.add'|trans }}</a></li>
-          </ul>
-        </li>
-
-
-        {# ===== GESTION ===== #}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-kanban"></i> Gestion
-          </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formation_index', {'entite': entite.id}) }}"><i class="bi bi-mortarboard me-2"></i>{{ 'navbar.course.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formation_ajouter', {'entite': entite.id}) }}"><i class="bi bi-journal-plus me-2"></i>{{ 'navbar.course.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_session_index', {'entite': entite.id}) }}"><i class="bi bi-calendar4-week me-2"></i>{{ 'navbar.session.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_convention_index', {'entite': entite.id}) }}"><i class="fa-regular fa-file me-2"></i>{{ 'navbar.session.contract'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_attestation_index', {'entite': entite.id}) }}"><i class="bi bi-person-vcard me-2"></i>{{ 'navbar.session.certificate'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_session_ajouter', {'entite': entite.id}) }}"><i class="bi bi-calendar-plus me-2"></i>{{ 'navbar.session.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li> <a class="dropdown-item" href="{{ path('app_administrateur_reservation_index', {'entite': entite.id}) }}"><i class="bi bi-calendar-check me-2"></i>{{ 'navbar.reservation.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_reservation_ajouter', {'entite': entite.id}) }}"><i class="bi bi-bag-plus me-2"></i>{{ 'navbar.reservation.add'|trans }}</a></li>
-            
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_inscription_index', {'entite': entite.id}) }}"><i class="bi bi-journal-check me-2"></i>{{ 'navbar.subscribe.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_inscription_new', {'entite': entite.id}) }}"><i class="bi bi-journal-plus me-2"></i>{{ 'navbar.subscribe.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_engin_index', {'entite': entite.id}) }}"><i class="bi bi-car-front me-2"></i>{{ 'navbar.boat.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_engin_ajouter', {'entite': entite.id}) }}"><i class="bi bi-send-plus me-2"></i>{{ 'navbar.boat.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_site_index', {'entite': entite.id}) }}"><i class="bi bi-geo-alt me-2"></i>{{ 'navbar.site.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_site_ajouter', {'entite': entite.id}) }}"><i class="bi bi-house-add me-2"></i>{{ 'navbar.site.add'|trans }}</a></li>
-
-          </ul>
-        </li>
-
-
-        {# ===== QUESTIONNAIRE ===== #}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-clipboard2-check"></i> Questionnaire
-          </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_positioning_questionnaire_index', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-check me-2"></i>{{ 'navbar.positioning.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_positioning_questionnaire_new', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-plus me-2"></i>{{ 'navbar.positioning.add'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_positioning_assignment_index', {'entite': entite.id}) }}"><i class="bi bi-journal-text me-2"></i>{{ 'navbar.positioning.assignment'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_satisfaction_template_index', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-check me-2"></i>{{ 'navbar.satisfaction.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_satisfaction_template_new', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-plus me-2"></i>{{ 'navbar.satisfaction.add'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_satisfaction_assignment_index', {'entite': entite.id}) }}"><i class="bi bi-journal-text me-2"></i>{{ 'navbar.satisfaction.assignment'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formateur_satisfaction_template_index', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-check me-2"></i>{{ 'navbar.satisfactionTeacher.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formateur_satisfaction_template_new', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-plus me-2"></i>{{ 'navbar.satisfactionTeacher.add'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_formateur_satisfaction_assignment_index', {'entite': entite.id}) }}"><i class="bi bi-journal-text me-2"></i>{{ 'navbar.satisfactionTeacher.assignment'|trans }}</a></li>
-          </ul>
-        </li>
-
-        {# ===== COMPTABILITÉ ===== #}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-cash-coin"></i> Comptabilité
-          </a>
-          <ul class="dropdown-menu">
-
-
-
-
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_finance_dashboard', {'entite': entite.id}) }}"><i class="bi bi-clipboard-data me-2"></i></i>{{ 'navbar.finance.title'|trans }}</a></li>
-            
-            <li><hr class="dropdown-divider"></li>
-            
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_devis_index', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-text me-2"></i>{{ 'navbar.quote.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_devis_new', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-plus me-2"></i>{{ 'navbar.quote.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_facture_index', {'entite': entite.id}) }}"><i class="bi bi-journal-bookmark me-2"></i>{{ 'navbar.invoice.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_facture_new', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-plus me-2"></i>{{ 'navbar.invoice.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_paiement_index', {'entite': entite.id}) }}"><i class="bi bi-cash-coin me-2"></i>{{ 'navbar.payment.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_paiement_new', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-plus me-2"></i>{{ 'navbar.payment.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_avoir_index', {'entite': entite.id}) }}"><i class="bi bi-arrow-clockwise me-2"></i>{{ 'navbar.credit.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_avoir_new', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-plus me-2"></i>{{ 'navbar.credit.add'|trans }}</a></li>
-            
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_depense_index', {'entite': entite.id}) }}"><i class="bi bi-cash-coin me-2"></i>{{ 'navbar.expense.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_depense_new', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-plus me-2"></i>{{ 'navbar.expense.add'|trans }}</a></li>
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_charge_index', {'entite': entite.id}) }}"><i class="bi bi-cash-coin me-2"></i>{{ 'navbar.charge.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_charge_rule_new', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-plus me-2"></i>{{ 'navbar.charge.add'|trans }}</a></li>
-
-
-            <li><hr class="dropdown-divider"></li>
-
-            <li><a class="dropdown-item" href="{{ path('app_administrateur_tva_dashboard', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-data me-2"></i>{{ 'navbar.tva.title'|trans }}</a></li>
-          </ul>
-        </li>
-
-        {% endif %}
-
-        {% if is_granted('ENTITE_FORMATEUR', entite) %}
-        {# ===== FORMATEUR ===== #}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-person-workspace"></i> Formateur
-          </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ path('app_formateur_dashboard', {'entite': entite.id}) }}"><i class="bi bi-speedometer2 me-2"></i>{{ 'navbar.trainer'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_charter_mine', {'entite': entite.id}) }}"><i class="bi bi-journal-check me-2"></i>Chartes</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_formateur_profile', {'entite': entite.id}) }}"><i class="bi bi-person-badge me-2"></i>Profil & diplômes</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_formateur_contrats', {'entite': entite.id}) }}"><i class="bi bi-pencil-square me-2"></i>{{ 'navbar.myContract'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_formateur_sessions', {'entite': entite.id}) }}"><i class="bi bi-calendar3 me-2"></i>{{ 'navbar.mySessions'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_formateur_documents_index', {entite: entite.id}) }}"><i class="bi bi-folder2-open me-2"></i>Documents</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_formateur_supports_library', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>{{ 'navbar.supports'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_formateur_rapport_index', {'entite': entite.id}) }}"><i class="bi bi-file-medical me-2"></i>{{ 'navbar.report.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_formateur_positioning_index', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-check me-2"></i>{{ 'navbar.quizPositioningTrainer.title'|trans }}</a></li>
-          </ul>
-        </li>
-
-        {% endif %}
-
-
-        {% if is_granted('ENTITE_STAGIAIRE', entite) %}
-
-        {# ===== STAGIAIRE ===== #}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-mortarboard"></i> Stagiaire
-          </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ path('app_stagiaire_dashboard', {'entite': entite.id}) }}"><i class="bi bi-speedometer2 me-2"></i>{{ 'navbar.trainer'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_stagiaire_sessions', {'entite': entite.id}) }}"><i class="bi bi-calendar3 me-2"></i>{{ 'navbar.mySessions'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_stagiaire_positioning_list', {'entite': entite.id}) }}"><i class="bi bi-clipboard2-check me-2"></i>{{ 'navbar.quizPositioningTrainee.title'|trans }}</a></li>
-          </ul>
-        </li>
-
-        {% endif %}
-
-
-        {% if is_granted('ENTITE_ENTREPRISE', entite) %}
-
-        {# ===== STAGIAIRE ===== #}
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-building"></i> Entreprise
-          </a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ path('app_entreprise_dashboard', {'entite': entite.id}) }}"><i class="bi bi-speedometer2 me-2"></i>{{ 'navbar.entreprise.title'|trans }}</a></li>
-            <li><a class="dropdown-item" href="{{ path('app_entreprise_documents_index', {'entite': entite.id}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>{{ 'navbar.entreprise.document'|trans }}</a></li>
-          </ul>
-        </li>
-
-        {% endif %}
-
-
-
-        {% if is_granted('ENTITE_COMMERCIAL', entite) %}<li class="nav-item"><a class="nav-link" href="{{ path('app_commercial_dashboard', {entite:entite.id}) }}"><i class="bi bi-briefcase"></i> Commercial</a></li>{% endif %}
-        {% if is_granted('ENTITE_OPCO', entite) %}<li class="nav-item"><a class="nav-link" href="{{ path('app_opco_dashboard', {entite:entite.id}) }}"><i class="bi bi-bank"></i> OPCO</a></li>{% endif %}
-        {% if is_granted('ENTITE_OF', entite) and app.user.entreprise %}<li class="nav-item"><a class="nav-link" href="{{ path('app_of_dashboard', {entite:entite.id}) }}"><i class="bi bi-building"></i> OF</a></li>{% endif %}
-		    
-      </ul>
-
-    </div>
-
-    <div class="d-flex adminTopNav-tools">
-
-      <div class="dropdown d-flex align-items-center">
+    <div class="adminTopNav-tools wn-topbar-tools">
+      <div class="dropdown wn-language">
         {% include '_locale_switcher_admin.html.twig' %}
       </div>
+
       {% include 'notification/_bell.html.twig' %}
 
       {% if is_granted('ENTITE_ADMIN', entite) %}
-      <div class="dropdown d-none d-lg-block mx-1">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser3" data-bs-toggle="dropdown" aria-expanded="false">
-
-            <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
-              <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
-              <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
-            </svg>
-        </a>
-
-        
-        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark text-small shadow">
-          <li><a class="dropdown-item" href="{{ path('app_account_preferences') }}">{{ 'navbar.settings'|trans }}</a></li>
-          {% if is_granted('ROLE_SUPER_ADMIN', entite) %}
-          <li><a class="dropdown-item" href="{{ path('app_super_public_host_index') }}">{{ 'navbar.publicHost'|trans }}</a></li>
-          {% endif %}
-          {#<li><a class="dropdown-item" href="{{ path('app_adherent_entite_fiche', {'entite': entite.id}) }}">{{ 'navbar.club.sheet'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_adherent_trombinoscope', {'entite': entite.id}) }}">{{ 'navbar.club.trombinoscope'|trans }}</a></li>#}
-          <li><a class="dropdown-item" href="{{ path('app_premium_entite_index', {'id': entite.id, 'entite': entite.id}) }}">{{ 'navbar.club.settings'|trans }}</a></li>
-          {#<li><hr class="dropdown-divider border-white"></li>
-          <li><a class="dropdown-item" href="{{ path('app_adherent_club', {'entite': entite.id}) }}">{{ 'navbar.club.all'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_entite_adherent_nouvelle', {'entite': entite.id}) }}">{{ 'navbar.club.add'|trans }}</a></li>#}
-        </ul>
-      </div>
-
-      <div class="dropdown d-lg-none mx-1">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser4" data-bs-toggle="dropdown" aria-expanded="false">
-
-            <svg xmlns="http://www.w3.org/2000/svg" width="27" height="27" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
-              <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
-              <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
-            </svg>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark text-small shadow">
-          <li><a class="dropdown-item" href="{{ path('app_account_preferences') }}">{{ 'navbar.settings'|trans }}</a></li>
-          {% if is_granted('ROLE_SUPER_ADMIN', entite) %}
-          <li><a class="dropdown-item" href="{{ path('app_super_public_host_index') }}">{{ 'navbar.publicHost'|trans }}</a></li>
-          {% endif %}
-          {#<li><a class="dropdown-item" href="{{ path('app_adherent_entite_fiche', {'entite': entite.id}) }}">{{ 'navbar.club.sheet'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_adherent_trombinoscope', {'entite': entite.id}) }}">{{ 'navbar.club.trombinoscope'|trans }}</a></li>#}
-          <li><a class="dropdown-item" href="{{ path('app_premium_entite_index', {'id': entite.id, 'entite': entite.id}) }}">{{ 'navbar.club.settings'|trans }}</a></li>
-          {#<li><hr class="dropdown-divider border-white"></li>
-          <li><a class="dropdown-item" href="{{ path('app_adherent_club', {'entite': entite.id}) }}">{{ 'navbar.club.all'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_premium_entite_adherent_nouvelle', {'entite': entite.id}) }}">{{ 'navbar.club.add'|trans }}</a></li>#}
-        </ul>
-      </div>
+        <div class="dropdown wn-settings">
+          <button type="button" class="wn-tool-button dropdown-toggle" id="dropdownUser3"
+                  data-bs-toggle="dropdown" aria-expanded="false" aria-label="Paramètres de votre espace">
+            <i class="bi bi-sliders2" aria-hidden="true"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end wn-utility-menu" aria-labelledby="dropdownUser3">
+            <li><h6 class="dropdown-header">Votre espace</h6></li>
+            <li>
+              <a class="dropdown-item" href="{{ path('app_account_preferences') }}">
+                <i class="bi bi-sliders2" aria-hidden="true"></i><span>{{ 'navbar.settings'|trans }}</span>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{{ path('app_premium_entite_index', {'id': entite.id, 'entite': entite.id}) }}">
+                <i class="bi bi-building-gear" aria-hidden="true"></i><span>{{ 'navbar.club.settings'|trans }}</span>
+              </a>
+            </li>
+            {% if is_granted('ROLE_SUPER_ADMIN', entite) %}
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" href="{{ path('app_super_public_host_index') }}">
+                  <i class="bi bi-globe2" aria-hidden="true"></i><span>{{ 'navbar.publicHost'|trans }}</span>
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </div>
       {% endif %}
 
-      <div class="dropdown d-none d-lg-block mx-1">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser5" data-bs-toggle="dropdown" aria-expanded="false">
+      <div class="dropdown wn-account">
+        <button type="button" class="wn-profile-toggle dropdown-toggle" id="dropdownUser5"
+                data-bs-toggle="dropdown" aria-expanded="false" aria-label="Ouvrir le menu de mon compte">
           {% if app.user.photo %}
-            <img src="{{ asset('uploads/photos/utilisateur/' ~ app.user.photo) }}" alt="{{ app.user.prenom }} {{ app.user.nom }}" width="30" height="30" class="rounded-circle object-fit-cover">
+            <img src="{{ asset('uploads/photos/utilisateur/' ~ app.user.photo) }}" alt=""
+                 width="36" height="36" class="wn-avatar rounded-circle object-fit-cover">
           {% else %}
-            {% set initials = app.user.prenom|first|upper ~ app.user.nom|first|upper %}
-            <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:30px;height:30px;font-size:.9rem;font-weight:600;">
-              {{ initials }}
-            </div>
+            <span class="wn-avatar wn-avatar-initials" aria-hidden="true">{{ app.user.prenom|first|upper }}{{ app.user.nom|first|upper }}</span>
           {% endif %}
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark text-small shadow">
-          {#<li><a class="dropdown-item" href="{{ path('app_adherent_profil', {'id': app.user.id, 'entite': entite.id}) }}">{{ 'navbar.user.profile'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_adherent_certificat', {'entite': entite.id}) }}">{{ 'navbar.user.certificate'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_adherent_paiement_adherent', {'entite': entite.id}) }}">{{ 'navbar.user.payment'|trans }}</a></li>#}
-          <li><a class="dropdown-item" href="{{ path('app_account_preferences') }}"><i class="bi bi-person-gear me-2"></i>Mon compte et préférences</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_workspace') }}">{{ 'navbar.entite.switch'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_administrateur_billing', {'entite': entite.id}) }}">{{ 'navbar.user.subscription'|trans }}</a></li>
-          <li><hr class="dropdown-divider border-white"></li>
-          <li><a class="dropdown-item" href="{{ path('app_logout', {'entite': entite.id}) }}">{{ 'navbar.user.logout'|trans }}</a></li>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end wn-utility-menu" aria-labelledby="dropdownUser5">
+          <li class="wn-profile-heading">
+            <strong>{{ app.user.prenom }} {{ app.user.nom }}</strong>
+            <span>{{ entite.nom }}</span>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item" href="{{ path('app_account_preferences') }}">
+              <i class="bi bi-person-gear" aria-hidden="true"></i><span>Mon compte et préférences</span>
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{{ path('app_workspace') }}">
+              <i class="bi bi-buildings" aria-hidden="true"></i><span>{{ 'navbar.entite.switch'|trans }}</span>
+            </a>
+          </li>
+          {% if is_granted('ENTITE_ADMIN', entite) %}
+            <li>
+              <a class="dropdown-item" href="{{ path('app_administrateur_billing', {'entite': entite.id}) }}">
+                <i class="bi bi-credit-card-2-front" aria-hidden="true"></i><span>{{ 'navbar.user.subscription'|trans }}</span>
+              </a>
+            </li>
+          {% endif %}
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item wn-logout" href="{{ path('app_logout', {'entite': entite.id}) }}">
+              <i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>{{ 'navbar.user.logout'|trans }}</span>
+            </a>
+          </li>
         </ul>
       </div>
-
-      <div class="dropdown d-lg-none mx-1">
-        <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser6" data-bs-toggle="dropdown" aria-expanded="false" data-bs-popper-placement="left">
-          {% if app.user.photo %}
-            <img src="{{ asset('uploads/photos/utilisateur/' ~ app.user.photo) }}" alt="{{ app.user.prenom }} {{ app.user.nom }}" width="30" height="30" class="rounded-circle object-fit-cover">
-          {% else %}
-            {% set initials = app.user.prenom|first|upper ~ app.user.nom|first|upper %}
-            <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width:30px;height:30px;font-size:.9rem;font-weight:600;">
-              {{ initials }}
-            </div>
-          {% endif %}
-        </a>
-        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark text-small shadow">
-          {#<li><a class="dropdown-item" href="{{ path('app_adherent_profil', {'id': app.user.id, 'entite': entite.id}) }}">{{ 'navbar.user.profile'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_adherent_certificat', {'entite': entite.id}) }}">{{ 'navbar.user.certificate'|trans }}</a></li>#}
-          <li><a class="dropdown-item" href="{{ path('app_account_preferences') }}"><i class="bi bi-person-gear me-2"></i>Mon compte et préférences</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_workspace') }}">{{ 'navbar.entite.switch'|trans }}</a></li>
-          <li><a class="dropdown-item" href="{{ path('app_administrateur_billing', {'entite': entite.id}) }}">{{ 'navbar.user.subscription'|trans }}</a></li>
-          <li><hr class="dropdown-divider border-white"></li>
-          <li><a class="dropdown-item" href="{{ path('app_logout') }}">{{ 'navbar.user.logout'|trans }}</a></li>
-        </ul>
-      </div>
-
     </div>
   </div>
 </nav>
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+
+<div class="modal fade" id="workspaceConfirmModal" tabindex="-1" aria-labelledby="workspaceConfirmModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="confirmModalLabel">{{ 'modal.confirm.title'|trans }}</h5>
+        <h5 class="modal-title" id="workspaceConfirmModalLabel">{{ 'modal.confirm.title'|trans }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'modal.actions.close'|trans }}"></button>
       </div>
       <div class="modal-body">
@@ -371,16 +111,3 @@
     </div>
   </div>
 </div>
-{#
-<script>
-  const confirmModal = document.getElementById('confirmModal');
-  confirmModal.addEventListener('show.bs.modal', function (event) {
-    const button = event.relatedTarget;
-    const clubName = button.getAttribute('data-club-name');
-    const clubId = button.getAttribute('data-club-id');
-
-    document.getElementById('clubName').textContent = clubName;
-    document.getElementById('confirmChange').href =
-      "{{ path('app_adherent_entite_fiche', {'entite': '__clubId__'}) }}".replace('__clubId__', clubId);
-  });
-</script>#}
