@@ -7,15 +7,14 @@ use App\Entity\Automation\{TrainingWorkflow, WorkflowTask};
 use App\Enum\{DevisStatus, FactureStatus};
 use App\Service\Email\MailerManager;
 use App\Service\Pdf\PdfManager;
-use App\Service\Sequence\FactureNumberGenerator;
-use App\Service\Billing\InvoiceTotals;
+use App\Service\Billing\{InvoiceIssuer, InvoiceTotals};
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Twig\Environment;
 
 final class WorkflowBilling
 {
-    public function __construct(private readonly EntityManagerInterface $em, private readonly FactureNumberGenerator $numbers,
+    public function __construct(private readonly EntityManagerInterface $em, private readonly InvoiceIssuer $invoices,
         private readonly MailerManager $mailer, private readonly PdfManager $pdf, private readonly Environment $twig) {}
 
     public static function outstanding(Facture $invoice): int
@@ -149,6 +148,7 @@ final class WorkflowBilling
     {
         $quote = $w->getConvention()->getDevis();
         if (!$quote->getFactureCreee()) {
+            $this->invoices->assertCanIssue($w->getEntite());
             $draft = $this->invoiceDraft($w);
             \App\Service\Billing\InvoicePreferences::apply($draft);
             if ($issues = \App\Service\Billing\InvoiceReadiness::issues($draft)) {
@@ -165,7 +165,7 @@ final class WorkflowBilling
             }
             if ($quote->getDevise() !== 'EUR' || !$this->quoteTotalsMatch($quote)) throw new \DomainException('Vérifiez la devise et les montants du devis avant de facturer.');
             $f = $this->invoiceDraft($w);
-            \App\Service\Billing\InvoiceIssuer::persist($this->em, $this->numbers, $f, function () use ($quote, $f, $w) {
+            $this->invoices->persist($f, function () use ($quote, $f, $w) {
                 $quote->setFactureCreee($f)->setStatus(DevisStatus::INVOICED);
                 $w->setFacture($f);
             });

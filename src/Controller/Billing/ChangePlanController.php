@@ -20,6 +20,7 @@ final class ChangePlanController extends AbstractController
     PlanRepository $planRepo,
     StripeBillingService $stripe,
     \App\Service\Tenant\TenantContext $tenant,
+    \App\Service\Billing\InternalUsageContractPolicy $internalUsage,
   ): JsonResponse {
 
 
@@ -32,6 +33,7 @@ final class ChangePlanController extends AbstractController
     $entite = $user instanceof Utilisateur ? $tenant->getCurrentEntiteForUser($user) : null;
     if (!$entite) throw $this->createAccessDeniedException('Aucun organisme sélectionné.');
     $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, $entite);
+    if ($internalUsage->isProtected($entite)) return $this->json(['ok' => false, 'error' => 'Le contrat interne conserve sa base de 0 € et ses droits existants. Aucun changement vers une offre publique n’est disponible.'], 400);
 
     if (!$entite) {
       return $this->json(['ok' => false, 'error' => 'Aucune entité rattachée.'], 400);
@@ -104,6 +106,7 @@ final class ChangePlanController extends AbstractController
     PlanRepository $planRepo,
     StripeBillingService $stripe,
     \App\Service\Tenant\TenantContext $tenant,
+    \App\Service\Billing\InternalUsageContractPolicy $internalUsage,
   ): Response {
 
 
@@ -120,6 +123,10 @@ final class ChangePlanController extends AbstractController
     $entite = $user instanceof Utilisateur ? $tenant->getCurrentEntiteForUser($user) : null;
     if (!$entite) throw $this->createAccessDeniedException('Aucun organisme sélectionné.');
     $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, $entite);
+    if ($internalUsage->isProtected($entite)) {
+      $this->addFlash('warning', 'Le contrat interne conserve sa base de 0 € et ses droits existants. Aucun changement effectué.');
+      return $this->redirectToRoute('app_administrateur_billing', ['entite' => $entite->getId()]);
+    }
 
     $sub = $subRepo->findOneBy(['entite' => $entite], ['id' => 'DESC']);
     if (!$sub || !$sub->getStripeSubscriptionId()) {

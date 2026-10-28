@@ -2368,7 +2368,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (map || !mapDiv || typeof L === 'undefined') return;
 
     map = L.map('new-site-map', { scrollWheelZoom: true }).setView([46.603354, 1.888334], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      // Override only tile requests; private pages retain their no-referrer policy.
+      referrerPolicy: 'strict-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
     map.on('click', (e) => setLatLng(e.latlng.lat, e.latlng.lng, { source:'manual' }));
 

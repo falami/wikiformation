@@ -1114,7 +1114,7 @@
                             <div class="hero-contract-grid">
                                 <div class="hero-contract-item">
                                     <span>Dernière mise à jour</span>
-                                    <strong>27/10/2026</strong>
+                                    <strong>28/10/2026</strong>
                                 </div>
                                 <div class="hero-contract-item">
                                     <span>Mode de règlement</span>
@@ -1206,7 +1206,7 @@
 
                         <div class="sidebar-meta">
                             <span class="sidebar-meta-label">Document contractuel</span>
-                            <strong>Version du 27/10/2026</strong>
+                            <strong>Version du 28/10/2026</strong>
                         </div>
                     </div>
                 </aside>
@@ -1238,6 +1238,8 @@
                         </div>
                     </section>
 
+                    {% block contract_terms %}
+                    <p class="small text-muted">Conditions générales de vente — version {{ constant('App\\Service\\Billing\\SubscriptionTerms::VERSION') }}</p>
                     <article class="doc-section" id="s1">
                         <div class="section-head">
                             <span class="section-num">01</span>
@@ -1341,6 +1343,7 @@
                                 Les montants sont indiqués hors taxes, la TVA applicable étant précisée avant validation définitive de la commande.
                                 Les abonnements existants conservent leurs conditions jusqu’à un changement demandé par leur titulaire.
                             </p>
+                            <p>Le prix de l’abonnement comprend les coûts d’encaissement de cet abonnement. Aucun supplément n’est ajouté en raison du moyen de paiement utilisé. Les prestations à l’usage expressément acceptées, notamment les transmissions électroniques ci-dessous, sont distinctes de ce prix.</p>
 
                             <div class="callout callout-gold">
                                 <div class="callout-icon"><i class="bi bi-info-lg"></i></div>
@@ -1352,6 +1355,16 @@
                                     </p>
                                 </div>
                             </div>
+                            <h3 id="facturation-electronique">Facturation électronique et frais de transmission</h3>
+                            <p>Le tarif standard est de <strong>{{ (constant('App\\Service\\EInvoicing\\EInvoiceTariff::STANDARD_UNIT_PRICE_CENTS') / 100)|number_format(2, ',', ' ') }} € HT par facture prise en charge par SUPER PDP en production</strong> : 0,01 € HT affecté à la transmission SUPER PDP et 0,01 € HT de rémunération du service WikiFormation et 0,01 € HT de provision pour le traitement du paiement. Cette provision fait partie du prix du service : elle ne correspond pas à une mesure exacte des frais Stripe de chaque facture et ne varie pas avec le moyen de paiement. Le tarif interne d’I.T. For You est de <strong>{{ (constant('App\\Service\\EInvoicing\\EInvoiceTariff::INTERNAL_UNIT_PRICE_CENTS') / 100)|number_format(2, ',', ' ') }} € HT via Stripe, sans commission WikiFormation</strong>. Les frais de paiement de ce tarif interne restent à la charge de l’exploitant, sans supplément pour cet organisme. Cette règle interne est réservée à l’organisme identifié par le SIRET 80813612100023 dans son espace propriétaire.</p>
+                            <p>Ces frais sont dus par l’organisme émetteur. Ils ne sont pas ajoutés au montant de la facture adressée à son client et ne constituent pas un supplément pour l’utilisation de la carte bancaire. Ils sont comptés une seule fois lorsque la plateforme confirme la prise en charge, y compris si un contrôle ultérieur rejette le document. Les tests, les pièces bloquées avant transmission et la réception de factures ne sont pas facturés par ce compteur.</p>
+                            <p>Les consommations sont regroupées par mois civil, puis ajoutées à la prochaine facture du même abonnement Stripe. Pour un abonnement annuel existant, cette prochaine échéance peut être annuelle. Un montant affiché dans le suivi correspond à une consommation ; il ne prouve pas son paiement. Les tarifs déjà figés pour les transmissions passées sont conservés. Tout ancien accord à un tarif inférieur doit être renouvelé avant de nouvelles transmissions au tarif courant ; aucune augmentation rétroactive n’est appliquée.</p>
+                            <p>Avant de créer une nouvelle facture, l’organisme doit disposer d’une connexion SUPER PDP de production vérifiée, activer les transmissions et accepter leur tarif avec un compte habilité. Un abonnement Stripe valide et un moyen de paiement vérifiable sont requis pour tous les organismes, y compris I.T. For You et pendant un essai. Les documents historiques restent consultables en cas de suspension.</p>
+                            <p>Le connecteur transmet les factures en euros entre entreprises établies en France, avec TVA. Les anciennes factures, les avoirs, les opérations exonérées, les particuliers, l’international, le secteur public et les déclarations d’encaissement ne sont pas automatiquement transmis par ce parcours ; leur traitement doit être réalisé dans le dispositif adapté de la plateforme agréée. Le raccordement de WikiFormation ne vaut pas certification générale de ses fonctions ni garantie de conformité de chaque opération fiscale.</p>
+                            <p>Les achats de cours sur la marketplace sont temporairement suspendus pendant le raccordement de leur propre facturation électronique. Aucun frais SUPER PDP de marketplace n’est déclenché tant qu’aucun document de ce parcours n’est transmis. Les achats acquis, les paiements et les remboursements historiques restent suivis ; les documents manquants sont signalés en attente.</p>
+                            <h3>Encaissement des factures et ventes de cours</h3>
+                            <p>Les frais du prestataire de paiement pour les sommes encaissées par un organisme ou un vendeur sont distincts du tarif de transmission électronique. Dans le parcours d’encaissement des factures avec un compte Stripe connecté, les frais applicables relèvent du compte et des conditions Stripe de l’organisme ; le client règle le solde de sa facture, sans supplément ajouté pour le choix de son moyen de paiement. Les éventuels frais de service WikiFormation sont prélevés sur la part de l’organisme, selon les paramètres de son service.</p>
+                            <p>Pour les ventes de cours, la commission et la répartition des frais de paiement sont présentées dans l’espace vendeur et les conditions propres à la marketplace avant activation. Les commandes déjà enregistrées conservent leurs conditions. Les frais Stripe constatés sur un paiement, les remboursements et les reprises peuvent modifier la somme reversée au vendeur ; ils ne sont pas une seconde facturation de la transmission électronique.</p>
                         </div>
                     </article>
 
@@ -1555,8 +1568,9 @@
                         </div>
                     </article>
 
+                    {% endblock %}
                     <p class="doc-footer">
-                        Dernière mise à jour : <strong>27/10/2026</strong>
+                        Dernière mise à jour : <strong>28/10/2026</strong>
                         &nbsp;·&nbsp;
                         <a href="{{ path('app_public_cgu') }}">CGU</a>
                         &nbsp;·&nbsp;

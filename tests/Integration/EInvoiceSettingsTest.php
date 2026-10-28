@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Tests\Integration;
 use App\Entity\{Entite, Utilisateur, UtilisateurEntite, EInvoiceConnection, EInvoiceReceived};
+use App\Service\EInvoicing\{EInvoiceConfiguration, SubscriptionPaymentReadiness};
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -20,6 +21,7 @@ final class EInvoiceSettingsTest extends KernelTestCase
             $_ENV[$key] = $_SERVER[$key] = $key === 'DATABASE_URL' ? 'sqlite:///:memory:' : '';
         }
         self::bootKernel();
+        self::getContainer()->set(SubscriptionPaymentReadiness::class, $this->createMock(SubscriptionPaymentReadiness::class));
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->user = (new Utilisateur())->setEmail('pdp-settings@example.test')->setPassword('unused')->setNom('Admin')->setPrenom('Test')->setRoles(['ROLE_USER']);
@@ -45,7 +47,7 @@ final class EInvoiceSettingsTest extends KernelTestCase
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertSame(0, $this->em->getRepository(EInvoiceConnection::class)->count([]));
         self::assertTrue($this->client->getResponse()->headers->hasCacheControlDirective('no-store'));
-        self::assertStringContainsString('0,02 € HT', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('0,03 € HT', $this->client->getResponse()->getContent());
         self::assertStringContainsString('Aucun quota', $this->client->getResponse()->getContent());
         $connection = new EInvoiceConnection($this->entite, 'production');
         $connection->connected(['id' => 'remote-1', 'number' => '123456789', 'formal_name' => 'Organisme connecté'], 'ciphertext-never-render');
@@ -57,13 +59,16 @@ final class EInvoiceSettingsTest extends KernelTestCase
         $connection = $this->em->find(EInvoiceConnection::class, $connection->getId()); self::assertFalse($connection->isAutomatic(), 'Local active subscription without Stripe identifiers cannot accept usage charges.');
         self::assertNull($connection->getBillingConsentAt());
     }
-    public function testOwnerCanActivateWithoutStripeSubscription(): void
+    public function testOwnerSeesOneCentWithoutCommissionButStillNeedsStripe(): void
     {
         $this->entite->setSiret('80813612100023'); $this->em->flush();
+        $this->configureApi();
         $this->client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/preferences/facturation-electronique');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
-        self::assertStringContainsString('0,00 € HT', $this->client->getResponse()->getContent());
-        self::assertStringNotContainsString('0,02 € HT', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('0,01 € HT', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('sans commission WikiFormation', $this->client->getResponse()->getContent());
+        self::assertStringContainsString('Un abonnement valide et un moyen de paiement configuré sont nécessaires pour tous les organismes', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('0,03 € HT', $this->client->getResponse()->getContent());
         $connection = new EInvoiceConnection($this->entite, 'production');
         $connection->connected(['id' => 'owner', 'number' => '808136121', 'formal_name' => 'Owner'], 'encrypted');
         $this->em->persist($connection); $this->em->flush();
@@ -71,9 +76,44 @@ final class EInvoiceSettingsTest extends KernelTestCase
         $this->client->submit($page->selectButton('Accepter et activer')->form(['accept_price' => '1']));
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         $connection = $this->em->find(EInvoiceConnection::class, $connection->getId());
-        self::assertTrue($connection->isAutomatic());
-        self::assertSame(0, $connection->getUnitPriceCents());
+        self::assertFalse($connection->isAutomatic());
+        self::assertNull($connection->getBillingConsentAt());
+    }
 
+    public function testLegacyFreeConsentShowsAnExplicitPaidReactivation(): void
+    {
+        $this->entite->setSiret('80813612100023');
+        $subscription = $this->em->getRepository(\App\Entity\Billing\EntiteSubscription::class)->findOneBy(['entite' => $this->entite]);
+        $subscription->setStripeCustomerId('cus_fixture')->setStripeSubscriptionId('sub_fixture');
+        $connection = new EInvoiceConnection($this->entite, 'production');
+        $connection->connected(['id' => 'owner', 'number' => '808136121', 'formal_name' => 'Owner'], 'encrypted');
+        $connection->consentToBilling($this->user->getId());
+        $connection->setAutomatic(true);
+        (new \ReflectionProperty($connection, 'unitPriceCents'))->setValue($connection, 0);
+        $this->em->persist($connection); $this->em->flush();
+        $this->configureApi();
+
+        $url = '/fr/administrateur/'.$this->entite->getId().'/preferences/facturation-electronique';
+        $page = $this->client->request('GET', $url);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Votre accord tarifaire doit être renouvelé', $page->text());
+        self::assertStringContainsString('Accord tarifaire requis', $page->text());
+        $form = $page->selectButton('Accepter et réactiver')->form();
+        self::assertSame('1', $form['enable']->getValue());
+        self::assertFalse($connection->hasCurrentBillingConsent());
+
+        $this->client->submit($form, ['accept_price' => '1']);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $connection = $this->em->find(EInvoiceConnection::class, $connection->getId());
+        self::assertTrue($connection->isAutomatic());
+        self::assertTrue($connection->hasCurrentBillingConsent());
+        self::assertSame(1, $connection->getUnitPriceCents());
+        self::assertSame($this->user->getId(), $connection->getBillingConsentBy());
+    }
+
+    private function configureApi(): void
+    {
+        self::getContainer()->set(EInvoiceConfiguration::class, new EInvoiceConfiguration('client-fixture', 'secret-fixture', 'https://example.test/fr/administrateur/facturation-electronique/retour', base64_encode(random_bytes(32))));
     }
     public function testMutationsRequireCsrfAndTenantPermissionAndOauthCannotBeReplayed(): void
     {
@@ -132,7 +172,7 @@ final class EInvoiceSettingsTest extends KernelTestCase
         $this->client->submit($page->selectButton('Accepter et activer')->form(['accept_price' => '1']));
         $this->em->clear(); $connection = $this->em->getRepository(EInvoiceConnection::class)->findOneBy(['entite' => $this->entite->getId()]);
         $connection = $this->em->find(EInvoiceConnection::class, $connection->getId());
-        self::assertTrue($connection->isAutomatic()); self::assertSame(2, $connection->getUnitPriceCents());
+        self::assertTrue($connection->isAutomatic()); self::assertSame(3, $connection->getUnitPriceCents());
         self::assertSame($this->user->getId(), $connection->getBillingConsentBy());
         $this->client->catchExceptions(true); $this->client->request('GET', $callback);
         self::assertSame(403, $this->client->getResponse()->getStatusCode());

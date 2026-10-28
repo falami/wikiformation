@@ -8,6 +8,7 @@
 {% set canManage = app.user and pricingEntite and is_granted('ENTITE_BILLING_MANAGE', pricingEntite) %}
 {% set ongoing = subscription and subscription.isBlockingNewCheckout %}
 {% set checkout = (subscription or trialConsumed|default(false)) and canManage and not ongoing %}
+{% set checkoutTerms = checkout ? subscription_terms() : null %}
 <div class="wf-offers-intro"><span><i class="bi bi-calendar3" aria-hidden="true"></i> Facturation mensuelle</span><span><i class="bi bi-gift" aria-hidden="true"></i> {{ billing_trial_days }} jours d’essai sans carte bancaire</span></div>
 <div class="wf-offers">
   {% for plan in plans %}
@@ -21,7 +22,7 @@
         <input type="hidden" name="_token" value="{{ csrf_token('start_trial') }}">
         <input type="hidden" name="plan" value="{{ plan.code }}">
         <input type="hidden" name="interval" value="month">
-        <div class="wf-offer-price"><strong>{{ (plan.priceMonthlyCents / 100)|number_format(0, ',', ' ') }} €</strong><span>HT / mois</span></div>
+        <div class="wf-offer-price"><strong>{{ (plan.priceMonthlyCents / 100)|number_format(plan.priceMonthlyCents % 100 ? 2 : 0, ',', ' ') }} €</strong><span>HT / mois</span></div>
         <p class="wf-offer-billing-note">Votre tarif après l’essai</p>
         <ul class="wf-offer-limits">
           <li><i class="bi bi-mortarboard" aria-hidden="true"></i><span>{{ plan.maxApprenantsLabel }}</span></li>
@@ -40,6 +41,14 @@
             <a class="wf-offer-cta" href="{{ path('app_administrateur_billing', {entite: pricingEntite.id}) }}">{{ subscription.status == 'trialing' ? 'Continuer mon essai' : 'Gérer mon abonnement' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
             <p class="wf-offer-availability">Retrouvez votre offre dans votre espace.</p>
           {% else %}
+            {% if checkout %}
+              <input type="hidden" name="terms_version" value="{{ checkoutTerms.version }}">
+              <input type="hidden" name="terms_digest" value="{{ checkoutTerms.sha256 }}">
+              <div class="form-check small mb-3">
+                <input class="form-check-input" type="checkbox" id="offer-terms-{{ plan.id }}" name="terms_accepted" value="1" required>
+                <label class="form-check-label" for="offer-terms-{{ plan.id }}">J’accepte les <a href="{{ path('app_public_cgv') }}" target="_blank" rel="noopener">conditions générales de vente</a>, version {{ checkoutTerms.version }}, et le prix mensuel de cette offre. Le montant TTC sera présenté avant paiement.</label>
+              </div>
+            {% endif %}
             <button type="submit" class="wf-offer-cta" {{ checkout and not plan.isCheckoutConfigured('month') ? 'disabled' : '' }}>{{ checkout ? 'Choisir cette offre' : 'Commencer mon essai' }} <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
             <p class="wf-offer-availability">{{ checkout and not plan.isCheckoutConfigured('month') ? 'Paiement en cours d’activation.' : (checkout ? 'Montant confirmé avant le paiement.' : ('Gratuit pendant ' ~ billing_trial_days ~ ' jours · Sans carte bancaire')) }}</p>
           {% endif %}
@@ -48,6 +57,6 @@
     </article>
   {% else %}<div class="alert alert-info">Les offres seront disponibles prochainement.</div>{% endfor %}
 </div>
-<p class="wf-offers-footnote"><i class="bi bi-shield-check" aria-hidden="true"></i> Tarifs hors taxes. Les abonnements existants conservent leurs conditions jusqu’à un changement demandé par leur titulaire.</p>
+<p class="wf-offers-footnote"><i class="bi bi-shield-check" aria-hidden="true"></i> Tarifs hors taxes, sans supplément lié au moyen de paiement de l’abonnement. Les abonnements existants conservent leurs conditions jusqu’à un changement demandé par leur titulaire.</p>
 
-<p class="wf-offers-footnote"><i class="bi bi-receipt" aria-hidden="true"></i> Option facturation électronique : 0,02 € HT par facture émise via le connecteur en production, après activation et accord tarifaire. Consommation regroupée par mois sur la prochaine facture de l’abonnement. Les essais, les transmissions non confirmées et la réception de factures ne sont pas décomptés.</p>
+<p class="wf-offers-footnote"><i class="bi bi-receipt" aria-hidden="true"></i> Facturation électronique : {{ (constant('App\\Service\\EInvoicing\\EInvoiceTariff::STANDARD_UNIT_PRICE_CENTS') / 100)|number_format(2, ',', ' ') }} € HT par transmission prise en charge en production, après activation et accord tarifaire. Consommation regroupée par mois sur la prochaine facture de l’abonnement Stripe. Une transmission n’est comptée qu’une fois ; un rejet ultérieur ne retire pas sa prise en charge. Les tests, les factures bloquées avant transmission et la réception ne sont pas décomptés. La création de factures nécessite le service activé et un moyen de paiement Stripe valide, y compris pendant l’essai. <a href="{{ path('app_public_cgv') }}#facturation-electronique">Conditions détaillées</a>.</p>

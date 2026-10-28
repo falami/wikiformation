@@ -10,14 +10,21 @@ use Doctrine\ORM\EntityManagerInterface;
 final class EInvoiceUsageBilling
 {
     public function __construct(private EntityManagerInterface $em, private EntiteSubscriptionRepository $subscriptions,
-        private ConnectionLease $lease, private UsageInvoiceGateway $stripe) {}
+        private ConnectionLease $lease, private UsageInvoiceGateway $stripe,
+        private SubscriptionPaymentReadiness $payments) {}
 
-    /** Local eligibility only; activation and sending must call this after explicit consent. */
+    /** Fail closed: consent and the current Stripe payment configuration must both be valid. */
     public function assertEligible(EInvoiceConnection $connection): ?EntiteSubscription
     {
         if ($connection->getEnvironment() === 'sandbox') return null;
-        if ($connection->getBillingConsentAt() && EInvoiceTariff::isInternal($connection->getEntite())) return null;
-        if (!$connection->getBillingConsentAt() || !in_array($connection->getUnitPriceCents(), [1, 2], true)) throw new \DomainException('Acceptez le tarif de transmission de votre organisme avant l’activation.');
+        if (!$connection->hasCurrentBillingConsent()) throw new \DomainException('Acceptez le tarif actuel de transmission de votre organisme dans les préférences de facturation électronique avant l’activation.');
+        return $this->assertSubscriptionReady($connection);
+    }
+
+    /** Read-only preflight before the activation form may record new consent. No internal exemption. */
+    public function assertSubscriptionReady(EInvoiceConnection $connection): EntiteSubscription
+    {
+        if ($connection->getEnvironment() !== 'production') throw new \DomainException('Le paiement des transmissions concerne uniquement la production.');
         $sub = $this->subscriptions->findLatestForEntite($connection->getEntite());
         $now = new \DateTimeImmutable();
         if (!$sub || !in_array($sub->getStatus(), ['active', 'trialing'], true)
@@ -26,8 +33,9 @@ final class EInvoiceUsageBilling
             || ($sub->getEndedAt() && $sub->getEndedAt() <= $now)
             || ($sub->getCurrentPeriodEnd() && $sub->getCurrentPeriodEnd() <= $now)
             || ($sub->getStatus() === 'trialing' && $sub->getTrialEndsAt() && $sub->getTrialEndsAt() <= $now)) {
-            throw new \DomainException('Un abonnement Stripe actif avec un client de facturation est requis pour les émissions payantes.');
+            throw new \DomainException('Configurez un abonnement Stripe actif et son moyen de paiement dans la rubrique Abonnement avant d’émettre de nouvelles factures.');
         }
+        $this->payments->assertReady($sub);
         return $sub;
     }
 
@@ -39,7 +47,7 @@ final class EInvoiceUsageBilling
         $connection = $transmission->getConnection(); $sub = $this->assertEligible($connection);
         $transmission->captureUsageTerms(['unitPriceCents' => $connection->getUnitPriceCents(), 'currency' => 'eur',
             // Internal allocation, never sent to customer-facing Stripe invoice items.
-            'internalAllocation' => ['providerCostCents' => 1, 'platformShareCents' => $connection->getUnitPriceCents() - 1, 'version' => 1],
+            'internalAllocation' => EInvoiceTariff::allocation($connection->getEntite()),
             'consentedAt' => $connection->getBillingConsentAt()->format(DATE_ATOM), 'consentedBy' => $connection->getBillingConsentBy(),
             'customer' => $sub?->getStripeCustomerId(), 'subscription' => $sub?->getStripeSubscriptionId()]);
     }

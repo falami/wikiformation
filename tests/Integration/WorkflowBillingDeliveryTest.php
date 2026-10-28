@@ -7,6 +7,8 @@ namespace App\Tests\Integration;
 use App\Entity\{ConventionContrat, Entite, Facture, LigneFacture, Session, Site, Utilisateur};
 use App\Entity\Automation\{TrainingWorkflow, WorkflowTask};
 use App\Service\Automation\WorkflowBilling;
+use App\Service\Billing\InvoiceIssuer;
+use App\Service\EInvoicing\EInvoiceReadiness;
 use App\Service\Email\MailerManager;
 use App\Service\Pdf\PdfManager;
 use App\Service\Sequence\FactureNumberGenerator;
@@ -30,6 +32,8 @@ final class WorkflowBillingDeliveryTest extends KernelTestCase
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        $readiness = $this->createMock(EInvoiceReadiness::class);
+        self::getContainer()->set(EInvoiceReadiness::class, $readiness);
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $user = (new Utilisateur())->setEmail('admin-delivery@example.test')->setPassword('unused')->setNom('Test')->setPrenom('Admin');
@@ -39,7 +43,9 @@ final class WorkflowBillingDeliveryTest extends KernelTestCase
         $this->invoice = (new Facture())->setEntite($entity)->setCreateur($user)->setNumero('FAC-DELIVERY')->setDateEmission(new \DateTimeImmutable('-40 days'))
             ->setMontantHtCents(10000)->setMontantTvaCents(2000)->setMontantTtcCents(12000)
             ->addLigne((new LigneFacture())->setEntite($entity)->setCreateur($user)->setLabel('Formation')->setQte(1)->setPuHtCents(10000)->setTva(20));
-        foreach ([$user, $entity, $site, $session, $this->invoice] as $row) $this->em->persist($row);
+        foreach ([$user, $entity, $site, $session] as $row) $this->em->persist($row);
+        $this->em->flush();
+        $this->em->persist($this->invoice);
         $this->workflows = [];
         for ($i = 1; $i <= 2; ++$i) {
             $convention = (new ConventionContrat())->setEntite($entity)->setSession($session)->setCreateur($user)->setNumero('CONV-DELIVERY-' . $i);
@@ -50,7 +56,7 @@ final class WorkflowBillingDeliveryTest extends KernelTestCase
         $this->transport = $this->createMock(MailerInterface::class);
         $twig = $this->createMock(Environment::class); $twig->method('render')->willReturn('<p>Test</p>');
         $pdf = $this->createMock(PdfManager::class); $pdf->method('createPortraitBytes')->willReturn('%PDF-test');
-        $this->billing = new WorkflowBilling($this->em, $this->createMock(FactureNumberGenerator::class),
+        $this->billing = new WorkflowBilling($this->em, new InvoiceIssuer($this->em, $this->createMock(FactureNumberGenerator::class), $readiness),
             new MailerManager($this->transport, $twig, $this->createMock(UrlGeneratorInterface::class)), $pdf, $twig);
     }
 

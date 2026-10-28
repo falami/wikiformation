@@ -1,0 +1,40 @@
+{% if not session.emargementClotureAt %}
+<style>
+#closeAttendanceModal .modal-content{border:1px solid #e1e8ef;border-radius:26px;overflow:hidden;box-shadow:0 32px 100px #142c4250}
+#closeAttendanceModal .closure-head{background:linear-gradient(125deg,#172c3d,#355363);padding:32px;color:#fff;position:relative;border-top:4px solid #e8bb53}
+#closeAttendanceModal .closure-eyebrow{letter-spacing:.17em;font-size:11px;font-weight:750;color:#f1cc75;text-transform:uppercase}
+#closeAttendanceModal .closure-icon{display:grid;place-items:center;width:52px;height:52px;border:1px solid #ffffff35;border-radius:16px;background:#ffffff0d;color:#f1cc75;font-size:23px;margin-bottom:18px}
+#closeAttendanceModal .closure-step{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid #eef1f5}
+#closeAttendanceModal .closure-step:last-child{border-bottom:0}
+#closeAttendanceModal .closure-number{flex-shrink:0;width:32px;height:32px;border-radius:10px;background:#edf3f7;color:#32546b;display:grid;place-items:center;font-size:12px;font-weight:750}
+#closeAttendanceModal .closure-note{background:#fff9eb;border:1px solid #f2dfac;border-radius:14px;padding:16px;color:#715722;font-size:13px}
+#closeAttendanceModal .closure-confirm{background:#203c50;color:white;border:0;border-radius:12px;padding:13px 20px;font-weight:650}
+#closeAttendanceModal .modal-footer{background:#f8fafc;border-color:#edf1f5;padding:20px 28px;gap:10px}
+@media(max-width:575px){ #closeAttendanceModal .closure-head{padding:24px}#closeAttendanceModal .modal-footer .btn{width:100%;margin:0}}
+</style>
+<div class="modal fade" id="closeAttendanceModal" tabindex="-1" aria-labelledby="closeAttendanceTitle" aria-describedby="closeAttendanceDescription" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="closure-head">
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-4" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        <div class="closure-icon"><i class="bi bi-patch-check"></i></div>
+        <div class="closure-eyebrow mb-2">Finalisation des présences</div>
+        <h2 class="h3 fw-bold mb-2" id="closeAttendanceTitle">Clôturer en toute clarté</h2>
+        <p class="mb-0 opacity-75" id="closeAttendanceDescription">{{ session.code }} · {{ session.inscriptions|length }} inscription(s) à examiner</p>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <div class="closure-step"><span class="closure-number">01</span><div><h3 class="h6 fw-bold mb-1">Calculer chaque assiduité</h3><p class="small text-muted mb-0">Les signatures et les présences papier renseignées sont prises en compte, ainsi que les absences déclarées.</p></div></div>
+        <div class="closure-step"><span class="closure-number">02</span><div><h3 class="h6 fw-bold mb-1">Préparer les attestations PDF</h3><p class="small text-muted mb-0">Les inscriptions éligibles sont terminées et leurs attestations sont générées avec la durée réellement justifiée. Les attestations déjà délivrées sont conservées.</p></div></div>
+        <div class="closure-step"><span class="closure-number">03</span><div><h3 class="h6 fw-bold mb-1">Clôturer le suivi</h3><p class="small text-muted mb-0">Les rappels d’émargement sont arrêtés. Les signatures restent accessibles. Le statut de la session et les résultats pédagogiques ne sont pas modifiés.</p></div></div>
+        <div class="closure-note mt-3 mb-2"><i class="bi bi-info-circle me-2"></i>Une signature manquante ne vaut pas une absence. Les dossiers incomplets ou sans heures justifiées seront signalés, sans création d’attestation. Les inscriptions annulées ou non confirmées sont exclues. Tous les créneaux doivent être terminés.</div>
+      </div>
+      <form method="post" class="modal-footer" action="{{ path('app_administrateur_session_attendance_tracking', {entite:entite.id,id:session.id}) }}" onsubmit="this.querySelector('[type=submit]').disabled=true;this.querySelector('[type=submit]').textContent='Calcul et génération en cours…';this.setAttribute('aria-busy','true');">
+        <input type="hidden" name="_token" value="{{ csrf_token('attendance_tracking_' ~ session.id) }}">
+        <input type="hidden" name="action" value="close">
+        <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Revenir à la session</button>
+        <button type="submit" class="btn closure-confirm"><i class="bi bi-check2-circle me-2"></i>Confirmer et générer les attestations</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}

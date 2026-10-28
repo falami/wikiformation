@@ -36,6 +36,14 @@ final class RunTrainingWorkflowsCommand extends Command
                         $status = $this->runner->run($task, $now);
                         if ($status !== 'unchanged') { $output->writeln(sprintf('Dossier %d / étape %d : %s', $workflow->getId(), $task->getId(), $status)); ++$count; }
                         if ($status === 'unknown') $failed = true;
+                        if (!$this->em->isOpen()) {
+                            // A rejected invoice may have rolled back and closed Doctrine.
+                            // Its task is already durable and retryable; fresh services on
+                            // the next invocation can resume without manual reconciliation.
+                            $output->writeln('<comment>Facturation bloquée avant émission. Traitement arrêté après annulation de la transaction ; les tâches en attente seront reprises lors de la prochaine exécution.</comment>');
+                            $output->writeln($count . ' étape(s) examinée(s).');
+                            return Command::FAILURE;
+                        }
                     }
                 }
             } catch (\Throwable $e) {

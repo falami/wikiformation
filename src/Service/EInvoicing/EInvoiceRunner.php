@@ -17,6 +17,7 @@ final class EInvoiceRunner
         private ConnectionLease $leases,
         private InvoicePayload $payload,
         private EInvoiceUsageBilling $usage,
+        private EInvoiceReadiness $readiness,
     ) {}
 
     /** No network, credentials access, lease or database mutation when $execute is false. */
@@ -136,7 +137,7 @@ final class EInvoiceRunner
             if (!$this->isNewInvoice($invoice, $connection)) $issues[] = 'Facture antérieure à l’activation : transmission automatique exclue.';
             if ($issues !== []) { $transmission->block($issues); ++$result['blocked']; $this->em->flush(); continue; }
             try {
-                $this->usage->assertEligible($connection);
+                $this->readiness->assertCanTransmit($connection);
                 $snapshot = InvoiceSnapshot::read($invoice);
                 $directory = $this->api->directoryEntries($snapshot['customer']['siren']);
                 $endpoint = self::recipientAddress($snapshot['customer']['siren'], $directory['data']);

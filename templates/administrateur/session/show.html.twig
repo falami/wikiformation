@@ -841,14 +841,15 @@ body{ overflow-x:hidden; }
               <span class="badge bg-secondary mb-2">Clôturé manuellement</span>
               <p class="small text-muted">Le {{ session.emargementClotureAt|date('d/m/Y à H:i', 'Europe/Paris') }} par {{ session.emargementCloturePar }}.</p>
             {% else %}
-              <p class="small text-muted">Clôturer arrête les rappels et retire les émargements des éléments manquants, même si des signatures restent à recueillir. Les signatures, documents et accès de signature sont conservés. Le statut de la session et les appréciations ne changent pas.</p>
+              <p class="small text-muted">Clôturez le suivi pour calculer l’assiduité des stagiaires et générer les attestations justifiées par leurs présences. Les dossiers incomplets seront signalés.</p>
             {% endif %}
             <form method="post" action="{{ path('app_administrateur_session_attendance_tracking', {entite: entite.id, id: session.id}) }}">
               <input type="hidden" name="_token" value="{{ csrf_token('attendance_tracking_' ~ session.id) }}">
               <input type="hidden" name="action" value="{{ session.emargementClotureAt ? 'reopen' : 'close' }}">
-              <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-{{ session.emargementClotureAt ? 'unlock' : 'lock' }} me-1"></i>{{ session.emargementClotureAt ? 'Rouvrir le suivi' : 'Clôturer le suivi des émargements' }}</button>
+              <button class="btn btn-outline-secondary btn-sm" {% if not session.emargementClotureAt %}type="button" data-bs-toggle="modal" data-bs-target="#closeAttendanceModal"{% else %}type="submit"{% endif %}><i class="bi bi-{{ session.emargementClotureAt ? 'unlock' : 'lock' }} me-1"></i>{{ session.emargementClotureAt ? 'Rouvrir le suivi' : 'Clôturer le suivi des émargements' }}</button>
             </form>
           </div>
+          {% include 'administrateur/session/_close_attendance_modal.html.twig' %}
           {% endif %}
           {% if session.jours|length > 0 %}
             <div class="timeline">
@@ -2922,9 +2923,11 @@ document.addEventListener('DOMContentLoaded', function(){
   const lng = {{ session.site.longitude|default(0)|json_encode|raw }};
   if (!lat || !lng) return;
   const map = L.map('session-map').setView([lat, lng], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
+    // OSM requires a Referer: disclose only the origin, never the private page URL.
+    referrerPolicy: 'strict-origin',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
   L.marker([lat, lng]).addTo(map)
     .bindPopup('{{ session.site.nom|e('js') }}')

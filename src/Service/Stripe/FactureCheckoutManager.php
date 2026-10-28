@@ -77,6 +77,10 @@ final class FactureCheckoutManager
                 }
             }
             if (!$checkout) {
+                // Verify the real fee payer before reserving a NEW payment. Historical links and
+                // lost-response retries retain their frozen terms and idempotency key.
+                $remoteAccount = $this->readAccount($stripe, $account);
+                $feePolicy = DirectChargeFeePolicy::snapshot($remoteAccount, $account, (int) $entite->getId());
                 $checkout = (new FactureCheckout())->setFacture($facture)->setEntite($entite)
                     ->setFactureAmountCents($amount)->setAmountTotalCents($amount)
                     ->setServiceFeeCents($connect->computeServiceFeeCents($amount))
@@ -84,7 +88,7 @@ final class FactureCheckoutManager
                 $this->em->persist($checkout);
                 $this->em->flush();
                 $metadata = ['type' => 'facture_checkout', 'facture_checkout_id' => (string) $checkout->getId(), 'facture_id' => (string) $facture->getId(), 'entite_id' => (string) $entite->getId()];
-                $operation = ['account' => $account, 'params' => [
+                $operation = ['account' => $account, 'feePolicy' => $feePolicy, 'params' => [
                     'mode' => 'payment', 'payment_method_types' => ['card'],
                     'success_url' => rtrim($this->appUrl, '/') . '/paiement/success?session_id={CHECKOUT_SESSION_ID}',
                     'cancel_url' => rtrim($this->appUrl, '/') . '/paiement/cancel?facture=' . $facture->getId(),
@@ -115,5 +119,26 @@ final class FactureCheckoutManager
         $checkout->setStripeCheckoutSessionId($session->id)->setCheckoutUrl($session->url);
         $this->em->flush();
         return $checkout;
+    }
+
+    private function readAccount(\Stripe\StripeClient $stripe, string $account): array
+    {
+        $http = \Stripe\ApiRequestor::httpClient();
+        $timeouts = $http instanceof \Stripe\HttpClient\CurlClient ? [$http->getTimeout(), $http->getConnectTimeout()] : null;
+        try {
+            // Bound this verification while the invoice is locked, preserving stricter transport limits.
+            if ($timeouts !== null) {
+                $http->setTimeout($timeouts[0] > 0 ? min($timeouts[0], 10) : 10);
+                $http->setConnectTimeout($timeouts[1] > 0 ? min($timeouts[1], 3) : 3);
+            }
+            return $stripe->accounts->retrieve($account, [])->toArray();
+        } catch (\Throwable) {
+            throw new \App\Exception\StripeFeeConfigurationUnavailable('Impossible de vérifier les frais Stripe pour le moment. Aucun nouveau paiement n’a été créé.');
+        } finally {
+            if ($timeouts !== null) {
+                $http->setTimeout($timeouts[0]);
+                $http->setConnectTimeout($timeouts[1]);
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ namespace App\Controller\Billing;
 
 use App\Entity\Billing\EntiteSubscription;
 use App\Entity\Billing\Plan;
+use App\Entity\AuditLog;
 use App\Entity\Utilisateur;
 use App\Entity\UtilisateurEntite;
 use App\Repository\Billing\PlanRepository;
@@ -10,6 +11,7 @@ use App\Repository\Billing\AddonRepository;
 use App\Repository\Billing\EntiteSubscriptionRepository;
 use App\Repository\UtilisateurEntiteRepository;
 use App\Service\Billing\StripeBillingService;
+use App\Service\Billing\SubscriptionTerms;
 use App\Service\Tenant\TenantContext;
 use App\Security\Permission\TenantPermission;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,6 +30,7 @@ final class CheckoutController extends AbstractController
     UtilisateurEntiteRepository $ueRepo,
     TenantContext $tenant,
     StripeBillingService $stripe,
+    SubscriptionTerms $terms,
     EntityManagerInterface $em,
     int $billingAppTrialDays,
   ): RedirectResponse {
@@ -84,6 +87,14 @@ final class CheckoutController extends AbstractController
       $this->addFlash('warning', 'Cette offre est disponible à l’essai. Le paiement sera ouvert après activation de son tarif.');
       return $this->redirectToRoute('app_public_pricing');
     }
+    // Reject unchecked or stale terms before any Stripe request or local subscription creation.
+    $acceptedTerms = $terms->snapshot();
+    if ($request->request->get('terms_accepted') !== '1'
+        || $request->request->get('terms_version') !== $acceptedTerms['version']
+        || !hash_equals($acceptedTerms['sha256'], (string) $request->request->get('terms_digest', ''))) {
+      $this->addFlash('warning', 'Veuillez consulter et accepter les conditions générales de vente actuelles avant de poursuivre.');
+      return $this->redirectToRoute('app_public_pricing');
+    }
     try {
       $stripe->validatePlanPrice($plan, $interval);
     } catch (\Throwable $e) {
@@ -137,6 +148,22 @@ final class CheckoutController extends AbstractController
     $sub->setStripeCustomerId($customerId);
 
     $em->persist($sub);
+    $em->flush();
+    $acceptedAt = new \DateTimeImmutable();
+    $em->persist((new AuditLog())->setEvent('subscription.terms_accepted')
+      ->setActor($user)->setCreateur($user)->setEntite($entite)->setCreatedAt($acceptedAt)
+      ->setPayload([
+        'subscriptionId' => $sub->getId(),
+        'acceptedAt' => $acceptedAt->format(DATE_ATOM),
+        'actorId' => $user->getId(),
+        'entiteId' => $entite->getId(),
+        'terms' => $acceptedTerms,
+        'plan' => ['id' => $plan->getId(), 'code' => $plan->getCode(), 'name' => $plan->getName(),
+          'priceCentsExcludingTax' => $plan->getPriceMonthlyCents(), 'currency' => 'EUR', 'interval' => $interval],
+        'addons' => $addonCodes,
+        // Acceptance precedes Checkout: this is not evidence of payment or electronic-invoicing activation.
+        'stage' => 'accepted_before_checkout',
+      ]));
     $em->flush();
     $em->commit();
     } catch (\Throwable $error) {

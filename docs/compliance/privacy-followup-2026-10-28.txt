@@ -1,0 +1,98 @@
+WIKIFORMATION — CONTRÔLE RGPD COMPLÉMENTAIRE : SUPPORTS PÉDAGOGIQUES
+28 octobre 2026 — dépôt local, pas de certification ni de déploiement
+
+PÉRIMÈTRE
+Relecture des rapports RGPD et procédures du 27 octobre, de la gestion des droits,
+de l’export de compte, des journaux, du nettoyage OCR et des fichiers protégés.
+Approfondissement des supports pédagogiques : bibliothèque et ancien dépôt direct.
+Les prix, CGV et paiements font l’objet d’un autre lot et ne sont pas validés ici.
+Aucun document réel téléchargé, aucun compte supprimé, aucun e-mail envoyé.
+
+CONSTATS ET CORRECTIONS
+1. Les fichiers de public/uploads/supports et supports/library n’étaient pas
+   inclus dans les règles de téléchargement authentifié. Connaître leur URL
+   permettait au serveur statique de les servir sans appliquer les affectations.
+   Les URL existantes passent désormais par ProtectedUploadController : membre
+   actif de l’organisme, administrateur, propriétaire formateur ou formateur de
+   la session affectée ; pour le stagiaire, affectation correspondante autorisée.
+   Les fichiers orphelins, archives ambiguës et chemins hors répertoire sont refusés.
+   Pour les supports liés à une session, une inscription annulée ne donne pas accès.
+   Une affectation personnelle explicite reste indépendante d’une session, mais
+   exige toujours le rôle stagiaire actif dans le bon organisme.
+   Les réponses héritent des protections no-store, no-referrer et nosniff.
+
+2. Les listes stagiaires mélangeaient certains supports d’autres organismes et
+   ignoraient l’activation, certaines visibilités et les dates d’ouverture/fermeture.
+   Un service commun SupportLibraryAccess applique les mêmes contraintes au
+   téléchargement, aux listes de session et au tableau de bord. L’organisme de
+   l’affectation, du support, de la session et de l’inscription doit être cohérent.
+   Une session d’un autre organisme est refusée avant affichage de ses supports.
+
+3. L’ancien dépôt formateur n’avait ni CSRF ni contrôle d’affectation à la session
+   dans son action d’upload. Contrôles ajoutés avant lecture/déplacement du fichier.
+   Types réels et taille contrôlés, noms aléatoires sans nom personnel original,
+   MIME serveur conservé, fichier nettoyé si l’enregistrement en base échoue.
+   Le formulaire existant fournit le jeton ; les formats bureautiques usuels restent
+   acceptés, jusqu’à 50 Mo comme dans la bibliothèque.
+
+4. La page stagiaire de supports insérait le titre et les métadonnées dans du HTML
+   brut. Ils sont maintenant insérés comme texte ; les noms contenant du HTML
+   restent du texte et ne deviennent pas des éléments actifs dans la page.
+
+PROTECTIONS DÉJÀ PRÉSENTES, NON CRÉÉES PAR CE LOT
+- Demandes de droits authentifiées/CSRF, référence aléatoire et file opérateur ;
+  export JSON limité au titulaire et à une liste explicite de champs.
+- Retrait de préférence newsletter et interdiction d’activer celle-ci à la place
+  du titulaire depuis les formulaires d’administration concernés.
+- Choix cookies/refus/retrait et exclusion de l’analytics des espaces privés.
+- En-têtes de confidentialité sur les réponses privées et liens sensibles.
+- Filtrage des journaux applicatifs de production ; suppression des messages bruts
+  d’exception dans les diagnostics concernés. Il n’analyse pas toutes les données
+  personnelles possibles dans un texte libre ni les logs du serveur/hébergeur.
+- Tentatives de suppression des fichiers de travail OCR GCS dans un bloc finally.
+  Un échec de nettoyage ou un résultat cloud tardif requiert une règle de cycle
+  de vie côté bucket ; celle-ci n’a pas été vérifiée dans le compte cloud.
+
+VALIDATION LOCALE
+44 tests PHPUnit, 319 assertions, réussis : SupportPrivacyTest (17 nouveaux cas),
+SupportLibraryTest, ElearningSecurityTest, BackendPrivacySecurityTest,
+AccountPrivacyTest, PrivacyProcessorTest, AnalyticsPrivacyTest, ExternalMapPrivacyTest.
+6 tests JavaScript réussis : titre/métadonnées hostiles, état vide des supports,
+absence de consentement, refus/acceptation, retrait et navigation cookies.
+Lint PHP des contrôleurs/service, lint des deux templates et routes YAML : succès.
+Les tests utilisent SQLite en mémoire et des fichiers sentinelles synthétiques,
+supprimés en fin de test. Ils ne prouvent pas la configuration Apache en production.
+
+MISE EN SERVICE NÉCESSAIRE
+- Déployer ensemble routes, contrôleurs, service, templates et public/.htaccess.
+- Vérifier DocumentRoot=public/, mod_rewrite et AllowOverride effectifs chez
+  l’hébergeur. Un serveur Nginx/CDN doit aussi router ces chemins vers Symfony,
+  avant tout traitement de fichier statique : /uploads/supports/ y compris library/.
+- Recetter avec une sentinelle : anonyme refusé, destinataire autorisé, autre
+  organisme refusé, affectation retirée refusée ; vérifier no-store sur la réponse.
+- Invalider les anciennes copies éventuellement cachées par un proxy/CDN. Le code
+  ne peut pas retirer les copies déjà téléchargées. Étudier un stockage hors du
+  répertoire public lors d’une migration préparée ; aucun fichier métier n’a été
+  déplacé ici et aucune exposition historique effective n’a été établie par cet audit.
+- Conserver la recette dans le dossier d’exploitation sans données personnelles.
+
+CE QUI RESTE NÉCESSAIRE POUR LA CONFORMITÉ D’EXPLOITATION
+Les actions ouvertes du rapport audit-rgpd-2026-10-27.txt restent ouvertes sauf
+preuve documentaire contraire : registre approuvé, contrat article 28 avec les
+clients, contrats et régions des prestataires, durées justifiées par catégorie,
+effacement/archivage et sauvegardes, réponse humaine aux demandes, procédure
+d’incident, gestion des données sensibles et conclusion sur DPO/AIPD.
+La migration de la file des demandes et sa surveillance quotidienne doivent avoir
+été réellement déployées. L’export autonome n’est pas un accès exhaustif article 15.
+Une demande d’effacement ne supprime pas automatiquement les pièces comptables ou
+les données d’autres organismes. Aucune purge générale arbitraire n’a été ajoutée.
+
+RÉFÉRENCES OFFICIELLES CONSULTÉES LE 28/10/2026
+La CNIL recommande de limiter les habilitations aux besoins des missions, de les
+retirer à leur terme et de les réexaminer. Le présent correctif applique ce principe
+aux supports ; il ne remplace pas la revue organisationnelle des habilitations.
+https://www.cnil.fr/fr/securite-gerer-les-habilitations
+Le guide de sécurité couvre aussi les serveurs, sous-traitants, sauvegardes,
+incidents et risques : la seule modification du logiciel ne traite pas ces volets.
+https://www.cnil.fr/fr/guide-de-la-securite-des-donnees-personnelles
+https://www.cnil.fr/fr/me-mettre-en-conformite/rgpd-par-ou-commencer

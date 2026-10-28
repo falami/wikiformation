@@ -79,6 +79,7 @@ final class BillingAccessSubscriber implements EventSubscriberInterface
       'app_billing_change_preview',
       'app_billing_change_apply',
       'app_billing_checkout',
+      'app_billing_internal_usage',
       'app_billing_success',
       'app_billing_cancel',
       'app_billing_portal',

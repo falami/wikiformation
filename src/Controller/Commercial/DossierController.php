@@ -372,6 +372,8 @@ final class DossierController extends AbstractController
                     $form->addError(new FormError('Votre administrateur doit vous accorder la gestion du destinataire pour émettre un document.'));
                 } else {
                     try {
+                        // Check before opening the outer transaction so the form remains usable.
+                        $documents->assertCanIssue($entite, $module);
                         $record = $this->em->wrapInTransaction(function () use ($documents, $membership, $module, $data, $existing) {
                             $record = $documents->issue($membership, $module, $data, $this->getUser(), $existing);
                             $this->audit($membership, $module, $record->getId(), $existing ? 'updated' : 'issued');

@@ -53,7 +53,7 @@ final class StripeUsageInvoiceGateway implements UsageInvoiceGateway
         return preg_match('/^ii_[A-Za-z0-9]+$/D', (string) ($data['id'] ?? '')) === 1
             && ($data['livemode'] ?? false) === true && ($data['customer'] ?? '') === $payload['customer']
             && $subscription === $payload['subscription'] && ($data['currency'] ?? '') === 'eur'
-            && (int) ($data['amount'] ?? -1) === $batch->getAmountCents()
+            && is_int($data['amount'] ?? null) && $data['amount'] === $batch->getAmountCents()
             && ($data['metadata']['wf_einvoice_batch'] ?? '') === $batch->getRequestKey();
     }
 }

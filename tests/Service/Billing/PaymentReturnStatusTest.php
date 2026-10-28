@@ -15,6 +15,7 @@ final class PaymentReturnStatusTest extends KernelTestCase
         $_ENV['DATABASE_URL']=$_SERVER['DATABASE_URL']='sqlite:///:memory:';
         try {
             self::bootKernel();$em=self::getContainer()->get('doctrine')->getManager();
+            self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
             (new SchemaTool($em))->createSchema($em->getMetadataFactory()->getAllMetadata());
             $user=(new Utilisateur())->setEmail('return-status@test.example')->setPassword('unused')->setPrenom('Billing')->setNom('Test');
             $entity=(new Entite())->setNom('Test')->setCreateur($user)->setPublic(false);

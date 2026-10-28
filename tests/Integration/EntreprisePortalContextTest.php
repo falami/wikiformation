@@ -74,7 +74,7 @@ final class EntreprisePortalContextTest extends WebTestCase
             self::assertStringContainsString('CC-Beta', $client->getResponse()->getContent());
             $conventions = json_decode($client->getResponse()->getContent(), true);
             self::assertCount(1, $conventions['data']);
-            self::assertStringContainsString('Signer', $conventions['data'][0]['actions']);
+            self::assertStringContainsString('Consulter et signer', $conventions['data'][0]['actions']);
             self::assertSame('Beta Salarié<br>Second &lt;Salarié&gt;', $conventions['data'][0]['stagiaire']);
             self::assertStringNotContainsString('CC-Alpha', $client->getResponse()->getContent());
             foreach ([

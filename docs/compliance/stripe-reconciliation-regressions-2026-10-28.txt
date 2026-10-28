@@ -1,0 +1,38 @@
+Rapprochement monétaire Stripe — vérifications du 28 octobre 2026
+
+Correctifs
+
+- Marketplace : le total remboursé reçu de Stripe doit être un entier compris
+  entre zéro et le montant de la commande. Il ne peut pas diminuer sous le dernier
+  total confirmé en base. Une réponse absente, mal typée ou régressive interrompt
+  la transaction avant de modifier le paiement, les accès ou les documents.
+  Cette protection fonctionne également lorsque la facturation électronique de
+  la Marketplace est suspendue et qu'aucun avoir n'a encore été émis.
+- Reprise des transferts : les montants transférés et repris doivent être des
+  entiers valides. La récupération d'une réponse perdue ne convertit plus les
+  chaînes ou décimaux en centimes. Une incohérence conserve le registre existant
+  et interdit tout nouveau transfert ou toute nouvelle reprise.
+- Consommation de facturation électronique : création et rapprochement des lignes
+  Stripe exigent un montant entier strictement égal au lot figé. Une réponse
+  décimale ou une chaîne numérique ne peut plus être acceptée par troncature.
+- L'aide de la commande app:einvoicing:bill-usage indique le tarif accepté lors de
+  la transmission ; elle ne conserve pas un ancien prix fixe de 0,02 EUR.
+
+Validation locale
+
+Commande exécutée :
+php vendor/bin/phpunit tests/Integration/MarketplaceProcessingFeesTest.php tests/Integration/MarketplaceTest.php tests/Service/EInvoicing/StripeUsageInvoiceGatewayTest.php tests/Integration/EInvoiceUsageBillingTest.php
+
+Résultat : 114 tests, 720 assertions, tous réussis.
+
+Les régressions ajoutées couvrent les remboursements absents, non entiers,
+négatifs, excessifs et régressifs après un paiement sans remboursement, un
+remboursement partiel ou total ; les montants mal typés de transferts et reprises ;
+les montants de lignes Stripe invalides à la création et au rapprochement.
+Les paiements, accès et documents persistés sont comparés avant et après le refus.
+Les cas valides existants couvrent les remboursements et reprises sans doublons,
+les frais réellement nuls et le maintien des anciens tarifs déjà engagés.
+
+Les tests utilisent une base SQLite isolée et des réponses Stripe simulées.
+Aucun paiement, transfert, remboursement ou changement de compte réel effectué.
+Ces résultats ne remplacent pas un rapprochement des opérations de production.

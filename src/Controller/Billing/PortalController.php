@@ -11,7 +11,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class PortalController extends AbstractController
 {
   #[Route('/administrateur/{entite}/billing/portal', name: 'app_billing_portal', methods: ['GET'])]
-  public function portal(Entite $entite, EntiteSubscriptionRepository $subs, StripeBillingService $stripe): RedirectResponse
+  public function portal(Entite $entite, EntiteSubscriptionRepository $subs, StripeBillingService $stripe, \App\Service\Billing\InternalUsageContractPolicy $internalUsage): RedirectResponse
   {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
     $this->denyAccessUnlessGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, $entite);
@@ -29,10 +29,20 @@ final class PortalController extends AbstractController
       \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_URL
     );
 
-    $url = $stripe->createCustomerPortalSession(
-      $sub->getStripeCustomerId(),
-      $returnUrl
-    );
+    try {
+      $url = $stripe->createCustomerPortalSession(
+        $sub->getStripeCustomerId(),
+        $returnUrl,
+        internalUsageOnly: $internalUsage->isProtected($entite),
+      );
+    } catch (\DomainException $error) {
+      $this->addFlash('warning', $error->getMessage());
+      return $this->redirectToRoute('app_administrateur_billing', ['entite' => $entite->getId()]);
+    } catch (\Throwable $error) {
+      error_log('[BILLING PORTAL] ' . $error::class);
+      $this->addFlash('warning', 'Le portail de facturation est momentanément indisponible. Réessayez dans quelques instants.');
+      return $this->redirectToRoute('app_administrateur_billing', ['entite' => $entite->getId()]);
+    }
 
     return new RedirectResponse($url);
   }

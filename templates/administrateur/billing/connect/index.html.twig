@@ -12,13 +12,6 @@
       --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
       --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
       --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-  {{ parent() }}
-  <style>
-    :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
     }
 
     .hero{
@@ -140,7 +133,7 @@
         <div class="mt-3 alert {{ connect.isReadyForCheckout ? 'alert-success' : 'alert-warning' }} mb-0">
           {% if connect.isReadyForCheckout %}
             <i class="bi bi-check-circle me-1"></i>
-            Compte prêt : tu peux encaisser des factures en ligne.
+            Configuration transmise à Stripe. La disponibilité du compte et la prise en charge des frais sont vérifiées avant chaque nouveau lien de paiement.
           {% else %}
             <i class="bi bi-exclamation-triangle me-1"></i>
             Compte non prêt : termine l’onboarding Stripe.
@@ -153,10 +146,9 @@
       <div class="card-premium p-3">
         <div class="fw-bold mb-2">Paramètres de paiement en ligne</div>
 
-        {# Si tu veux : brancher le EntiteConnectType ici #}
         <div class="text-muted small">
-          (Ici tu peux ajouter un formulaire Symfony EntiteConnectType pour activer/désactiver le paiement en ligne
-          et configurer les frais de service.)
+          Les frais Stripe de traitement standard sont à la charge de votre organisme et sont déduits par Stripe de vos encaissements.
+          Ils s’ajoutent à l’éventuelle commission WikiFormation ci-dessous, sans être facturés deux fois.
         </div>
 
         <div class="mt-3">
@@ -177,6 +169,12 @@
               — Pourcentage : {{ (connect.feePercentBp/100)|number_format(2, ',', ' ') }} %<br>Aucun supplément n’est ajouté au montant à régler par le client.
             </div>
           </div>
+          <p class="text-muted small mt-3 mb-0">
+            Le montant payé par votre client reste le solde de sa facture. Les frais de facturation électronique sont distincts.
+            Les tarifs bancaires dépendent de votre contrat Stripe et du paiement ; les frais de produits complémentaires
+            et les contrats Interchange Plus nécessitent une vérification spécifique.
+            <a href="https://stripe.com/fr/pricing" target="_blank" rel="noopener noreferrer">Consulter les tarifs Stripe</a>.
+          </p>
         </div>
 
       </div>

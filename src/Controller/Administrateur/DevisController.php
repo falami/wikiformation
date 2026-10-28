@@ -14,7 +14,7 @@ use App\Form\Administrateur\EntrepriseModalType;
 use App\Form\Administrateur\DevisConventionLinkType;
 use App\Repository\ConventionContratRepository;
 use App\Service\Convention\DevisConventionLinker;
-use App\Service\Sequence\FactureNumberGenerator;
+use App\Service\Billing\InvoiceIssuer;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -159,7 +159,6 @@ class DevisController extends AbstractController
     Devis $devis,
     Request $request,
     EM $em,
-    FactureNumberGenerator $factureGen,
   ): RedirectResponse {
 
 
@@ -197,7 +196,7 @@ class DevisController extends AbstractController
   }
 
   #[Route('/{id}/facture-brouillon', name: 'invoice_draft', methods: ['GET', 'POST'])]
-  public function invoiceDraft(Entite $entite, Devis $devis, Request $request, EM $em, FactureNumberGenerator $factureGen): Response
+  public function invoiceDraft(Entite $entite, Devis $devis, Request $request, EM $em, InvoiceIssuer $invoiceIssuer): Response
   {
     $this->denyAccessUnlessGranted(TenantPermission::FACTURE_MANAGE, $entite);
     if ($devis->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
@@ -295,7 +294,7 @@ class DevisController extends AbstractController
         return $this->redirectToRoute('app_administrateur_devis_invoice_draft', ['entite'=>$entite->getId(),'id'=>$devis->getId()]);
       }
       try {
-        \App\Service\Billing\InvoiceIssuer::persist($em, $factureGen, $f, function () use ($em, $devis, $f) {
+        $invoiceIssuer->persist($f, function () use ($em, $devis, $f) {
           $em->refresh($devis, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
           if ($devis->getFactureCreee()) throw new \DomainException('Ce devis a déjà été transformé en facture.');
           $meta=$devis->getMeta() ?? []; unset($meta['invoice_draft']); $devis->setMeta($meta);

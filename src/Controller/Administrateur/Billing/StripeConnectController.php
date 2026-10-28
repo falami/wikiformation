@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/administrateur/{entite}/billing/connect', name: 'app_administrateur_billing_connect_')]
-#[IsGranted('ROLE_USER')]
+#[IsGranted(\App\Security\Permission\TenantPermission::BILLING_MANAGE, subject: 'entite')]
 final class StripeConnectController extends AbstractController
 {
     public function __construct(

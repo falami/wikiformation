@@ -20,6 +20,8 @@ final class BpfDeclarationTest extends KernelTestCase
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        // Invoice fixtures represent already configured issuers; Stripe readiness has dedicated security tests.
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->user = (new Utilisateur())->setEmail('bpf@example.test')->setPassword('unused')->setPrenom('Camille')->setNom('Martin')->setRoles(['ROLE_USER']);

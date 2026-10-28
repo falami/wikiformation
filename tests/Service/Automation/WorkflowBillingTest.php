@@ -7,7 +7,8 @@ namespace App\Tests\Service\Automation;
 use App\Entity\{ConventionContrat, Devis, Entite, Facture, LigneDevis, Utilisateur};
 use App\Entity\Automation\{TrainingWorkflow, WorkflowTask};
 use App\Service\Automation\WorkflowBilling;
-use App\Service\Billing\InvoiceTotals;
+use App\Service\Billing\{InvoiceIssuer, InvoiceTotals};
+use App\Service\EInvoicing\EInvoiceReadiness;
 use App\Service\Email\MailerManager;
 use App\Service\Pdf\PdfManager;
 use App\Service\Sequence\FactureNumberGenerator;
@@ -23,6 +24,7 @@ final class WorkflowBillingTest extends TestCase
     private WorkflowBilling $billing;
     private TrainingWorkflow $workflow;
     private Devis $quote;
+    private EInvoiceReadiness $readiness;
 
     protected function setUp(): void
     {
@@ -35,7 +37,9 @@ final class WorkflowBillingTest extends TestCase
         $transport->expects(self::never())->method('send');
         $twig = $this->createMock(Environment::class);
         $mailer = new MailerManager($transport, $twig, $this->createMock(UrlGeneratorInterface::class));
-        $this->billing = new WorkflowBilling($this->em, $numbers, $mailer, $this->createMock(PdfManager::class), $twig);
+        $this->readiness = $this->createMock(EInvoiceReadiness::class);
+        $issuer = new InvoiceIssuer($this->em, $numbers, $this->readiness);
+        $this->billing = new WorkflowBilling($this->em, $issuer, $mailer, $this->createMock(PdfManager::class), $twig);
 
         $entity = (new Entite())->setNom('Organisme test')->setSiret('12345678900012')->setNumeroTva('FR12345678901')->setAdresse('1 rue Test')->setCodePostal('75001')->setVille('Paris')->setPays('France');
         (new \ReflectionProperty($entity, 'id'))->setValue($entity, 1);
@@ -87,6 +91,18 @@ final class WorkflowBillingTest extends TestCase
         $result = $this->billing->handle($this->task('invoice'));
         self::assertSame('blocked', $result['status']);
         self::assertStringContainsString('Date de prestation', $result['detail']);
+        self::assertNull($this->workflow->getFacture());
+    }
+
+    public function testMissingBillingConfigurationBlocksBeforeTheOuterTransaction(): void
+    {
+        $this->readiness->expects(self::once())->method('assertCanIssue')->with($this->workflow->getEntite())
+            ->willThrowException(new \DomainException('Configurez la facturation électronique.'));
+        $this->em->expects(self::never())->method('persist');
+        $this->em->expects(self::never())->method('wrapInTransaction');
+        $result = $this->billing->handle($this->task('invoice'));
+        self::assertSame('blocked', $result['status']);
+        self::assertSame('Configurez la facturation électronique.', $result['detail']);
         self::assertNull($this->workflow->getFacture());
     }
 

@@ -15,7 +15,7 @@ final class ConventionDossier
 {
     public function __construct(private EntityManagerInterface $em, private ConventionDocument $document,
         private AttendancePdfData $attendance, private IndividualAttendanceSheets $sheets,
-        private PdfManager $pdf, private Environment $twig) {}
+        private PdfManager $pdf, private Environment $twig, private TrainingExitDocuments $exitDocuments) {}
 
     public function inventory(ConventionContrat $c): array
     {
@@ -69,6 +69,12 @@ final class ConventionDossier
                 $files['Appreciation-'.$this->filename($inventory['people'][$key]).'-'.$assignment->getId().'.pdf'] = $this->pdf->outputPortrait($this->twig->render('pdf/convention_appreciation.html.twig', [
                     'convention'=>$c,'name'=>$inventory['people'][$key], 'assignment'=>$assignment, 'answers'=>$this->answers($assignment),
                 ]));
+            }
+        }
+        foreach ($c->getInscriptions() as $inscription) {
+            if (!$inscription->getStagiaire()) continue;
+            foreach ($this->exitDocuments->build($inscription) as $name=>$content) {
+                $files[(str_starts_with($name, 'Facture-') ? 'Session/' : 'Participants/'.$inscription->getId().'/').$name] = $content;
             }
         }
         // Include an explicit inventory: an unsigned/absent document is never presented as complete.

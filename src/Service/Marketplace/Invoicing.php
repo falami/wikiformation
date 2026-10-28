@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Service\Marketplace;
 
 use App\Entity\Marketplace\{Invoice,Purchase,Settings};
+use App\Exception\MarketplaceInvoiceUnavailable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Dompdf\{Dompdf,Options};
@@ -10,13 +11,29 @@ use Twig\Environment;
 
 final class Invoicing
 {
-    public function __construct(private EntityManagerInterface $em, private Environment $twig) {}
+    public function __construct(private EntityManagerInterface $em, private Environment $twig, private MarketplaceInvoiceReadiness $readiness) {}
 
     /** Called inside the payment transaction, after Stripe has been verified. */
     public function issue(Purchase $purchase): void
     {
         if (!$purchase->paidAt || $purchase->billingVersion!==1) return;
         if (!$this->em->getConnection()->isTransactionActive()) throw new \LogicException('Facturation hors transaction.');
+        $pending = $this->pendingDocuments($purchase);
+        if ($pending === []) return;
+        try {
+            $this->readiness->assertAvailable();
+        } catch (MarketplaceInvoiceUnavailable $error) {
+            // A payment can arrive from a Checkout opened before suspension. Preserve its
+            // payment/refund state and purchased access; do not roll back or invent a PDF.
+            $purchase->consent['invoice_processing'] = [
+                'status' => 'blocked', 'code' => 'marketplace_einvoice_unavailable',
+                'reason' => 'Facturation électronique du vendeur et de la plateforme à raccorder. Intervention nécessaire pour les documents en attente.',
+                'detectedAt' => $purchase->consent['invoice_processing']['detectedAt'] ?? (new \DateTimeImmutable())->format(DATE_ATOM),
+                'pendingDocuments' => $pending, 'refundedCents' => $purchase->refundedCents,
+            ];
+            return;
+        }
+        unset($purchase->consent['invoice_processing']);
         // A permanent row serializes all document counters, including their first use.
         $settings=$this->em->find(Settings::class,1);
         if (!$settings) throw new \LogicException('Réglages de facturation absents.');
@@ -55,6 +72,27 @@ final class Invoicing
     public static function refundShare(int $amount,int $refund,int $total): int
     {
         return intdiv($amount*$refund+max(1,$total)-1,max(1,$total));
+    }
+    /** Documents still owed, retained independently of the payment/refund ledger. */
+    private function pendingDocuments(Purchase $purchase): array
+    {
+        if ($purchase->refundedCents < 0 || $purchase->refundedCents > $purchase->totalCents) throw new \DomainException('Remboursement incohérent.');
+        $existing = $this->em->getRepository(Invoice::class)->findBy(['purchase' => $purchase]);
+        $sale = $commission = false;
+        $credited = $commissionCredited = 0;
+        foreach ($existing as $invoice) {
+            if ($invoice->kind === 'sale') $sale = true;
+            if ($invoice->kind === 'commission') $commission = true;
+            if ($invoice->kind === 'sale_credit') $credited = max($credited, (int) ($invoice->document['refundedTotal'] ?? 0));
+            if ($invoice->kind === 'commission_credit') $commissionCredited = max($commissionCredited, (int) ($invoice->document['refundedTotal'] ?? 0));
+        }
+        if ($purchase->refundedCents < $credited) throw new \DomainException('Le total remboursé ne peut pas diminuer.');
+        $pending = [];
+        if (!$sale) $pending[] = 'sale';
+        if (!$purchase->platformSale && $purchase->commissionCents > 0 && !$commission) $pending[] = 'commission';
+        if ($purchase->refundedCents > $credited) $pending[] = 'sale_credit';
+        if (!$purchase->platformSale && $purchase->commissionCents > 0 && $purchase->refundedCents > $commissionCredited) $pending[] = 'commission_credit';
+        return $pending;
     }
     private function find(Purchase $purchase,string $key): ?Invoice
     {

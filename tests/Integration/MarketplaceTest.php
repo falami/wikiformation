@@ -1,17 +1,18 @@
 <?php
 namespace App\Tests\Integration;
-use App\Entity\{Entite,Utilisateur,UtilisateurEntite};
+use App\Entity\{AuditLog,Entite,Utilisateur,UtilisateurEntite};
 use App\Entity\Elearning\ElearningCourse;
 use App\Entity\Marketplace\{Access,Purchase,Seller,Settings,Offer};
-use App\Service\Marketplace\{Payments,Policy,StripeGateway};
+use App\Service\Marketplace\{Payments,Policy,StripeGateway,MarketplaceInvoiceReadiness,SellerPaymentPolicy};
+use App\Exception\MarketplaceInvoiceUnavailable;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class MarketplaceTest extends KernelTestCase {
- private $em; private array $env; private Utilisateur $buyer; private Seller $seller; private Offer $offer;
+ private $em; private array $env; private Utilisateur $buyer; private Seller $seller; private Offer $offer; private MarketplaceInvoiceReadiness $invoiceReadiness;
  protected function setUp(): void {
   $this->env=[$_ENV['DATABASE_URL']??null,$_SERVER['DATABASE_URL']??null];$_ENV['DATABASE_URL']=$_SERVER['DATABASE_URL']='sqlite:///:memory:';
-  self::bootKernel();$this->em=self::getContainer()->get('doctrine')->getManager();(new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
+  self::bootKernel();$this->invoiceReadiness=$this->getMockBuilder(MarketplaceInvoiceReadiness::class)->onlyMethods(['assertAvailable'])->getMock();self::getContainer()->set(MarketplaceInvoiceReadiness::class,$this->invoiceReadiness);$this->em=self::getContainer()->get('doctrine')->getManager();(new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
   $this->buyer=(new Utilisateur())->setEmail('buyer@example.test')->setPassword('unused')->setPrenom('Test')->setNom('Buyer');
   $trainer=(new Utilisateur())->setEmail('seller@example.test')->setPassword('unused')->setPrenom('Test')->setNom('Seller');
   $entity=(new Entite())->setNom('Tenant A')->setPublic(false)->setCreateur($trainer);
@@ -23,7 +24,8 @@ final class MarketplaceTest extends KernelTestCase {
   $this->offer=new Offer();$this->offer->seller=$this->seller;$this->offer->course=$course;$this->offer->published=true;$this->offer->membersVisible=true;$this->offer->priceCents=12000;$this->offer->taxBps=2000;$this->offer->snapshot=['title'=>'Original course','description'=>'Learn with a trainer','minutes'=>60,'capturedAt'=>'2026-10-25T10:00:00Z','nodes'=>[]];$this->em->persist($this->offer);$this->em->flush();
  }
  protected function tearDown(): void {parent::tearDown();foreach(['ENV','SERVER'] as $i=>$n){if($this->env[$i]===null)unset($GLOBALS['_'.$n]['DATABASE_URL']);else $GLOBALS['_'.$n]['DATABASE_URL']=$this->env[$i];}}
- private function payments(StripeGateway $stripe): Payments {return new Payments($this->em,$stripe,new Policy($this->em),self::getContainer()->get(UrlGeneratorInterface::class),self::getContainer()->get(\App\Service\Marketplace\Invoicing::class));}
+ private function payments(StripeGateway $stripe): Payments {return new Payments($this->em,$stripe,new Policy($this->em),self::getContainer()->get(UrlGeneratorInterface::class),self::getContainer()->get(\App\Service\Marketplace\Invoicing::class),$this->invoiceReadiness);}
+ private static function balance(string $charge='ch_test'): array {return ['id'=>'txn_'.$charge,'object'=>'balance_transaction','source'=>$charge,'currency'=>'eur','amount'=>12000,'fee'=>210,'net'=>11790,'status'=>'available','available_on'=>time()-86400];}
  private function purchase(): Purchase {$p=new Purchase();$p->id=bin2hex(random_bytes(16));$p->buyer=$this->buyer;$p->seller=$this->seller;$p->createdAt=new \DateTimeImmutable('-20 days');$p->checkoutId='cs_test';$p->totalCents=12000;$p->commissionCents=2000;$p->items=[['course'=>$this->offer->course->getId(),'snapshot'=>$this->offer->snapshot]];$this->em->persist($p);$this->em->flush();return $p;}
  public function testMoneyAndDisabledSales(): void {
   self::assertSame(['net'=>10000,'tax'=>2000,'commission'=>2000],Payments::split(12000,2000,2000));
@@ -33,7 +35,7 @@ final class MarketplaceTest extends KernelTestCase {
  public function testReplaySnapshotFeesAndRefund(): void {
   $p=$this->purchase();$refund=0;$stripe=$this->createMock(StripeGateway::class);
   $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_test']);
-  $stripe->method('payment')->willReturnCallback(function() use(&$refund){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>['fee'=>210,'available_on'=>time()-86400]]];});
+  $stripe->method('payment')->willReturnCallback(function() use(&$refund){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>self::balance()]];});
   $stripe->expects(self::once())->method('transfer')->with('acct_test',9790,'ch_test',self::anything())->willReturn('tr_test');
   $stripe->method('transferState')->willReturn(['amount'=>9790,'currency'=>'eur','destination'=>'acct_test','amount_reversed'=>0]);
   $stripe->expects(self::once())->method('reverse')->with('tr_test',9790,self::anything());
@@ -45,7 +47,7 @@ final class MarketplaceTest extends KernelTestCase {
  public function testUnrecordedTransferIsRecoveredAfterFullRefundWithoutPayingTwice(): void {
   $p=$this->purchase();$stripe=$this->createMock(StripeGateway::class);
   $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_test']);
-  $stripe->method('payment')->willReturn(['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time()-20*86400,'amount_refunded'=>12000,'balance_transaction'=>['fee'=>210,'available_on'=>time()-86400]]]);
+  $stripe->method('payment')->willReturn(['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time()-20*86400,'amount_refunded'=>12000,'balance_transaction'=>self::balance()]]);
   $remote=['id'=>'tr_recovered','amount'=>9790,'currency'=>'eur','destination'=>'acct_test','source_transaction'=>'ch_test','amount_reversed'=>0];
   $stripe->method('findTransfer')->willReturnCallback(fn($key)=>str_ends_with($key,'-0')?$remote:null);
   $stripe->method('transferState')->willReturn($remote);
@@ -57,7 +59,7 @@ final class MarketplaceTest extends KernelTestCase {
   $p=$this->purchase();$p->transferredCents=9790;$p->payoutHistory=[['id'=>'tr_previous','amount'=>9790,'reversed'=>0]];$this->em->flush();
   $stripe=$this->createMock(StripeGateway::class);
   $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_test']);
-  $stripe->method('payment')->willReturn(['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time()-20*86400,'amount_refunded'=>12000,'balance_transaction'=>['fee'=>210,'available_on'=>time()-86400]]]);
+  $stripe->method('payment')->willReturn(['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time()-20*86400,'amount_refunded'=>12000,'balance_transaction'=>self::balance()]]);
   $stripe->method('transferState')->willReturn(['amount'=>9790,'currency'=>'eur','destination'=>'acct_test','amount_reversed'=>9790]);
   $stripe->expects(self::never())->method('transfer');$stripe->expects(self::never())->method('reverse');
   $this->payments($stripe)->settle($p);self::assertSame(0,$p->transferredCents);self::assertSame(9790,$p->payoutHistory[0]['reversed']);
@@ -65,7 +67,7 @@ final class MarketplaceTest extends KernelTestCase {
  public function testWonDisputeRestoresPaidAccess(): void {
   $p=$this->purchase();$state='under_review';$stripe=$this->createMock(StripeGateway::class);
   $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_test']);
-  $stripe->method('payment')->willReturnCallback(function() use(&$state){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time(),'disputed'=>true,'_dispute_status'=>$state,'balance_transaction'=>['fee'=>210]]];});
+  $stripe->method('payment')->willReturnCallback(function() use(&$state){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_test','created'=>time(),'amount_refunded'=>0,'disputed'=>true,'_dispute_status'=>$state,'balance_transaction'=>self::balance()]];});
   $service=$this->payments($stripe);$service->sync($p);self::assertTrue($this->em->getRepository(Access::class)->findOneBy([])->suspended);
   $state='won';$service->sync($p);self::assertSame('paid',$p->status);self::assertFalse($this->em->getRepository(Access::class)->findOneBy([])->suspended);
  }
@@ -151,6 +153,9 @@ final class MarketplaceTest extends KernelTestCase {
  }
 
  public function testCheckoutAndResumeAndReceiptOwnership(): void {
+  // A stale administration setting cannot override the policy for a new seller sale.
+  $this->em->find(Settings::class,1)->feesPayer='platform';
+  $this->em->persist(SellerPaymentPolicy::acceptance($this->seller,$this->em->find(Settings::class,1),$this->offer->course->getEntite()));
   foreach ([$this->buyer,$this->seller->user] as $u) $this->em->persist((new UtilisateurEntite())->setUtilisateur($u)->setEntite($this->offer->course->getEntite())->setCreateur($this->seller->user)->setRoles($u===$this->buyer?['TENANT_STAGIAIRE']:['TENANT_FORMATEUR']));$this->em->flush();
   $stripe=$this->createMock(StripeGateway::class);$stripe->method('account')->willReturn(['country'=>'FR','charges_enabled'=>true,'payouts_enabled'=>true]);
   $stripe->expects(self::once())->method('checkout')->willReturnCallback(function(array $request,string $key) {
@@ -159,6 +164,7 @@ final class MarketplaceTest extends KernelTestCase {
   });
   $service=$this->payments($stripe);self::assertSame('https://checkout.stripe.com/test',$service->checkout($this->buyer,[$this->offer->id],['termsAccepted'=>true,'immediateAccess'=>true,'billing'=>['name'=>'Test Buyer','address'=>'1 rue Test','postalCode'=>'75001','city'=>'Paris','country'=>'FR','kind'=>'person'],'withdrawalAcknowledged'=>true]));
   $purchase=$this->em->getRepository(Purchase::class)->findOneBy([]);self::assertSame(2000,$purchase->commissionCents);self::assertSame('seller',$purchase->feesPayer);self::assertSame('https://checkout.stripe.com/test',$service->resume($purchase));
+  self::assertSame(SellerPaymentPolicy::VERSION,$purchase->consent['sellerPaymentPolicy']['policy']['version']);
   $purchase->checkoutId=null;$this->em->flush();
   $client=self::getContainer()->get('test.client');$client->disableReboot();$client->catchExceptions(false);$client->loginUser($this->buyer);
   $client->request('GET','/cours-en-ligne/achat/'.$purchase->id);self::assertSame(200,$client->getResponse()->getStatusCode());
@@ -178,7 +184,7 @@ final class MarketplaceTest extends KernelTestCase {
   $service=$this->payments($stripe);$service->checkout($this->buyer,[$this->offer->id],['billing'=>['name'=>'Test Buyer','address'=>'1 rue Test','postalCode'=>'75001','city'=>'Paris','country'=>'FR','kind'=>'person']]);
   $p=$this->em->getRepository(Purchase::class)->findOneBy([]);self::assertTrue($p->platformSale);self::assertSame(0,$p->commissionBps);self::assertSame(0,$p->commissionCents);self::assertSame('platform',$p->feesPayer);
   $refund=0;$stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_direct']);
-  $stripe->method('payment')->willReturnCallback(function() use(&$refund){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_direct','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>['fee'=>210,'available_on'=>time()-86400]]];});
+  $stripe->method('payment')->willReturnCallback(function() use(&$refund){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_direct','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>self::balance('ch_direct')]];});
   $owner->setRoles(['ROLE_USER']);$this->em->flush(); // Historical destination survives role changes.
   $service->settle($p);$service->settle($p);self::assertSame(0,$p->sellerCents);self::assertSame(0,$p->transferredCents);self::assertSame(210,$p->stripeFeeCents);self::assertSame(10000,$p->platformRevenueHtCents());
   $refund=6000;$service->settle($p);self::assertSame(5000,$p->platformRevenueHtCents());
@@ -200,7 +206,7 @@ final class MarketplaceTest extends KernelTestCase {
   $refund=0;
   $stripe=$this->createMock(StripeGateway::class);
   $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_billing']);
-  $stripe->method('payment')->willReturnCallback(function() use (&$refund) {return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_billing','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>['fee'=>210,'available_on'=>time()-86400]]];});
+  $stripe->method('payment')->willReturnCallback(function() use (&$refund) {return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_billing','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>self::balance('ch_billing')]];});
   $stripe->expects(self::once())->method('transfer')->with('acct_test',9390,'ch_billing',self::anything())->willReturn('tr_billing');
   $service=$this->payments($stripe);$service->settle($p);$service->sync($p);
   self::assertSame(9390,$p->transferredCents);self::assertSame(9390,$p->sellerCents);
@@ -247,4 +253,78 @@ final class MarketplaceTest extends KernelTestCase {
   $this->expectException(\DomainException::class);$this->expectExceptionMessage('mandat');
   $this->payments($stripe)->checkout($this->buyer,[$this->offer->id],['billing'=>['name'=>'Test Buyer','address'=>'1 rue Test','postalCode'=>'75001','city'=>'Paris','country'=>'FR','kind'=>'person']]);
  }
+ public function testLegacySellerTermsCannotAuthorizeNewSellerPaidFees(): void {
+  $trainer=$this->seller->user;$entite=$this->offer->course->getEntite();
+  $this->em->persist((new UtilisateurEntite())->setUtilisateur($trainer)->setEntite($entite)->setCreateur($trainer)->setRoles(['TENANT_FORMATEUR']));$this->em->flush();
+  $stripe=$this->createMock(StripeGateway::class);$stripe->expects(self::never())->method('checkout');$stripe->expects(self::never())->method('account');
+  try {$this->payments($stripe)->checkout($this->buyer,[$this->offer->id],['billing'=>['name'=>'Test Buyer','address'=>'1 rue Test','postalCode'=>'75001','city'=>'Paris','country'=>'FR','kind'=>'person']]);self::fail('New fees require a new seller acceptance.');}
+  catch (\DomainException $error) {self::assertStringContainsString('conditions actuelles de frais de paiement',$error->getMessage());}
+  self::assertSame(0,$this->em->getRepository(Purchase::class)->count([]));
+ }
+ public function testSellerProfileRecordsDisplayedPolicyAndRejectsStaleConditions(): void {
+  $trainer=$this->seller->user;$entite=$this->offer->course->getEntite();
+  $this->em->persist((new UtilisateurEntite())->setUtilisateur($trainer)->setEntite($entite)->setCreateur($trainer)->setRoles(['TENANT_FORMATEUR']));$this->em->flush();
+  $client=self::getContainer()->get('test.client');$client->disableReboot();$client->catchExceptions(false);$client->loginUser($trainer);
+  $url='/formateur/'.$entite->getId().'/studio/vendeur';$crawler=$client->request('GET',$url);
+  $data=$crawler->filter('form')->first()->form()->getPhpValues();$data['accept']='1';$data['mandate']='1';
+  $client->request('POST',$url,array_replace($data,['payment_policy_digest'=>'stale']));
+  self::assertSame(0,$this->em->getRepository(AuditLog::class)->count(['event'=>'marketplace.seller_fees_accepted']));
+  $client->request('POST',$url,$data);
+  self::assertSame(200,$client->getResponse()->getStatusCode());
+  $proof=$this->em->getRepository(AuditLog::class)->findOneBy(['event'=>'marketplace.seller_fees_accepted']);self::assertNotNull($proof);
+  self::assertSame($data['payment_policy_digest'],$proof->getPayload()['policy']['sha256']);
+  self::assertSame(SellerPaymentPolicy::TEXT,$proof->getPayload()['policy']['text']);
+  $seller=$this->em->find(Seller::class,$this->seller->id);$settings=$this->em->find(Settings::class,1);
+  self::assertSame($proof->getId(),SellerPaymentPolicy::assertAccepted($this->em,$seller,$settings)['auditLogId']);
+  $settings->commissionBps=2500;$this->em->flush();
+  $this->expectException(\DomainException::class);SellerPaymentPolicy::assertAccepted($this->em,$seller,$settings);
+ }
+ public function testUnavailableInvoicingBlocksCheckoutBeforeStripeAndPurchaseCreation(): void {
+  $this->invoiceReadiness->method('assertAvailable')->willThrowException(new MarketplaceInvoiceUnavailable(MarketplaceInvoiceReadiness::MESSAGE));
+  $stripe=$this->createMock(StripeGateway::class);$stripe->expects(self::never())->method('account');$stripe->expects(self::never())->method('checkout');
+  try { $this->payments($stripe)->checkout($this->buyer,[$this->offer->id],[]);self::fail('The disconnected marketplace must reject new payments.'); }
+  catch (MarketplaceInvoiceUnavailable $error) {self::assertSame(MarketplaceInvoiceReadiness::MESSAGE,$error->getMessage());}
+  self::assertSame(0,$this->em->getRepository(Purchase::class)->count([]));
+ }
+ public function testUnavailableInvoicingCannotReturnAnExistingCheckoutUrl(): void {
+  $p=$this->purchase();$p->checkoutUrl='https://checkout.stripe.com/previous';$p->checkoutRequest=['expires_at'=>time()+1800];$this->em->flush();
+  $this->invoiceReadiness->method('assertAvailable')->willThrowException(new MarketplaceInvoiceUnavailable(MarketplaceInvoiceReadiness::MESSAGE));
+  $stripe=$this->createMock(StripeGateway::class);$stripe->expects(self::never())->method('checkout');
+  $this->expectException(MarketplaceInvoiceUnavailable::class);$this->payments($stripe)->resume($p);
+ }
+ public function testDirectMarketplaceInvoiceInsertCannotBypassSuspension(): void {
+  $p=$this->purchase();$this->invoiceReadiness->method('assertAvailable')->willThrowException(new MarketplaceInvoiceUnavailable(MarketplaceInvoiceReadiness::MESSAGE));
+  $invoice=new \App\Entity\Marketplace\Invoice();$invoice->purchase=$p;$invoice->number='PREASSIGNED-NUMBER';
+  try { $this->em->persist($invoice);$this->em->flush();self::fail('The Doctrine boundary must reject a direct invoice.'); }
+  catch (MarketplaceInvoiceUnavailable) {self::assertSame(0,$this->em->getRepository(\App\Entity\Marketplace\Invoice::class)->count([]));}
+ }
+ public function testBlockedInvoicingKeepsHistoricalPaymentRefundAndAccessReconciliation(): void {
+  $p=$this->purchase();$p->billingVersion=1;$p->commissionTaxCents=400;
+  $this->invoiceReadiness->method('assertAvailable')->willThrowException(new MarketplaceInvoiceUnavailable(MarketplaceInvoiceReadiness::MESSAGE));
+  $this->em->flush();$refund=0;$stripe=$this->createMock(StripeGateway::class);
+  $stripe->method('session')->willReturn(['metadata'=>['marketplace_purchase'=>$p->id],'amount_total'=>12000,'currency'=>'eur','payment_status'=>'paid','payment_intent'=>'pi_pending_invoice']);
+  $stripe->method('payment')->willReturnCallback(function() use(&$refund){return ['status'=>'succeeded','currency'=>'eur','amount_received'=>12000,'latest_charge'=>['id'=>'ch_pending_invoice','created'=>time()-20*86400,'amount_refunded'=>$refund,'balance_transaction'=>self::balance('ch_pending_invoice')]];});
+  $stripe->expects(self::never())->method('checkout');$stripe->expects(self::never())->method('transfer');
+  $service=$this->payments($stripe);$service->sync($p);
+  self::assertSame('paid',$p->status);self::assertNotNull($p->paidAt);self::assertSame('blocked',$p->consent['invoice_processing']['status']);
+  self::assertSame(['sale','commission'],$p->consent['invoice_processing']['pendingDocuments']);
+  $detected=$p->consent['invoice_processing']['detectedAt'];
+  $access=$this->em->getRepository(Access::class)->findOneBy(['purchase'=>$p]);self::assertFalse($access->suspended);
+  foreach([6000,12000] as $refund) {
+   $service->sync($p);self::assertSame($refund,$p->refundedCents);self::assertSame('refunded',$p->status);
+   self::assertSame($refund===12000,$access->suspended);self::assertSame($detected,$p->consent['invoice_processing']['detectedAt']);
+   self::assertSame(['sale','commission','sale_credit','commission_credit'],$p->consent['invoice_processing']['pendingDocuments']);
+  }
+  self::assertSame(0,$this->em->getRepository(\App\Entity\Marketplace\Invoice::class)->count([]));
+  self::assertSame(0,$this->em->getRepository(\App\Entity\EInvoiceUsage::class)->count([]));
+  $saved=json_decode($this->em->getConnection()->fetchOne('SELECT consent FROM marketplace_purchase WHERE id = ?',[$p->id]),true);
+  self::assertSame(12000,$saved['invoice_processing']['refundedCents']);self::assertTrue($this->em->isOpen());
+ }
+ public function testUnexpectedInvoiceErrorIsNotSilentlyMarkedAsUnavailable(): void {
+  $p=$this->purchase();$p->billingVersion=1;$p->paidAt=new \DateTimeImmutable();$this->em->flush();
+  $this->invoiceReadiness->method('assertAvailable')->willThrowException(new \RuntimeException('Unexpected failure fixture'));
+  $this->expectException(\RuntimeException::class);$this->expectExceptionMessage('Unexpected failure fixture');
+  $this->em->wrapInTransaction(fn()=>self::getContainer()->get(\App\Service\Marketplace\Invoicing::class)->issue($p));
+ }
+
 }

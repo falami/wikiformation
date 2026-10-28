@@ -72,34 +72,30 @@ final class EntrepriseDocumentsController extends AbstractController
       if (!$registration->getStagiaire()) continue;
       $person = $registration->getStagiaire();
       $folder = 'Stagiaires/'.$registration->getId().'-'.preg_replace('/[^\pL\pN_-]+/u', '-', $person->getPrenom().' '.$person->getNom()).'/';
-      foreach ($learners->build($registration, $request) as $name=>$content) $files[$folder.$name] = $content;
+      foreach ($learners->build($registration, $request) as $name=>$content) $files[(str_starts_with($name, 'Facture-') ? 'Session/' : $folder).$name] = $content;
       foreach ($em->getRepository(QcmAssignment::class)->findBy(['entite'=>$entite,'inscription'=>$registration]) as $assignment) {
         $files[$folder.'QCM-'.$assignment->getId().'.pdf'] = $bytes($this->qcmQuestionnairePdf($entite, $assignment, $em));
         if ($assignment->getAttempt()?->getSubmittedAt()) $files[$folder.'Resultat-QCM-'.$assignment->getId().'.pdf'] = $bytes($this->qcmResultPdf($entite, $assignment));
       }
-      if ($scope !== 'session') continue;
+
       foreach ($registration->getDevis() as $quote) if ($quote->getEntite()?->getId() === $entite->getId() && $quote->getEntrepriseDestinataire()?->getId() === $company->getId() && $quote->getStatus() !== DevisStatus::DRAFT) {
         $key = 'Session/Devis-'.$quote->getId().'.pdf';
         if (!isset($files[$key])) $files[$key] = $bytes($this->devisPdf($entite, $quote));
       }
-      foreach ($registration->getFactures() as $invoice) if ($invoice->getEntite()?->getId() === $entite->getId() && $invoice->getEntrepriseDestinataire()?->getId() === $company->getId()) {
-        $key = 'Session/Facture-'.$invoice->getId().'.pdf';
-        if (!isset($files[$key])) $files[$key] = $bytes($this->facturePdf($entite, $invoice));
+
+    }
+    foreach ($em->getRepository(ConventionContrat::class)->findBy(['entite'=>$entite,'session'=>$session,'entreprise'=>$company]) as $convention) {
+      if ($scope === 'stagiaire' && !$convention->getInscriptions()->contains($inscription)) continue;
+      $files['Session/Convention-'.$convention->getId().'.pdf'] = $bytes($conventionDocuments->response($convention));
+    }
+    $root = realpath($this->getParameter('kernel.project_dir').'/public/uploads/entreprise/docs');
+    foreach ($em->getRepository(\App\Entity\EntrepriseDocument::class)->findBy(['entite'=>$entite,'session'=>$session,'entreprise'=>$company]) as $document) {
+      $path = $root ? realpath($root.'/'.$document->getFilename()) : false;
+      if ($path && str_starts_with($path, $root.DIRECTORY_SEPARATOR) && is_file($path)) {
+        $files['Session/Documents/'.$document->getId().'-'.basename($document->getOriginalName())] = file_get_contents($path);
       }
     }
-    if ($scope === 'session') {
-      foreach ($em->getRepository(ConventionContrat::class)->findBy(['entite'=>$entite,'session'=>$session,'entreprise'=>$company]) as $convention) {
-        $files['Session/Convention-'.$convention->getId().'.pdf'] = $bytes($conventionDocuments->response($convention));
-      }
-      $root = realpath($this->getParameter('kernel.project_dir').'/public/uploads/entreprise/docs');
-      foreach ($em->getRepository(\App\Entity\EntrepriseDocument::class)->findBy(['entite'=>$entite,'session'=>$session,'entreprise'=>$company]) as $document) {
-        $path = $root ? realpath($root.'/'.$document->getFilename()) : false;
-        if ($path && str_starts_with($path, $root.DIRECTORY_SEPARATOR) && is_file($path)) {
-          $files['Session/Documents/'.$document->getId().'-'.basename($document->getOriginalName())] = file_get_contents($path);
-        }
-      }
-    }
-    $files['Contenu.txt'] = "Documents disponibles au moment du téléchargement. Les questionnaires non soumis et les attestations non délivrées ne sont pas inclus.\nLe dossier session contient uniquement les documents accessibles à votre entreprise.\n\n".implode("\n", array_keys($files));
+    $files['Contenu.txt'] = "Documents disponibles au moment du téléchargement. Les réponses non soumises, les attestations non délivrées et les titres non signés ne sont pas inclus.\nLe dossier session contient uniquement les documents accessibles à votre entreprise.\n\n".implode("\n", array_keys($files));
     return new Response($dossier->archive($files), 200, ['Content-Type'=>'application/zip',
       'Content-Disposition'=>'attachment; filename="Dossier-'.$scope.'-'.$inscription->getId().'.zip"', 'Cache-Control'=>'private, no-store']);
   }

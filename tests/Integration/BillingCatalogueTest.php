@@ -2,8 +2,9 @@
 
 namespace App\Tests\Integration;
 
-use App\Entity\{Entite, Utilisateur, UtilisateurEntite};
+use App\Entity\{AuditLog, Entite, Utilisateur, UtilisateurEntite};
 use App\Entity\Billing\{EntiteSubscription, Plan};
+use App\Service\Billing\{StripeBillingService, SubscriptionTerms};
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\{EntityManagerInterface, Tools\SchemaTool};
 use Psr\Log\NullLogger;
@@ -28,6 +29,7 @@ final class BillingCatalogueTest extends KernelTestCase
 
     protected function tearDown(): void
     {
+        \Stripe\ApiRequestor::setHttpClient(new \Stripe\HttpClient\CurlClient());
         parent::tearDown();
         foreach (['ENV', 'SERVER'] as $index => $type) {
             if ($this->originalDatabase[$index] === null) unset($GLOBALS['_' . $type]['DATABASE_URL']);
@@ -355,6 +357,86 @@ final class BillingCatalogueTest extends KernelTestCase
         self::assertSame(302, $client->getResponse()->getStatusCode());
         self::assertStringContainsString('/onboarding', $client->getResponse()->headers->get('Location'));
         self::assertSame(1, $this->em->getRepository(EntiteSubscription::class)->count([]));
+    }
+
+    public function testCheckoutRequiresExplicitCurrentTermsBeforeAnyStripeCall(): void
+    {
+        [$user, , $previous] = $this->subscribedTenant('canceled');
+        $previous->getPlan()->setStripePriceMonthlyId('price_solo');
+        $this->em->flush();
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::never())->method('request');
+        \Stripe\ApiRequestor::setHttpClient($http);
+        $client = $this->client();
+        $client->loginUser($user);
+        $crawler = $client->request('GET', $this->url('app_public_pricing'));
+        self::assertCount(4, $crawler->filter('input[name="terms_accepted"][required]:not([checked])'));
+        $form = $crawler->filter('.wf-offer-form')->first()->form();
+        $data = $form->getPhpValues();
+        foreach ([[], ['terms_accepted' => '1', 'terms_version' => 'old'], ['terms_accepted' => '1', 'terms_digest' => 'forged']] as $override) {
+            $client->request('POST', $this->url('app_billing_checkout'), array_replace($data, $override));
+            self::assertSame(302, $client->getResponse()->getStatusCode());
+            self::assertStringContainsString('/tarifs', $client->getResponse()->headers->get('Location'));
+            self::assertSame(0, $this->em->getRepository(AuditLog::class)->count(['event' => 'subscription.terms_accepted']));
+            self::assertSame(1, $this->em->getRepository(EntiteSubscription::class)->count([]));
+        }
+        // A price or document change after rendering requires review again, even with the same version label.
+        $this->em->getRepository(Plan::class)->findOneBy(['code' => 'SOLO'])->setPriceMonthlyCents(3150);
+        $this->em->flush();
+        $client->request('POST', $this->url('app_billing_checkout'), array_replace($data, ['terms_accepted' => '1']));
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertSame(1, $this->em->getRepository(EntiteSubscription::class)->count([]));
+        self::assertSame(0, $this->em->getRepository(AuditLog::class)->count(['event' => 'subscription.terms_accepted']));
+    }
+
+    public function testCheckoutFreezesAcceptedTermsAndPriceBeforeOpeningStripe(): void
+    {
+        [$user, $entite, $previous] = $this->subscribedTenant('canceled');
+        $previous->getPlan()->setStripePriceMonthlyId('price_solo');
+        $this->em->flush();
+        self::getContainer()->set(StripeBillingService::class, new StripeBillingService('sk_test_fixture', 'http://localhost'));
+        $http = $this->createMock(\Stripe\HttpClient\ClientInterface::class);
+        $http->expects(self::exactly(3))->method('request')->willReturnCallback(function ($method, $url, $headers, $params): array {
+            if (str_ends_with($url, '/prices/price_solo')) {
+                $body = ['id' => 'price_solo', 'object' => 'price', 'active' => true, 'currency' => 'eur', 'unit_amount' => 2900,
+                    'type' => 'recurring', 'recurring' => ['interval' => 'month', 'interval_count' => 1], 'tax_behavior' => 'exclusive'];
+            } elseif (str_ends_with($url, '/customers')) {
+                $body = ['id' => 'cus_terms', 'object' => 'customer'];
+            } else {
+                self::assertStringEndsWith('/checkout/sessions', $url);
+                self::assertSame(1, $this->em->getRepository(AuditLog::class)->count(['event' => 'subscription.terms_accepted']));
+                self::assertSame('cus_terms', $params['customer']);
+                $body = ['id' => 'cs_terms', 'object' => 'checkout.session', 'url' => 'https://checkout.stripe.com/test-terms'];
+            }
+            return [json_encode($body, JSON_THROW_ON_ERROR), 200, []];
+        });
+        \Stripe\ApiRequestor::setHttpClient($http);
+        $client = $this->client();
+        $client->loginUser($user);
+        $crawler = $client->request('GET', $this->url('app_public_pricing'));
+        $data = $crawler->filter('.wf-offer-form')->first()->form()->getPhpValues();
+        $data['terms_accepted'] = '1';
+        $client->request('POST', $this->url('app_billing_checkout'), $data);
+        self::assertSame('https://checkout.stripe.com/test-terms', $client->getResponse()->headers->get('Location'));
+        $audit = $this->em->getRepository(AuditLog::class)->findOneBy(['event' => 'subscription.terms_accepted']);
+        self::assertNotNull($audit);
+        self::assertSame($user->getId(), $audit->getActor()->getId());
+        self::assertSame($entite->getId(), $audit->getEntite()->getId());
+        $proof = $audit->getPayload();
+        self::assertSame(SubscriptionTerms::VERSION, $proof['terms']['version']);
+        self::assertSame($data['terms_digest'], hash('sha256', $proof['terms']['html']));
+        self::assertSame($proof['terms']['sha256'], $data['terms_digest']);
+        self::assertStringContainsString('id="s12"', $proof['terms']['html']);
+        self::assertStringContainsString('provision pour le traitement du paiement', $proof['terms']['html']);
+        self::assertSame(2900, $proof['plan']['priceCentsExcludingTax']);
+        self::assertSame('month', $proof['plan']['interval']);
+        self::assertSame('accepted_before_checkout', $proof['stage']);
+        self::assertNotSame($previous->getId(), $proof['subscriptionId']);
+        // A later catalogue change must never rewrite the acceptance evidence.
+        $this->em->getRepository(Plan::class)->findOneBy(['code' => 'SOLO'])->setPriceMonthlyCents(3150);
+        $this->em->flush();
+        $this->em->refresh($audit);
+        self::assertSame($proof, $audit->getPayload());
     }
 
     /** @return array{Utilisateur, Entite, EntiteSubscription} */

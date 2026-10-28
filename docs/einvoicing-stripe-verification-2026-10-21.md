@@ -1,5 +1,11 @@
 # Vérification du parcours Stripe — 21 octobre 2026
 
+> Mise à jour tarifaire du 28 octobre 2026 : tarif standard 0,03 € HT
+> (transmission 0,01 + service 0,01 + provision de traitement 0,01), sans surcharge
+> liée au moyen de paiement. Tarif propriétaire 0,01 € HT inchangé ; frais de
+> paiement absorbés par l’exploitant. Les anciens tarifs figés sont conservés.
+
+
 ## Conclusion
 Le parcours payant est implémenté et les tests locaux passent : 37 tests, 233
 assertions (paramètres, runner, consommation, passerelle Stripe et webhook).
@@ -21,7 +27,8 @@ La configuration et l’exécution sur le serveur de production restent à véri
    que les identifiants OAuth autorisent les autres organismes : l’application
    créée dans les captures est restreinte à POPOT JEROEN. La présence du code
    multi-organismes dans WikiFormation ne prouve pas cette autorisation distante.
-4. Accepter 0,02 EUR HT par transmission. L’activation exige actuellement un
+4. Accepter 0,03 EUR HT par transmission (tarif I.T. For You : 0,01 EUR HT via
+   Stripe, sans commission WikiFormation, depuis le 28 octobre 2026). L’activation exige actuellement un
    abonnement local actif, non expiré, avec identifiants cus_ et sub_.
 5. Exécuter régulièrement app:einvoicing:sync --execute --limit=25 --env=prod.
    La commande seule sans --execute est une simulation.
@@ -34,11 +41,13 @@ La configuration et l’exécution sur le serveur de production restent à véri
    règlement effectif. Un lot enregistré ne signifie pas un paiement encaissé.
 
 ## Garanties vérifiées dans le code et les tests
-- Isolation par organisme ; exemption interne limitée à l’entité 1 et son SIRET.
+- Isolation par organisme ; tarif interne de 0,01 EUR HT limité à l’entité 1 et
+  son SIRET, sans exemption Stripe. Les anciens accords gratuits ou à 0,02 EUR doivent être renouvelés pour passer au nouveau tarif.
 - Consentement et conditions figés avant dépôt fournisseur.
 - Compteur unique pour une transmission acceptée avec identifiant fournisseur.
-- Pas de consommation pour sandbox, blocage avant envoi ou nouvelle tentative interne gratuite.
-- Regroupement par client, abonnement et prix ; quantité multipliée par 2 centimes.
+- Pas de consommation pour sandbox, blocage avant envoi ou ancienne tentative dont la gratuité avait déjà été figée. Aucun nouvel accord gratuit n’est accepté.
+- Regroupement par client, abonnement et prix ; quantité multipliée par le prix
+  accepté et figé (1 centime pour I.T. For You, 3 centimes pour les autres organismes).
 - Ajout à l’abonnement désigné, HT, non remisable ; aucun micro-paiement isolé.
 - Vérification distante du client, devise EUR, mode live et traitement TVA avant ajout.
 - Clé d’idempotence stable ; résultat incertain rapproché en lecture, sans second POST aveugle.
@@ -58,7 +67,8 @@ La configuration et l’exécution sur le serveur de production restent à véri
   recette dédié ; ne pas désactiver ce contrôle en production.
 - Le connecteur ne couvre pas toutes les factures : notamment les formations
   exonérées de TVA restent hors du périmètre actuel du générateur.
-- Sur la capture de 10:17, I.T. For You affiche encore 0,01 EUR : la nouvelle
-  politique locale à zéro n’est pas visible dans cette capture.
+- La politique gratuite intermédiaire est remplacée depuis le 28 octobre 2026
+  par 0,01 EUR HT pour I.T. For You, prélevé via Stripe sans commission.
+  Les conditions et consommations historiques déjà figées restent inchangées.
 
 Référence API vérifiée : https://docs.stripe.com/api/invoiceitems/create

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Stagiaire;
 
-use App\Entity\{SupportAssignSession, Entite, Utilisateur, Session, SupportAssignUser, SupportAsset, Inscription};
+use App\Entity\{Entite, Utilisateur, Session, Inscription};
 use App\Repository\EmargementRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -17,6 +17,7 @@ use App\Service\Photo\PhotoManager;
 use App\Service\Email\MailerManager;
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use App\Security\Permission\TenantPermission;
+use App\Security\SupportLibraryAccess;
 
 
 #[Route('/stagiaire/{entite}', name: 'app_stagiaire_', requirements: ['entite' => '\d+'])]
@@ -28,6 +29,7 @@ class StagiaireEspaceController extends AbstractController
         private MailerManager $mailerManager,
         private PhotoManager $photoManager,
         private FileUploader $fileUploader,
+        private SupportLibraryAccess $supportAccess,
     ) {}
 
     #[Route('/sessions', name: 'sessions', methods: ['GET'])]
@@ -115,34 +117,7 @@ class StagiaireEspaceController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // ===== Supports visibles (session + perso) =====
-        $sessionAssets = $em->createQueryBuilder()
-            ->select('l, a')
-            ->from(SupportAssignSession::class, 'l')
-            ->join('l.asset', 'a')
-            ->andWhere('l.session = :s')->setParameter('s', $id)
-            ->andWhere('l.isVisibleToTrainee = 1')
-            ->orderBy('a.uploadedAt', 'DESC')
-            ->getQuery()->getResult();
-
-        $myAssets = $em->createQueryBuilder()
-            ->select('l, a')
-            ->from(SupportAssignUser::class, 'l')
-            ->join('l.asset', 'a')
-            ->andWhere('l.user = :me')->setParameter('me', $user)
-            ->orderBy('a.uploadedAt', 'DESC')
-            ->getQuery()->getResult();
-
-        /** @var SupportAsset[] $assets */
-        $assets = [];
-        foreach ($sessionAssets as $link) {
-            $a = $link->getAsset();
-            if ($a) $assets[$a->getId()] = $a;
-        }
-        foreach ($myAssets as $link) {
-            $a = $link->getAsset();
-            if ($a) $assets[$a->getId()] = $a;
-        }
+        $assets = $this->supportAccess->forLearner($entite, $user, $id);
 
         $basePath = rtrim($request->getBasePath(), '/');
         $supports = [];
@@ -209,6 +184,7 @@ class StagiaireEspaceController extends AbstractController
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
+        if ($id->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
 
         // Sécu : inscrit ?
         $isTrainer = false;
@@ -235,41 +211,7 @@ class StagiaireEspaceController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        // Assets affectés à la session et visibles
-        // Liens affectés à la session et visibles
-        $sessionLinks = $em->createQueryBuilder()
-            ->select('l, a')
-            ->from(SupportAssignSession::class, 'l')
-            ->join('l.asset', 'a')
-            ->andWhere('l.session = :s')->setParameter('s', $id)
-            ->andWhere('l.isVisibleToTrainee = 1')
-            ->orderBy('a.uploadedAt', 'DESC')
-            ->getQuery()->getResult();
-
-        // Liens affectés à MOI (perso)
-        $myLinks = $em->createQueryBuilder()
-            ->select('l, a')
-            ->from(SupportAssignUser::class, 'l')
-            ->join('l.asset', 'a')
-            ->andWhere('l.user = :me')->setParameter('me', $user)
-            ->orderBy('a.uploadedAt', 'DESC')
-            ->getQuery()->getResult();
-
-        /** @var SupportAsset[] $assets */
-        $assets = [];
-
-        foreach ($sessionLinks as $link) {
-            /** @var SupportAssignSession $link */
-            $a = $link->getAsset();
-            if ($a) $assets[$a->getId()] = $a;
-        }
-
-        foreach ($myLinks as $link) {
-            /** @var SupportAssignUser $link */
-            $a = $link->getAsset();
-            if ($a) $assets[$a->getId()] = $a;
-        }
-
+        $assets = $this->supportAccess->forLearner($entite, $user, $id);
 
         return $this->render('stagiaire/supports.html.twig', [
             'entite'  => $entite,
@@ -285,6 +227,7 @@ class StagiaireEspaceController extends AbstractController
     {
         /** @var Utilisateur $user */
         $user = $this->getUser();
+        if ($id->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
 
         $isTrainer = false;
         if ($id->getFormateur()?->getUtilisateur()?->getId() === $user->getId()) $isTrainer = true;
@@ -314,40 +257,7 @@ class StagiaireEspaceController extends AbstractController
 
         $rows = [];
 
-        // Par session (visibles)
-        // Liens session visibles
-        $sessionLinks = $em->createQueryBuilder()
-            ->select('l, a')
-            ->from(SupportAssignSession::class, 'l')
-            ->join('l.asset', 'a')
-            ->andWhere('l.session = :s')->setParameter('s', $id)
-            ->andWhere('l.isVisibleToTrainee = 1')
-            ->orderBy('a.uploadedAt', 'DESC')
-            ->getQuery()->getResult();
-
-        // Liens perso
-        $myLinks = $em->createQueryBuilder()
-            ->select('l, a')
-            ->from(SupportAssignUser::class, 'l')
-            ->join('l.asset', 'a')
-            ->andWhere('l.user = :me')->setParameter('me', $user)
-            ->orderBy('a.uploadedAt', 'DESC')
-            ->getQuery()->getResult();
-
-        /** @var SupportAsset[] $assets */
-        $assets = [];
-
-        foreach ($sessionLinks as $link) {
-            /** @var SupportAssignSession $link */
-            $a = $link->getAsset();
-            if ($a) $assets[$a->getId()] = $a;
-        }
-
-        foreach ($myLinks as $link) {
-            /** @var SupportAssignUser $link */
-            $a = $link->getAsset();
-            if ($a) $assets[$a->getId()] = $a;
-        }
+        $assets = $this->supportAccess->forLearner($entite, $user, $id);
 
         foreach ($assets as $a) {
             $rows[] = [

@@ -3,9 +3,8 @@ declare(strict_types=1);
 namespace App\Controller\Administrateur;
 
 use App\Entity\{Entite, EInvoiceConnection, EInvoiceTransmission, EInvoiceReceived, AuditLog};
-use App\Repository\Billing\EntiteSubscriptionRepository;
 use App\Security\Permission\TenantPermission;
-use App\Service\EInvoicing\{EInvoiceConfiguration, SuperPdpClient, SuperPdpException, ConnectionManager, ConnectionLease, EInvoiceUsageBilling, EInvoiceTariff};
+use App\Service\EInvoicing\{EInvoiceConfiguration, SuperPdpClient, SuperPdpException, ConnectionManager, ConnectionLease, EInvoiceUsageBilling, EInvoiceReadiness};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response, RedirectResponse};
@@ -90,7 +89,7 @@ final class EInvoiceController extends AbstractController
     }
 
     #[Route('/administrateur/{entite}/preferences/facturation-electronique/automatique', name: 'app_administrateur_einvoice_automatic', methods: ['POST'], requirements: ['entite' => '\d+'])]
-    public function automatic(Entite $entite, Request $request, EntiteSubscriptionRepository $subscriptions): Response
+    public function automatic(Entite $entite, Request $request, EInvoiceReadiness $readiness): Response
     {
         $this->denyAccessUnlessGranted(TenantPermission::ENTITE_PREFERENCE_MANAGE, $entite);
         $mode = $this->mode($request); $this->csrf($request, $entite, 'automatic', $mode);
@@ -98,16 +97,8 @@ final class EInvoiceController extends AbstractController
         $enable = $request->request->get('enable') === '1';
         if ($enable) {
             $this->denyAccessUnlessGranted(TenantPermission::BILLING_MANAGE, $entite);
-            $subscription = $subscriptions->findLatestForEntite($entite);
-            $now = new \DateTimeImmutable();
-            if ($mode !== 'production' || !$connection->isVerified() || !$connection->getCredentials()
-                || (!EInvoiceTariff::isInternal($entite) && (!$subscription || $subscription->getStatus() !== 'active'
-                || !preg_match('/^cus_[A-Za-z0-9]+$/D', $subscription->getStripeCustomerId() ?? '')
-                || !preg_match('/^sub_[A-Za-z0-9]+$/D', $subscription->getStripeSubscriptionId() ?? '')
-                || ($subscription->getEndedAt() && $subscription->getEndedAt() <= $now)
-                || ($subscription->getCurrentPeriodEnd() && $subscription->getCurrentPeriodEnd() <= $now)))
-                || $request->request->get('accept_price') !== '1') {
-                $this->addFlash('warning', 'Un abonnement Stripe actif et l’acceptation du tarif affiché par facture transmise sont nécessaires.');
+            if ($request->request->get('accept_price') !== '1') {
+                $this->addFlash('warning', 'Acceptez le tarif affiché par facture transmise avant l’activation.');
                 return $this->back($entite, $mode);
             }
         }
@@ -115,7 +106,10 @@ final class EInvoiceController extends AbstractController
         if (!$lock) { $this->addFlash('warning', 'Une synchronisation est en cours. Réessayez dans quelques instants.'); return $this->back($entite, $mode); }
         try {
             $this->em->refresh($connection);
-            if ($enable) $connection->consentToBilling($this->getUser()->getId());
+            if ($enable) {
+                $readiness->assertCanActivate($connection);
+                $connection->consentToBilling($this->getUser()->getId());
+            }
             $connection->setAutomatic($enable);
             $this->audit($connection, $enable ? 'EINVOICE_AUTOMATIC_ENABLED' : 'EINVOICE_AUTOMATIC_DISABLED');
             $this->em->flush();

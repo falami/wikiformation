@@ -45,6 +45,29 @@ final class HabilitationTest extends KernelTestCase
         $this->client=new KernelBrowser(self::$kernel);$this->client->disableReboot();$this->client->catchExceptions(false);
     }
 
+    public function testExitDocumentsOnlyContainCurrentTransmittedRevisions(): void
+    {
+        $service = self::getContainer()->get(\App\Service\Convention\TrainingExitDocuments::class);
+        $i = $this->dossier->getInscription();
+        self::assertSame([], $service->build($i));
+        $this->sign('avis');
+        self::assertSame([], $service->build($i), 'Untransmitted trainer advice must remain private.');
+        $this->dossier->setState('awaiting_company');
+        $this->em->flush();
+        $files = $service->build($i);
+        self::assertArrayHasKey('Avis-post-formation-'.$this->dossier->getId().'.pdf', $files);
+        self::assertStringStartsWith('%PDF', reset($files));
+        $this->sign('titre');
+        $files = $service->build($i);
+        self::assertArrayHasKey('Titre-habilitation-'.$this->dossier->getId().'.pdf', $files);
+        $this->dossier->setTitreToken(null)->setState('awaiting_company');
+        $this->em->flush();
+        self::assertCount(1, $service->build($i), 'An old signed title must not survive reopening the title.');
+        $this->dossier->setActive(false);
+        $this->em->flush();
+        self::assertSame([], $service->build($i));
+    }
+
     public function testSelectedAttestationsExportAndAccessControl(): void
     {
         $this->sign('avis');

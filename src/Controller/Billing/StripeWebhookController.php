@@ -18,12 +18,14 @@ final class StripeWebhookController extends AbstractController
   public function webhook(
     Request $request,
     StripeBillingService $stripeBilling,
+    \App\Service\Platform\StripeRevenue $platformRevenue,
     \App\Service\Marketplace\Payments $marketplace,
     \App\Service\Marketplace\Confirmations $marketConfirmations,
     EntiteSubscriptionRepository $subRepo,
     PlanRepository $planRepo,
     EntityManagerInterface $em,
     \App\Service\Partner\Commissions $commissions,
+    \App\Service\Billing\InternalUsageCheckout $internalUsageCheckout,
     #[\Symfony\Component\DependencyInjection\Attribute\Autowire('%env(STRIPE_WEBHOOK_SECRET)%')]
     string $stripeWebhookSecret,
   ): Response {
@@ -46,14 +48,20 @@ final class StripeWebhookController extends AbstractController
           return new Response('ok');
         }
       }
-      if (in_array($event->type, ['charge.refunded','charge.dispute.created','charge.dispute.closed'], true)) {
+      if (in_array($event->type, ['charge.updated','charge.refunded','charge.dispute.created','charge.dispute.closed'], true)) {
         $obj = $event->data->object;
         $paymentId = $obj->payment_intent ?? null;
-        if ($paymentId && $purchase = $em->getRepository(\App\Entity\Marketplace\Purchase::class)->findOneBy(['paymentId'=>$paymentId])) { $marketplace->sync($purchase); $marketConfirmations->send($purchase); }
+        if ($paymentId && $purchase = $em->getRepository(\App\Entity\Marketplace\Purchase::class)->findOneBy(['paymentId'=>$paymentId])) {
+          $marketplace->sync($purchase);
+          // Asynchronous Stripe processing fees can arrive after checkout; reconcile them silently.
+          if ($event->type !== 'charge.updated') $marketConfirmations->send($purchase);
+        }
       }
       switch ($event->type) {
         case 'invoice.paid': {
             $commissions->record($event->data->object->toArray());
+            $platformRevenue->record($event->data->object->toArray());
+            $em->flush();
             break;
         }
         case 'checkout.session.completed': {
@@ -79,6 +87,7 @@ final class StripeWebhookController extends AbstractController
             // ✅ recharge après update (sinon tu lis l'ancienne config)
             $stripeSub = $stripeBilling->retrieveSubscription($subscriptionId);
             if ((string) ($stripeSub->customer ?? '') !== $customerId) throw new \DomainException('Client Stripe incompatible.');
+            $internalUsageCheckout->assertCompleted($session->toArray(), $stripeSub->toArray(), $sub);
 
             $sub->setStripeSubscriptionId($subscriptionId);
             $this->syncFromStripeSubscription($sub, $stripeSub, $planRepo);
@@ -106,9 +115,6 @@ final class StripeWebhookController extends AbstractController
                   ['id' => 'DESC']
                 );
 
-                if ($sub && !$sub->getStripeSubscriptionId()) {
-                  $sub->setStripeSubscriptionId($subscriptionId);
-                }
               }
             }
 
@@ -117,6 +123,9 @@ final class StripeWebhookController extends AbstractController
             // 2) IMPORTANT : recharger la sub complète depuis Stripe
             $stripeSub = $stripeBilling->retrieveSubscription($subscriptionId);
             if ((string) ($stripeSub->customer ?? '') !== $sub->getStripeCustomerId()) throw new \DomainException('Client Stripe incompatible.');
+            $internalUsageCheckout->assertSubscription($stripeSub->toArray(), $sub);
+            // Bind only after all remote identity and internal zero-base-price checks have passed.
+            $sub->setStripeSubscriptionId($subscriptionId);
 
             $this->syncFromStripeSubscription($sub, $stripeSub, $planRepo);
 

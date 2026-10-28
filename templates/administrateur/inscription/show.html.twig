@@ -230,6 +230,27 @@
         box-shadow:-8px 0 12px -8px rgba(0,0,0,.08);
       }
     }
+
+    #closeInscriptionModal .modal-dialog{max-width:600px}
+    #closeInscriptionModal .modal-content{border:1px solid #e3e8ee;border-radius:24px;overflow:hidden;box-shadow:0 28px 90px #0e203540;color:#203547}
+    #closeInscriptionModal .closure-header{position:relative;padding:32px;background:linear-gradient(125deg,#142938,#294652);color:#fff;border-top:3px solid #dbb969}
+    #closeInscriptionModal .closure-eyebrow{color:#e8c77f;font-size:.7rem;letter-spacing:.18em;font-weight:700;text-transform:uppercase;margin-bottom:14px}
+    #closeInscriptionModal h2{font-size:1.65rem;font-weight:700;letter-spacing:-.035em;padding-right:28px;margin:0 0 10px}
+    #closeInscriptionModal .closure-header p{color:#cad7df;font-size:.94rem;margin:0;line-height:1.6}
+    #closeInscriptionModal .btn-close{position:absolute;right:24px;top:26px}
+    #closeInscriptionModal .modal-body{padding:28px 32px}
+    #closeInscriptionModal .closure-person{display:flex;gap:16px;align-items:center;padding:18px;border:1px solid #e1e8ed;border-radius:16px;background:#f7f9fb;margin-bottom:24px}
+    #closeInscriptionModal .closure-icon{display:grid;place-items:center;flex:0 0 44px;height:44px;border-radius:13px;background:#203747;color:#e8c77f;font-size:1.25rem}
+    #closeInscriptionModal .closure-person small{display:block;color:#637789;margin-top:4px;overflow-wrap:anywhere}
+    #closeInscriptionModal .closure-details{font-size:.92rem;line-height:1.65;color:#526879;margin:0}
+    #closeInscriptionModal .closure-details strong{color:#203547;display:block;margin-bottom:5px}
+    #closeInscriptionModal .closure-note{background:#fcf7eb;border:1px solid #ecdfbc;border-radius:12px;padding:13px 16px;margin-top:20px;font-size:.85rem;color:#725a26;line-height:1.6}
+    #closeInscriptionModal .modal-footer{padding:20px 32px;background:#f8fafb;border-top:1px solid #e7edf1;gap:10px}
+    #closeInscriptionModal .modal-footer .btn{margin:0;padding:12px 19px;border-radius:11px;font-weight:600;font-size:.9rem}
+    #closeInscriptionModal .closure-confirm{background:#e8c77f;color:#203547;border:1px solid #e8c77f}
+    #closeInscriptionModal .closure-confirm:hover{background:#dcba6d;border-color:#dcba6d}
+    #closeInscriptionModal .btn:focus-visible{outline:3px solid #a47b2a;outline-offset:3px}
+    @media(max-width:575px){#closeInscriptionModal .closure-header,#closeInscriptionModal .modal-body{padding:24px}#closeInscriptionModal .modal-footer{padding:18px 24px}#closeInscriptionModal .modal-footer .btn{flex:1 1 auto}}
   </style>
 {% endblock %}
 
@@ -252,6 +273,25 @@
         info: false,
         order: [[3, 'desc']],
         language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json' }
+      });
+    });
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('close-inscription-form');
+      const modal = document.getElementById('closeInscriptionModal');
+      const confirmButton = document.getElementById('closure-confirm');
+      if (!form || !modal || !confirmButton) return;
+      let submitting = false;
+      form.addEventListener('submit', (event) => {
+        if (submitting) { event.preventDefault(); return; }
+        submitting = true;
+        modal.setAttribute('aria-busy', 'true');
+        modal.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        confirmButton.textContent = 'Clôture en cours…';
+      });
+      modal.addEventListener('hide.bs.modal', event => {
+        if (submitting) event.preventDefault();
       });
     });
   </script>
@@ -353,11 +393,10 @@
           <i class="bi bi-file-earmark-text"></i> Convocation PDF
         </a>
 
-        <form method="post"
-              action="{{ path('app_administrateur_inscription_close', { entite: entite.id, id: ins.id }) }}"
-              onsubmit="return confirm('Clôturer cette inscription ?');">
+        <form method="post" id="close-inscription-form"
+              action="{{ path('app_administrateur_inscription_close', { entite: entite.id, id: ins.id }) }}">
           <input type="hidden" name="_token" value="{{ csrf_token('close' ~ ins.id) }}">
-          <button class="btn btn-pill btn-sm"
+          <button type="button" class="btn btn-pill btn-sm" data-bs-toggle="modal" data-bs-target="#closeInscriptionModal"
                   style="background: rgba(25,135,84,.20); color:#fff;">
             <i class="bi bi-check2-square"></i> Clôturer
           </button>
@@ -901,4 +940,41 @@
     </a>
   </div>
 
+
+  <div class="modal fade" id="closeInscriptionModal" tabindex="-1" aria-labelledby="closure-title" aria-describedby="closure-description" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="closure-header">
+          <div class="closure-eyebrow"><i class="bi bi-check2-circle me-2" aria-hidden="true"></i> Finalisation du parcours</div>
+          <h2 id="closure-title">Clôturer l’inscription</h2>
+          <p id="closure-description">Confirmez la fin du parcours de formation de ce stagiaire.</p>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="closure-person">
+            <span class="closure-icon" aria-hidden="true"><i class="bi bi-person-check"></i></span>
+            <div><strong>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}</strong>
+              <small>Inscription n°{{ ins.id }} · {{ ins.session.code }}</small>
+              <small>{{ ins.session.formation ? ins.session.formation.titre : ins.session.formationIntituleLibre }}</small>
+            </div>
+          </div>
+          <div class="closure-details">
+            <strong><i class="bi bi-check2 me-1" aria-hidden="true"></i> Le statut sera « Terminé »</strong>
+            {% if ins.session.sousTraitance %}
+              Cette session est réalisée en sous-traitance. La clôture ne calcule pas l’assiduité et ne génère pas automatiquement d’attestation.
+            {% else %}
+              L’assiduité sera calculée à partir des présences renseignées. L’attestation sera générée si les présences et les durées justifiées sont complètes.
+            {% endif %}
+          </div>
+          {% if resteAPayer is not null and resteAPayer > 0 %}
+            <div class="closure-note"><i class="bi bi-info-circle me-1" aria-hidden="true"></i> Reste à payer : <strong>{{ resteAPayer|number_format(2, ',', ' ') }} €</strong>. La clôture ne vaut pas règlement de l’inscription.</div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" form="close-inscription-form" class="btn closure-confirm" id="closure-confirm"><i class="bi bi-check2-circle me-2" aria-hidden="true"></i>Confirmer la clôture</button>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}

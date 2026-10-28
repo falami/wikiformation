@@ -10,7 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use App\Service\Sequence\FactureNumberGenerator;
+use App\Service\Billing\InvoiceIssuer;
 use App\Service\Pdf\PdfManager;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Mailer\MailerInterface;
@@ -671,7 +671,7 @@ class FactureController extends AbstractController
     Entite $entite,
     Request $req,
     EM $em,
-    FactureNumberGenerator $factureGen,
+    InvoiceIssuer $invoiceIssuer,
   ): Response {
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -724,7 +724,7 @@ class FactureController extends AbstractController
       // Optionnel : exclusivité destinataire / entrepriseDestinataire
 
       try {
-        \App\Service\Billing\InvoiceIssuer::persist($em, $factureGen, $facture);
+        $invoiceIssuer->persist($facture);
       } catch (\DomainException $error) {
         $form->addError(new \Symfony\Component\Form\FormError($error->getMessage()));
         return $this->render('administrateur/facture/form.html.twig', ['form' => $form, 'title' => 'Nouvelle facture', 'entite' => $entite]);

@@ -54,7 +54,7 @@ final class ConnectionSecurityTest extends TestCase
         $connection->connected(['id' => '1', 'number' => '123456789', 'formal_name' => 'Organisme'], 'encrypted');
         try { $connection->setAutomatic(true); self::fail('Consent is required.'); } catch (\DomainException) { self::assertFalse($connection->isAutomatic()); }
         $connection->consentToBilling(12); $connection->setAutomatic(true);
-        self::assertSame(2, $connection->getUnitPriceCents()); self::assertSame(12, $connection->getBillingConsentBy());
+        self::assertSame(3, $connection->getUnitPriceCents()); self::assertSame(12, $connection->getBillingConsentBy());
         $enabledAt = $connection->getEnabledAt(); $consentAt = $connection->getBillingConsentAt();
         $connection->disconnect();
         self::assertNull($connection->getCredentials()); self::assertFalse($connection->isAutomatic());

@@ -20,13 +20,15 @@ final class FacturePaymentRecorderTest extends KernelTestCase
         $this->env = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $user = (new Utilisateur())->setEmail('payments@example.test')->setPassword('unused')->setPrenom('Payment')->setNom('Test');
         $entity = (new Entite())->setNom('Test')->setPublic(false)->setCreateur($user);
+        $this->em->persist($user);$this->em->persist($entity);$this->em->flush();
         $invoice = (new Facture())->setEntite($entity)->setCreateur($user)->setNumero('FAC-TEST')->setDateEmission(new \DateTimeImmutable())->setDestinataire($user)->setMontantHtCents(10000)->setMontantTvaCents(2000)->setMontantTtcCents(12000);
         $this->checkout = (new FactureCheckout())->setEntite($entity)->setFacture($invoice)->setStripeCheckoutSessionId('cs_fixture')->setFactureAmountCents(12000)->setAmountTotalCents(12300)->setServiceFeeCents(300);
-        foreach ([$user, $entity, $invoice, $this->checkout] as $row) $this->em->persist($row);
+        foreach ([$invoice, $this->checkout] as $row) $this->em->persist($row);
         $this->em->flush();
     }
     protected function tearDown(): void

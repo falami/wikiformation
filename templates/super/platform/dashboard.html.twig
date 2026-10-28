@@ -1,0 +1,157 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Pilotage de la plateforme{% endblock %}
+{% macro money(cents) %}{{ (cents / 100)|number_format(2, ',', ' ') }} €{% endmacro %}
+{% import _self as fmt %}
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.min.css">
+<style>
+.pf .ts-wrapper{width:100%;min-width:0}.pf .ts-control{background:#f8fafc!important;border:1px solid #dce5eb;border-radius:9px;min-height:43px;padding:11px 12px;color:#183448;font:inherit;box-shadow:none}
+.pf .ts-control input{min-height:0;padding:0!important;border:0!important;border-radius:0;background:transparent!important;width:auto;font:inherit;box-shadow:none}
+.pf .ts-control .item{overflow-wrap:anywhere}.pf .ts-wrapper.focus .ts-control{border-color:#c39c43;box-shadow:0 0 0 3px #e9b94925}
+.pf-tom-dropdown{border:1px solid #dce5eb;border-radius:10px;box-shadow:0 12px 32px #18344822;z-index:1100;font-size:14px;color:#183448}.pf-tom-dropdown .option{padding:10px 14px}.pf-tom-dropdown .active{background:#fff5db;color:#183448}
+.pf-calendar.flatpickr-calendar{border-radius:12px;box-shadow:0 12px 32px #18344822;z-index:1100}.pf-calendar .flatpickr-day.selected,.pf-calendar .flatpickr-monthSelect-month.selected{background:#24475b;border-color:#24475b}
+.pf{--ink:#183448;--muted:#728497;--line:#e1e8ee;--gold:#e9b949;--green:#167c65;max-width:1660px;margin:auto;padding:30px;color:var(--ink);font-size:14px}
+.pf *{box-sizing:border-box}.pf h1,.pf h2,.pf h3,.pf p{margin:0}.pf small{color:var(--muted)}.pf a{color:inherit}
+.pf-hero{background:radial-gradient(ellipse at 95% 0,#46647780,transparent 55%),linear-gradient(110deg,#112b3c,#24475b);border-radius:24px;padding:32px 36px;color:white;position:relative;overflow:hidden;border-top:3px solid var(--gold)}
+.pf-eyebrow{font-size:10px;letter-spacing:2px;font-weight:750;text-transform:uppercase;color:#9a8043}.pf-hero .pf-eyebrow{color:#f2ce7c}.pf-hero h1{font-size:clamp(28px,3vw,43px);letter-spacing:-1.4px;font-weight:750;margin:10px 0}
+.pf-hero p{color:#c5d3dd;max-width:740px;line-height:1.7}.pf-head{display:flex;justify-content:space-between;gap:24px;align-items:center}.pf-actions{display:flex;gap:10px;flex-wrap:wrap}.pf-button{border:1px solid var(--line);border-radius:10px;padding:11px 16px;background:#fff;color:var(--ink)!important;text-decoration:none;font-weight:650;cursor:pointer;display:inline-flex;gap:9px;align-items:center}.pf-button.gold{background:#f3c75f;border-color:#f3c75f}.pf-button:hover{filter:brightness(.96)}.pf-button:focus-visible,.pf input:focus-visible,.pf select:focus-visible{outline:3px solid #c39c43;outline-offset:3px}
+.pf-hero-foot{margin-top:25px;padding-top:18px;border-top:1px solid #ffffff22;display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:#b9cbd7}.pf-live{width:7px;height:7px;border-radius:50%;background:#76d5ad;display:inline-block;margin-right:6px}
+.pf-filter{display:flex;align-items:end;gap:14px;flex-wrap:wrap;padding:21px 24px;background:#fff;border:1px solid var(--line);border-radius:16px;margin:22px 0}.pf-field{display:flex;flex-direction:column;gap:7px;min-width:140px;flex:1}.pf label{font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:1px;color:#6a7f90}.pf input,.pf select{width:100%;background:#f8fafc;border:1px solid #dce5eb;border-radius:9px;padding:11px 12px;color:var(--ink);min-height:43px;font:inherit}.pf-filter .pf-field.wide{flex:1.7}
+.pf-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}.pf-kpi{padding:25px;border:1px solid var(--line);border-radius:18px;background:white;box-shadow:0 6px 22px #1d3a4d04}.pf-kpi-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}.pf-kpi-top i{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:#f1f5f8;font-size:18px;color:#416278}.pf-value{font-size:clamp(24px,2.1vw,34px);font-weight:750;letter-spacing:-1px;margin:16px 0 8px;font-variant-numeric:tabular-nums}.pf-kpi p{font-size:11px;color:var(--muted);line-height:1.65}.pf-kpi.featured{background:#eaf5f0;border-color:#cfe7dc}.pf-kpi.featured .pf-value{color:#146d55}
+.pf-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr);gap:22px;margin-top:22px}.pf-panel{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;min-width:0}.pf-panel-head{padding:24px 26px;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid #edf1f4}.pf h2{font-size:19px;font-weight:750;letter-spacing:-.4px}.pf-panel-head p{font-size:12px;color:var(--muted);line-height:1.65;margin-top:6px}.pf-pad{padding:24px 26px}.pf-pill{display:inline-flex;padding:5px 9px;border-radius:6px;background:#f1f5f8;color:#62798b;font-size:10px;font-weight:700;white-space:nowrap}.pf-pill.gold{background:#fff5db;color:#896716}.pf-pill.green{background:#e8f5ee;color:#22765d}.pf-note{font-size:12px;line-height:1.8;color:#6e8192;background:#f8fafc;border:1px solid #e4ebf0;border-radius:12px;padding:15px 18px;margin-top:18px}.pf-note.warning{background:#fffaf0;border-color:#efdfb8;color:#8a6c32}
+.pf-chart{height:230px;display:flex;gap:14px;align-items:end;overflow-x:auto;padding:28px 4px 5px;border-bottom:1px solid var(--line)}.pf-bar-group{height:100%;min-width:42px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:9px}.pf-bar{width:100%;max-width:42px;border-radius:7px 7px 2px 2px;background:linear-gradient(#4e8d9c,#244b61);min-height:3px}.pf-bar-group small{font-size:10px;white-space:nowrap}.pf-chart-legend{display:flex;gap:20px;margin-top:15px;font-size:11px;color:var(--muted)}.pf-dot{display:inline-block;width:8px;height:8px;background:#416f82;border-radius:2px;margin-right:6px}
+.pf-activity{padding:17px 0;border-bottom:1px solid #edf1f4}.pf-activity:last-child{border:0}.pf-activity-top{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}.pf-activity strong{font-size:14px}.pf-track{height:5px;border-radius:6px;background:#edf2f5;overflow:hidden}.pf-track span{display:block;height:100%;background:#d7b15c;border-radius:6px}.pf-activity small{display:block;margin-top:9px}
+.pf-scroll{overflow:auto}.pf table{width:100%;border-collapse:collapse;font-size:12px;text-align:left;white-space:nowrap}.pf th{padding:14px 20px;background:#f7f9fb;color:#6e8193;font-size:10px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--line)}.pf td{padding:16px 20px;border-bottom:1px solid #edf1f5;vertical-align:middle}.pf tr:last-child td{border:0}.pf tbody tr:hover{background:#fcfaf5}.pf td small{display:block;margin-top:5px}.pf .num{text-align:right;font-variant-numeric:tabular-nums}.pf table caption{caption-side:bottom;padding:12px 20px;color:var(--muted);font-size:11px}.pf-section{margin-top:22px}.pf-row-title{display:flex;gap:12px;align-items:center}.pf-avatar{display:grid;place-items:center;width:36px;height:36px;flex-shrink:0;background:#eff4f7;color:#3c6177;border-radius:11px;font-size:15px;font-weight:700}.pf-arrival{display:flex;gap:12px;align-items:start;padding:15px 0;border-bottom:1px solid #edf1f5}.pf-arrival:last-child{border:0}.pf-arrival p{font-size:12px;line-height:1.6}.pf-arrival small{display:block;margin-top:3px}.pf-split{display:grid;grid-template-columns:1fr 1fr;gap:14px}.pf-stat{padding:16px;background:#f6f9fb;border-radius:12px}.pf-stat strong{display:block;font-size:23px;margin:7px 0}.pf-stat small{font-size:11px}
+.pf-cost-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;padding:24px;background:#fafcfd}.pf-cost-form .full{grid-column:span 2}.pf details>summary{cursor:pointer;padding:18px 25px;font-weight:650}.pf-empty{padding:35px;text-align:center;color:var(--muted);line-height:1.8}.pf-red{color:#b84c40}.pf-disclosure{margin-top:22px}.pf-disclosure p{font-size:12px;color:var(--muted);line-height:1.9;margin-bottom:10px}.pf-count{font-size:11px;color:var(--muted)}.pf-footer{display:flex;justify-content:space-between;gap:16px;padding:18px 0;font-size:11px;color:var(--muted)}
+@media(max-width:1200px){.pf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-grid{grid-template-columns:1fr}.pf-head{align-items:start;flex-direction:column}}
+@media(max-width:650px){.pf{padding:16px 10px}.pf-hero{padding:25px 20px}.pf-kpis{grid-template-columns:1fr}.pf-cost-form{grid-template-columns:1fr}.pf-cost-form .full{grid-column:auto}.pf-filter{padding:18px}.pf-panel-head,.pf-pad{padding:20px}.pf-panel-head{align-items:start;flex-direction:column}.pf-footer{flex-direction:column}.pf-split{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block body %}
+<div class="pf">
+<header class="pf-hero">
+<div class="pf-head"><div><div class="pf-eyebrow">Administration plateforme · Finance & croissance</div><h1>Une vision claire de votre activité.</h1><p>Revenus, coûts et développement des organismes : les chiffres utiles pour piloter Wiki Formation, réunis dans un seul espace.</p></div>
+<div class="pf-actions">
+<a class="pf-button" href="{{ path('app_super_platform_dashboard', {entite:entite.id}|merge(filters)|merge({format:'csv'})) }}"><i class="bi bi-download"></i> Exporter les revenus</a>
+<form action="{{ path('app_super_platform_sync', {entite:entite.id}) }}" method="post"><input type="hidden" name="_token" value="{{ csrf_token('platform_sync') }}"><button class="pf-button gold"><i class="bi bi-arrow-repeat"></i> Rapprocher Stripe</button></form>
+</div></div>
+<div class="pf-hero-foot"><span><span class="pf-live"></span> Accès réservé au super-administrateur</span><span>EUR · {{ filters.from }} → {{ filters.to }}</span><span>Stripe : {{ data.lastSync ? 'rapproché le ' ~ data.lastSync|date('d/m/Y à H:i', 'Europe/Paris') : 'historique à importer' }}</span></div>
+</header>
+{% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }} mt-3" role="status">{{ message }}</div>{% endfor %}{% endfor %}
+<form class="pf-filter" method="get">
+<div class="pf-field"><label for="pf-from">Premier mois</label><input id="pf-from" type="month" name="from" value="{{ filters.from }}" required></div>
+<div class="pf-field"><label for="pf-to">Dernier mois</label><input id="pf-to" type="month" name="to" value="{{ filters.to }}" required></div>
+<div class="pf-field wide"><label for="pf-entity">Organisme</label><select id="pf-entity" name="entity"><option value="0">Toutes les entités</option>{% for e in data.entities %}<option value="{{ e.id }}" {{ filters.entity == e.id ? 'selected' : '' }}>{{ e.nom }}</option>{% endfor %}</select></div>
+<div class="pf-field wide"><label for="pf-activity">Activité</label><select id="pf-activity" name="activity">{% for key,label in activities %}<option value="{{ key }}" {{ filters.activity == key ? 'selected' : '' }}>{{ label }}</option>{% endfor %}</select></div>
+<button class="pf-button gold" type="submit"><i class="bi bi-sliders"></i> Actualiser</button>
+</form>
+<div class="pf-kpis">
+<article class="pf-kpi featured"><div class="pf-kpi-top">Revenus plateforme · TTC net <i class="bi bi-wallet2"></i></div><div class="pf-value">{{ fmt.money(data.totals.ttc) }}</div><p>{{ data.totals.count }} opérations enregistrées · net des remboursements rapprochés.<br>Les ventes des organismes sont présentées séparément.</p></article>
+<article class="pf-kpi"><div class="pf-kpi-top">Chiffre d’affaires HT identifié <i class="bi bi-receipt"></i></div><div class="pf-value">{{ fmt.money(data.totals.ht) }}</div><p>{{ data.totals.missingHt ? data.totals.missingHt ~ ' opérations avec HT à rapprocher : total partiel.' : 'HT renseigné pour les opérations affichées.' }}<br>TVA identifiée : {{ data.totals.missingHt ? 'ventilation incomplète' : fmt.money(data.totals.ttc-data.totals.ht) }}</p></article>
+<article class="pf-kpi"><div class="pf-kpi-top">Frais Stripe connus à votre charge <i class="bi bi-credit-card"></i></div><div class="pf-value">{{ fmt.money(data.totals.fees) }}</div><p>{{ data.totals.missingFees }} opérations sans frais rapprochés.<br>Les frais supportés par les vendeurs ne sont pas déduits une seconde fois.</p></article>
+<article class="pf-kpi"><div class="pf-kpi-top">Solde après coûts connus <i class="bi bi-pie-chart"></i></div><div class="pf-value {{ data.contribution < 0 ? 'pf-red' : '' }}">{{ fmt.money(data.contribution) }}</div><p>TTC net − Stripe connu − charges TTC saisies − commissions apporteurs.<br>Indicateur partiel, avant impôts et coûts non renseignés.</p></article>
+</div>
+{% if not data.lastSync or data.totals.missingFees or data.totals.missingHt %}<div class="pf-note warning"><i class="bi bi-info-circle"></i> <strong>Complétude des données.</strong> Le rapprochement Stripe importe les factures d’abonnement payées et leurs frais, sans déplacer d’argent. Les valeurs inconnues ne sont pas assimilées à zéro. Les abonnements incluent les usages éventuellement facturés sur la même facture. {{ data.excluded }} factures de test ou hors EUR exclues.</div>{% endif %}
+<div class="pf-grid">
+<section class="pf-panel"><div class="pf-panel-head"><div><div class="pf-eyebrow">Tendance</div><h2>Vos revenus, mois après mois</h2><p>Encaissements plateforme TTC nets des remboursements connus, rattachés au mois de paiement initial.</p></div><span class="pf-pill">Vue mensuelle</span></div>
+<div class="pf-pad">
+{% set peak = 1 %}{% for m in data.months %}{% set peak = max(peak,m.revenue) %}{% endfor %}
+<div class="pf-chart" role="img" aria-label="Évolution mensuelle des revenus ; valeurs détaillées dans le tableau ci-dessous.">{% for month,m in data.months %}<div class="pf-bar-group" title="{{ month }} : {{ fmt.money(m.revenue) }}"><div class="pf-bar" style="height:{{ max(1, m.revenue / peak * 170) }}px"></div><small>{{ month|slice(5,2) }}/{{ month|slice(2,2) }}</small></div>{% endfor %}</div><div class="pf-chart-legend"><span><i class="pf-dot"></i> Revenus de la plateforme</span><span>{{ data.months|length }} mois</span></div>
+</div><details><summary>Consulter les montants mensuels</summary><div class="pf-scroll"><table><thead><tr><th>Mois</th><th class="num">Revenus TTC</th><th class="num">Stripe connu</th><th class="num">Charges TTC réelles</th><th class="num">Opérations</th></tr></thead><tbody>{% for month,m in data.months %}<tr><td>{{ month }}</td><td class="num">{{ fmt.money(m.revenue) }}</td><td class="num">{{ fmt.money(m.fees) }}</td><td class="num">{{ fmt.money(m.costs) }}</td><td class="num">{{ m.count }}</td></tr>{% endfor %}</tbody></table></div></details></section>
+<section class="pf-panel"><div class="pf-panel-head"><div><div class="pf-eyebrow">Composition</div><h2>Ce qui génère vos revenus</h2><p>Ventes directes et commissions, sans additionner le volume des vendeurs.</p></div></div><div class="pf-pad">
+{% for a in data.breakdown %}<div class="pf-activity"><div class="pf-activity-top"><span>{{ a.label }}</span><strong>{{ fmt.money(a.ttc) }}</strong></div><div class="pf-track"><span style="width:{{ data.totals.ttc > 0 ? min(100,a.ttc/data.totals.ttc*100) : 0 }}%"></span></div><small>{{ a.count }} opérations · HT {{ a.missing ? 'partiel ' : '' }}{{ fmt.money(a.ht) }}</small></div>{% endfor %}
+<div class="pf-note">Formations : prix de vente pour les ventes de la plateforme, commission seule pour les vendeurs tiers. Paiements de factures : seuls les frais de service de la plateforme sont retenus.</div>
+</div></section>
+</div>
+<div class="pf-grid">
+<section class="pf-panel"><div class="pf-panel-head"><div><div class="pf-eyebrow">Facturation électronique</div><h2>SuperPDP & consommation</h2><p>Prévision contractuelle et consommation enregistrée sur la période.</p></div><span class="pf-pill gold">Prévision ≠ facture fournisseur</span></div><div class="pf-pad"><div class="pf-split">
+<div class="pf-stat"><small>Émissions confirmées</small><strong>{{ data.usage.count }}</strong><small>{{ data.usage.missing }} sans ventilation historique</small></div>
+<div class="pf-stat"><small>Consommation à facturer · HT</small><strong>{{ fmt.money(data.usage.sales) }}</strong><small>Non ajoutée aux revenus encaissés</small></div>
+<div class="pf-stat"><small>Coût fournisseur prévu · HT</small><strong>{{ fmt.money(data.usage.provider) }}</strong><small>Selon les conditions figées à l’émission</small></div>
+<div class="pf-stat"><small>Provision de traitement · HT</small><strong>{{ fmt.money(data.usage.reserve) }}</strong><small>Provision tarifaire, pas les frais Stripe réels</small></div>
+</div><div class="pf-note">Saisissez les factures SuperPDP dans les coûts ci-dessous pour mesurer les charges réelles, y compris les éventuels forfaits. Le coût prévu n’est pas déduit en plus du coût réel.</div></div></section>
+<section class="pf-panel"><div class="pf-panel-head"><div><div class="pf-eyebrow">Écosystème</div><h2>Volume traité par les organismes</h2><p>Ces montants ne sont pas votre chiffre d’affaires plateforme.</p></div></div><div class="pf-pad"><div class="pf-split">
+<div class="pf-stat"><small>Factures émises · HT</small><strong>{{ fmt.money(data.invoiceHt) }}</strong><small>{{ data.invoiceCount }} factures EUR</small></div><div class="pf-stat"><small>Factures émises · TTC</small><strong>{{ fmt.money(data.invoiceTtc) }}</strong><small>Volume brut, avant avoirs et règlements</small></div>
+<div class="pf-stat"><small>Ventes de cours · TTC net</small><strong>{{ fmt.money(data.volume) }}</strong><small>Plateforme et vendeurs tiers</small></div><div class="pf-stat"><small>Commissions apporteurs</small><strong>{{ fmt.money(data.affiliate) }}</strong><small>Dues ou versées, après reprises</small></div>
+</div></div></section>
+</div>
+<section class="pf-panel pf-section"><div class="pf-panel-head"><div><div class="pf-eyebrow">Organismes & abonnements</div><h2>La plateforme, entité par entité</h2><p>Comptes et offre actuels · revenus de la période filtrée. Un compte peut cumuler plusieurs rôles.</p></div><div><span class="pf-pill">{{ data.roster|length }} organismes</span> <span class="pf-pill">{{ data.accounts }} comptes rattachés</span></div></div>
+<div class="pf-pad"><div class="pf-split"><div class="pf-stat"><small>MRR indicatif · tarif catalogue HT actuel</small><strong>{{ fmt.money(data.mrr) }}</strong><small>Abonnements actifs, annualisés ÷ 12 ; hors remises et options. Ce n’est pas un encaissement.</small></div><div class="pf-stat"><small>Nouvelles entités sur la période</small><strong>{{ data.new|length }}</strong><small>Origine d’acquisition affichée lorsqu’un apporteur est enregistré.</small></div></div></div>
+<div class="pf-scroll"><table><thead><tr><th>Organisme</th><th>Origine / localisation</th><th>Création</th><th>Offre actuelle</th><th class="num">Comptes</th><th class="num">Admin.</th><th class="num">Format.</th><th class="num">Stag.</th><th class="num">Revenus TTC</th></tr></thead><tbody>
+{% for r in data.roster %}<tr><td><div class="pf-row-title"><span class="pf-avatar">{{ r.name|slice(0,1)|upper }}</span><div><strong>{{ r.name }}</strong><small><a href="{{ path('app_super_admin_console',{entite:entite.id,qEnt:r.name}) }}">Consulter l’organisme →</a></small></div></div></td><td>{{ r.source }}<small>{{ r.location ?: 'Localisation non renseignée' }}</small></td><td>{{ r.created ? r.created|date('d/m/Y') : '—' }}</td><td><strong>{{ r.plan }}</strong><small>{{ r.status }} · {{ r.interval == 'year' ? 'annuel' : (r.interval == 'month' ? 'mensuel' : '') }}{% if r.renewal %} · échéance {{ r.renewal|date('d/m/Y') }}{% endif %}</small></td><td class="num">{{ r.accounts }}</td><td class="num">{{ r.admins }}</td><td class="num">{{ r.trainers }}</td><td class="num">{{ r.learners }}</td><td class="num"><strong>{{ fmt.money(r.revenue) }}</strong></td></tr>{% else %}<tr><td colspan="9" class="pf-empty">Aucun organisme.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<div class="pf-grid">
+<section class="pf-panel"><div class="pf-panel-head"><div><div class="pf-eyebrow">Arrivées récentes</div><h2>Les nouveaux organismes</h2><p>Créations sur la période sélectionnée, les plus récentes en premier.</p></div><span class="pf-pill green">{{ data.new|length }} nouveaux</span></div><div class="pf-pad">{% for r in data.new|slice(0,12) %}<div class="pf-arrival"><span class="pf-avatar"><i class="bi bi-building-add"></i></span><div><strong>{{ r.name }}</strong><small>{{ r.created|date('d/m/Y à H:i','Europe/Paris') }} · {{ r.location ?: 'Localisation non renseignée' }}</small><p>{{ r.source }}<br>{{ r.plan }} · {{ r.accounts }} comptes</p></div></div>{% else %}<div class="pf-empty">Aucune nouvelle entité sur cette période.</div>{% endfor %}{% if data.new|length > 12 %}<div class="pf-note">Les 12 dernières créations sont affichées ici. Toutes les entités figurent dans le tableau ci-dessus.</div>{% endif %}</div></section>
+<section class="pf-panel"><div class="pf-panel-head"><div><div class="pf-eyebrow">Structure de coûts</div><h2>Vos charges enregistrées</h2><p>Coûts fournisseurs renseignés manuellement et retenus dans le périmètre.</p></div></div><div class="pf-pad"><div class="pf-split"><div class="pf-stat"><small>Charges confirmées HT</small><strong>{{ fmt.money(data.costHt) }}</strong></div><div class="pf-stat"><small>Charges confirmées TTC</small><strong>{{ fmt.money(data.costTtc) }}</strong></div></div><div class="pf-note">{{ fmt.money(data.estimates) }} de coûts TTC estimés, exclus du solde après coûts connus.<br>Les coûts communs restent dans la vue « Toutes les entités ». Les charges communes restent dans « Toutes les activités ». Les coûts affectés à une activité suivent le filtre choisi.</div></div></section>
+</div>
+<section class="pf-panel pf-section"><div class="pf-panel-head"><div><div class="pf-eyebrow">Dépenses fournisseurs</div><h2>Enregistrer et suivre vos coûts</h2><p>SuperPDP, hébergement, outils et acquisition. Saisissez chaque facture une seule fois.</p></div></div>
+<details><summary><i class="bi bi-plus-circle"></i> Ajouter un coût</summary>
+<form class="pf-cost-form" method="post" action="{{ path('app_super_platform_cost',{entite:entite.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('platform_cost') }}">
+<div class="pf-field full"><label for="cost-label">Libellé</label><input id="cost-label" name="label" maxlength="255" required placeholder="Ex. SuperPDP — facture octobre"></div>
+<div class="pf-field"><label for="cost-date">Date de facture</label><input type="date" id="cost-date" name="date" required></div>
+<div class="pf-field"><label for="cost-cat">Catégorie</label><select id="cost-cat" name="category">{% for key,label in categories %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+<div class="pf-field full"><label for="cost-entity">Affectation</label><select id="cost-entity" name="entity"><option value="0">Coût commun à la plateforme</option>{% for e in data.entities %}<option value="{{ e.id }}">{{ e.nom }}</option>{% endfor %}</select></div>
+<div class="pf-field"><label for="cost-ht">Montant HT (€)</label><input id="cost-ht" name="ht" inputmode="decimal" required placeholder="0,00"></div>
+<div class="pf-field"><label for="cost-ttc">Montant TTC (€)</label><input id="cost-ttc" name="ttc" inputmode="decimal" required placeholder="0,00"></div>
+<div class="pf-field full"><label for="cost-activity">Activité concernée</label><select id="cost-activity" name="activity"><option value="shared">Charge commune</option>{% for key,label in activities %}{% if key != 'all' %}<option value="{{ key }}">{{ label }}</option>{% endif %}{% endfor %}</select></div>
+<div class="pf-field full"><label for="cost-ref">Référence fournisseur</label><input id="cost-ref" name="reference" maxlength="255" placeholder="Numéro de facture"></div>
+<div class="pf-field"><label for="cost-status">Nature du montant</label><select id="cost-status" name="estimated"><option value="0">Facture réelle</option><option value="1">Estimation</option></select></div><div class="pf-field"><label>&nbsp;</label><button class="pf-button gold">Enregistrer le coût</button></div>
+</form></details>
+<div class="pf-scroll"><table><thead><tr><th>Date</th><th>Coût / référence</th><th>Affectation</th><th class="num">HT</th><th class="num">TTC</th><th>Nature</th><th>Action</th></tr></thead><tbody>{% for c in data.costs %}<tr><td>{{ c.date|date('d/m/Y') }}</td><td><strong>{{ c.label }}</strong><small>{{ categories[c.category] }} · {{ c.reference ?: 'Sans référence' }}</small></td><td>{{ c.entite ? c.entite.nom : 'Plateforme · commun' }}<small>{{ c.activity == 'shared' ? 'Charge commune' : activities[c.activity] }}</small></td><td class="num">{{ fmt.money(c.ht) }}</td><td class="num">{{ fmt.money(c.ttc) }}</td><td><span class="pf-pill {{ c.estimated ? 'gold' : 'green' }}">{{ c.estimated ? 'Estimation' : 'Facture réelle' }}</span></td><td><form method="post" action="{{ path('app_super_platform_cost_archive',{entite:entite.id,id:c.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('platform_archive_'~c.id) }}"><button class="pf-button" title="Retirer ce coût des calculs">Archiver</button></form></td></tr>{% else %}<tr><td colspan="7" class="pf-empty">Aucun coût saisi dans ce périmètre. Ajoutez vos factures fournisseurs pour compléter la vision financière.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="pf-panel pf-section"><div class="pf-panel-head"><div><div class="pf-eyebrow">Traçabilité</div><h2>Journal des revenus</h2><p>Dernières opérations de la sélection. L’export CSV contient l’ensemble des revenus filtrés.</p></div><span class="pf-pill">{{ data.rows|length }} opérations</span></div><div class="pf-scroll"><table><thead><tr><th>Date</th><th>Entité / référence</th><th>Activité</th><th class="num">HT connu</th><th class="num">TTC net</th><th class="num">Stripe connu</th><th>État</th></tr></thead><tbody>{% for r in data.rows|slice(0,100) %}<tr><td>{{ r.date|date('d/m/Y','Europe/Paris') }}</td><td><strong>{{ r.name }}</strong><small>{{ r.label }}</small></td><td>{{ activities[r.activity] }}</td><td class="num">{{ r.ht is null ? 'À rapprocher' : fmt.money(r.ht) }}</td><td class="num">{{ fmt.money(r.ttc) }}</td><td class="num">{{ r.fees is null ? 'Non renseigné' : fmt.money(r.fees) }}</td><td><span class="pf-pill">{{ r.state }}</span></td></tr>{% else %}<tr><td colspan="7" class="pf-empty">Aucun revenu enregistré sur cette sélection.<br>Rapprochez Stripe pour importer l’historique des abonnements.</td></tr>{% endfor %}</tbody></table></div></section>
+<details class="pf-panel pf-disclosure"><summary><i class="bi bi-info-circle"></i> Sources et règles de calcul</summary><div class="pf-pad">
+<p><strong>Abonnements.</strong> Factures payées du compte Stripe plateforme, rattachées aux abonnements locaux. Les usages électroniques présents sur ces factures restent inclus ; la consommation SuperPDP n’est jamais additionnée une seconde fois. Les tests Stripe et devises autres que l’euro sont exclus de ce poste.</p>
+<p><strong>Formations.</strong> Achats enregistrés par la marketplace. Les ventes directes contribuent au prix net ; les vendeurs tiers contribuent seulement à la commission. En cas de remboursement partiel, la commission est proratisée et le HT reste à rapprocher. Les litiges sont exclus des revenus de ce poste.</p>
+<p><strong>Factures des organismes.</strong> Le montant des factures appartient aux organismes. Seuls les frais de service des paiements confirmés sont des revenus de la plateforme. Leur ventilation TVA et leurs frais Stripe restent à rapprocher lorsqu’ils ne sont pas enregistrés.</p>
+<p><strong>Résultat.</strong> Le solde affiché est un indicateur de trésorerie partiel, pas un bénéfice comptable. Les remboursements sont rattachés au paiement initial. Les coûts estimés ne sont pas déduits. La TVA récupérable, les impôts, les frais de remboursement et les charges non renseignées ne sont pas calculés.</p>
+<p><strong>Croissance.</strong> Les rôles et abonnements sont ceux d’aujourd’hui. L’origine est issue des apports d’affaires enregistrés ; aucune provenance géographique ou marketing n’est déduite arbitrairement.</p>
+</div></details><div class="pf-footer"><span>Wiki Formation · Pilotage plateforme</span><span>Lecture financière consolidée · Données privées</span></div>
+</div>
+{% endblock %}
+
+{% block javascripts_bottom %}
+{{ parent() }}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/fr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+<script>
+(() => {
+  const root = document.querySelector('.pf');
+  if (!root) return;
+  if (window.TomSelect) root.querySelectorAll('select').forEach(select => {
+    if (select.tomselect) return;
+    const control = new TomSelect(select, {
+      create: false, maxItems: 1, dropdownParent: 'body',
+      render: { no_results: () => '<div class="no-results">Aucun résultat</div>' }
+    });
+    control.dropdown.classList.add('pf-tom-dropdown');
+  });
+  if (!window.flatpickr) return;
+  const options = {
+    locale: flatpickr.l10ns.fr || 'default', disableMobile: true,
+    altInput: true, allowInput: false,
+    onReady: (_, __, picker) => {
+      picker.calendarContainer.classList.add('pf-calendar');
+      // Keep the visible field associated with its label.
+      const id = picker.input.id;
+      if (id && picker.altInput) {
+        picker.input.id = id + '-value';
+        picker.altInput.id = id;
+      }
+    }
+  };
+  if (window.monthSelectPlugin) root.querySelectorAll('input[type="month"]').forEach(input => {
+    flatpickr(input, {...options, plugins: [new monthSelectPlugin({
+      shorthand: false, dateFormat: 'Y-m', altFormat: 'F Y'
+    })]});
+  });
+  root.querySelectorAll('input[type="date"]').forEach(input => {
+    flatpickr(input, {...options, dateFormat: 'Y-m-d', altFormat: 'd/m/Y'});
+  });
+})();
+</script>
+{% endblock %}

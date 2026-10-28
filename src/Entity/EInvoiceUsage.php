@@ -29,7 +29,7 @@ class EInvoiceUsage
     {
         $terms = $transmission->getUsageTerms();
         if ($transmission->getConnection()->getEnvironment() !== 'production' || !$transmission->getProviderId() || !$transmission->getAcceptedAt() || !$transmission->getAttemptedAt()
-            || !$terms || !in_array($terms['unitPriceCents'] ?? null, [1, 2], true) || empty($terms['customer']) || empty($terms['subscription']) || empty($terms['consentedAt'])) {
+            || !$terms || !in_array($terms['unitPriceCents'] ?? null, [1, 2, 3], true) || empty($terms['customer']) || empty($terms['subscription']) || empty($terms['consentedAt'])) {
             throw new \DomainException('Émission confirmée et conditions tarifaires acceptées requises.');
         }
         $this->connection = $transmission->getConnection(); $this->transmission = $transmission;

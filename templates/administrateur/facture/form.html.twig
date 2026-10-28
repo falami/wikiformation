@@ -398,6 +398,16 @@
 
   {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'facture_form' } }) }}
   {{ form_errors(form) }}
+  {% if not form.vars.value.id %}
+    <div class="alert alert-light border rounded-4 d-flex flex-wrap align-items-center gap-3" role="note">
+      <i class="bi bi-shield-check fs-4" aria-hidden="true"></i>
+      <div class="flex-grow-1">
+        <strong>Avant d’émettre votre facture</strong>
+        <div>La connexion SUPER PDP en production, les transmissions activées et le moyen de paiement Stripe sont vérifiés à chaque émission.</div>
+      </div>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_administrateur_einvoice', {entite: entite.id}) }}" target="_blank" rel="noopener">Configurer la facturation <span class="visually-hidden">(nouvel onglet)</span><i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i></a>
+    </div>
+  {% endif %}
   {% if invoiceDraft|default(false) %}
   <div class="alert alert-info rounded-4">
     <strong>Brouillon de facture</strong> — Complétez les informations puis validez l’émission. Aucun numéro définitif ni transmission avant validation.

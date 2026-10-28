@@ -5,7 +5,7 @@ use App\Entity\Marketplace\{Seller,Purchase,Offer,Access};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class Payments {
- public function __construct(private EntityManagerInterface $em,private StripeGateway $stripe,private Policy $policy,private UrlGeneratorInterface $router,private Invoicing $invoicing) {}
+ public function __construct(private EntityManagerInterface $em,private StripeGateway $stripe,private Policy $policy,private UrlGeneratorInterface $router,private Invoicing $invoicing,private MarketplaceInvoiceReadiness $invoiceReadiness) {}
  public static function split(int $gross,int $taxBps,int $commissionBps): array {
   if ($gross<0 || $taxBps<0 || $commissionBps<0 || $commissionBps>10000) throw new \InvalidArgumentException();
   $net=intdiv($gross*10000+intdiv(10000+$taxBps,2),10000+$taxBps);
@@ -16,15 +16,17 @@ final class Payments {
   BillingRules::seller($seller);
   if (!BillingRules::activeMandate($seller)) throw new \DomainException('Acceptez le mandat de facturation avant de configurer Stripe.');
   if (!$seller->termsAcceptedAt) throw new \DomainException('Complétez votre profil vendeur.');
+  SellerPaymentPolicy::assertAccepted($this->em,$seller,$this->policy->settings());
   if (!$seller->accountId) { $seller->accountId=$this->stripe->createAccount($seller->id,$seller->email);$this->em->flush(); }
   return $this->stripe->onboarding($seller->accountId,$this->router->generate('app_market_trainer_seller',['entite'=>$entite->getId()],UrlGeneratorInterface::ABSOLUTE_URL));
  }
  public function checkout(Utilisateur $buyer,array $offerIds,array $consent): string {
+  $this->invoiceReadiness->assertAvailable();
   $settings=$this->policy->settings();
   if (!$settings->enabled || !$settings->legalApproved || $settings->commissionBps===null) throw new \DomainException('Les ventes ne sont pas encore ouvertes.');
   if (!$offerIds || count($offerIds)>30) throw new \DomainException('Votre panier est vide ou trop volumineux.');
   $billing=BillingRules::buyer($consent['billing']??[]);
-  $purchase=new Purchase();$purchase->id=bin2hex(random_bytes(16));$purchase->buyer=$buyer;$purchase->createdAt=new \DateTimeImmutable();$purchase->commissionBps=$settings->commissionBps;$purchase->feesPayer=$settings->feesPayer;
+  $purchase=new Purchase();$purchase->id=bin2hex(random_bytes(16));$purchase->buyer=$buyer;$purchase->createdAt=new \DateTimeImmutable();$purchase->commissionBps=$settings->commissionBps;
   $purchase->consent=$consent+['acceptedAt'=>$purchase->createdAt->format(DATE_ATOM),'version'=>$settings->termsVersion,'terms'=>$settings->terms];
   foreach (array_unique($offerIds) as $id) {
    $offer=$this->em->find(Offer::class,$id);
@@ -34,7 +36,8 @@ final class Payments {
    if ($purchase->seller && $purchase->seller!==$offer->seller) throw new \DomainException('Le règlement s’effectue par formateur.');
    $purchase->seller=$offer->seller;$purchase->platformSale=$this->policy->platformSeller($offer->seller->user);
    $purchase->commissionBps=$purchase->platformSale ? 0 : $settings->commissionBps;
-   $purchase->feesPayer=$purchase->platformSale ? 'platform' : $settings->feesPayer;
+   // Freeze the policy for this purchase; historical purchases retain their own agreed payer.
+   $purchase->feesPayer=$purchase->platformSale ? 'platform' : 'seller';
    $split=self::split($offer->priceCents,$offer->taxBps,$purchase->commissionBps);
    $purchase->items[]=['offer'=>$offer->id,'course'=>$offer->course->getId(),'title'=>$offer->snapshot['title'],'gross'=>$offer->priceCents,'taxBps'=>$offer->taxBps,'net'=>$split['net'],'tax'=>$split['tax'],'commission'=>$split['commission'],'snapshot'=>$offer->snapshot];
    $purchase->totalCents+=$offer->priceCents;$purchase->commissionCents+=$split['commission'];
@@ -59,6 +62,7 @@ final class Payments {
 
   if ((!$purchase->platformSale && !$seller->accountId) || !$seller->termsAcceptedAt || $seller->termsVersion!==$settings->termsVersion) throw new \DomainException('Ce vendeur doit terminer son activation avant de pouvoir recevoir des paiements.');
   if (!$purchase->platformSale) {
+   $purchase->consent['sellerPaymentPolicy']=SellerPaymentPolicy::assertAccepted($this->em,$seller,$settings);
    $account=$this->stripe->account($seller->accountId);
    if (($account['country']??'')!=='FR') throw new \DomainException('Le compte Stripe du vendeur doit être établi en France.');
    if (empty($account['charges_enabled']) || empty($account['payouts_enabled'])) throw new \DomainException('Les paiements de ce vendeur ne sont pas encore activés.');
@@ -81,6 +85,7 @@ final class Payments {
   $this->em->flush();return $this->resume($purchase);
  }
  public function resume(Purchase $purchase): string {
+  $this->invoiceReadiness->assertAvailable();
   if ($purchase->status!=='pending' || !$purchase->checkoutRequest || ($purchase->checkoutRequest['expires_at']??0)<=time()+60) throw new \DomainException('Ce paiement a expiré. Créez un nouveau panier.');
   if (!$this->policy->settings()->enabled) throw new \DomainException('Les ventes sont suspendues.');
   if ($purchase->checkoutUrl) return $purchase->checkoutUrl;
@@ -88,23 +93,37 @@ final class Payments {
   $purchase->checkoutId=$checkout['id'];$purchase->checkoutUrl=$checkout['url'];$this->em->flush();return $purchase->checkoutUrl;
  }
  public function sync(Purchase $purchase): void {
-  if (!$purchase->checkoutId) return;
-  $this->em->wrapInTransaction(function() use($purchase) {
+  $this->syncWithProcessingFees($purchase);
+ }
+ /** Returns only the fee snapshot fetched and validated during this reconciliation. */
+ private function syncWithProcessingFees(Purchase $purchase): ?array {
+  if (!$purchase->checkoutId) return null;
+  return $this->em->wrapInTransaction(function() use($purchase): ?array {
    $this->em->lock($purchase,\Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);$this->em->refresh($purchase);
   $session=$this->stripe->session($purchase->checkoutId);
   if (($session['metadata']['marketplace_purchase']??'')!==$purchase->id || ($session['amount_total']??-1)!==$purchase->totalCents || ($session['currency']??'')!=='eur') throw new \DomainException('Paiement incohérent.');
-  if (($session['status']??'')==='expired' && $purchase->status==='pending') {$purchase->status='expired';$this->em->flush();return;}
-  if (($session['payment_status']??'')!=='paid') return;
+  if (($session['status']??'')==='expired' && $purchase->status==='pending') {$purchase->status='expired';$this->em->flush();return null;}
+  if (($session['payment_status']??'')!=='paid') return null;
   $payment=$this->stripe->payment($session['payment_intent']);$charge=$payment['latest_charge']??[];
-  if (($payment['status']??'')!=='succeeded' || ($payment['currency']??'')!=='eur' || ($payment['amount_received']??-1)!==$purchase->totalCents || !is_array($charge)) return;
+  if (($payment['status']??'')!=='succeeded' || ($payment['currency']??'')!=='eur' || ($payment['amount_received']??-1)!==$purchase->totalCents || !is_array($charge)) return null;
+  if (!is_string($charge['id']??null) || !preg_match('/^ch_[A-Za-z0-9_]+$/D',$charge['id'])
+    || ($purchase->chargeId!==null && $purchase->chargeId!==$charge['id'])
+    || ($purchase->paymentId!==null && $purchase->paymentId!==$session['payment_intent'])) throw new \DomainException('Identité du paiement Stripe incompatible : rapprochement requis.');
+   // A missing, malformed or stale refund total must never restore paid access or
+   // make previously refunded funds available for another seller transfer.
+   $refunded=$charge['amount_refunded']??null;
+   if (!is_int($refunded) || $refunded<0 || $refunded>$purchase->totalCents || $refunded<$purchase->refundedCents) {
+    throw new \DomainException('État du remboursement Stripe incohérent : rapprochement requis.');
+   }
    $this->em->lock($purchase->buyer,\Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
    $purchase->paymentId=$session['payment_intent'];$purchase->chargeId=$charge['id'];
    $purchase->paidAt ??= new \DateTimeImmutable('@'.($charge['created']??time()));
-   $purchase->refundedCents=(int)($charge['amount_refunded']??0);
+   $purchase->refundedCents=$refunded;
    $purchase->status=!empty($charge['disputed']) && ($charge['_dispute_status']??'')!=='won'?'disputed':($purchase->refundedCents>0?'refunded':'paid');
-   $balance=$charge['balance_transaction']??null;
-   if (is_array($balance)) $purchase->stripeFeeCents=(int)$balance['fee'];
-   $purchase->sellerCents=$purchase->platformSale ? 0 : max(0,$purchase->totalCents-$purchase->commissionGrossCents()-($purchase->feesPayer==='seller'?$purchase->stripeFeeCents:0));
+   $fees=$this->processingFees($purchase,$charge);
+   if ($fees!==null) $purchase->stripeFeeCents=$fees['fee'];
+   // Missing fees must never be presented as zero fees or spendable seller proceeds.
+   $purchase->sellerCents=$purchase->platformSale || $fees===null ? 0 : max(0,$purchase->totalCents-$purchase->commissionGrossCents()-($purchase->feesPayer==='seller'?$purchase->stripeFeeCents:0));
    foreach ($purchase->items as $item) {
     $course=$this->em->find(\App\Entity\Elearning\ElearningCourse::class,$item['course']);
     $access=$this->em->getRepository(Access::class)->findOneBy(['buyer'=>$purchase->buyer,'course'=>$course]);
@@ -114,7 +133,35 @@ final class Payments {
    }
    $this->invoicing->issue($purchase);
    $this->em->flush();
+   return $fees;
   });
+ }
+ private function processingFees(Purchase $purchase,array $charge): ?array {
+  $balance=$charge['balance_transaction']??null;
+  $previous=$purchase->consent['stripe_processing_fees']['lastVerified']??null;
+  $state=['status'=>$balance===null?'pending':'reconciliation_required','checkedAt'=>(new \DateTimeImmutable())->format(DATE_ATOM)];
+  if (is_array($previous)) $state['lastVerified']=$previous;
+  $source=is_array($balance) ? ($balance['source']??null) : null;
+  if (is_array($source)) $source=$source['id']??null;
+  $valid=is_array($balance)
+   && ($balance['object']??null)==='balance_transaction'
+   && is_string($balance['id']??null) && preg_match('/^txn_[A-Za-z0-9_]+$/D',$balance['id'])
+   && $source===$charge['id'] && ($balance['currency']??null)==='eur'
+   && ($balance['amount']??null)===$purchase->totalCents
+   && is_int($balance['fee']??null) && $balance['fee']>=0
+   && is_int($balance['net']??null) && $balance['net']===$purchase->totalCents-$balance['fee']
+   && is_int($balance['available_on']??null) && $balance['available_on']>0
+   && in_array($balance['status']??null,['pending','available'],true)
+   && in_array($purchase->feesPayer,['seller','platform'],true)
+   && (!is_array($previous) || (($previous['id']??null)===$balance['id'] && ($previous['charge']??null)===$charge['id']));
+  if (!$valid) {
+   $purchase->consent['stripe_processing_fees']=$state;
+   return null;
+  }
+  $snapshot=['id'=>$balance['id'],'charge'=>$charge['id'],'currency'=>'eur','amount'=>$balance['amount'],
+   'fee'=>$balance['fee'],'net'=>$balance['net'],'available_on'=>$balance['available_on'],'status'=>$balance['status']];
+  $purchase->consent['stripe_processing_fees']=['status'=>'verified','checkedAt'=>$state['checkedAt'],'lastVerified'=>$snapshot];
+  return $snapshot;
  }
  public function settle(Purchase $purchase): void {
   $this->em->wrapInTransaction(function() use ($purchase) {
@@ -123,7 +170,7 @@ final class Payments {
   });
  }
  private function settleLocked(Purchase $purchase): void {
-  $this->sync($purchase);
+  $fees=$this->syncWithProcessingFees($purchase);
   if ($purchase->platformSale) return;
   if (!$purchase->paidAt || $purchase->paidAt>new \DateTimeImmutable('-14 days') || !$purchase->chargeId) return;
   $remainingCommission=max(0,$purchase->commissionCents-Invoicing::refundShare($purchase->commissionCents,$purchase->refundedCents,$purchase->totalCents))+max(0,$purchase->commissionTaxCents-Invoicing::refundShare($purchase->commissionTaxCents,$purchase->refundedCents,$purchase->totalCents));
@@ -135,27 +182,32 @@ final class Payments {
    $found=$this->stripe->findTransfer($key);
    if ($found) {
     if (($found['currency']??'')!=='eur' || ($found['destination']??'')!==$purchase->seller->accountId
-      || ($found['source_transaction']??'')!==$purchase->chargeId || ($found['amount']??0)<=0 || $found['amount']>$purchase->totalCents) throw new \DomainException('Transfert Stripe incompatible : rapprochement requis.');
-    $reversed=(int)($found['amount_reversed']??0);
-    if ($reversed<0 || $reversed>$found['amount']) throw new \DomainException('Reprise Stripe incohérente.');
+      || ($found['source_transaction']??'')!==$purchase->chargeId || !is_int($found['amount']??null)
+      || $found['amount']<=0 || $found['amount']>$purchase->totalCents) throw new \DomainException('Transfert Stripe incompatible : rapprochement requis.');
+    $reversed=$found['amount_reversed']??null;
+    if (!is_int($reversed) || $reversed<0 || $reversed>$found['amount']) throw new \DomainException('Reprise Stripe incohérente.');
     $purchase->transferId=$found['id'];$purchase->payoutHistory[]=['id'=>$found['id'],'amount'=>$found['amount'],'reversed'=>$reversed];
     $purchase->transferredCents+=$found['amount']-$reversed;$this->em->flush();
     $this->settleLocked($purchase);return;
    }
   if ($delta>0) {
    if (!$this->policy->settings()->enabled) return;
-   $payment=$this->stripe->payment($purchase->paymentId);$balance=$payment['latest_charge']['balance_transaction']??null;
-   if (!is_array($balance) || ($balance['available_on']??PHP_INT_MAX)>time()) return;
+   // Amount, fees and availability come from the same read: a second read used to
+   // make an asynchronous fee appear after the transfer amount had been computed.
+   if ($fees===null || $fees['status']!=='available' || $fees['available_on']>time()) return;
    $id=$this->stripe->transfer($purchase->seller->accountId,$delta,$purchase->chargeId,$key);
    $purchase->transferId=$id;$purchase->payoutHistory[]=['id'=>$id,'amount'=>$delta,'reversed'=>0];$purchase->transferredCents+=$delta;
    $this->em->flush();
   } elseif ($delta<0) {
+   // Full refunds and disputes still recover money already sent. Other adjustments
+   // wait for verified fees instead of using an old or incomplete fee value.
+   if ($fees===null && $purchase->status!=='disputed' && $purchase->refundedCents!==$purchase->totalCents) return;
    $remaining=-$delta;
    foreach ($purchase->payoutHistory as $index=>$entry) {
     // Reconcile reversals as well: replaying a pruned idempotency key must never take money twice.
     $remote=$this->stripe->transferState($entry['id']);
-    $remoteReversed=(int)($remote['amount_reversed']??-1);
-    if (($remote['amount']??-1)!==$entry['amount'] || ($remote['currency']??'')!=='eur'
+    $remoteReversed=$remote['amount_reversed']??null;
+    if (!is_int($remoteReversed) || ($remote['amount']??-1)!==$entry['amount'] || ($remote['currency']??'')!=='eur'
       || ($remote['destination']??'')!==$purchase->seller->accountId || $remoteReversed<$entry['reversed'] || $remoteReversed>$entry['amount']) throw new \DomainException('Reprise Stripe incompatible : rapprochement requis.');
     $recovered=$remoteReversed-$entry['reversed'];
     if ($recovered>0) {

@@ -37,7 +37,7 @@ final class RealisationCertificate
     {
         $session = $inscription->getSession();
         $att = $inscription->getAttestation();
-        return $session && !$session->isSousTraitance() && $session->getStatus() === \App\Enum\StatusSession::DONE
+        return $session && !$session->isSousTraitance() && ($session->getStatus() === \App\Enum\StatusSession::DONE || $session->getEmargementClotureAt() !== null)
             && $att && $att->getEntite()?->getId() === $session->getEntite()?->getId()
             && $inscription->getEntite()?->getId() === $session->getEntite()?->getId()
             && $this->data($inscription, $att)['ready'];

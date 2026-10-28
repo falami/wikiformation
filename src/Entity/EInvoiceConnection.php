@@ -60,6 +60,11 @@ class EInvoiceConnection
     public function getBillingConsentAt(): ?\DateTimeImmutable { return $this->billingConsentAt; }
     public function getBillingConsentBy(): ?int { return $this->billingConsentBy; }
     public function getUnitPriceCents(): ?int { return $this->unitPriceCents === null ? null : min($this->unitPriceCents, \App\Service\EInvoicing\EInvoiceTariff::unitPriceCents($this->entite)); }
+    public function hasCurrentBillingConsent(): bool
+    {
+        return $this->billingConsentAt !== null && $this->billingConsentBy !== null
+            && $this->getUnitPriceCents() === \App\Service\EInvoicing\EInvoiceTariff::unitPriceCents($this->entite);
+    }
     public function consentToBilling(int $actor): void
     {
         if ($this->environment !== 'production') throw new \DomainException('La facturation concerne uniquement la production.');
@@ -75,7 +80,7 @@ class EInvoiceConnection
     public function setAutomatic(bool $value): void
     {
         if ($value && (!$this->verified || !$this->credentials)) throw new \DomainException('Connectez et vérifiez d’abord votre organisme.');
-        if ($value && ($this->environment !== 'production' || !$this->billingConsentAt || !in_array($this->getUnitPriceCents(), [0, 1, 2], true))) throw new \DomainException('Acceptez le tarif de transmission avant activation.');
+        if ($value && ($this->environment !== 'production' || !$this->hasCurrentBillingConsent())) throw new \DomainException('Acceptez le tarif actuel de transmission avant activation.');
         if ($value && $this->enabledAt === null) $this->enabledAt = new \DateTimeImmutable();
         $this->automatic = $value;
     }

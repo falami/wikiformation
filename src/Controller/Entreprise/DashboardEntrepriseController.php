@@ -219,7 +219,7 @@ final class DashboardEntrepriseController extends AbstractController
 
   /** Docs : liste “tout en un” (devis/factures/conventions + docs entreprise uploadés) */
   #[Route('/documents/feed', name: 'documents_feed', methods: ['GET'])]
-  public function documentsFeed(Entite $entite, EM $em, Request $request): JsonResponse
+  public function documentsFeed(Entite $entite, EM $em, Request $request, \App\Service\Convention\TrainingExitDocuments $exitDocuments, \App\Service\Document\RealisationCertificate $certificates): JsonResponse
   {
     $entreprise = $this->getEntrepriseUserOrFail($entite);
     $sessionId = $request->query->getInt('session', 0);
@@ -343,6 +343,21 @@ final class DashboardEntrepriseController extends AbstractController
     foreach ($em->getRepository(Inscription::class)->findBy($criteria,['id'=>'DESC']) as $inscription) {
       $session=$inscription->getSession();$person=$inscription->getStagiaire();
       if (!$session || $session->getEntite()?->getId()!==$entite->getId() || !$person) continue;
+      $base = ['entite'=>$entite->getId(), 'entreprise'=>$entreprise->getId()];
+      $meta = ['name'=>$person->getPrenom().' '.$person->getNom().' · '.$session->getCode(),
+          'sessionId'=>$session->getId(), 'uploadedAt'=>'', 'signedAt'=>null, 'signUrl'=>null];
+      if ($certificates->available($inscription)) $out[] = $meta + [
+          'kind'=>'ATTESTATION', 'id'=>$inscription->getId(), 'label'=>'Attestation de fin de formation',
+          'url'=>$this->generateUrl('app_entreprise_documents_attestation_pdf', $base + ['id'=>$inscription->getId()])];
+      foreach ($exitDocuments->habilitations($inscription) as $habilitation) {
+          $params = $base + ['id'=>$habilitation->getId()];
+          $out[] = $meta + ['kind'=>'AVIS', 'id'=>$habilitation->getId(), 'label'=>'Avis post-formation',
+              'url'=>$this->generateUrl('app_habilitation_attestation', $params + ['token'=>$habilitation->getAvisToken()])];
+          $out[] = $meta + ['kind'=>'TITRE', 'id'=>$habilitation->getId(), 'label'=>'Titre d’habilitation — modifier ou valider',
+              'url'=>$this->generateUrl('app_habilitation_show', $params + ['stage'=>'titre'])];
+          if ($habilitation->getTitreToken()) $out[] = $meta + ['kind'=>'TITRE_PDF', 'id'=>$habilitation->getId(), 'label'=>'Titre d’habilitation signé',
+              'url'=>$this->generateUrl('app_habilitation_pdf', $params + ['token'=>$habilitation->getTitreToken()])];
+      }
       $out[]=['kind'=>'CONVOCATION','id'=>$inscription->getId(),'label'=>'Convocation stagiaire',
         'name'=>$person->getPrenom().' '.$person->getNom().' · '.$session->getCode(),
         'sessionId'=>$session->getId(),'uploadedAt'=>'','signedAt'=>null,'signUrl'=>null,

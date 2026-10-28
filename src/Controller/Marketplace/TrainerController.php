@@ -4,7 +4,7 @@ use App\Entity\{Entite,Utilisateur,UtilisateurEntite};
 use App\Entity\Elearning\ElearningCourse;
 use App\Entity\Marketplace\{Offer,Access,Purchase};
 use App\Form\Administrateur\ElearningCourseType;
-use App\Service\Marketplace\{Policy,Snapshots,Payments,BillingRules};
+use App\Service\Marketplace\{Policy,Snapshots,Payments,BillingRules,SellerPaymentPolicy};
 use App\Service\Slug\UniqueSlugger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -47,6 +47,7 @@ final class TrainerController extends AbstractController {
     $cents=(int)round((float)str_replace(',','.',$price)*100);
     $published=$r->request->getBoolean('published');
     if ($published && ($cents<50 || !$seller->termsAcceptedAt || $seller->termsVersion!==$settings->termsVersion || !$r->request->getBoolean('preserve'))) throw new \DomainException('Complétez votre profil vendeur et confirmez le maintien des accès achetés. Prix minimum : 0,50 €.');
+    if ($published && !$platformSeller) SellerPaymentPolicy::assertAccepted($this->em,$seller,$settings);
     if ($published && !$r->request->getBoolean('members') && !$r->request->getBoolean('public')) throw new \DomainException('Choisissez au moins une visibilité.');
     if ($published && $tax===0 && !$seller->taxExemption) throw new \DomainException('Renseignez le motif d’exonération de TVA dans votre profil.');
     $snapshot=$published ? $this->snapshots->capture($course) : $offer->snapshot;
@@ -98,15 +99,17 @@ final class TrainerController extends AbstractController {
      $candidate=clone $seller;foreach ($data as $key=>$value) $candidate->$key=$value;
      $identity=BillingRules::seller($candidate);
      if (!$platformSeller && !$r->request->getBoolean('mandate')) throw new \DomainException('Acceptez le mandat pour activer la facturation automatique.');
+     if (!$platformSeller && !hash_equals(SellerPaymentPolicy::snapshot($settings)['sha256'],$r->request->getString('payment_policy_digest'))) throw new \DomainException('Les conditions de frais de paiement ont changé. Relisez-les puis confirmez votre accord.');
      foreach ($data as $key=>$value) $seller->$key=$value;
      $seller->termsAcceptedAt=new \DateTimeImmutable();$seller->termsVersion=$settings->termsVersion;
      if (!$platformSeller) $seller->mandates[]=['version'=>BillingRules::VERSION,'text'=>BillingRules::mandateText(),'acceptedAt'=>$seller->termsAcceptedAt->format(DATE_ATOM),'user'=>$this->getUser()->getId(),'seller'=>$identity,'revokedAt'=>null];
+     if (!$platformSeller) $this->em->persist(SellerPaymentPolicy::acceptance($seller,$settings,$entite));
      $this->em->flush();$this->addFlash('success','Profil et accord de facturation enregistrés.');
     } catch (\DomainException $e) { $this->addFlash('danger',$e->getMessage()); }
    }
   }
   $sales=$this->em->getRepository(Purchase::class)->findBy(['seller'=>$seller],['createdAt'=>'DESC'],100);
-  return $this->render('marketplace/seller.html.twig',compact('entite','seller','settings','sales','platformSeller')+['mandateText'=>BillingRules::mandateText()]);
+  return $this->render('marketplace/seller.html.twig',compact('entite','seller','settings','sales','platformSeller')+['mandateText'=>BillingRules::mandateText(),'sellerPaymentPolicy'=>SellerPaymentPolicy::snapshot($settings)]);
  }
  #[Route('/vendeur/revoquer-mandat',name:'revoke_mandate',methods:['POST'])]
  public function revokeMandate(Entite $entite,Request $r): Response {

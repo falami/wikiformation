@@ -133,6 +133,26 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         foreach ($files as $filename=>$bytes) { self::assertStringStartsWith('%PDF',$bytes);self::assertStringNotContainsString('Bruno',$filename); }
         $archive=$service->archive($files);self::assertStringStartsWith('PK',$archive);
         if (getenv('ATTENDANCE_PDF_REVIEW')) foreach ($files as $filename=>$bytes) file_put_contents(self::getContainer()->getParameter('kernel.project_dir').'/var/review-'.$filename,$bytes);
+        // Even a wrongly linked invoice addressed to another company must never enter an archive.
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class,
+            $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
+        $invoices = [];
+        foreach ($companies as $index=>$company) {
+            $invoice = (new \App\Entity\Facture())->setEntite($this->entite)->setCreateur($this->user)
+                ->setEntrepriseDestinataire($company)->setNumero('FAC-PACK-'.$index)
+                ->setDateEmission(new \DateTimeImmutable('2026-10-02'))
+                ->setMontantHtCents(10000)->setMontantTvaCents(0)->setMontantTtcCents(10000);
+            $invoice->addInscription($inscriptions[0]);
+            $inscriptions[0]->addFacture($invoice);
+            $this->em->persist($invoice);
+            $invoices[] = $invoice;
+        }
+        $this->em->flush();
+        $exit = self::getContainer()->get(\App\Service\Convention\TrainingExitDocuments::class)->build($inscriptions[0]);
+        self::assertArrayHasKey('Facture-'.$invoices[0]->getId().'.pdf', $exit);
+        self::assertArrayNotHasKey('Facture-'.$invoices[1]->getId().'.pdf', $exit);
+        $complete = $service->documents($c, \Symfony\Component\HttpFoundation\Request::create('/'));
+        self::assertArrayHasKey('Session/Facture-'.$invoices[0]->getId().'.pdf', $complete);
         $this->client->loginUser($this->user);
         $url='/fr/administrateur/'.$this->entite->getId().'/conventions/'.$c->getId().'/dossier';
         $this->client->request('GET',$url);self::assertResponseIsSuccessful();
@@ -167,7 +187,9 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
             self::assertStringContainsString('Emargements.pdf', $list);
             self::assertStringContainsString('Satisfaction-', $list);
             self::assertStringNotContainsString('Bruno', $list);
-            self::assertSame($scope === 'session', str_contains($list, 'Session/Convention-'));
+            self::assertStringContainsString('Session/Convention-', $list);
+            self::assertStringContainsString('Session/Facture-'.$invoices[0]->getId().'.pdf', $list);
+            self::assertStringNotContainsString('Facture-'.$invoices[1]->getId().'.pdf', $list);
             $zip->close(); unlink($path);
         }
         $this->client->request('GET', $portal.'/documents/inscription/'.$inscriptions[1]->getId().'/archive/session');
@@ -182,7 +204,7 @@ final class ConventionDossierTest extends \Symfony\Bundle\FrameworkBundle\Test\W
         $session=$this->em->find(Session::class,$this->session->getId());
         $convention=$this->em->find(\App\Entity\ConventionContrat::class,$c->getId());
         $session->setTypeFinancement(\App\Enum\TypeFinancement::OUI);
-        self::assertCount(2,$service->documents($convention,\Symfony\Component\HttpFoundation\Request::create('/')));
+        self::assertCount(3,$service->documents($convention,\Symfony\Component\HttpFoundation\Request::create('/')));
         $convention->setPdfPath('pending-test.pdf'); $this->em->flush();
         $currentTenant=$this->em->find(Entite::class,$this->entite->getId());
         $currentActor=$this->em->find(Utilisateur::class,$this->user->getId());

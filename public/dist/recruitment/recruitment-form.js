@@ -69,7 +69,11 @@ document.addEventListener('DOMContentLoaded', () => {
       canvas.hidden = false;
       if (!map) {
         map = L.map(canvas, {scrollWheelZoom:false});
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom:19,
+          referrerPolicy:'strict-origin',
+          attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
       }
       map.invalidateSize(); map.setView([lat, lon], 16);
       if (marker) marker.remove();

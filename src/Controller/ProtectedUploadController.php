@@ -7,6 +7,8 @@ namespace App\Controller;
 use App\Entity\{Attestation, ContratFormateur, ContratStagiaire, ConventionContrat, Depense, Devis, Emargement, Entite, EntitePreferences, Entreprise, EntrepriseDocument, Paiement, Utilisateur, UtilisateurEntite};
 use App\Security\DossierDocumentAccess;
 use App\Security\ElearningAccess;
+use App\Security\SupportLibraryAccess;
+use App\Entity\{SupportAsset, SupportDocument};
 use App\Entity\Elearning\{ElearningBlock, ElearningEnrollment};
 use App\Security\Permission\TenantPermission;
 use App\Service\Delegation\DossierAccess;
@@ -22,6 +24,7 @@ final class ProtectedUploadController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly DossierAccess $dossiers,
+        private readonly SupportLibraryAccess $supports,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {}
 
@@ -32,7 +35,7 @@ final class ProtectedUploadController extends AbstractController
         if (!$user instanceof Utilisateur || !$this->isGranted('IS_AUTHENTICATED_FULLY')) {
             throw $this->createNotFoundException();
         }
-        if (!in_array($directory, ['emargements', 'proofs', 'depense', 'signatures/organisme', 'tampons/organisme', 'entreprise/docs', 'pdf', 'devis', 'conventions', 'elearning'], true)
+        if (!in_array($directory, ['emargements', 'proofs', 'depense', 'signatures/organisme', 'tampons/organisme', 'entreprise/docs', 'pdf', 'devis', 'conventions', 'elearning', 'supports/library', 'supports'], true)
             || str_contains($file, '\\') || str_contains($file, "\0")
             || preg_match('~(^|/)\.{1,2}(/|$)~', $file)) {
             throw $this->createNotFoundException();
@@ -62,6 +65,8 @@ final class ProtectedUploadController extends AbstractController
 
     private function records(string $directory, string $file, string $relative): array
     {
+        if ($directory === 'supports/library') return $this->em->getRepository(SupportAsset::class)->findBy(['filename' => $file]);
+        if ($directory === 'supports') return $this->em->getRepository(SupportDocument::class)->findBy(['filename' => $file]);
         if ($directory === 'elearning') return $this->em->getRepository(ElearningBlock::class)->findBy(['mediaFilename' => $file]);
         $paths = [$relative, '/'.$relative];
         if ($directory === 'emargements') return $this->em->getRepository(Emargement::class)->findBy(['signaturePath' => $paths]);
@@ -84,6 +89,8 @@ final class ProtectedUploadController extends AbstractController
 
     private function mayRead(object $record, Utilisateur $user): bool
     {
+        if ($record instanceof SupportAsset) return $this->supports->canRead($record, $user);
+        if ($record instanceof SupportDocument) return $this->supports->canReadLegacy($record, $user);
         $entite = $record->getEntite();
         if (!$entite instanceof Entite || !$this->consistent($record, $entite)) return false;
         if ($this->isGranted(TenantPermission::ADMIN, $entite)) return true;

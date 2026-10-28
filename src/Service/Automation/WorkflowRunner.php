@@ -4,6 +4,7 @@ namespace App\Service\Automation;
 
 use App\Entity\Automation\WorkflowTask;
 use App\Enum\StatusSession;
+use App\Exception\InvoicePrerequisiteUnavailable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -29,6 +30,14 @@ final class WorkflowRunner
             $snapshot = $result['snapshot'] ?? [];
             if (isset($task->getSnapshot()['recoveryHistory'])) $snapshot['recoveryHistory'] = $task->getSnapshot()['recoveryHistory'];
             $task->setStatus($result['status'])->setDetail($result['detail'] ?? null)->setSnapshot($snapshot);
+        } catch (InvoicePrerequisiteUnavailable $e) {
+            if ($task->getAction() === 'invoice' && !$this->em->isOpen()) {
+                return $this->recoverRolledBackInvoice($task, $now, $e);
+            }
+            if (!$this->em->isOpen()) throw $e;
+            // Only creation is safe to retry automatically. A delivery action must
+            // never gain an automatic retry merely because an exception is typed.
+            $task->setStatus($task->getAction() === 'invoice' ? 'blocked' : 'unknown')->setDetail($e->getMessage());
         } catch (\DomainException $e) {
             if (!$this->em->isOpen()) throw $e;
             $task->setStatus('blocked')->setDetail($e->getMessage());
@@ -40,5 +49,22 @@ final class WorkflowRunner
         $task->setProcessedAt($now);
         $this->em->flush();
         return $task->getStatus();
+    }
+
+    private function recoverRolledBackInvoice(WorkflowTask $task, \DateTimeImmutable $now, InvoicePrerequisiteUnavailable $error): string
+    {
+        $connection = $this->em->getConnection();
+        // Doctrine closes its manager after wrapInTransaction rolls back. Its DBAL
+        // connection remains usable, but never write a recovery inside an outer tx.
+        if ($connection->isTransactionActive()) throw $error;
+        $timestamp = $now->format('Y-m-d H:i:s');
+        $changed = $connection->executeStatement(
+            "UPDATE workflow_task SET status = 'blocked', detail = ? WHERE id = ? AND action = 'invoice' AND status = 'processing' AND processed_at = ?",
+            [$error->getMessage(), $task->getId(), $timestamp]
+        );
+        if ($changed !== 1) throw new \RuntimeException('La réservation de facturation a changé ; vérifiez cette tâche avant toute reprise.', 0, $error);
+        $task->setStatus('blocked')->setDetail($error->getMessage())->setProcessedAt($now);
+        $this->logger->warning('Invoice prerequisites changed during issuance; transaction rolled back and task left retryable.', ['taskId' => $task->getId()]);
+        return 'blocked';
     }
 }

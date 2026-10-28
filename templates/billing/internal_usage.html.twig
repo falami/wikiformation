@@ -1,0 +1,26 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Facturation des consommations · I.T. For You{% endblock %}
+{% block body %}
+<div class="container py-4" style="max-width:960px">
+  <a href="{{ path('app_administrateur_billing', {entite:entite.id}) }}" class="text-decoration-none">← Retour à l’abonnement</a>
+  <section class="rounded-4 p-4 p-lg-5 my-4 text-white" style="background:var(--theme-color-principal, #233342)">
+    <span class="text-uppercase small" style="letter-spacing:.15em;color:#e7cb89">I.T. For You · Consommations</span>
+    <h1 class="mt-3">Un paiement configuré.<br>Vos consommations uniquement.</h1>
+    <p class="mb-0">Enregistrez un moyen de paiement auprès de Stripe pour la facturation électronique de votre organisme.</p>
+  </section>
+  <section class="card border-0 shadow-sm rounded-4 p-4 p-lg-5">
+    <div class="row g-4 mb-4"><div class="col-md-6"><span class="text-muted">Base mensuelle</span><div class="fs-2 fw-bold">0 €</div><p>Aucun abonnement public payant n’est ajouté. Votre offre et ses droits restent conservés.</p></div>
+    <div class="col-md-6"><span class="text-muted">Facture effectivement transmise et confirmée</span><div class="fs-2 fw-bold">{{ (unitPriceCents / 100)|number_format(2, ',', ' ') }} € HT</div><p>Coût SUPER PDP, sans part plateforme interne.</p></div></div>
+    <p>Les consommations sont regroupées sur la facturation mensuelle Stripe. Un montant inférieur au minimum d’encaissement Stripe peut être reporté à une prochaine facture. Les frais de traitement Stripe applicables sont distincts.</p>
+    <p>Cette étape configure le paiement. L’activation de SUPER PDP et l’accord sur ses consommations restent à confirmer dans les préférences de facturation électronique.</p>
+    <details class="border rounded-3 p-3 mb-4"><summary class="fw-semibold">Lire les conditions de vente</summary><div class="mt-3">{{ terms.html|raw }}</div></details>
+    <form method="post">
+      <input type="hidden" name="_token" value="{{ csrf_token('internal_usage_' ~ entite.id) }}">
+      <input type="hidden" name="terms_version" value="{{ terms.version }}"><input type="hidden" name="terms_digest" value="{{ terms.sha256 }}">
+      <div class="form-check mb-3"><input type="checkbox" class="form-check-input" id="usage_accepted" name="usage_accepted" value="1" required><label for="usage_accepted" class="form-check-label">J’accepte la base mensuelle de 0 € et {{ (unitPriceCents / 100)|number_format(2, ',', ' ') }} € HT par transmission confirmée.</label></div>
+      <div class="form-check mb-4"><input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted" value="1" required><label for="terms_accepted" class="form-check-label">J’ai lu et j’accepte les conditions de vente affichées ci-dessus.</label></div>
+      <button class="btn btn-warning px-4 py-3 fw-semibold">Configurer le paiement sur Stripe →</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

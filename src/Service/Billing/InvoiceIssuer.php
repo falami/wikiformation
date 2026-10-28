@@ -2,7 +2,8 @@
 declare(strict_types=1);
 namespace App\Service\Billing;
 
-use App\Entity\Facture;
+use App\Entity\{Entite, Facture};
+use App\Service\EInvoicing\EInvoiceReadiness;
 use App\Service\Sequence\FactureNumberGenerator;
 use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\ORM\EntityManagerInterface;
@@ -10,10 +11,23 @@ use Doctrine\ORM\EntityManagerInterface;
 /** One transaction for numbering, immutable issuance data and persistence. */
 final class InvoiceIssuer
 {
-    public static function persist(EntityManagerInterface $em, FactureNumberGenerator $numbers, Facture $invoice, ?callable $relatedChanges = null): Facture
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly FactureNumberGenerator $numbers,
+        private readonly EInvoiceReadiness $readiness,
+    ) {}
+
+    /** Run before an outer workflow transaction, so a missing configuration stays recoverable. */
+    public function assertCanIssue(Entite $entite): void
+    {
+        $this->readiness->assertCanIssue($entite);
+    }
+
+    public function persist(Facture $invoice, ?callable $relatedChanges = null): Facture
     {
         if ($invoice->getId() !== null) throw new \LogicException('Cette facture est déjà émise.');
         if (!$invoice->getEntite()?->getId()) throw new \DomainException('L’organisme émetteur est manquant.');
+        $this->assertCanIssue($invoice->getEntite());
         if (($invoice->getDestinataire() !== null) === ($invoice->getEntrepriseDestinataire() !== null)) throw new \DomainException('Choisissez un seul destinataire : entreprise ou personne.');
         if ($invoice->getEntrepriseDestinataire() && $invoice->getEntrepriseDestinataire()->getEntite()?->getId() !== $invoice->getEntite()->getId()) throw new \DomainException('Le client appartient à un autre organisme.');
         if ($invoice->getDevise() !== 'EUR' || $invoice->getLignes()->isEmpty()) throw new \DomainException('Renseignez les prestations de la facture en euros.');
@@ -24,14 +38,15 @@ final class InvoiceIssuer
         if ($issues = InvoiceReadiness::issues($invoice)) {
             throw new \DomainException('Complétez les informations avant d’émettre la facture : ' . implode(' ', $issues));
         }
-        return $em->wrapInTransaction(function () use ($em, $numbers, $invoice, $relatedChanges) {
+        $em = $this->em;
+        return $em->wrapInTransaction(function () use ($em, $invoice, $relatedChanges) {
             if ($relatedChanges) $relatedChanges($invoice);
             $connection = $em->getConnection();
             $lock = $connection->getDatabasePlatform() instanceof SQLitePlatform ? '' : ' FOR UPDATE';
             $connection->fetchOne('SELECT id FROM entite WHERE id = ?' . $lock, [$invoice->getEntite()->getId()]);
             $latest = $connection->fetchOne('SELECT MAX(date_emission) FROM facture WHERE entite_id = ?', [$invoice->getEntite()->getId()]);
             if ($latest && substr($latest, 0, 10) > $invoice->getDateEmission()->format('Y-m-d')) throw new \DomainException('La date d’émission ne peut pas précéder celle de la dernière facture de cet organisme.');
-            $invoice->setNumero($numbers->nextForEntite($invoice->getEntite()->getId(), (int) $invoice->getDateEmission()->format('Y')));
+            $invoice->setNumero($this->numbers->nextForEntite($invoice->getEntite()->getId(), (int) $invoice->getDateEmission()->format('Y')));
             InvoiceTotals::finalizeNewInvoice($invoice);
             // Freeze the publication selected at issuance; historical invoices never adopt later edits.
             $studio=[];

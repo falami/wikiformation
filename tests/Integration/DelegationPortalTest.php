@@ -23,6 +23,8 @@ final class DelegationPortalTest extends KernelTestCase
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        // Invoice fixtures represent already configured issuers; Stripe readiness has dedicated security tests.
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
         $sequence = $this->createMock(\App\Service\Sequence\SequenceNumberManager::class);
         $counter = 0;
         $sequence->method('next')->willReturnCallback(function ($type, $entite, $year = null) use (&$counter) {

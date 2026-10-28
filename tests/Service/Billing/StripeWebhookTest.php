@@ -53,12 +53,14 @@ final class StripeWebhookTest extends KernelTestCase
         return (new StripeWebhookController())->webhook(
             $request,
             new StripeBillingService('sk_test_fixture', 'https://example.test/fr'),
-            new \App\Service\Marketplace\Payments($em,$this->createMock(\App\Service\Marketplace\StripeGateway::class),new \App\Service\Marketplace\Policy($em),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class),self::getContainer()->get(\App\Service\Marketplace\Invoicing::class)),
+            self::getContainer()->get(\App\Service\Platform\StripeRevenue::class),
+            new \App\Service\Marketplace\Payments($em,$this->createMock(\App\Service\Marketplace\StripeGateway::class),new \App\Service\Marketplace\Policy($em),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class),self::getContainer()->get(\App\Service\Marketplace\Invoicing::class),self::getContainer()->get(\App\Service\Marketplace\MarketplaceInvoiceReadiness::class)),
             new \App\Service\Marketplace\Confirmations($em,new \App\Service\Email\MailerManager($this->createMock(\Symfony\Component\Mailer\MailerInterface::class),new \Twig\Environment(new \Twig\Loader\ArrayLoader()),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class)),$this->createMock(\Symfony\Component\Routing\Generator\UrlGeneratorInterface::class)),
             new EntiteSubscriptionRepository($registry),
             new PlanRepository($registry),
             $em,
             new \App\Service\Partner\Commissions($em,new \App\Service\Partner\Referrals($em),$this->createMock(\App\Service\Partner\PartnerStripeGateway::class),new \Symfony\Component\Lock\LockFactory(new \Symfony\Component\Lock\Store\FlockStore())),
+            new \App\Service\Billing\InternalUsageCheckout($em, 'sk_live_fixture'),
             'fixture_secret',
         )->getStatusCode();
     }
@@ -124,6 +126,47 @@ final class StripeWebhookTest extends KernelTestCase
         $http = $this->createMock(ClientInterface::class);$http->expects(self::never())->method('request');ApiRequestor::setHttpClient($http);
         self::assertSame(500,$this->deliver(['id'=>'evt_wrong','object'=>'event','type'=>'checkout.session.completed','data'=>['object'=>['mode'=>'subscription','customer'=>'cus_other','subscription'=>'sub_other','client_reference_id'=>(string)$this->subscription->getId()]]]));
         self::assertNull($this->subscription->getStripeSubscriptionId());self::assertSame('incomplete',$this->subscription->getStatus());
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('internalEvents')]
+    public function testInternalUsagePriceIsVerifiedBeforeBindingEvenWhenSubscriptionEventArrivesFirst(string $eventType, int $basePrice): void
+    {
+        $entite = $this->subscription->getEntite(); $entite->setSiret('80813612100023');
+        $plan = (new \App\Entity\Billing\Plan())->setCode('OWNER-EXISTING')->setName('Droits existants')->setPriceMonthlyCents(2900);
+        $this->em->persist($plan); $this->subscription->setPlan($plan);
+        $setup = new \App\Entity\Billing\InternalUsageSetup();
+        $setup->entite = $entite; $setup->subscription = $this->subscription;
+        $setup->customerId = 'cus_fixture'; $setup->sessionId = 'cs_internal';
+        $this->em->persist($setup); $this->em->flush();
+        $metadata = ['internal_usage_setup' => $setup->id, 'entite_id' => (string) $entite->getId(), 'local_subscription_id' => (string) $this->subscription->getId()];
+        $remote = ['id' => 'sub_internal', 'object' => 'subscription', 'customer' => 'cus_fixture', 'livemode' => true,
+            'status' => 'active', 'collection_method' => 'charge_automatically', 'currency' => 'eur',
+            'metadata' => $metadata, 'automatic_tax' => ['enabled' => true], 'current_period_end' => time() + 86400,
+            'items' => ['has_more' => false, 'data' => [['quantity' => 1, 'price' => ['id' => 'price_inline_internal', 'unit_amount' => $basePrice,
+                'currency' => 'eur', 'tax_behavior' => 'exclusive', 'recurring' => ['interval' => 'month', 'interval_count' => 1]]]]]];
+        $object = $eventType === 'checkout.session.completed'
+            ? ['id' => 'cs_internal', 'object' => 'checkout.session', 'livemode' => true, 'mode' => 'subscription',
+                'status' => 'complete', 'payment_status' => 'no_payment_required', 'currency' => 'eur', 'amount_total' => 0, 'customer' => 'cus_fixture', 'subscription' => 'sub_internal',
+                'client_reference_id' => (string) $this->subscription->getId(), 'metadata' => $metadata]
+            : ['id' => 'sub_internal', 'object' => 'subscription', 'customer' => 'cus_fixture', 'metadata' => $metadata];
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::once())->method('request')->willReturn([json_encode($remote, JSON_THROW_ON_ERROR), 200, []]);
+        ApiRequestor::setHttpClient($http);
+        self::assertSame($basePrice === 0 ? 200 : 500, $this->deliver([
+            'id' => 'evt_internal', 'object' => 'event', 'type' => $eventType, 'data' => ['object' => $object],
+        ]));
+        $this->em->refresh($this->subscription);
+        self::assertSame($basePrice === 0 ? 'sub_internal' : null, $this->subscription->getStripeSubscriptionId());
+        self::assertSame($basePrice === 0 ? 'active' : 'incomplete', $this->subscription->getStatus());
+        self::assertSame($plan->getId(), $this->subscription->getPlan()->getId(), 'The usage-only setup does not replace the existing access plan.');
+    }
+
+    public static function internalEvents(): iterable
+    {
+        foreach (['checkout.session.completed', 'customer.subscription.created', 'customer.subscription.updated'] as $type) {
+            yield $type.' zero' => [$type, 0];
+            yield $type.' unexpected base fee' => [$type, 100];
+        }
     }
 
 }

@@ -5,7 +5,7 @@ namespace App\Tests\Integration;
 use App\Entity\{EInvoiceConnection, EInvoiceReceived, EInvoiceTransmission, EInvoiceUsage, Entite, EntitePreferences, Entreprise, Facture, LigneFacture, Utilisateur};
 use App\Entity\Billing\EntiteSubscription;
 use App\Service\Billing\{InvoiceIssuer, InvoiceSnapshot};
-use App\Service\EInvoicing\{ConnectionLease, ConnectionManager, CredentialVault, EInvoiceConfiguration, EInvoiceRunner, EInvoiceUsageBilling, InvoicePayload, SuperPdpClient, UsageInvoiceGateway};
+use App\Service\EInvoicing\{ConnectionLease, ConnectionManager, CredentialVault, EInvoiceConfiguration, EInvoiceRunner, EInvoiceUsageBilling, InvoicePayload, SuperPdpClient, UsageInvoiceGateway, EInvoiceReadiness, SubscriptionPaymentReadiness};
 use App\Service\Sequence\{FactureNumberGenerator, SequenceNumberManager};
 use Doctrine\ORM\{EntityManagerInterface, Tools\SchemaTool};
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -31,6 +31,8 @@ final class EInvoiceRunnerTest extends KernelTestCase
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        // Pre-existing fixtures may precede activation. The runner itself uses the real gate below.
+        self::getContainer()->set(EInvoiceReadiness::class, $this->createMock(EInvoiceReadiness::class));
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->configuration = new EInvoiceConfiguration('client', 'secret', 'https://example.test/callback', base64_encode(str_repeat('K', 32)));
@@ -69,15 +71,15 @@ final class EInvoiceRunnerTest extends KernelTestCase
         $lease = new ConnectionLease($this->em->getConnection());
         $stripe = $this->createMock(UsageInvoiceGateway::class);
         $stripe->expects(self::never())->method('create'); $stripe->expects(self::never())->method('validate'); $stripe->expects(self::never())->method('find');
-        $usage = new EInvoiceUsageBilling($this->em, $this->em->getRepository(EntiteSubscription::class), $lease, $stripe);
-        return new EInvoiceRunner($this->em, $api, new ConnectionManager($this->configuration, $this->vault, $api, $this->em), $lease, new InvoicePayload(), $usage);
+        $usage = new EInvoiceUsageBilling($this->em, $this->em->getRepository(EntiteSubscription::class), $lease, $stripe, $this->createMock(SubscriptionPaymentReadiness::class));
+        return new EInvoiceRunner($this->em, $api, new ConnectionManager($this->configuration, $this->vault, $api, $this->em), $lease, new InvoicePayload(), $usage, new EInvoiceReadiness($this->em, $this->configuration, $usage));
     }
     private function invoice(): Facture
     {
         $invoice = (new Facture())->setEntite($this->entity)->setCreateur($this->user)->setEntrepriseDestinataire($this->customer)
             ->setMeta(['invoice_terms' => ['serviceDate' => (new \DateTimeImmutable())->format('Y-m-d')]])
             ->addLigne((new LigneFacture())->setEntite($this->entity)->setCreateur($this->user)->setLabel('Formation test')->setQte(1)->setPuHtCents(10000)->setTva(20));
-        InvoiceIssuer::persist($this->em, new FactureNumberGenerator(new SequenceNumberManager($this->em->getConnection())), $invoice);
+        (new InvoiceIssuer($this->em, new FactureNumberGenerator(new SequenceNumberManager($this->em->getConnection())), $this->createMock(EInvoiceReadiness::class)))->persist($invoice);
         return $invoice;
     }
     private function json(array $data): MockResponse { return new MockResponse(json_encode($data, JSON_THROW_ON_ERROR), ['response_headers' => ['content-type: application/json']]); }

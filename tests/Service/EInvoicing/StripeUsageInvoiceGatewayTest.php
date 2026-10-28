@@ -4,6 +4,7 @@ namespace App\Tests\Service\EInvoicing;
 
 use App\Entity\{Entite, Facture, EInvoiceConnection, EInvoiceTransmission, EInvoiceUsage, EInvoiceUsageBatch};
 use App\Service\EInvoicing\StripeUsageInvoiceGateway;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Stripe\{ApiRequestor, HttpClient\ClientInterface, HttpClient\CurlClient};
 
@@ -70,5 +71,34 @@ final class StripeUsageInvoiceGatewayTest extends TestCase
         $batch = $this->batch(); $response = $this->response($batch); $response['amount'] = 200;
         $http = $this->createMock(ClientInterface::class); $http->expects(self::once())->method('request')->willReturn([json_encode($response),200,[]]); ApiRequestor::setHttpClient($http);
         $this->expectException(\UnexpectedValueException::class); (new StripeUsageInvoiceGateway('sk_test_fixture'))->create($batch);
+    }
+
+    #[DataProvider('invalidRemoteAmounts')]
+    public function testMalformedAmountsNeverAcknowledgeCreationOrReconciliation(mixed $amount, bool $reconcile): void
+    {
+        $batch = $this->batch();
+        if ($reconcile) { $batch->begin(); $batch->uncertain(); }
+        $response = $this->response($batch);
+        if ($amount === null) unset($response['amount']);
+        else $response['amount'] = $amount;
+        $payload = $reconcile ? ['object'=>'list','url'=>'/v1/invoiceitems','has_more'=>false,'data'=>[$response]] : $response;
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::once())->method('request')->willReturnCallback(function ($method) use ($reconcile, $payload) {
+            self::assertSame($reconcile ? 'get' : 'post', $method);
+            return [json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION), 200, []];
+        });
+        ApiRequestor::setHttpClient($http);
+        $this->expectException(\UnexpectedValueException::class);
+        $gateway = new StripeUsageInvoiceGateway('sk_test_fixture');
+        if ($reconcile) $gateway->find($batch);
+        else $gateway->create($batch);
+    }
+
+    public static function invalidRemoteAmounts(): iterable
+    {
+        foreach (['missing'=>null, 'string'=>'2', 'float'=>2.5, 'whole float'=>2.0, 'boolean'=>true, 'array'=>[2]] as $name => $amount) {
+            yield $name.' create' => [$amount, false];
+            yield $name.' reconcile' => [$amount, true];
+        }
     }
 }

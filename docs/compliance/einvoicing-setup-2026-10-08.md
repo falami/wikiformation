@@ -1,5 +1,11 @@
 # Raccordement électronique et tarification — 8 octobre 2026
 
+> Mise à jour tarifaire du 28 octobre 2026 : tarif standard 0,03 € HT
+> (transmission 0,01 + service 0,01 + provision de traitement 0,01), sans surcharge
+> liée au moyen de paiement. Tarif propriétaire 0,01 € HT inchangé ; frais de
+> paiement absorbés par l’exploitant. Les anciens tarifs figés sont conservés.
+
+
 ## Ce qui est livré et ce qui reste à activer
 
 Le code relie chaque organisme à **SUPER PDP** par OAuth avec PKCE et contrôle la correspondance du SIREN. Les secrets restent chiffrés côté serveur. Chaque émission conserve son document structuré et son empreinte, la référence distante, les événements reçus et les conditions tarifaires acceptées. La réception reste synchronisable lorsque l’émission automatique est arrêtée. Aucune connexion commerciale, facture réelle, ligne Stripe ni transmission fiscale n’a été créée pendant le développement.
@@ -31,7 +37,7 @@ Les avoirs (actuellement globaux TTC), débours, exonérations, catégories mixt
 1. **Qualité & conformité → Mon organisme** : contrôler identité légale, SIRET, adresse, représentant et justificatifs. Un SIRET correctement formaté n’est pas une vérification administrative.
 2. **Préférences → Mentions de facturation** : confirmer délai de paiement, escompte, pénalités, indemnité de recouvrement applicable, régime TVA et exigibilité. Les nouvelles factures reprennent ces valeurs. La date de prestation se renseigne dans la facture ou se prépare dans le devis ; elle n’est pas inventée.
 3. **Préférences → Facturation électronique → Production → Connecter mon organisme** : le responsable habilité autorise l’accès. La PA effectue la vérification d’identité/KYB et les formalités de mandat/adressage nécessaires. WikiFormation refuse un compte d’un autre SIREN ou un compte sandbox à cet endroit.
-4. L’administrateur habilité à gérer l’abonnement accepte **0,02 € HT par facture transmise**, puis active l’automatisation. L’abonnement doit disposer de ses identifiants Stripe valides. La connexion seule ne vaut pas acceptation du prix. Aucun quota ni supplément implicite n’est ajouté aux anciens abonnements.
+4. L’administrateur habilité à gérer l’abonnement accepte **0,03 € HT par facture transmise**, puis active l’automatisation. L’abonnement doit disposer de ses identifiants Stripe valides. La connexion seule ne vaut pas acceptation du prix. Aucun quota ni supplément implicite n’est ajouté aux anciens abonnements.
 5. Créer une première facture complète après activation, suivre son traitement et contrôler son original dans la PA. Une émission est figée : les corrections d’une pièce déjà émise doivent suivre une procédure comptable tracée. Les nouvelles factures incomplètes sont bloquées avant attribution du numéro ; les factures anciennes restent à rapprocher séparément.
 
 ## 3. Planification serveur
@@ -52,13 +58,13 @@ Les traitements sont limités par lot et utilisent un verrou de connexion partag
 
 Surveiller les codes de sortie, erreurs de connexion, files bloquées, consommations et lots Stripe incertains. L’exploitation doit alerter une personne responsable, traiter les expirations/révocations et conserver les justificatifs. Les commandes sont livrées ; aucun cron de production n’a été installé dans cette intervention.
 
-## 4. Refacturation à 0,02 € HT
+## 4. Refacturation à 0,03 € HT
 
-Le prix est explicite dans les offres, l’espace abonnement et le consentement de l’organisme. La PA facture WikiFormation ; **WikiFormation facture les OF**. Le prix de 0,02 € HT ne supprime donc pas la dette envers le fournisseur. Il crée un revenu en face des émissions du connecteur. Au premier palier annoncé de 0,01 € HT, l’écart est de 0,01 € HT par émission, **avant** minimum, KYB, autres flux, frais Stripe, hébergement et taxes. Les coûts des factures reçues, de l’e-reporting et des opérations réalisées hors du connecteur ne sont pas automatiquement récupérés par ce compteur d’émissions. Vérifier ces coûts dans l’offre commerciale avant lancement.
+Le prix est explicite dans les offres, l’espace abonnement et le consentement de l’organisme. La PA facture WikiFormation ; **WikiFormation facture les OF**. Le prix de 0,03 € HT ne supprime donc pas la dette envers le fournisseur. Il crée un revenu en face des émissions du connecteur. La répartition commerciale réserve 0,01 € HT à la transmission, 0,01 € HT au service WikiFormation et 0,01 € HT au traitement du paiement. Cette dernière somme est une provision, pas une mesure des frais Stripe réellement appliqués. Les minimums, KYB, autres flux, hébergement et taxes restent à vérifier. Les coûts des factures reçues, de l’e-reporting et des opérations réalisées hors du connecteur ne sont pas automatiquement récupérés par ce compteur d’émissions. Vérifier ces coûts dans l’offre commerciale avant lancement.
 
 Chaque émission acceptée par la PA avec un identifiant est comptée une fois, même si un contrôle métier ultérieur la rejette. Une tentative incertaine attend le rapprochement avant décompte ; un blocage avant dépôt, un test ou une ancienne facture ne génère pas de consommation. Les conditions tarifaires et l’abonnement sont figés avant l’appel ; aucune tarification rétroactive d’une tentative n’est inventée.
 
-Le compteur affiche la quantité et le total HT du mois civil (Europe/Paris). Les émissions sont regroupées en une ligne sur la prochaine facture de l’abonnement Stripe concerné, sans paiement isolé de 0,02 €. Pour 250 émissions, la ligne est de 5,00 € HT. Les abonnements annuels conservent leur échéance : l’ajout attend la prochaine facture de cet abonnement.
+Le compteur affiche la quantité et le total HT du mois civil (Europe/Paris). Les émissions sont regroupées en une ligne sur la prochaine facture de l’abonnement Stripe concerné, sans paiement isolé de 0,03 €. Pour 250 émissions au tarif courant, la ligne est de 7,50 € HT. Les abonnements annuels conservent leur échéance : l’ajout attend la prochaine facture de cet abonnement.
 
 Exemple pour un mois terminé, d’abord en simulation :
 
@@ -88,8 +94,8 @@ Conserver la facturation existante et Indy tant que le périmètre comptable, la
 La recette locale utilise SQLite pour les scénarios isolés et des transports simulés. La production, les mandats, les contrats fournisseur, les secrets, les accès externes et les paramètres Stripe réels restent à configurer puis à vérifier.
 
 
-## Tarif propriétaire — mise à jour du 11 octobre 2026
+## Tarif propriétaire — mise à jour du 28 octobre 2026
 
-I.T. For You bénéficie de **0,01 € HT par émission** ; les autres organismes restent à **0,02 € HT**, sans quota. La règle serveur exige simultanément l’identifiant d’entité 1 et le SIRET 80813612100023 ; le nom d’affichage et les valeurs envoyées par le navigateur ne donnent aucun droit à une remise. Cette identification doit être vérifiée si les données sont importées dans une nouvelle installation.
+I.T. For You paie **0,01 € HT par émission via Stripe, sans commission WikiFormation** ; le tarif courant des autres organismes est de **0,03 € HT**, sans quota. La règle serveur exige simultanément l’identifiant d’entité 1 et le SIRET 80813612100023 ; le nom d’affichage et les valeurs envoyées par le navigateur ne donnent aucun droit à une remise. Cette identification doit être vérifiée si les données sont importées dans une nouvelle installation.
 
-La remise s’applique aux nouvelles tentatives, y compris lorsqu’un accord à 0,02 € existait déjà. Les conditions des tentatives déjà démarrées et les consommations historiques restent figées. Le montant apparaît dans les préférences et l’abonnement, puis dans la ligne Stripe. Il reste nécessaire de connecter la PA et un abonnement Stripe avant activation. Le tarif propriétaire est un prix commercial fixe, pas une synchronisation automatique avec les coûts du fournisseur.
+La remise s’applique aux nouvelles tentatives, y compris lorsqu’un accord à 0,03 € existait déjà. Un ancien consentement à 0,00 € ne permet pas de facturer 0,01 € : l’administrateur doit accepter à nouveau le tarif. Les conditions des tentatives déjà démarrées et les consommations historiques restent figées. Le montant apparaît dans les préférences et l’abonnement, puis dans la ligne Stripe. La connexion PA, un abonnement Stripe valide et un moyen de paiement configuré sont obligatoires pour tous, y compris I.T. For You. Le tarif propriétaire est un prix commercial fixe, pas une synchronisation automatique avec les coûts du fournisseur.

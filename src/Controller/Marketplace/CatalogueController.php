@@ -1,7 +1,7 @@
 <?php
 namespace App\Controller\Marketplace;
 use App\Entity\Marketplace\{Offer,Access,Purchase};
-use App\Service\Marketplace\{Policy,Payments,Snapshots};
+use App\Service\Marketplace\{Policy,Payments,Snapshots,MarketplaceInvoiceReadiness};
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request,Response,BinaryFileResponse};
@@ -9,7 +9,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/cours-en-ligne',name:'app_market_')]
 final class CatalogueController extends AbstractController {
- public function __construct(private EntityManagerInterface $em,private Policy $policy) {}
+ public function __construct(private EntityManagerInterface $em,private Policy $policy,private MarketplaceInvoiceReadiness $invoiceReadiness) {}
  #[Route('',name:'catalogue',methods:['GET'])]
  public function catalogue(Request $r): Response {
   $qb=$this->em->createQueryBuilder()->select('o','c','s')->from(Offer::class,'o')->join('o.course','c')->join('o.seller','s')->where('o.published = true');
@@ -43,7 +43,7 @@ final class CatalogueController extends AbstractController {
    $availableIds[]=$id;$sid=$offer->seller->id;$groups[$sid]['seller']=$offer->seller;$groups[$sid]['offers'][]=$offer;$groups[$sid]['total']=($groups[$sid]['total']??0)+$offer->priceCents;
   }
   $r->getSession()->set('market_cart',$availableIds);
-  return $this->render('marketplace/cart.html.twig',['groups'=>$groups,'settings'=>$this->policy->settings()]);
+  return $this->render('marketplace/cart.html.twig',['groups'=>$groups,'settings'=>$this->policy->settings(),'invoiceAvailability'=>$this->invoiceReadiness->status()]);
  }
  #[Route('/payer/{seller}',name:'checkout',methods:['POST'])]
  #[IsGranted('ROLE_USER')]
@@ -66,14 +66,17 @@ final class CatalogueController extends AbstractController {
  public function purchase(Purchase $purchase,Payments $payments): Response {
   if ($purchase->buyer!==$this->getUser()) throw $this->createNotFoundException();
   try { $payments->sync($purchase); } catch (\Throwable $e) { $this->addFlash('warning','La confirmation du paiement est en cours. Vous pouvez revenir sur cette page.'); }
-  $response=$this->render('marketplace/purchase.html.twig',['purchase'=>$purchase,'invoices'=>$this->em->getRepository(\App\Entity\Marketplace\Invoice::class)->findBy(['purchase'=>$purchase,'kind'=>['sale','sale_credit']],['id'=>'ASC'])]);$response->headers->set('Cache-Control','private, no-store');return $response;
+  $response=$this->render('marketplace/purchase.html.twig',['purchase'=>$purchase,'invoices'=>$this->em->getRepository(\App\Entity\Marketplace\Invoice::class)->findBy(['purchase'=>$purchase,'kind'=>['sale','sale_credit']],['id'=>'ASC']),'invoiceAvailability'=>$this->invoiceReadiness->status()]);$response->headers->set('Cache-Control','private, no-store');return $response;
  }
  #[Route('/achat/{id}/reprendre',name:'resume',methods:['POST'])]
  #[IsGranted('ROLE_USER')]
  public function resume(Purchase $purchase,Request $r,Payments $payments): Response {
   if ($purchase->buyer!==$this->getUser()) throw $this->createNotFoundException();
   $this->csrf($r,'resume_'.$purchase->id);
-  try { return $this->redirect($payments->resume($purchase)); } catch (\Throwable $e) { $this->addFlash('warning','Le paiement ne peut pas être repris. Vérifiez son état dans vos achats.');return $this->redirectToRoute('app_market_purchase',['id'=>$purchase->id]); }
+  try { return $this->redirect($payments->resume($purchase)); }
+  catch (\App\Exception\MarketplaceInvoiceUnavailable $e) { $this->addFlash('warning',$e->getMessage()); }
+  catch (\Throwable $e) { $this->addFlash('warning','Le paiement ne peut pas être repris. Vérifiez son état dans vos achats.'); }
+  return $this->redirectToRoute('app_market_purchase',['id'=>$purchase->id]);
  }
  #[Route('/apprendre/{id}',name:'learn',methods:['GET','POST'])]
  #[IsGranted('ROLE_USER')]

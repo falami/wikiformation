@@ -123,13 +123,49 @@ final class StripeBillingService
     return $session->url;
   }
 
-  public function createCustomerPortalSession(string $customerId, string $returnUrl): string
+  public function createCustomerPortalSession(string $customerId, string $returnUrl, bool $internalUsageOnly = false): string
   {
     $stripe = $this->client();
-    $portal = $stripe->billingPortal->sessions->create([
+    $params = [
       'customer' => $customerId,
       'return_url' => $returnUrl,
-    ]);
+    ];
+    if ($internalUsageOnly) {
+      $features = [
+        'customer_update' => ['enabled' => false],
+        'invoice_history' => ['enabled' => true],
+        'payment_method_update' => ['enabled' => true],
+        'subscription_update' => ['enabled' => false],
+        'subscription_cancel' => ['enabled' => false],
+      ];
+      // A dedicated non-default configuration cannot alter the public subscriber portal.
+      $configuration = $stripe->billingPortal->configurations->create([
+        'features' => $features,
+        'login_page' => ['enabled' => false],
+        'metadata' => ['wikiformation_policy' => 'internal-usage-payments-only-v1'],
+      ], ['idempotency_key' => 'wikiformation-internal-usage-portal-v1']);
+      // Re-read even when Stripe replayed the create response: an operator may since have edited it.
+      $configuration = $stripe->billingPortal->configurations->retrieve($configuration->id, []);
+      $config = $configuration->toArray();
+      if (($config['object'] ?? null) !== 'billing_portal.configuration' || ($config['active'] ?? false) !== true
+          || ($config['is_default'] ?? true) !== false || ($config['livemode'] ?? false) !== true
+          || !is_string($config['id'] ?? null) || !str_starts_with($config['id'], 'bpc_')
+          || ($config['metadata']['wikiformation_policy'] ?? null) !== 'internal-usage-payments-only-v1'
+          || ($config['login_page']['enabled'] ?? true) !== false) {
+        throw new \DomainException('Le portail de paiement interne doit être vérifié avant son ouverture.');
+      }
+      foreach ($features as $feature => $expected) {
+        if (($config['features'][$feature]['enabled'] ?? null) !== $expected['enabled']) {
+          throw new \DomainException('Le portail interne ne doit permettre aucune modification de la base d’abonnement.');
+        }
+      }
+      $params['configuration'] = $config['id'];
+    }
+    $portal = $stripe->billingPortal->sessions->create($params);
+    if ($internalUsageOnly && (($portal->configuration ?? null) !== $params['configuration']
+        || ($portal->customer ?? null) !== $customerId || ($portal->livemode ?? false) !== true)) {
+      throw new \DomainException('La session du portail interne doit être rapprochée avec Stripe.');
+    }
     return $portal->url;
   }
 

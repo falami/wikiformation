@@ -18,6 +18,8 @@ final class DashboardIndicatorsTest extends KernelTestCase
         $this->originalDatabase = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        // Invoice fixtures represent already configured issuers; Stripe readiness has dedicated security tests.
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
         self::getContainer()->set(\Symfony\Component\Mailer\MailerInterface::class, $this->createMock(\Symfony\Component\Mailer\MailerInterface::class));
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
@@ -88,7 +90,7 @@ final class DashboardIndicatorsTest extends KernelTestCase
         $invoice = (new Facture())->setEntite($this->entite)->setCreateur($this->admin)->setNumero('FAC-DASH')->setDateEmission(new \DateTimeImmutable($year.'-01-10'))->setMontantHtCents(10000)->setMontantTvaCents(2000)->setMontantTtcCents(15000)->setDestinataire($this->admin);
         $this->em->persist($invoice);
         $other = (new Entite())->setNom('Other')->setCreateur($this->admin)->setPublic(false);
-        $this->em->persist($other);
+        $this->em->persist($other); $this->em->flush();
         foreach ([[$other, $year.'-01-10'], [$this->entite, ((int) $year - 1).'-01-10']] as [$entity, $date]) {
             $excluded = (new Facture())->setEntite($entity)->setCreateur($this->admin)->setNumero('EXCLUDED-'.$date.$entity->getNom())->setDateEmission(new \DateTimeImmutable($date))->setMontantHtCents(99999)->setMontantTvaCents(0)->setMontantTtcCents(99999)->setDestinataire($this->admin);
             $this->em->persist($excluded);

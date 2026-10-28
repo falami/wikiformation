@@ -11,7 +11,7 @@ use Symfony\Component\Console\Input\{InputInterface, InputOption};
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-#[AsCommand(name: 'app:einvoicing:bill-usage', description: 'Simule ou regroupe les émissions électroniques à 0,02 € HT sur le prochain abonnement Stripe.')]
+#[AsCommand(name: 'app:einvoicing:bill-usage', description: 'Simule ou regroupe les émissions électroniques au tarif accepté lors de leur transmission sur le prochain abonnement Stripe.')]
 final class EInvoiceUsageBillingCommand extends Command
 {
     public function __construct(private EntityManagerInterface $em, private EInvoiceUsageBilling $billing) { parent::__construct(); }

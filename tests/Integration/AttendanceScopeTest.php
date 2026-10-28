@@ -202,8 +202,60 @@ final class AttendanceScopeTest extends KernelTestCase
         self::assertStringNotContainsString('À compléter', $result['data'][0]['dossier']);
     }
 
+    public static function closureModes(): iterable { yield 'success' => [false]; yield 'PDF failure rollback' => [true]; }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('closureModes')]
+    public function testClosureCalculatesAttendanceCreatesPdfAndPreservesExistingCertificates(bool $failPdf): void
+    {
+        $last = $this->internal->getJours()->last(); $this->internal->removeJour($last); $this->em->remove($last);
+        $date = $this->internal->getJours()->first()->getDateDebut()->format('Y-m-d');
+        $registration = $this->em->getRepository(Inscription::class)->findOneBy(['session'=>$this->internal]);
+        $registration->setStatus(\App\Enum\StatusInscription::CONFIRME);
+        foreach (['AM','PM'] as $period) $registration->enregistrerPresenceManuelle($date.':'.$period, 'paper', 'Feuille signée', $this->admin);
+        $other = (new Utilisateur())->setEmail('missing@attendance.test')->setPassword('unused')->setPrenom('Alex')->setNom('Test'); $this->em->persist($other);
+        $missing = (new Inscription())->setStagiaire($other)->setSession($this->internal)->setEntite($this->entite)->setCreateur($this->admin)->setStatus(\App\Enum\StatusInscription::CONFIRME);
+        $this->em->persist($registration); $this->em->persist($missing); $this->em->flush();
+        $closer = self::getContainer()->get(\App\Service\Session\CloseAttendance::class);
+        if ($failPdf) {
+            $pdf = $this->createMock(\App\Service\Pdf\PdfManager::class);
+            $pdf->method('attestation')->willThrowException(new \RuntimeException('PDF failure'));
+            $closer = new \App\Service\Session\CloseAttendance($this->em,
+                self::getContainer()->get(\App\Service\AssiduiteCalculator::class),
+                self::getContainer()->get(\App\Service\Document\RealisationCertificate::class), $pdf,
+                self::getContainer()->getParameter('kernel.project_dir'));
+            try { $closer->close($this->internal, $this->admin); self::fail('Failure expected'); }
+            catch (\RuntimeException $error) { self::assertSame('PDF failure', $error->getMessage()); }
+            self::assertSame(0, (int)$this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM attestation'));
+            self::assertNull($this->em->getConnection()->fetchOne('SELECT emargement_cloture_at FROM session WHERE id = ?', [$this->internal->getId()]));
+            return;
+        }
+        $path = null;
+        try {
+            $result = $closer->close($this->internal, $this->admin);
+            self::assertSame(1, $result['created']); self::assertSame(1, $result['pending']);
+            self::assertEquals(100, $registration->getTauxAssiduite());
+            self::assertNull($missing->getTauxAssiduite()); self::assertNull($missing->getAttestation());
+            self::assertFalse($registration->isReussi());
+            $attestation = $registration->getAttestation();
+            self::assertNotNull($attestation);
+            $path = self::getContainer()->getParameter('kernel.project_dir').'/public/'.$attestation->getPdfPath();
+            self::assertFileExists($path); self::assertSame('%PDF', file_get_contents($path, false, null, 0, 4));
+            self::assertTrue(self::getContainer()->get(\App\Service\Document\RealisationCertificate::class)->available($registration));
+            $result = $closer->close($this->internal, $this->admin);
+            self::assertSame(0, $result['created']); self::assertSame(1, $result['existing']);
+            self::assertSame(1, $this->em->getRepository(\App\Entity\Attestation::class)->count([]));
+        } finally { if ($path && is_file($path)) unlink($path); }
+    }
+
+    public function testClosureRejectsFutureSlots(): void
+    {
+        $this->expectException(\DomainException::class);
+        self::getContainer()->get(\App\Service\Session\CloseAttendance::class)->close($this->internal, $this->admin);
+    }
+
     public function testManualClosureRequiresCsrfAndCanBeReopened(): void
     {
+        $last = $this->internal->getJours()->last(); $this->internal->removeJour($last); $this->em->remove($last); $this->em->flush();
         $client = $this->client();
         $id = $this->internal->getId();
         $url = self::getContainer()->get('router')->generate('app_administrateur_session_attendance_tracking', ['entite' => $this->entite->getId(), 'id' => $id]);

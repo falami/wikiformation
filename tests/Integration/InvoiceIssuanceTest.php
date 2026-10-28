@@ -5,6 +5,7 @@ namespace App\Tests\Integration;
 use App\Entity\{Entite, EntitePreferences, Entreprise, Facture, LigneFacture, Utilisateur};
 use App\Service\Billing\{InvoiceIssuer, InvoicePreferences, InvoiceReadiness, InvoiceSnapshot};
 use App\Service\Sequence\{FactureNumberGenerator, SequenceNumberManager};
+use App\Service\EInvoicing\EInvoiceReadiness;
 use Doctrine\ORM\{EntityManagerInterface, Tools\SchemaTool};
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -15,6 +16,8 @@ final class InvoiceIssuanceTest extends KernelTestCase
     private Entreprise $customer;
     private Utilisateur $user;
     private FactureNumberGenerator $numbers;
+    private InvoiceIssuer $issuer;
+    private EInvoiceReadiness $readiness;
     private array $database;
 
     protected function setUp(): void
@@ -22,6 +25,8 @@ final class InvoiceIssuanceTest extends KernelTestCase
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        $this->readiness = $this->createMock(EInvoiceReadiness::class);
+        self::getContainer()->set(EInvoiceReadiness::class, $this->readiness);
         $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->user = (new Utilisateur())->setEmail('issuance@example.test')->setPassword('unused')->setNom('Admin')->setPrenom('Test');
@@ -34,6 +39,7 @@ final class InvoiceIssuanceTest extends KernelTestCase
         foreach ([$this->user, $this->entity, $this->customer, $prefs] as $row) $this->em->persist($row);
         $this->em->flush();
         $this->numbers = new FactureNumberGenerator(new SequenceNumberManager($this->em->getConnection()));
+        $this->issuer = new InvoiceIssuer($this->em, $this->numbers, $this->readiness);
     }
 
     protected function tearDown(): void
@@ -48,7 +54,7 @@ final class InvoiceIssuanceTest extends KernelTestCase
     public function testIssuedPdfAndElectronicDataKeepTheOriginalPartiesTermsAndLines(): void
     {
         $invoice = $this->invoice();
-        InvoiceIssuer::persist($this->em, $this->numbers, $invoice);
+        $this->issuer->persist($invoice);
         $snapshot = InvoiceSnapshot::read($invoice);
         self::assertSame([], InvoiceReadiness::issues($invoice));
         self::assertSame('2026-11-07', $snapshot['terms']['dueDate']);
@@ -79,7 +85,7 @@ final class InvoiceIssuanceTest extends KernelTestCase
         $events = $this->em->getEventManager();
         $events->addEventListener(['onFlush'], $listener);
         try {
-            InvoiceIssuer::persist($this->em, $this->numbers, $this->invoice());
+            $this->issuer->persist($this->invoice());
             self::fail('Persistence must fail.');
         } catch (\RuntimeException $error) {
             self::assertSame('Persistence failure fixture', $error->getMessage());
@@ -94,12 +100,12 @@ final class InvoiceIssuanceTest extends KernelTestCase
     public function testConsecutiveNumbersAndBackdatingGuard(): void
     {
         $first = $this->invoice(); $second = $this->invoice();
-        InvoiceIssuer::persist($this->em, $this->numbers, $first);
-        InvoiceIssuer::persist($this->em, $this->numbers, $second);
+        $this->issuer->persist($first);
+        $this->issuer->persist($second);
         self::assertStringEndsWith('-0001', $first->getNumero());
         self::assertStringEndsWith('-0002', $second->getNumero());
         try {
-            InvoiceIssuer::persist($this->em, $this->numbers, $this->invoice()->setDateEmission(new \DateTimeImmutable('2026-10-07')));
+            $this->issuer->persist($this->invoice()->setDateEmission(new \DateTimeImmutable('2026-10-07')));
             self::fail('A backdated invoice must not take the next chronological number.');
         } catch (\DomainException $error) { self::assertStringContainsString('dernière facture', $error->getMessage()); }
         self::assertSame(2, (int) $this->em->getConnection()->fetchOne('SELECT last FROM facture_sequence'));
@@ -122,7 +128,7 @@ final class InvoiceIssuanceTest extends KernelTestCase
 
     public function testTamperedSnapshotCannotProduceANewPdf(): void
     {
-        $invoice = $this->invoice(); InvoiceIssuer::persist($this->em, $this->numbers, $invoice);
+        $invoice = $this->invoice(); $this->issuer->persist($invoice);
         $meta = $invoice->getMeta(); $meta['invoice_snapshot']['customer']['raisonSociale'] = 'Modified'; $invoice->setMeta($meta);
         self::assertNull(InvoiceSnapshot::read($invoice));
         self::assertStringContainsString('empreinte', InvoiceReadiness::issues($invoice)[0]);
@@ -139,14 +145,69 @@ final class InvoiceIssuanceTest extends KernelTestCase
     public function testMissingMentionsBlockIssuanceWithoutConsumingANumber(): void
     {
         try {
-            InvoiceIssuer::persist($this->em, $this->numbers, $this->invoice()->setMeta([]));
+            $this->issuer->persist($this->invoice()->setMeta([]));
             self::fail('Unknown service date must block issuance.');
         } catch (\DomainException $error) { self::assertStringContainsString('Date de prestation', $error->getMessage()); }
         self::assertTrue($this->em->isOpen());
         self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture'));
         self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture_sequence'));
-        $invoice = $this->invoice(); InvoiceIssuer::persist($this->em, $this->numbers, $invoice);
+        $invoice = $this->invoice(); $this->issuer->persist($invoice);
         self::assertStringEndsWith('-0001', $invoice->getNumero());
+    }
+
+    public function testUnconfiguredBillingCannotConsumeANumberOrApplyRelatedChanges(): void
+    {
+        $this->readiness->expects(self::once())->method('assertCanIssue')->with($this->entity)
+            ->willThrowException(new \DomainException('Configurez la facturation électronique.'));
+        $invoice = $this->invoice();
+        $changed = false;
+        try {
+            $this->issuer->persist($invoice, function () use (&$changed) { $changed = true; });
+            self::fail('An unconfigured organism must not issue an invoice.');
+        } catch (\DomainException $error) {
+            self::assertSame('Configurez la facturation électronique.', $error->getMessage());
+        }
+        self::assertFalse($changed);
+        self::assertTrue($this->em->isOpen());
+        self::assertFalse($this->em->getConnection()->isTransactionActive());
+        self::assertNull($invoice->getId());
+        self::assertSame('', $invoice->getNumero());
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture'));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture_sequence'));
+    }
+
+    public function testDirectDoctrineInsertWithExistingNumberCannotBypassTheGuard(): void
+    {
+        $this->readiness->expects(self::once())->method('assertCanIssue')->with($this->entity)
+            ->willThrowException(new \DomainException('Configurez la facturation électronique.'));
+        $invoice = $this->invoice()->setNumero('MANUAL-IMPORT-NUMBER');
+        try {
+            $this->em->persist($invoice);
+            $this->em->flush();
+            self::fail('A direct insert must also be rejected.');
+        } catch (\DomainException $error) {
+            self::assertSame('Configurez la facturation électronique.', $error->getMessage());
+        }
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture'));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture_sequence'));
+    }
+
+    public function testExistingInvoiceRemainsReadableWhenBillingIsNoLongerConfigured(): void
+    {
+        $configured = true;
+        $this->readiness->method('assertCanIssue')->willReturnCallback(function () use (&$configured): void {
+            if (!$configured) throw new \DomainException('Configuration interrompue.');
+        });
+        $invoice = $this->invoice();
+        $this->issuer->persist($invoice);
+        $snapshot = InvoiceSnapshot::read($invoice);
+        $configured = false;
+        $invoice->setNote('Suivi interne conservé');
+        $this->em->flush();
+        $html = self::getContainer()->get('twig')->render('pdf/facture.html.twig', ['facture' => $invoice, 'entite' => $this->entity]);
+        self::assertSame($snapshot, InvoiceSnapshot::read($invoice));
+        self::assertStringContainsString($invoice->getNumero(), $html);
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture'));
     }
 
     public function testTaxPointMustBeExplicitAndAcceptsCashAccountingWithoutTruthyCoercion(): void
@@ -171,7 +232,7 @@ final class InvoiceIssuanceTest extends KernelTestCase
         $this->entity->setNumeroTva(null);
         $invoice = $this->invoice(); $invoice->getLignes()->first()->setTva(0);
         $invoice->setMeta(['invoice_terms' => ['serviceDate' => '2026-10-07', 'vatCategory' => 'E', 'vatExemptionReason' => 'Exonération confirmée pour le scénario de test']]);
-        InvoiceIssuer::persist($this->em, $this->numbers, $invoice);
+        $this->issuer->persist($invoice);
         self::assertSame([], InvoiceReadiness::issues($invoice));
         self::assertSame(0, $invoice->getMontantTvaCents());
         self::assertSame('E', InvoiceSnapshot::read($invoice)['terms']['vatCategory']);

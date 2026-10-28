@@ -1,5 +1,11 @@
 # Connecteur SUPER PDP — contrat et exploitation
 
+> Mise à jour tarifaire du 28 octobre 2026 : tarif standard 0,03 € HT
+> (transmission 0,01 + service 0,01 + provision de traitement 0,01), sans surcharge
+> liée au moyen de paiement. Tarif propriétaire 0,01 € HT inchangé ; frais de
+> paiement absorbés par l’exploitant. Les anciens tarifs figés sont conservés.
+
+
 Contrat vérifié le 8 octobre 2026 sur l’[OpenAPI officielle](https://api.superpdp.tech/openapi/superpdp.json), version `1.36.0.beta`, la [documentation OAuth](https://www.superpdp.tech/documentation/4/) et la [documentation de synchronisation](https://www.superpdp.tech/documentation/14). Aucun compte distant, facture réelle, consentement ou paiement n’a été créé pendant le développement. Les validations automatisées utilisent SQLite, des réponses HTTP fictives et une passerelle Stripe fictive.
 
 ## Déclenchement et limites
@@ -59,17 +65,22 @@ Les événements fournisseur sont conservés avec leur identifiant, date et code
 
 La recette réelle OAuth/annuaire/transmission/réception, la vérification des statuts réglementaires attendus, la gestion des mandats et l’archivage prévu au contrat du prestataire doivent être validés avant généralisation. Les clés, URL de callback autorisées et compte de production doivent être configurés par l’exploitant. La conformité de chaque opération fiscale et la complétude d’un e-reporting ne sont pas établies par la seule validation d’un XML.
 
-Tarification fournisseur : l’[offre API éditeur](https://www.superpdp.tech/tarifs/) est facturée à l’éditeur et peut être refacturée à ses clients. Les [conditions contractuelles](https://www.superpdp.tech/legal/11/) ne documentent pas un réglage OAuth garantissant un paiement direct par chaque organisme. Les frais fournisseur de réception, minimums, vérification d’identité et autres coûts éventuels ne sont donc pas tous couverts par le seul tarif local de 0,02 € HT par émission. Leur prise en charge doit être arrêtée contractuellement avant activation commerciale.
+Tarification fournisseur : l’[offre API éditeur](https://www.superpdp.tech/tarifs/) est facturée à l’éditeur et peut être refacturée à ses clients. Les [conditions contractuelles](https://www.superpdp.tech/legal/11/) ne documentent pas un réglage OAuth garantissant un paiement direct par chaque organisme. Les frais fournisseur de réception, minimums, vérification d’identité et autres coûts éventuels ne sont donc pas tous couverts par le seul tarif local de 0,03 € HT par émission. Leur prise en charge doit être arrêtée contractuellement avant activation commerciale.
 
-### Exemption interne I.T. For You
-L’entité 1 portant le SIRET 80813612100023 bénéficie d’un tarif interne nul.
-L’activation conserve la confirmation explicite, les permissions et la connexion
-production vérifiée, mais ne requiert pas d’abonnement Stripe. Le traitement
-capture les conditions à zéro avant transmission et ne crée aucune consommation
-facturable pour ces nouvelles tentatives. Les anciennes conditions déjà figées
-restent inchangées. Les frais directs du fournisseur restent distincts.
-Aucune migration n’est nécessaire pour cette politique ; déployer le code et les
-templates puis vider le cache de production avant d’activer depuis les préférences.
+### Tarif interne I.T. For You — 28 octobre 2026
+L’entité 1 portant le SIRET 80813612100023 paie **0,01 € HT par émission via
+Stripe, sans commission WikiFormation**. Le tarif courant des autres organismes est de
+0,03 € HT. Il n’existe plus d’exemption de configuration ou de paiement Stripe
+pour l’organisme propriétaire. Les conditions sont figées avant la transmission.
+Les anciennes consommations et tentatives déjà démarrées conservent leur prix ;
+aucun supplément rétroactif n’est créé.
+
+Un ancien accord gratuit ou à 0,02 € ne vaut pas accord au tarif courant de 0,03 €. L’émission
+reste bloquée jusqu’à une nouvelle acceptation depuis les préférences et à la
+vérification de la configuration Stripe. Déployer le code et les templates,
+vider le cache de production, puis faire accepter ce tarif par un administrateur
+habilité. Le tarif interne ne suit pas automatiquement les changements de prix
+ou les autres frais du fournisseur.
 
 ### Correction conversion du 22 octobre 2026
 

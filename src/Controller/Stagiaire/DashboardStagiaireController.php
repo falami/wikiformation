@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Stagiaire;
 
 use App\Service\FileUploader;
-use App\Entity\{SupportAssignUser, Entite, Utilisateur, Inscription, SessionJour, Session, SatisfactionAssignment, SupportAssignSession};
+use App\Entity\{Entite, Utilisateur, Inscription, SessionJour, Session, SatisfactionAssignment};
 use App\Service\Photo\PhotoManager;
 use App\Service\Email\MailerManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +22,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use App\Security\Permission\TenantPermission;
+use App\Security\SupportLibraryAccess;
+use App\Entity\SupportAsset;
 
 
 
@@ -36,6 +38,7 @@ class DashboardStagiaireController extends AbstractController
         private PhotoManager $photoManager,
         private FileUploader $fileUploader,
         private ParameterBagInterface $params,
+        private SupportLibraryAccess $supportAccess,
     ) {}
     /* =========================
      * Helpers (mêmes signatures)
@@ -602,59 +605,17 @@ class DashboardStagiaireController extends AbstractController
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-        // Sessions de l’utilisateur
-        $sessionIds = $em->createQueryBuilder()
-            ->select('s2.id')
-            ->distinct()
-            ->from(Session::class, 's2')
-            ->join(Inscription::class, 'i2', 'WITH', 'i2.session = s2')
-            ->andWhere('i2.stagiaire = :me')->setParameter('me', $user)
-            // ->andWhere('s2.entite = :entite')->setParameter('entite', $entite) // si dispo
-            ->getQuery()
-            ->getSingleColumnResult();
-
-
-
-
-        // Supports via sessions (visibles)
-        $sessRows = [];
-        if (!empty($sessionIds)) {
-            $sessRows = $em->createQueryBuilder()
-                ->select('a.id, a.titre, a.originalName, a.mimeType, a.filename, a.uploadedAt')
-                ->from(SupportAssignSession::class, 'link')
-                ->join('link.asset', 'a')
-                ->andWhere('link.session IN (:ids)')->setParameter('ids', $sessionIds)
-                ->andWhere('link.isVisibleToTrainee = :v')->setParameter('v', true)
-                ->getQuery()->getArrayResult();
-        }
-
-        // Supports assignés direct au user (visibles)
-        $userRows = $em->createQueryBuilder()
-            ->select('a.id, a.titre, a.originalName, a.mimeType, a.filename, a.uploadedAt')
-            ->from(SupportAssignUser::class, 'linku')
-            ->join('linku.asset', 'a')
-            ->andWhere('linku.user = :me')->setParameter('me', $user)
-            ->andWhere('linku.isVisibleToTrainee = :v')->setParameter('v', true)
-            ->getQuery()->getArrayResult();
-
-        // Merge + distinct par id
-        $byId = [];
-        foreach (array_merge($sessRows, $userRows) as $r) {
-            $byId[(int)$r['id']] = $r;
-        }
-        $rows = array_values($byId);
-
         $basePath = rtrim($request->getBasePath(), '/');
-        $out = array_map(function (array $a) use ($basePath) {
+        $out = array_map(static function (SupportAsset $asset) use ($basePath): array {
             return [
-                'id'          => (int)$a['id'],
-                'titre'       => (string)($a['titre'] ?: pathinfo((string)$a['originalName'], PATHINFO_FILENAME)),
-                'originalName' => (string)$a['originalName'],
-                'mimeType'    => (string)$a['mimeType'],
-                'uploadedAt'  => $a['uploadedAt'] instanceof \DateTimeInterface ? $a['uploadedAt']->format('d/m/Y H:i') : '',
-                'url'         => $basePath . '/uploads/supports/library/' . (string)$a['filename'],
+                'id' => $asset->getId(),
+                'titre' => $asset->getTitre() ?: pathinfo((string) $asset->getOriginalName(), PATHINFO_FILENAME),
+                'originalName' => (string) $asset->getOriginalName(),
+                'mimeType' => (string) $asset->getMimeType(),
+                'uploadedAt' => $asset->getUploadedAt()?->format('d/m/Y H:i') ?? '',
+                'url' => $basePath . '/uploads/supports/library/' . $asset->getFilename(),
             ];
-        }, $rows);
+        }, $this->supportAccess->forLearner($entite, $user));
 
         return new JsonResponse(['data' => $out]);
     }

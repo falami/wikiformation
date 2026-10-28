@@ -50,12 +50,24 @@
         <div class="dossier-doc"><span class="dossier-icon"><i class="bi bi-pen"></i></span><div><h3>Émargements individuels</h3><p>Un PDF par participant, avec les signatures des formateurs.</p></div><span class="dossier-tag">Par stagiaire</span></div>
         <div class="dossier-doc"><span class="dossier-icon"><i class="bi bi-chat-square-text"></i></span><div><h3>Appréciations des stagiaires</h3><p>Les questionnaires soumis par les participants.</p></div><span class="dossier-state is-ready">{{ inventory.assignments|length }} / {{ inventory.people|length }} participants</span></div>
         {% endif %}
+        <div class="dossier-doc"><span class="dossier-icon"><i class="bi bi-file-earmark-check"></i></span><div><h3>Documents de fin de formation et factures</h3><p>Attestations délivrées, avis post-formation, titres d’habilitation signés et factures rattachées, selon disponibilité.</p></div></div>
         <div class="dossier-doc"><span class="dossier-icon"><i class="bi bi-list-check"></i></span><div><h3>Inventaire du dossier</h3><p>La liste des documents et les points restant à vérifier.</p></div><span class="dossier-tag">Inclus</span></div>
       </section>
       <section class="dossier-panel">
         <div class="dossier-heading"><div><span class="dossier-kicker">SUIVI INDIVIDUEL</span><h2>Participants rattachés</h2></div><span class="dossier-count">{{ inventory.people|length }}</span></div>
         <div class="dossier-people">{% for key, name in inventory.people %}<div class="dossier-person"><span class="dossier-avatar">{{ name|slice(0,1)|upper }}</span><div><h3>{{ name }}</h3><p>{% if c.session.sousTraitance %}Suivi géré par le donneur d’ordre{% elseif inventory.assignments[key] is defined %}<span class="dossier-ready"><i class="bi bi-check-circle-fill"></i> Appréciation disponible</span>{% else %}<span class="dossier-pending"><i class="bi bi-clock"></i> Appréciation non disponible</span>{% endif %}</p></div></div>{% else %}<p class="dossier-note">Aucun participant identifié dans cette convention.</p>{% endfor %}</div>
       </section>
+      {% if not admin %}
+      <section class="dossier-panel"><h2 class="mb-3">Télécharger les dossiers des participants</h2>
+      {% for inscription in c.inscriptions %}
+        <p><a href="{{ path('app_entreprise_documents_inscription_archive', {entite:entite.id, entreprise:c.entreprise.id, id:inscription.id, scope:'stagiaire'}) }}"><i class="bi bi-download"></i> {{ inscription.stagiaire.prenom }} {{ inscription.stagiaire.nom }} — dossier complet</a></p>
+      {% endfor %}
+      {% if c.inscriptions|length %}
+        <a class="dossier-download-button" href="{{ path('app_entreprise_documents_inscription_archive', {entite:entite.id, entreprise:c.entreprise.id, id:(c.inscriptions|first).id, scope:'session'}) }}">Télécharger toute la session (ZIP)</a>
+        <p class="mt-2 small">Tous les participants et documents rattachés à votre entreprise dans cette session.</p>
+      {% endif %}
+      </section>
+      {% endif %}
       {% if inventory.warnings|length %}<section class="dossier-attention"><div class="dossier-heading"><div><span class="dossier-kicker">AVANT DE PARTAGER LE DOSSIER</span><h2><i class="bi bi-info-circle"></i> Points à vérifier</h2></div><span class="dossier-count">{{ inventory.warnings|length }}</span></div><ul>{% for warning in inventory.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></section>{% endif %}
     </main>
     <aside class="dossier-aside">

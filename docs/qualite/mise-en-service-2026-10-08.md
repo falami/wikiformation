@@ -1,5 +1,11 @@
 # Mise en service et utilisation du suivi qualité — 8 octobre 2026
 
+> Mise à jour tarifaire du 28 octobre 2026 : tarif standard 0,03 € HT
+> (transmission 0,01 + service 0,01 + provision de traitement 0,01), sans surcharge
+> liée au moyen de paiement. Tarif propriétaire 0,01 € HT inchangé ; frais de
+> paiement absorbés par l’exploitant. Les anciens tarifs figés sont conservés.
+
+
 Ce guide concerne les **actions de formation**, l’espace administrateur et les corrections décrites dans [le rapport d’audit](audit-2026-10-08.md). Il distingue le déploiement technique, à réaliser par l’exploitant, et les vérifications métier de l’organisme. Les contrôles réalisés localement ne prouvent pas que le serveur de production a reçu les changements.
 
 ## 1. Mettre les corrections en service
@@ -106,13 +112,15 @@ L’exploitant conserve la date, la version livrée, le résultat des migrations
 
 Pour le raccordement PA, OAuth, les secrets, les commandes de synchronisation et la recette, suivre [le guide technique du connecteur](../compliance/einvoicing-setup-2026-10-08.md).
 
-Cette option est **distincte de l’abonnement fixe** et du montant facturé par l’organisme à ses clients. Le tarif proposé est **0,02 € HT par facture émise via le connecteur en production**, sans quota. L’organisme doit donner son accord dans **Paramètres → Facturation électronique** avec un compte autorisé à gérer son abonnement. Un abonnement Stripe actif, lié au bon client Stripe, est requis. Une ancienne connexion ou une période d’essai sans abonnement Stripe ne vaut pas accord de facturation.
+Cette option est **distincte de l’abonnement fixe** et du montant facturé par l’organisme à ses clients. Le tarif proposé est **0,03 € HT par facture émise via le connecteur en production**, sans quota. L’organisme doit donner son accord dans **Paramètres → Facturation électronique** avec un compte autorisé à gérer son abonnement. Un abonnement Stripe actif, lié au bon client Stripe, est requis. Une ancienne connexion ou une période d’essai sans abonnement Stripe ne vaut pas accord de facturation.
+
+Depuis le 28 octobre 2026, I.T. For You (entité 1 et SIRET 80813612100023) bénéficie du tarif interne de **0,01 € HT via Stripe, sans commission WikiFormation**. La configuration Stripe reste obligatoire. Un ancien accord gratuit doit être renouvelé avant toute nouvelle émission ; l’historique déjà figé n’est pas refacturé.
 
 ### Avant activation
 
 - Livrer et contrôler les migrations du raccordement PA, puis `Version20261008202000` (consommations et lots de facturation). Cette dernière conserve des preuves de facturation : sa suppression automatique est interdite.
 - Configurer l’accès éditeur à la plateforme agréée, la redirection OAuth, le chiffrement des identifiants et le planificateur décrit dans le guide du connecteur. Vérifier l’identité de chaque organisme chez le prestataire. Les identifiants ne sont jamais saisis dans les documents clients.
-- Vérifier les conditions commerciales du prestataire : coût par émission, vérification d’identité/KYB, minimums éventuels, engagements et périmètre de réception. **Un écart entre 0,02 € et un prix unitaire fournisseur ne garantit pas une marge nette** : les coûts fixes, TVA applicable, abonnements, traitement Stripe et incidents doivent être couverts. Ne pas annoncer une réception gratuite universelle chez tous les prestataires ; elle n’est simplement pas refacturée par ce compteur applicatif.
+- Vérifier les conditions commerciales du prestataire : coût par émission, vérification d’identité/KYB, minimums éventuels, engagements et périmètre de réception. **Un écart entre 0,03 € et un prix unitaire fournisseur ne garantit pas une marge nette** : les coûts fixes, TVA applicable, abonnements, traitement Stripe et incidents doivent être couverts. Ne pas annoncer une réception gratuite universelle chez tous les prestataires ; elle n’est simplement pas refacturée par ce compteur applicatif.
 - Configurer le traitement fiscal des prestations WikiFormation dans Stripe. La commande exige Stripe Tax actif sur l’abonnement ou des taux par défaut explicites. L’exonération éventuelle de TVA des actions de formation de l’organisme ne s’applique pas automatiquement à la prestation de logiciel. Contrôler le paramétrage réel avec le responsable comptable.
 
 ### Ce qui est décompté
@@ -137,7 +145,7 @@ php bin/console app:einvoicing:bill-usage --month=2026-10 --entite=1 --execute -
 
 Le mois `2026-10` ne peut être traité qu’à partir du 1er novembre 2026. Remplacer les identifiants par ceux de l’organisme à traiter. Pour une exécution planifiée, cibler le mois précédent ; l’absence de `--entite` traite les connexions de production de tous les organismes, y compris les consommations conservées après déconnexion. Surveiller le code retour et les lots à rapprocher.
 
-Chaque lot figé produit une **ligne regroupée sur la prochaine facture du même abonnement Stripe**, en EUR et hors taxes. Aucun paiement carte isolé de 0,02 € n’est créé. Pour un abonnement annuel, la prochaine facture peut être l’échéance annuelle ; ce mécanisme ne crée pas de facturation mensuelle supplémentaire. Une confirmation tardive ou des conditions d’abonnement distinctes peuvent produire plusieurs lignes séparées, sans recompter les mêmes consommations. Un lot « enregistré » atteste l’ajout d’une ligne Stripe, pas son paiement.
+Chaque lot figé produit une **ligne regroupée sur la prochaine facture du même abonnement Stripe**, en EUR et hors taxes. Aucun paiement carte isolé de 0,03 € n’est créé. Pour un abonnement annuel, la prochaine facture peut être l’échéance annuelle ; ce mécanisme ne crée pas de facturation mensuelle supplémentaire. Une confirmation tardive ou des conditions d’abonnement distinctes peuvent produire plusieurs lignes séparées, sans recompter les mêmes consommations. Un lot « enregistré » atteste l’ajout d’une ligne Stripe, pas son paiement.
 
 ### Incident et reprise
 

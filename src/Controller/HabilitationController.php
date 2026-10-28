@@ -12,7 +12,6 @@ use Doctrine\ORM\{EntityManagerInterface, OptimisticLockException};
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
-use Dompdf\{Dompdf, Options};
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 
 #[Route('/habilitation/{entite}', name: 'app_habilitation_', requirements: ['entite' => '\d+'])]
@@ -275,7 +274,7 @@ final class HabilitationController extends AbstractController
         if ($d->getEntite()->getId() !== $e->getId()) throw $this->createNotFoundException();
         $u = $this->getUser(); $admin = $this->admin($e);
         $trainer = $this->isGranted(P::FORMATEUR, $e) && $d->isAssignedTo($u);
-        $company = $this->isGranted(P::ENTREPRISE, $e) && $d->getEntreprise()->getId() === $u->getEntreprise()?->getId();
+        $company = $this->isGranted(P::ENTREPRISE, $e) && \App\Service\Entreprise\EntreprisePortalContext::canRepresent($u, $d->getEntreprise());
         $student = $this->isGranted(P::STAGIAIRE, $e) && $d->getInscription()->getStagiaire()->getId() === $u->getId() && $d->getState() === 'published';
         if (!$admin && ((!$d->getActive() || $d->getDeleted()) || (!$trainer && !($company && $d->getAvisToken() && in_array($d->getState(), ['awaiting_company', 'published'], true)) && !$student))) throw $this->createAccessDeniedException();
         return compact('admin', 'trainer', 'company', 'student');
@@ -362,7 +361,7 @@ final class HabilitationController extends AbstractController
     }
 
     #[Route('/attestations-selection', name: 'attestations_export', methods: ['POST'])]
-    public function exportAttestations(#[MapEntity(id: 'entite')] Entite $entite, Request $request, \App\Service\Pdf\OrganisationBranding $branding): Response
+    public function exportAttestations(#[MapEntity(id: 'entite')] Entite $entite, Request $request, \App\Service\Habilitation\HabilitationDocument $renderer): Response
     {
         $this->member($entite);
         $this->csrf($request, 'habilitation_export');
@@ -383,7 +382,7 @@ final class HabilitationController extends AbstractController
         try {
             if ($zip->open($path, \ZipArchive::OVERWRITE) !== true) throw new \RuntimeException('Impossible de créer l’archive.');
             foreach ($documents as $d) {
-                $pdf = $this->pdf($entite, $d, $d->getAvisToken(), $branding, true);
+                $pdf = $this->pdf($entite, $d, $d->getAvisToken(), $renderer, true);
                 $name = $d->getInscription()->getStagiaire()->getPrenom().'-'.$d->getInscription()->getStagiaire()->getNom();
                 $name = preg_replace('/[^\pL\pN_-]+/u', '-', $name);
                 if (!$zip->addFromString('attestation-'.$name.'-'.$d->getId().'.pdf', $pdf->getContent())) throw new \RuntimeException('Impossible d’ajouter le document.');
@@ -399,30 +398,14 @@ final class HabilitationController extends AbstractController
 
     #[Route('/{id}/document/{token}', name: 'pdf', methods: ['GET'], requirements: ['id' => '\d+', 'token' => '[a-f0-9]{32}'])]
     #[Route('/{id}/attestation/{token}', name: 'attestation', methods: ['GET'], defaults: ['attestation' => true], requirements: ['id' => '\d+', 'token' => '[a-f0-9]{32}'])]
-    public function pdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $token, \App\Service\Pdf\OrganisationBranding $branding, bool $attestation = false): Response
+    public function pdf(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $token, \App\Service\Habilitation\HabilitationDocument $documents, bool $attestation = false): Response
     {
         $rights = $this->access($entite, $dossier);
         $r = $this->em->getRepository(HabilitationRevision::class)->findOneBy(['dossier' => $dossier, 'token' => $token]);
         if (!$r || !$this->visibleRevision($r, $dossier, $rights) || !in_array($r->getKind(), ['avis', 'titre'], true)) throw $this->createNotFoundException();
         if ($attestation && $r->getKind() !== 'avis') throw $this->createNotFoundException();
-        $options = new Options(['isRemoteEnabled' => false, 'isPhpEnabled' => false, 'defaultFont' => 'DejaVu Sans']);
-        $pdf = new Dompdf($options); $pdf->setPaper('A4', $attestation ? 'portrait' : 'landscape');
-        $snapshot = $r->getSnapshot();
-        if ($r->getKind() === 'titre') {
-            foreach ($snapshot['schema']['sections'] as &$section) {
-                $section['rows'] = array_values(array_filter($section['rows'], static function ($row) use ($snapshot) {
-                    foreach ($row['fields'] as $field) if ($field['type'] === 'checkbox' && !empty($snapshot['data']['rows'][$row['id']][$field['id']])) return true;
-                    return false;
-                }));
-            }
-            unset($section);
-            $snapshot['schema']['sections'] = array_values(array_filter($snapshot['schema']['sections'], static fn ($section) => $section['rows'] !== []));
-        }
-        $footerHtml = $this->renderView($attestation ? 'habilitation/attestation.html.twig' : 'habilitation/pdf.html.twig', ['entite' => $entite, 'brand' => $branding->forEntity($entite), 'revision' => $r, 'snapshot' => $snapshot, 'archived' => !in_array($token, [$dossier->getAvisToken(), $dossier->getTitreToken()], true), 'inactive' => !$dossier->getActive() || $dossier->getDeleted()]);
-        $pdf->loadHtml(\App\Service\Pdf\DocumentFooter::prepare($footerHtml));
-        $pdf->render();
-        \App\Service\Pdf\DocumentFooter::draw($pdf, $footerHtml);
-        $prefix = $attestation ? 'attestation-electrique' : 'habilitation';
-        return new Response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$prefix.'-'.$dossier->getId().'-'.$r->getKind().'-'.substr($token, 0, 8).'.pdf"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
+        $content = $documents->bytes($r, $attestation);
+        $prefix = $attestation ? 'avis-post-formation' : 'habilitation';
+        return new Response($content, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$prefix.'-'.$dossier->getId().'-'.$r->getKind().'-'.substr($token, 0, 8).'.pdf"', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 }

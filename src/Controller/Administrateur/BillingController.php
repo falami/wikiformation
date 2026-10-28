@@ -29,6 +29,7 @@ final class BillingController extends AbstractController
     EntitlementService $entitlement,
     \App\Service\Billing\QuotaUsage $quotaUsage,
     \App\Service\EInvoicing\EInvoiceUsageBilling $eInvoiceUsage,
+    \App\Service\Billing\InternalUsageContractPolicy $internalUsage,
   ): Response {
     $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
@@ -70,6 +71,7 @@ final class BillingController extends AbstractController
 
     return $this->render('administrateur/billing/index.html.twig', [
       'sub' => $sub,
+      'internalUsageContract' => $internalUsage->isProtected($entite),
       'eInvoiceUsage' => $eInvoiceUsage->summary($entite),
       'plans' => $plans->findPublicOffers(),
       'addons' => $addons->findActiveOrdered(),

@@ -19,6 +19,7 @@ final class BillingAccessTest extends KernelTestCase
         $this->env=[$_ENV['DATABASE_URL']??null,$_SERVER['DATABASE_URL']??null];
         $_ENV['DATABASE_URL']=$_SERVER['DATABASE_URL']='sqlite:///:memory:';
         self::bootKernel();$this->em=self::getContainer()->get('doctrine')->getManager();
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->user=(new Utilisateur())->setEmail('billing@example.test')->setPassword('unused')->setPrenom('Billing')->setNom('Test');
         $this->mine=(new Entite())->setNom('Mine')->setPublic(false)->setCreateur($this->user);

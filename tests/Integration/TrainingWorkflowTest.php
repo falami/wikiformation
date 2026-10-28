@@ -30,6 +30,8 @@ final class TrainingWorkflowTest extends KernelTestCase
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        // Invoice fixtures represent already configured issuers; Stripe readiness has dedicated security tests.
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
         $numbers = $this->createMock(SequenceNumberManager::class); $counter = 0;
         $numbers->method('next')->willReturnCallback(static function () use (&$counter) { return [2026, ++$counter]; });
         self::getContainer()->set(SequenceNumberManager::class, $numbers);

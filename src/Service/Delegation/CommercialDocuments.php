@@ -5,15 +5,20 @@ namespace App\Service\Delegation;
 
 use App\Entity\{UtilisateurEntite, Utilisateur, Entite, Devis, Facture, ConventionContrat, LigneDevis, LigneFacture};
 use App\Form\Portail\DocumentLineType;
-use App\Service\Sequence\{DevisNumberGenerator, FactureNumberGenerator, ConventionContratNumberGenerator};
+use App\Service\Sequence\{DevisNumberGenerator, ConventionContratNumberGenerator};
+use App\Service\Billing\InvoiceIssuer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\{FormFactoryInterface, FormInterface};
 use Symfony\Component\Form\Extension\Core\Type\{FormType, ChoiceType, DateType, CollectionType, TextType, TextareaType, NumberType, MoneyType};
 use Symfony\Component\Validator\Constraints as Assert;
 final class CommercialDocuments
 {
-    public function __construct(private readonly FormFactoryInterface $factory, private readonly DossierAccess $access, private readonly DossierRegistry $registry, private readonly EntityManagerInterface $em, private readonly DevisNumberGenerator $quotes, private readonly FactureNumberGenerator $invoices, private readonly ConventionContratNumberGenerator $contracts)
+    public function __construct(private readonly FormFactoryInterface $factory, private readonly DossierAccess $access, private readonly DossierRegistry $registry, private readonly EntityManagerInterface $em, private readonly DevisNumberGenerator $quotes, private readonly InvoiceIssuer $invoices, private readonly ConventionContratNumberGenerator $contracts)
     {
+    }
+    public function assertCanIssue(Entite $entite, string $module): void
+    {
+        if ($module === 'factures') $this->invoices->assertCanIssue($entite);
     }
     public function form(UtilisateurEntite $membership, string $module, ?object $existing = null): FormInterface
     {
@@ -87,6 +92,7 @@ final class CommercialDocuments
     }
     public function issue(UtilisateurEntite $membership, string $module, array $data, Utilisateur $actor, ?object $existing = null): object
     {
+        $this->assertCanIssue($membership->getEntite(), $module);
         $data['lines'] = array_values($data['lines']);
         $entite = $membership->getEntite();
         $year = (int) $data['date']->format('Y');
@@ -146,7 +152,7 @@ final class CommercialDocuments
         }
         if ($record instanceof Facture || $record instanceof Devis) $record->setMeta(array_replace($record->getMeta() ?? [], ['invoice_terms' => $data['invoiceTerms'] ?? []]));
         if ($record instanceof Facture) {
-            \App\Service\Billing\InvoiceIssuer::persist($this->em, $this->invoices, $record);
+            $this->invoices->persist($record);
         } else {
             $this->em->persist($record);
             $this->em->flush();

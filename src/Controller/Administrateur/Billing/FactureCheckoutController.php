@@ -52,6 +52,9 @@ final class FactureCheckoutController extends AbstractController
         try {
             $checkout = $manager->createCheckoutForFacture($facture);
             return new RedirectResponse($checkout->getCheckoutUrl());
+        } catch (\App\Exception\StripeFeeConfigurationUnavailable $error) {
+            $this->addFlash('warning', $error->getMessage());
+            return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);
         } catch (\Throwable $error) {
             $this->addFlash('warning', 'Le paiement ne peut pas être ouvert pour le moment. Un paiement en cours doit être rapproché avec Stripe avant de créer un nouveau lien.');
             return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $facture->getId()]);

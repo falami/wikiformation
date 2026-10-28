@@ -65,33 +65,43 @@ class FormateurEspaceController extends AbstractController
 
     // Upload de supports
     #[Route('/session/{id}/supports/upload', name: 'supports_upload', methods: ['POST'])]
-    public function upload(Entite $entite, Session $session, Request $request, EntityManagerInterface $em): JsonResponse
+    public function upload(Entite $entite, Session $session, Request $request, EntityManagerInterface $em, \Symfony\Component\Validator\Validator\ValidatorInterface $validator): JsonResponse
     {
+        if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if (!$this->isGranted(TenantPermission::ADMIN, $entite) && !$session->hasFormateurUtilisateur($this->getUser())) throw $this->createAccessDeniedException();
+        if (!$this->isCsrfTokenValid('supports_upload_'.$session->getId(), $request->headers->get('X-CSRF-Token', $request->request->getString('_token')))) throw $this->createAccessDeniedException('Rechargez la page puis réessayez.');
         /** @var UploadedFile|null $file */
         $file = $request->files->get('file');
-        if (!$file) return new JsonResponse(['ok' => false], 400);
+        if (!$file instanceof UploadedFile || !$file->isValid()) return new JsonResponse(['ok' => false], 400);
+        $errors = $validator->validate($file, new \Symfony\Component\Validator\Constraints\File(maxSize: '50M', extensions: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv']));
+        if (count($errors)) return new JsonResponse(['ok' => false, 'message' => 'Format non autorisé ou fichier supérieur à 50 Mo.'], 422);
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
-
-        $safeName = (new \Symfony\Component\String\Slugger\AsciiSlugger())->slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
-        $ext = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'bin';
-        $finalName = sprintf('%s-%s.%s', $safeName, uniqid(), $ext);
-        $file->move($this->getParameter('kernel.project_dir') . '/public/uploads/supports', $finalName);
+        $title = mb_substr($request->request->getString('titre') ?: $file->getClientOriginalName(), 0, 180);
+        $mime = $file->getMimeType();
+        $finalName = bin2hex(random_bytes(16)).'.'.strtolower($file->getClientOriginalExtension());
+        $directory = $this->getParameter('kernel.project_dir') . '/public/uploads/supports';
+        $file->move($directory, $finalName);
 
         $doc = (new SupportDocument())
             ->setCreateur($user)
             ->setEntite($entite)
             ->setSession($session)
             ->setFormation($session->getFormation())
-            ->setTitre($request->request->get('titre') ?: $file->getClientOriginalName())
+            ->setTitre($title)
             ->setFilename($finalName)
-            ->setMimeType($file->getClientMimeType())
+            ->setMimeType($mime)
             ->setUploadedAt(new \DateTimeImmutable('now'))
             ->setUploadedBy($this->getUser());
 
-        $em->persist($doc);
-        $em->flush();
+        try {
+            $em->persist($doc);
+            $em->flush();
+        } catch (\Throwable $error) {
+            if (is_file($directory.'/'.$finalName)) unlink($directory.'/'.$finalName);
+            throw $error;
+        }
 
         return new JsonResponse(['ok' => true]);
     }

@@ -2016,7 +2016,7 @@ final class SessionController extends AbstractController
 
 
     #[Route('/{id}/suivi-emargements', name: 'app_administrateur_session_attendance_tracking', methods: ['POST'])]
-    public function attendanceTracking(Entite $entite, Session $session, Request $request, EntityManagerInterface $em): Response
+    public function attendanceTracking(Entite $entite, Session $session, Request $request, EntityManagerInterface $em, \App\Service\Session\CloseAttendance $closer): Response
     {
         if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         if (!$this->isCsrfTokenValid('attendance_tracking_'.$session->getId(), $request->request->get('_token'))) {
@@ -2025,12 +2025,17 @@ final class SessionController extends AbstractController
         $action = $request->request->get('action');
         if (!in_array($action, ['close', 'reopen'], true)) return new Response('Action inconnue.', 400);
         if ($action === 'close') {
-            $session->cloturerEmargements((string) $this->getUser()->getUserIdentifier());
+            try {
+                $result = $closer->close($session, $this->getUser());
+                $this->addFlash($result['pending'] ? 'warning' : 'success', sprintf(
+                    'Suivi clôturé : %d assiduité(s) calculée(s), %d attestation(s) PDF générée(s), %d attestation(s) existante(s) conservée(s). %d dossier(s) à compléter ou sans durée attestable ; %d inscription(s) annulée(s) ou non confirmée(s) exclue(s).',
+                    $result['calculated'], $result['created'], $result['existing'], $result['pending'], $result['excluded']));
+            } catch (\DomainException $error) { $this->addFlash('warning', $error->getMessage()); }
         } else {
             $session->rouvrirEmargements();
+            $em->flush();
+            $this->addFlash('success', 'Le suivi des émargements est rouvert. Les attestations existantes sont conservées.');
         }
-        $em->flush();
-        $this->addFlash('success', $action === 'close' ? 'Le suivi des émargements est clôturé. Les signatures et documents sont conservés.' : 'La clôture manuelle des émargements a été levée.');
         return $this->redirectToRoute('app_administrateur_session_show', ['entite' => $entite->getId(), 'id' => $session->getId()]);
     }
 

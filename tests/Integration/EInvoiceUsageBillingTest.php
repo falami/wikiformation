@@ -5,7 +5,7 @@ namespace App\Tests\Integration;
 use App\Command\EInvoiceUsageBillingCommand;
 use App\Entity\{Entite, Utilisateur, Facture, EInvoiceConnection, EInvoiceTransmission, EInvoiceUsage, EInvoiceUsageBatch};
 use App\Entity\Billing\EntiteSubscription;
-use App\Service\EInvoicing\{EInvoiceUsageBilling, ConnectionLease, UsageInvoiceGateway};
+use App\Service\EInvoicing\{EInvoiceUsageBilling, ConnectionLease, UsageInvoiceGateway, EInvoiceReadiness, SubscriptionPaymentReadiness};
 use App\Repository\Billing\EntiteSubscriptionRepository;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -25,7 +25,10 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
     {
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
-        self::bootKernel(); $this->em = self::getContainer()->get('doctrine')->getManager();
+        self::bootKernel();
+        // These are already-issued ledger fixtures; issuance policy is exercised separately.
+        self::getContainer()->set(EInvoiceReadiness::class, $this->createMock(EInvoiceReadiness::class));
+        $this->em = self::getContainer()->get('doctrine')->getManager();
         (new SchemaTool($this->em))->createSchema($this->em->getMetadataFactory()->getAllMetadata());
         $this->user = (new Utilisateur())->setEmail('usage@example.test')->setPassword('fixture')->setNom('Usage')->setPrenom('Test');
         $this->entite = (new Entite())->setNom('Usage fixture')->setPublic(false)->setCreateur($this->user);
@@ -39,7 +42,7 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
             public function create(EInvoiceUsageBatch $b): string { ++$this->creates; $this->payloads[] = $b->getPayload(); if ($this->fail) throw new \RuntimeException('Unknown result'); return 'ii_fixture'.$b->getId(); }
             public function find(EInvoiceUsageBatch $b): ?string { ++$this->finds; return $this->found; }
         };
-        $this->billing = new EInvoiceUsageBilling($this->em, self::getContainer()->get(EntiteSubscriptionRepository::class), self::getContainer()->get(ConnectionLease::class), $this->gateway);
+        $this->billing = new EInvoiceUsageBilling($this->em, self::getContainer()->get(EntiteSubscriptionRepository::class), self::getContainer()->get(ConnectionLease::class), $this->gateway, $this->createMock(SubscriptionPaymentReadiness::class));
     }
     protected function tearDown(): void
     {
@@ -61,26 +64,68 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
         $t->accepted($id); (new \ReflectionProperty($t, 'acceptedAt'))->setValue($t, new \DateTimeImmutable($date));
         $this->billing->record($t); $this->em->flush();
     }
-    public function testOwnerExemptionSkipsNewChargesButPreservesFrozenHistory(): void
+    public function testOwnerPaysProviderCostThroughStripeAndFrozenHistoryIsNotRepriced(): void
     {
         $old = $this->transmission();
         $this->entite->setSiret('80813612100023'); $this->em->flush();
         self::assertSame(1, $this->entite->getId());
-        self::assertSame(0, $this->connection->getUnitPriceCents());
+        self::assertSame(1, $this->connection->getUnitPriceCents());
         $this->accept($old, '801');
-        $this->em->remove($this->sub); $this->em->flush();
-        self::assertNull($this->billing->assertEligible($this->connection));
-        $this->accept($this->transmission(), '802');
-        self::assertSame(1, $this->em->getRepository(EInvoiceUsage::class)->count([]));
+        self::assertSame($this->sub, $this->billing->assertEligible($this->connection));
+        $new = $this->transmission();
+        self::assertSame(['providerCostCents' => 1, 'platformShareCents' => 0, 'paymentProcessingReserveCents' => 0, 'version' => 2], $new->getUsageTerms()['internalAllocation']);
+        $this->accept($new, '802');
+        self::assertSame(2, $this->em->getRepository(EInvoiceUsage::class)->count([]));
         $summary = $this->billing->summary($this->entite, new \DateTimeImmutable('2020-09-30'));
-        self::assertSame(0, $summary['unitPriceCents']);
-        self::assertSame(2, $summary['amountCents']);
+        self::assertSame(1, $summary['unitPriceCents']);
+        self::assertSame(4, $summary['amountCents']);
         $this->billing->process($this->connection, '2020-09', true);
         $prices = array_column($this->gateway->payloads, 'unit_amount_decimal'); sort($prices);
-        self::assertSame(['2'], $prices);
-        $other = (new Entite())->setNom('Other')->setSiret('80813612100023')->setPublic(false)->setCreateur($this->user);
-        $this->em->persist($other); $this->em->flush();
-        self::assertSame(2, \App\Service\EInvoicing\EInvoiceTariff::unitPriceCents($other));
+        self::assertSame(['1', '3'], $prices);
+        $this->em->remove($this->sub); $this->em->flush();
+        $this->expectException(\DomainException::class);
+        $this->billing->assertEligible($this->connection);
+    }
+
+    public function testHistoricalFreeConsentDoesNotAuthorizeNewCharges(): void
+    {
+        $this->entite->setSiret('80813612100023');
+        (new \ReflectionProperty($this->connection, 'unitPriceCents'))->setValue($this->connection, 0);
+        self::assertFalse($this->connection->hasCurrentBillingConsent());
+        $this->expectException(\DomainException::class);
+        $this->billing->assertEligible($this->connection);
+    }
+
+    public function testTwoCentHistoryIsPreservedAndNewThreeCentTariffRequiresConsent(): void
+    {
+        (new \ReflectionProperty($this->connection, 'unitPriceCents'))->setValue($this->connection, 2);
+        $this->em->flush();
+        self::assertFalse($this->connection->hasCurrentBillingConsent());
+        try {
+            $this->billing->assertEligible($this->connection);
+            self::fail('The previous consent must not authorize a price increase.');
+        } catch (\DomainException $error) {
+            self::assertStringContainsString('Acceptez', $error->getMessage());
+        }
+        // An emission already attempted under the old agreement is reconciled at its frozen price.
+        $f = (new Facture())->setEntite($this->entite)->setCreateur($this->user)->setNumero('HISTORICAL-TWO-CENTS')
+            ->setMontantHtCents(1000)->setMontantTvaCents(200)->setMontantTtcCents(1200);
+        $this->em->persist($f); $this->em->flush();
+        $old = new EInvoiceTransmission($this->connection, $f);
+        $old->prepared('<Invoice/>');
+        $old->captureUsageTerms(['unitPriceCents' => 2, 'currency' => 'eur', 'customer' => 'cus_fixture',
+            'subscription' => 'sub_fixture', 'consentedAt' => '2020-09-01T12:00:00+02:00']);
+        $old->begin(); $this->em->persist($old); $this->em->flush();
+        $this->accept($old, '901');
+        self::assertSame(2, $this->em->getRepository(EInvoiceUsage::class)->findOneBy(['transmission' => $old])->getUnitPriceCents());
+        $this->connection->consentToBilling($this->user->getId()); $this->em->flush();
+        self::assertTrue($this->connection->hasCurrentBillingConsent());
+        $this->accept($this->transmission(), '902');
+        self::assertSame(5, $this->billing->process($this->connection, '2020-09')['amountCents']);
+        $this->billing->process($this->connection, '2020-09', true);
+        $prices = array_column($this->gateway->payloads, 'unit_amount_decimal'); sort($prices);
+        self::assertSame(['2', '3'], $prices);
+        self::assertSame(2, $old->getUsageTerms()['unitPriceCents']);
     }
 
     public function testConfirmedUsageIsUniqueAndSnapshotSurvivesChanges(): void
@@ -88,9 +133,9 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
         $t = $this->transmission(); $this->sub->setStripeSubscriptionId('sub_changed'); $this->connection->disconnect();
         $this->accept($t); $this->billing->record($t); $this->billing->record($t); $this->em->flush();
         $usage = $this->em->getRepository(EInvoiceUsage::class)->findOneBy(['transmission' => $t]);
-        self::assertSame('sub_fixture', $usage->getStripeSubscriptionId()); self::assertSame(2, $usage->getUnitPriceCents());
+        self::assertSame('sub_fixture', $usage->getStripeSubscriptionId()); self::assertSame(3, $usage->getUnitPriceCents());
         self::assertSame(1, $this->em->getRepository(EInvoiceUsage::class)->count([])); self::assertSame(1200, $t->getFacture()->getMontantTtcCents());
-        self::assertSame(['unitPriceCents'=>2,'period'=>'2020-09','quantity'=>1,'amountCents'=>2], $this->billing->summary($this->entite, new \DateTimeImmutable('2020-09-30')));
+        self::assertSame(['unitPriceCents'=>3,'period'=>'2020-09','quantity'=>1,'amountCents'=>3], $this->billing->summary($this->entite, new \DateTimeImmutable('2020-09-30')));
         self::assertSame(0, $this->gateway->creates);
     }
     public function testTermsAreRefreshedBeforeAttemptAndImmutableAfter(): void
@@ -99,7 +144,7 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
         $this->em->persist($f); $this->em->flush();
         $t = new EInvoiceTransmission($this->connection, $f); $t->prepared('<Invoice/>');
         $this->billing->prepare($t); self::assertSame('sub_fixture', $t->getUsageTerms()['subscription']);
-        self::assertSame(['providerCostCents' => 1, 'platformShareCents' => 1, 'version' => 1], $t->getUsageTerms()['internalAllocation']);
+        self::assertSame(['providerCostCents' => 1, 'platformShareCents' => 1, 'paymentProcessingReserveCents' => 1, 'version' => 2], $t->getUsageTerms()['internalAllocation']);
         $this->sub->setStripeSubscriptionId('sub_replacement'); $this->em->flush();
         $this->billing->prepare($t); self::assertSame('sub_replacement', $t->getUsageTerms()['subscription']);
         $t->begin(); $terms = $t->getUsageTerms();
@@ -110,7 +155,7 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
         $this->accept($this->transmission(), '900');
         $this->accept($this->transmission(), '900');
         self::assertSame(1, $this->em->getRepository(EInvoiceUsage::class)->count([]));
-        self::assertSame(2, $this->billing->process($this->connection, '2020-09')['amountCents']);
+        self::assertSame(3, $this->billing->process($this->connection, '2020-09')['amountCents']);
     }
     public function testSandboxUncertainAndHistoricalAreNotCharged(): void
     {
@@ -135,11 +180,11 @@ final class EInvoiceUsageBillingTest extends KernelTestCase
     {
         $this->accept($this->transmission(), '201'); $this->accept($this->transmission(), '202');
         $result = $this->billing->process($this->connection, '2020-09');
-        self::assertSame(4, $result['amountCents']); self::assertSame(0, $this->gateway->validations); self::assertSame(0, $this->em->getRepository(EInvoiceUsageBatch::class)->count([]));
+        self::assertSame(6, $result['amountCents']); self::assertSame(0, $this->gateway->validations); self::assertSame(0, $this->em->getRepository(EInvoiceUsageBatch::class)->count([]));
         $result = $this->billing->process($this->connection, '2020-09', true);
         self::assertSame(1, $result['recorded']); self::assertSame(1, $this->gateway->creates);
         $this->billing->process($this->connection, '2020-09', true); self::assertSame(1, $this->gateway->creates);
-        self::assertSame(2, $this->gateway->payloads[0]['quantity']); self::assertSame('2', $this->gateway->payloads[0]['unit_amount_decimal']);
+        self::assertSame(2, $this->gateway->payloads[0]['quantity']); self::assertSame('3', $this->gateway->payloads[0]['unit_amount_decimal']);
         self::assertStringNotContainsString('internalAllocation', json_encode($this->gateway->payloads[0]));
         self::assertStringNotContainsString('providerCostCents', json_encode($this->gateway->payloads[0]));
         self::assertSame('sub_fixture', $this->gateway->payloads[0]['subscription']); self::assertSame('exclusive', $this->gateway->payloads[0]['tax_behavior']);

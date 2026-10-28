@@ -29,6 +29,8 @@ final class WorkflowTaskRecoveryTest extends KernelTestCase
         $this->database = [$_ENV['DATABASE_URL'] ?? null, $_SERVER['DATABASE_URL'] ?? null];
         $_ENV['DATABASE_URL'] = $_SERVER['DATABASE_URL'] = 'sqlite:///:memory:';
         self::bootKernel();
+        // Invoice fixtures represent already configured issuers; Stripe readiness has dedicated security tests.
+        self::getContainer()->set(\App\Service\EInvoicing\EInvoiceReadiness::class, $this->createMock(\App\Service\EInvoicing\EInvoiceReadiness::class));
         $transport = $this->createMock(MailerInterface::class); $transport->expects(self::never())->method('send');
         self::getContainer()->set(MailerInterface::class, $transport);
         $this->em = self::getContainer()->get('doctrine')->getManager();
