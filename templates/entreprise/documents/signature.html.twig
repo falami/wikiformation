@@ -19,7 +19,21 @@
 <div class="p-4 rounded-4 text-white mb-4" style="background:#233e50;border-top:3px solid #dfba58"><small>CONVENTION DE FORMATION</small><h1 class="h3 mt-2">Consulter et signer</h1><p class="mb-0">{{ entreprise.raisonSociale }} · {{ c.numero }}</p></div>
 {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }}">{{ message }}</div>{% endfor %}{% endfor %}
 <section class="card rounded-4 p-4"><h2 class="h4">{{ c.intituleFormationEffectif }}</h2><p class="text-muted">Consultez la convention avant de confirmer votre accord au nom de {{ entreprise.raisonSociale }}.</p>
-<a class="btn btn-outline-primary align-self-start mb-4" target="_blank" rel="noopener" href="{{ path('app_entreprise_documents_convention_pdf',{entite:entite.id,entreprise:entreprise.id,id:c.id}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>Lire la convention PDF</a>
+{% set signatureComplete = c.dateSignatureEntreprise and c.signatureDataUrlEntreprise %}
+{% if c.pdfPath and not signatureComplete %}
+<div class="alert alert-info rounded-4 mb-4" id="convention-signing-instructions">
+  <h3 class="h6 fw-bold"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>Comment signer votre convention ?</h3>
+  <ol class="mb-2 ps-3">
+    <li class="mb-2"><strong>Ouvrez et lisez le PDF</strong> avec le bouton ci-dessous. Cette étape est obligatoire avant de signer.</li>
+    <li class="mb-2"><strong>Revenez sur cette page</strong> après lecture : le PDF s’ouvre dans un nouvel onglet.</li>
+    <li><strong>Tracez ou importez votre signature</strong>, cochez la case d’accord, puis cliquez sur « Signer la convention ».</li>
+  </ol>
+  <p class="small mb-0">L’ouverture du PDF ne signe pas la convention : vous confirmez vous-même votre signature à la dernière étape.</p>
+</div>
+{% endif %}
+{% if c.pdfPath %}
+<a class="btn {{ signatureComplete ? 'btn-outline-primary' : 'btn-primary' }} align-self-start mb-4" target="_blank" rel="noopener" {% if not signatureComplete %}aria-describedby="convention-signing-instructions"{% endif %} href="{{ path('app_entreprise_documents_convention_pdf',{entite:entite.id,entreprise:entreprise.id,id:c.id}) }}"><i class="bi bi-file-earmark-pdf me-2" aria-hidden="true"></i>{{ signatureComplete ? 'Consulter la convention PDF' : '1. Ouvrir le PDF avant de signer' }} <span class="small">(nouvel onglet)</span></a>
+{% endif %}
 {% if c.dateSignatureEntreprise and c.signatureDataUrlEntreprise %}<div class="alert alert-success mb-0">Signée par l’entreprise le {{ c.dateSignatureEntreprise|date('d/m/Y à H:i', 'Europe/Paris') }}.</div>
 {% elseif not c.pdfPath %}<div class="alert alert-info">La convention doit être générée par l’organisme avant de pouvoir être signée.</div>
 {% else %}
@@ -27,6 +41,8 @@
 <div class="rounded-4 border p-4 mb-4" style="background:#f5f8fb"><h3 class="h5">Une autre personne signe pour votre entreprise ?</h3><p class="text-muted">Invitez votre représentant habilité. Il recevra un accès personnel valable 48 heures, sans création de compte.</p>
 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#inviteSignatureModal" data-invite-url="{{ path('app_entreprise_convention_invite',{entite:entite.id,entreprise:entreprise.id,id:c.id}) }}" data-invite-token="{{ csrf_token('invite_convention_' ~ c.id) }}" data-invite-number="{{ c.numero }}">Inviter un signataire</button></div>
 <form method="post" id="signature-form">
+<h3 class="h5 mb-2">2. Signer après avoir lu la convention</h3>
+<p class="text-muted small mb-4">Vous devez avoir ouvert le PDF avec le bouton ci-dessus avant de valider votre signature.</p>
 <div class="mb-4"><label for="signature-canvas" class="form-label fw-bold">Votre signature</label>
 <p class="text-muted small">Maintenez le bouton de la souris enfoncé pour tracer votre signature (ou utilisez votre doigt sur écran tactile), ou importez une image PNG contenant votre signature, avec votre cachet si vous le souhaitez.</p>
 <canvas id="signature-canvas" width="900" height="260" aria-label="Zone pour tracer votre signature" style="width:100%;height:220px;border:1px solid #ccd8e2;border-radius:12px;touch-action:none;cursor:crosshair;user-select:none;background:white"></canvas>

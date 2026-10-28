@@ -1,7 +1,7 @@
 {# templates/header_public.html.twig #}
 {% set brand = public_branding() %}
 
-<nav class="navbar fixed-top navbar-expand-lg navbar-dark" style="background-color:#0f1b28; z-index:1100;">
+<nav class="navbar fixed-top navbar-expand-xl navbar-dark public-navbar" style="background-color:#0f1b28; z-index:1100;">
   <div class="container">
     <a class="navbar-brand p-0 m-0"
        href="{% if brand.homeUrl %}{{ brand.homeUrl }}{% else %}{{ path('app_public') }}{% endif %}">
@@ -13,12 +13,17 @@
       >
     </a>
 
+    <a class="public-login-button" href="{{ path('app_login') }}">
+      <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+      <span>{{ app.request.locale == 'en' ? 'Log in' : 'Se connecter' }}</span>
+    </a>
+
     <button class="navbar-toggler" type="button"
             data-bs-toggle="collapse"
             data-bs-target="#navbarNavPublic"
             aria-controls="navbarNavPublic"
             aria-expanded="false"
-            aria-label="Toggle navigation">
+            aria-label="{{ app.request.locale == 'en' ? 'Open menu' : 'Ouvrir le menu' }}">
       <span class="navbar-toggler-icon"></span>
     </button>
 
@@ -56,14 +61,7 @@
           {% include '_locale_switcher.html.twig' %}
         </li>
 
-        <li class="nav-item">
-          <a class="nav-link" href="{{ path('app_login') }}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-box-arrow-in-right" viewBox="0 0 16 16" aria-hidden="true">
-              <path fill-rule="evenodd" d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a1.5 1.5 0 0 1-1.5-1.5v-2a.5.5 0 0 0-1 0v2A2.5 2.5 0 0 0 6.5 15h8A2.5 2.5 0 0 0 17 12.5v-9A2.5 2.5 0 0 0 14.5 1h-8A2.5 2.5 0 0 0 4 3.5v2a.5.5 0 0 0 1 0z"/>
-              <path fill-rule="evenodd" d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
-            </svg>
-          </a>
-        </li>
+
       </ul>
     </div>
   </div>

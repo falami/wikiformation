@@ -642,8 +642,24 @@ class DevisController extends AbstractController
     ]);
   }
 
+  #[Route('/{id}/publish', name: 'publish', methods: ['POST'])]
+  public function publishQuote(Entite $entite, Devis $id, Request $request, EM $em): Response
+  {
+    if ($id->getEntite()->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
+    if (!$this->isCsrfTokenValid('publish_quote_' . $id->getId(), (string) $request->request->get('_token'))) {
+      throw $this->createAccessDeniedException('Jeton invalide.');
+    }
+    if ($id->getStatus() !== DevisStatus::DRAFT || !empty($id->getMeta()['enterprise_signature']) || $id->getFactureCreee()) {
+      $this->addFlash('warning', 'Seul un devis brouillon non signé et non facturé peut être publié.');
+      return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
+    }
+    $id->setStatus(DevisStatus::SENT);
+    $em->flush();
+    return $this->redirectToRoute('app_administrateur_devis_pdf', ['entite' => $entite->getId(), 'id' => $id->getId()]);
+  }
+
   #[Route('/{id}/pdf', name: 'pdf', methods: ['GET'])]
-  public function devisPdf(Entite $entite, Devis $id, \App\Service\Devis\EntrepriseQuoteSignature $signatures): Response
+  public function devisPdf(Entite $entite, Devis $id, Request $request, \App\Service\Devis\EntrepriseQuoteSignature $signatures): Response
   {
     if (!$this->pdf) {
       throw $this->createNotFoundException('Service PDF non disponible.');
@@ -654,6 +670,10 @@ class DevisController extends AbstractController
     }
 
     if ($signed = $signatures->signedResponse($id)) return $signed;
+    if ($id->getStatus() === DevisStatus::DRAFT && !$request->query->getBoolean('keepDraft')) {
+      return $this->render('administrateur/devis/pdf_confirmation.html.twig', ['entite' => $entite, 'd' => $id]);
+    }
+
 
     $html = $this->renderDevisPdfHtml($entite, $id);
     $fileName = sprintf('DEVIS-%s', $id->getNumero() ?: $id->getId());

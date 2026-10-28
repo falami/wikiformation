@@ -1,0 +1,26 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Préparer le PDF du devis{% endblock %}
+{% block body %}
+<div class="card border-0 shadow-sm mx-auto my-4" style="max-width:720px;border-radius:22px;overflow:hidden">
+  <header class="p-4" style="background:#203647;color:white">
+    <div class="small text-uppercase mb-2" style="color:#e9c77c">Devis {{ d.numero }}</div>
+    <h1 class="h3">Avant de générer votre PDF</h1>
+  </header>
+  <div class="p-4">
+    <p class="fw-semibold">Votre devis est actuellement en brouillon.</p>
+    <p>Générer un PDF ne change pas son statut. Pour le rendre disponible dans l’espace entreprise, passez-le à « Envoyé ».</p>
+    <div class="p-3 rounded-3 mb-4" style="background:#f3f6f8">
+      Le numéro, le contenu et les conventions liées sont conservés. Aucune nouvelle version n’est créée et aucun e-mail n’est envoyé.
+      La signature reste soumise à la validité du devis et aux droits d’accès de l’entreprise.
+    </div>
+    {% if not d.factureCreee and not d.meta.enterprise_signature|default(false) %}
+    <form method="post" action="{{ path('app_administrateur_devis_publish', {entite: entite.id, id: d.id}) }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('publish_quote_' ~ d.id) }}">
+      <button class="btn btn-warning w-100 py-3 fw-semibold" type="submit">Passer à Envoyé et générer le PDF</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-outline-secondary w-100 mt-3" href="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: d.id, keepDraft: 1}) }}">Garder en brouillon et ouvrir le PDF</a>
+    <a class="d-block text-center mt-4" href="{{ path('app_administrateur_devis_show', {entite: entite.id, id: d.id}) }}">Retour au devis</a>
+  </div>
+</div>
+{% endblock %}

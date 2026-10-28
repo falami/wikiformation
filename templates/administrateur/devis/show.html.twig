@@ -231,6 +231,14 @@
 {% endblock %}
 
 {% block body %}
+{% if d.status.value == 'draft' %}
+<div class="alert alert-warning mt-3">
+  <strong>Ce devis est encore en brouillon.</strong> Le PDF ne le rend pas visible dans l’espace entreprise.
+  Vous pouvez passer à « Envoyé » sans modifier son contenu ni créer une nouvelle version.
+  <a class="btn btn-dark btn-sm ms-2" href="{{ path('app_administrateur_devis_pdf', {entite: entite.id, id: d.id}) }}">Préparer le PDF et la publication</a>
+</div>
+{% endif %}
+
   {% set num = d.numero ?: ('#' ~ d.id) %}
   {% set st = d.status.value ?? '' %}
 
