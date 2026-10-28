@@ -190,6 +190,20 @@
     .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
     .card, .card-body, .container, .container-fluid, .cardx, .cardx *{ overflow: visible; }
 
+    /* Les libellés longs restent dans leur champ, y compris après un ajout AJAX. */
+    #inscriptions-collection .inscription-item{align-items:flex-start!important}
+    #inscriptions-collection .inscription-item > div{min-width:0}
+    #inscriptions-collection .ts-wrapper{width:100%;min-width:0}
+    #inscriptions-collection .ts-control{min-width:0;min-height:44px;align-items:center}
+    #inscriptions-collection .ts-wrapper.single .ts-control{padding-right:3.6rem!important}
+    #inscriptions-collection .ts-control > .item{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:normal}
+    #inscriptions-collection .ts-control > input{min-width:0!important;max-width:100%}
+    #inscriptions-collection .ts-wrapper.single .clear-button{right:2rem!important;top:50%;transform:translateY(-50%);margin:0!important;line-height:1}
+    #inscriptions-collection .btn-remove-inscription{margin-top:1.6rem}
+    @media(max-width:767.98px){
+      #inscriptions-collection .btn-remove-inscription{margin-top:0}
+    }
+
     /* ===== Sticky actions ===== */
     .sticky-actions{
       position: sticky; bottom: 14px; z-index: 5;
@@ -1529,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', function () {
         create: false,
         allowEmptyOption: true,
         sortField: { field: 'text', direction: 'asc' },
-        plugins: ['remove_button'],
+        plugins: el.multiple ? ['remove_button'] : ['clear_button'],
         onChange: refreshResume
       });
     } else if (el?.tomselect) {

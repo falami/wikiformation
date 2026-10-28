@@ -1776,6 +1776,7 @@ final class SessionController extends AbstractController
         \App\Service\Sequence\ConventionContratNumberGenerator $conventionGen,
         SessionPlanningValidator $planningValidator,
         \App\Service\Session\ParticipantConventions $participantConventions,
+        \App\Service\Session\CloseAttendance $attendanceCloser,
         ?Session $session = null
     ): Response {
 
@@ -1937,6 +1938,7 @@ final class SessionController extends AbstractController
             'modeEdition' => $isEdit,
             'participantEntreprises' => $em->getRepository(Entreprise::class)->findBy(['entite' => $entite], ['raisonSociale' => 'ASC']),
             'participantConventions' => $participantConventions->forSession($session),
+            'closurePreview' => !$session->getEmargementClotureAt() && !$session->isSousTraitance() ? $attendanceCloser->preview($session) : [],
             'session'     => $session,
             'entite'      => $entite,
             'googleMapsBrowserKey' => $this->getParameter('GOOGLE_MAPS_BROWSER_KEY'),
@@ -2049,6 +2051,7 @@ final class SessionController extends AbstractController
         \App\Service\Avatar\FormateurAvatarResolver $avatarResolver,
         \App\Service\Session\SessionConventionTotals $conventionTotals,
         \App\Service\Session\ParticipantConventions $participantConventions,
+        \App\Service\Session\CloseAttendance $attendanceCloser,
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -2370,6 +2373,7 @@ final class SessionController extends AbstractController
             'session' => $session,
             'conventionTotals' => $conventionTotals->calculate($session),
             'participantConventions' => $participantConventions->forSession($session),
+            'closurePreview' => !$session->getEmargementClotureAt() && !$session->isSousTraitance() ? $attendanceCloser->preview($session) : [],
             'entite'  => $entite,
             'byEntreprise' => $byEntreprise,
             'formateursSession' => $formateursSession,

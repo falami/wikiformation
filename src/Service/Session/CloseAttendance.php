@@ -18,6 +18,24 @@ final class CloseAttendance
         private RealisationCertificate $certificate, private PdfManager $pdf,
         #[Autowire('%kernel.project_dir%')] private string $projectDir) {}
 
+    public function preview(Session $session): array
+    {
+        $rows = [];
+        foreach ($this->em->getRepository(Inscription::class)->findBy(['session'=>$session, 'entite'=>$session->getEntite()], ['id'=>'ASC']) as $registration) {
+            $summary = $this->attendance->summary($registration);
+            $eligible = in_array($registration->getStatus(), [StatusInscription::CONFIRME, StatusInscription::EN_COURS, StatusInscription::TERMINE, StatusInscription::ABSENT], true);
+            $copy = clone $registration;
+            $copy->setStatus(StatusInscription::TERMINE);
+            $certificate = $this->certificate->data($copy);
+            $outcome = !$eligible ? 'Exclu : inscription annulée ou non confirmée'
+                : ($summary['rate'] === null ? 'En attente : présences à compléter ou créneaux à venir'
+                : (!$certificate['ready'] ? 'En attente : durée suivie non justifiée'
+                : ($registration->getAttestation() ? 'Clôture · attestation existante conservée' : 'Clôture · attestation à générer')));
+            $rows[] = ['inscription'=>$registration, 'attendance'=>$summary, 'outcome'=>$outcome];
+        }
+        return $rows;
+    }
+
     public function close(Session $session, Utilisateur $actor): array
     {
         $files = [];

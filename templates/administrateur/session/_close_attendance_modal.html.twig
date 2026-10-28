@@ -23,6 +23,31 @@
         <p class="mb-0 opacity-75" id="closeAttendanceDescription">{{ session.code }} · {{ session.inscriptions|length }} inscription(s) à examiner</p>
       </div>
       <div class="modal-body px-4 py-3">
+        <h3 class="h6 fw-bold mt-2">Détail par stagiaire</h3>
+        <p class="small text-muted">État des présences à l’ouverture de cette page. Les données seront recalculées lors de la confirmation. Les compteurs ci-dessous sont en demi-journées.</p>
+        {% for row in closurePreview %}
+          {% set attendance = row.attendance %}
+          <article class="border rounded-4 p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+              <strong>{{ row.inscription.stagiaire.prenom }} {{ row.inscription.stagiaire.nom }}</strong>
+              <span class="badge text-bg-light border">Assiduité : {{ attendance.rate is not null ? attendance.rate|number_format(1, ',', ' ') ~ ' %' : 'Non calculable' }}</span>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3 small">
+              <span class="badge text-bg-success">{{ attendance.present }} présence(s)</span>
+              <span class="badge text-bg-danger">{{ attendance.absent }} absence(s)</span>
+              <span class="badge text-bg-secondary">{{ attendance.unknown }} non renseignée(s)</span>
+              {% if attendance.future %}<span class="badge text-bg-warning">{{ attendance.future }} à venir</span>{% endif %}
+            </div>
+            <p class="small mt-2 mb-2">{{ row.outcome }}</p>
+            <details><summary class="small fw-semibold">Voir les {{ attendance.total }} demi-journées</summary>
+              <ul class="list-unstyled small mt-2 mb-0">
+              {% for period in attendance.details %}
+                <li class="d-flex justify-content-between gap-3 border-bottom py-2 flex-wrap"><span>{{ period.date|date('d/m/Y') }} · {{ period.label }}</span><span>{{ period.state }}</span></li>
+              {% else %}<li>Aucun créneau planifié.</li>{% endfor %}
+              </ul>
+            </details>
+          </article>
+        {% else %}<p class="text-muted small">Aucune inscription à examiner.</p>{% endfor %}
         <div class="closure-step"><span class="closure-number">01</span><div><h3 class="h6 fw-bold mb-1">Calculer chaque assiduité</h3><p class="small text-muted mb-0">Les signatures et les présences papier renseignées sont prises en compte, ainsi que les absences déclarées.</p></div></div>
         <div class="closure-step"><span class="closure-number">02</span><div><h3 class="h6 fw-bold mb-1">Préparer les attestations PDF</h3><p class="small text-muted mb-0">Les inscriptions éligibles sont terminées et leurs attestations sont générées avec la durée réellement justifiée. Les attestations déjà délivrées sont conservées.</p></div></div>
         <div class="closure-step"><span class="closure-number">03</span><div><h3 class="h6 fw-bold mb-1">Clôturer le suivi</h3><p class="small text-muted mb-0">Les rappels d’émargement sont arrêtés. Les signatures restent accessibles. Le statut de la session et les résultats pédagogiques ne sont pas modifiés.</p></div></div>

@@ -56,6 +56,24 @@ final class InscriptionBatchTest extends KernelTestCase
         }
     }
 
+    public function testClosurePreviewDistinguishesAbsencesFromMissingAttendance(): void
+    {
+        $ins = $this->em->getRepository(Inscription::class)->findOneBy(['session'=>$this->internal]);
+        $calculator = self::getContainer()->get(\App\Service\AssiduiteCalculator::class);
+        $keys = array_keys($calculator->periods($ins));
+        $ins->enregistrerPresenceManuelle($keys[0], 'paper', 'Feuille', $this->admin);
+        $ins->enregistrerPresenceManuelle($keys[1], 'absent', 'Absence déclarée', $this->admin);
+        $ins->setTauxAssiduite(90);
+        $summary = $calculator->summary($ins);
+        self::assertSame(1, $summary['present']);
+        self::assertSame(1, $summary['absent']);
+        self::assertSame(count($keys)-2, $summary['unknown']);
+        self::assertNull($summary['rate']);
+        self::assertEquals(90, $ins->getTauxAssiduite(), 'Preview must not modify the stored rate.');
+        foreach (array_slice($keys, 2) as $key) $ins->enregistrerPresenceManuelle($key, 'paper', 'Feuille', $this->admin);
+        self::assertSame(75.0, $calculator->summary($ins)['rate']);
+    }
+
     public function testBulkStatusCloseAndDelete(): void
     {
         $numbers = $this->createMock(\App\Service\Sequence\AttestationNumberGenerator::class);
