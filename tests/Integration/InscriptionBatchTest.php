@@ -108,6 +108,28 @@ final class InscriptionBatchTest extends KernelTestCase
         self::assertSame(1, $repo->count([]));
     }
 
+    public function testClosureConfirmationScriptsAreNotConsumedByStyles(): void
+    {
+        $ins = $this->em->getRepository(Inscription::class)->findOneBy(['session' => $this->internal]);
+        $client = $this->client();
+        $crawler = $client->request('GET', self::getContainer()->get('router')->generate('app_administrateur_inscription_show', [
+            'entite' => $this->entite->getId(), 'id' => $ins->getId(),
+        ]));
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+
+        // A CSS "{#" sequence is a valid Twig comment opener: linting alone cannot detect
+        // that it swallowed </style> and turned the modal's scripts into CSS text.
+        self::assertCount(1, $crawler->filter('script[src*="bootstrap.bundle"]'));
+        $scripts = implode("\n", $crawler->filter('script:not([src])')->each(fn($node) => $node->text()));
+        self::assertStringContainsString("getElementById('close-inscription-form')", $scripts);
+        $styles = implode("\n", $crawler->filter('style')->each(fn($node) => $node->text()));
+        self::assertStringNotContainsString('<script', $styles);
+        self::assertCount(1, $crawler->filter('#close-inscription-form button[data-bs-target="#closeInscriptionModal"]'));
+        self::assertCount(1, $crawler->filter('#closeInscriptionModal button[type="submit"][form="close-inscription-form"]'));
+        self::assertSame('post', $crawler->filter('#close-inscription-form')->attr('method'));
+        self::assertNotEmpty($crawler->filter('#close-inscription-form input[name="_token"]')->attr('value'));
+    }
+
     public function testManualAttendanceAndUnknownRate(): void
     {
         $calculator = self::getContainer()->get(\App\Service\AssiduiteCalculator::class);
