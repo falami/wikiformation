@@ -47,6 +47,23 @@ final class PlatformDashboardTest extends WebTestCase
         $r->paid=$r->ttc=$paid; $r->ht=(int)round($paid/1.2); $r->fee=100; $r->label='=unsafe spreadsheet';
         $this->em->persist($r); return $r;
     }
+    public function testAccountBreakdownReconcilesOtherRolesAndOverlaps(): void
+    {
+        $membership = $this->em->getRepository(\App\Entity\UtilisateurEntite::class)->findOneBy(['utilisateur'=>$this->user, 'entite'=>$this->a]);
+        foreach ([
+            [['TENANT_ADMIN', 'TENANT_FORMATEUR', 'TENANT_STAGIAIRE'], 0, 2],
+            [['TENANT_ENTREPRISE'], 1, 0],
+        ] as [$roles, $others, $overlaps]) {
+            $membership->setRoles($roles);
+            $this->em->flush();
+            $data = self::getContainer()->get(Overview::class)->build('2026-10', '2026-10');
+            $row = array_values(array_filter($data['roster'], fn ($r) => $r['id'] === $this->a->getId()))[0];
+            self::assertSame($others, $row['others']);
+            self::assertSame($overlaps, $row['roleOverlaps']);
+            self::assertSame($row['accounts'], $row['admins'] + $row['trainers'] + $row['learners'] + $row['others'] - $row['roleOverlaps']);
+        }
+    }
+
     public function testTotalsFiltersAndUnknownAmounts(): void
     {
         $this->revenue('in_alpha',$this->a,12000);

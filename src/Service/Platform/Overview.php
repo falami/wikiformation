@@ -34,7 +34,7 @@ final class Overview
                 'location'=>trim(($e->getVille() ?? '').' · '.($e->getPays() ?? ''), ' ·'),
                 'source'=>$sources[$e->getId()] ?? 'Origine non enregistrée', 'plan'=>$s?->getPlan()?->getName() ?? 'Sans offre',
                 'status'=>$s?->getStatus() ?? 'Aucun', 'interval'=>$s?->getIntervale() ?? '',
-                'renewal'=>$s?->getCurrentPeriodEnd(), 'accounts'=>0,'admins'=>0,'trainers'=>0,'learners'=>0,
+                'renewal'=>$s?->getCurrentPeriodEnd(), 'accounts'=>0,'admins'=>0,'trainers'=>0,'learners'=>0,'others'=>0,'roleOverlaps'=>0,
                 'mrr'=>$s?->getStatus() === 'active' && $price !== null ? (int)round($price / ($s->getIntervale() === 'year' ? 12 : 1)) : 0,
                 'revenue'=>0];
         }
@@ -44,8 +44,11 @@ final class Overview
         foreach ($members as $m) {
             if (!isset($roster[$m['tenant']])) continue;
             ++$roster[$m['tenant']]['accounts'];
+            $matches = 0;
             foreach (['TENANT_ADMIN'=>'admins','TENANT_FORMATEUR'=>'trainers','TENANT_STAGIAIRE'=>'learners'] as $role=>$key)
-                if (in_array($role, $m['roles'], true)) ++$roster[$m['tenant']][$key];
+                if (in_array($role, $m['roles'], true)) { ++$roster[$m['tenant']][$key]; ++$matches; }
+            if ($matches === 0) ++$roster[$m['tenant']]['others'];
+            $roster[$m['tenant']]['roleOverlaps'] += max(0, $matches - 1);
         }
         $rows = []; $excluded = 0; $lastSync = null;
         $add = function(string $type, int $tenant, \DateTimeImmutable $date, string $label, ?int $ht, int $ttc, ?int $fees, string $state) use (&$rows, $roster, $activity, $entity): void {

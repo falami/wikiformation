@@ -53,10 +53,7 @@ final class ConventionSignaturePdf
                         $output->Rect($x - 2, $y - 12, 80, 17, 'F');
                         $center = $x + 27;
                         $output->Image($imageFile, $center - $width / 2, $y + 3 + (56 - $height) / 2, $width, $height, 'PNG');
-                        $output->SetFont('Helvetica', '', 8);
-                        $output->SetTextColor(90, 112, 130);
-                        $output->SetXY($center - 105, $y + 63);
-                        $output->Cell(210, 10, 'Signe le '.$signedAt->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y H:i'), 0, 0, 'C');
+                        // Signature timestamps remain in the audit data, not on the document.
                     }
                 }
                 return $output->Output('S');
