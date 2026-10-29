@@ -36,7 +36,7 @@ final class HabilitationController extends AbstractController
     public function index(#[MapEntity(id: 'entite')] Entite $entite, Request $request, \App\Service\Entreprise\EntreprisePortalContext $portal): Response
     {
         $this->member($entite); $u = $this->getUser(); $admin = $this->admin($entite);
-        $trainer = $this->isGranted(P::FORMATEUR, $entite); $company = $this->isGranted(P::ENTREPRISE, $entite); $student = $this->isGranted(P::STAGIAIRE, $entite);
+        $trainer = $this->isGranted(P::FORMATEUR, $entite); $company = $this->isGranted(P::HABILITATION_ENTREPRISE, $entite); $student = $this->isGranted(P::STAGIAIRE, $entite);
         if (!$admin && !$trainer && !$company && !$student) throw $this->createAccessDeniedException();
         $sync = ($admin || $trainer) ? $this->assignments->synchronize($entite) : ['created'=>0, 'incomplete'=>0];
         $sessionId = max(0, $request->query->getInt('session'));
@@ -47,8 +47,8 @@ final class HabilitationController extends AbstractController
             $allowed = [];
             if ($trainer) { $allowed[] = '(d.formateur = :me OR :me MEMBER OF d.formateurs)'; $qb->setParameter('me', $u); }
             if ($company) {
-                $companies = $portal->companies($u, $entite);
-                if ($request->query->has('entreprise')) $companies = [$portal->resolve($u, $entite)];
+                $companies = $portal->representedCompanies($u, $entite);
+                if ($request->query->has('entreprise')) $companies = [$portal->resolve($u, $entite, true)];
                 if ($companies) {
                     $allowed[] = "(d.entreprise IN (:companies) AND i.entite = :e AND s.entite = :e AND d.avisToken IS NOT NULL AND d.state IN ('awaiting_company', 'published'))";
                     $qb->setParameter('companies', $companies);
@@ -281,7 +281,7 @@ final class HabilitationController extends AbstractController
         if ($d->getEntite()->getId() !== $e->getId()) throw $this->createNotFoundException();
         $u = $this->getUser(); $admin = $this->admin($e);
         $trainer = $this->isGranted(P::FORMATEUR, $e) && $d->isAssignedTo($u);
-        $company = $this->isGranted(P::ENTREPRISE, $e) && \App\Service\Entreprise\EntreprisePortalContext::canRepresent($u, $d->getEntreprise());
+        $company = $this->isGranted(P::HABILITATION_ENTREPRISE, $e) && \App\Service\Entreprise\EntreprisePortalContext::isRepresentative($u, $d->getEntreprise());
         $student = $this->isGranted(P::STAGIAIRE, $e) && $d->getInscription()->getStagiaire()->getId() === $u->getId() && $d->getState() === 'published';
         if (!$admin && ((!$d->getActive() || $d->getDeleted()) || (!$trainer && !($company && $d->getAvisToken() && in_array($d->getState(), ['awaiting_company', 'published'], true)) && !$student))) throw $this->createAccessDeniedException();
         return compact('admin', 'trainer', 'company', 'student');
@@ -298,8 +298,8 @@ final class HabilitationController extends AbstractController
     public function companyTitle(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, Request $request,
         \App\Service\Entreprise\EntreprisePortalContext $portal, \App\Service\Entreprise\EntrepriseHabilitations $documents): Response
     {
-        $this->denyAccessUnlessGranted(P::ENTREPRISE_DOCUMENTS_MANAGE, $entite);
-        $entreprise = $portal->resolve($this->getUser(), $entite);
+        $this->denyAccessUnlessGranted(P::HABILITATION_ENTREPRISE, $entite);
+        $entreprise = $portal->resolve($this->getUser(), $entite, true);
         if (!$documents->available($dossier, $entite, $entreprise) || !$documents->current($dossier, 'avis')) throw $this->createNotFoundException();
         // Even an administrator uses the employer's limited, independent copy here.
         return $this->editDossier($entite, $dossier, $request, ['admin'=>false, 'trainer'=>false, 'company'=>true, 'student'=>false], $entreprise);
@@ -314,7 +314,7 @@ final class HabilitationController extends AbstractController
         $stage = $request->query->getString('stage', $rights['company'] && !$rights['trainer'] && !$rights['admin'] ? 'titre' : 'avis');
         if (!in_array($stage, ['avis', 'titre'], true)) throw $this->createNotFoundException();
         if ($stage === 'titre' && !$rights['admin'] && !$rights['company'] && !$rights['student']) throw $this->createAccessDeniedException();
-        $editable = ($rights['admin'] || ($stage === 'avis' ? $rights['trainer'] : $rights['company'])) && $dossier->getActive() && !$dossier->getDeleted() && ($stage === 'avis' || ($dossier->getAvisToken() && in_array($dossier->getState(), ['awaiting_company', 'published'], true)));
+        $editable = ($stage === 'avis' ? ($rights['admin'] || $rights['trainer']) : $rights['company']) && $dossier->getActive() && !$dossier->getDeleted() && ($stage === 'avis' || ($dossier->getAvisToken() && in_array($dossier->getState(), ['awaiting_company', 'published'], true)));
         $canSign = $stage === 'avis' ? $rights['trainer'] : $rights['company'];
         $data = $stage === 'avis' ? $dossier->getTrainerData() : $dossier->getEmployerData();
         $error = null;

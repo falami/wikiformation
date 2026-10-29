@@ -33,6 +33,14 @@ final class TenantVoter extends Voter
     /** @var Entite $entite */
     $entite = $subject;
 
+    // Employer decisions require an active company membership, even for a superadmin.
+    if ($attribute === TenantPermission::HABILITATION_ENTREPRISE) {
+      $membership = $this->ueRepo->findOneBy(['utilisateur' => $user, 'entite' => $entite]);
+      return $membership instanceof UtilisateurEntite && $membership->isActive()
+        && $membership->hasRole(UtilisateurEntite::TENANT_ENTREPRISE)
+        && count($this->portal->representedCompanies($user, $entite)) > 0;
+    }
+
     // ✅ Super admin : tout OK SAUF ENTREPRISE (optionnel mais recommandé)
     if ($user->isSuperAdmin()) {
       if ($attribute === TenantPermission::ENTREPRISE) {

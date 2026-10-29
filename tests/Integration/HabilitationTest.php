@@ -34,7 +34,7 @@ final class HabilitationTest extends KernelTestCase
         $plan = (new \App\Entity\Billing\Plan())->setCode('HABILITATION')->setName('Isolation fixture')->setMaxApprenantsAn(50)->setMaxUtilisateurs(1)->setMaxFormateurs(2)->setMaxEntreprises(2)->setMaxProspects(50);
         $this->em->persist($plan);
         $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($this->tenant)->setStatus('active')->setPlan($plan));
-        $company=(new Entreprise())->setEntite($this->tenant)->setRaisonSociale('Entreprise exemple')->setCreateur($this->admin);$this->em->persist($company);$this->employer->setEntreprise($company);
+        $company=(new Entreprise())->setEntite($this->tenant)->setRaisonSociale('Entreprise exemple')->setRepresentant($this->employer)->setCreateur($this->admin);$this->em->persist($company);$this->employer->setEntreprise($company);
         $template=(new HabilitationTemplate())->setEntite($this->tenant)->setTitre('Évaluation électrique')->setSchema((new HabilitationSchema())->example());$this->em->persist($template);
         $formation=(new Formation())->setTitre('Habilitation électrique')->setSlug('habilitation-test')->setEntite($this->tenant)->setCreateur($this->admin)->setHabilitationTemplate($template);$this->em->persist($formation);
         $f=(new Formateur())->setUtilisateur($this->trainer)->setEntite($this->tenant)->setCreateur($this->admin);$this->em->persist($f);
@@ -352,6 +352,98 @@ final class HabilitationTest extends KernelTestCase
         $this->expectException(\InvalidArgumentException::class);
         $workflow->initialEmployerData($this->dossier);
     }
+    public function testCompanyRoleWithoutExplicitRepresentationCannotEditOwnHabilitation(): void
+    {
+        $this->sign('avis'); $this->sign('titre');
+        $company = $this->dossier->getEntreprise();
+        $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy([
+            'utilisateur'=>$this->trainee, 'entite'=>$this->tenant,
+        ]);
+        $this->client->catchExceptions(true);
+        foreach ([null, $company] as $attachedCompany) {
+            $this->trainee = $this->em->find(Utilisateur::class, $this->trainee->getId());
+            $membership = $this->em->find(UtilisateurEntite::class, $membership->getId());
+            $this->trainee->setEntreprise($attachedCompany ? $this->em->find(Entreprise::class, $attachedCompany->getId()) : null);
+            $membership->setRoles(['TENANT_ENTREPRISE']);
+            $this->em->flush();
+            $this->client->loginUser($this->trainee);
+            foreach ([$this->url(), $this->show(), $this->show('?stage=titre'), $this->show('/entreprise').'?entreprise='.$company->getId()] as $url) {
+                $this->client->request('GET', $url);
+                self::assertSame(403, $this->client->getResponse()->getStatusCode());
+            }
+            // Keeping the trainee role grants personal read access, never employer editing rights.
+            $membership = $this->em->find(UtilisateurEntite::class, $membership->getId());
+            $membership->setRoles(['TENANT_ENTREPRISE', 'TENANT_STAGIAIRE']);
+            $this->em->flush();
+            $this->client->loginUser($this->trainee);
+            foreach (['avis', 'titre'] as $stage) {
+                $url = $this->show('?stage='.$stage);
+                $page = $this->client->request('GET', $url);
+                self::assertSame(200, $this->client->getResponse()->getStatusCode());
+                self::assertCount(1, $page->filter('#hab-evaluation > fieldset[disabled]'));
+                self::assertCount(0, $page->filter('#hab-evaluation button[name="action"]'));
+                $token = $page->filter('#hab-evaluation input[name="_token"]')->attr('value');
+                foreach (['save', 'sign'] as $action) {
+                    $this->client->request('POST', $url, ['_token'=>$token, '_complete'=>'1',
+                        'version'=>$this->dossier->getVersion(), 'action'=>$action, 'data'=>$this->input()]);
+                    self::assertSame(403, $this->client->getResponse()->getStatusCode());
+                }
+            }
+        }
+        // Removing representation immediately revokes an existing employer's access,
+        // even when the primary company association remains.
+        $company = $this->em->find(Entreprise::class, $company->getId());
+        $company->setRepresentant(null);
+        $this->em->flush();
+        $this->client->loginUser($this->employer);
+        $this->client->request('GET', $this->show('/entreprise').'?entreprise='.$company->getId());
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->request('GET', $this->show('?stage=titre'));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
+    public function testCompanyAttachmentDoesNotLetTraineesOrAdminsEditEmployerTitles(): void
+    {
+        $this->sign('avis'); $this->sign('titre');
+        $company = $this->dossier->getEntreprise();
+        $this->trainee->setEntreprise($company);
+        $this->other->setEntreprise($company);
+        $this->admin->setEntreprise($company);
+        $this->em->flush();
+        $this->client->catchExceptions(true);
+        $before = $this->dossier->getEmployerData();
+        foreach ([$this->trainee, $this->admin] as $user) {
+            $this->client->loginUser($user);
+            $page = $this->client->request('GET', $this->show('?stage=titre'));
+            self::assertSame(200, $this->client->getResponse()->getStatusCode());
+            $token = $page->filter('#hab-evaluation input[name="_token"]')->attr('value');
+            foreach (['save', 'sign'] as $action) {
+                $this->client->request('POST', $this->show('?stage=titre'), [
+                    '_token'=>$token, '_complete'=>'1', 'action'=>$action,
+                    'version'=>$this->dossier->getVersion(), 'data'=>$this->input(),
+                ]);
+                self::assertSame(403, $this->client->getResponse()->getStatusCode());
+            }
+            $this->client->request('GET', $this->show('/entreprise').'?entreprise='.$company->getId());
+            self::assertSame(403, $this->client->getResponse()->getStatusCode());
+            $base = '/fr/entreprise/'.$this->tenant->getId().'/documents/habilitations';
+            $this->client->request('POST', $base.'/avis/ajax?entreprise='.$company->getId());
+            self::assertSame(403, $this->client->getResponse()->getStatusCode());
+            $this->client->request('GET', $base.'/'.$this->dossier->getId().'/avis/pdf?entreprise='.$company->getId());
+            self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        }
+        $this->client->loginUser($this->other);
+        $this->client->request('GET', $this->show('?stage=titre'));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertSame($before, $this->dossier->getEmployerData());
+        $this->admin->setRoles(['ROLE_SUPER_ADMIN']);
+        $this->em->flush();
+        $voter = self::getContainer()->get(\App\Security\Voter\TenantVoter::class);
+        $token = new \Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken($this->admin, 'main', $this->admin->getRoles());
+        self::assertSame(-1, $voter->vote($token, $this->tenant, [\App\Security\Permission\TenantPermission::HABILITATION_ENTREPRISE]));
+
+    }
+
     public function testUnrelatedTraineeCannotReadOrSign(): void {
         $this->sign('avis');$this->sign('titre');$this->client->catchExceptions(true);$this->client->loginUser($this->other);$this->client->request('GET',$this->show());self::assertSame(403,$this->client->getResponse()->getStatusCode());$this->client->request('GET',$this->show('/document/'.$this->dossier->getTitreToken()));self::assertSame(403,$this->client->getResponse()->getStatusCode());
     }

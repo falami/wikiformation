@@ -43,7 +43,10 @@
 <div class="hab-steps"><a class="{{ stage == 'avis' ? 'selected' }}" {% if stage == 'avis' %}aria-current="step"{% endif %} href="{{ path(editorRoute, editorParams|merge({stage: 'avis'})) }}"><b>01</b> Avis post-formation {{ dossier.avisToken ? '✓' }}</a>{% if rights.admin or rights.company or rights.student %}<a class="{{ stage == 'titre' ? 'selected' }}" {% if stage == 'titre' %}aria-current="step"{% endif %} href="{{ path(editorRoute, editorParams|merge({stage: 'titre'})) }}"><b>02</b> Titre de l’employeur {{ dossier.titreToken ? '✓' }}</a>{% endif %}</div>
 {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
 <div class="hab-layout"><main>
-{% if stage == 'titre' and dossier.avisToken %}
+{% if not editable %}
+<div class="hab-note"><i class="bi bi-lock" aria-hidden="true"></i><div><strong>Consultation uniquement</strong><br>Vous ne pouvez pas modifier ce document. Le titre est établi par le représentant de l’entreprise disposant du rôle Entreprise.</div></div>
+{% endif %}
+{% if stage == 'titre' and dossier.avisToken and editable %}
 <section class="hab-company-intro" aria-labelledby="employer-copy-title">
   <div class="hab-eyebrow">VOTRE DÉCISION · UN DOCUMENT DISTINCT</div>
   <h2 id="employer-copy-title">Établissez le titre de votre salarié.</h2>

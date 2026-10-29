@@ -8,6 +8,7 @@ final class TenantPermission
 
   public const PREMIUM_MANAGE = 'PREMIUM_MANAGE';
 
+  public const HABILITATION_ENTREPRISE = 'HABILITATION_ENTREPRISE';
   public const ENTREPRISE_DOCUMENTS_MANAGE = 'ENTREPRISE_DOCUMENTS_MANAGE';
   public const DASHBOARD_ENTREPRISE_MANAGE = 'DASHBOARD_ENTREPRISE_MANAGE';
   public const CONVENTION_SIGNATURE_ENTREPRISE_MANAGE = 'CONVENTION_SIGNATURE_ENTREPRISE_MANAGE';
@@ -144,6 +145,7 @@ final class TenantPermission
    *   return $subject instanceof Entite && in_array($attribute, TenantPermission::ALL, true);
    */
   public const ALL = [
+    self::HABILITATION_ENTREPRISE,
     self::ENTREPRISE_DOCUMENTS_MANAGE,
     self::DASHBOARD_ENTREPRISE_MANAGE,
     self::CONVENTION_SIGNATURE_ENTREPRISE_MANAGE,

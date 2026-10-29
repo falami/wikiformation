@@ -22,6 +22,19 @@ final class EntreprisePortalContext
         );
     }
 
+    public static function isRepresentative(Utilisateur $user, ?Entreprise $company): bool
+    {
+        return $user->getId() !== null && $company?->getRepresentant()?->getId() === $user->getId();
+    }
+
+    /** @return list<Entreprise> */
+    public function representedCompanies(Utilisateur $user, Entite $tenant): array
+    {
+        return $this->em->getRepository(Entreprise::class)->findBy(
+            ['entite' => $tenant, 'representant' => $user], ['raisonSociale' => 'ASC']
+        );
+    }
+
     /** @return list<Entreprise> */
     public function companies(Utilisateur $user, Entite $tenant): array
     {
@@ -34,10 +47,10 @@ final class EntreprisePortalContext
         return $companies;
     }
 
-    public function resolve(Utilisateur $user, Entite $tenant): Entreprise
+    public function resolve(Utilisateur $user, Entite $tenant, bool $representativesOnly = false): Entreprise
     {
         $request = $this->requests->getCurrentRequest();
-        $companies = $this->companies($user, $tenant);
+        $companies = $representativesOnly ? $this->representedCompanies($user, $tenant) : $this->companies($user, $tenant);
         $key = 'enterprise_portal.'.$tenant->getId().'.'.$user->getId();
         $explicit = $request?->query->has('entreprise') ?? false;
         $id = $explicit ? $request->query->getInt('entreprise') : ($request?->hasSession() ? $request->getSession()->get($key) : null);

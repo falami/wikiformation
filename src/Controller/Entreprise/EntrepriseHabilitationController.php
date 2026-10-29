@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/entreprise/{entite}/documents/habilitations', name: 'app_entreprise_documents_habilitation_', requirements: ['entite'=>'\d+'])]
-#[IsGranted(TenantPermission::ENTREPRISE_DOCUMENTS_MANAGE, subject: 'entite')]
+#[IsGranted(TenantPermission::HABILITATION_ENTREPRISE, subject: 'entite')]
 final class EntrepriseHabilitationController extends AbstractController
 {
     public function __construct(private EntreprisePortalContext $portal, private EntrepriseHabilitations $documents) {}
@@ -24,7 +24,7 @@ final class EntrepriseHabilitationController extends AbstractController
     #[Route('/avis/ajax', name: 'avis_ajax', methods: ['POST'])]
     public function opinions(Entite $entite, Request $request): JsonResponse
     {
-        $company = $this->portal->resolve($this->getUser(), $entite);
+        $company = $this->portal->resolve($this->getUser(), $entite, true);
         $search = $request->request->all('search')['value'] ?? '';
         if (!is_string($search)) throw new BadRequestHttpException('La recherche doit être un texte.');
         $order = $request->request->all('order')[0] ?? [];
@@ -61,7 +61,7 @@ final class EntrepriseHabilitationController extends AbstractController
     #[Route('/{id}/{kind}/pdf', name: 'pdf', methods: ['GET'], requirements: ['id'=>'\d+', 'kind'=>'avis|titre'])]
     public function pdf(Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $kind, HabilitationDocument $renderer): Response
     {
-        $company = $this->portal->resolve($this->getUser(), $entite);
+        $company = $this->portal->resolve($this->getUser(), $entite, true);
         if (!$this->documents->available($dossier, $entite, $company) || !$this->documents->current($dossier, 'avis')) throw $this->createNotFoundException();
         $revision = $this->documents->current($dossier, $kind);
         if (!$revision) throw $this->createNotFoundException();
