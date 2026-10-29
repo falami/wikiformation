@@ -2,6 +2,17 @@
   'use strict';
   if (window.WikiExternalVideo) return;
   window.WikiExternalVideo = true;
+  const key = 'wiki.external.video.v1.' + (document.currentScript?.dataset.videoUser || 'anonymous');
+  const read = () => {
+    try { const p = JSON.parse(localStorage.getItem(key)); return p?.expires > Date.now() && p.choice === 'allow'; }
+    catch (_) { return false; }
+  };
+  let automatic = read();
+  const renderPreference = () => {
+    const status = document.querySelector('[data-video-status]');
+    if (status) status.textContent = automatic ? 'Affichage automatique activé dans ce navigateur.' : 'Les vidéos sont chargées uniquement sur clic.';
+    document.querySelectorAll('[data-video-choice]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.videoChoice === 'allow') === automatic)));
+  };
   const resolve = raw => {
     const url = new URL(raw, window.location?.origin);
     if ((url.protocol !== 'https:' && !(url.origin === window.location?.origin && url.protocol === 'http:')) || url.username || url.password) throw new Error();
@@ -33,11 +44,12 @@
       const provider = resolve(video.dataset.videoSrc);
       const link = video.querySelector('[data-video-policy]');
       if (provider.policy) { link.href = provider.policy; link.hidden = false; }
+      if (automatic) load(video);
     } catch (_) {
       video.querySelector('[data-video-error]').textContent = 'Ce fournisseur vidéo n’est pas pris en charge. Contactez votre organisme.';
     }
   });
-  document.addEventListener('DOMContentLoaded', decorate);
+  document.addEventListener('DOMContentLoaded', () => { renderPreference(); decorate(); });
   document.addEventListener('turbo:load', decorate);
   document.addEventListener('click', event => {
     const close = event.target.closest?.('[data-close-external-video]');
@@ -45,7 +57,9 @@
     const button = event.target.closest?.('[data-load-external-video]');
     if (!button) return;
     event.preventDefault();
-    const video = button.closest('[data-external-video]');
+    load(button.closest('[data-external-video]'));
+  });
+  function load(video) {
     const canvas = video.querySelector('[data-video-canvas]');
     if (canvas.childElementCount) return;
     try {
@@ -65,6 +79,23 @@
     } catch (_) {
       video.querySelector('[data-video-error]').textContent = 'Vidéo indisponible : fournisseur ou adresse non pris en charge.';
     }
+  }
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-video-choice]');
+    if (!button) return;
+    automatic = button.dataset.videoChoice === 'allow';
+    let stored = true;
+    try { localStorage.setItem(key, JSON.stringify({choice: automatic ? 'allow' : 'deny', expires: Date.now() + 180 * 86400000})); }
+    catch (_) { stored = false; }
+    renderPreference();
+    if (!stored) document.querySelector('[data-video-status]').textContent = 'Votre navigateur ne permet pas de mémoriser ce choix. Il ne s’applique qu’à cette page.';
+    if (automatic) decorate();
+    else document.querySelectorAll('[data-external-video]').forEach(reset);
+  });
+  window.addEventListener('storage', event => {
+    if (event.key !== key && event.key !== null) return;
+    automatic = read(); renderPreference();
+    if (automatic) decorate(); else document.querySelectorAll('[data-external-video]').forEach(reset);
   });
   document.addEventListener('turbo:before-cache', () => document.querySelectorAll('[data-external-video]').forEach(reset));
 })();
