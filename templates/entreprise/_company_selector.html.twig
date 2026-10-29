@@ -1,5 +1,5 @@
 <div class="card border-0 shadow-sm mb-4 p-3">
-  <form method="get" class="d-flex flex-wrap align-items-center gap-3">
+  <form {% if enterpriseContext|default(false) %}action="{{ path('app_entreprise_documents_habilitation_index', {entite:entite.id}) }}"{% endif %} method="get" class="d-flex flex-wrap align-items-center gap-3">
     <label for="portal-company" class="fw-bold mb-0"><i class="bi bi-building me-2"></i>Entreprise consultée</label>
     <select id="portal-company" name="entreprise" class="form-select w-auto" onchange="this.form.submit()">
       {% for company in entreprisesDisponibles %}
@@ -10,5 +10,8 @@
     <span class="text-muted ms-auto">Organisme de formation : {{ entite.nom }}</span>
     <a class="btn btn-outline-secondary" href="{{ path('app_entreprise_dashboard', {entite: entite.id, entreprise: entreprise.id}) }}">Salariés & sessions</a>
     <a class="btn btn-outline-secondary" href="{{ path('app_entreprise_documents_index', {entite: entite.id, entreprise: entreprise.id}) }}">Documents</a>
+  {% if is_granted('ENTITE_ENTREPRISE', entite) %}
+    <a class="btn btn-outline-secondary" href="{{ path('app_entreprise_documents_habilitation_index', {entite: entite.id, entreprise: entreprise.id}) }}">Habilitations</a>
+    {% endif %}
   </form>
 </div>

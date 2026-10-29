@@ -217,7 +217,7 @@ final class HabilitationTest extends KernelTestCase
         self::assertSame(302, $this->client->getResponse()->getStatusCode());
         $this->client->loginUser($this->employer);
         $page = $this->client->request('GET', $this->url());
-        self::assertStringContainsString('Attestation PDF', $page->text());
+        self::assertStringContainsString('Avis post-formation PDF', $page->text());
         $this->client->request('GET', $url);
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertStringStartsWith('%PDF', $this->client->getResponse()->getContent());
@@ -352,6 +352,32 @@ final class HabilitationTest extends KernelTestCase
         $this->expectException(\InvalidArgumentException::class);
         $workflow->initialEmployerData($this->dossier);
     }
+    public function testTraineeCanReadTransmittedOpinionBeforeEmployerSignsTitle(): void
+    {
+        $avis = $this->sign('avis');
+        $this->em->persist(self::getContainer()->get(HabilitationWorkflow::class)->transmit($this->dossier, $this->admin));
+        $this->em->flush();
+        $this->client->catchExceptions(true);
+        $this->client->loginUser($this->trainee);
+        $page = $this->client->request('GET', $this->url());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('SES-TEST', $page->text());
+        $page = $this->client->request('GET', $this->show());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertCount(1, $page->filter('#hab-evaluation > fieldset[disabled]'));
+        self::assertCount(0, $page->filter('#hab-evaluation button[name="action"]'));
+        $token = $page->filter('#hab-evaluation input[name="_token"]')->attr('value');
+        $this->client->request('POST', $this->show(), ['_token'=>$token, '_complete'=>'1', 'action'=>'save', 'data'=>$this->input()]);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->request('GET', $this->show('/document/'.$avis->getToken()));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $this->client->request('GET', $this->show('?stage=titre'));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->loginUser($this->other);
+        $this->client->request('GET', $this->show());
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
     public function testCompanyRoleWithoutExplicitRepresentationCannotEditOwnHabilitation(): void
     {
         $this->sign('avis'); $this->sign('titre');

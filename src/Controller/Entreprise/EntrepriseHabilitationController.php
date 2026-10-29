@@ -16,15 +16,32 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/entreprise/{entite}/documents/habilitations', name: 'app_entreprise_documents_habilitation_', requirements: ['entite'=>'\d+'])]
-#[IsGranted(TenantPermission::HABILITATION_ENTREPRISE, subject: 'entite')]
+#[IsGranted(TenantPermission::ENTREPRISE, subject: 'entite')]
 final class EntrepriseHabilitationController extends AbstractController
 {
     public function __construct(private EntreprisePortalContext $portal, private EntrepriseHabilitations $documents) {}
 
+    #[Route('', name: 'index', methods: ['GET'])]
+    public function index(Entite $entite, Request $request): Response
+    {
+        $entreprise = $this->portal->resolve($this->getUser(), $entite);
+        $page = max(1, $request->query->getInt('page', 1));
+        $q = mb_substr(trim($request->query->getString('q')), 0, 100);
+        $results = $this->documents->opinionPage($entite, $entreprise, $q, ($page - 1) * 30, 30, 3, 'desc');
+        $response = $this->render('entreprise/habilitations.html.twig', [
+            'entite'=>$entite, 'entreprise'=>$entreprise,
+            'entreprisesDisponibles'=>$this->portal->companies($this->getUser(), $entite),
+            'results'=>$results, 'page'=>$page, 'q'=>$q,
+            'canManage'=>$this->isGranted(TenantPermission::HABILITATION_ENTREPRISE, $entite) && EntreprisePortalContext::isRepresentative($this->getUser(), $entreprise),
+        ]);
+        $response->headers->set('Cache-Control', 'private, no-store');
+        return $response;
+    }
+
     #[Route('/avis/ajax', name: 'avis_ajax', methods: ['POST'])]
     public function opinions(Entite $entite, Request $request): JsonResponse
     {
-        $company = $this->portal->resolve($this->getUser(), $entite, true);
+        $company = $this->portal->resolve($this->getUser(), $entite);
         $search = $request->request->all('search')['value'] ?? '';
         if (!is_string($search)) throw new BadRequestHttpException('La recherche doit être un texte.');
         $order = $request->request->all('order')[0] ?? [];
@@ -48,7 +65,7 @@ final class EntrepriseHabilitationController extends AbstractController
             $titleUrl = $this->generateUrl('app_habilitation_company_title', $params);
             $title = $page['titles'][$d->getId()] ?? null;
             $actions = '<div class="d-flex flex-wrap gap-2 justify-content-end"><a class="btn btn-sm btn-outline-secondary" href="'.$escape($avisUrl).'"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Avis PDF</a>';
-            $actions .= '<a class="btn btn-sm btn-primary" href="'.$escape($titleUrl).'"><i class="bi bi-pen" aria-hidden="true"></i> '.($title ? 'Modifier le titre' : ($d->getEmployerData() ? 'Continuer le titre' : 'Préparer le titre')).'</a>';
+            if ($this->isGranted(TenantPermission::HABILITATION_ENTREPRISE, $entite) && EntreprisePortalContext::isRepresentative($this->getUser(), $company)) $actions .= '<a class="btn btn-sm btn-primary" href="'.$escape($titleUrl).'"><i class="bi bi-pen" aria-hidden="true"></i> '.($title ? 'Modifier le titre' : ($d->getEmployerData() ? 'Continuer le titre' : 'Préparer le titre')).'</a>';
             if ($title) $actions .= '<a class="btn btn-sm btn-outline-secondary" href="'.$escape($this->generateUrl('app_entreprise_documents_habilitation_pdf', $params + ['kind'=>'titre'])).'"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Titre PDF</a>';
             $data[] = ['stagiaire'=>$escape($person), 'formation'=>$escape($formation), 'session'=>$escape($session),
                 'validation'=>$r->getCreatedAt()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y à H:i').'<br><small class="text-muted">'.$escape($r->getSnapshot()['signer'] ?? '').'</small>',
@@ -61,7 +78,7 @@ final class EntrepriseHabilitationController extends AbstractController
     #[Route('/{id}/{kind}/pdf', name: 'pdf', methods: ['GET'], requirements: ['id'=>'\d+', 'kind'=>'avis|titre'])]
     public function pdf(Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $kind, HabilitationDocument $renderer): Response
     {
-        $company = $this->portal->resolve($this->getUser(), $entite, true);
+        $company = $this->portal->resolve($this->getUser(), $entite);
         if (!$this->documents->available($dossier, $entite, $company) || !$this->documents->current($dossier, 'avis')) throw $this->createNotFoundException();
         $revision = $this->documents->current($dossier, $kind);
         if (!$revision) throw $this->createNotFoundException();

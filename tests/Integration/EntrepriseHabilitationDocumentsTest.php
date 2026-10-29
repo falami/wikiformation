@@ -92,6 +92,80 @@ final class EntrepriseHabilitationDocumentsTest extends WebTestCase
         return $d;
     }
 
+    public function testCompanyHabilitationPageKeepsCompaniesSeparate(): void
+    {
+        $this->dossier($this->alpha, 'Alice');
+        $this->dossier($this->beta, 'Bruno');
+        $this->client->request('GET', $this->documentsUrl('/habilitations'));
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('SES-Alice', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('SES-Bruno', $this->client->getResponse()->getContent());
+        $this->client->request('GET', $this->documentsUrl('/habilitations', $this->beta));
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('SES-Bruno', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('SES-Alice', $this->client->getResponse()->getContent());
+    }
+
+    public function testTrainerViewOnlyShowsAssignedDossiers(): void
+    {
+        $mine = $this->dossier($this->alpha, 'Alice');
+        $other = $this->dossier($this->beta, 'Bruno');
+        $other->setFormateur($this->employer);
+        $this->em->flush();
+        $membership = $this->em->getRepository(UtilisateurEntite::class)->findOneBy(['utilisateur'=>$this->trainer, 'entite'=>$this->tenant]);
+        $membership->setRoles(['TENANT_FORMATEUR', 'TENANT_ADMIN']);
+        $this->em->flush();
+        $this->client->loginUser($this->trainer);
+        $url = '/fr/habilitation/'.$this->tenant->getId().'/formateur';
+        $this->client->request('GET', $url);
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('SES-Alice', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('SES-Bruno', $this->client->getResponse()->getContent());
+        $this->client->request('GET', $url.'/'.$mine->getId());
+        self::assertResponseIsSuccessful();
+        $this->client->catchExceptions(true);
+        $this->client->request('GET', $url.'/'.$other->getId());
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testStudentHasPersonalReadOnlyHabilitations(): void
+    {
+        $mine = $this->dossier($this->alpha, 'Alice');
+        $other = $this->dossier($this->beta, 'Bruno');
+        $student = $mine->getInscription()->getStagiaire();
+        $student->setEntite($this->tenant);
+        $this->em->persist((new UtilisateurEntite())->setEntite($this->tenant)->setUtilisateur($student)->setCreateur($this->employer)->setRoles(['TENANT_STAGIAIRE', 'TENANT_ADMIN'])->setStatus('active'));
+        $this->em->flush();
+        $this->client->loginUser($student);
+        $url = '/fr/habilitation/'.$this->tenant->getId().'/stagiaire';
+        $this->client->request('GET', $url);
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('SES-Alice', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('SES-Bruno', $this->client->getResponse()->getContent());
+        $page = $this->client->request('GET', $url.'/'.$mine->getId());
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, $page->filter('#hab-evaluation fieldset[disabled]')->count());
+        $this->client->catchExceptions(true);
+        $this->client->request('GET', $url.'/'.$other->getId());
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testCompanyConsultationDoesNotGrantSignatureRights(): void
+    {
+        $dossier = $this->dossier($this->alpha, 'Alice');
+        $this->employer->setEntreprise($this->alpha);
+        $this->alpha->setRepresentant($this->trainer);
+        $this->em->flush();
+        $page = $this->client->request('GET', $this->documentsUrl('/habilitations'));
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('SES-Alice', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('Gérer l’habilitation', $this->client->getResponse()->getContent());
+        self::assertGreaterThan(0, $page->filter('#entrepriseHabilitations')->count());
+        $this->client->catchExceptions(true);
+        $this->client->request('GET', $this->editorUrl($dossier));
+        self::assertResponseStatusCodeSame(403);
+    }
+
     private function documentsUrl(string $suffix = '', ?Entreprise $company = null): string
     {
         return '/fr/entreprise/'.$this->tenant->getId().'/documents'.$suffix.'?entreprise='.($company ?? $this->alpha)->getId();

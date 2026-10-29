@@ -32,11 +32,19 @@ final class HabilitationController extends AbstractController
     }
     private function base(Entite $e): array { return ['entite' => $e, 'isAdmin' => $this->admin($e)]; }
 
+    #[Route('/stagiaire', name: 'student_index', methods: ['GET'])]
+    #[Route('/formateur', name: 'trainer_index', methods: ['GET'])]
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(#[MapEntity(id: 'entite')] Entite $entite, Request $request, \App\Service\Entreprise\EntreprisePortalContext $portal): Response
     {
         $this->member($entite); $u = $this->getUser(); $admin = $this->admin($entite);
+        $studentContext = $request->attributes->get('_route') === 'app_habilitation_student_index';
+        $trainerContext = $request->attributes->get('_route') === 'app_habilitation_trainer_index';
+        if ($studentContext) { $this->denyAccessUnlessGranted(P::STAGIAIRE, $entite); $admin = false; }
+        if ($trainerContext) { $this->denyAccessUnlessGranted(P::FORMATEUR, $entite); $admin = false; }
         $trainer = $this->isGranted(P::FORMATEUR, $entite); $company = $this->isGranted(P::HABILITATION_ENTREPRISE, $entite); $student = $this->isGranted(P::STAGIAIRE, $entite);
+        if ($trainerContext) { $company = false; $student = false; }
+        if ($studentContext) { $company = false; $trainer = false; }
         if (!$admin && !$trainer && !$company && !$student) throw $this->createAccessDeniedException();
         $sync = ($admin || $trainer) ? $this->assignments->synchronize($entite) : ['created'=>0, 'incomplete'=>0];
         $sessionId = max(0, $request->query->getInt('session'));
@@ -54,7 +62,7 @@ final class HabilitationController extends AbstractController
                     $qb->setParameter('companies', $companies);
                 }
             }
-            if ($student) { $allowed[] = "(i.stagiaire = :student AND d.state = 'published')"; $qb->setParameter('student', $u); }
+            if ($student) { $allowed[] = "(i.stagiaire = :student AND d.avisToken IS NOT NULL AND d.state IN ('awaiting_company', 'published'))"; $qb->setParameter('student', $u); }
             $qb->andWhere($allowed ? '('.implode(' OR ', $allowed).')' : '1 = 0')->andWhere('d.active = true AND d.deleted = false');
         }
         if ($sessionId) $qb->andWhere('s.id = :session')->setParameter('session', $sessionId);
@@ -63,7 +71,7 @@ final class HabilitationController extends AbstractController
         $page = max(1, $request->query->getInt('page', 1));
         $rows = $qb->setFirstResult(($page - 1) * 30)->setMaxResults(31)->getQuery()->getResult();
         $more = count($rows) > 30;
-        return $this->privateRender('index', $this->base($entite) + ['dossiers' => array_slice($rows, 0, 30), 'canCreate' => $admin, 'sessionId' => $sessionId, 'sync' => $sync, 'q' => $q, 'page' => $page, 'more' => $more]);
+        return $this->privateRender('index', ['isAdmin'=>$admin, 'trainerContext'=>$trainerContext, 'studentContext'=>$studentContext, 'indexRoute'=>$trainerContext ? 'app_habilitation_trainer_index' : ($studentContext ? 'app_habilitation_student_index' : 'app_habilitation_index'), 'showRoute'=>$trainerContext ? 'app_habilitation_trainer_show' : ($studentContext ? 'app_habilitation_student_show' : 'app_habilitation_show')] + $this->base($entite) + ['dossiers' => array_slice($rows, 0, 30), 'canCreate' => $admin, 'sessionId' => $sessionId, 'sync' => $sync, 'q' => $q, 'page' => $page, 'more' => $more]);
     }
 
     #[Route('/attestations', name: 'attestations', methods: ['GET'])]
@@ -282,15 +290,25 @@ final class HabilitationController extends AbstractController
         $u = $this->getUser(); $admin = $this->admin($e);
         $trainer = $this->isGranted(P::FORMATEUR, $e) && $d->isAssignedTo($u);
         $company = $this->isGranted(P::HABILITATION_ENTREPRISE, $e) && \App\Service\Entreprise\EntreprisePortalContext::isRepresentative($u, $d->getEntreprise());
-        $student = $this->isGranted(P::STAGIAIRE, $e) && $d->getInscription()->getStagiaire()->getId() === $u->getId() && $d->getState() === 'published';
+        $student = $this->isGranted(P::STAGIAIRE, $e) && $d->getInscription()->getStagiaire()->getId() === $u->getId() && $d->getAvisToken() && in_array($d->getState(), ['awaiting_company', 'published'], true);
         if (!$admin && ((!$d->getActive() || $d->getDeleted()) || (!$trainer && !($company && $d->getAvisToken() && in_array($d->getState(), ['awaiting_company', 'published'], true)) && !$student))) throw $this->createAccessDeniedException();
         return compact('admin', 'trainer', 'company', 'student');
     }
 
+    #[Route('/stagiaire/{id}', name: 'student_show', methods: ['GET'], requirements: ['id' => '\d+'])]
+    #[Route('/formateur/{id}', name: 'trainer_show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
     #[Route('/{id}', name: 'show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
     public function show(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, Request $request): Response
     {
         $rights = $this->access($entite, $dossier);
+        if ($request->attributes->get('_route') === 'app_habilitation_student_show') {
+            if (!$rights['student'] || !$dossier->getActive() || $dossier->getDeleted()) throw $this->createAccessDeniedException();
+            $rights = ['admin'=>false, 'trainer'=>false, 'company'=>false, 'student'=>true];
+        }
+        if ($request->attributes->get('_route') === 'app_habilitation_trainer_show') {
+            if (!$rights['trainer'] || !$dossier->getActive() || $dossier->getDeleted()) throw $this->createAccessDeniedException();
+            $rights = ['admin'=>false, 'trainer'=>true, 'company'=>false, 'student'=>false];
+        }
         return $this->editDossier($entite, $dossier, $request, $rights);
     }
 
@@ -302,18 +320,22 @@ final class HabilitationController extends AbstractController
         $entreprise = $portal->resolve($this->getUser(), $entite, true);
         if (!$documents->available($dossier, $entite, $entreprise) || !$documents->current($dossier, 'avis')) throw $this->createNotFoundException();
         // Even an administrator uses the employer's limited, independent copy here.
-        return $this->editDossier($entite, $dossier, $request, ['admin'=>false, 'trainer'=>false, 'company'=>true, 'student'=>false], $entreprise);
+        $response = $this->editDossier($entite, $dossier, $request, ['admin'=>false, 'trainer'=>false, 'company'=>true, 'student'=>false], $entreprise, $portal->representedCompanies($this->getUser(), $entite));
+        return $response;
     }
 
-    private function editDossier(Entite $entite, HabilitationDossier $dossier, Request $request, array $rights, ?Entreprise $entreprise = null): Response
+    private function editDossier(Entite $entite, HabilitationDossier $dossier, Request $request, array $rights, ?Entreprise $entreprise = null, array $entreprisesDisponibles = []): Response
     {
+        $studentContext = $request->attributes->get('_route') === 'app_habilitation_student_show';
+        $trainerContext = $request->attributes->get('_route') === 'app_habilitation_trainer_show';
         $enterpriseContext = $entreprise !== null;
-        $showRoute = $enterpriseContext ? 'app_habilitation_company_title' : 'app_habilitation_show';
+        $showRoute = $enterpriseContext ? 'app_habilitation_company_title' : ($trainerContext ? 'app_habilitation_trainer_show' : ($studentContext ? 'app_habilitation_student_show' : 'app_habilitation_show'));
         $showRouteParams = ['entite'=>$entite->getId(), 'id'=>$dossier->getId()];
         if ($enterpriseContext) $showRouteParams['entreprise'] = $entreprise->getId();
         $stage = $request->query->getString('stage', $rights['company'] && !$rights['trainer'] && !$rights['admin'] ? 'titre' : 'avis');
         if (!in_array($stage, ['avis', 'titre'], true)) throw $this->createNotFoundException();
         if ($stage === 'titre' && !$rights['admin'] && !$rights['company'] && !$rights['student']) throw $this->createAccessDeniedException();
+        if ($stage === 'titre' && $rights['student'] && !$rights['admin'] && !$rights['company'] && !$dossier->getTitreToken()) throw $this->createAccessDeniedException('Le titre signé n’est pas encore disponible.');
         $editable = ($stage === 'avis' ? ($rights['admin'] || $rights['trainer']) : $rights['company']) && $dossier->getActive() && !$dossier->getDeleted() && ($stage === 'avis' || ($dossier->getAvisToken() && in_array($dossier->getState(), ['awaiting_company', 'published'], true)));
         $canSign = $stage === 'avis' ? $rights['trainer'] : $rights['company'];
         $data = $stage === 'avis' ? $dossier->getTrainerData() : $dossier->getEmployerData();
@@ -325,7 +347,7 @@ final class HabilitationController extends AbstractController
                 $trainerReference = $this->workflow->signedTrainerData($dossier);
                 $employerChoices = $this->schema->employerChoices($dossier->getSchema(), $trainerReference);
                 if ($stage === 'titre' && !$data) $data = $this->workflow->initialEmployerData($dossier);
-                if ($stage === 'avis' && $enterpriseContext) $data = $trainerReference;
+                if ($stage === 'avis' && ($enterpriseContext || ($rights['student'] && !$editable))) $data = $trainerReference;
             } catch (\InvalidArgumentException $e) {
                 if ($stage === 'titre' || $enterpriseContext) { $error = $e->getMessage(); $editable = false; }
             }
@@ -349,7 +371,7 @@ final class HabilitationController extends AbstractController
         }
         $revisions = $this->em->getRepository(HabilitationRevision::class)->findBy(['dossier' => $dossier], ['id' => 'DESC'], 100);
         $revisions = array_values(array_filter($revisions, fn ($r) => $this->visibleRevision($r, $dossier, $rights)));
-        $context = compact('dossier', 'rights', 'stage', 'editable', 'canSign', 'data', 'error', 'revisions', 'trainerReference', 'employerChoices', 'enterpriseContext', 'entreprise', 'showRoute', 'showRouteParams');
+        $context = compact('studentContext', 'entreprisesDisponibles', 'trainerContext', 'dossier', 'rights', 'stage', 'editable', 'canSign', 'data', 'error', 'revisions', 'trainerReference', 'employerChoices', 'enterpriseContext', 'entreprise', 'showRoute', 'showRouteParams');
         if ($enterpriseContext) {
             $context['avisPdfUrl'] = $this->generateUrl('app_entreprise_documents_habilitation_pdf', $showRouteParams + ['kind'=>'avis']);
             $context['titrePdfUrl'] = $dossier->getTitreToken() ? $this->generateUrl('app_entreprise_documents_habilitation_pdf', $showRouteParams + ['kind'=>'titre']) : null;

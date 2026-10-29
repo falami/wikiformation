@@ -982,7 +982,8 @@
 			</a>
 		</li>
 
-			<li class="wn-section-label" role="presentation"><span>Habilitations électriques</span></li>
+			{% if canAdmin %}
+<li class="wn-section-label" role="presentation"><span>Habilitations électriques</span></li>
 			<li class="nav-item">
 				<a href="{{ path('app_habilitation_index', {entite: entite.id}) }}">
 					<span class="{{ app.request.attributes.get('_route') starts with 'app_habilitation_index' ? 'text-theme-secondaire' : 'text-white' }}">
@@ -990,7 +991,6 @@
 					</span>
 				</a>
 			</li>
-            {% if canAdmin %}
             <li class="nav-item">
                 <a href="{{ path('app_habilitation_attestations', {entite: entite.id}) }}">
                     <span class="{{ app.request.attributes.get('_route') == 'app_habilitation_attestations' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-file-earmark-pdf"></i> Avis post-formation</span>
@@ -1006,9 +1006,6 @@
 
 
 			<li class="wn-section-label" role="presentation"><span>Espace formateur</span></li>
-
-
-
 			<li class="nav-item">
 				<a href="{{ path('app_formateur_dashboard', {'entite' : entite.id}) }}">
 					<span class="{% if app.request.attributes.get('_route') == 'app_formateur_dashboard' %}text-theme-secondaire{% else %}text-white{% endif %}">
@@ -1017,8 +1014,14 @@
 					</span>
 				</a>
 			</li>
+            <li><a href="{{ path('app_habilitation_trainer_index', {entite: entite.id}) }}"><span class="{{ app.request.attributes.get('_route') starts with 'app_habilitation_trainer_' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-lightning-charge"></i> Habilitations</span></a></li>
+
+
+
+			
             <li><a href="{{ path('app_charter_mine',{entite:entite.id}) }}"><span class="{{ isTrainerCharter ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-journal-check"></i> Chartes</span></a></li>
-            <li><a href="{{ path('app_formateur_profile', {entite:entite.id}) }}"><span class="text-white"><i class="bi bi-person-badge"></i> Profil & diplômes</span></a></li>
+            
+			<li><a href="{{ path('app_formateur_profile', {entite:entite.id}) }}"><span class="text-white"><i class="bi bi-person-badge"></i> Profil & diplômes</span></a></li>
 
 			<li class="nav-item">
 				<a href="{{ path('app_formateur_contrats', {'entite' : entite.id}) }}">
@@ -1125,7 +1128,7 @@
 
 		{% if canStagiaire %}
 			<li class="wn-section-label" role="presentation"><span>Espace stagiaire</span></li>
-
+            
 
 
 			<li class="nav-item">
@@ -1136,6 +1139,8 @@
 					</span>
 				</a>
 			</li>
+			<li><a href="{{ path('app_habilitation_student_index', {entite:entite.id}) }}"><span class="{{ app.request.attributes.get('_route') starts with 'app_habilitation_student_' ? 'text-theme-secondaire' : 'text-white' }}"><i class="bi bi-lightning-charge"></i> Mes habilitations</span></a></li>
+
 
 			<li class="nav-item">
 				<a href="{{ path('app_stagiaire_sessions', {'entite' : entite.id}) }}">
@@ -1216,6 +1221,18 @@
 
 		{% if canEntreprise %}
 			<li class="wn-section-label" role="presentation"><span>Espace entreprise</span></li>
+            {% set isCompanyHabilitation = app.request.attributes.get('_route') starts with 'app_entreprise_documents_habilitation_' or app.request.attributes.get('_route') == 'app_habilitation_company_title' %}
+            <li class="nav-item">
+                <button type="button" class="nav-link dropdown-toggle {{ isCompanyHabilitation ? 'text-theme-secondaire' : 'text-white' }}" data-bs-toggle="collapse" data-bs-target="#entrepriseHabilitations" aria-expanded="{{ isCompanyHabilitation ? 'true' : 'false' }}" aria-controls="entrepriseHabilitations">
+                    <i class="bi bi-lightning-charge"></i> Habilitations
+                </button>
+                <div class="collapse {{ isCompanyHabilitation ? 'show' : '' }}" id="entrepriseHabilitations">
+                    <ul class="wn-submenu list-unstyled">
+                        <li><a href="{{ path('app_entreprise_documents_habilitation_index', {entite:entite.id}) }}"><span class="{{ isCompanyHabilitation ? 'text-theme-secondaire' : '' }}">Avis et titres</span></a></li>
+                        <li><a href="{{ path('app_entreprise_documents_index', {entite:entite.id}) }}#pane-habilitations"><span>Documents des salariés</span></a></li>
+                    </ul>
+                </div>
+            </li>
 
 
 
