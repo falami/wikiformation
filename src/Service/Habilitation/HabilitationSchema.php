@@ -6,6 +6,12 @@ namespace App\Service\Habilitation;
 
 final class HabilitationSchema
 {
+    // Only remove the neighbourhood extension, within the SAME function/row and voltage domain.
+    // Do not infer a numerical hierarchy, cross-row equivalences or equivalences for custom symbols.
+    // V denotes work in the neighbourhood of live parts: restrict that same operation, not its domain or function.
+    // Reference: https://www.inrs.fr/risques/electriques/habilitation-electrique (classification of symbols).
+    private const WITHOUT_NEIGHBOURHOOD = ['H0V' => 'H0', 'B1V' => 'B1', 'H1V' => 'H1', 'B2V' => 'B2', 'H2V' => 'H2'];
+
     public function example(): array
     {
         $groups = [
@@ -92,8 +98,33 @@ final class HabilitationSchema
         return $id;
     }
 
+    /** @return array<string, array<string, list<string>>> Choices already offered by this model. */
+    public function employerChoices(array $schema, array $trainer): array
+    {
+        $allowed = [];
+        foreach ($schema['sections'] as $section) foreach ($section['rows'] as $row) {
+            $reference = $trainer['rows'][$row['id']] ?? [];
+            foreach ($row['fields'] as $field) {
+                if ($field['type'] !== 'checkbox') continue;
+                $choices = ($reference['verdict'] ?? 'not_evaluated') === 'favorable' ? ($reference[$field['id']] ?? []) : [];
+                if ($field['id'] === 'symbols') {
+                    foreach ($choices as $choice) {
+                        if (isset(self::WITHOUT_NEIGHBOURHOOD[$choice])) $choices[] = self::WITHOUT_NEIGHBOURHOOD[$choice];
+                    }
+                }
+                $allowed[$row['id']][$field['id']] = array_values(array_filter(
+                    $field['options'], static fn (string $option): bool => in_array($option, $choices, true),
+                ));
+            }
+        }
+
+        return $allowed;
+    }
+
     public function answers(array $schema, array $input, bool $final, ?array $trainer = null): array
     {
+        if (isset($input['rows']) && !is_array($input['rows'])) throw new \InvalidArgumentException('Réponses invalides.');
+        $employerChoices = $trainer !== null ? $this->employerChoices($schema, $trainer) : [];
         $out = ['rows' => []];
         foreach (['function', 'assignment', 'observations', 'restrictions', 'additionalDocument', 'signerFunction', 'place'] as $key) {
             $value = $input[$key] ?? '';
@@ -125,11 +156,22 @@ final class HabilitationSchema
                     if (!is_array($value) || count($value) > 40) throw new \InvalidArgumentException('Choix invalides.');
                     foreach ($value as $choice) {
                         if (!is_string($choice) || !in_array($choice, $field['options'], true)) throw new \InvalidArgumentException('Un choix ne fait pas partie du modèle.');
-                        if ($trainer !== null && ($verdict !== 'favorable' || !in_array($choice, $trainer['rows'][$row['id']][$field['id']] ?? [], true))) throw new \InvalidArgumentException('Le titre doit rester dans les limites de l’avis favorable du formateur.');
+                        if ($trainer !== null && !in_array($choice, $employerChoices[$row['id']][$field['id']] ?? [], true)) throw new \InvalidArgumentException('Le titre doit rester dans les limites de l’avis favorable du formateur.');
                     }
                     $value = array_values(array_unique($value));
                     $selected += count($value);
-                } elseif (!is_string($value) || mb_strlen($value) > 600) throw new \InvalidArgumentException('Les champs de la grille sont limités à 600 caractères. Utilisez les observations pour les précisions longues.');
+                } else {
+                    if ($trainer !== null) {
+                        // The evaluated installations and limits must not be rewritten into a broader scope.
+                        // Employer-specific limits belong in the separate assignment/restrictions fields.
+                        $reference = $trainer['rows'][$row['id']][$field['id']] ?? '';
+                        if (array_key_exists($field['id'], $data) && $value !== $reference) {
+                            throw new \InvalidArgumentException('Les ouvrages et indications évalués par le formateur doivent être conservés. Précisez vos limites complémentaires dans les restrictions du titre.');
+                        }
+                        $value = $reference;
+                    }
+                    if (!is_string($value) || mb_strlen($value) > 600) throw new \InvalidArgumentException('Les champs de la grille sont limités à 600 caractères. Utilisez les observations pour les précisions longues.');
+                }
                 $new[$field['id']] = $value;
             }
             $checkboxes = array_filter($row['fields'], static fn ($f) => $f['type'] === 'checkbox');

@@ -42,6 +42,27 @@ final class RecruitmentTest extends WebTestCase
         file_put_contents($dir.'/'.$a->cvFilename,"%PDF-1.4\n%%EOF");$this->files[]=$dir.'/'.$a->cvFilename;
         $this->em->persist($a);$this->em->flush();return $a;
     }
+    public function testCountsCoverAllPagesAndFollowFilters(): void {
+        [$user,$entity]=$this->fixtures();
+        $candidate=$this->candidate();
+        for ($i=1;$i<=31;$i++) {
+            $copy=clone $candidate; $copy->id=null; $copy->email='candidate'.$i.'@recruit.test';
+            $copy->status=$i===31 ? 'archived' : 'new';
+            $this->em->persist($copy);
+        }
+        $this->em->flush(); $this->client->loginUser($user);
+        $url='/fr/super/'.$entity->getId().'/recrutement';
+        $this->client->request('GET',$url.'?page=2');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('#recruitment-count','32 formateurs correspondants');
+        $this->client->request('GET',$url.'?status=archived');
+        self::assertSelectorTextContains('#recruitment-count','1 formateur correspondant');
+        self::assertSelectorTextContains('#recruitment-count','sur 32 au total');
+        $this->client->request('GET',$url.'?q=introuvable');
+        self::assertSelectorTextContains('#recruitment-count','0 formateur correspondant');
+        self::assertSelectorTextContains('#recruitment-count','sur 32 au total');
+    }
+
     public function testCandidateMapShowsDeclaredCoverageWithoutEditableControls(): void {
         [$user,$entite]=$this->fixtures();$candidate=$this->candidate();
         $candidate->departments=['37','2A','971'];$this->em->flush();

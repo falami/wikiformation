@@ -23,7 +23,12 @@
 </select></label><label>Zone d’intervention<select name="department" data-recruit-select><option value="">Tous les départements</option>{% for d in departments %}<option value="{{ d.value }}" {{ department == d.value ? 'selected' }}>{{ d.text }}</option>{% endfor %}</select></label><label>Statut<select name="status"><option value="">Tous</option>{% for value,label in {new:'Nouvelle',shortlisted:'Présélectionnée',accepted:'Retenue',archived:'Archivée'} %}<option value="{{ value }}" {{ status == value ? 'selected' }}>{{ label }}</option>{% endfor %}</select></label><label>Tarif maximum HT (€)<input name="max" inputmode="decimal" value="{{ max }}" placeholder="Sans plafond"></label><label>Base du tarif<select name="basis"><option value="daily" {{ basis == 'daily' ? 'selected' }}>Par jour</option><option value="hourly" {{ basis == 'hourly' ? 'selected' }}>Par heure</option></select></label></div><div class="toolbar"><button class="hab-btn gold">Filtrer les candidatures</button><a class="hab-btn" href="{{ path('app_super_recruitment',{entite:entite.id}) }}">Réinitialiser</a></div></form></section>
 <section class="table-card premium-list mb-4">
   <div class="ledger-heading">
-    <div><h3>Candidatures</h3><p>Expertises, disponibilités géographiques et tarifs de vos futurs formateurs.</p></div>
+    <div><h3>Candidatures</h3><p>Expertises, disponibilités géographiques et tarifs de vos futurs formateurs.</p>
+      <div id="recruitment-count" class="d-flex flex-wrap align-items-center gap-2 mt-3" role="status" aria-live="polite">
+        <span class="ledger-pill"><strong>{{ filteredCount|number_format(0, ',', ' ') }} formateur{{ filteredCount > 1 ? 's' : '' }} correspondant{{ filteredCount > 1 ? 's' : '' }}</strong></span>
+        <span class="small text-muted">sur {{ totalCount|number_format(0, ',', ' ') }} au total dans le vivier</span>
+      </div>
+    </div>
     <span class="ledger-mark"><i class="bi bi-person-badge" aria-hidden="true"></i>Vivier de formateurs</span>
   </div>
   <div class="hab-table-wrap">

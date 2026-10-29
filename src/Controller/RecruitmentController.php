@@ -49,8 +49,10 @@ final class RecruitmentController extends AbstractController
         if($department && in_array($department,array_column($this->applications->departments(),'value'),true)) $qb->andWhere('a.nationwide = true OR a.departments LIKE :department')->setParameter('department','%"'.$department.'"%');
         if($subject!=='') $qb->andWhere('a.subjects LIKE :subject')->setParameter('subject','%'.addcslashes($subject,'%_').'%');
         if(is_numeric(str_replace(',','.',$max)) && (float)str_replace(',','.',$max)>=0) $qb->andWhere('a.'.($basis==='hourly'?'hourlyRate':'dailyRate').' <= :max')->setParameter('max',(int)round((float)str_replace(',','.',$max)*100));
+        $filteredCount=(int)(clone $qb)->select('COUNT(a.id)')->resetDQLPart('orderBy')->getQuery()->getSingleScalarResult();
+        $totalCount=$this->em->getRepository(TrainerApplication::class)->count([]);
         $rows=$qb->setFirstResult(($page-1)*30)->setMaxResults(31)->getQuery()->getResult();
-        return $this->render('recruitment/index.html.twig',compact('entite','q','subject','department','status','basis','max','page')+['applications'=>array_slice($rows,0,30),'more'=>count($rows)>30,'departments'=>$this->applications->departments(),'subjects'=>$this->applications->subjects()]);
+        return $this->render('recruitment/index.html.twig',compact('entite','q','subject','department','status','basis','max','page','filteredCount','totalCount')+['applications'=>array_slice($rows,0,30),'more'=>count($rows)>30,'departments'=>$this->applications->departments(),'subjects'=>$this->applications->subjects()]);
     }
     #[Route('/super/{entite}/recrutement/{id}',name:'app_super_recruitment_show',methods:['GET','POST'],requirements:['id'=>'\d+'])]
     public function show(Entite $entite,TrainerApplication $application,Request $r,Placement $placement): Response

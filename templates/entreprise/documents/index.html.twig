@@ -65,6 +65,13 @@
     .pageWrap .dt-container .page-link{color:#486174;border-color:#e1e8ef;padding:7px 12px;box-shadow:none}
     .pageWrap .dt-container .active>.page-link{background:#243e50;color:#fff;border-color:#243e50}
     .pageWrap .dt-empty{padding:42px 16px!important;color:#718491!important;text-align:center}
+    .pageWrap .habilitation-guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 22px}
+    .pageWrap .habilitation-guide>div{display:flex;gap:12px;align-items:flex-start;padding:17px;border:1px solid #e6edf2;border-radius:12px;background:#fafcfd}
+    .pageWrap .habilitation-guide .step-number{flex-shrink:0;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#f8efd8;color:#94701e;font-size:12px;font-weight:700}
+    .pageWrap .habilitation-guide strong{display:block;font-size:13px;margin-bottom:4px}
+    .pageWrap .habilitation-guide p{font-size:12px;color:#6b7f8f;line-height:1.6;margin:0}
+    .pageWrap .habilitation-search{display:flex;align-items:center;gap:10px;width:min(100%,560px);background:#fff;border:1px solid #dbe4ec;border-radius:9px;padding:0 13px;color:#718491}
+    .pageWrap .habilitation-search input{border:0;background:transparent;width:100%;min-width:0;padding:10px 0;font-size:13px;color:#294356;box-shadow:none}
     .documents-company .card{box-shadow:none!important;border:1px solid #e2e8ee!important;border-radius:14px;margin-bottom:22px!important}
     .documents-company form{font-size:13px}
     .documents-company .btn,.documents-company .form-select{font-size:13px;border-radius:9px;min-height:40px}
@@ -75,6 +82,7 @@
       .pageWrap .toolbarLeft{flex-basis:100%}
       .pageWrap .toolbarLeft .form-select{flex:1 1 100%;min-width:0!important}
       .pageWrap table.dataTable{min-width:620px}
+      .pageWrap .habilitation-guide{grid-template-columns:1fr}
       .documents-company .ms-auto{margin-left:0!important;width:100%}
     }
 </style>
@@ -138,6 +146,12 @@
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-conventions" data-bs-toggle="pill" data-bs-target="#pane-conventions" type="button" role="tab">
               <i class="bi bi-file-earmark-lock me-1"></i> Conventions
+            </button>
+          </li>
+
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-habilitations" data-bs-toggle="pill" data-bs-target="#pane-habilitations" type="button" role="tab" aria-controls="pane-habilitations" aria-selected="false">
+              <i class="bi bi-lightning-charge me-1" aria-hidden="true"></i> Avis & titres
             </button>
           </li>
 
@@ -328,6 +342,41 @@
                 </thead>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {# ===================== HABILITATIONS ÉLECTRIQUES ===================== #}
+      <div class="tab-pane fade" id="pane-habilitations" role="tabpanel" aria-labelledby="tab-habilitations" tabindex="0">
+        <div class="cardX">
+          <div class="cardX-h">
+            <div>
+              <h2 class="titleX"><i class="bi bi-lightning-charge" aria-hidden="true"></i> Avis post-formation & titres</h2>
+              <p class="text-muted small mt-2 mb-0">Les habilitations électriques des stagiaires de {{ entreprise.raisonSociale }}.</p>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" id="btnReloadHabilitations" type="button" aria-label="Actualiser les avis et titres" title="Actualiser les avis et titres"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></button>
+          </div>
+          <div class="cardX-b">
+            <div class="habilitation-guide">
+              <div><span class="step-number" aria-hidden="true">01</span><div><strong>Consultez l’avis du formateur</strong><p>Les évaluations signées apparaissent ici après leur transmission par l’organisme.</p></div></div>
+              <div><span class="step-number" aria-hidden="true">02</span><div><strong>Préparez votre titre</strong><p>Une copie reprend les choix du formateur. Conservez-les ou réduisez le périmètre autorisé.</p></div></div>
+              <div><span class="step-number" aria-hidden="true">03</span><div><strong>Signez et téléchargez</strong><p>Votre titre est un document distinct de l’avis, établi au nom de votre entreprise.</p></div></div>
+            </div>
+            <div class="toolbarX mb-3">
+              <div class="toolbarLeft">
+                <label class="visually-hidden" for="habilitationSearch">Rechercher un stagiaire, une formation ou une session</label>
+                <div class="habilitation-search"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="habilitationSearch" placeholder="Stagiaire, formation, session…" autocomplete="off"></div>
+              </div>
+              <div class="toolbarRight"><button class="btn btn-sm btn-outline-secondary" type="button" id="btnHabilitationsClear" aria-label="Effacer la recherche"><i class="bi bi-eraser" aria-hidden="true"></i> Réinitialiser</button></div>
+            </div>
+            <div class="alert alert-warning rounded-3" id="habilitationLoadError" role="alert" hidden>Les documents n’ont pas pu être chargés. Cliquez sur le bouton d’actualisation pour réessayer.</div>
+            <div class="table-responsive">
+              <table id="dt-habilitations" class="table align-middle w-100 mb-0">
+                <caption class="visually-hidden">Avis post-formation transmis et titres des stagiaires de {{ entreprise.raisonSociale }}</caption>
+                <thead><tr><th>Stagiaire</th><th>Formation</th><th>Session</th><th>Avis signé</th><th>Titre de l’employeur</th><th class="text-end action-column">Documents & actions</th></tr></thead>
+              </table>
+            </div>
+            <p class="small text-muted mt-3 mb-0"><i class="bi bi-shield-check me-1" aria-hidden="true"></i>Les modifications de votre titre ne changent jamais l’avis signé du formateur.</p>
           </div>
         </div>
       </div>
@@ -610,6 +659,7 @@
       facturesAjax:     "{{ path('app_entreprise_documents_factures_ajax', { entite: entite.id, entreprise: entreprise.id }) }}",
 
       conventionsAjax:  "{{ path('app_entreprise_documents_conventions_ajax', { entite: entite.id, entreprise: entreprise.id }) }}",
+      habilitationsAjax: {{ path('app_entreprise_documents_habilitation_avis_ajax', { entite: entite.id, entreprise: entreprise.id })|json_encode|raw }},
       emargementsAjax:  "{{ path('app_entreprise_documents_emargements_ajax', { entite: entite.id, entreprise: entreprise.id }) }}",
       positionnementAjax:"{{ path('app_entreprise_documents_positionnement_ajax', { entite: entite.id, entreprise: entreprise.id }) }}",
       qcmAjax:          "{{ path('app_entreprise_documents_qcm_ajax', { entite: entite.id, entreprise: entreprise.id }) }}",
@@ -635,7 +685,7 @@
 
     let DT = {
       devis:null, fact:null,
-      conv:null, emar:null,
+      conv:null, habilitations:null, emar:null,
       pos:null, qcm:null,
       satisStag:null, satisForm:null,
       assiduite:null
@@ -708,6 +758,40 @@
         $('#convSign').val('all');
         DT.conv.search('').draw();
         DT.conv.ajax.reload();
+      });
+    }
+
+    /* ===================== HABILITATIONS ===================== */
+    function initHabilitations(){
+      if (DT.habilitations) return;
+      const table = $('#dt-habilitations');
+      const loadError = document.getElementById('habilitationLoadError');
+      table.on('xhr.dt', (_event, _settings, json)=>{ loadError.hidden = !!json && !json.error; });
+      DT.habilitations = table.DataTable(Object.assign(dtDefaults(),{
+        ajax:{ url:urls.habilitationsAjax, type:'POST' },
+        layout:{ topStart:'pageLength', topEnd:null, bottomStart:'info', bottomEnd:'paging' },
+        pageLength:10,
+        columns:[
+          {data:'stagiaire'},
+          {data:'formation'},
+          {data:'session'},
+          {data:'validation'},
+          {data:'status', orderable:false, searchable:false},
+          {data:'actions', orderable:false, searchable:false, className:'text-end dt-actions action-column'},
+        ],
+        order:[[3,'desc']],
+      }));
+      let searchTimer;
+      $('#habilitationSearch').on('input', function(){
+        clearTimeout(searchTimer);
+        const value = this.value;
+        searchTimer = setTimeout(()=>DT.habilitations.search(value).draw(), 300);
+      });
+      $('#btnReloadHabilitations').on('click', ()=>DT.habilitations.ajax.reload(null,false));
+      $('#btnHabilitationsClear').on('click', ()=>{
+        clearTimeout(searchTimer);
+        $('#habilitationSearch').val('');
+        DT.habilitations.search('').draw();
       });
     }
 
@@ -874,6 +958,7 @@
       // lazy per tab
       document.getElementById('tab-factures')?.addEventListener('shown.bs.tab', ()=>{ initFactures(); adjustReadyTable(DT.fact); });
       document.getElementById('tab-conventions')?.addEventListener('shown.bs.tab', ()=>{ initConventions(); adjustReadyTable(DT.conv); });
+      document.getElementById('tab-habilitations')?.addEventListener('shown.bs.tab', ()=>{ initHabilitations(); adjustReadyTable(DT.habilitations); });
       document.getElementById('tab-emargements')?.addEventListener('shown.bs.tab', ()=>{ initEmargements(); adjustReadyTable(DT.emar); });
       document.getElementById('tab-positionnement')?.addEventListener('shown.bs.tab', ()=>{ initPositionnement(); adjustReadyTable(DT.pos); });
       document.getElementById('tab-qcm')?.addEventListener('shown.bs.tab', ()=>{ initQcm(); adjustReadyTable(DT.qcm); });
@@ -885,6 +970,9 @@
       if (location.hash === '#pane-conventions') {
         $('#convSign').val('pending');
         bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-conventions')).show();
+      }
+      if (location.hash === '#pane-habilitations') {
+        bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-habilitations')).show();
       }
 
       // reload global

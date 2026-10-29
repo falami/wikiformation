@@ -284,17 +284,45 @@ final class HabilitationController extends AbstractController
     public function show(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, Request $request): Response
     {
         $rights = $this->access($entite, $dossier);
+        return $this->editDossier($entite, $dossier, $request, $rights);
+    }
+
+    #[Route('/{id}/entreprise', name: 'company_title', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
+    public function companyTitle(#[MapEntity(id: 'entite')] Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, Request $request,
+        \App\Service\Entreprise\EntreprisePortalContext $portal, \App\Service\Entreprise\EntrepriseHabilitations $documents): Response
+    {
+        $this->denyAccessUnlessGranted(P::ENTREPRISE_DOCUMENTS_MANAGE, $entite);
+        $entreprise = $portal->resolve($this->getUser(), $entite);
+        if (!$documents->available($dossier, $entite, $entreprise) || !$documents->current($dossier, 'avis')) throw $this->createNotFoundException();
+        // Even an administrator uses the employer's limited, independent copy here.
+        return $this->editDossier($entite, $dossier, $request, ['admin'=>false, 'trainer'=>false, 'company'=>true, 'student'=>false], $entreprise);
+    }
+
+    private function editDossier(Entite $entite, HabilitationDossier $dossier, Request $request, array $rights, ?Entreprise $entreprise = null): Response
+    {
+        $enterpriseContext = $entreprise !== null;
+        $showRoute = $enterpriseContext ? 'app_habilitation_company_title' : 'app_habilitation_show';
+        $showRouteParams = ['entite'=>$entite->getId(), 'id'=>$dossier->getId()];
+        if ($enterpriseContext) $showRouteParams['entreprise'] = $entreprise->getId();
         $stage = $request->query->getString('stage', $rights['company'] && !$rights['trainer'] && !$rights['admin'] ? 'titre' : 'avis');
         if (!in_array($stage, ['avis', 'titre'], true)) throw $this->createNotFoundException();
         if ($stage === 'titre' && !$rights['admin'] && !$rights['company'] && !$rights['student']) throw $this->createAccessDeniedException();
         $editable = ($rights['admin'] || ($stage === 'avis' ? $rights['trainer'] : $rights['company'])) && $dossier->getActive() && !$dossier->getDeleted() && ($stage === 'avis' || ($dossier->getAvisToken() && in_array($dossier->getState(), ['awaiting_company', 'published'], true)));
         $canSign = $stage === 'avis' ? $rights['trainer'] : $rights['company'];
         $data = $stage === 'avis' ? $dossier->getTrainerData() : $dossier->getEmployerData();
-        if ($stage === 'titre' && !$data) {
-            $data = $dossier->getTrainerData(); unset($data['issuedAt'], $data['validUntil'], $data['signerFunction']);
-            foreach ($dossier->getSchema()['sections'] as $section) foreach ($section['rows'] as $row) if (($data['rows'][$row['id']]['verdict'] ?? '') !== 'favorable') foreach ($row['fields'] as $field) if ($field['type'] === 'checkbox') $data['rows'][$row['id']][$field['id']] = [];
-        }
         $error = null;
+        $trainerReference = [];
+        $employerChoices = [];
+        if ($dossier->getAvisToken() && in_array($dossier->getState(), ['awaiting_company', 'published'], true)) {
+            try {
+                $trainerReference = $this->workflow->signedTrainerData($dossier);
+                $employerChoices = $this->schema->employerChoices($dossier->getSchema(), $trainerReference);
+                if ($stage === 'titre' && !$data) $data = $this->workflow->initialEmployerData($dossier);
+                if ($stage === 'avis' && $enterpriseContext) $data = $trainerReference;
+            } catch (\InvalidArgumentException $e) {
+                if ($stage === 'titre' || $enterpriseContext) { $error = $e->getMessage(); $editable = false; }
+            }
+        }
         if ($request->isMethod('POST')) {
             $this->csrf($request, 'habilitation_'.$dossier->getId());
             if (!$editable) throw $this->createAccessDeniedException();
@@ -308,13 +336,19 @@ final class HabilitationController extends AbstractController
                 $revision = $this->workflow->save($dossier, $stage, $data, $sign, $this->getUser(), $request->request->getString('signature'));
                 $this->em->persist($revision); $this->em->flush();
                 $this->addFlash('success', $sign ? ($stage === 'avis' ? 'Évaluation validée. L’administrateur peut maintenant la transmettre à l’entreprise.' : 'Titre signé et disponible dans l’espace stagiaire.') : 'Brouillon enregistré. Les anciennes versions signées restent dans l’historique ; une nouvelle signature est nécessaire.');
-                return $this->redirectToRoute('app_habilitation_show', ['entite' => $entite->getId(), 'id' => $dossier->getId(), 'stage' => $stage]);
+                return $this->redirectToRoute($showRoute, $showRouteParams + ['stage'=>$stage]);
             } catch (\InvalidArgumentException $e) { $error = $e->getMessage(); }
             catch (OptimisticLockException $e) { return new Response('Ce dossier a été modifié dans une autre fenêtre. Rechargez avant de recommencer.', 409); }
         }
         $revisions = $this->em->getRepository(HabilitationRevision::class)->findBy(['dossier' => $dossier], ['id' => 'DESC'], 100);
         $revisions = array_values(array_filter($revisions, fn ($r) => $this->visibleRevision($r, $dossier, $rights)));
-        return $this->privateRender('show', $this->base($entite) + compact('dossier', 'rights', 'stage', 'editable', 'canSign', 'data', 'error', 'revisions'), $error ? 422 : 200);
+        $context = compact('dossier', 'rights', 'stage', 'editable', 'canSign', 'data', 'error', 'revisions', 'trainerReference', 'employerChoices', 'enterpriseContext', 'entreprise', 'showRoute', 'showRouteParams');
+        if ($enterpriseContext) {
+            $context['avisPdfUrl'] = $this->generateUrl('app_entreprise_documents_habilitation_pdf', $showRouteParams + ['kind'=>'avis']);
+            $context['titrePdfUrl'] = $dossier->getTitreToken() ? $this->generateUrl('app_entreprise_documents_habilitation_pdf', $showRouteParams + ['kind'=>'titre']) : null;
+            $context['returnDocumentsUrl'] = $this->generateUrl('app_entreprise_documents_index', ['entite'=>$entite->getId(), 'entreprise'=>$entreprise->getId()]).'#pane-habilitations';
+        }
+        return $this->privateRender('show', array_replace($this->base($entite), $context, ['isAdmin'=>$rights['admin']]), $error ? 422 : 200);
     }
 
     private function visibleRevision(HabilitationRevision $r, HabilitationDossier $d, array $rights): bool

@@ -278,6 +278,80 @@ final class HabilitationTest extends KernelTestCase
         $r=self::getContainer()->get(HabilitationWorkflow::class)->save($this->dossier,'avis',['observations'=>'Nouvelle évaluation'],false,$this->admin);$this->em->persist($r);$this->em->flush();
         self::assertNull($this->dossier->getTitreToken());self::assertNull($this->dossier->getAvisToken());self::assertSame('draft',$this->dossier->getState());self::assertSame($snapshot,$avis->getSnapshot());self::assertSame('titre',$titre->getKind());
     }
+
+    public function testEmployerStartsFromSignedOpinionAndCanReduceWithoutChangingIt(): void
+    {
+        $workflow = self::getContainer()->get(HabilitationWorkflow::class);
+        $input = $this->input();
+        $input['rows']['row_0']['symbols'] = ['H0V'];
+        $input['rows']['row_0']['voltage'] = ['HTA'];
+        $input['rows']['row_1'] = ['verdict' => 'unfavorable', 'symbols' => ['H0V'], 'voltage' => ['HTA']];
+        $input['restrictions'] = 'Accès au seul atelier principal.';
+        $avis = $workflow->save($this->dossier, 'avis', $input, true, $this->trainer, $this->signature());
+        $this->em->persist($avis); $this->em->flush();
+        $snapshot = $avis->getSnapshot();
+        $this->em->persist($workflow->transmit($this->dossier, $this->admin)); $this->em->flush();
+
+        // Even if mutable working data is later changed, only the signed snapshot is authoritative.
+        $this->dossier->setTrainerData([]);
+        $copy = $workflow->initialEmployerData($this->dossier);
+        self::assertSame(['H0V'], $copy['rows']['row_0']['symbols']);
+        self::assertSame(['HTA'], $copy['rows']['row_0']['voltage']);
+        self::assertSame([], $copy['rows']['row_1']['symbols']);
+        self::assertSame([], $copy['rows']['row_1']['voltage']);
+        foreach (['issuedAt', 'validUntil', 'signerFunction', 'place'] as $key) self::assertSame('', $copy[$key]);
+        self::assertSame('Accès au seul atelier principal.', $copy['restrictions']);
+
+        $copy['rows']['row_0']['symbols'] = ['H0'];
+        $copy['issuedAt'] = '2026-10-29'; $copy['validUntil'] = '2027-10-29';
+        $copy['signerFunction'] = 'Dirigeant'; $copy['restrictions'] = 'Accès uniquement accompagné.';
+        $title = $workflow->save($this->dossier, 'titre', $copy, true, $this->employer, $this->signature());
+        $this->em->persist($title); $this->em->flush();
+        self::assertSame('published', $this->dossier->getState());
+        self::assertSame(['H0'], $title->getSnapshot()['data']['rows']['row_0']['symbols']);
+        self::assertSame($snapshot['data'], $title->getSnapshot()['trainerReference']);
+        self::assertSame($snapshot, $avis->getSnapshot(), 'The trainer opinion must never be altered by the company decision.');
+        self::assertSame('Entreprise exemple', $title->getSnapshot()['identity']['companyBranding']['name']);
+        self::assertSame($avis->getToken(), $title->getSnapshot()['avisToken']);
+    }
+
+    public function testEmployerCannotUseMutableWorkingDataToExpandSignedScope(): void
+    {
+        $avis = $this->sign('avis');
+        $workflow = self::getContainer()->get(HabilitationWorkflow::class);
+        $this->em->persist($workflow->transmit($this->dossier, $this->admin)); $this->em->flush();
+        $forged = $this->input(); $forged['rows']['row_0']['symbols'] = ['H0V'];
+        $this->dossier->setTrainerData($forged);
+        try {
+            $workflow->save($this->dossier, 'titre', $forged, false, $this->employer);
+            self::fail('A title must be bounded by the immutable signed opinion.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringContainsString('limites', $e->getMessage());
+        }
+        self::assertSame('awaiting_company', $this->dossier->getState());
+        self::assertSame([], $this->dossier->getEmployerData());
+        self::assertSame($avis->getToken(), $this->dossier->getAvisToken());
+        self::assertNull($this->dossier->getTitreToken());
+    }
+
+    public function testEmployerNeedsActualCurrentSignedRevision(): void
+    {
+        $this->dossier->setState('awaiting_company')->setAvisToken(str_repeat('a', 32))->setTrainerData($this->input());
+        $this->expectException(\InvalidArgumentException::class);
+        self::getContainer()->get(HabilitationWorkflow::class)->save($this->dossier, 'titre', $this->input(), false, $this->employer);
+    }
+
+    public function testChangedSchemaInvalidatesEmployerCopy(): void
+    {
+        $this->sign('avis');
+        $workflow = self::getContainer()->get(HabilitationWorkflow::class);
+        $this->em->persist($workflow->transmit($this->dossier, $this->admin)); $this->em->flush();
+        $model = $this->dossier->getSchema();
+        $model['sections'][0]['rows'][0]['fields'][0]['options'][] = 'Nouveau niveau';
+        $this->dossier->setSchema($model);
+        $this->expectException(\InvalidArgumentException::class);
+        $workflow->initialEmployerData($this->dossier);
+    }
     public function testUnrelatedTraineeCannotReadOrSign(): void {
         $this->sign('avis');$this->sign('titre');$this->client->catchExceptions(true);$this->client->loginUser($this->other);$this->client->request('GET',$this->show());self::assertSame(403,$this->client->getResponse()->getStatusCode());$this->client->request('GET',$this->show('/document/'.$this->dossier->getTitreToken()));self::assertSame(403,$this->client->getResponse()->getStatusCode());
     }

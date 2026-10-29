@@ -6,7 +6,13 @@
 
 {% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css"><link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/style.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/habilitation.css') }}">{% endblock %}
 {% block body %}<div class="hab" data-enhanced-form>
-<nav class="hab-nav" aria-label="Habilitations"><a href="{{ path('app_habilitation_index', {entite: entite.id}) }}"><i class="bi bi-lightning-charge-fill"></i> Habilitations électriques</a>{% if isAdmin %}<a href="{{ path('app_habilitation_attestations', {entite: entite.id}) }}">Avis post-formation</a><a href="{{ path('app_habilitation_templates', {entite: entite.id}) }}">Bibliothèque de modèles</a>{% endif %}<span>{{ entite.nom }}</span></nav>
+<nav class="hab-nav" aria-label="Habilitations">
+{% if enterpriseContext|default(false) %}
+  <a href="{{ returnDocumentsUrl }}"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> Documents · Avis & titres</a><span>{{ entreprise.raisonSociale }}</span>
+{% else %}
+  <a href="{{ path('app_habilitation_index', {entite: entite.id}) }}"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i> Habilitations électriques</a>{% if isAdmin %}<a href="{{ path('app_habilitation_attestations', {entite: entite.id}) }}">Avis post-formation</a><a href="{{ path('app_habilitation_templates', {entite: entite.id}) }}">Bibliothèque de modèles</a>{% endif %}<span>{{ entite.nom }}</span>
+{% endif %}
+</nav>
 {% include 'flagMessage.html.twig' %}{% block content %}{% endblock %}
 </div>{% endblock %}
 
