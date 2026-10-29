@@ -1,5 +1,13 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Facturation des consommations · I.T. For You{% endblock %}
+{% block javascripts %}
+  {{ parent() }}
+  <script defer src="{{ asset('dist/js/internal-usage-checkout.js') }}"></script>
+{% endblock %}
+{% block stylesheets %}
+  {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/billing-terms.css') }}?v=1">
+{% endblock %}
 {% block body %}
 <div class="container py-4" style="max-width:960px">
   <a href="{{ path('app_administrateur_billing', {entite:entite.id}) }}" class="text-decoration-none">← Retour à l’abonnement</a>
@@ -13,13 +21,33 @@
     <div class="col-md-6"><span class="text-muted">Facture effectivement transmise et confirmée</span><div class="fs-2 fw-bold">{{ (unitPriceCents / 100)|number_format(2, ',', ' ') }} € HT</div><p>Coût SUPER PDP, sans part plateforme interne.</p></div></div>
     <p>Les consommations sont regroupées sur la facturation mensuelle Stripe. Un montant inférieur au minimum d’encaissement Stripe peut être reporté à une prochaine facture. Les frais de traitement Stripe applicables sont distincts.</p>
     <p>Cette étape configure le paiement. L’activation de SUPER PDP et l’accord sur ses consommations restent à confirmer dans les préférences de facturation électronique.</p>
-    <details class="border rounded-3 p-3 mb-4"><summary class="fw-semibold">Lire les conditions de vente</summary><div class="mt-3">{{ terms.html|raw }}</div></details>
-    <form method="post">
+    <details class="billing-terms mb-4">
+      <summary class="billing-terms-summary">
+        <span class="billing-terms-symbol" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+        <span class="billing-terms-heading"><span class="billing-terms-eyebrow">Votre cadre contractuel</span><span class="billing-terms-title">Conditions générales de vente</span><span class="billing-terms-subtitle">Consultez les modalités avant de poursuivre.</span></span>
+        <span class="billing-terms-toggle" aria-hidden="true"><i class="bi bi-chevron-down"></i></span>
+      </summary>
+      <div class="billing-terms-layout">
+        <nav class="billing-terms-nav" aria-label="Sommaire des conditions de vente">
+          <span class="billing-terms-eyebrow">Sommaire</span>
+          {% for label in ['Objet', 'Offres & abonnements', 'Tarifs', 'Paiement', 'Comptes & accès', 'Activation', 'Renouvellement', 'Résiliation', 'Rétractation', 'Responsabilité', 'Confidentialité', 'Litiges & médiation'] %}
+            <a href="#s{{ loop.index }}"><span>{{ '%02d'|format(loop.index) }}</span>{{ label }}</a>
+          {% endfor %}
+          <div class="billing-terms-version">Version du document<strong>{{ terms.version }}</strong></div>
+        </nav>
+        <div class="billing-terms-document">{{ terms.html|raw }}</div>
+      </div>
+    </details>
+    <div id="payment-feedback" tabindex="-1">
+      {% include 'flagMessage.html.twig' %}
+    </div>
+    <form id="internal-usage-checkout" method="post" action="{{ path('app_billing_internal_usage', {entite: entite.id}) }}">
       <input type="hidden" name="_token" value="{{ csrf_token('internal_usage_' ~ entite.id) }}">
       <input type="hidden" name="terms_version" value="{{ terms.version }}"><input type="hidden" name="terms_digest" value="{{ terms.sha256 }}">
       <div class="form-check mb-3"><input type="checkbox" class="form-check-input" id="usage_accepted" name="usage_accepted" value="1" required><label for="usage_accepted" class="form-check-label">J’accepte la base mensuelle de 0 € et {{ (unitPriceCents / 100)|number_format(2, ',', ' ') }} € HT par transmission confirmée.</label></div>
       <div class="form-check mb-4"><input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted" value="1" required><label for="terms_accepted" class="form-check-label">J’ai lu et j’accepte les conditions de vente affichées ci-dessus.</label></div>
-      <button class="btn btn-warning px-4 py-3 fw-semibold">Configurer le paiement sur Stripe →</button>
+      <button type="submit" class="btn btn-warning px-4 py-3 fw-semibold">Configurer le paiement sur Stripe →</button>
+      <p class="small text-muted mt-3 mb-0" id="payment-status" role="status" hidden></p>
     </form>
   </section>
 </div>

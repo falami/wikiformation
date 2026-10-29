@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\{JsonResponse, Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Security\Permission\TenantPermission;
+use App\Service\Filter\ChoiceFilter;
 
 
 
@@ -154,8 +155,8 @@ final class PlanningStagiairesController extends AbstractController
     $start = (string)$request->query->get('start', '');
     $end   = (string)$request->query->get('end', '');
 
-    $formationId  = $request->query->getInt('formation', 0);
-    $entrepriseId = $request->query->getInt('entreprise', 0);
+    $formationId  = $request->query->get('formation', 'all');
+    $entrepriseId = $request->query->get('entreprise', 'all');
 
     if (!$start || !$end) {
       return $this->json(['resources' => [], 'events' => []], 200);
@@ -187,16 +188,13 @@ final class PlanningStagiairesController extends AbstractController
       ->addOrderBy('u.prenom', 'ASC')
       ->addOrderBy('j.dateDebut', 'ASC');
 
-    if ($formationId > 0) {
-      $qb->andWhere('f.id = :fid')->setParameter('fid', $formationId);
+    ChoiceFilter::equals($qb, $formationId === '0' ? 'all' : $formationId, 'f.id', 'fid');
+    $companies = ChoiceFilter::values($entrepriseId === '0' ? 'all' : $entrepriseId);
+    if ($companies !== null) {
+      if (!$companies) $qb->andWhere('1 = 0');
+      else $qb->andWhere('(e.id IN (:companies) OR ue.id IN (:companies))')
+        ->setParameter('companies', $companies);
     }
-
-    if ($entrepriseId > 0) {
-      // ✅ filtre sur entreprise inscription OU entreprise stagiaire
-      $qb->andWhere('(e.id = :eid OR ue.id = :eid)')
-        ->setParameter('eid', $entrepriseId);
-    }
-
 
     /** @var Inscription[] $inscriptions */
     $inscriptions = $qb->getQuery()->getResult();

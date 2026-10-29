@@ -383,6 +383,13 @@
 
   function boot() {
     normalizeResets();
+    // Calendars explicitly opt in to the same selection transport as listings.
+    const calendarChoices = document.querySelectorAll('.planning-filters select[data-wf-multi]');
+    const calendarIds = new Set([...calendarChoices].map(select => select.id));
+    calendarChoices.forEach(select => bridge(select, calendarIds));
+    normalizePanels();
+    document.querySelector('.planning-filters #btnReset')?.addEventListener('click', () =>
+      setTimeout(() => bridges.forEach(widget => widget.sync()), 0));
     const $ = window.jQuery;
     if (!$?.fn.dataTable) return;
     $(document).on('preXhr.dt.wfFilters', (_event, settings, data) => {

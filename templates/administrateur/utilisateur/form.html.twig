@@ -261,7 +261,8 @@
   
 
   </style>
-  <link rel="stylesheet" href="{{ asset('dist/css/user-editor.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/user-editor.css') }}?v=20261029-3">
 {% endblock %}
 
 {% block javascripts %}
@@ -273,16 +274,17 @@
 
 
 {% block body %}
-<div class="user-editor">
+<div class="user-editor session-editor">
 
 
   {# ===== HERO ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">RELATIONS &amp; CONTACTS · UTILISATEUR</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-people me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ is_edit ? 'Modifier un utilisateur' : 'Créer un utilisateur' }}
@@ -327,6 +329,15 @@
     </div>
   </div>
 
+  <nav class="se-nav" aria-label="Sections du formulaire utilisateur">
+    <a href="#user-identity"><span>01</span> Identité</a>
+    <a href="#user-roles"><span>02</span> Rôles</a>
+    <a href="#user-company"><span>03</span> Entreprise</a>
+    <a href="#user-address"><span>04</span> Coordonnées</a>
+    <a href="#user-preferences"><span>05</span> Préférences</a>
+    <a href="#user-photo"><i class="bi bi-camera" aria-hidden="true"></i> Photo</a>
+  </nav>
+
   {% include 'flagMessage.html.twig' %}
 
   {{ form_start(form, {
@@ -343,7 +354,7 @@
     <div class="col-lg-8">
 
       {# ===== Photo profil ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="user-photo">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-camera text-warning"></i> Photo de profil</h5>
           <span class="chip">Optionnel</span>
@@ -401,7 +412,7 @@
       </div>
 
       {# ===== Identité ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="user-identity">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-person-vcard text-warning"></i> Identité</h5>
           <span class="chip">Étape 1</span>
@@ -434,7 +445,7 @@
       </div>
 
       {# ===== Rôles ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="user-roles">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-shield-lock text-warning"></i> Rôles</h5>
           <span class="chip">Étape 2</span>
@@ -490,7 +501,7 @@
       </div>
 
       {# ===== Lien entreprise (select) ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="user-company">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-link-45deg text-warning"></i> Lien entreprise</h5>
           <span class="chip">Étape 3</span>
@@ -562,7 +573,7 @@
       
 
       {# ===== Coordonnées ===== #}
-      <div class="cardx mb-4 client-address" data-client-address data-address-id="{{ form.adresse.vars.id }}" data-postal-id="{{ form.codePostal.vars.id }}" data-city-id="{{ form.ville.vars.id }}" data-google-key="{{ googleMapsBrowserKey|default('') }}">
+      <div id="user-address" class="cardx mb-4 client-address" data-client-address data-address-id="{{ form.adresse.vars.id }}" data-postal-id="{{ form.codePostal.vars.id }}" data-city-id="{{ form.ville.vars.id }}" data-google-key="{{ googleMapsBrowserKey|default('') }}">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-geo-alt text-warning"></i> Coordonnées</h5>
           <span class="chip">Étape 4</span>
@@ -589,7 +600,7 @@
       </div>
 
       {# ===== Préférences (switches comme Session) ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="user-preferences">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-toggles text-warning"></i> Préférences</h5>
           <span class="chip">Options</span>
@@ -628,9 +639,9 @@
     </div>
 
     {# ====================== COL RIGHT ====================== #}
-    <div class="col-lg-4">
+    <div class="col-lg-4 se-sidebar">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4 se-summary">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
@@ -731,7 +742,11 @@
         <div class="row g-3"><div class="col-md-6">{{ form_row(entrepriseForm.siret) }}</div><div class="col-md-6">{{ form_row(entrepriseForm.numeroTVA) }}</div></div>
         <h3 class="h6 fw-bold mt-4 mb-3">Contact et adresse <span class="text-muted fw-normal">· facultatif</span></h3>
         <div class="row g-3"><div class="col-md-6">{{ form_row(entrepriseForm.email) }}</div><div class="col-md-6">{{ form_row(entrepriseForm.emailFacturation) }}</div></div>
-        {{ form_row(entrepriseForm.adresse) }}
+        <div data-company-google-notice class="small text-muted my-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" data-google-choice="allow">Activer les suggestions Google</button>
+          <span class="d-block mt-1">Google reçoit votre adresse IP et les adresses recherchées. Votre choix est mémorisé pour ce navigateur.</span>
+        </div>
+        {{ form_row(entrepriseForm.adresse, {attr: {'data-google-inline': '', autocomplete: 'off'}}) }}
         <div class="row g-3"><div class="col-md-4">{{ form_row(entrepriseForm.codePostal) }}</div><div class="col-md-8">{{ form_row(entrepriseForm.ville) }}</div></div>
         {{ form_row(entrepriseForm.pays) }}
         {{ form_widget(entrepriseForm._token) }}
@@ -745,6 +760,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const modal = document.getElementById('new-company-modal');
+  document.addEventListener('wiki:enable-google-maps', () => {
+    modal.querySelector('[data-company-google-notice]').hidden = true;
+  });
   const companyForm = document.getElementById('new-company-form');
   const submit = document.getElementById('new-company-submit');
   const error = document.getElementById('new-company-error');

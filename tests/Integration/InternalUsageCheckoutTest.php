@@ -291,6 +291,52 @@ final class InternalUsageCheckoutTest extends KernelTestCase
         self::assertSame('canceled', $this->sub->getStatus());
     }
 
+    public function testRejectedConsentIsVisibleAfterReturningToTheForm(): void
+    {
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::never())->method('request');
+        ApiRequestor::setHttpClient($http);
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->loginUser($this->user);
+        $crawler = $client->request('GET', '/fr/administrateur/1/billing/internal-usage');
+        $form = $crawler->selectButton('Configurer le paiement sur Stripe →')->form();
+        $form['usage_accepted']->tick();
+        $form['terms_accepted']->tick();
+        $form['terms_digest'] = 'outdated';
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $crawler = $client->followRedirect();
+        self::assertStringContainsString('Consultez et acceptez les conditions actuelles',
+            $crawler->filter('#payment-feedback [role="alert"]')->text());
+    }
+
+    public function testCheckoutFailureIsVisibleAndSuccessfulRetryRedirectsToStripe(): void
+    {
+        self::getContainer()->set(InternalUsageCheckout::class, $this->service());
+        $this->mockStripe(static fn() => [json_encode(['error' => ['message' => 'Unavailable', 'type' => 'api_error']]), 503, []]);
+        $client = new KernelBrowser(self::$kernel);
+        $client->disableReboot();
+        $client->loginUser($this->user);
+        $crawler = $client->request('GET', '/fr/administrateur/1/billing/internal-usage');
+        $form = $crawler->selectButton('Configurer le paiement sur Stripe →')->form();
+        $form['usage_accepted']->tick();
+        $form['terms_accepted']->tick();
+        $client->submit($form);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        $crawler = $client->followRedirect();
+        self::assertStringContainsString('Stripe est momentanément indisponible',
+            $crawler->filter('#payment-feedback [role="alert"]')->text());
+
+        $this->mockStripe(static fn(array $params) => self::sessionResponse($params));
+        $form = $crawler->selectButton('Configurer le paiement sur Stripe →')->form();
+        $form['usage_accepted']->tick();
+        $form['terms_accepted']->tick();
+        $client->submit($form);
+        self::assertSame('https://checkout.stripe.com/c/pay/fixture', $client->getResponse()->headers->get('Location'));
+        self::assertSame(1, $this->em->getRepository(InternalUsageSetup::class)->count([]));
+    }
+
     public function testPriorCustomerBalanceCannotBeCollectedByZeroBaseSetup(): void
     {
         $this->mockStripe(function () { self::fail('Prior debt must be reconciled before checkout'); }, ['id' => 'cus_internal', 'object' => 'customer', 'livemode' => true, 'balance' => 500, 'metadata' => ['entite_id' => '1']]);

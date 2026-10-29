@@ -285,6 +285,8 @@
   }
 </style>
 
+<link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+<link rel="stylesheet" href="{{ asset('dist/css/site-editor.css') }}?v=20261029">
 {% endblock %}
 
 {% block javascripts %}
@@ -300,21 +302,25 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor site-editor">
+<a class="site-back" href="{{ path('app_administrateur_site_index', {entite:entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Sites de formation</a>
+
   {# HERO style index (même rendu) #}
   {# HERO (identique Sessions / site/index) #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">VOS LIEUX DE FORMATION</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-geo-alt me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ modeEdition ? 'Modifier un site' : 'Créer un site' }}
           </h2>
 
           <div class="opacity-75 mt-1">
-            Identité, adresse et localisation avec contrôle en temps réel.
+            Un lieu bien renseigné pour organiser vos prochaines sessions.
           </div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
@@ -360,7 +366,14 @@
   </div>
 
 
+  <nav class="se-nav" aria-label="Sections du formulaire de site">
+    <a href="#site-identity"><span>01</span> Identité</a>
+    <a href="#site-address"><span>02</span> Adresse</a>
+    <a href="#site-location"><i class="bi bi-geo-alt" aria-hidden="true"></i> Localisation</a>
+    <a href="#site-summary"><i class="bi bi-check2-circle" aria-hidden="true"></i> Vérification</a>
+  </nav>
   {% include 'flagMessage.html.twig' %}
+
 
   {{ form_start(form, {
     'attr': {
@@ -373,9 +386,9 @@
 
   <div class="row g-4">
     {# ===== COL LEFT ===== #}
-    <div class="col-lg-7">
+    <div class="col-lg-8">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="site-identity">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-info-circle text-warning"></i> Identité</h5>
           <span class="chip">Étape 1</span>
@@ -388,7 +401,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="site-address">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-map text-warning"></i> Adresse</h5>
           <span class="chip">Étape 2</span>
@@ -396,9 +409,9 @@
         <div class="p-3 p-md-4">
           <div class="row g-3">
             <div class="col-md-12">{{ form_row(form.adresse) }}</div>
-            <div class="col-md-6">{{ form_row(form.complement) }}</div>
-            <div class="col-md-3">{{ form_row(form.codePostal) }}</div>
-            <div class="col-md-3">{{ form_row(form.ville) }}</div>
+            <div class="col-md-12">{{ form_row(form.complement) }}</div>
+            <div class="col-md-4">{{ form_row(form.codePostal) }}</div>
+            <div class="col-md-8">{{ form_row(form.ville) }}</div>
             <div class="col-md-4">{{ form_row(form.departement) }}</div>
             <div class="col-md-4">{{ form_row(form.region) }}</div>
             <div class="col-md-4">{{ form_row(form.pays) }}</div>
@@ -406,7 +419,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="site-location">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-crosshairs text-warning"></i> Localisation</h5>
           <span class="chip">Étape 3</span>
@@ -439,6 +452,7 @@
 
               <p class="small text-muted">Afficher la carte transmet à OpenStreetMap votre adresse IP et la zone consultée. Vous pouvez enregistrer l’adresse sans utiliser la carte.</p>
               <button type="button" class="btn btn-outline-theme btn-sm mb-2" id="btn-enable-site-map">Afficher la carte OpenStreetMap</button>
+              <a class="small ms-2" href="{{ path('app_account_preferences', {section:'services'}) }}#map-preferences">Mémoriser mon choix dans les préférences</a>
               <span class="small text-muted" id="site-map-status" role="status"></span>
               <div id="site-map" hidden></div>
 
@@ -464,16 +478,16 @@
     </div>
 
     {# ===== COL RIGHT (Résumé + live validation) ===== #}
-    <div class="col-lg-5">
+    <div class="col-lg-4 se-sidebar">
 
-      <div class="cardx mb-4">
+      <div class="cardx se-summary mb-4" id="site-summary">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie rapidement avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Vérifiez les coordonnées avant d’enregistrer votre site.</div>
 
           <div class="p-3 rounded-4 border mb-3"
                style="border-color: var(--stroke); background: linear-gradient(180deg, var(--theme-soft), transparent);">
@@ -526,7 +540,7 @@
                 <span class="fw-semibold text-end" id="resume-latlng">—</span>
               </div>
               <div class="d-flex justify-content-between gap-3 py-1">
-                <span class="text-muted">Timezone</span>
+                <span class="text-muted">Fuseau horaire</span>
                 <span class="fw-semibold text-end" id="resume-tz">—</span>
               </div>
             </div>
@@ -561,6 +575,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -715,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function(){
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     document.getElementById('btn-enable-site-map').disabled = true;
-    if (status) status.textContent = 'Carte activée pour cette page.';
+    if (status) status.textContent = 'Carte affichée.';
 
     // si édition -> place le marqueur directement
     if (Number.isFinite(existingLat) && Number.isFinite(existingLng)){
@@ -731,6 +746,16 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   document.getElementById('btn-enable-site-map')?.addEventListener('click', activateSiteMap);
+  if (window.WikiMapPreferences?.allowed()) activateSiteMap();
+  document.addEventListener('wiki:osm-preference', event => {
+    if (event.detail.allowed) { activateSiteMap(); return; }
+    if (map) { map.remove(); map = null; marker = null; }
+    if (mapEl) mapEl.hidden = true;
+    const button = document.getElementById('btn-enable-site-map');
+    if (button) button.disabled = false;
+    const status = document.getElementById('site-map-status');
+    if (status) status.textContent = 'Affichage automatique désactivé.';
+  });
 
 
     // boutons
