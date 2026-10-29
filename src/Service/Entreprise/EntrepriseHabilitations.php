@@ -20,7 +20,7 @@ final class EntrepriseHabilitations
             && $i?->getEntite()?->getId() === $tenant->getId()
             && $i?->getSession()?->getEntite()?->getId() === $tenant->getId()
             && $d->getEntreprise()?->getId() === $company->getId()
-            && $i?->getEntreprise()?->getId() === $company->getId()
+            && ($i?->getEntreprise() ?? $i?->getStagiaire()?->getEntreprise())?->getId() === $company->getId()
             && $i?->getStagiaire() !== null && $d->getActive() && !$d->getDeleted()
             && $d->getAvisToken() && in_array($d->getState(), ['awaiting_company', 'published'], true);
     }
@@ -56,7 +56,7 @@ final class EntrepriseHabilitations
             ->from(HabilitationRevision::class, 'r')->join('r.dossier', 'd')
             ->join('d.inscription', 'i')->join('i.session', 's')->join('i.stagiaire', 'u')->leftJoin('s.formation', 'f')
             ->where('d.entite = :tenant AND i.entite = :tenant AND s.entite = :tenant')
-            ->andWhere('d.entreprise = :company AND i.entreprise = :company')
+            ->andWhere('d.entreprise = :company AND (i.entreprise = :company OR (i.entreprise IS NULL AND u.entreprise = :company))')
             ->andWhere('d.active = true AND d.deleted = false')
             ->andWhere('d.state IN (:states) AND r.token = d.avisToken AND r.kind = :kind')
             ->setParameter('tenant', $tenant)->setParameter('company', $company)

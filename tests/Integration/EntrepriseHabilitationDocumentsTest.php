@@ -220,6 +220,33 @@ final class EntrepriseHabilitationDocumentsTest extends WebTestCase
         }
     }
 
+    public function testRepresentativeSeesEmployeesWithoutAPrimaryCompanyAndCanPrepareTheirTitles(): void
+    {
+        $alice = $this->dossier($this->alpha, 'Alice');
+        $bob = $this->dossier($this->alpha, 'Bob');
+        $private = $this->dossier($this->alpha, 'Prive', false);
+        $foreignCompany = $this->company('Interdite')->setRepresentant(null);
+        $this->dossier($foreignCompany, 'Externe');
+        // Automatic assignments also support registrations without a company,
+        // using the employee's company instead.
+        $bob->getInscription()->setEntreprise(null);
+        $bob->getInscription()->getStagiaire()->setEntreprise($this->alpha);
+        $this->em->flush();
+        self::assertNull($this->employer->getEntreprise());
+        $this->client->request('GET', '/fr/habilitation/'.$this->tenant->getId());
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.hab-table', 'Alice Exemple');
+        self::assertSelectorTextContains('.hab-table', 'Bob Exemple');
+        self::assertStringNotContainsString('Externe Exemple', $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('Prive Exemple', $this->client->getResponse()->getContent());
+        $data = $this->listing(); self::assertSame(2, $data['recordsTotal']);
+        foreach ([$alice, $bob] as $d) {
+            $this->client->request('GET', $this->editorUrl($d)); self::assertResponseIsSuccessful();
+            self::assertSelectorExists('button[value="sign"]');
+            $this->client->request('GET', $this->documentsUrl('/habilitations/'.$d->getId().'/avis/pdf')); self::assertResponseIsSuccessful();
+        }
+    }
+
     public function testPaginationAcrossBatchesPreservesCountsAndFiltersInvalidIdentity(): void
     {
         for ($n = 0; $n < 105; ++$n) {

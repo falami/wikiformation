@@ -33,7 +33,7 @@ final class HabilitationController extends AbstractController
     private function base(Entite $e): array { return ['entite' => $e, 'isAdmin' => $this->admin($e)]; }
 
     #[Route('', name: 'index', methods: ['GET'])]
-    public function index(#[MapEntity(id: 'entite')] Entite $entite, Request $request): Response
+    public function index(#[MapEntity(id: 'entite')] Entite $entite, Request $request, \App\Service\Entreprise\EntreprisePortalContext $portal): Response
     {
         $this->member($entite); $u = $this->getUser(); $admin = $this->admin($entite);
         $trainer = $this->isGranted(P::FORMATEUR, $entite); $company = $this->isGranted(P::ENTREPRISE, $entite); $student = $this->isGranted(P::STAGIAIRE, $entite);
@@ -46,7 +46,14 @@ final class HabilitationController extends AbstractController
         if (!$admin) {
             $allowed = [];
             if ($trainer) { $allowed[] = '(d.formateur = :me OR :me MEMBER OF d.formateurs)'; $qb->setParameter('me', $u); }
-            if ($company && $u->getEntreprise()) { $allowed[] = "(d.entreprise = :company AND d.avisToken IS NOT NULL AND d.state IN ('awaiting_company', 'published'))"; $qb->setParameter('company', $u->getEntreprise()); }
+            if ($company) {
+                $companies = $portal->companies($u, $entite);
+                if ($request->query->has('entreprise')) $companies = [$portal->resolve($u, $entite)];
+                if ($companies) {
+                    $allowed[] = "(d.entreprise IN (:companies) AND i.entite = :e AND s.entite = :e AND d.avisToken IS NOT NULL AND d.state IN ('awaiting_company', 'published'))";
+                    $qb->setParameter('companies', $companies);
+                }
+            }
             if ($student) { $allowed[] = "(i.stagiaire = :student AND d.state = 'published')"; $qb->setParameter('student', $u); }
             $qb->andWhere($allowed ? '('.implode(' OR ', $allowed).')' : '1 = 0')->andWhere('d.active = true AND d.deleted = false');
         }
