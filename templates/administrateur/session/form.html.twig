@@ -498,6 +498,7 @@
   @media(max-width:575px){.session-pricing .sp-body{padding:18px}.session-pricing .sp-total{padding:20px}}
 
 </style>
+<link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
 {% endblock %}
 
 {% block javascripts %}
@@ -523,19 +524,21 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor">
 
   {# ===== HERO (même style que session/index) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">ESPACE DE PLANIFICATION</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-calendar-event me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ modeEdition ? 'Modifier une session' : 'Ajouter une session' }}
           </h2>
-          <div class="opacity-75 mt-1">Références, journées, stagiaires, pièces et logistique.</div>
+          <div class="opacity-75 mt-1">Préparez votre session, du planning à l’accueil des participants.</div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
             <span class="chip"><i class="bi bi-calendar-event"></i> Session</span>
@@ -559,6 +562,9 @@
     </div>
   </div>
 
+<nav class="se-nav" aria-label="Rubriques de la session">
+<a href="#se-references"><span>01</span> Références</a><a href="#se-pricing"><span>02</span> Tarification</a>{% if form.piecesObligatoires is defined %}<a href="#se-documents"><span>03</span> Documents</a>{% endif %}<a href="#se-planning"><i class="bi bi-calendar3" aria-hidden="true"></i> Planning</a><a href="#se-students"><i class="bi bi-people" aria-hidden="true"></i> Stagiaires</a><a href="#se-logistics"><i class="bi bi-sliders" aria-hidden="true"></i> Logistique</a>
+</nav>
   {% include 'flagMessage.html.twig' %}
 
   {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate' } }) }}
@@ -569,10 +575,10 @@
     <div class="col-lg-8">
 
       {# ===== Liens & Références ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="se-references">
         <div class="cardx-h">
-          <h5 class="cardx-title"><i class="bi bi-link-45deg text-warning"></i> Liens & Références</h5>
-          <span class="chip">Étape 1</span>
+          <h5 class="cardx-title"><i class="bi bi-link-45deg text-warning"></i> Les repères de la session</h5>
+          <span class="chip">Organisation</span>
         </div>
         <div class="p-3 p-md-4">
           <div class="row g-3">
@@ -625,8 +631,9 @@
               </div>
             </div>
 
-            <div class="col-md-6">{{ form_row(form.status) }}</div><div class="col-12">{% include 'administrateur/session/_switch.html.twig' with {field: form.startReminderEnabled} %}</div>
+            <div class="col-md-6">{{ form_row(form.status) }}</div>
             <div class="col-md-6">{{ form_row(form.engin) }}</div>
+            <div class="col-12">{% include 'administrateur/session/_switch.html.twig' with {field: form.startReminderEnabled} %}</div>
             <div class="col-md-6">{{ form_row(form.code) }}</div>
           </div>
 
@@ -636,7 +643,7 @@
         </div>
       </div>
 
-      <section class="cardx mb-4 session-pricing" aria-labelledby="session-pricing-title">
+      <section class="cardx mb-4 session-pricing" id="se-pricing" aria-labelledby="session-pricing-title">
         <div class="cardx-h">
           <h5 class="cardx-title" id="session-pricing-title"><i class="bi bi-sliders"></i> Organisation & tarification</h5>
         </div>
@@ -664,7 +671,7 @@
 
       {# ===== Pièces obligatoires ===== #}
       {% if form.piecesObligatoires is defined %}
-        <div class="cardx mb-4">
+        <div class="cardx mb-4" id="se-documents">
           <div class="cardx-h">
             <h5 class="cardx-title"><i class="bi bi-file-earmark-check text-warning"></i> Pièces obligatoires</h5>
             <span class="chip">Dossier</span>
@@ -734,7 +741,7 @@
         </div>
       {% endset %}
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="se-planning">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-calendar-week text-warning"></i> Planning & intervenants</h5>
           <span class="chip" id="chip-jours">{{ form.jours|length }} créneau{{ form.jours|length > 1 ? 'x' : '' }}</span>
@@ -791,7 +798,7 @@
         </div>
       {% endset %}
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="se-students">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-people-fill text-warning"></i> Stagiaires</h5>
           <span class="chip" id="chip-ins">{{ form.inscriptions|length }} inscrit{{ form.inscriptions|length > 1 ? 's' : '' }}</span>
@@ -832,7 +839,7 @@
       </div>
 
       {# ===== Logistique (switches) ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="se-logistics">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-tools text-warning"></i> Logistique - animation</h5>
           <div class="d-flex gap-2">
@@ -951,7 +958,7 @@
                 <div class="switch-row">
                   <div class="flex-grow-1">
                     <div class="title">Eau / café</div>
-                    <div class="desc">Petit confort qui change tout 😄</div>
+                    <div class="desc">Prévoir un espace de pause pour les participants.</div>
                   </div>
                   <div class="form-check form-switch">
                     {{ form_widget(form.salleEauCafe, { attr: { class:'form-check-input', 'data-logistique-switch':'1' } }) }}
@@ -975,23 +982,23 @@
           <i class="fa fa-arrow-left"></i> Retour
         </a>
         <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
-          <i class="fa fa-check"></i> {{ modeEdition ? 'Modifier' : 'Ajouter & Terminer' }}
+          <i class="fa fa-check"></i> {{ modeEdition ? 'Enregistrer les modifications' : 'Créer la session' }}
         </button>
       </div>
 
     </div>
 
     {# ====================== COL RIGHT ====================== #}
-    <div class="col-lg-4">
+    <div class="col-lg-4 se-sidebar">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4 se-summary">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Votre session en un coup d’œil.</div>
 
           <div class="border rounded-4 p-3 mb-3" style="border-color: var(--stroke) !important; background: linear-gradient(180deg, color-mix(in srgb, var(--theme-color-principal) 8%, transparent), transparent);">
             <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -1018,7 +1025,7 @@
               </div>
 
               <div class="d-flex justify-content-between gap-3 py-1">
-                <span class="text-muted">Type de financement</span>
+                <span class="text-muted">Sous-traitance</span>
                 <span class="fw-semibold text-end" id="resume-type-financement">-</span>
               </div>
               <div class="d-flex justify-content-between gap-3 py-1">
@@ -1091,6 +1098,7 @@
 {% endif %}
 
 {{ form_end(form) }}
+</div>
 
 {# ================== MODALES (identiques à ta version) ================== #}
 {# ===== NOUVEAU STAGIAIRE (ULTRA) ===== #}

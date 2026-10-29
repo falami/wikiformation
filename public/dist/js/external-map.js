@@ -9,11 +9,7 @@
     map.querySelector('[data-map-error]').textContent = '';
   });
 
-  document.addEventListener('click', event => {
-    const button = event.target.closest?.('[data-load-google-map]');
-    if (!button) return;
-    event.preventDefault();
-    const map = button.closest('[data-external-map]');
+  function loadMap(map, focus = false) {
     if (!map) return;
     const canvas = map.querySelector('[data-map-canvas]');
     if (canvas.childElementCount) return;
@@ -32,9 +28,20 @@
     frame.src = url.href;
     canvas.append(frame);
     map.querySelector('[data-map-placeholder]').hidden = true;
-    frame.focus();
+    if (focus) frame.focus();
+  }
+
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-load-google-map]');
+    if (!button) return;
+    event.preventDefault();
+    loadMap(button.closest('[data-external-map]'), true);
   });
-  // A restored page or a reopened modal must not silently reconnect to Google.
+  document.addEventListener('wiki:load-session-map', event => {
+    const map = event.target;
+    if (map.matches?.('[data-external-map]')) loadMap(map);
+  });
+  // Release embedded frames when the modal closes or the page is cached.
   document.addEventListener('turbo:before-cache', () => reset(document));
   document.addEventListener('hidden.bs.modal', event => reset(event.target));
 })();
