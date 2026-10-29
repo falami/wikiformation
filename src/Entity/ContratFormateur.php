@@ -161,8 +161,25 @@ class ContratFormateur
     private ?Utilisateur $signatureOrganismePar = null;
 
 
+    /** Operational coverage only: never changes the signed contract or its holder. */
+    #[ORM\ManyToMany(targetEntity: Formateur::class)]
+    #[ORM\JoinTable(name: 'contrat_formateur_intervenant')]
+    #[ORM\JoinColumn(name: 'contrat_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'formateur_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private \Doctrine\Common\Collections\Collection $intervenantsCouverts;
+
+    public function getIntervenantsCouverts(): \Doctrine\Common\Collections\Collection { return $this->intervenantsCouverts; }
+    public function addIntervenantCouvert(Formateur $trainer): static
+    {
+        if ($trainer->getEntite() !== $this->getEntite()) throw new \InvalidArgumentException('L’intervenant doit appartenir au même organisme.');
+        if (!$this->intervenantsCouverts->contains($trainer)) $this->intervenantsCouverts->add($trainer);
+        return $this;
+    }
+    public function removeIntervenantCouvert(Formateur $trainer): static { $this->intervenantsCouverts->removeElement($trainer); return $this; }
+
     public function __construct()
     {
+        $this->intervenantsCouverts = new \Doctrine\Common\Collections\ArrayCollection();
         // Optionnel mais propre si tu veux être béton de chez béton :
         $this->status             = ContratFormateurStatus::BROUILLON;
         $this->numero             = '';

@@ -6,6 +6,49 @@ use App\Service\Session\SessionFinancialSummary;
 use PHPUnit\Framework\TestCase;
 final class SessionFinancialSummaryTest extends TestCase
 {
+    public function testDelegatedTrainerIsCoveredWithoutDuplicatingContractCost(): void
+    {
+        $entity = new Entite();
+        $holder = (new Formateur())->setEntite($entity);
+        $actual = (new Formateur())->setEntite($entity);
+        $session = (new Session())->setEntite($entity)->setFormateur($actual);
+        $contract = $this->contract($session, $holder, 90000);
+        $calculator = new SessionFinancialSummary();
+        self::assertNull($calculator->calculate($session, [$this->convention($session, 189000)], [$contract])['remaining']);
+        $contract->addIntervenantCouvert($actual);
+        $result = $calculator->calculate($session, [$this->convention($session, 189000)], [$contract]);
+        self::assertSame(0, $result['missingTrainers']);
+        self::assertSame(99000, $result['remaining']);
+        self::assertSame($holder, $contract->getFormateur());
+        self::assertSame([$actual], $session->getFormateursEffectifs());
+        $contract->setStatus(ContratFormateurStatus::RESILIE);
+        self::assertSame(1, $calculator->calculate($session, [], [$contract])['missingTrainers']);
+    }
+
+    public function testTwoContractsCoverThreeActualTrainersWithoutDuplicateCosts(): void
+    {
+        $entity = new Entite();
+        $session = (new Session())->setEntite($entity);
+        $a = (new Formateur())->setEntite($entity);
+        $b = (new Formateur())->setEntite($entity);
+        $c = (new Formateur())->setEntite($entity);
+        foreach ([$a, $b, $c] as $trainer) $session->addJour((new \App\Entity\SessionJour())->setFormateur($trainer));
+        $one = $this->contract($session, $a, 30000)->addIntervenantCouvert($b);
+        $two = $this->contract($session, new Formateur(), 20000)->addIntervenantCouvert($c);
+        $result = (new SessionFinancialSummary())->calculate($session, [$this->convention($session)], [$one, $two]);
+        self::assertSame(0, $result['missingTrainers']);
+        self::assertSame(50000, $result['trainerCost']);
+        self::assertSame(50000, $result['remaining']);
+        self::assertSame([$a, $b, $c], $session->getFormateursEffectifs());
+    }
+
+    public function testCoverageCannotCrossOrganisations(): void
+    {
+        $contract = (new ContratFormateur())->setEntite(new Entite());
+        $this->expectException(\InvalidArgumentException::class);
+        $contract->addIntervenantCouvert((new Formateur())->setEntite(new Entite()));
+    }
+
     public function testResponsibleTeachingAloneDoesNotRequireContractOrDeduction(): void
     {
         $entity = new Entite();

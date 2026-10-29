@@ -952,11 +952,13 @@ body{ overflow-x:hidden; }
       <div class="cardx mb-3" id="session-contracts">
         <div class="cardx-h"><span><i class="bi bi-file-earmark-check text-theme-secondaire me-2"></i>Contrats rattachés à la session</span><span class="badge bg-light text-dark">{{ sessionContracts|length }}</span></div>
         <div class="p-3"><p class="small text-muted">Les contrats restent au nom de leur titulaire, même lorsqu’un autre formateur assure la formation.</p>
+        <a class="btn btn-sm btn-outline-secondary mb-3" href="{{ path('app_admin_session_trainer_coverage', {entite:entite.id,id:session.id}) }}">Rattacher les intervenants aux contrats</a>
         {% for contract in sessionContracts %}
           <div class="py-2 {{ not loop.last ? 'border-bottom' : '' }}" data-session-contract="{{ contract.id }}">
             <a class="fw-semibold text-decoration-none" href="{{ path('app_administrateur_formateurs_contrats_show', {entite:entite.id,id:contract.id}) }}">{{ contract.numero ?: 'Contrat #' ~ contract.id }} <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
             <div class="small mt-1">Titulaire : {{ contract.formateur.utilisateur.prenom|default('') }} {{ contract.formateur.utilisateur.nom|default('') }}</div>
             <div class="small text-muted">{{ contract.status.label }}</div>
+            {% for actual in contract.intervenantsCouverts %}<div class="small mt-1">Intervenant couvert : {{ actual.utilisateur.prenom|default('') }} {{ actual.utilisateur.nom|default('') }}</div>{% endfor %}
           </div>
         {% endfor %}</div>
       </div>
@@ -1038,12 +1040,19 @@ body{ overflow-x:hidden; }
 
                   <div class="text-center mt-2">
                     <div class="d-flex flex-wrap justify-content-center gap-1">
+                      {% set coveringContracts = [] %}
+                      {% for candidate in sessionContracts|default([]) %}
+                        {% if candidate.status.value != 'resilie' and candidate.status.value != 'RESILIE' and f in candidate.intervenantsCouverts %}{% set coveringContracts = coveringContracts|merge([candidate]) %}{% endif %}
+                      {% endfor %}
+                      {% if coveringContracts|length %}
+                        {% for coverage in coveringContracts %}<a class="btn btn-sm btn-outline-secondary" href="{{ path('app_administrateur_formateurs_contrats_show', {entite:entite.id,id:coverage.id}) }}">Couvert par {{ coverage.numero ?: 'Contrat #' ~ coverage.id }} · {{ coverage.formateur.utilisateur.prenom|default('') }} {{ coverage.formateur.utilisateur.nom|default('') }}</a>{% endfor %}
+                      {% endif %}
                       {% if contrat %}
                         <a href="{{ path('app_administrateur_formateurs_contrats_show', { entite: entite.id, id: contrat.id }) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-text me-1"></i>Voir le contrat</a>
                         {% if contrat.status.value == 'BROUILLON' and not contrat.signatureAt and not contrat.signatureDataUrl %}
                           <a href="{{ path('app_administrateur_formateurs_contrats_edit', { entite: entite.id, id: contrat.id }) }}" class="btn btn-sm btn-outline-secondary" title="Modifier le contrat"><i class="fa fa-pen"></i></a>
                         {% endif %}
-                      {% elseif trainerSlots|length and is_granted('CONTRAT_FORMATEUR_MANAGE', entite) %}
+                      {% elseif not coveringContracts|length and trainerSlots|length and is_granted('CONTRAT_FORMATEUR_MANAGE', entite) %}
                         <form action="{{ path('app_administrateur_session_contrat_formateur', {entite: entite.id, id: session.id, formateur: f.id}) }}" method="post">
                           <input type="hidden" name="_token" value="{{ csrf_token('contrat_formateur_' ~ session.id ~ '_' ~ f.id) }}">
                           <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fa fa-file-signature me-1"></i>Préparer le contrat</button>

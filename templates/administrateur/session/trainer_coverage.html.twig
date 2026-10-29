@@ -1,0 +1,20 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Intervenants & contrats · {{ session.code }}{% endblock %}
+{% block body %}
+<div class="container py-4" style="max-width:1000px">
+<a href="{{ path('app_administrateur_session_show',{entite:entite.id,id:session.id}) }}" class="btn btn-outline-secondary mb-3">← Retour à la session</a>
+<header class="p-4 rounded-4 mb-4" style="background:#203747;color:white;border-top:3px solid #d5b471"><small style="color:#e9c982">{{ session.code }} · ÉQUIPE PÉDAGOGIQUE</small><h1 class="h3 mt-2">Qui intervient, sous quel contrat ?</h1><p class="mb-0">Le titulaire porte le contrat. Les intervenants réels restent affectés aux créneaux du planning.</p></header>
+<div class="alert alert-light border">Pour chaque contrat, cochez les salariés ou sous-traitants dont la prestation est comprise dans son montant. Le titulaire est déjà couvert automatiquement. Chaque contrat est comptabilisé une seule fois.</div>
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{{ form_start(form) }}{{ form_errors(form) }}
+{% for contract in contracts %}
+<section class="card border rounded-4 mb-3"><div class="card-body p-4">
+<div class="d-flex justify-content-between gap-3 flex-wrap"><div><h2 class="h5">{{ contract.numero ?: 'Contrat #' ~ contract.id }}</h2><p>Titulaire : <strong>{{ contract.formateur.utilisateur.prenom|default('') }} {{ contract.formateur.utilisateur.nom|default('') }}</strong></p></div><span>{{ (contract.totalHtCents / 100)|number_format(2, ',', ' ') }} € HT</span></div>
+<p class="small text-muted">Intervenants couverts par ce contrat sur cette session</p>
+{{ form_row(attribute(form,'contract_' ~ contract.id)) }}
+</div></section>
+{% else %}<div class="alert alert-info">Rattachez d’abord un contrat formateur à cette session.</div>{% endfor %}
+<p class="small text-muted">Ce rattachement ne change ni le contrat signé ni les signatures existantes. Les émargements et nouveaux comptes rendus restent associés aux personnes réellement affectées au planning. Les comptes rendus déjà déposés conservent leur auteur.</p>
+{% if contracts|length %}<button class="btn px-4 py-3" style="background:#e9c982;color:#203747;font-weight:650">Enregistrer les rattachements</button>{% endif %}
+{{ form_end(form) }}</div>
+{% endblock %}

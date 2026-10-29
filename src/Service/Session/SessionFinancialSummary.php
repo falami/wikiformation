@@ -50,6 +50,9 @@ final class SessionFinancialSummary
             $trainerTax += $contract->getMontantTvaCents();
             ++$trainerCount;
             if ($contract->getFormateur()) $covered[spl_object_id($contract->getFormateur())] = true;
+            foreach ($contract->getIntervenantsCouverts() as $actualTrainer) {
+                if ($actualTrainer->getEntite() === $session->getEntite()) $covered[spl_object_id($actualTrainer)] = true;
+            }
         }
         $missing = 0;
         foreach ($session->getFormateursEffectifs() as $trainer) if (!$responsibleOnly && (!isset($covered[spl_object_id($trainer)]))) ++$missing;

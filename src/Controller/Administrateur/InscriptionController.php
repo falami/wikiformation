@@ -101,6 +101,7 @@ class InscriptionController extends AbstractController
             $qb->andWhere('
             se.code LIKE :s
             OR f.titre LIKE :s
+            OR se.formationIntituleLibre LIKE :s
             OR st.nom LIKE :s
             OR st.prenom LIKE :s
             OR st.email LIKE :s
@@ -134,7 +135,7 @@ class InscriptionController extends AbstractController
             $stag    = $i->getStagiaire();
 
             $sessionStr = $session
-                ? sprintf('%s - %s', $session->getCode(), $session->getFormation()?->getTitre() ?? '')
+                ? sprintf('%s - %s', $session->getCode(), $session->getFormationLabel())
                 : '-';
 
             $stagStr = $stag
