@@ -246,6 +246,8 @@
     
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/reservation-editor.css') }}?v=1">
 {% endblock %}
 
 {% block javascripts %}
@@ -257,20 +259,22 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor reservation-editor">
 
   {# ===== HERO (style identique à session/form) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">ESPACE DE PLANIFICATION</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-ticket-perforated me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ modeEdition ? 'Modification' : 'Ajout' }} d’une réservation
           </h2>
           <div class="opacity-75 mt-1">
-            Associe une session, un stagiaire et les infos de réservation / paiement.
+            Associez un stagiaire à une session et renseignez les modalités de sa réservation.
           </div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
@@ -296,6 +300,12 @@
   </div>
 
 
+  <nav class="se-nav" aria-label="Rubriques de la réservation">
+    <a href="#reservation-participant"><span>01</span> Session & stagiaire</a>
+    <a href="#reservation-details"><span>02</span> Réservation</a>
+    <a href="#reservation-paiement"><span>03</span> Paiement</a>
+  </nav>
+
   {% include 'flagMessage.html.twig' %}
 
   {{ form_start(form, {
@@ -309,9 +319,9 @@
 
   <div class="row g-4">
     {# ===== COL LEFT ===== #}
-    <div class="col-lg-7">
+    <div class="col-lg-8">
 
-      <div class="cardx mb-4 allow-overflow">
+      <div class="cardx mb-4 allow-overflow" id="reservation-participant">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="fa fa-link text-warning"></i>
@@ -327,7 +337,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4 allow-overflow">
+      <div class="cardx mb-4 allow-overflow" id="reservation-details">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="fa fa-calendar text-warning"></i>
@@ -344,7 +354,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="reservation-paiement">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="fa fa-euro-sign text-warning"></i>
@@ -373,16 +383,16 @@
             <div class="col-md-6">{{ form_row(form.devise) }}</div>
           </div>
 
-          <div class="form-text mt-2">Montant saisi en euros (converti en cents côté serveur).</div>
+          <div class="form-text mt-2">Renseignez le montant déjà payé pour cette réservation.</div>
         </div>
       </div>
 
     </div>
 
     {# ===== COL RIGHT (Résumé + validation live) ===== #}
-    <div class="col-lg-5">
+    <div class="col-lg-4 se-sidebar">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="fa fa-circle-info text-warning"></i>
@@ -392,7 +402,7 @@
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie rapidement avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Vérifiez les informations avant d’enregistrer.</div>
 
           <div class="p-3 rounded-4 border mb-3"
                style="border-color: var(--stroke); background: linear-gradient(180deg, var(--theme-soft), transparent);">
@@ -456,7 +466,7 @@
       <div class="sticky-actions d-none d-lg-block">
         <div class="d-flex align-items-center justify-content-between">
           <div class="small text-muted">
-            <strong class="text-dark">Astuce :</strong> complète session + stagiaire + date pour valider.
+            <strong class="text-dark">Astuce :</strong> Renseignez la session, le stagiaire et la date pour valider.
           </div>
           <span class="badge rounded-pill" style="border:1px solid var(--stroke); background: var(--secondary-soft); color: var(--ink);">
             Réservation
@@ -468,6 +478,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

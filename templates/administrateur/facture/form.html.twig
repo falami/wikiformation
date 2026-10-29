@@ -319,6 +319,8 @@
 
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/invoice-editor.css') }}?v=20261029-2">
 {% endblock %}
 
 {% block javascripts %}
@@ -330,15 +332,17 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor invoice-editor">
 
 
   {# ===== HERO (style Sessions) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">COMPTABILITÉ · FACTURATION</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-receipt me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ title }}
@@ -386,13 +390,20 @@
             </a>
           {% endif %}
 
-          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+          <button id="btnHeroSubmit" form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
             <i class="bi bi-check2 me-1"></i> {{ invoiceDraft|default(false) ? 'Enregistrer le brouillon' : 'Enregistrer' }}
           </button>
         </div>
       </div>
     </div>
   </div>
+
+  <nav class="se-nav" aria-label="Sections du formulaire de facture">
+    <a href="#invoice-references"><span>01</span> Références</a>
+    <a href="#invoice-terms"><span>02</span> Conditions et mentions</a>
+    <a href="#invoice-amounts"><span>03</span> Montants</a>
+    <a href="#invoice-lines"><span>04</span> Lignes</a>
+  </nav>
 
   {% include 'flagMessage.html.twig' %}
 
@@ -422,7 +433,7 @@
     <div class="col-lg-8">
 
       {# ===== Références ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="invoice-references">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-link text-warning"></i> Références</h5>
           <span class="chip">Étape 1</span>
@@ -503,7 +514,7 @@
         </div>
       </div>
 
-      <section class="cardx mb-4 invoice-terms" aria-labelledby="invoice-terms-title">
+      <section id="invoice-terms" class="cardx mb-4 invoice-terms" aria-labelledby="invoice-terms-title">
         <div class="cardx-h">
           <div><span class="terms-eyebrow">CONDITIONS & MENTIONS</span><h5 class="cardx-title" id="invoice-terms-title">Les détails de votre facturation</h5></div>
           <span class="terms-heading-icon" aria-hidden="true"><i class="fa fa-file-invoice"></i></span>
@@ -549,7 +560,7 @@
       </section>
 
       {# ===== Montants + Remise globale ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="invoice-amounts">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-receipt text-warning"></i> Montants</h5>
           <span class="chip">Auto</span>
@@ -672,10 +683,10 @@
       {% endset %}
 
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="invoice-lines">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-list text-warning"></i> Lignes</h5>
-          <span class="chip">Étape 2</span>
+          <span class="chip">Étape 4</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -755,8 +766,8 @@
     </div>
 
     {# ===== COL RIGHT ===== #}
-    <div class="col-lg-4">
-      <div class="cardx mb-4">
+    <div class="col-lg-4 se-sidebar">
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
@@ -855,6 +866,7 @@
   {% do form.lignes.setRendered %}
 
 {{ form_end(form) }}
+</div>
 
 <script>
 const IS_EDIT = {{ form.vars.value and form.vars.value.id ? 'true' : 'false' }};

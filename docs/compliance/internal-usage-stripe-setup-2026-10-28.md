@@ -19,3 +19,33 @@ La migration doit être appliquée avant d'activer le nouveau code, y compris le
 La première configuration suppose qu'un abonnement local et son plan existent déjà. Le service ne devine ni un plan ni des quotas en cas d'absence. Un abonnement Stripe déjà rattaché est géré via le portail existant. Le rétablissement d'une configuration expirée, supprimée ou incohérente exige un rapprochement administratif ; aucun bouton de recréation automatique n'est fourni, afin d'éviter les doublons financiers. Ne pas supprimer la réservation ou vider ses références pour tenter de reprendre : vérifier d'abord dans Stripe les identifiants et l'état de toutes les opérations associées.
 
 Sources Stripe : [création Checkout](https://docs.stripe.com/api/checkout/sessions/create), [solde de facturation et montant minimum](https://docs.stripe.com/billing/customer/balance).
+
+
+## Correctif du 29 octobre 2026 : expiration avant création
+
+Le code initial figeait `expires_at` à l’heure de réservation + 1 800 secondes, avant les appels de contrôle du client, des factures et des abonnements. Stripe exige un délai de 30 minutes minimum **au moment de la création de Checkout**. Le temps des contrôles rendait donc la requête invalide. L’erreur était remplacée par un message d’indisponibilité puis, après expiration, par une demande de rapprochement.
+
+Les nouvelles réservations omettent `expires_at` et bénéficient des 24 heures par défaut de Stripe. Les paramètres restent figés pour les reprises avec la même clé. Sans identifiant de session connu, la limite locale de 23 heures depuis la première tentative protège toujours contre la réutilisation d’une clé que Stripe pourrait avoir purgée.
+
+Pour l’ancienne erreur uniquement, un nouveau clic avec acceptation des conditions peut reprendre automatiquement si :
+
+- l’ancien `expires_at` est dépassé depuis plus de cinq minutes et un client Stripe est déjà enregistré ;
+- aucune session ni souscription Stripe n’est rattachée localement ;
+- le client correspond à l’organisme, son solde est nul, aucune facture ouverte/brouillon ni ligne en attente n’existe, et aucune souscription distante n’est active ;
+- la liste des Checkout du client est complète (au maximum 100 pour cette reprise), cohérente, et ne contient aucune session de souscription ouverte ou terminée.
+
+Sous verrou de l’organisme, la réservation et l’abonnement sont rechargés. Toute évolution concurrente bloque cette reprise et invite à recharger. L’ancien corps de requête, sa clé et sa date restent dans `request.checkout_history`. Une nouvelle clé est figée, l’expiration absolue est retirée, et les acceptations ancienne/nouvelle sont conservées par l’audit `subscription.internal_usage_resumed`. L’identifiant de réservation et le client sont conservés. Aucun plan, droit ni abonnement distant n’est modifié par le rapprochement.
+
+Les erreurs API sont désormais journalisées avec opération, classe, statut HTTP, code, paramètre et référence Stripe, sans corps de requête, secret ni message brut. Les erreurs de validation sont présentées comme telles. Les exceptions de programmation ne sont plus transformées en faux incidents réseau.
+
+### Diagnostic sur le serveur
+
+Après déploiement, depuis la racine du projet :
+
+```sh
+php bin/console app:billing:internal-usage:diagnose 1 --env=prod
+```
+
+Cette commande est en lecture seule : elle inspecte la réservation locale et les sessions/abonnements Stripe sans créer ni supprimer d’objet. Ajouter `--local-only` pour rester hors réseau. Si une session terminée ou un abonnement existant est trouvé, vérifier les livraisons du webhook avant toute reprise. Ne pas supprimer la réservation ni vider ses références.
+
+La reproduction et les tests du correctif utilisent SQLite et des réponses Stripe simulées. Aucun diagnostic de la base ni du compte Stripe de production n’a été effectué depuis l’environnement local ; le défaut de temporisation est établi par le code et la documentation, pas par un journal Stripe de la tentative réelle.

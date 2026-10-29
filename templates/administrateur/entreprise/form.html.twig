@@ -315,15 +315,19 @@
       border: 1px solid rgba(15,23,42,.10) !important;
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/entreprise-editor.css') }}?v=1">
 {% endblock %}
 
 {% block body %}
+<div class="session-editor entreprise-editor">
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">RÉPERTOIRE ENTREPRISES</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-buildings me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ is_edit ? 'Modifier une entreprise' : 'Créer une entreprise' }}
@@ -352,14 +356,19 @@
              class="btn btn-outline-theme btn-sm fw-semibold">
             <i class="bi bi-arrow-left me-1"></i> Retour
           </a>
-          <button type="button" class="btn btn-light btn-sm fw-semibold"
-                  onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})">
-            <i class="bi bi-arrow-down me-1"></i> Actions
+          <button type="submit" form="entrepriseForm" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+            <i class="bi bi-check2 me-1"></i> {{ is_edit ? 'Enregistrer' : 'Créer' }}
           </button>
         </div>
       </div>
     </div>
   </div>
+
+  <nav class="se-nav" aria-label="Rubriques de l’entreprise">
+    <a href="#entreprise-logo"><span>01</span> Logo</a>
+    <a href="#entreprise-adresse"><span>02</span> Adresse</a>
+    <a href="#entreprise-identite"><span>03</span> Identité & facturation</a>
+  </nav>
 
   {% include 'flagMessage.html.twig' %}
 
@@ -375,10 +384,10 @@
     <div class="col-lg-8">
 
       {# ===== Logo ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="entreprise-logo">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-image text-warning"></i> Logo</h5>
-          <span class="chip-soft">Étape 1</span>
+          <span class="chip">Étape 1</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -392,9 +401,9 @@
               <div class="logo-dropzone-icon">
                 <i class="bi bi-cloud-arrow-up"></i>
               </div>
-              <div class="fw-bold">Glisse-dépose ton logo ici</div>
+              <div class="fw-bold">Glissez-déposez votre logo ici</div>
               <div class="text-muted small">
-                ou clique pour sélectionner une image<br>
+                ou cliquez pour sélectionner une image<br>
                 JPG, PNG, WEBP, SVG — max 4 Mo
               </div>
               <div class="mt-2">
@@ -449,10 +458,10 @@
       </div>
 
       {# ===== Adresse ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="entreprise-adresse">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-geo-alt text-warning"></i> Adresse</h5>
-          <span class="chip-soft">Étape 2</span>
+          <span class="chip">Étape 2</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -460,7 +469,7 @@
             <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
               <div>
                 <div class="fw-bold"><i class="bi bi-google me-2 text-warning"></i> Autocomplétion Google</div>
-                <div class="small text-muted mt-1">Commence à taper une adresse, puis sélectionne un résultat.</div>
+                <div class="small text-muted mt-1">Saisissez une adresse, puis sélectionnez une proposition.</div>
               </div>
               <button type="button" class="btn btn-ghost btn-sm" id="btn-clear-address">
                 <i class="bi bi-x-lg me-1"></i> Réinitialiser
@@ -516,17 +525,17 @@
           <div class="mini-map mt-3" id="entreprise-mini-map">
             <div class="mini-map-placeholder">
               <i class="bi bi-geo-alt"></i>
-              <span class="small">Sélectionne une adresse pour afficher l’emplacement</span>
+              <span class="small">Sélectionnez une adresse pour afficher l’emplacement</span>
             </div>
           </div>
         </div>
       </div>
 
       {# ===== Identité ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="entreprise-identite">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Identité</h5>
-          <span class="chip-soft">Étape 3</span>
+          <span class="chip">Étape 3</span>
         </div>
         <div class="p-3 p-md-4">
           {{ form_row(form.raisonSociale) }}
@@ -587,11 +596,11 @@
     </div>
 
     <div class="col-lg-4">
-      <div class="sticky-actions">
+      <div class="sticky-actions se-summary" data-form-summary>
         <div class="d-flex align-items-center justify-content-between gap-2">
           <div>
             <div class="fw-bold">Résumé</div>
-            <div class="small text-muted">Vérifie avant d’enregistrer.</div>
+            <div class="small text-muted">Vérifiez les informations avant d’enregistrer.</div>
           </div>
           <span id="resume-valid-pill"
                 class="badge rounded-pill px-3 py-2"
@@ -648,6 +657,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
 
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 
@@ -928,7 +938,7 @@
         wrap.innerHTML = `
           <div class="mini-map-placeholder">
             <i class="bi bi-geo-alt"></i>
-            <span class="small">Sélectionne une adresse pour afficher l’emplacement</span>
+            <span class="small">Sélectionnez une adresse pour afficher l’emplacement</span>
           </div>
         `;
         map = null;

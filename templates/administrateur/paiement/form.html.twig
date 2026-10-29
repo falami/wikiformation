@@ -255,6 +255,8 @@
 
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/payment-editor-premium.css') }}?v=20261029-1">
 {% endblock %}
 
 {% block javascripts %}
@@ -266,35 +268,37 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor payment-editor">
 
   {# ===== HERO (style Sessions) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">SUIVI DES RÈGLEMENTS</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-credit-card me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ title }}
           </h2>
 
           <div class="opacity-75 mt-1">
-            Références + détails.
+            Identifiez le payeur et renseignez les détails du règlement.
           </div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
-            <span class="chip--hero">
+            <span class="chip chip--hero">
               <i class="bi bi-credit-card"></i>
               Paiement
             </span>
 
-            <span class="chip--hero">
+            <span class="chip chip--hero">
               <i class="bi bi-building"></i>
               {{ entite.nom }}
             </span>
 
-            <span class="chip--hero chip--pill">
+            <span class="chip chip--hero chip--pill">
               <i class="bi bi-pencil-square"></i>
               {{ title }}
             </span>
@@ -307,7 +311,7 @@
             <i class="bi bi-arrow-left"></i> Annuler
           </a>
 
-          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
             <i class="bi bi-check2"></i> Enregistrer
           </button>
         </div>
@@ -315,6 +319,11 @@
     </div>
   </div>
 
+  <nav class="se-nav" aria-label="Rubriques du paiement">
+    <a href="#payment-references"><span>01</span> Payeur & facture</a>
+    <a href="#payment-details"><span>02</span> Détails du règlement</a>
+    <a href="#payment-allocation"><span>03</span> Ventilation</a>
+  </nav>
   {% include 'flagMessage.html.twig' %}
 
   {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'paiement_form' } }) }}
@@ -322,12 +331,12 @@
 
   <div class="row g-4">
     {# ===== COL LEFT ===== #}
-    <div class="col-lg-7">
+    <div class="col-lg-8">
 
       {# ===== Références ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="payment-references">
         <div class="cardx-h">
-          <h5 class="cardx-title"><i class="fa fa-link text-warning"></i> Références</h5>
+          <h5 class="cardx-title"><i class="fa fa-link text-warning"></i> Payeur & facture</h5>
           <span class="chip">Étape 1</span>
         </div>
         <div class="p-3 p-md-4">
@@ -336,12 +345,12 @@
             <div class="col-md-6">{{ form_row(form.payeurEntreprise) }}</div>
             <div class="col-md-12">{{ form_row(form.facture) }}</div>
           </div>
-          <div class="form-text mt-2">Tu peux lier le paiement à une inscription et/ou à une facture.</div>
+          <div class="form-text mt-2">Sélectionnez la facture concernée si ce règlement lui est associé.</div>
         </div>
       </div>
 
       {# ===== Détails ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="payment-details">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-credit-card text-warning"></i> Détails du paiement</h5>
           <span class="chip">Étape 2</span>
@@ -373,7 +382,7 @@
 
 
       {# ===== Ventilation ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="payment-allocation">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-chart-pie text-warning"></i> Ventilation (automatique)</h5>
           <span class="chip">Info</span>
@@ -430,20 +439,20 @@
     </div>
 
     {# ===== COL RIGHT (Résumé) ===== #}
-    <div class="col-lg-5">
+    <div class="col-lg-4 se-sidebar">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
         </div>
 
         <div class="p-3 p-md-4">
-          <div class="small text-muted mb-3">Vérifie avant d’enregistrer.</div>
+          <div class="small text-muted mb-3">Vérifiez les informations avant d’enregistrer.</div>
 
           <div class="summary-box mb-3">
             <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-              <div class="fw-bold">Choix actuels</div>
+              <div class="fw-bold">Votre règlement</div>
               <span id="resume-valid-pill"
                     class="badge rounded-pill px-3 py-2"
                     style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
@@ -494,7 +503,7 @@
       <div class="sticky-actions d-none d-lg-block">
         <div class="d-flex align-items-center justify-content-between">
           <div class="small text-muted">
-            <strong class="text-dark">Astuce :</strong> si tu choisis une facture, on propose le “restant dû”.
+            <strong class="text-dark">Astuce :</strong> La sélection d’une facture propose son montant restant dû.
           </div>
           <span class="badge rounded-pill"
                 style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
@@ -507,6 +516,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

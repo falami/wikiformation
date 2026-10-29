@@ -55,10 +55,10 @@ final class InternalUsageCheckoutTest extends KernelTestCase
         return $this->service()->start($this->entite, $this->user, ['version' => 'fixture', 'html' => 'Terms', 'sha256' => hash('sha256', 'Terms')],
             'https://example.test/success?session_id={CHECKOUT_SESSION_ID}', 'https://example.test/cancel');
     }
-    private function mockStripe(callable $checkout, ?array $customer = null, array $subscriptions = []): void
+    private function mockStripe(callable $checkout, ?array $customer = null, array $subscriptions = [], array|\Closure|null $sessions = null): void
     {
         $http = $this->createMock(ClientInterface::class);
-        $http->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use ($checkout, $customer, $subscriptions) {
+        $http->method('request')->willReturnCallback(function ($method, $url, $headers, $params) use ($checkout, $customer, $subscriptions, $sessions) {
             if (str_ends_with($url, '/customers')) {
                 self::assertSame('post', strtolower($method));
                 // Reservation and consent exist before any remote side effect.
@@ -68,6 +68,9 @@ final class InternalUsageCheckoutTest extends KernelTestCase
             if (str_ends_with($url, '/customers/cus_internal')) return [json_encode($customer ?? ['id' => 'cus_internal', 'object' => 'customer', 'livemode' => true, 'balance' => 0, 'metadata' => ['entite_id' => '1']]), 200, []];
             if (str_ends_with($url, '/invoiceitems') || str_ends_with($url, '/invoices')) return [json_encode(['object' => 'list', 'data' => [], 'has_more' => false]), 200, []];
             if (str_ends_with($url, '/subscriptions')) return [json_encode(['object' => 'list', 'data' => $subscriptions, 'has_more' => false]), 200, []];
+            if ($sessions !== null && strtolower($method) === 'get' && str_ends_with($url, '/checkout/sessions')) {
+                return [json_encode($sessions instanceof \Closure ? $sessions() : $sessions), 200, []];
+            }
             self::assertStringEndsWith('/checkout/sessions', $url);
             return $checkout($params, $headers);
         });
@@ -83,6 +86,8 @@ final class InternalUsageCheckoutTest extends KernelTestCase
     {
         $before = [$this->sub->getPlan(), $this->sub->getStatus(), $this->sub->getCurrentPeriodEnd(), $this->sub->getTrialEndsAt(), $this->sub->getAddons(), $this->sub->getLimitsSnapshot()];
         $this->mockStripe(function ($params) {
+            // Stripe validates this relative to receipt, after all preflight calls.
+            self::assertArrayNotHasKey('expires_at', $params);
             self::assertSame('always', $params['payment_method_collection']);
             self::assertSame(['card', 'sepa_debit'], $params['payment_method_types']);
             self::assertSame(0, $params['line_items'][0]['price_data']['unit_amount']);
@@ -110,7 +115,7 @@ final class InternalUsageCheckoutTest extends KernelTestCase
         $this->mockStripe(function ($params, $headers) use (&$requests, &$keys) {
             $requests[] = $params;
             $keys[] = array_values(array_filter($headers, fn($header) => str_starts_with($header, 'Idempotency-Key:')));
-            if (count($requests) === 1) throw new \RuntimeException('Lost response fixture');
+            if (count($requests) === 1) throw new \Stripe\Exception\ApiConnectionException('Lost response fixture');
             return self::sessionResponse($params);
         });
         try { $this->start(); self::fail('Expected temporary failure'); } catch (\DomainException) {}
@@ -139,7 +144,7 @@ final class InternalUsageCheckoutTest extends KernelTestCase
 
     public function testExpiredUncertainRequestCannotCreateANewCheckout(): void
     {
-        $this->mockStripe(function () { throw new \RuntimeException('Lost response'); });
+        $this->mockStripe(function () { throw new \Stripe\Exception\ApiConnectionException('Lost response'); });
         try { $this->start(); } catch (\DomainException) {}
         $setup = $this->em->getRepository(InternalUsageSetup::class)->findOneBy([]);
         $setup->request['checkout']['expires_at'] = time() - 1;
@@ -150,6 +155,150 @@ final class InternalUsageCheckoutTest extends KernelTestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('expiré');
         $this->start();
+    }
+
+    private function expiredLegacySetup(): InternalUsageSetup
+    {
+        $this->mockStripe(static fn() => throw new \Stripe\Exception\ApiConnectionException('Lost response'));
+        try { $this->start(); } catch (\DomainException) {}
+        $setup = $this->em->getRepository(InternalUsageSetup::class)->findOneBy([]);
+        $setup->request['checkout']['expires_at'] = time() - 3600;
+        $setup->attemptedAt = new \DateTimeImmutable('-2 days');
+        $this->em->flush();
+        return $setup;
+    }
+
+    public function testExpiredLegacyRequestRenewsOnlyAfterRemoteChecksAndKeepsEvidence(): void
+    {
+        $setup = $this->expiredLegacySetup();
+        $previousRequest = $setup->request['checkout'];
+        $oldId = $setup->id;
+        $this->mockStripe(function ($params, $headers) use ($oldId) {
+            self::assertArrayNotHasKey('expires_at', $params);
+            self::assertSame($oldId, $params['metadata']['internal_usage_setup']);
+            $keys = array_values(array_filter($headers, fn($h) => str_starts_with($h, 'Idempotency-Key:')));
+            self::assertCount(1, $keys);
+            self::assertStringContainsString('internal-usage-checkout-'.$oldId.'-', $keys[0]);
+            return self::sessionResponse($params);
+        }, sessions: ['object' => 'list', 'data' => [], 'has_more' => false]);
+        self::assertSame('https://checkout.stripe.com/c/pay/fixture', $this->start());
+        self::assertSame($oldId, $setup->id);
+        self::assertSame($previousRequest, $setup->request['checkout_history'][0]['request']);
+        self::assertSame(1, $this->em->getRepository(InternalUsageSetup::class)->count([]));
+        self::assertSame(1, $this->em->getRepository(\App\Entity\AuditLog::class)->count(['event' => 'subscription.internal_usage_resumed']));
+        self::assertNull($this->sub->getStripeSubscriptionId());
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unsafeLegacyHistories')]
+    public function testLegacyRenewalRefusesAmbiguousRemoteHistory(array $history): void
+    {
+        $setup = $this->expiredLegacySetup();
+        $before = $setup->request;
+        $this->mockStripe(static fn() => self::fail('Must not create checkout'), sessions: $history);
+        try { $this->start(); self::fail('Expected reconciliation block'); }
+        catch (\DomainException) { self::assertSame($before, $setup->request); }
+    }
+
+    public static function unsafeLegacyHistories(): iterable
+    {
+        $base = ['object' => 'checkout.session', 'livemode' => true, 'customer' => 'cus_internal', 'mode' => 'subscription'];
+        yield 'open' => [['object' => 'list', 'data' => [$base + ['status' => 'open']], 'has_more' => false]];
+        yield 'completed' => [['object' => 'list', 'data' => [$base + ['status' => 'complete']], 'has_more' => false]];
+        yield 'partial list' => [['object' => 'list', 'data' => [], 'has_more' => true]];
+        yield 'malformed' => [['object' => 'list', 'data' => [['status' => 'expired']], 'has_more' => false]];
+        yield 'foreign customer' => [['object' => 'list', 'data' => [array_replace($base, ['status' => 'expired', 'customer' => 'cus_other'])], 'has_more' => false]];
+    }
+
+    public function testRenewedRequestLostResponseReplaysTheSameKeyWithoutAnotherRenewal(): void
+    {
+        $setup = $this->expiredLegacySetup();
+        $calls = [];
+        $this->mockStripe(function ($params, $headers) use (&$calls) {
+            $calls[] = [$params, array_values(array_filter($headers, fn($h) => str_starts_with($h, 'Idempotency-Key:')))];
+            if (count($calls) === 1) throw new \Stripe\Exception\ApiConnectionException('Lost renewed response');
+            return self::sessionResponse($params);
+        }, sessions: ['object' => 'list', 'data' => [], 'has_more' => false]);
+        try { $this->start(); self::fail('Expected lost response'); } catch (\DomainException) {}
+        self::assertSame('https://checkout.stripe.com/c/pay/fixture', $this->start());
+        self::assertCount(2, $calls);
+        self::assertSame($calls[0], $calls[1]);
+        self::assertCount(1, $setup->request['checkout_history']);
+        self::assertSame(1, $this->em->getRepository(\App\Entity\AuditLog::class)->count(['event' => 'subscription.internal_usage_resumed']));
+    }
+
+    public function testConcurrentRenewalDetectedUnderLockCannotSendAnotherCheckout(): void
+    {
+        $setup = $this->expiredLegacySetup();
+        $posts = 0;
+        $this->mockStripe(function () use (&$posts) { ++$posts; self::fail('Concurrent renewal must stop'); },
+            sessions: function () use ($setup) {
+                $other = $setup->request;
+                unset($other['checkout']['expires_at']);
+                $other['checkout_idempotency_key'] = 'other-process-frozen-key';
+                $this->em->getConnection()->update('billing_internal_usage_setup', ['request' => json_encode($other)], ['id' => $setup->id]);
+                return ['object' => 'list', 'data' => [], 'has_more' => false];
+            });
+        try { $this->start(); self::fail('Expected concurrent change'); }
+        catch (\DomainException $error) { self::assertStringContainsString('reprise est déjà en cours', $error->getMessage()); }
+        self::assertSame(0, $posts);
+    }
+
+    public function testCheckoutExpiryRemainsValidAfterPreflightLatency(): void
+    {
+        $this->mockStripe(function ($params) {
+            $stripeReceiptTime = time() + 10;
+            if (isset($params['expires_at']) && $params['expires_at'] < $stripeReceiptTime + 1800) {
+                return [json_encode(['error' => ['type' => 'invalid_request_error',
+                    'message' => 'Expiration must be at least 30 minutes from now.', 'param' => 'expires_at']]), 400, []];
+            }
+            return self::sessionResponse($params);
+        });
+        self::assertSame('https://checkout.stripe.com/c/pay/fixture', $this->start());
+    }
+
+    public function testLegacyExpiryWithoutKnownCustomerNeverCreatesAnything(): void
+    {
+        $setup = $this->expiredLegacySetup();
+        $setup->customerId = null;
+        $this->em->flush();
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::never())->method('request');
+        ApiRequestor::setHttpClient($http);
+        $this->expectException(\DomainException::class);
+        $this->start();
+    }
+
+    public function testOldNewFormatRequestStillNeedsReconciliationAfterIdempotencyWindow(): void
+    {
+        $setup = $this->expiredLegacySetup();
+        unset($setup->request['checkout']['expires_at']);
+        $this->em->flush();
+        $http = $this->createMock(ClientInterface::class);
+        $http->expects(self::never())->method('request');
+        ApiRequestor::setHttpClient($http);
+        $this->expectException(\DomainException::class);
+        $this->start();
+    }
+
+    public function testStripeValidationFailureLogsSafeDiagnosticsAndKeepsTheCause(): void
+    {
+        $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with('Internal usage Stripe request failed.',
+            self::callback(fn(array $context) => $context['operation'] === 'checkout.sessions.create'
+                && $context['stripe_request_id'] === 'req_expiry' && $context['stripe_param'] === 'expires_at'
+                && !str_contains(json_encode($context), 'private@example.test')));
+        $this->mockStripe(static fn() => [json_encode(['error' => ['type' => 'invalid_request_error',
+            'message' => 'Private payload private@example.test', 'param' => 'expires_at']]), 400, ['Request-Id' => 'req_expiry']]);
+        $service = new InternalUsageCheckout($this->em, 'sk_live_fixture', $logger);
+        try {
+            $service->start($this->entite, $this->user, ['version' => 'fixture'], 'https://example.test/success', 'https://example.test/cancel');
+            self::fail('Expected validation error');
+        } catch (\DomainException $error) {
+            self::assertStringContainsString('expires_at', $error->getMessage());
+            self::assertStringContainsString('req_expiry', $error->getMessage());
+            self::assertStringNotContainsString('private@example.test', $error->getMessage());
+            self::assertInstanceOf(\Stripe\Exception\InvalidRequestException::class, $error->getPrevious());
+        }
     }
 
     public function testPlatformShellWithoutLegalIdentityCannotStartSetup(): void

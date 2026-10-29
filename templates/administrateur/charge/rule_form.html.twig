@@ -184,17 +184,21 @@
       .hero{ border-radius:16px; }
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/charge-rule-editor.css') }}?v=1">
 {% endblock %}
 
 {% block body %}
+<div class="session-editor charge-rule-editor">
 
   {# ===== HERO (comme Sessions) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">PARAMÉTRAGE DES CHARGES</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-sliders me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ title|default(r and r.id ? 'Modifier la règle' : 'Nouvelle règle') }}
@@ -218,16 +222,23 @@
 
           <a class="btn btn-outline-theme btn-sm fw-semibold"
             href="{{ path('app_administrateur_charge_preview', { entite: entite.id }) }}">
-            <i class="bi bi-eye me-1"></i> Preview
+            <i class="bi bi-eye me-1"></i> Aperçu
           </a>
 
-          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
             <i class="bi bi-check2 me-1"></i> Enregistrer
           </button>
         </div>
       </div>
     </div>
   </div>
+
+  <nav class="se-nav" aria-label="Rubriques de la règle de charge">
+    <a href="#charge-identification"><span>01</span> Identification</a>
+    <a href="#charge-calcul"><span>02</span> Calcul</a>
+    <a href="#charge-validite"><span>03</span> Validité</a>
+    <a href="#charge-conditions"><span>04</span> Conditions</a>
+  </nav>
 
   {% include 'flagMessage.html.twig' %}
 
@@ -238,7 +249,7 @@
 
     <div class="col-lg-8">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="charge-identification">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-tag-fill text-warning"></i> Identification</h5>
           <span class="chip">Étape 1</span>
@@ -277,7 +288,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="charge-calcul">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-calculator-fill text-warning"></i> Calcul</h5>
           <span class="chip">Taux / Forfait</span>
@@ -306,7 +317,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="charge-validite">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-calendar2-week-fill text-warning"></i> Validité</h5>
           <span class="chip">Dates</span>
@@ -321,7 +332,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="charge-conditions">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-braces-asterisk text-warning"></i> Conditions & meta</h5>
           <span class="chip">JSON</span>
@@ -365,11 +376,11 @@
 
     </div>
 
-    <div class="col-lg-4">
-      <div class="cardx mb-4">
+    <div class="col-lg-4 se-sidebar">
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-shield-check text-warning"></i> Conseils</h5>
-          <span class="chip">Robuste</span>
+          <span class="chip">Repères</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -400,6 +411,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
   
 
 <script>

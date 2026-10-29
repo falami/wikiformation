@@ -295,6 +295,28 @@
 
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <style>
+    .expense-editor .hero .btn-light{background:#e9c982;border-color:#e9c982;color:#203747}
+    .expense-editor .expense-scan .card-body{padding:24px}
+    .expense-editor .expense-scan .text-muted{font-size:.8rem;line-height:1.7}
+    .expense-editor .expense-scan .upload-drop{border:1px dashed #b8c9d5;border-radius:14px;background:#f8fafc;padding:24px}
+    .expense-editor .expense-scan .upload-drop:hover{background:#fffaf0;border-color:#b59148}
+    .expense-editor .expense-scan .upload-drop:focus-visible{outline:3px solid #b59148;outline-offset:3px}
+    .expense-editor .expense-scan #btnScan{background:#e9c982;border-color:#e9c982;color:#203747}
+    .expense-editor .se-summary .border.rounded-4{background:#f8fafc!important}
+    html.workspace-shell body .content .expense-editor [data-form-summary]{
+      position:static!important;
+      top:auto!important;
+      max-height:none!important;
+      height:auto;
+      overflow:visible!important;
+      scrollbar-gutter:auto;
+    }
+    .expense-editor textarea.form-control{min-height:110px}
+    .expense-editor .cardx{scroll-margin-top:120px}
+    @media(max-width:575px){.expense-editor .expense-scan .card-body{padding:18px}}
+  </style>
 {% endblock %}
 
 {% block javascripts %}
@@ -306,6 +328,7 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor expense-editor">
 {% if sourceContract|default(null) %}
 <div class="alert alert-info m-3">
   Montants proposés depuis le contrat {{ sourceContract.numero }}. Vérifiez la facture reçue, choisissez le fournisseur et la date de déduction applicable.
@@ -317,16 +340,17 @@
 
   {# ===== HERO (comme site/index) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">GESTION DES DÉPENSES</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-wallet2 me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ title|default('Dépense') }}
           </h2>
-          <div class="opacity-75 mt-1">Saisie rapide, TVA, montants.</div>
+          <div class="opacity-75 mt-1">Rassemblez votre justificatif, renseignez la dépense et vérifiez les montants.</div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
             <span class="chip"><i class="bi bi-wallet2"></i> Dépenses</span>
@@ -354,6 +378,12 @@
 
   {% include 'flagMessage.html.twig' %}
 
+  <nav class="se-nav" aria-label="Étapes de la dépense">
+    <a href="#expense-scan"><span>01</span> Scanner un reçu</a>
+    <a href="#expense-information"><span>02</span> Informations</a>
+    <a href="#expense-amounts"><span>03</span> TVA & montants</a>
+    <a href="#expense-proof"><span>04</span> Justificatif</a>
+  </nav>
   {{ form_start(form, { attr: { id: form.vars.id, novalidate:'novalidate', name:'depense_form' } }) }}
   {{ form_errors(form) }}
 
@@ -367,7 +397,7 @@
 
 
 
-      <div class="card border-0 shadow-sm mb-3" style="border-radius:18px;">
+      <div class="cardx expense-scan mb-4" id="expense-scan">
         <div class="card-body">
 
           <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -459,7 +489,7 @@
       </div>
 
       {# ===== Infos ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="expense-information">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-info-circle-fill text-warning"></i> Informations</h5>
           <span class="chip">Étape 1</span>
@@ -557,7 +587,7 @@
 
 
       {# ===== TVA + Montants ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="expense-amounts">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-calculator-fill text-warning"></i> TVA & Montants</h5>
           <span class="chip" id="expenseCalcMode">Auto</span>
@@ -653,7 +683,7 @@
       </div>
 
       {# ===== Justificatif ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="expense-proof">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-paperclip text-warning"></i> Justificatif</h5>
           <span class="chip">Optionnel</span>
@@ -716,7 +746,7 @@
     {# ===== COL RIGHT ===== #}
     <div class="col-lg-4">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-clipboard2-check-fill text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
@@ -821,6 +851,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
   
 
 
