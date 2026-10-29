@@ -243,14 +243,18 @@
 }
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/trainer-editor.css') }}?v=20261029-1">
 {% endblock %}
 
 {% block body %}
+<div class="session-editor trainer-editor">
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">RELATIONS &amp; CONTACTS · FORMATEUR</div>
           <h2 class="m-0 fw-bold">
             <i class="fa fa-user-tie me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ is_edit ? 'Modifier le formateur' : 'Créer un formateur' }}
@@ -281,6 +285,14 @@
     </div>
   </div>
 
+  <nav class="se-nav" aria-label="Sections du formulaire formateur">
+    <a href="#trainer-user"><span>01</span> Utilisateur</a>
+    <a href="#trainer-qualifications"><span>02</span> Qualifications et sites</a>
+    <a href="#trainer-professional"><span>03</span> Informations professionnelles</a>
+    <a href="#trainer-vat"><span>04</span> TVA</a>
+    <a href="#trainer-pay"><span>05</span> Rémunération</a>
+    <a href="#trainer-photo"><i class="bi bi-camera" aria-hidden="true"></i> Photo</a>
+  </nav>
   {% include 'flagMessage.html.twig' %}
 
   {% if is_edit %}
@@ -294,11 +306,11 @@
   {{ form_start(form, {'attr': {'novalidate':'novalidate', 'id': form.vars.id|default('formateur_form')}}) }}
   {{ form_errors(form) }}
 
-  <div class="row g-4 align-items-start">
+  <div class="row g-4">
     <div class="col-12 col-lg-8">
 
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="trainer-photo">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-camera text-warning"></i> Photo</h5>
           <span class="chip">Optionnel</span>
@@ -332,7 +344,7 @@
 
 
       {# ===== Utilisateur ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="trainer-user">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-person-check text-warning"></i> Utilisateur associé</h5>
           <span class="pill-status" id="pill_user">⚠️ Obligatoire</span>
@@ -344,7 +356,7 @@
       </div>
 
       {# ===== Qualifications ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="trainer-qualifications">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-award text-warning"></i> Qualifications & sites</h5>
           <span class="chip">Multi-sélection</span>
@@ -364,7 +376,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="trainer-professional">
         <div class="cardx-h"><h5 class="cardx-title"><i class="bi bi-building text-warning"></i> Informations professionnelles</h5></div>
         <div class="cardx-body">
           <div class="row g-3">
@@ -380,7 +392,7 @@
       </div>
 
       {# ===== TVA ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="trainer-vat">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-receipt text-warning"></i> TVA</h5>
           <span class="pill-status" id="pill_tva">—</span>
@@ -423,7 +435,7 @@
       </div>
 
       {# ===== Rémunération ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="trainer-pay">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-cash-coin text-warning"></i> Rémunération par défaut</h5>
           <span class="pill-status" id="pill_remu">—</span>
@@ -472,8 +484,8 @@
     </div>
 
     {# ===== ASIDE résumé ===== #}
-    <div class="col-12 col-lg-4">
-      <div class="aside-card mb-4" data-form-summary>
+    <div class="col-12 col-lg-4 se-sidebar">
+      <div class="aside-card cardx se-summary mb-4" data-form-summary>
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
           <div class="fw-bold">
             <i class="fa fa-clipboard-check me-1" style="color:var(--theme-color-secondaire)"></i>
@@ -509,6 +521,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
 {% endblock %}
 
 {% block javascripts %}

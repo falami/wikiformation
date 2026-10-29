@@ -151,6 +151,8 @@
     .quote-choice-meta{font-size:.85em;opacity:.8}
     .quote-choice-selected{white-space:normal;overflow-wrap:anywhere}
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/convention-editor.css') }}?v=1">
 {% endblock %}
 
 {% block javascripts %}
@@ -164,26 +166,29 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor convention-editor">
 
 
   {# ===== HERO ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
-      <div class="d-flex flex-wrap gap-2 mb-2">
-        <span class="meta-chip"><i class="bi bi-file-text"></i> Convention</span>
-        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
-        <span class="meta-chip"><i class="bi bi-pencil-square"></i> {{ title }}</span>
-        {% if form.vars.value and form.vars.value.id %}
-          <span class="meta-chip"><i class="bi bi-shield-check"></i> Déjà créée</span>
-        {% endif %}
-      </div>
 
-      <div class="d-flex flex-wrap align-items-end gap-2">
+
+      <div class="d-flex flex-wrap align-items-start gap-3">
         <div class="me-auto">
+          <div class="se-eyebrow">DOCUMENTS DE FORMATION</div>
           <h2 class="fw-bold mb-1">{{ title }}</h2>
           <div class="opacity-75">Personnalisez le document et complétez les participants au fil de votre dossier.</div>
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <span class="chip"><i class="bi bi-file-text"></i> Convention</span>
+        <span class="chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
+        <span class="chip"><i class="bi bi-pencil-square"></i> {{ title }}</span>
+        {% if form.vars.value and form.vars.value.id %}
+          <span class="chip"><i class="bi bi-shield-check"></i> Déjà créée</span>
+        {% endif %}
+      </div>
         </div>
 
         <div class="d-flex gap-2">
@@ -192,13 +197,21 @@
             <i class="bi bi-arrow-left"></i> Annuler
           </a>
 
-          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold">
+          <button form="{{ form.vars.id }}" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
             <i class="bi bi-check2"></i> Enregistrer
           </button>
         </div>
       </div>
     </div>
   </div>
+
+  <nav class="se-nav" aria-label="Rubriques de la convention">
+    <a href="#convention-references"><span>01</span> Références</a>
+    <a href="#convention-formation"><span>02</span> Formation</a>
+    <a href="#convention-participants"><span>03</span> Participants</a>
+    <a href="#convention-signatures"><span>04</span> Signatures</a>
+    <a href="#convention-financement"><span>05</span> Financement</a>
+  </nav>
 
   {% include 'flagMessage.html.twig' %}
 
@@ -241,7 +254,7 @@
     <div class="col-lg-8">
 
       {# ===== Références ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="convention-references">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-link text-warning"></i> Références</h5>
           <span class="chip">Étape 1</span>
@@ -274,7 +287,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="convention-formation">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-pencil-square text-warning"></i> Formation sur le document</h5>
           <span class="chip">Personnalisation</span>
@@ -291,7 +304,7 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="convention-participants">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-people text-warning"></i> Participants</h5>
           <span class="chip">À compléter au besoin</span>
@@ -321,7 +334,7 @@
       </div>
 
       {# ===== Signatures ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="convention-signatures">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-file-signature text-warning"></i> Signatures</h5>
           <span class="chip">Info</span>
@@ -348,7 +361,7 @@
       </div>
 
       {# ===== Conditions financières ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="convention-financement">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-euro-sign text-warning"></i> Conditions financières</h5>
           <span class="chip">Étape 2</span>
@@ -365,7 +378,7 @@
       </div>
 
       <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-gradient">
           <i class="fa fa-check"></i> Enregistrer
         </button>
         <a class="btn btn-light" href="{{ path('app_administrateur_convention_index', { entite: entite.id }) }}">
@@ -375,8 +388,8 @@
     </div>
 
     {# ===== COL RIGHT (résumé léger, dans l’esprit “facture”) ===== #}
-    <div class="col-lg-4">
-      <div class="cardx mb-4" data-form-summary>
+    <div class="col-lg-4 se-sidebar">
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
@@ -442,7 +455,7 @@
             <a class="btn btn-light w-50" href="{{ path('app_administrateur_convention_index', { entite: entite.id }) }}">
               Annuler
             </a>
-            <button type="submit" class="btn btn-primary w-50">
+            <button type="submit" class="btn btn-gradient w-50">
               <i class="fa fa-check"></i> Enregistrer
             </button>
           </div>
@@ -454,6 +467,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
   {% if form.stagiaires is defined and is_granted('SESSION_MANAGE', entite) %}{% include 'administrateur/convention/_new_stagiaire.html.twig' %}{% endif %}
 
 <script>

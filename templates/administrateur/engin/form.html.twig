@@ -255,6 +255,16 @@
       border-color: var(--theme-color-secondaire);
     }
   </style>
+
+<link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+<style>
+.engin-editor .upload-zone{background:#f8fafc;border:1px dashed #b8c9d5;border-radius:14px;padding:22px;color:#304b60}
+.engin-editor .upload-zone:hover{background:#fffaf0;border-color:#b59148;box-shadow:0 0 0 3px #d5b47122}
+.engin-editor .upload-zone.dragover{background:#fff5de;border-color:#ad8743}
+.engin-editor .cardx{scroll-margin-top:120px}
+.engin-editor textarea.form-control{min-height:110px}
+html.workspace-shell body .content .engin-editor [data-form-summary]{position:static!important;top:auto!important;max-height:none!important;overflow:visible!important;scrollbar-gutter:auto}
+</style>
 {% endblock %}
 
 {% block javascripts %}
@@ -267,16 +277,18 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor engin-editor">
 
   {# =========================
     HERO (identique Sessions)
     ========================= #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">GESTION DES ENGINS</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-truck me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ modeEdition ? 'Modification' : 'Ajout' }} d’un engin
@@ -310,6 +322,13 @@
 
   {% include 'flagMessage.html.twig' %}
 
+<nav class="se-nav" aria-label="Sections du formulaire engin">
+<a href="#engin-informations"><span>01</span> Informations</a>
+<a href="#engin-images"><span>02</span> Images principales</a>
+<a href="#engin-galerie"><span>03</span> Galerie</a>
+<a href="#engin-capacites"><span>04</span> Capacités</a>
+<a href="#engin-equipements"><span>05</span> Équipements</a>
+</nav>
   {{ form_start(form, { attr: { id: form.vars.id, novalidate: 'novalidate', name:'engin_administrateur' } }) }}
   {{ form_errors(form) }}
 
@@ -321,7 +340,7 @@
     <div class="col-lg-8">
 
       {# ===== Infos ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="engin-informations">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-info-circle text-warning"></i> Informations</h5>
           <span class="chip">Étape 1</span>
@@ -349,7 +368,7 @@
       </div>
 
       {# ===== Images (bannière + couverture) ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="engin-images">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-images text-warning"></i> Images principales</h5>
           <span class="chip">Média</span>
@@ -432,7 +451,7 @@
       </div>
 
       {# ===== Galerie ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="engin-galerie">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-collection text-warning"></i> Galerie</h5>
           <span class="chip">Tri & suppression</span>
@@ -485,7 +504,7 @@
       </div>
 
       {# ===== Capacités ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="engin-capacites">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-person-badge text-warning"></i> Capacités</h5>
           <span class="chip">Config</span>
@@ -507,7 +526,7 @@
       </div>
 
       {# ===== Équipements ===== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="engin-equipements">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-plug text-warning"></i> Équipements</h5>
           <span class="chip">Switchs</span>
@@ -610,7 +629,7 @@
     {# ====================== COL RIGHT ====================== #}
     <div class="col-lg-4">
 
-      <div class="cardx mb-4" data-form-summary>
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="bi bi-clipboard2-check text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
@@ -687,6 +706,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
   
 
 {# ================== JS (TomSelect dropdownParent + validation + résumé live + ton upload/sortable) ================== #}
