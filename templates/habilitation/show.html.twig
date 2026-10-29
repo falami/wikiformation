@@ -44,7 +44,7 @@
 {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
 <div class="hab-layout"><main>
 {% if not editable %}
-<div class="hab-note"><i class="bi bi-lock" aria-hidden="true"></i><div><strong>Consultation uniquement</strong><br>Vous ne pouvez pas modifier ce document. Le titre est établi par le représentant de l’entreprise disposant du rôle Entreprise.</div></div>
+<div class="hab-note"><i class="bi bi-lock" aria-hidden="true"></i><div><strong>Consultation uniquement</strong><br>Vous ne pouvez pas modifier ce document. Le titre est établi par le représentant désigné de l’entreprise.</div></div>
 {% endif %}
 {% if stage == 'titre' and dossier.avisToken and editable %}
 <section class="hab-company-intro" aria-labelledby="employer-copy-title">
@@ -63,7 +63,7 @@
 <section class="hab-panel"><div class="hab-heading"><div><div class="hab-eyebrow">IDENTITÉ & PÉRIMÈTRE</div><h2>{{ stage == 'avis' ? 'Avis post-formation' : 'Titre d’habilitation électrique' }}</h2></div><span class="hab-icon"><i class="bi bi-person-vcard"></i></span></div><div class="hab-grid">
 {% set fields = {function:'Fonction du salarié', assignment:'Affectation · service / chantier', issuedAt:'Date de délivrance', validUntil:'Date de fin de validité', signerFunction:'Fonction du signataire', place:'Lieu de signature'} %}
 {% for key,label in fields %}<div><label for="hab-{{ key }}">{{ label }}{{ stage == 'avis' and key == 'validUntil' ? ' (si applicable)' }}</label><input id="hab-{{ key }}" name="data[{{ key }}]" type="{{ key in ['issuedAt','validUntil'] ? 'date' : 'text' }}" value="{{ data[key]|default('') }}" maxlength="4000"></div>{% endfor %}</div></section>
-{% for section in dossier.schema.sections %}
+{% for section in displaySchema.sections %}
 <section class="hab-panel">
   <div class="hab-heading"><div><div class="hab-eyebrow">SECTION {{ loop.index }}</div><h2>{{ section.title }}</h2></div></div>
   {% for row in section.rows %}
@@ -90,6 +90,11 @@
                   <label class="hab-check {{ not allowed ? 'unavailable' }}"><input type="checkbox" name="data[rows][{{ row.id }}][{{ field.id }}][]" value="{{ option }}" {{ allowed and option in answer[field.id]|default([]) ? 'checked' }} {{ not allowed ? 'disabled' }}><span>{{ option }}{% if not allowed %}<span class="visually-hidden"> — non autorisé par l’avis du formateur</span>{% endif %}</span></label>
                 {% endfor %}
               </div>
+              {% if stage == 'titre' and field.id == 'symbols' %}
+                {% set permitted = employerChoices[row.id][field.id]|default([]) %}
+                {% set lowerChoices = permitted|filter(choice => choice not in reference[field.id]|default([])) %}
+                <div class="hab-reference"><strong>Choix autorisés pour le titre</strong>{{ permitted is not empty ? permitted|join(' · ') : 'Aucun symbole autorisé pour cette ligne.' }}<br><strong>Choix inférieurs proposés</strong>{{ lowerChoices is not empty ? lowerChoices|join(' · ') : 'Aucun autre choix inférieur défini pour cette ligne du questionnaire.' }}</div>
+              {% endif %}
               {% if stage == 'titre' %}<div class="hab-reference" id="reference-{{ row.id }}-{{ field.id }}"><strong><i class="bi bi-shield-check" aria-hidden="true"></i> Périmètre favorable du formateur</strong>{{ reference.verdict|default('') == 'favorable' and reference[field.id]|default([]) is not empty ? reference[field.id]|join(' · ') : 'Aucun choix autorisé pour cette rubrique.' }}</div>{% endif %}
             {% else %}
               <textarea id="answer-{{ row.id }}-{{ field.id }}" name="data[rows][{{ row.id }}][{{ field.id }}]" maxlength="600" rows="3" {% if stage == 'titre' %}readonly aria-describedby="reference-{{ row.id }}-{{ field.id }}"{% endif %}>{{ stage == 'titre' ? reference[field.id]|default('') : answer[field.id]|default('') }}</textarea>

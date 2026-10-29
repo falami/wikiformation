@@ -92,12 +92,28 @@ final class EntrepriseHabilitationDocumentsTest extends WebTestCase
         return $d;
     }
 
+    public function testExplicitRepresentativeCanPrepareTitleWithoutCompanyRole(): void
+    {
+        $d = $this->dossier($this->alpha, 'Alice');
+        $membership = $this->em->getRepository(\App\Entity\UtilisateurEntite::class)->findOneBy(['utilisateur'=>$this->employer, 'entite'=>$this->tenant]);
+        $membership->setRoles(['TENANT_STAGIAIRE']);
+        $this->em->flush();
+        $this->client->loginUser($this->employer);
+        $this->client->request('GET', $this->documentsUrl('/habilitations'));
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Préparer / modifier le titre employeur', $this->client->getResponse()->getContent());
+        $this->client->request('GET', '/fr/habilitation/'.$this->tenant->getId().'/'.$d->getId().'/entreprise?entreprise='.$this->alpha->getId());
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Signer et publier le titre', $this->client->getResponse()->getContent());
+    }
+
     public function testCompanyHabilitationPageKeepsCompaniesSeparate(): void
     {
         $this->dossier($this->alpha, 'Alice');
         $this->dossier($this->beta, 'Bruno');
         $this->client->request('GET', $this->documentsUrl('/habilitations'));
         self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Préparer / modifier le titre employeur', $this->client->getResponse()->getContent());
         self::assertStringContainsString('SES-Alice', $this->client->getResponse()->getContent());
         self::assertStringNotContainsString('SES-Bruno', $this->client->getResponse()->getContent());
         $this->client->request('GET', $this->documentsUrl('/habilitations', $this->beta));

@@ -16,14 +16,21 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/entreprise/{entite}/documents/habilitations', name: 'app_entreprise_documents_habilitation_', requirements: ['entite'=>'\d+'])]
-#[IsGranted(TenantPermission::ENTREPRISE, subject: 'entite')]
+#[IsGranted(TenantPermission::ACCESS, subject: 'entite')]
 final class EntrepriseHabilitationController extends AbstractController
 {
     public function __construct(private EntreprisePortalContext $portal, private EntrepriseHabilitations $documents) {}
 
+    private function checkCompanyAccess(Entite $entite): void
+    {
+        if (!$this->isGranted(TenantPermission::HABILITATION_ENTREPRISE, $entite)
+            && !$this->isGranted(TenantPermission::ENTREPRISE, $entite)) throw $this->createAccessDeniedException();
+    }
+
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Entite $entite, Request $request): Response
     {
+        $this->checkCompanyAccess($entite);
         $entreprise = $this->portal->resolve($this->getUser(), $entite);
         $page = max(1, $request->query->getInt('page', 1));
         $q = mb_substr(trim($request->query->getString('q')), 0, 100);
@@ -41,6 +48,7 @@ final class EntrepriseHabilitationController extends AbstractController
     #[Route('/avis/ajax', name: 'avis_ajax', methods: ['POST'])]
     public function opinions(Entite $entite, Request $request): JsonResponse
     {
+        $this->checkCompanyAccess($entite);
         $company = $this->portal->resolve($this->getUser(), $entite);
         $search = $request->request->all('search')['value'] ?? '';
         if (!is_string($search)) throw new BadRequestHttpException('La recherche doit être un texte.');
@@ -78,6 +86,7 @@ final class EntrepriseHabilitationController extends AbstractController
     #[Route('/{id}/{kind}/pdf', name: 'pdf', methods: ['GET'], requirements: ['id'=>'\d+', 'kind'=>'avis|titre'])]
     public function pdf(Entite $entite, #[MapEntity(id: 'id')] HabilitationDossier $dossier, string $kind, HabilitationDocument $renderer): Response
     {
+        $this->checkCompanyAccess($entite);
         $company = $this->portal->resolve($this->getUser(), $entite);
         if (!$this->documents->available($dossier, $entite, $company) || !$this->documents->current($dossier, 'avis')) throw $this->createNotFoundException();
         $revision = $this->documents->current($dossier, $kind);

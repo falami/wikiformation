@@ -98,9 +98,27 @@ final class HabilitationSchema
         return $id;
     }
 
+    /** Keep reductions in the source row so its evaluated installations and voltages remain binding. */
+    public function employerSchema(array $schema, array $trainer): array
+    {
+        foreach ($schema['sections'] as &$section) foreach ($section['rows'] as &$row) {
+            $reference = $trainer['rows'][$row['id']] ?? [];
+            if (($reference['verdict'] ?? '') !== 'favorable' || !in_array('B2V', $reference['symbols'] ?? [], true)) continue;
+            foreach ($row['fields'] as &$field) {
+                if ($field['id'] !== 'symbols' || $field['type'] !== 'checkbox' || !in_array('B2V', $field['options'], true)) continue;
+                $field['options'] = array_values(array_unique(array_merge($field['options'], ['B2', 'B1V', 'B1'])));
+                $row['title'] = 'Travaux électriques BT — choix du titre employeur';
+            }
+            unset($field);
+        }
+        unset($section, $row);
+        return $schema;
+    }
+
     /** @return array<string, array<string, list<string>>> Choices already offered by this model. */
     public function employerChoices(array $schema, array $trainer): array
     {
+        $schema = $this->employerSchema($schema, $trainer);
         $allowed = [];
         foreach ($schema['sections'] as $section) foreach ($section['rows'] as $row) {
             $reference = $trainer['rows'][$row['id']] ?? [];
@@ -109,6 +127,7 @@ final class HabilitationSchema
                 $choices = ($reference['verdict'] ?? 'not_evaluated') === 'favorable' ? ($reference[$field['id']] ?? []) : [];
                 if ($field['id'] === 'symbols') {
                     foreach ($choices as $choice) {
+                        if ($choice === 'B2V') $choices = array_merge($choices, ['B2', 'B1V', 'B1']);
                         if (isset(self::WITHOUT_NEIGHBOURHOOD[$choice])) $choices[] = self::WITHOUT_NEIGHBOURHOOD[$choice];
                     }
                 }
@@ -123,6 +142,7 @@ final class HabilitationSchema
 
     public function answers(array $schema, array $input, bool $final, ?array $trainer = null): array
     {
+        if ($trainer !== null) $schema = $this->employerSchema($schema, $trainer);
         if (isset($input['rows']) && !is_array($input['rows'])) throw new \InvalidArgumentException('Réponses invalides.');
         $employerChoices = $trainer !== null ? $this->employerChoices($schema, $trainer) : [];
         $out = ['rows' => []];

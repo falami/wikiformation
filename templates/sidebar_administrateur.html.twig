@@ -1222,7 +1222,16 @@
 		{% if canEntreprise %}
 			<li class="wn-section-label" role="presentation"><span>Espace entreprise</span></li>
             {% set isCompanyHabilitation = app.request.attributes.get('_route') starts with 'app_entreprise_documents_habilitation_' or app.request.attributes.get('_route') == 'app_habilitation_company_title' %}
-            <li class="nav-item">
+            
+			<li class="nav-item">
+				<a href="{{ path('app_entreprise_dashboard', {'entite' : entite.id}) }}">
+					<span class="{% if app.request.attributes.get('_route') == 'app_entreprise_dashboard' %}text-theme-secondaire{% else %}text-white{% endif %}">
+						<i class="bi bi-speedometer2"></i>
+						{{ 'navbar.entreprise.title'|trans }}
+					</span>
+				</a>
+			</li>
+			<li class="nav-item">
                 <button type="button" class="nav-link dropdown-toggle {{ isCompanyHabilitation ? 'text-theme-secondaire' : 'text-white' }}" data-bs-toggle="collapse" data-bs-target="#entrepriseHabilitations" aria-expanded="{{ isCompanyHabilitation ? 'true' : 'false' }}" aria-controls="entrepriseHabilitations">
                     <i class="bi bi-lightning-charge"></i> Habilitations
                 </button>
@@ -1236,14 +1245,7 @@
 
 
 
-			<li class="nav-item">
-				<a href="{{ path('app_entreprise_dashboard', {'entite' : entite.id}) }}">
-					<span class="{% if app.request.attributes.get('_route') == 'app_entreprise_dashboard' %}text-theme-secondaire{% else %}text-white{% endif %}">
-						<i class="bi bi-speedometer2"></i>
-						{{ 'navbar.entreprise.title'|trans }}
-					</span>
-				</a>
-			</li>
+			
 
 
 			<li class="nav-item">

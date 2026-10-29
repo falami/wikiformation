@@ -71,7 +71,7 @@ final class HabilitationWorkflow
             $dossier->setEmployerData($data)->setTitreToken(null)->setState('awaiting_company');
         }
         $revision = $this->record($dossier, $actor, $sign ? $stage : 'edit_'.$stage, [
-            'data' => $data, 'signature' => $signature, 'schema' => $dossier->getSchema(),
+            'data' => $data, 'signature' => $signature, 'schema' => $trainerReference !== null ? $this->schema->employerSchema($dossier->getSchema(), $trainerReference) : $dossier->getSchema(),
             'identity' => $identity, 'signer' => trim($actor->getPrenom().' '.$actor->getNom()),
             'avisToken' => $dossier->getAvisToken(),
             'trainerReference' => $trainerReference,

@@ -53,6 +53,23 @@ final class HabilitationSchemaTest extends TestCase
         yield 'H2V to H2' => ['row_6', 'H2V', 'H2'];
     }
 
+    public function testB2VAllowsB2B1VAndB1WithoutChangingTrainerModel(): void
+    {
+        $s = new HabilitationSchema();
+        $model = $s->example();
+        $ref = ['rows'=>['row_6'=>['verdict'=>'favorable', 'symbols'=>['B2V'], 'voltage'=>['BT'], 'works'=>'Atelier']]];
+        self::assertSame(['B2', 'B2V', 'B1V', 'B1'], $s->employerChoices($model, $ref)['row_6']['symbols']);
+        foreach (['B2', 'B1V', 'B1'] as $symbol) {
+            $data = $s->answers($model, ['rows'=>['row_6'=>['symbols'=>[$symbol], 'voltage'=>['BT']]]], false, $ref);
+            self::assertSame([$symbol], $data['rows']['row_6']['symbols']);
+            self::assertSame('Atelier', $data['rows']['row_6']['works']);
+        }
+        self::assertNotContains('B1', $model['sections'][2]['rows'][1]['fields'][0]['options']);
+        foreach (['B0', 'BR', 'BC', 'H1', 'B2V Essai'] as $forbidden) {
+            self::assertNotContains($forbidden, $s->employerChoices($model, $ref)['row_6']['symbols']);
+        }
+    }
+
     public function testReductionDoesNotAddAnOptionToAModelOrInferCustomHierarchy(): void
     {
         $schema = new HabilitationSchema();

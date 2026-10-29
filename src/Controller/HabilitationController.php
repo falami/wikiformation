@@ -371,7 +371,8 @@ final class HabilitationController extends AbstractController
         }
         $revisions = $this->em->getRepository(HabilitationRevision::class)->findBy(['dossier' => $dossier], ['id' => 'DESC'], 100);
         $revisions = array_values(array_filter($revisions, fn ($r) => $this->visibleRevision($r, $dossier, $rights)));
-        $context = compact('studentContext', 'entreprisesDisponibles', 'trainerContext', 'dossier', 'rights', 'stage', 'editable', 'canSign', 'data', 'error', 'revisions', 'trainerReference', 'employerChoices', 'enterpriseContext', 'entreprise', 'showRoute', 'showRouteParams');
+        $displaySchema = $stage === 'titre' ? $this->schema->employerSchema($dossier->getSchema(), $trainerReference) : $dossier->getSchema();
+        $context = compact('displaySchema', 'studentContext', 'entreprisesDisponibles', 'trainerContext', 'dossier', 'rights', 'stage', 'editable', 'canSign', 'data', 'error', 'revisions', 'trainerReference', 'employerChoices', 'enterpriseContext', 'entreprise', 'showRoute', 'showRouteParams');
         if ($enterpriseContext) {
             $context['avisPdfUrl'] = $this->generateUrl('app_entreprise_documents_habilitation_pdf', $showRouteParams + ['kind'=>'avis']);
             $context['titrePdfUrl'] = $dossier->getTitreToken() ? $this->generateUrl('app_entreprise_documents_habilitation_pdf', $showRouteParams + ['kind'=>'titre']) : null;

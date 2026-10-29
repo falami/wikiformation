@@ -378,6 +378,22 @@ final class HabilitationTest extends KernelTestCase
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
     }
 
+    public function testB2VOpinionProducesIndependentB1EmployerSnapshot(): void
+    {
+        $workflow = self::getContainer()->get(HabilitationWorkflow::class);
+        $input = $this->input();
+        $input['rows'] = ['row_6'=>['verdict'=>'favorable', 'symbols'=>['B2V'], 'voltage'=>['BT'], 'works'=>'Atelier', 'details'=>'Hors tension']];
+        $avis = $workflow->save($this->dossier, 'avis', $input, true, $this->trainer, $this->signature());
+        $this->em->persist($avis); $this->em->flush();
+        $this->em->persist($workflow->transmit($this->dossier, $this->admin)); $this->em->flush();
+        $input['rows']['row_6']['symbols'] = ['B1'];
+        $title = $workflow->save($this->dossier, 'titre', $input, true, $this->employer, $this->signature());
+        self::assertSame(['B1'], $title->getSnapshot()['data']['rows']['row_6']['symbols']);
+        self::assertContains('B1', $title->getSnapshot()['schema']['sections'][2]['rows'][1]['fields'][0]['options']);
+        self::assertSame(['B2V'], $avis->getSnapshot()['data']['rows']['row_6']['symbols']);
+        self::assertNotContains('B1', $avis->getSnapshot()['schema']['sections'][2]['rows'][1]['fields'][0]['options']);
+    }
+
     public function testCompanyRoleWithoutExplicitRepresentationCannotEditOwnHabilitation(): void
     {
         $this->sign('avis'); $this->sign('titre');

@@ -1,3 +1,25 @@
+{# Le contexte suit la page consultée, et non le rôle principal du compte. #}
+{% set workspaceRoute = app.request.attributes.get('_route')|default('') %}
+{% set workspaceLabel = 'Espace de travail' %}
+{% if workspaceRoute starts with 'app_formateur_' or workspaceRoute starts with 'app_habilitation_trainer_' or workspaceRoute starts with 'app_market_trainer_' or workspaceRoute == 'app_charter_mine' %}
+  {% set workspaceLabel = 'Espace formateur' %}
+{% elseif workspaceRoute starts with 'app_stagiaire_' or workspaceRoute starts with 'app_habilitation_student_' %}
+  {% set workspaceLabel = 'Espace stagiaire' %}
+{% elseif workspaceRoute starts with 'app_entreprise_' or workspaceRoute == 'app_habilitation_company_title' %}
+  {% set workspaceLabel = 'Espace entreprise' %}
+{% elseif workspaceRoute starts with 'app_of_' %}
+  {% set workspaceLabel = 'Espace organisme partenaire' %}
+{% elseif workspaceRoute starts with 'app_commercial_' or workspaceRoute starts with 'app_partner_' %}
+  {% set workspaceLabel = 'Espace commercial' %}
+{% elseif workspaceRoute starts with 'app_opco_' %}
+  {% set workspaceLabel = 'Espace OPCO' %}
+{% elseif workspaceRoute starts with 'app_super_' %}
+  {% set workspaceLabel = 'Espace super administrateur' %}
+{% elseif workspaceRoute starts with 'app_administrateur_' or workspaceRoute starts with 'app_habilitation_' or workspaceRoute starts with 'app_charter_admin' or workspaceRoute starts with 'app_premium_entite_' %}
+  {% set workspaceLabel = 'Espace administrateur' %}
+{% elseif workspaceRoute starts with 'app_account_' %}
+  {% set workspaceLabel = 'Mon compte' %}
+{% endif %}
 {# Navigation métier commune sur ordinateur et mobile dans workspaceSidebar. #}
 <nav class="navbar adminTopNav wn-topbar" aria-label="Barre d’outils de votre espace">
   <div class="container-fluid wn-topbar-inner">
@@ -7,7 +29,7 @@
         <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
       </button>
       <div class="wn-page-context">
-        <span class="wn-context-kicker">Espace de travail</span>
+        <span class="wn-context-kicker">{{ workspaceLabel }}</span>
         <span class="wn-page-title" id="workspacePageTitle">Vue d’ensemble</span>
       </div>
     </div>

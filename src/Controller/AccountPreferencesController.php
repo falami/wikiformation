@@ -15,7 +15,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[IsGranted('IS_AUTHENTICATED_FULLY')]
 final class AccountPreferencesController extends AbstractController
 {
-    #[Route('/compte/preferences/{section}', name: 'app_account_preferences', defaults: ['section' => 'profil'], requirements: ['section' => 'profil|securite|signature'], methods: ['GET', 'POST'])]
+    #[Route('/compte/preferences/{section}', name: 'app_account_preferences', defaults: ['section' => 'profil'], requirements: ['section' => 'profil|securite|signature|services'], methods: ['GET', 'POST'])]
     public function preferences(string $section, Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $hasher, TenantContext $tenant, PersonalSignatureImage $images, \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface $tokens): Response
     {
         /** @var Utilisateur $user */
@@ -43,7 +43,7 @@ final class AccountPreferencesController extends AbstractController
                 $tokens->setToken(null); $request->getSession()->invalidate();
                 return $this->redirectToRoute('app_login');
             }
-        } elseif ($request->isMethod('POST')) {
+        } elseif ($section === 'signature' && $request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('personal_signature', $request->request->getString('_token'))) throw $this->createAccessDeniedException('Formulaire expiré.');
             if ($request->request->getString('action') === 'delete') {
                 if ($signature) $em->remove($signature);
