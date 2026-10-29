@@ -251,6 +251,8 @@
 
 
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+  <link rel="stylesheet" href="{{ asset('dist/css/inscription-editor-premium.css') }}?v=20261029-1">
 {% endblock %}
 
 {% block javascripts %}
@@ -260,22 +262,24 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor inscription-editor">
   {# =========================
     HERO (identique Sessions)
     ========================= #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">PARCOURS DE FORMATION</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-person-plus me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ modeEdition ? 'Modifier' : 'Créer' }} une inscription
           </h2>
 
           <div class="opacity-75 mt-1">
-            Associe une session, un stagiaire, une entreprise (optionnel) et la facturation.
+            Rattachez votre stagiaire à une session et préparez sa prise en charge.
           </div>
 
           <div class="d-flex flex-wrap gap-2 mt-3">
@@ -303,6 +307,11 @@
   </div>
 
 
+  <nav class="se-nav" aria-label="Rubriques de l’inscription">
+    <a href="#inscription-references"><span>01</span> Session & stagiaire</a>
+    <a href="#inscription-billing"><span>02</span> Facturation</a>
+    <a href="#inscription-summary"><i class="bi bi-check2-circle" aria-hidden="true"></i> Vérification</a>
+  </nav>
   {% include 'flagMessage.html.twig' %}
 
   {{ form_start(form, {
@@ -316,14 +325,14 @@
 
   <div class="row g-4">
     {# ===== COL LEFT ===== #}
-    <div class="col-lg-7">
+    <div class="col-lg-8">
 
       {# ---- Liens & Références ---- #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="inscription-references">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="fa fa-link text-warning"></i>
-            Liens & Références
+            Session & stagiaire
           </h5>
           <span class="chip">Étape 1</span>
         </div>
@@ -334,7 +343,7 @@
 
             <div class="col-md-12">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                <label class="form-label mb-0">Entreprise <span class="text-muted">(si financement entreprise)</span></label>
+                <label for="{{ form.entreprise.vars.id }}" class="form-label mb-0">Entreprise <span class="text-muted">(si financement entreprise)</span></label>
 
                 <button type="button"
                         class="btn btn-sm btn-outline-theme"
@@ -350,7 +359,7 @@
               </div>
 
               <div class="form-text mt-2">
-                Si l’entreprise n’existe pas, utilise “Ajouter une entreprise”.
+                Entreprise absente de la liste ? Ajoutez-la sans quitter cette page.
               </div>
             </div>
 
@@ -360,7 +369,7 @@
       </div>
 
       {# ---- Facturation ---- #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="inscription-billing">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="fa fa-receipt text-warning"></i>
@@ -402,7 +411,7 @@
             Le montant est saisi TTC. Le “reste à payer” est calculé automatiquement à titre indicatif.
           </div>
 
-          <div class="kpi mt-3">
+          <div class="kpi mt-3 inscription-balance" aria-live="polite">
             <div>
               <p class="kpi-label mb-1">Reste à payer</p>
               <div class="small text-muted">Basé sur “Montant dû” - “Montant réglé”.</div>
@@ -415,9 +424,9 @@
     </div>
 
     {# ===== COL RIGHT (Résumé) ===== #}
-    <div class="col-lg-5">
+    <div class="col-lg-4 se-sidebar">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4 se-summary" id="inscription-summary">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="fa fa-circle-info text-warning"></i>
@@ -428,14 +437,14 @@
 
         <div class="p-3 p-md-4">
           <div class="small text-muted mb-3">
-            Vérifie rapidement avant d’enregistrer.
+            Vérifiez les informations avant d’enregistrer.
           </div>
 
 
           <div class="p-3 rounded-4 border mb-3"
             style="border-color: var(--stroke); background: linear-gradient(180deg, var(--theme-soft), transparent);">
           <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-            <div class="fw-bold">Choix actuels</div>
+            <div class="fw-bold">Votre inscription</div>
             <span id="resume-valid-pill"
                   class="badge rounded-pill px-3 py-2"
                   style="border:1px solid var(--stroke); background: rgba(255,193,7,.15); color: var(--ink);">
@@ -496,7 +505,7 @@
       <div class="sticky-actions d-none d-lg-block">
         <div class="d-flex align-items-center justify-content-between">
           <div class="small text-muted">
-            <strong class="text-dark">Astuce :</strong> tu peux créer l’entreprise sans quitter la page.
+            <strong class="text-dark">Astuce :</strong> Vous pouvez créer l’entreprise sans quitter la page.
           </div>
           <button type="button"
                   class="btn btn-sm btn-outline-theme"
@@ -511,6 +520,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
 
 {# ============================================================
    ✅ MODAL AJOUT ENTREPRISE (plus premium)
