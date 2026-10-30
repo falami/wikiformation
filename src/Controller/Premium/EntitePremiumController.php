@@ -191,7 +191,7 @@ final class EntitePremiumController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             if ($this->entiteManager->create($nouvelleEntite)) {
                 $ue = new UtilisateurEntite();
-                $ue->setRoles([UtilisateurEntite::TENANT_ADMIN]);
+                $ue->setRoles([UtilisateurEntite::TENANT_ADMIN, UtilisateurEntite::TENANT_DIRIGEANT]);
                 $ue->setCouleur(sprintf('#%06X', mt_rand(0, 0xFFFFFF)));
                 $ue->setUtilisateur($user);
                 $ue->setEntite($nouvelleEntite);

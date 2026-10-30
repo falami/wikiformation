@@ -15,6 +15,7 @@ final class ProspectConverter
       private EM $em,
       private UserPasswordHasherInterface $passwordHasher,
       private BillingGuard $billingGuard,
+      private \App\Security\TenantAccountProtection $accountProtection,
   ) {}
 
   public function convert(Entite $entite, Prospect $p, Utilisateur $currentUser): ProspectConversionResult
@@ -132,6 +133,7 @@ final class ProspectConverter
     $u = $this->em->getRepository(Utilisateur::class)->findOneBy(['email' => $email]);
 
     if ($u) {
+      if (!$this->accountProtection->canEditAccount($currentUser, $u)) return $u;
       // Optionnel : enrichir si champs vides
       if (!$u->getTelephone() && $p->getTelephone()) $u->setTelephone($p->getTelephone());
       if (!$u->getPrenom() && $p->getPrenom())     $u->setPrenom($p->getPrenom());

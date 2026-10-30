@@ -3,11 +3,20 @@
 <div class="btn-group btn-group-sm user-actions" role="group">
 
   {# ✅ Bouton principal = Modifier #}
+  {% if canEditAccount %}
   <a class="btn btn-light user-main"
      data-bs-toggle="tooltip" title="Modifier"
      href="{{ path('app_administrateur_utilisateur_modifier', { id: utilisateur.id, entite: entite.id }) }}">
     <i class="bi bi-pencil"></i>
   </a>
+  {% else %}
+  <a class="btn btn-light user-main"
+     title="Compte dirigeant protégé — consulter la fiche"
+     aria-label="Consulter le compte dirigeant protégé"
+     href="{{ path('app_administrateur_utilisateur_show', { id: utilisateur.id, entite: entite.id }) }}">
+    <i class="bi bi-shield-lock" aria-hidden="true"></i>
+  </a>
+  {% endif %}
 
   {# ✅ Split dropdown #}
   <button type="button"
@@ -31,6 +40,7 @@
     <li><hr class="dropdown-divider"></li>
 
     {# ✅ Activation email (modal) #}
+    {% if canEditAccount %}
     <li>
       <button type="button"
               class="dropdown-item d-flex align-items-center text-success js-open-activation-modal"
@@ -57,10 +67,11 @@
     </li>
 
     <li><hr class="dropdown-divider"></li>
+    {% endif %}
 
     {# Supprimer / Lock #}
     <li>
-      {% if not locked and utilisateur != app.user and not utilisateur.superAdmin and not ue.tenantAdmin and entite.createur != utilisateur and ue.active %}
+      {% if canEditAccount and not locked and utilisateur != app.user and not utilisateur.superAdmin and not ue.tenantAdmin and entite.createur != utilisateur and ue.active %}
         <button type="button"
                 class="dropdown-item d-flex align-items-center text-danger delete-btn"
                 data-bs-toggle="modal" data-bs-target="#deleteModal"

@@ -13,20 +13,51 @@
 
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('dist/css/invoice-follow-up.css') }}">
 {% endblock %}
 {% block body %}
-<div class="card border-0 shadow-sm rounded-4 p-4 my-4">
-  <div class="d-flex justify-content-between gap-3 flex-wrap mb-4"><div><h1 class="h3">Renouvellement et relances</h1><p class="text-muted mb-0">Facture {{ f.numero }} · Émise le {{ f.dateEmission|date('d/m/Y') }}</p></div><a class="btn btn-outline-secondary align-self-start" href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: f.id}) }}">Retour à la facture</a></div>
+{% set delivery = f.meta.follow_up_delivery|default({}) %}
+<div class="invoice-follow-up">
+  <header class="ifu-hero">
+    <div>
+      <p class="ifu-eyebrow">FACTURATION · SUIVI CLIENT</p>
+      <h1>Renouvellement et relances</h1>
+      <p class="ifu-intro">Anticipez vos renouvellements et gardez le rythme de vos encaissements.</p>
+      <div class="ifu-meta"><span><i class="bi bi-receipt" aria-hidden="true"></i> {{ f.numero }}</span><span><i class="bi bi-calendar3" aria-hidden="true"></i> Émise le {{ f.dateEmission|date('d/m/Y') }}</span></div>
+    </div>
+    <a class="ifu-back" href="{{ path('app_administrateur_facture_show', {entite: entite.id, id: f.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Retour à la facture</a>
+  </header>
+
   {{ form_start(form) }}
-  <div class="row g-4"><div class="col-md-6">{{ form_row(form.renewalMonths) }}</div><div class="col-md-6">{{ form_row(form.reminderMonths) }}</div></div>
-  <button class="btn btn-warning mt-3">Enregistrer les réglages</button>
+  <div class="ifu-settings">
+    <section class="ifu-card">
+      <header class="ifu-card-heading"><span class="ifu-icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></span><div><p class="ifu-eyebrow">01 · RAPPEL INTERNE</p><h2>Préparer le renouvellement</h2></div></header>
+      <div class="ifu-card-body">
+        <p class="ifu-description">Retrouvez le rappel sur votre tableau de bord pour préparer la prochaine facture.</p>
+        {{ form_row(form.renewalMonths) }}
+        <div class="ifu-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Le rappel reste interne : il ne génère pas automatiquement une nouvelle facture.</span></div>
+      </div>
+    </section>
+    <section class="ifu-card">
+      <header class="ifu-card-heading"><span class="ifu-icon"><i class="bi bi-envelope" aria-hidden="true"></i></span><div><p class="ifu-eyebrow">02 · E-MAIL AU CLIENT</p><h2>Suivre les impayés</h2></div></header>
+      <div class="ifu-card-body">
+        <p class="ifu-description">Programmez vos relances pour accompagner le règlement des factures échues.</p>
+        {{ form_row(form.reminderMonths) }}
+        <div class="ifu-note"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Les relances s’arrêtent dès que la facture est soldée ou annulée.</span></div>
+      </div>
+    </section>
+  </div>
+  <div class="ifu-actions"><p><i class="bi bi-sliders" aria-hidden="true"></i> Ajustez la fréquence selon votre suivi client.</p><button type="submit" class="ifu-save"><i class="bi bi-check2" aria-hidden="true"></i> Enregistrer les réglages</button></div>
   {{ form_end(form) }}
-  <hr>
-  <p>Prochain renouvellement : <strong>{{ renewalDate ? renewalDate|date('d/m/Y') : 'Désactivé' }}</strong></p>
-  <p>Prochaine relance possible : <strong>{{ reminderDate ? reminderDate|date('d/m/Y') : 'Aucune relance prévue' }}</strong></p>
-  {% set delivery = f.meta.follow_up_delivery|default({}) %}
-  {% if delivery.sentAt|default(null) %}<p class="text-muted">Dernière relance transmise à la messagerie : {{ delivery.sentAt|date('d/m/Y H:i') }}.</p>{% endif %}
-  {% if delivery.status|default('') in ['processing', 'unknown'] %}<p class="alert alert-warning">Un envoi est en cours ou son résultat est incertain. Les relances sont suspendues pour éviter un doublon. Vérifiez l’historique de messagerie.</p>{% endif %}
-  <p class="small text-muted mb-0">Le renouvellement crée un rappel interne. Les e-mails nécessitent l’exécution quotidienne du traitement automatique sur le serveur. Une facture soldée ou annulée n’est plus relancée.</p>
+
+  <section class="ifu-schedule" aria-labelledby="ifu-schedule-title">
+    <div class="ifu-schedule-heading"><div><p class="ifu-eyebrow">VOTRE CALENDRIER</p><h2 id="ifu-schedule-title">Prochaines échéances</h2></div><span class="ifu-saved">Réglages enregistrés</span></div>
+    <div class="ifu-dates">
+      <div><span class="ifu-date-label"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Prochain renouvellement</span><strong>{{ renewalDate ? renewalDate|date('d/m/Y') : 'Désactivé' }}</strong><small>Rappel sur le tableau de bord</small></div>
+      <div><span class="ifu-date-label"><i class="bi bi-send" aria-hidden="true"></i> Prochaine relance possible</span><strong>{{ reminderDate ? reminderDate|date('d/m/Y') : 'Aucune relance prévue' }}</strong><small>E-mail au client si un solde reste dû</small></div>
+    </div>
+    {% if delivery.sentAt|default(null) %}<p class="ifu-delivery"><i class="bi bi-clock-history" aria-hidden="true"></i> Dernière relance transmise à la messagerie le {{ delivery.sentAt|date('d/m/Y à H:i') }}.</p>{% endif %}
+    {% if delivery.status|default('') in ['processing', 'unknown'] %}<p class="alert alert-warning mt-3" role="status">Un envoi est en cours ou son résultat est incertain. Les relances sont suspendues pour éviter un doublon. Vérifiez l’historique de messagerie.</p>{% endif %}
+  </section>
 </div>
 {% endblock %}

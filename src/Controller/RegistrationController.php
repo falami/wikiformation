@@ -6,6 +6,7 @@ use App\Entity\Utilisateur;
 use App\Entity\UtilisateurEntite;
 use App\Service\EmailVerifier;
 use App\Form\RegistrationFormType;
+use App\Security\TenantAccountProtection;
 use App\Service\Email\MailerManager;
 use App\Service\Utilisateur\UtilisateurManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,6 +26,7 @@ final class RegistrationController extends AbstractController
         EntityManagerInterface $em,
         UtilisateurManager $utilisateurManager,
         UserPasswordHasherInterface $passwordHasher,
+        TenantAccountProtection $accountProtection,
     ): Response {
         $user = new Utilisateur();
 
@@ -51,7 +53,9 @@ final class RegistrationController extends AbstractController
         // CAS A : email déjà en base
         // ===================================
         if ($existing) {
-            if ($existing->isVerified()) {
+            // A public registration must never replace a protected account's
+            // password, including a legacy account that is not yet verified.
+            if ($existing->isVerified() || $accountProtection->isProtectedIdentity($existing)) {
                 $this->addFlash('danger', 'Un compte existe déjà avec cette adresse email, veuillez faire une demande de réinitialisation.');
                 return $this->redirectToRoute('app_login', [], Response::HTTP_SEE_OTHER);
             }

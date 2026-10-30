@@ -5,11 +5,12 @@ namespace App\Service\Delegation;
 
 use App\Entity\{Devis, Facture, ConventionContrat, ContratFormateur, UtilisateurEntite, Inscription, Session};
 use App\Enum\DevisStatus;
+use App\Security\TenantAccountProtection;
 use App\Service\Pdf\ContratFormateurDocument;
 use Doctrine\ORM\EntityManagerInterface;
 final class CommercialRules
 {
-    public function __construct(private readonly EntityManagerInterface $em, private readonly ContratFormateurDocument $contracts)
+    public function __construct(private readonly EntityManagerInterface $em, private readonly ContratFormateurDocument $contracts, private readonly TenantAccountProtection $accountProtection)
     {
     }
     public function editBlock(object $record): ?string
@@ -36,6 +37,9 @@ final class CommercialRules
             return 'Cette inscription est terminée.';
         }
         if ($record instanceof UtilisateurEntite) {
+            if ($this->accountProtection->isProtectedIdentity($record->getUtilisateur())) {
+                return 'Ce compte dirigeant est protégé. Son titulaire gère lui-même ses informations personnelles.';
+            }
             if (array_diff($record->getRoles(), [UtilisateurEntite::TENANT_STAGIAIRE]) || $this->em->getRepository(UtilisateurEntite::class)->count(['utilisateur' => $record->getUtilisateur()]) > 1) {
                 return 'L’identité de ce compte partagé ou collaborateur est gérée par un administrateur.';
             }

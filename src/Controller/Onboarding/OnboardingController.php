@@ -114,11 +114,11 @@ final class OnboardingController extends AbstractController
 
                 $em->persist($entite);
 
-                // 2) Membership admin
+                // 2) The creator owns the organism and retains its highest tenant rights.
                 $ue = new UtilisateurEntite();
                 $ue->setUtilisateur($user);
                 $ue->setEntite($entite);
-                $ue->setRoles([UtilisateurEntite::TENANT_ADMIN]);
+                $ue->setRoles([UtilisateurEntite::TENANT_ADMIN, UtilisateurEntite::TENANT_DIRIGEANT]);
                 $ue->setCreateur($user);
                 $ue->ensureCouleur();
                 $em->persist($ue);

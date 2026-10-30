@@ -2620,7 +2620,8 @@ final class SessionController extends AbstractController
         Entite $entite,
         Request $request,
         EntityManagerInterface $em,
-        UserPasswordHasherInterface $passwordHasher
+        UserPasswordHasherInterface $passwordHasher,
+        \App\Security\TenantAccountProtection $accountProtection,
     ): JsonResponse {
 
         $prenom    = trim((string) $request->request->get('prenom', ''));
@@ -2660,7 +2661,7 @@ final class SessionController extends AbstractController
                 return new JsonResponse(['success' => false, 'message' => 'Ce compte formateur appartient déjà à un autre organisme. Son profil ne peut pas être transféré depuis cette session.'], 409);
             }
             // ✅ (Optionnel) complète le téléphone si vide
-            if ($telephone !== '' && method_exists($user, 'getTelephone') && !$user->getTelephone()) {
+            if ($accountProtection->canEditAccount($creator, $user) && $telephone !== '' && method_exists($user, 'getTelephone') && !$user->getTelephone()) {
                 $user->setTelephone($telephone);
             }
 

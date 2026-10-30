@@ -70,31 +70,50 @@ final class TrainerRemindersTest extends KernelTestCase
     private function candidates(string $date = '2026-10-08 10:00 UTC'): array { return iterator_to_array($this->runner->candidates($this->entite, new \DateTimeImmutable($date)), false); }
     private function send(array $message, string $date = '2026-10-08 10:00 UTC'): string { return $this->runner->send($message, new \DateTimeImmutable($date)); }
 
-    public function testMissingReportCanBeRemindedAndDisappearsAfterSubmission(): void
+    public function testOptionalIncidentReportsAreNeverRemindedFromDashboard(): void
     {
         $transport = $this->createMock(MailerInterface::class);
-        $transport->expects(self::once())->method('send')->willReturnCallback(function ($mail) {
-            self::assertStringContainsString('Compléter mon compte rendu', $mail->getHtmlBody());
-            self::assertStringContainsString('cid:trainer-compliance-qr', $mail->getHtmlBody());
-            self::assertCount(1, $mail->getAttachments());
-            self::assertSame('image', $mail->getAttachments()[0]->getMediaType());
-            self::assertSame('png', $mail->getAttachments()[0]->getMediaSubtype());
-        });
+        $transport->expects(self::never())->method('send');
         $twig = self::getContainer()->get('twig'); $router = self::getContainer()->get('router');
         $service = new \App\Service\TrainerReminder\TrainerCompliance($this->em, new \App\Service\TrainerCharter\CharterManager($this->em), $router, new MailerManager($transport, $twig, $router), $twig, new NullLogger());
-        $key = 'report:'.$this->session->getId().':'.$this->trainer->getId();
-        self::assertArrayHasKey($key, $service->pending($this->entite));
-        self::assertSame('sent', $service->send($this->entite, $key));
-        self::assertSame('skipped', $service->send($this->entite, $key));
-        foreach ([StatusSession::DRAFT, StatusSession::CANCELED, StatusSession::DONE] as $status) {
+        foreach ([StatusSession::IN_PROGRESS, StatusSession::DONE, StatusSession::DRAFT, StatusSession::CANCELED] as $status) {
             $this->session->setStatus($status);
-            self::assertArrayNotHasKey($key, $service->pending($this->entite));
+            foreach ($service->pending($this->entite) as $row) {
+                self::assertContains($row['kind'], ['Diplômes', 'Charte qualité', 'Appréciation formateur']);
+            }
+            foreach (['report:', 'attendance:'] as $prefix) {
+                $key = $prefix.$this->session->getId().':'.$this->trainer->getId();
+                self::assertSame('skipped', $service->send($this->entite, $key));
+            }
+            self::assertSame('skipped', $service->send($this->entite, 'contract:'.$this->contract->getId().':'.$this->contract->getVersionNumero()));
         }
-        $this->session->setStatus(StatusSession::IN_PROGRESS);
-        $report = (new \App\Entity\RapportFormateur())->setEntite($this->entite)->setFormateur($this->trainer)->setSession($this->session);
-        $this->session->getRapportFormateurs()->add($report);
-        self::assertArrayNotHasKey($key, $service->pending($this->entite));
-        self::assertSame('skipped', $service->send($this->entite, $key));
+    }
+
+    public function testSessionMenuLinksExistingIncidentReportsOnly(): void
+    {
+        $client = self::getContainer()->get('test.client');
+        $client->disableReboot(); $client->loginUser($this->user);
+        $client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/session');
+        $twig = self::getContainer()->get('twig');
+        $render = function () use ($twig) {
+            $stack = self::getContainer()->get('request_stack');
+            $request = new \Symfony\Component\HttpFoundation\Request();
+            $request->setSession(new \Symfony\Component\HttpFoundation\Session\Session(new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage()));
+            $stack->push($request);
+            try { return $twig->render('administrateur/session/_actions.html.twig', ['session'=>$this->session, 'entite'=>$this->entite]); }
+            finally { $stack->pop(); }
+        };
+        self::assertStringNotContainsString('Comptes rendus / incidents', $render());
+        $report = (new \App\Entity\RapportFormateur())->setEntite($this->entite)->setCreateur($this->user)
+            ->setFormateur($this->trainer)->setSession($this->session)->setSubmittedAt(new \DateTimeImmutable());
+        $this->session->addRapportFormateur($report);
+        $this->em->persist($report); $this->em->flush();
+        $html = $render();
+        self::assertStringContainsString('Comptes rendus / incidents (1)', $html);
+        self::assertStringContainsString('/rapports-formateurs/'.$report->getId().'/traiter', $html);
+        self::assertStringContainsString('Camille Test', $html);
+        $client->request('GET', '/fr/administrateur/'.$this->entite->getId().'/rapports-formateurs/'.$report->getId().'/traiter');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
     }
 
     public function testAdministratorCanCorrectActualTrainerWithAudit(): void
@@ -137,20 +156,16 @@ final class TrainerRemindersTest extends KernelTestCase
         self::assertSame(1, $this->em->getRepository(\App\Entity\AuditLog::class)->count(['event'=>'trainer_attendance_attribution_corrected']));
     }
 
-    public function testManualComplianceTransportAndSignatureResolution(): void
+    public function testManualComplianceExcludesContractsAndHandlesTransportFailure(): void
     {
         $transport=$this->createMock(MailerInterface::class);
-        $transport->expects(self::exactly(2))->method('send')->willReturnCallback(function ($mail) { if ($this->fail) throw new \RuntimeException('Simulated failure'); $this->messages[]=$mail; });
+        $transport->expects(self::once())->method('send')->willReturnCallback(function ($mail) { if ($this->fail) throw new \RuntimeException('Simulated failure'); $this->messages[]=$mail; });
         $twig=self::getContainer()->get('twig');$router=self::getContainer()->get('router');
         $service=new \App\Service\TrainerReminder\TrainerCompliance($this->em,new \App\Service\TrainerCharter\CharterManager($this->em),$router,new MailerManager($transport,$twig,$router),$twig,new NullLogger());
         $this->contract->setStatus(ContratFormateurStatus::ENVOYE);$this->em->flush();
         $key='contract:'.$this->contract->getId().':'.$this->contract->getVersionNumero();
-        self::assertArrayHasKey($key,$service->pending($this->entite));
-        self::assertSame('sent',$service->send($this->entite,$key));
-        self::assertSame('skipped',$service->send($this->entite,$key));
-        self::assertStringContainsString('Consulter et signer',$this->messages[0]->getHtmlBody());
-        $this->contract->setSignatureAt(new \DateTimeImmutable());$this->em->flush();
         self::assertArrayNotHasKey($key,$service->pending($this->entite));
+        self::assertSame('skipped',$service->send($this->entite,$key));
         $this->fail=true;$key='diploma:'.$this->trainer->getId();
         self::assertSame('unknown',$service->send($this->entite,$key));
         self::assertSame('skipped',$service->send($this->entite,$key));

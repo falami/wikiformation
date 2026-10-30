@@ -41,6 +41,19 @@
     <li><a class="dropdown-item" target="_blank" rel="noopener" href="{{ path('app_formateur_emargement_pdf', {entite: entite.id, session: session.id}) }}"><i class="bi bi-file-earmark-pdf me-2"></i>Tous les émargements</a></li>
     <li><a class="dropdown-item" target="_blank" rel="noopener" href="{{ path('app_formateur_emargement_pdf', {entite: entite.id, session: session.id, format: 'individual'}) }}"><i class="bi bi-files me-2"></i>Émargements séparés</a></li>
     {% endif %}
+    {% if is_granted('FORMATEUR_MANAGE', entite) %}
+      {% set reports = session.rapportFormateurs|filter(report => report.entite and report.entite.id == entite.id) %}
+      {% if reports|length %}
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-header">Comptes rendus / incidents ({{ reports|length }})</h6></li>
+        {% for report in reports %}
+          <li><a class="dropdown-item" href="{{ path('app_administrateur_rapport_edit', {entite: entite.id, id: report.id}) }}">
+            <i class="bi bi-file-earmark-text me-2"></i>{{ report.formateur ? report.formateur.utilisateur.prenom ~ ' ' ~ report.formateur.utilisateur.nom : 'Formateur' }}
+            <small class="d-block text-muted ms-4">{{ report.submittedAt|date('d/m/Y') }} · {{ report.statutTraitementLabel }}</small>
+          </a></li>
+        {% endfor %}
+      {% endif %}
+    {% endif %}
     <li><hr class="dropdown-divider"></li>
 
     <li>

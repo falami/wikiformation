@@ -28,6 +28,8 @@ use App\Security\Permission\TenantPermission;
 use App\Exception\BillingQuotaExceededException;
 use App\Service\Billing\EntitlementService;
 use App\Entity\Billing\Plan;
+use App\Security\TenantAccountProtection;
+use Symfony\Component\Form\FormError;
 
 
 #[Route('/administrateur/{entite}/utilisateur', name: 'app_administrateur_utilisateur_')]
@@ -42,6 +44,7 @@ final class UtilisateurController extends AbstractController
       private readonly UserPasswordHasherInterface $passwordHasher,
       private readonly BillingGuard $billingGuard,
       private readonly EntitlementService $entitlementService,
+      private readonly TenantAccountProtection $accountProtection,
   ) {}
 
   /* ===================== LIST ===================== */
@@ -201,6 +204,7 @@ final class UtilisateurController extends AbstractController
           'utilisateur' => $u,
           'locked'      => $locked,
           'ue'          => $ue,
+          'canEditAccount' => $this->accountProtection->canEditAccount($this->getUser(), $u),
         ]),
       ];
     }
@@ -233,6 +237,7 @@ final class UtilisateurController extends AbstractController
       $utilisateur->setCreateur($user);
     } else {
       $this->assertUtilisateurInEntite($entite, $utilisateur);
+      $this->accountProtection->assertCanEditAccount($user, $utilisateur);
     }
 
     $locked = $isEdit ? $this->isLockedUtilisateur($utilisateur) : false;
@@ -285,6 +290,13 @@ final class UtilisateurController extends AbstractController
 
     $form->handleRequest($request);
 
+    if ($form->isSubmitted() && $ue && $form->get('ueRoles')->isSynchronized()) {
+      $error = $this->accountProtection->transitionError(
+        $user, $ue, (array) $form->get('ueRoles')->getData(), $ue->getStatus(),
+      );
+      if ($error) $form->get('ueRoles')->addError(new FormError($error));
+    }
+
     // Reuse the global identity without overwriting it. A new membership must
     // still satisfy the target organism's subscription limits.
     if (!$isEdit && $form->isSubmitted()) {
@@ -313,11 +325,15 @@ final class UtilisateurController extends AbstractController
             }
           }
           if ($canAttach) {
+            $this->accountProtection->assertCanEditAccount($user, $existing);
             $roles = (array) $form->get('ueRoles')->getData();
             if (!$canSetHighRoles) {
               $roles = array_values(array_diff($roles, [UtilisateurEntite::TENANT_ADMIN, UtilisateurEntite::TENANT_DIRIGEANT]));
             }
             $roles = $roles ?: [UtilisateurEntite::TENANT_STAGIAIRE];
+            if ($membership && ($error = $this->accountProtection->transitionError($user, $membership, $roles, UtilisateurEntite::STATUS_ACTIVE))) {
+              throw $this->createAccessDeniedException($error);
+            }
             try {
               $this->billingGuard->assertCanTransitionUtilisateurEntite(
                 entite: $entite,
@@ -557,6 +573,7 @@ final class UtilisateurController extends AbstractController
       'modeEdition'       => $isEdit,
       'locked'            => $locked,
       'identityLocked'    => $identityLocked,
+      'protectedDirector' => $ue && $this->accountProtection->isProtectedMembership($ue),
       'form'              => $form->createView(),
       'entrepriseForm'    => $entrepriseForm->createView(),
 
@@ -603,6 +620,7 @@ final class UtilisateurController extends AbstractController
   public function resetPassword(Entite $entite, Utilisateur $utilisateur, Request $request): RedirectResponse
   {
     $this->assertUtilisateurInEntite($entite, $utilisateur);
+    $this->accountProtection->assertCanEditAccount($this->getUser(), $utilisateur);
 
     if (!$this->isCsrfTokenValid('reset_password_' . $utilisateur->getId(), (string) $request->request->get('_token'))) {
       $this->addFlash('danger', 'Token CSRF invalide.');
@@ -627,6 +645,7 @@ final class UtilisateurController extends AbstractController
   public function sendActivationEmail(Entite $entite, Utilisateur $utilisateur, Request $request): RedirectResponse
   {
     $this->assertUtilisateurInEntite($entite, $utilisateur);
+    $this->accountProtection->assertCanEditAccount($this->getUser(), $utilisateur);
 
     if (!$this->isCsrfTokenValid('send_activation_' . $utilisateur->getId(), (string) $request->request->get('_token'))) {
       $this->addFlash('danger', 'Token CSRF invalide.');
@@ -658,6 +677,7 @@ final class UtilisateurController extends AbstractController
   public function delete(Entite $entite, Utilisateur $utilisateur, Request $request): RedirectResponse
   {
     $this->assertUtilisateurInEntite($entite, $utilisateur);
+    $this->accountProtection->assertCanEditAccount($this->getUser(), $utilisateur);
 
     if (!$this->isCsrfTokenValid('delete_user_' . $utilisateur->getId(), (string) $request->request->get('_token'))) {
       $this->addFlash('danger', 'Token CSRF invalide.');
