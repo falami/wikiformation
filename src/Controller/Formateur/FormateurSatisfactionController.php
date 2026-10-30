@@ -49,22 +49,23 @@ final class FormateurSatisfactionController extends AbstractController
       throw $this->createNotFoundException();
     }
 
-    // fenêtre d’accès
-    if (!$access->canFill($session, 7)) {
-      $this->addFlash('warning', 'Le questionnaire formateur est disponible à la dernière journée (et quelques jours après).');
-      return $this->redirectToRoute('app_formateur_dashboard', ['entite' => $entite->getId()], 302);
-    }
-
-
     /** @var FormateurSatisfactionAssignment|null $assignment */
     $assignment = $em->getRepository(FormateurSatisfactionAssignment::class)->findOneBy([
       'session' => $session,
+      'entite' => $entite,
       'formateur' => $user,
     ]);
 
     if (!$assignment) {
       $this->addFlash('warning', 'Aucune affectation formateur trouvée pour cette session.');
       return $this->redirectToRoute('app_formateur_dashboard', ['entite' => $entite->getId()], 302);
+    }
+
+    if (!$access->canFillTrainer($assignment)) {
+      $this->addFlash('warning', $assignment->getAttempt()?->isSubmitted()
+        ? 'Questionnaire déjà soumis, merci !'
+        : 'La période de réponse est fermée. Contactez votre organisme pour la rouvrir.');
+      return $this->redirectToRoute('app_formateur_dashboard', ['entite' => $entite->getId()]);
     }
 
     $template = $assignment->getTemplate();

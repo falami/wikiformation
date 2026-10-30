@@ -165,7 +165,7 @@ final class FormateurSatisfactionAssignmentController extends AbstractController
         ? '<span class="badge bg-success">Soumis</span>'
         : ($started ? '<span class="badge bg-primary">En cours</span>' : '<span class="badge bg-light text-dark">Non démarré</span>');
 
-      $canFill = $s ? $this->access->canFill($s) : false;
+      $canFill = $this->access->canFillTrainer($a);
       $windowBadge = $canFill
         ? '<span class="badge bg-info text-dark">Ouvert</span>'
         : '<span class="badge bg-dark">Fermé</span>';
@@ -205,6 +205,8 @@ final class FormateurSatisfactionAssignmentController extends AbstractController
 
       $actionsProps = [
         'id'         => $a->getId(),
+        'canReopen' => !$submitted && $s && $s->getStatus() !== \App\Enum\StatusSession::CANCELED,
+        'reopenCsrf' => $csrfManager->getToken('reopen_fsat_'.$a->getId())->getValue(),
         'hasAttempt' => $hasAttempt,
         'showUrl'    => $showAttemptUrl,
         'forceUrl'   => $forceAttemptUrl,
@@ -284,6 +286,23 @@ final class FormateurSatisfactionAssignmentController extends AbstractController
       }
     }
     return $this->render('administrateur/formateur/satisfaction/assignment/edit.html.twig', ['entite'=>$entite, 'assignment'=>$assignment, 'form'=>$form->createView()]);
+  }
+
+  #[Route('/{assignment}/reouvrir', name: 'reopen', methods: ['POST'], requirements: ['assignment' => '\d+'])]
+  public function reopen(Entite $entite, FormateurSatisfactionAssignment $assignment, Request $request, EM $em): Response
+  {
+    if ($assignment->getEntite()?->getId() !== $entite->getId()
+        || $assignment->getSession()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    if (!$this->isCsrfTokenValid('reopen_fsat_'.$assignment->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException();
+    if ($assignment->getAttempt()?->isSubmitted() || $assignment->getSession()->getStatus() === \App\Enum\StatusSession::CANCELED) {
+      $this->addFlash('warning', 'Ce questionnaire est déjà soumis ou la session est annulée.');
+    } else {
+      $until = new \DateTimeImmutable('+7 days', new \DateTimeZone('Europe/Paris'));
+      $assignment->reopenUntil($until);
+      $em->flush();
+      $this->addFlash('success', 'Questionnaire rouvert jusqu’au '.$until->format('d/m/Y à H:i').'. Aucun mail envoyé ; la relance est disponible depuis le tableau de bord.');
+    }
+    return $this->redirectToRoute('app_administrateur_formateur_satisfaction_assignment_index', ['entite' => $entite->getId()]);
   }
 
   #[Route('/{assignment}/force-attempt', name: 'force_attempt', methods: ['POST'], requirements: ['assignment' => '\d+'])]

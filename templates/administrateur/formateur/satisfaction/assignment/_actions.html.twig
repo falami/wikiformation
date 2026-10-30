@@ -27,6 +27,12 @@
   </button>
 
   <ul class="dropdown-menu dropdown-menu-end fsat-menu">
+    {% if a.canReopen|default(false) %}
+      <li><form method="post" action="{{ path('app_administrateur_formateur_satisfaction_assignment_reopen', {entite:entite.id, assignment:a.id}) }}">
+        <input type="hidden" name="_token" value="{{ a.reopenCsrf }}">
+        <button class="dropdown-item" type="submit"><i class="bi bi-unlock me-2"></i>Rouvrir pour 7 jours</button>
+      </form></li>
+    {% endif %}
     {% if not a.hasAttempt %}<li><a class="dropdown-item" href="{{ path('app_administrateur_formateur_satisfaction_assignment_edit', {entite:entite.id, assignment:a.id}) }}"><i class="bi bi-pencil me-2"></i>Modifier l’affectation</a></li>{% endif %}
 
     <li>

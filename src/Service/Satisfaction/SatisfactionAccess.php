@@ -6,6 +6,16 @@ use App\Entity\Session;
 
 final class SatisfactionAccess
 {
+  public function canFillTrainer(\App\Entity\FormateurSatisfactionAssignment $assignment): bool
+  {
+    $session = $assignment->getSession();
+    if (!$session || $assignment->getAttempt()?->isSubmitted()
+        || $session->getStatus() === \App\Enum\StatusSession::CANCELED) return false;
+    $now = new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris'));
+    return ($assignment->getReopenedUntil() !== null && $assignment->getReopenedUntil() >= $now)
+        || $this->canFill($session);
+  }
+
   /**
    * Autorise le questionnaire si on est le jour de la dernière séance (ou après),
    * et pas déjà trop tard (fenêtre configurable).

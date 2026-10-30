@@ -47,6 +47,16 @@ class FormateurSatisfactionAssignment
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Entite $entite = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $reopenedUntil = null;
+
+    public function getReopenedUntil(): ?\DateTimeImmutable { return $this->reopenedUntil; }
+    public function reopenUntil(\DateTimeImmutable $until): void
+    {
+        if ($this->attempt?->isSubmitted()) throw new \DomainException('Un questionnaire soumis ne peut pas être rouvert.');
+        $this->reopenedUntil = $until;
+    }
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();

@@ -72,4 +72,74 @@ final class TrainerComplianceTest extends KernelTestCase
         $html=self::getContainer()->get('twig')->render('emails/trainer_compliance.html.twig',$rows[$key]+['entite'=>$entite,'subject'=>'Test']);
         self::assertStringContainsString('Déposer mes justificatifs',$html);
     }
+    private function questionnaire(): \App\Entity\FormateurSatisfactionAssignment
+    {
+        $e = $this->em->find(Entite::class, $this->entiteId);
+        $admin = $this->em->find(Utilisateur::class, $this->adminId);
+        $trainer = $this->em->find(Formateur::class, $this->trainerId);
+        $site = (new \App\Entity\Site())->setNom('Salle')->setSlug('questionnaire')->setEntite($e)->setCreateur($admin);
+        $session = (new \App\Entity\Session())->setEntite($e)->setCreateur($admin)->setCode('SES-OLD')
+            ->setSite($site)->setFormateur($trainer)->setStatus(\App\Enum\StatusSession::IN_PROGRESS);
+        $session->addJour((new \App\Entity\SessionJour())->setCreateur($admin)->setEntite($e)->setDateDebut(new \DateTimeImmutable('-30 days 09:00'))
+            ->setDateFin(new \DateTimeImmutable('-30 days 17:00')));
+        $template = (new \App\Entity\FormateurSatisfactionTemplate())->setEntite($e)->setCreateur($admin)->setTitre('Évaluation');
+        $a = (new \App\Entity\FormateurSatisfactionAssignment())->setEntite($e)->setCreateur($admin)
+            ->setSession($session)->setFormateur($trainer->getUtilisateur())->setTemplate($template);
+        foreach ([$site, $session, $template, $a] as $entity) $this->em->persist($entity);
+        $this->em->flush();
+        return $a;
+    }
+
+    public function testExpiredQuestionnaireAppearsAndManualReminderReopensWithoutChangingAnswers(): void
+    {
+        $a = $this->questionnaire();
+        $e = $this->em->find(Entite::class, $this->entiteId);
+        $e->setEmail('school@example.test');
+        $access = new \App\Service\Satisfaction\SatisfactionAccess();
+        self::assertFalse($access->canFillTrainer($a));
+        $mail = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $mail->expects(self::once())->method('send')->with(self::callback(fn($email) =>
+            str_contains($email->getHtmlBody(), 'Compléter mon questionnaire')
+            && str_contains($email->getTextBody(), '/satisfaction/session/'.$a->getSession()->getId().'/fill')), null);
+        $twig = self::getContainer()->get('twig');
+        $router = self::getContainer()->get('router');
+        $service = new \App\Service\TrainerReminder\TrainerCompliance($this->em,
+            self::getContainer()->get(CharterManager::class), $router,
+            new \App\Service\Email\MailerManager($mail, $twig, $router), $twig, new \Psr\Log\NullLogger());
+        $key = 'trainer-questionnaire:'.$a->getId().':'.$this->userId;
+        self::assertTrue($service->pending($e)[$key]['reopens']);
+        self::assertSame('sent', $service->send($e, $key));
+        self::assertTrue($access->canFillTrainer($a));
+        self::assertNull($a->getAttempt());
+        self::assertSame('skipped', $service->send($e, $key));
+        $attempt = (new \App\Entity\FormateurSatisfactionAttempt())->setAssignment($a)->setEntite($e)->setCreateur($a->getFormateur())->setSubmittedAt(new \DateTimeImmutable());
+        $a->setAttempt($attempt);
+        $this->em->persist($attempt); $this->em->flush();
+        self::assertFalse($access->canFillTrainer($a));
+        self::assertArrayNotHasKey($key, $service->pending($e));
+    }
+
+    public function testManualReopeningRequiresCsrfAndDoesNotCreateAnAttempt(): void
+    {
+        $a = $this->questionnaire();
+        $url = '/fr/administrateur/'.$this->entiteId.'/formateur-satisfaction/assignments/'.$a->getId().'/reouvrir';
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', $url, ['_token'=>'wrong']);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertNull($a->getReopenedUntil());
+        $this->client->request('POST', '/fr/administrateur/'.$this->entiteId.'/formateur-satisfaction/assignments/ajax', ['draw'=>1, 'length'=>10]);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $rows = json_decode($this->client->getResponse()->getContent(), true)['data'];
+        $fragment = new \Symfony\Component\DomCrawler\Crawler($rows[0]['actions']);
+        $token = $fragment->filter('input[name="_token"]')->first()->attr('value');
+        $this->client->request('POST', $url, ['_token'=>$token]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $a = $this->em->find(\App\Entity\FormateurSatisfactionAssignment::class, $a->getId());
+        self::assertTrue((new \App\Service\Satisfaction\SatisfactionAccess())->canFillTrainer($a));
+        self::assertNull($a->getAttempt());
+        $this->login($this->userId);
+        $this->client->request('GET', '/fr/formateur/'.$this->entiteId.'/satisfaction/session/'.$a->getSession()->getId().'/fill');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+    }
+
 }

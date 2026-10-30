@@ -3,7 +3,7 @@
 declare(strict_types=1);
 namespace App\Service\TrainerReminder;
 
-use App\Entity\{Entite, Formateur, Session, ContratFormateur, TrainerDiploma, UtilisateurEntite, TrainerCharter, TrainerCharterSignature};
+use App\Entity\{Entite, Formateur, Session, ContratFormateur, TrainerDiploma, UtilisateurEntite, TrainerCharter, TrainerCharterSignature, FormateurSatisfactionAssignment};
 use App\Enum\{ContratFormateurStatus, StatusSession};
 use App\Service\TrainerCharter\CharterManager;
 use App\Service\Email\MailerManager;
@@ -79,6 +79,22 @@ final class TrainerCompliance
                 if ($missing) $add($trainer, 'attendance:'.$session->getId().':'.$trainer->getId(), 'Émargements', $session->getCode().' · '.count($missing).' demi-journée(s) à signer', 'app_formateur_session_show', ['id'=>$session->getId()]);
             }
         }
+        foreach ($this->em->getRepository(FormateurSatisfactionAssignment::class)->findBy(['entite'=>$entite]) as $assignment) {
+            $session = $assignment->getSession();
+            $trainer = $assignment->getFormateur()?->getFormateur($entite);
+            if (!$session || !$trainer || $session->getEntite()?->getId() !== $entite->getId()
+                || $trainer->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateur($trainer)
+                || !$assignment->isRequired() || $assignment->getAttempt()?->isSubmitted()
+                || in_array($session->getStatus(), [StatusSession::CANCELED, StatusSession::DRAFT], true)
+                || !$session->getDateFin() || $session->getDateFin() > $now) continue;
+            $key = 'trainer-questionnaire:'.$assignment->getId().':'.$assignment->getFormateur()->getId();
+            $closed = !(new \App\Service\Satisfaction\SatisfactionAccess())->canFillTrainer($assignment);
+            $add($trainer, $key, 'Appréciation formateur', $session->getCode().' · Questionnaire à compléter'
+                .($closed ? ' · La relance rouvrira la saisie pour 7 jours.' : ''),
+                'app_formateur_satisfaction_fill', ['session'=>$session->getId()]);
+            $rows[$key]['questionnaire'] = $assignment;
+            $rows[$key]['reopens'] = $closed;
+        }
         return $rows;
     }
 
@@ -107,6 +123,18 @@ final class TrainerCompliance
         } catch (UniqueConstraintViolationException) { return 'skipped'; }
         $id=$db->lastInsertId();
         try {
+            if (isset($row['questionnaire'])) {
+                $assignment = $row['questionnaire'];
+                $this->em->refresh($assignment);
+                if ($assignment->getAttempt()?->isSubmitted()
+                    || $assignment->getFormateur()?->getId() !== $row['trainer']->getUtilisateur()?->getId()) {
+                    $db->update('trainer_reminder_delivery', ['status'=>'skipped'], ['id'=>$id]);
+                    return 'skipped';
+                }
+                $assignment->reopenUntil(new \DateTimeImmutable('+7 days', new \DateTimeZone('Europe/Paris')));
+                $this->em->flush();
+                $row['detail'] .= ' Réponse possible jusqu’au '.$assignment->getReopenedUntil()->format('d/m/Y à H:i').'.';
+            }
             $qr = (new \Endroid\QrCode\Writer\PngWriter())->write(new \Endroid\QrCode\QrCode(data: $row['url'], size: 300, margin: 16))->getString();
             $html=$this->twig->render('emails/trainer_compliance.html.twig', $row+['entite'=>$entite,'subject'=>$subject,'qrCid'=>'trainer-compliance-qr']);
             $this->mailer->sendParticipantReminder($entite,$row['trainer']->getUtilisateur()->getEmail(),$subject,$html,$subject."\n".$row['detail']."\nConnectez-vous à votre espace formateur : ".$row['url'], ['trainer-compliance-qr'=>$qr]);

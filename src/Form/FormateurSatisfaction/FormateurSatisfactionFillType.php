@@ -54,7 +54,7 @@ final class FormateurSatisfactionFillType extends AbstractType
 
           $constraints = [];
           if ($required) {
-            $constraints[] = new Assert\NotBlank(['message' => 'Veuillez répondre à cette question.']);
+            $constraints[] = new Assert\NotBlank(message: 'Veuillez répondre à cette question.');
           }
 
           $builder->add($name, ChoiceType::class, [
@@ -73,7 +73,7 @@ final class FormateurSatisfactionFillType extends AbstractType
         if ($type === SatisfactionQuestionType::YES_NO) {
           $constraints = [];
           if ($required) {
-            $constraints[] = new Assert\NotBlank(['message' => 'Veuillez sélectionner Oui ou Non.']);
+            $constraints[] = new Assert\NotBlank(message: 'Veuillez sélectionner Oui ou Non.');
           }
 
           $builder->add($name, ChoiceType::class, [
@@ -92,7 +92,7 @@ final class FormateurSatisfactionFillType extends AbstractType
         if ($type === SatisfactionQuestionType::TEXT) {
           $constraints = [];
           if ($required) {
-            $constraints[] = new Assert\NotBlank(['message' => 'Ce champ est obligatoire.']);
+            $constraints[] = new Assert\NotBlank(message: 'Ce champ est obligatoire.');
           }
 
           $builder->add($name, TextType::class, [
@@ -112,7 +112,7 @@ final class FormateurSatisfactionFillType extends AbstractType
         if ($type === SatisfactionQuestionType::TEXTAREA) {
           $constraints = [];
           if ($required) {
-            $constraints[] = new Assert\NotBlank(['message' => 'Ce champ est obligatoire.']);
+            $constraints[] = new Assert\NotBlank(message: 'Ce champ est obligatoire.');
           }
 
           $builder->add($name, TextareaType::class, [
@@ -135,7 +135,7 @@ final class FormateurSatisfactionFillType extends AbstractType
           $choices = $q->getChoices() ?? [];
           $constraints = [];
           if ($required) {
-            $constraints[] = new Assert\NotBlank(['message' => 'Veuillez sélectionner une valeur.']);
+            $constraints[] = new Assert\NotBlank(message: 'Veuillez sélectionner une valeur.');
           }
 
           $builder->add($name, ChoiceType::class, [
@@ -194,7 +194,7 @@ final class FormateurSatisfactionFillType extends AbstractType
           'class' => 'form-control',
         ],
         'constraints' => [
-          new Assert\NotBlank(['message' => 'Veuillez saisir au moins un point / compétence.']),
+          new Assert\NotBlank(message: 'Veuillez saisir au moins un point / compétence.'),
         ],
       ]);
 
