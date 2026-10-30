@@ -1,348 +1,168 @@
-{# templates/administrateur/passeport/index.html.twig #}
 {% extends 'base_admin.html.twig' %}
-{% block title %}Passeport de prévention{% endblock %}
+{% block title %}Passeport de prévention · Préparer les déclarations{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
-  <style>
-    :root{
-      --theme-color-principal: {{ themeColorPrimaire|default(entite.couleurPrincipal|default('#233342')) }};
-      --theme-color-secondaire: {{ themeColorSecondaire|default(entite.couleurSecondaire|default('#ffc107')) }};
-      --theme-color-tertiaire: {{ themeColorTertiaire|default(entite.couleurTertiaire|default('#F0F0F0')) }};
-      --theme-color-quaternaire: {{ couleurQuaternaire|default(entite.couleurQuaternaire|default('#000000')) }};
-    }
-    .hero{
-      border-radius:22px;
-      background:
-        radial-gradient(1200px 400px at 15% 0%, rgba(255,255,255,.12), transparent 60%),
-        radial-gradient(900px 350px at 85% 10%, rgba(255,193,7,.18), transparent 55%),
-        linear-gradient(135deg, rgba(35,51,66,.98), rgba(35,51,66,.78));
-      color:#fff; box-shadow:0 18px 50px rgba(0,0,0,.14);
-      overflow:hidden; position:relative;
-    }
-    .hero .accent{ width:12px; background:var(--theme-color-secondaire); border-radius:999px; box-shadow:0 0 0 6px rgba(255,193,7,.10); }
-    .meta-chip{ display:inline-flex; align-items:center; gap:.45rem; padding:.35rem .65rem; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.14); font-size:.82rem; }
-
-    .card-soft{
-      background:#fff; border-radius:18px; border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 12px 30px rgba(0,0,0,.06);
-    }
-    .filterbox{
-      border:1px solid rgba(0,0,0,.08);
-      border-radius:14px;
-      padding:.55rem .6rem;
-      background:#fff;
-      box-shadow: 0 8px 18px rgba(0,0,0,.04);
-    }
-    .filterbox:focus-within{
-      border-color: rgba(255,193,7,.55);
-      box-shadow: 0 0 0 .2rem rgba(255,193,7,.18), 0 10px 18px rgba(0,0,0,.06);
-    }
-    .filterrow{ display:flex; gap:.6rem; align-items:center; }
-    .filter-icon{
-      width:34px; height:34px; border-radius:12px;
-      display:grid; place-items:center;
-      background: rgba(0,0,0,.04);
-      border:1px solid rgba(0,0,0,.06);
-      color: rgba(0,0,0,.55);
-      flex: 0 0 auto;
-    }
-    .filterbox .form-select, .filterbox .form-control{
-      border:0 !important; box-shadow:none !important;
-      padding-left:0 !important; padding-right:0 !important;
-      background:transparent !important;
-    }
-    .table thead th{
-      background:#f7f8fa!important;
-      border-bottom:1px solid rgba(0,0,0,.08)!important;
-      font-size:.78rem;
-      text-transform:uppercase;
-      letter-spacing:.05em;
-      color: rgba(0,0,0,.55);
-      vertical-align: middle;
-    }
-    .ts-dropdown{ z-index: 3000 !important; }
-  </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/passport-prevention.css') }}?v=20261030">
 {% endblock %}
 
 {% block javascripts %}
   {{ parent() }}
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+  <script src="{{ asset('dist/js/passport-prevention.js') }}?v=20261030" defer></script>
 {% endblock %}
 
 {% block body %}
-
-
-  <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
-    <div class="flex-grow-1">
-      <div class="d-flex flex-wrap gap-2 mb-2">
-        <span class="meta-chip"><i class="bi bi-shield-check"></i> Passeport de prévention</span>
-        <span class="meta-chip"><i class="bi bi-building"></i> {{ entite.nom }}</span>
-      </div>
-
-      <div class="d-flex flex-wrap align-items-end gap-2">
-        <div class="me-auto">
-          <h2 class="fw-bold mb-1">Export déclarations (Excel)</h2>
-          <div class="opacity-75">Sélection manuelle ou par période (max 3 mois).</div>
-        </div>
-
-        <a class="btn btn-light btn-sm fw-semibold"
-           href="{{ path('app_administrateur_session_index', { entite: entite.id }) }}">
-          <i class="bi bi-arrow-left"></i> Retour Sessions
-        </a>
-      </div>
+<div class="pp-workspace" data-passport-workspace data-today="{{ 'now'|date('Y-m-d', 'Europe/Paris') }}" data-initial-values="{{ formValues|default({})|json_encode|e('html_attr') }}">
+  <header class="pp-hero">
+    <div class="pp-hero-top">
+      <span class="pp-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> Passeport de prévention</span>
+      <span class="pp-hero-entity">{{ entite.nom }}</span>
     </div>
-  </div>
+    <div class="pp-hero-main">
+      <div>
+        <h1>Vos déclarations,<br><span>préparées avec méthode.</span></h1>
+        <p>Identifiez les formations concernées, préparez vos données, puis finalisez votre déclaration sur le portail officiel.</p>
+      </div>
+      <a class="pp-btn pp-btn-hero" href="{{ path('app_administrateur_session_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Retour aux sessions</a>
+    </div>
+    <div class="pp-hero-footer">
+      <span><i class="bi bi-building" aria-hidden="true"></i> Espace organisme de formation</span>
+      <span><i class="bi bi-calendar-check" aria-hidden="true"></i> Repères vérifiés au 30 octobre 2026</span>
+    </div>
+  </header>
 
   {% include 'flagMessage.html.twig' %}
 
-  <form method="post" action="{{ path('app_administrateur_passeport_prevention_export', { entite: entite.id }) }}" class="card-soft p-3 mb-3">
-    <div class="row g-3 align-items-end">
-      <div class="col-12 col-lg-3">
-        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Mode</label>
-        <div class="filterbox">
-          <div class="filterrow">
-            <div class="filter-icon"><i class="bi bi-toggles"></i></div>
-            <select id="mode" name="mode" class="form-select">
-              <option value="period" selected>Par période (max 3 mois)</option>
-              <option value="manual">Manuel (checkbox)</option>
-            </select>
+  <nav class="pp-steps" aria-label="Étapes de préparation">
+    <a href="#pp-scope"><span>01</span><div><strong>Qualifier le périmètre</strong><small>Vérifier l’éligibilité des formations</small></div></a>
+    <a href="#pp-prepare"><span>02</span><div><strong>Préparer les données</strong><small>Sélectionner les sessions du lot</small></div></a>
+    <a href="#pp-submit"><span>03</span><div><strong>Déposer sur le portail</strong><small>Contrôler le résultat du dépôt</small></div></a>
+  </nav>
+
+  <form method="post" action="{{ path('app_administrateur_passeport_prevention_export', {entite: entite.id}) }}" id="pp-export-form">
+    <input type="hidden" name="_token" value="{{ csrf_token('passeport_export_' ~ entite.id) }}">
+    <input type="hidden" name="sessionIds" id="pp-session-ids" value="[]">
+    <div class="pp-layout">
+      <div class="pp-main">
+        <section class="pp-card" id="pp-scope" aria-labelledby="pp-scope-title">
+          <header class="pp-card-heading"><span class="pp-step-number">01</span><div><h2 id="pp-scope-title">Quelles formations déclarer ?</h2><p>La présence dans votre catalogue ne suffit pas à rendre une formation éligible.</p></div></header>
+          <div class="pp-card-body">
+            <div class="pp-note pp-note-info"><i class="bi bi-info-circle" aria-hidden="true"></i><div><strong>Un lot, une catégorie de formation</strong><p>Vérifiez les critères pour chaque session du lot. Une formation bureautique ou une sensibilisation générale n’est pas automatiquement une formation en santé et sécurité au travail.</p></div></div>
+            <fieldset class="pp-checklist">
+              <legend>Pour toutes les sessions que je sélectionne :</legend>
+              <label class="pp-check"><input type="checkbox" name="eligibilitySst" value="1" required><span><strong>La formation porte sur la santé et la sécurité au travail.</strong><small>Elle concerne la prévention des risques professionnels.</small></span></label>
+              <label class="pp-check"><input type="checkbox" name="eligibilityEvidence" value="1" required><span><strong>Chaque bénéficiaire a suivi la formation et reçu le justificatif adapté.</strong><small>Participation assidue et totale pour une attestation ; réussite à l’évaluation pour un justificatif de réussite. Vérifiez les situations individuelles.</small></span></label>
+              <label class="pp-check"><input type="checkbox" name="eligibilityTransferable" value="1" required><span><strong>Les compétences sont transférables à un autre poste ou employeur.</strong><small>Les consignes propres à un seul site ou poste ne suffisent pas.</small></span></label>
+              <label class="pp-check"><input type="checkbox" name="eligibilityAudience" value="1" required><span><strong>Le public et la formation relèvent du dispositif.</strong><small>Travailleurs, demandeurs d’emploi hors formations financées par des fonds publics, ou alternants formés à la demande de leur employeur ; hors autres exclusions et formations déjà alimentées automatiquement dans le Passeport.</small></span></label>
+            </fieldset>
+            <div class="pp-field">
+              <label for="pp-category">Catégorie du lot <span aria-hidden="true">*</span></label>
+              <select name="category" id="pp-category" required aria-describedby="pp-category-help">
+                <option value="">Choisir la catégorie après vérification</option>
+                <option value="1">1 · Formation obligatoire encadrée par la réglementation</option>
+                <option value="2">2 · Formation pour un poste nécessitant une autorisation de l’employeur</option>
+                <option value="3">3 · Formation avec un objectif spécifique prévu par la réglementation</option>
+                <option value="4">4 · Formation relevant de l’obligation générale de formation de l’employeur</option>
+              </select>
+              <p id="pp-category-help" class="pp-help">Les quatre catégories concernent les organismes de formation depuis le 1er juillet 2026. La catégorie doit correspondre au contenu réel de chaque session.</p>
+            </div>
+            <a class="pp-text-link" href="https://passeport-prevention.travail-emploi.gouv.fr/simulateur" target="_blank" rel="noopener noreferrer">Vérifier avec le simulateur officiel <i class="bi bi-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (nouvel onglet)</span></a>
+            <details class="pp-decision-guide"><summary>Votre organisme propose plusieurs thématiques ?</summary><div><p><strong>Examinez le contenu, pas seulement le nom.</strong> La bureautique et l’informatique ordinaires ne relèvent pas de la santé et sécurité au travail. Une formation spécialisée peut toutefois y contribuer : utilisez le simulateur officiel pour trancher.</p><p>Pour l’habilitation électrique, déclarez la formation éligible ; le titre d’habilitation délivré par l’employeur est distinct. Lorsque vous intervenez en sous-traitance pour un autre organisme, la déclaration relève du donneur d’ordre.</p></div></details>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div class="col-12 col-lg-4">
-        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Période</label>
-        <div class="filterbox">
-          <div class="filterrow">
-            <div class="filter-icon"><i class="bi bi-calendar-range"></i></div>
-            <input type="text" id="dateRange" class="form-control" placeholder="Choisir une période" />
-            <input type="hidden" id="dateFrom" name="dateFrom" />
-            <input type="hidden" id="dateTo"   name="dateTo" />
+        <section class="pp-card" id="pp-prepare" aria-labelledby="pp-prepare-title">
+          <header class="pp-card-heading"><span class="pp-step-number">02</span><div><h2 id="pp-prepare-title">Préparer votre lot</h2><p>Le fichier rassemble les inscriptions à vérifier des sessions retenues.</p></div></header>
+          <div class="pp-card-body">
+            <fieldset class="pp-type-picker">
+              <legend>Quel justificatif avez-vous délivré ?</legend>
+              <div class="pp-type-grid">
+                <label class="pp-type"><input type="radio" name="declarationType" value="ADF" checked><span><strong>Attestation de formation</strong><small>ADF · Participation assidue et totale</small></span><i class="bi bi-file-earmark-text" aria-hidden="true"></i></label>
+                <label class="pp-type"><input type="radio" name="declarationType" value="JDR"><span><strong>Justificatif de réussite</strong><small>JDR · Réussite à une évaluation</small></span><i class="bi bi-award" aria-hidden="true"></i></label>
+              </div>
+            </fieldset>
+            <p class="pp-help" id="pp-adf-help">Pour une ADF, la période ci-dessous correspond à la <strong>date de fin de formation</strong>. Si un justificatif de réussite est délivré, préparez le lot JDR et évitez une double déclaration ADF / JDR pour le même parcours.</p>
+            <div class="pp-note pp-note-warning" id="pp-jdr-help" hidden><i class="bi bi-calendar-event" aria-hidden="true"></i><div><strong>La date de validité du justificatif est déterminante.</strong><p>Sélectionnez vos sessions manuellement. Complétez la date de début de validité et les résultats individuels dans le fichier ; la fin de session ne remplace pas la date du justificatif.</p></div></div>
+            <div class="pp-selection-controls">
+              <div class="pp-field"><label for="pp-mode">Mode de sélection</label><select name="mode" id="pp-mode"><option value="period">Par période de fin de formation</option><option value="manual" selected>Choisir les sessions</option></select></div>
+              <div id="pp-period" class="pp-date-fields">
+                <div class="pp-field"><label for="pp-date-from">Du</label><input type="date" name="dateFrom" id="pp-date-from" required></div>
+                <div class="pp-field"><label for="pp-date-to">Au</label><input type="date" name="dateTo" id="pp-date-to" max="{{ 'now'|date('Y-m-d', 'Europe/Paris') }}" required></div>
+              </div>
+            </div>
+            <div class="pp-period-presets" id="pp-period-presets"><button type="button" class="pp-btn pp-btn-small" data-pp-period="quarter">Trimestre en cours</button><button type="button" class="pp-btn pp-btn-small" data-pp-period="previous">Trimestre précédent</button><button type="button" class="pp-btn pp-btn-small" data-pp-period="year">Année en cours</button></div>
+            <p class="pp-help" id="pp-selection-help">Toutes les sessions recevables terminées dans la période sont incluses. La recherche ci-dessous ne change pas le contenu du lot.</p>
           </div>
-        </div>
-        <div class="form-text">Astuce : utilise “Trimestre courant” puis ajuste si besoin.</div>
+          <div class="pp-session-toolbar">
+            <label class="pp-search" for="pp-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Rechercher une session par code ou formation</span><input id="pp-search" type="search" placeholder="Rechercher un code ou une formation…" autocomplete="off"></label>
+            <div class="pp-field pp-filter"><label class="visually-hidden" for="pp-view">Sessions affichées</label><select id="pp-view"><option value="available">Sessions à examiner ({{ summary.available }})</option><option value="all">Toutes les sessions ({{ summary.total }})</option><option value="excluded">Sessions exclues ({{ summary.excluded }})</option></select></div>
+          </div>
+          <div class="pp-table-scroll" tabindex="0" role="region" aria-label="Sessions disponibles pour la préparation">
+            <table class="pp-table">
+              <thead><tr><th class="pp-check-column"><input type="checkbox" id="pp-check-all" aria-label="Sélectionner toutes les sessions recevables affichées" disabled></th><th scope="col">Session &amp; formation</th><th scope="col">Période</th><th scope="col">Participants</th></tr></thead>
+              <tbody>
+                {% for row in sessionRows %}
+                  {% set s = row.session %}
+                  {% set formationTitle = s.formation ? s.formation.titre : (s.formationIntituleLibre ?: 'Formation sans intitulé') %}
+                  <tr data-pp-session data-selectable="{{ row.selectable ? '1' : '0' }}" data-end="{{ row.end ? row.end|date('Y-m-d', 'Europe/Paris') : '' }}" data-participants="{{ row.participants }}" class="{{ row.selectable ? '' : 'pp-row-excluded' }}" {% if not row.selectable %}hidden{% endif %}>
+                    <td class="pp-check-column"><input type="checkbox" data-session-id="{{ s.id }}" aria-label="Sélectionner la session {{ s.code }}" {% if not row.selectable %}disabled{% endif %}></td>
+                    <td><span class="pp-session-code">{{ s.code ?: 'Session n° ' ~ s.id }}</span><strong class="pp-session-title">{{ formationTitle }}</strong><span class="pp-row-status {{ row.selectable ? 'pp-row-status-review' : '' }}">{{ row.selectable ? 'Éligibilité SST à vérifier' : row.reason }}</span></td>
+                    <td class="pp-session-dates">{% if row.start %}{{ row.start|date('d/m/Y', 'Europe/Paris') }}<span>au {{ row.end ? row.end|date('d/m/Y', 'Europe/Paris') : '—' }}</span>{% else %}Non planifiée{% endif %}</td>
+                    <td><span class="pp-participant-count">{{ row.participants }}</span><span class="pp-participant-label">à préparer</span></td>
+                  </tr>
+                {% endfor %}
+                <tr id="pp-empty-results" {% if summary.available > 0 %}hidden{% endif %}><td colspan="4"><i class="bi bi-inbox" aria-hidden="true"></i><strong>Aucune session à afficher</strong><span>Adaptez votre recherche ou affichez les sessions exclues pour consulter leur motif.</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pp-table-footer"><span id="pp-visible-count" aria-live="polite">{{ summary.available }} session(s) affichée(s)</span><button type="button" class="pp-text-button" id="pp-clear-selection" hidden>Effacer la sélection</button></div>
+        </section>
       </div>
 
-      <div class="col-12 col-lg-5">
-        <label class="form-label small fw-bold text-uppercase text-muted mb-1">Actions</label>
-        <div class="d-flex gap-2 flex-wrap">
-          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnTrimCurrent">
-            <i class="bi bi-calendar3"></i> Trimestre courant
-          </button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLast90">
-            <i class="bi bi-clock-history"></i> 90 jours
-          </button>
+      <aside class="pp-sidebar" aria-label="Préparation et dépôt">
+        <section class="pp-card pp-summary" aria-labelledby="pp-summary-title">
+          <header class="pp-summary-heading"><span class="pp-eyebrow">Votre préparation</span><h2 id="pp-summary-title">Le lot en un coup d’œil</h2><p>Fichier de travail Excel</p></header>
+          <div class="pp-card-body">
+            <div class="pp-metrics" aria-live="polite"><div><strong id="pp-selected-count">0</strong><span>session(s)</span></div><div><strong id="pp-participant-count">0</strong><span>participant(s)</span></div></div>
+            <dl class="pp-summary-details"><div><dt>Justificatif</dt><dd id="pp-summary-type">Attestation de formation</dd></div><div><dt>Catégorie</dt><dd id="pp-summary-category">À préciser</dd></div><div><dt>Critères vérifiés</dt><dd id="pp-summary-checks">0 / 4</dd></div></dl>
+            <div class="pp-error" id="pp-error" role="alert" tabindex="-1" hidden></div>
+            <button type="submit" class="pp-btn pp-btn-primary pp-export-button"><i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i> Préparer le fichier</button>
+            <p class="pp-export-caption">À compléter et à contrôler avec la trame officielle. Ce fichier ne vaut pas déclaration.</p>
+            <noscript><p class="pp-note pp-note-warning">Activez JavaScript pour sélectionner les sessions et vérifier le lot avant son export.</p></noscript>
+          </div>
+        </section>
 
-          <button type="submit" class="btn btn-warning btn-sm fw-semibold ms-auto">
-            <i class="bi bi-file-earmark-excel"></i> Générer Excel
-          </button>
-        </div>
-      </div>
-    </div>
+        <section class="pp-card pp-data-card" aria-labelledby="pp-data-title"><div class="pp-card-body"><span class="pp-small-icon"><i class="bi bi-lock" aria-hidden="true"></i></span><h2 id="pp-data-title">Données à compléter</h2><p>Les informations connues sont préremplies. Vérifiez notamment :</p><ul><li>Le NIR à 13 caractères, sans sa clé, et le nom de naissance.</li><li>Les références et codes demandés dans la trame officielle.</li><li>Le justificatif délivré et, pour un JDR, ses dates de validité.</li></ul><p class="pp-help">Aucun champ NIR n’est à saisir dans ce formulaire. Complétez le fichier dans un espace sécurisé et limitez son accès aux personnes habilitées.</p></div></section>
 
-    <input type="hidden" name="sessionIds" id="sessionIds" value="[]">
-    <div class="alert alert-info mt-3 mb-0">
-      <div class="fw-bold"><i class="bi bi-info-circle"></i> Important</div>
-      <div class="small">
-        Le portail demande pour chaque stagiaire : <b>NIR (13 chiffres)</b> + <b>nom de naissance</b>.
-        Si ces champs ne sont pas renseignés dans ta base, l’import/ la déclaration sera bloquée. :contentReference[oaicite:2]{index=2}
-      </div>
+        <section class="pp-card pp-deposit-card" id="pp-submit" aria-labelledby="pp-submit-title"><div class="pp-card-body"><span class="pp-step-number">03</span><h2 id="pp-submit-title">Finaliser sur le portail officiel</h2><ol><li>Récupérez la trame officielle correspondant à votre déclaration.</li><li>Reportez et contrôlez vos données avant le dépôt.</li><li>Traitez les rejets éventuels et conservez le compte rendu du portail.</li></ol><a class="pp-btn pp-btn-portal" href="https://partenaires.moncompteformation.gouv.fr/" target="_blank" rel="noopener noreferrer">Ouvrir l’espace officiel <i class="bi bi-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (nouvel onglet)</span></a><p class="pp-help">Aucune donnée n’est transmise automatiquement à l’État depuis cette page.</p></div></section>
+      </aside>
     </div>
   </form>
 
-  <div class="card-soft p-0 overflow-hidden">
-    <div class="p-3 border-bottom d-flex align-items-center gap-2">
-      <div class="fw-bold"><i class="bi bi-list-check"></i> Sessions</div>
-      <div class="text-muted small">Coche ce que tu veux exporter en mode “Manuel”.</div>
-      <div class="ms-auto small">
-        Sélection : <b id="selectedCount">0</b>
-      </div>
-    </div>
-
-    <div class="table-responsive">
-      <table class="table align-middle mb-0" id="ppTable">
-        <thead>
-          <tr>
-            <th style="width:42px" class="text-center">
-              <input type="checkbox" id="checkAll">
-            </th>
-            <th>Code</th>
-            <th>Formation</th>
-            <th>Début</th>
-            <th>Fin</th>
-            <th class="text-center">Inscriptions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in sessions %}
-            {# calcule début/fin à partir des SessionJour #}
-            {% set start = null %}
-            {% set end = null %}
-            {% for j in s.jours %}
-              {% if start is null or j.dateDebut < start %}{% set start = j.dateDebut %}{% endif %}
-              {% if end is null or j.dateFin > end %}{% set end = j.dateFin %}{% endif %}
-            {% endfor %}
-
-            <tr>
-              <td class="text-center">
-                <input type="checkbox" data-id="{{ s.id }}">
-              </td>
-              <td class="fw-semibold">{{ s.code }}</td>
-              <td>
-                {{ s.formation ? s.formation.titre : (s.formationIntituleLibre ?: '—') }}
-              </td>
-              <td>{{ start ? start|date('d/m/Y') : '—' }}</td>
-              <td>{{ end ? end|date('d/m/Y') : '—' }}</td>
-              <td class="text-center">
-                <span class="badge text-bg-secondary">{{ s.inscriptions|length }}</span>
-              </td>
-            </tr>
+  <section class="pp-card pp-validation" id="pp-csv-validation" aria-labelledby="pp-validation-title">
+    <header class="pp-card-heading"><span class="pp-step-number"><i class="bi bi-file-check" aria-hidden="true"></i></span><div><h2 id="pp-validation-title">Contrôler votre CSV avant le dépôt</h2><p>Après avoir complété la trame officielle, vérifiez sa structure et ses champs obligatoires.</p></div></header>
+    <div class="pp-card-body">
+      <form method="post" action="{{ path('app_administrateur_passeport_prevention_validate', {entite: entite.id}) }}#pp-csv-validation" enctype="multipart/form-data" class="pp-validation-form">
+        <input type="hidden" name="_token" value="{{ csrf_token('passeport_validate_' ~ entite.id) }}">
+        <div class="pp-field"><label for="pp-validation-type">Type de fichier</label><select name="declarationType" id="pp-validation-type"><option value="ADF" {% if validationType|default('ADF') == 'ADF' %}selected{% endif %}>Attestation de formation (ADF)</option><option value="JDR" {% if validationType|default('ADF') == 'JDR' %}selected{% endif %}>Justificatif de réussite (JDR)</option></select></div>
+        <div class="pp-field"><label for="pp-csv-file">Votre fichier CSV</label><input type="file" name="csvFile" id="pp-csv-file" accept=".csv,text/csv" required aria-describedby="pp-csv-help"><p class="pp-help" id="pp-csv-help">Limite de cet outil : 5 Mo. Utilisez le format de la trame officielle.</p></div>
+        <button class="pp-btn pp-btn-portal" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> Vérifier le fichier</button>
+      </form>
+      {% if csvValidation|default(null) is not null %}
+        <div class="pp-validation-result {{ csvValidation.errors|length ? 'pp-validation-result-error' : 'pp-validation-result-success' }}" role="status">
+          {% if csvValidation.errors|length %}
+            <strong><i class="bi bi-exclamation-circle" aria-hidden="true"></i> {{ csvValidation.errors|length }} point(s) à corriger</strong>
+            <ul>{% for error in csvValidation.errors %}<li>{{ error }}</li>{% endfor %}</ul>
           {% else %}
-            <tr>
-              <td colspan="6" class="text-center text-muted py-4">
-                Aucune session trouvée.
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-
-      </table>
+            <strong><i class="bi bi-check2-circle" aria-hidden="true"></i> Contrôles techniques locaux réussis</strong><p>{{ csvValidation.rows }} ligne(s) contrôlée(s). Le portail officiel reste seul à confirmer l’acceptation de votre dépôt.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+      <p class="pp-help">Ce contrôle ne valide ni l’éligibilité juridique de la formation, ni l’identité du bénéficiaire auprès des services de l’État. Il ne transmet aucune déclaration au portail officiel.</p>
     </div>
-  </div>
+  </section>
 
-
-<script>
-(() => {
-  // TomSelect mode
-  new TomSelect('#mode', { create:false, maxItems:1 });
-
-  // Flatpickr range
-  const fp = flatpickr("#dateRange", {
-    locale: "fr",
-    mode: "range",
-    dateFormat: "d/m/Y",
-    disableMobile: true,
-    onClose(selectedDates){
-      const from = selectedDates[0] ? selectedDates[0].toISOString().slice(0,10) : '';
-      const to   = selectedDates[1] ? selectedDates[1].toISOString().slice(0,10) : '';
-      document.getElementById('dateFrom').value = from;
-      document.getElementById('dateTo').value   = to;
-
-      // ✅ contrôle 3 mois côté front (on garde le contrôle serveur aussi)
-      if (selectedDates[0] && selectedDates[1]) {
-        const days = Math.round((selectedDates[1] - selectedDates[0]) / (1000*60*60*24));
-        if (days > 93) {
-          alert('La période ne doit pas dépasser 3 mois.');
-          fp.clear();
-          document.getElementById('dateFrom').value = '';
-          document.getElementById('dateTo').value   = '';
-        }
-      }
-    }
-  });
-
-  function setRange(from, to){
-    fp.setDate([from, to], true);
-    document.getElementById('dateFrom').value = from.toISOString().slice(0,10);
-    document.getElementById('dateTo').value   = to.toISOString().slice(0,10);
-  }
-
-  document.getElementById('btnLast90').addEventListener('click', () => {
-    const to = new Date();
-    const from = new Date();
-    from.setDate(to.getDate() - 90);
-    setRange(from, to);
-  });
-
-  document.getElementById('btnTrimCurrent').addEventListener('click', () => {
-    const d = new Date();
-    const q = Math.floor(d.getMonth()/3); // 0..3
-    const from = new Date(d.getFullYear(), q*3, 1);
-    const to = new Date(d.getFullYear(), q*3 + 3, 0);
-    setRange(from, to);
-  });
-
-  // Sélection manuelle (checkbox)
-  const selected = new Set();
-  const sessionIdsEl = document.getElementById('sessionIds');
-  const selectedCountEl = document.getElementById('selectedCount');
-
-  function syncSelected(){
-    sessionIdsEl.value = JSON.stringify(Array.from(selected));
-    selectedCountEl.textContent = String(selected.size);
-  }
-
-
-
-  const modeSelect = document.getElementById('mode');
-
-  function setModeManual() {
-    // TomSelect : si tu utilises TomSelect, il remplace le select
-    if (modeSelect.tomselect) {
-      modeSelect.tomselect.setValue('manual', true);
-    } else {
-      modeSelect.value = 'manual';
-    }
-
-    // optionnel : vide la période
-    fp.clear();
-    document.getElementById('dateFrom').value = '';
-    document.getElementById('dateTo').value   = '';
-  }
-
-  document.addEventListener('change', (e) => {
-    const cb = e.target;
-    if (!(cb instanceof HTMLInputElement)) return;
-
-    if (cb.matches('#ppTable tbody input[type="checkbox"][data-id]') || cb.matches('#checkAll')) {
-      // si au moins 1 session cochée -> mode manuel
-      if (selected.size > 0 || cb.checked) {
-        setModeManual();
-      }
-    }
-  });
-
-
-  document.getElementById('checkAll').addEventListener('change', (e) => {
-    const checked = e.target.checked;
-    document.querySelectorAll('#ppTable tbody input[type="checkbox"][data-id]').forEach(cb => {
-      cb.checked = checked;
-      const id = parseInt(cb.getAttribute('data-id'), 10);
-      if (checked) selected.add(id); else selected.delete(id);
-    });
-    syncSelected();
-  });
-
-  document.addEventListener('change', (e) => {
-    const cb = e.target;
-    if (!(cb instanceof HTMLInputElement)) return;
-    if (cb.matches('#ppTable tbody input[type="checkbox"][data-id]')) {
-      const id = parseInt(cb.getAttribute('data-id'), 10);
-      if (cb.checked) selected.add(id); else selected.delete(id);
-      syncSelected();
-      if (selected.size > 0) setModeManual();
-
-    }
-  });
-
-  // Confort : si mode=period, on ignore la sélection manuelle (mais on laisse visible)
-  document.querySelector('form').addEventListener('submit', (e) => {
-    const mode = document.getElementById('mode').value;
-    if (mode === 'manual' && selected.size === 0) {
-      e.preventDefault();
-      alert('En mode manuel, coche au moins une session.');
-      return;
-    }
-  });
-
-})();
-</script>
+  <section class="pp-reference" aria-labelledby="pp-reference-title"><div><i class="bi bi-journal-bookmark" aria-hidden="true"></i><h2 id="pp-reference-title">Les repères officiels</h2></div><p>Pour les organismes de formation en 2026, le délai de déclaration est de six mois après la fin du trimestre de référence : fin de formation pour une ADF, début de validité pour un JDR. Le délai passe à trois mois à partir de 2027. Des règles transitoires spécifiques existent ; une période d’export ne constitue pas un délai réglementaire.</p><div class="pp-reference-links"><a href="https://www.legifrance.gouv.fr/loda/id/JORFTEXT000052032325/" target="_blank" rel="noopener noreferrer">Décret du 1er août 2025 consolidé <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><a href="https://passeport-prevention.travail-emploi.gouv.fr/actualites/actualites-dans-le-deploiement-du-passeport-de-prevention" target="_blank" rel="noopener noreferrer">Évolutions et calendrier 2026 <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><a href="https://passeport-prevention.travail-emploi.gouv.fr/aide/quelles-sont-mes-obligations-en-tant-quorganisme-de-formation" target="_blank" rel="noopener noreferrer">Obligations des organismes de formation <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div></section>
+</div>
 {% endblock %}
