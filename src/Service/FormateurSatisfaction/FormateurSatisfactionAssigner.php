@@ -6,7 +6,7 @@ namespace App\Service\FormateurSatisfaction;
 
 use App\Entity\FormateurSatisfactionAssignment;
 use App\Entity\FormateurSatisfactionTemplate;
-use App\Entity\{Session, Utilisateur, Entite, FormateurSatisfactionAttempt, Formateur};
+use App\Entity\{Session, Utilisateur, Entite, FormateurSatisfactionAttempt};
 use App\Enum\StatusSession;
 use Doctrine\ORM\EntityManagerInterface as EM;
 
@@ -102,32 +102,15 @@ final class FormateurSatisfactionAssigner
   }
 
   /**
-   * ✅ Très robuste : essaye plusieurs stratégies pour récupérer les formateurs.
-   * Adapte simplement les method_exists à ton modèle (ContratFormateur, etc.).
+   * Intervenants effectifs du planning, sans ajouter un référent entièrement remplacé.
    *
    * @return Utilisateur[]
    */
   private function resolveFormateurs(Session $session): array
   {
-    $formateurs = [];
-
-    // 1) Formateur “référent” de session
-    if (method_exists($session, 'getFormateur')) {
-      $f = $session->getFormateur();
-      if ($f instanceof Formateur) {
-        $formateurs[] = $f;
-      }
-    }
-
-    // 2) Formateurs par jour (si géré)
-    foreach ($session->getJours() as $jour) {
-      if (method_exists($jour, 'getFormateur')) {
-        $jf = $jour->getFormateur();
-        if ($jf instanceof Formateur) {
-          $formateurs[] = $jf;
-        }
-      }
-    }
+    // Follow the same per-slot fallback as attendance and trainer access.
+    // A principal trainer replaced on every slot is not an effective trainer.
+    $formateurs = $session->getFormateursEffectifs();
 
     // 3) Map vers Utilisateur + unique
     $users = [];
