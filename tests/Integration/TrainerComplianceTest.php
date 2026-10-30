@@ -16,7 +16,9 @@ final class TrainerComplianceTest extends KernelTestCase
         $e=(new Entite())->setNom('Organisme Démonstration')->setPublic(false)->setCreateur($admin);
         foreach([$admin,$user,$e] as $x)$this->em->persist($x);$this->em->flush();
         foreach([[$admin,['TENANT_ADMIN']],[$user,['TENANT_FORMATEUR']]] as [$u,$roles]){$u->setEntite($e);$this->em->persist((new UtilisateurEntite())->setUtilisateur($u)->setEntite($e)->setCreateur($admin)->setRoles($roles));}
-        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($e)->setStatus('active'));
+        $plan = (new \App\Entity\Billing\Plan())->setCode('TEST')->setName('Test')->setMaxFormateurs(10);
+        $this->em->persist($plan);
+        $this->em->persist((new \App\Entity\Billing\EntiteSubscription())->setEntite($e)->setPlan($plan)->setStatus('active'));
         $t=(new Formateur())->setUtilisateur($user)->setEntite($e)->setCreateur($admin);$user->setFormateur($t);$this->em->persist($t);$this->em->flush();
         $this->entiteId=$e->getId();$this->adminId=$admin->getId();$this->trainerId=$t->getId();$this->userId=$user->getId();
         $this->client=self::getContainer()->get('test.client');$this->client->disableReboot();$this->client->catchExceptions(false);$this->login($this->adminId);
@@ -77,8 +79,9 @@ final class TrainerComplianceTest extends KernelTestCase
         $e = $this->em->find(Entite::class, $this->entiteId);
         $admin = $this->em->find(Utilisateur::class, $this->adminId);
         $trainer = $this->em->find(Formateur::class, $this->trainerId);
-        $site = (new \App\Entity\Site())->setNom('Salle')->setSlug('questionnaire')->setEntite($e)->setCreateur($admin);
-        $session = (new \App\Entity\Session())->setEntite($e)->setCreateur($admin)->setCode('SES-OLD')
+        $suffix = $this->em->getRepository(\App\Entity\Session::class)->count([]);
+        $site = (new \App\Entity\Site())->setNom('Salle')->setSlug('questionnaire-'.$suffix)->setEntite($e)->setCreateur($admin);
+        $session = (new \App\Entity\Session())->setEntite($e)->setCreateur($admin)->setCode('SES-OLD-'.$suffix)
             ->setSite($site)->setFormateur($trainer)->setStatus(\App\Enum\StatusSession::IN_PROGRESS);
         $session->addJour((new \App\Entity\SessionJour())->setCreateur($admin)->setEntite($e)->setDateDebut(new \DateTimeImmutable('-30 days 09:00'))
             ->setDateFin(new \DateTimeImmutable('-30 days 17:00')));
@@ -140,6 +143,91 @@ final class TrainerComplianceTest extends KernelTestCase
         $this->login($this->userId);
         $this->client->request('GET', '/fr/formateur/'.$this->entiteId.'/satisfaction/session/'.$a->getSession()->getId().'/fill');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
+    }
+
+    private function replacementTrainer(): Formateur
+    {
+        $e = $this->em->find(Entite::class, $this->entiteId);
+        $admin = $this->em->find(Utilisateur::class, $this->adminId);
+        $user = (new Utilisateur())->setEmail('replacement@example.test')->setPassword('unused')->setPrenom('Replacement')->setNom('Trainer');
+        $trainer = (new Formateur())->setUtilisateur($user)->setEntite($e)->setCreateur($admin);
+        $user->setFormateur($trainer);
+        $this->em->persist($user); $this->em->persist($trainer); $this->em->flush();
+        return $trainer;
+    }
+
+    private function synchronizeTrainer(\App\Entity\Session $session): void
+    {
+        (new \App\Service\FormateurSatisfaction\FormateurSatisfactionAssigner($this->em))->synchronizeReplacement(
+            $session, $this->em->find(Utilisateur::class, $this->adminId),
+            $this->em->find(Entite::class, $this->entiteId), [$this->userId]);
+        $this->em->flush();
+    }
+
+    public function testReplacementTransfersUntouchedQuestionnaireAndReopensAccess(): void
+    {
+        $a = $this->questionnaire(); $id = $a->getId();
+        $a->setIsRequired(false);
+        $replacement = $this->replacementTrainer(); $userId = $replacement->getUtilisateur()->getId();
+        $a->getSession()->setFormateur($replacement);
+        $this->synchronizeTrainer($a->getSession());
+        $this->em->clear();
+        $a = $this->em->find(\App\Entity\FormateurSatisfactionAssignment::class, $id);
+        self::assertSame($userId, $a->getFormateur()->getId());
+        self::assertFalse($a->isRequired());
+        self::assertNull($a->getAttempt());
+        self::assertTrue((new \App\Service\Satisfaction\SatisfactionAccess())->canFillTrainer($a));
+        $this->synchronizeTrainer($a->getSession());
+        self::assertCount(1, $this->em->getRepository(\App\Entity\FormateurSatisfactionAssignment::class)->findAll());
+    }
+
+    public function testReplacementPreservesStartedAndSubmittedAttempts(): void
+    {
+        foreach ([false, true] as $submitted) {
+            $a = $this->questionnaire();
+            $attempt = (new \App\Entity\FormateurSatisfactionAttempt())->setAssignment($a)->setEntite($a->getEntite())->setCreateur($a->getFormateur());
+            if ($submitted) $attempt->setSubmittedAt(new \DateTimeImmutable());
+            $a->setAttempt($attempt); $this->em->persist($attempt); $this->em->flush();
+            $replacement = $this->em->getRepository(Formateur::class)->findOneBy(['utilisateur'=>$this->adminId]);
+            if (!$replacement) {
+                $replacement = (new Formateur())->setUtilisateur($this->em->find(Utilisateur::class, $this->adminId))->setEntite($a->getEntite())->setCreateur($a->getCreateur());
+                $this->em->persist($replacement); $this->em->flush();
+            }
+            $a->getSession()->setFormateur($replacement);
+            $this->synchronizeTrainer($a->getSession());
+            self::assertSame($this->userId, $a->getFormateur()->getId());
+            self::assertSame($attempt, $a->getAttempt());
+            $rows = $this->em->getRepository(\App\Entity\FormateurSatisfactionAssignment::class)->findBy(['session'=>$a->getSession()]);
+            self::assertCount(2, $rows);
+            $new = array_values(array_filter($rows, fn($row) => $row !== $a))[0];
+            self::assertSame($this->adminId, $new->getFormateur()->getId());
+            self::assertNull($new->getAttempt());
+        }
+    }
+
+    public function testExistingReplacementAssignmentDoesNotCreateDuplicate(): void
+    {
+        $a = $this->questionnaire(); $obsoleteId = $a->getId();
+        $replacement = $this->replacementTrainer();
+        $existing = (new \App\Entity\FormateurSatisfactionAssignment())->setEntite($a->getEntite())->setCreateur($a->getCreateur())
+            ->setSession($a->getSession())->setTemplate($a->getTemplate())->setFormateur($replacement->getUtilisateur());
+        $this->em->persist($existing); $this->em->flush(); $existingId = $existing->getId();
+        $a->getSession()->setFormateur($replacement);
+        $this->synchronizeTrainer($a->getSession()); $this->em->clear();
+        self::assertNull($this->em->find(\App\Entity\FormateurSatisfactionAssignment::class, $obsoleteId));
+        self::assertNotNull($this->em->find(\App\Entity\FormateurSatisfactionAssignment::class, $existingId));
+        self::assertCount(1, $this->em->getRepository(\App\Entity\FormateurSatisfactionAssignment::class)->findAll());
+    }
+
+    public function testPrincipalChangeKeepsQuestionnaireWhenOriginalTrainerStillTeaches(): void
+    {
+        $a = $this->questionnaire();
+        foreach ($a->getSession()->getJours() as $day) $day->setFormateur($this->em->find(Formateur::class, $this->trainerId));
+        $a->getSession()->setFormateur($this->replacementTrainer());
+        $this->synchronizeTrainer($a->getSession());
+        self::assertSame($this->userId, $a->getFormateur()->getId());
+        self::assertNull($a->getReopenedUntil());
+        self::assertCount(1, $this->em->getRepository(\App\Entity\FormateurSatisfactionAssignment::class)->findAll());
     }
 
 }

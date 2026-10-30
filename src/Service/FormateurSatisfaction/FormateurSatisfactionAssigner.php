@@ -62,6 +62,56 @@ final class FormateurSatisfactionAssigner
     return $created;
   }
 
+  /**
+   * Synchronize existing questionnaires only when the effective teaching team changes.
+   * Never transfer an attempt, even an empty one: its original author is evidence.
+   * @param list<int> $previousUserIds
+   */
+  public function synchronizeReplacement(Session $session, Utilisateur $actor, Entite $entite, array $previousUserIds): void
+  {
+    if ($session->getEntite()?->getId() !== $entite->getId()) throw new \InvalidArgumentException('Organisme incohérent.');
+    $targets = [];
+    foreach ($this->resolveFormateurs($session) as $user) $targets[$user->getId()] = $user;
+    if (!$targets) return;
+    $outgoing = array_diff($previousUserIds, array_keys($targets));
+    if (!$outgoing) return;
+    $groups = [];
+    foreach ($this->em->getRepository(FormateurSatisfactionAssignment::class)->findBy(['session'=>$session, 'entite'=>$entite]) as $assignment) {
+      $groups[$assignment->getTemplate()->getId()][] = $assignment;
+    }
+    foreach ($groups as $assignments) {
+      $source = null; $movable = []; $assigned = [];
+      foreach ($assignments as $assignment) {
+        $id = $assignment->getFormateur()?->getId();
+        if (isset($targets[$id])) $assigned[$id] = true;
+        if (in_array($id, $outgoing, true)) {
+          $source ??= $assignment;
+          if (!$assignment->getAttempt()) $movable[] = $assignment;
+        }
+      }
+      if (!$source) continue;
+      foreach ($targets as $id => $user) {
+        if (isset($assigned[$id])) continue;
+        $assignment = array_shift($movable);
+        if (!$assignment) {
+          $assignment = (new FormateurSatisfactionAssignment())->setSession($session)->setEntite($entite)
+            ->setCreateur($actor)->setTemplate($source->getTemplate())->setIsRequired($source->isRequired());
+          $this->em->persist($assignment);
+        }
+        $assignment->setFormateur($user);
+        // A late replacement must be able to answer, without reopening any submitted work.
+        if (!(new \App\Service\Satisfaction\SatisfactionAccess())->canFillTrainer($assignment)
+            && $session->getDateFin() && $session->getDateFin() < new \DateTimeImmutable()
+            && $session->getStatus() !== StatusSession::CANCELED) {
+          $assignment->reopenUntil(new \DateTimeImmutable('+7 days', new \DateTimeZone('Europe/Paris')));
+        }
+        $assigned[$id] = true;
+      }
+      // A replacement already assigned to this template must not leave duplicate empty obligations.
+      foreach ($movable as $obsolete) $this->em->remove($obsolete);
+    }
+  }
+
   public function ensureAttempt(FormateurSatisfactionAssignment $assignment, Utilisateur $user, Entite $entite): FormateurSatisfactionAttempt
   {
     if ($assignment->getAttempt()) return $assignment->getAttempt();

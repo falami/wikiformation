@@ -77,6 +77,19 @@ class EntiteSubscription
     private ?array $limitsSnapshot = null;
 
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $subscriptionNotifiedAt = null;
+
+    public function getSubscriptionNotifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->subscriptionNotifiedAt;
+    }
+
+    public function markSubscriptionNotified(): void
+    {
+        $this->subscriptionNotifiedAt = new \DateTimeImmutable();
+    }
+
     public function __construct()
     {
         $now = new \DateTimeImmutable();

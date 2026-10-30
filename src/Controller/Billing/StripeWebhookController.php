@@ -21,6 +21,7 @@ final class StripeWebhookController extends AbstractController
     \App\Service\Platform\StripeRevenue $platformRevenue,
     \App\Service\Marketplace\Payments $marketplace,
     \App\Service\Marketplace\Confirmations $marketConfirmations,
+    \App\Service\Billing\SubscriptionNotification $subscriptionNotification,
     EntiteSubscriptionRepository $subRepo,
     PlanRepository $planRepo,
     EntityManagerInterface $em,
@@ -64,7 +65,8 @@ final class StripeWebhookController extends AbstractController
             $em->flush();
             break;
         }
-        case 'checkout.session.completed': {
+        case 'checkout.session.completed':
+        case 'checkout.session.async_payment_succeeded': {
             $session = $event->data->object;
 
             if (($session->mode ?? null) !== 'subscription') break;
@@ -94,6 +96,7 @@ final class StripeWebhookController extends AbstractController
 
             $sub->touch();
             $em->flush();
+            $subscriptionNotification->send($sub);
             break;
         }
 
@@ -136,6 +139,7 @@ final class StripeWebhookController extends AbstractController
 
             $sub->touch();
             $em->flush();
+            $subscriptionNotification->send($sub);
             break;
           }
       }

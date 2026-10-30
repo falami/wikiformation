@@ -91,7 +91,7 @@ final class RegistrationController extends AbstractController
                 ['adherent' => $user]
             );
 
-            $this->addFlash('success', 'Nous venons de vous envoyer un mail pour valider votre adresse mail !');
+            $this->addFlash('registration_verification', 'Un e-mail de validation vient de vous être envoyé. Cliquez sur le lien reçu pour activer votre compte avant de vous connecter.');
             return $this->redirectToRoute('app_login', [], Response::HTTP_SEE_OTHER);
         }
 
@@ -131,7 +131,7 @@ final class RegistrationController extends AbstractController
             ['adherent' => $user]
         );
 
-        $this->addFlash('success', 'Nous venons de vous envoyer un mail pour valider votre adresse mail !');
+        $this->addFlash('registration_verification', 'Un e-mail de validation vient de vous être envoyé. Cliquez sur le lien reçu pour activer votre compte avant de vous connecter.');
         return $this->redirectToRoute('app_login', [], Response::HTTP_SEE_OTHER);
     }
 }

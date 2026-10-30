@@ -1801,6 +1801,11 @@ final class SessionController extends AbstractController
             }
         }
 
+        $previousTrainerUserIds = array_values(array_filter(array_map(
+            static fn($trainer) => $trainer->getUtilisateur()?->getId(),
+            $session->getFormateursEffectifs()
+        )));
+
         // ✅ on mémorise l'ancien statut
         $oldStatus = $session->getId() ? $session->getStatus() : null;
 
@@ -1921,6 +1926,9 @@ final class SessionController extends AbstractController
                 }
             }
 
+            if ($isEdit) {
+                $this->formateurSatisfactionAssigner->synchronizeReplacement($session, $user, $entite, $previousTrainerUserIds);
+            }
             $em->persist($session);
             $em->flush(); // ✅ IMPORTANT : session doit avoir un id
 
