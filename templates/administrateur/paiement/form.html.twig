@@ -4,6 +4,7 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  <link rel="stylesheet" href="{{ asset('dist/css/payment-proof.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/formulaire.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
@@ -260,6 +261,7 @@
 {% endblock %}
 
 {% block javascripts %}
+  <script defer src="{{ asset('dist/js/payment-proof.js') }}"></script>
   {{ parent() }}
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
@@ -371,7 +373,37 @@
             <div class="col-md-4">{{ form_row(form.mode) }}</div>
             <div class="col-md-4">{{ form_row(form.datePaiement) }}</div>
 
-            <div class="col-md-12">{{ form_row(form.justificatif) }}</div>
+            <div class="col-md-12">
+              {% set currentProof = form.vars.data.justificatif %}
+              <div class="payment-proof" data-payment-proof data-current-name="{{ currentProof|default('') }}"
+                   data-current-url="{{ currentProof ? asset('uploads/proofs/' ~ currentProof) : '' }}">
+                {{ form_label(form.justificatif) }}
+                <div class="payment-proof-drop" data-proof-drop>
+                  <div data-proof-empty class="payment-proof-empty">
+                    <span class="payment-proof-icon"><i class="bi bi-cloud-arrow-up"></i></span>
+                    <strong>Glissez-déposez votre justificatif ici</strong>
+                    <span class="text-muted small">ou sélectionnez un fichier sur votre appareil</span>
+                  </div>
+                  <div data-proof-preview class="payment-proof-preview" hidden>
+                    <div data-proof-media class="payment-proof-media"></div>
+                    <div class="payment-proof-meta">
+                      <strong data-proof-name></strong>
+                      <span data-proof-size class="small text-muted"></span>
+                      <a data-proof-link target="_blank" rel="noopener" class="small">Ouvrir le justificatif <i class="bi bi-box-arrow-up-right"></i></a>
+                    </div>
+                  </div>
+                  <div class="payment-proof-actions">
+                    <button type="button" class="btn btn-light" data-proof-pick><i class="bi bi-folder2-open me-1"></i><span data-proof-pick-label>Choisir un fichier</span></button>
+                    <button type="button" class="btn btn-outline-danger" data-proof-remove hidden><i class="bi bi-trash me-1"></i>Supprimer</button>
+                  </div>
+                  {{ form_widget(form.justificatif, {attr: {class: 'form-control', 'data-proof-input': ''}}) }}
+                  <div data-proof-remove-control>{{ form_widget(form.removeJustificatif) }}{{ form_label(form.removeJustificatif) }}</div>
+                </div>
+                {{ form_help(form.justificatif) }}
+                {{ form_errors(form.justificatif) }}
+                <div data-proof-status class="small mt-2" role="status" aria-live="polite"></div>
+              </div>
+            </div>
           </div>
 
           <div class="small text-muted mt-2">
@@ -647,7 +679,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if ($r.montant) $r.montant.textContent = (!isNaN(euros) && euros > 0) ? formatMoney(euros) : '—';
     if ($r.date) $r.date.textContent = ($date?.value || '').trim() || '—';
 
-    const hasJustif = ($justif?.files && $justif.files.length > 0) || (($justif?.value || '').trim().length > 0);
+    const proof = document.querySelector('[data-payment-proof]');
+    const removed = proof?.querySelector('[data-proof-remove-control] input')?.checked;
+    const hasJustif = ($justif?.files && $justif.files.length > 0) || (!!proof?.dataset.currentName && !removed);
     if ($r.justif) $r.justif.textContent = hasJustif ? '✅ Ajouté' : '—';
 
     // ✅ règles : (facture OU payeur) + montant + mode + date

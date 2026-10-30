@@ -1,0 +1,22 @@
+{# Use only verified identity data; do not invent reviews, qualifications or contacts. #}
+{% set site_schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+        {
+            '@type': 'Organization',
+            '@id': seo.organizationUrl,
+            'name': brand.name,
+            'url': seo.homeUrl,
+            'logo': seo.origin ~ asset(brand.logo)
+        },
+        {
+            '@type': 'WebSite',
+            '@id': seo.origin ~ '/#website',
+            'url': seo.homeUrl,
+            'name': brand.name,
+            'inLanguage': 'fr',
+            'publisher': {'@id': seo.organizationUrl}
+        }
+    ]
+} %}
+<script type="application/ld+json">{{ site_schema|json_encode(15)|raw }}</script>

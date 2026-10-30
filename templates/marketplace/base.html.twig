@@ -1,5 +1,25 @@
 {% extends 'base.html.twig' %}{% set brand = public_branding() %}
 {% block title %}Cours en ligne · WikiFormation{% endblock %}
+{% block metadata %}
+{% set marketSeo = public_seo() %}
+{% set marketRoute = app.request.attributes.get('_route')|replace({'.fr': '', '.en': ''}) %}
+{% set publicMarketPage = marketRoute == 'app_market_catalogue' or (marketRoute == 'app_market_show' and offer.published and offer.publicVisible) %}
+{% set personalizedCatalogue = marketRoute == 'app_market_catalogue' and app.user %}
+<meta name="description" content="{% block meta_description %}Découvrez les cours en ligne de WikiFormation. Consultez les programmes et apprenez à votre rythme avec des contenus conçus par des formateurs.{% endblock %}">
+<meta name="robots" content="{{ publicMarketPage and not personalizedCatalogue ? marketSeo.robots : 'noindex, nofollow' }}">
+{% if publicMarketPage %}
+<link rel="canonical" href="{{ marketSeo.canonical }}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ block('title')|striptags|trim }}">
+<meta property="og:description" content="{{ block('meta_description')|striptags|trim }}">
+<meta property="og:url" content="{{ marketSeo.canonical }}">
+<meta property="og:image" content="{{ marketSeo.origin ~ asset(brand.logo) }}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{ block('title')|striptags|trim }}">
+<meta name="twitter:description" content="{{ block('meta_description')|striptags|trim }}">
+{% if not personalizedCatalogue %}{% block market_structured_data %}{% endblock %}{% endif %}
+{% endif %}
+{% endblock %}
 {% block body_attributes %}class="market-page"{% endblock %}
 {% block stylesheets %}<link rel="stylesheet" href="{{ asset('dist/css/marketplace.css') }}">{% endblock %}
 {% block body %}

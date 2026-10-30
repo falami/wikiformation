@@ -21,7 +21,8 @@ class SiteType extends AbstractType
             ])
             ->add('slug', TextType::class, [
                 'label' => '*Slug',
-                'attr' => ['class' => 'form-control', 'placeholder' => 'marseille'],
+                'help' => 'Généré automatiquement à partir du nom. Vous pouvez le personnaliser.',
+                'attr' => ['class' => 'form-control', 'placeholder' => 'base-marseille-vieux-port'],
             ])
             ->add('adresse', TextType::class, [
                 'label' => 'Adresse',

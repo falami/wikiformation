@@ -1,8 +1,44 @@
 {# templates/public/formation/show.html.twig #}
 {% extends 'base_public.html.twig' %}
+{% set courseCatalogueRoute = public_host_config() and not public_host_config().catalogueEnabled ? 'app_public_formation' : 'app_public_catalogue' %}
 
-{% block title %}{{ metaTitle|default(formation.titre ~ ' — Formation voile') }}{% endblock %}
-{% block meta_description %}{{ metaDesc|default('Découvrez nos formations voile : niveaux, pédagogie, formateur, engin et prochaines sessions.') }}{% endblock %}
+{% block title %}{{ formation.titre }}{% if formation.niveau %} — {{ formation.niveau.label() }}{% endif %}{% if formation.duree|default(0) %} — {{ formation.duree }} jour{{ formation.duree > 1 ? 's' : '' }}{% endif %} | {{ brand.name }}{% endblock %}
+{% block meta_description %}{{ metaDesc|default('Découvrez la formation « ' ~ formation.titre ~ ' » : programme, objectifs, prérequis et prochaines sessions. Consultez les modalités et demandez votre inscription.')|striptags|trim|u.truncate(160, '…', false) }}{% endblock %}
+{% block og_image %}{{ seo.origin ~ asset(formation.photoBanniere ? 'uploads/photos/formation/' ~ formation.photoBanniere : brand.logo) }}{% endblock %}
+{% block structured_data %}
+  {% set course = {
+    '@context': 'https://schema.org',
+    '@type': 'Course',
+    '@id': seo.canonical ~ '#course',
+    url: seo.canonical,
+    name: formation.titre,
+    description: formation.description|default('')|striptags|trim
+  } %}
+  {% if formation.entite %}
+    {% set course = course|merge({provider: {'@type': 'Organization', name: formation.entite.nom}}) %}
+  {% endif %}
+  {% if formation.photoBanniere %}
+    {% set course = course|merge({image: seo.origin ~ asset('uploads/photos/formation/' ~ formation.photoBanniere)}) %}
+  {% endif %}
+  {% if formation.niveau %}
+    {% set course = course|merge({educationalLevel: formation.niveau.label()}) %}
+  {% endif %}
+  {% if formation.conditionPrealable %}
+    {% set course = course|merge({coursePrerequisites: formation.conditionPrealable|striptags|trim}) %}
+  {% endif %}
+  {% if formation.objectifs %}
+    {% set course = course|merge({teaches: formation.objectifs|striptags|trim}) %}
+  {% endif %}
+  <script type="application/ld+json">{{ course|json_encode(15)|raw }}</script>
+  <script type="application/ld+json">{{ {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {'@type': 'ListItem', position: 1, name: 'Formations', item: seo.origin ~ path(courseCatalogueRoute, {_locale: 'fr'})},
+      {'@type': 'ListItem', position: 2, name: formation.titre, item: seo.canonical}
+    ]
+  }|json_encode(15)|raw }}</script>
+{% endblock %}
 
 
 {% block stylesheets %}
@@ -738,7 +774,7 @@
 
       {# Fil d’Ariane #}
       <div class="hero-breadcrumb">
-        <a href="{{ path('app_public') }}">Catalogue</a>
+        <a href="{{ path(courseCatalogueRoute) }}">Formations</a>
         <span class="mx-1">/</span>
         <span>{{ formation.titre|u.truncate(80, '…') }}</span>
       </div>
@@ -751,13 +787,16 @@
           <div class="hero-main-card mb-3">
             <div class="hero-main-top">
               <div class="hero-main-logo">
-                <img src="{{ coverUrl }}" alt="{{ formation.titre }}">
+                <img src="{{ coverUrl }}" alt="{{ formation.titre }}" width="72" height="72" decoding="async">
               </div>
 
               <div class="hero-main-meta flex-grow-1">
+                {% if formation.entite %}
+                  <small class="d-block">Formation proposée par {{ formation.entite.nom }}</small>
+                {% endif %}
                 {% if formation.formateur %}
                   <small>
-                    Formateur certifié&nbsp;
+                    Votre formateur&nbsp;
                     <strong>{{ formation.formateur.utilisateur.prenom }} {{ formation.formateur.utilisateur.nom }}</strong>
                   </small>
                 {% endif %}
@@ -798,7 +837,7 @@
 
               <span class="hero-pill">
                 <i class="bi bi-people-fill"></i>
-                {{ formation.sessions|length }} session{{ formation.sessions|length>1?'s':'' }} planifiée{{ formation.sessions|length>1?'s':'' }}
+                {{ upcoming|length }} session{{ upcoming|length>1?'s':'' }} à venir
               </span>
 
               <span class="hero-pill">
@@ -1277,6 +1316,7 @@
                     <img
                       src="{{ asset('uploads/photos/formateur/' ~ formation.formateur.photo) }}"
                       alt="Photo de profil {{ formation.formateur.utilisateur.nom }}"
+                      width="64" height="64" loading="lazy" decoding="async"
                       class="w-100 h-100"
                       style="object-fit:cover;"
                     >
@@ -1330,7 +1370,7 @@
                         {% else %}
                           {{ asset('dist/img/equipment-placeholder.svg') }}
                         {% endif %}"
-                  alt="Photo du engin {{ formation.engin.nom }}"
+                  alt="{{ formation.engin.nom }}" loading="lazy" decoding="async"
                   class="w-100 h-100 object-fit-cover"
                 >
               </div>
@@ -1386,7 +1426,7 @@
           {% for p in formation.photos %}
             <div class="col-12 col-md-6 col-lg-4">
               <a data-fancybox="gal" href="{{ asset('uploads/photos/formation/' ~ p.filename) }}">
-                <img class="img-fluid gallery-img" src="{{ asset('uploads/photos/formation/' ~ p.filename) }}" alt="Formation">
+                <img class="img-fluid gallery-img" src="{{ asset('uploads/photos/formation/' ~ p.filename) }}" alt="{{ formation.titre }} — photo {{ loop.index }}" loading="lazy" decoding="async">
               </a>
             </div>
           {% else %}

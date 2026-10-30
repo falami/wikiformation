@@ -1,0 +1,20 @@
+{# Only rows already selected for this public page; never enumerate private courses. #}
+{% set items = [] %}
+{% for row in formations %}
+  {% set items = items|merge([{
+    '@type': 'ListItem',
+    position: loop.index,
+    name: row.formation.titre,
+    url: seo.origin ~ path('app_public_show', {slug: row.formation.slug, _locale: 'fr'})
+  }]) %}
+{% endfor %}
+{% if items|length %}
+  <script type="application/ld+json">{{ {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: listName,
+    url: seo.canonical,
+    numberOfItems: items|length,
+    itemListElement: items
+  }|json_encode(15)|raw }}</script>
+{% endif %}

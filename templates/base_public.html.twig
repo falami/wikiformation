@@ -1,5 +1,6 @@
 {# templates/base_public.html.twig #}
 {% set brand = public_branding() %}
+{% set seo = public_seo() %}
 {% set platform_legal_origin = brand.hasCustomHost ? 'https://wikiformation.fr' : '' %}
 <!DOCTYPE html>
 <html lang="{{ app.request.locale|default('fr') }}">
@@ -8,39 +9,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     {# --- Title & Description (surchargables) --- #}
-    <title>{% block title %}{{ brand.name }} - Plateforme de réservation de formation pour devenir Formateur{% endblock %}</title>
+    <title>{% block title %}{{ brand.name }} | Formations et logiciel de gestion pour organismes{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 
-    <meta name="description" content="{% block meta_description %}Wiki Formation est la plateforme complète pour les organisme de formation : gérez votre formation, vos stagiaires, vos sessions et vos financements.{% endblock %}">
+    <meta name="description" content="{% block meta_description %}Découvrez les formations et cours en ligne sur {{ brand.name }}. Organismes de formation : gérez vos sessions, documents, stagiaires et factures.{% endblock %}">
     <meta name="author" content="{{ brand.name }}">
 
-    {# --- Robots: noindex si recherche interne ?q= --- #}
-    {% set has_query_search = app.request.query.has('q') and app.request.query.get('q') is not empty %}
-    {% if has_query_search %}
-      <meta name="robots" content="noindex, nofollow">
-    {% else %}
-      <meta name="robots" content="index, follow">
-    {% endif %}
-
-    {# --- Canonical absolu sans query --- #}
-    {% set canonical_url = absolute_url(app.request.pathInfo) %}
+    <meta name="robots" content="{{ seo.robots }}">
+    {% set canonical_url = seo.canonical %}
     <link rel="canonical" href="{{ canonical_url }}">
-
-    {# --- Hreflang absolus FR/EN (+ x-default) --- #}
-    {% set route   = app.request.attributes.get('_route') %}
-    {% set params  = app.request.attributes.get('_route_params')|default({}) %}
-    {% set supported_locales = ['fr','en'] %}
-    {% if route %}
-      {% for loc in supported_locales %}
-        <link rel="alternate" hreflang="{{ loc }}" href="{{ absolute_url(path(route, params|merge({'_locale': loc}))) }}">
-      {% endfor %}
-      <link rel="alternate" hreflang="x-default" href="{{ absolute_url(path(route, params|merge({'_locale':'fr'}))) }}">
-    {% endif %}
+    {# No hreflang until the corresponding editorial pages are fully translated. #}
 
     {# --- Social / Open Graph --- #}
     {% set og_title = block('og_title') is defined ? block('og_title') : block('title') %}
     {% set og_desc  = block('og_desc')  is defined ? block('og_desc')  : block('meta_description') %}
-    {% set og_img   = block('og_image') is defined ? block('og_image') : absolute_url(asset(brand.logo)) %}
+    {% set og_img   = block('og_image') is defined ? block('og_image') : seo.origin ~ asset(brand.logo) %}
     {% set og_url   = canonical_url %}
 
     <meta property="og:title" content="{{ og_title|striptags }}">
@@ -48,6 +31,7 @@
     <meta property="og:image" content="{{ og_img }}">
     <meta property="og:url" content="{{ og_url }}">
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ brand.name }}">
     <meta property="og:locale" content="{{ app.request.locale == 'en' ? 'en_GB' : 'fr_FR' }}">
 
     <meta name="twitter:card" content="summary_large_image">
@@ -64,7 +48,6 @@
 
     {# --- CSS vendors --- #}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
@@ -117,43 +100,8 @@
     {# --- Cookie consent (ton script) --- #}
     <script src="{{ asset('dist/js/cookie-consent.js') }}?v=2"></script>
 
-    {# --- Données structurées JSON-LD --- #}
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Wiki Formation",
-      "url": "https://wikiformation.fr",
-      "logo": "{{ absolute_url(asset(brand.logo)) }}",
-      "description": "Plateforme de gestion de matériel, sorties et carnets de plongée pour clubs et passionnés.",
-      "telephone": "+33627087699",
-      "sameAs": [
-        "https://www.facebook.com/wikiformation",
-        "https://www.instagram.com/wikiformation"
-      ],
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "88 chemin de Russaud",
-        "addressLocality": "Alès",
-        "postalCode": "30100",
-        "addressCountry": "FR"
-      }
-    }
-    </script>
-
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "url": "{{ canonical_url }}",
-      "name": "Wikiformation",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "{{ canonical_url }}?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    }
-    </script>
+    {% include 'public/_site_schema.html.twig' %}
+    {% block structured_data %}{% endblock %}
 
     {# --- Bloc CSS page --- #}
     <link rel="stylesheet" href="{{ asset('dist/css/public-navigation.css') }}?v=1">
@@ -186,7 +134,7 @@
           <div class="col-lg-4 col-md-6">
             <h5 class="fw-bold mb-3 d-flex align-items-center">
               <i class="bi bi-water me-2 text-theme-secondaire fs-4" aria-hidden="true"></i>
-              <img class="mb-1" src="{{ asset(brand.logo)}}" width="100px">
+              <img class="mb-1" src="{{ asset(brand.logo)}}" width="100" alt="{{ brand.name }}" loading="lazy" decoding="async">
             </h5>
             <p class="text-light-50 small mb-3">
               {{ 'footer.tagline_1'|trans }}<br>

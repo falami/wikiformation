@@ -7,7 +7,7 @@ use App\Enum\ModePaiement;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use App\Form\DataTransformer\FrenchToDateTransformer;
-use Symfony\Component\Form\Extension\Core\Type\{ChoiceType, TextType, FileType, MoneyType, HiddenType};
+use Symfony\Component\Form\Extension\Core\Type\{ChoiceType, TextType, FileType, MoneyType, HiddenType, CheckboxType};
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\File as FileConstraint;
@@ -111,12 +111,15 @@ class PaiementType extends AbstractType
                 'attr'  => ['class' => 'form-control flatpickr-datetime', 'placeholder' => 'jj/mm/aaaa'],
             ])
 
+            ->add('removeJustificatif', CheckboxType::class, [
+                'mapped' => false, 'required' => false, 'label' => 'Supprimer le justificatif actuel',
+            ])
             ->add('justificatif', FileType::class, [
                 'mapped' => false,
                 'required' => false,
                 'label' => 'Justificatif (PDF / Image)',
                 'help' => 'PDF, JPG, PNG, WEBP ou GIF - 10 Mo max.',
-                'attr' => ['class' => 'form-control', 'accept' => 'application/pdf,image/*'],
+                'attr' => ['class' => 'form-control', 'accept' => 'application/pdf,image/jpeg,image/png,image/webp,image/gif'],
                 'constraints' => [
                     new FileConstraint(
                         maxSize: '10M',

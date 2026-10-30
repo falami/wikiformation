@@ -27,6 +27,7 @@ use App\Service\Billing\StripeBillingService;
 use App\Form\ContactType;
 use Symfony\Component\Mailer\MailerInterface;
 use App\Service\Public\PublicContext;
+use App\Service\Public\PublicCatalogueResolver;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
@@ -41,6 +42,7 @@ final class PublicController extends AbstractController
         private readonly CategorieRepository $categorieRepo,
         private readonly FormationRepository $formationRepo,
         private readonly PublicContext $publicContext,
+        private readonly PublicCatalogueResolver $publicCatalogue,
     ) {}
 
     #[Route('', name: 'app_public', methods: ['GET'])]
@@ -88,7 +90,7 @@ final class PublicController extends AbstractController
     {
         $this->assertCatalogueEnabled();
 
-        $categorie = $this->categorieRepo->findOneBy(['slug' => $slug]);
+        $categorie = $this->publicCatalogue->categoryBySlug($slug);
 
         if (!$categorie instanceof Categorie) {
             throw $this->createNotFoundException('Catégorie introuvable.');
@@ -99,6 +101,8 @@ final class PublicController extends AbstractController
             ->orderBy('c.nom', 'ASC')
             ->getQuery()
             ->getResult();
+
+        $children = array_values(array_filter($children, fn(Categorie $child): bool => $this->publicCatalogue->allowsCategory($child)));
 
         $showFormations = ($categorie->getParent() !== null) || (count($children) === 0);
 
@@ -144,7 +148,7 @@ final class PublicController extends AbstractController
     #[Route('/formation/{slug}', name: 'app_public_show', methods: ['GET'])]
     public function show(string $slug, FormationRepository $repo, Request $request): Response
     {
-        $formation = $repo->findOnePublicBySlug($slug);
+        $formation = $this->publicCatalogue->formationBySlug($slug);
 
         if (!$formation instanceof Formation) {
             throw $this->createNotFoundException('Formation introuvable.');
@@ -196,8 +200,7 @@ final class PublicController extends AbstractController
         $metaTitle = $formation->getTitre() . ' — ' . $formation->getEntite()?->getNom();
 
         $rawDesc  = (string) $formation->getDescription();
-        $metaDesc = strip_tags($rawDesc);
-        $metaDesc = mb_substr(trim($metaDesc), 0, 160);
+        $metaDesc = trim((string) preg_replace('/\s+/u', ' ', strip_tags($rawDesc)));
 
         $reservationDemande = new Reservation();
         $reservationDemande->setFormation($formation);

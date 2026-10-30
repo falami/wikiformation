@@ -324,6 +324,20 @@
     .formation-choice-control .ts-wrapper { width:100%; margin-bottom:0; }
     .formation-choice-add { flex:0 0 42px; width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; padding:0; border-radius:8px; }
   </style>
+
+<link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+<style>
+.formation-page .hero .btn-light{background:#e9c982;border-color:#e9c982;color:#203747}
+.formation-page .btn-warning{background:#e9c982;border-color:#e9c982;color:#203747}
+.formation-page .btn-warning:hover{background:#dfbd70;border-color:#dfbd70}
+.formation-page [aria-labelledby="programme-workflow-title"]{background:#fcfaf5;border-color:#e7dfcd;border-top-color:#c6a259!important}
+.formation-page [aria-labelledby="programme-workflow-title"] p{font-size:.85rem;line-height:1.65}
+.formation-page [aria-labelledby="programme-workflow-title"] h2{font-size:1.1rem}
+.formation-page .cardx{scroll-margin-top:120px}
+.formation-page .upload-zone{border:1px dashed #b8c9d5;background:#f8fafc;border-radius:14px}
+.formation-page .upload-zone:hover{border-color:#b59148;background:#fffaf0}
+html.workspace-shell body .content .formation-page [data-form-summary]{position:static!important;top:auto!important;max-height:none!important;overflow:visible!important;scrollbar-gutter:auto}
+</style>
 {% endblock %}
 
 {% block javascripts %}
@@ -336,13 +350,15 @@
 {% endblock %}
 
 {% block body %}
+<div class="session-editor formation-page">
   {# ===== HERO (comme facture) ===== #}
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">CATALOGUE DE FORMATION</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-mortarboard me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ modeEdition ? 'Modifier' : 'Créer' }} une formation
@@ -382,6 +398,16 @@
     : path('app_administrateur_formation_ajouter',  { entite: entite.id })
   %}
 
+<nav class="se-nav" aria-label="Sections de la fiche formation">
+<a href="#formation-identification"><span>01</span> Informations</a>
+<a href="#formation-evaluations"><span>02</span> Évaluations</a>
+<a href="#formation-tarification"><span>03</span> Tarification</a>
+<a href="#informations-publiques"><span>04</span> Information du public</a>
+<a href="#formation-presentation"><span>05</span> Présentation</a>
+<a href="#formation-adresse"><span>06</span> Adresse</a>
+<a href="#formation-images"><span>07</span> Images</a>
+<a href="#formation-financements"><span>08</span> Financements</a>
+</nav>
   {{ form_start(form, {
     action: actionPath,
     attr: { id: form.vars.id, novalidate: 'novalidate', name: 'formation_administrateur', class: 'formation-editor' }
@@ -513,7 +539,7 @@
       </section>
 
       {# ================== TARIFICATION ================== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="formation-tarification">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-euro-sign text-warning"></i> Tarification</h5>
           <span class="chip">Tarifs</span>
@@ -579,7 +605,7 @@
       </section>
 
       {# ================== CONTENU & CONDITIONS ================== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="formation-presentation">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-align-left text-warning"></i> Présentation & conditions de la formation</h5>
           <span class="chip">Étape 4</span>
@@ -599,7 +625,7 @@
       </div>
 
       {# ================== ADRESSE ================== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="formation-adresse">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa-solid fa-house text-warning"></i> Adresse de rendez-vous</h5>
           <span class="chip">Lieu</span>
@@ -633,7 +659,7 @@
       </div>
 
       {# ================== IMAGES (banner + cover) ================== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="formation-images">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-image text-warning"></i> Images principales</h5>
           <span class="chip">Médias</span>
@@ -695,7 +721,7 @@
       </div>
 
       {# ================== GALERIE ================== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="formation-galerie">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-images text-warning"></i> Galerie</h5>
           <span class="chip">{{ formation.photos|length }} image(s)</span>
@@ -749,7 +775,7 @@
       </div>
 
       {# ================== FINANCEMENTS ÉLIGIBLES (switches gardés) ================== #}
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="formation-financements">
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-money-bill-wave text-warning"></i> Financements - éligibilité</h5>
           <span class="chip">Éligibilité</span>
@@ -876,7 +902,7 @@
       </div>
 
 
-      <div class="cardx mb-4" data-form-summary>
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title"><i class="fa fa-circle-info text-warning"></i> Résumé</h5>
           <span class="chip">Contrôle</span>
@@ -951,6 +977,7 @@
   </div>
 
   {{ form_end(form) }}
+</div>
   <div class="modal fade" id="formationQuickCreate" tabindex="-1" aria-labelledby="formationQuickCreateTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content rounded-4 border-0 shadow">
       <div class="modal-header"><h2 class="modal-title fs-5" id="formationQuickCreateTitle"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>

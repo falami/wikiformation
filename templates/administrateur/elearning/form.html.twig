@@ -148,16 +148,31 @@
     }
 
   </style>
+
+<link rel="stylesheet" href="{{ asset('dist/css/session-editor-premium.css') }}?v=20261029-2">
+<style>
+.elearning-editor .hero .btn-light{background:#e9c982;border-color:#e9c982;color:#203747}
+.elearning-editor .cardx{scroll-margin-top:120px}
+.elearning-editor textarea.form-control{min-height:160px}
+.elearning-editor .form-switch{padding-top:10px;padding-bottom:10px}
+.elearning-editor .se-summary .p-md-4{background:#fbfcfd;border-radius:0 0 18px 18px}
+.elearning-editor .se-summary .justify-content-between{gap:16px;padding:12px 0;border-bottom:1px solid #e5ebf0;line-height:1.6}
+.elearning-editor .se-summary .justify-content-between>span{min-width:0;overflow-wrap:anywhere}
+.elearning-editor .se-summary hr{display:none}
+html.workspace-shell body .content .elearning-editor [data-form-summary]{position:static!important;top:auto!important;max-height:none!important;overflow:visible!important;scrollbar-gutter:auto}
+</style>
 {% endblock %}
 
 {% block body %}
+<div class="session-editor elearning-editor">
 
   <div class="hero p-3 mb-4 d-flex gap-3">
-    <div class="accent"></div>
+
 
     <div class="flex-grow-1">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
+          <div class="se-eyebrow">CRÉATION PÉDAGOGIQUE · E-LEARNING</div>
           <h2 class="m-0 fw-bold">
             <i class="bi bi-mortarboard me-2" style="color:var(--theme-color-secondaire)"></i>
             {{ modeEdition ? 'Modifier le cours' : 'Nouveau cours e-learning' }}
@@ -196,6 +211,10 @@
 
   {% include 'flagMessage.html.twig' %}
 
+  <nav class="se-nav" aria-label="Sections du cours">
+    <a href="#course-information"><span>01</span> Informations du cours</a>
+    <a href="#course-visibility"><span>02</span> Visibilité & publication</a>
+  </nav>
   {{ form_start(form, {
     attr: {
       id: form.vars.id,
@@ -230,13 +249,13 @@
     {# ===== COL LEFT ===== #}
     <div class="col-lg-8">
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="course-information">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="bi bi-info-circle-fill text-warning"></i>
             Informations du cours
           </h5>
-          <span class="badge rounded-pill bg-light text-muted">Étape 1</span>
+          <span class="chip">Étape 1</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -273,13 +292,13 @@
         </div>
       </div>
 
-      <div class="cardx mb-4">
+      <div class="cardx mb-4" id="course-visibility">
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="bi bi-eye-fill text-warning"></i>
             Visibilité
           </h5>
-          <span class="badge rounded-pill bg-light text-muted">Publication</span>
+          <span class="chip">Publication</span>
         </div>
 
         <div class="p-3 p-md-4">
@@ -316,13 +335,13 @@
     {# ===== COL RIGHT ===== #}
     <div class="col-lg-4">
 
-      <div class="cardx mb-4" data-form-summary>
+      <div class="cardx mb-4 se-summary" data-form-summary>
         <div class="cardx-h">
           <h5 class="cardx-title">
             <i class="bi bi-clipboard2-check-fill text-warning"></i>
             Résumé
           </h5>
-          <span class="badge rounded-pill bg-light text-muted">Contrôle</span>
+          <span class="chip">Contrôle</span>
         </div>
 
         <div class="p-3 p-md-4 small">
@@ -369,4 +388,5 @@
   </div>
 
   {{ form_end(form) }}
+</div>
 {% endblock %}

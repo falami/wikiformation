@@ -837,6 +837,28 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
+  // Preserve existing URLs and manually chosen slugs.
+  const siteNameInput = document.querySelector(idNom);
+  const siteSlugInput = document.querySelector(idSlug);
+  if (siteNameInput && siteSlugInput) {
+    let automaticSlug = !siteSlugInput.value.trim();
+    const updateSlug = () => {
+      if (!automaticSlug) return;
+      siteSlugInput.value = siteNameInput.value.toLowerCase()
+        .replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/ß/g, 'ss')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      refresh();
+    };
+    siteNameInput.addEventListener('input', updateSlug);
+    siteNameInput.addEventListener('change', updateSlug);
+    siteSlugInput.addEventListener('input', () => {
+      automaticSlug = !siteSlugInput.value.trim();
+    });
+    siteSlugInput.addEventListener('blur', updateSlug);
+    updateSlug();
+  }
+
   // écoute input/change
   [
     idNom,idSlug,idAdresse,idComplement,idCp,idVille,idLat,idLng

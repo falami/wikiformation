@@ -1,8 +1,19 @@
 {# templates/public/categorie/show.html.twig #}
 {% extends 'base_public.html.twig' %}
 
-{% block title %}{{ categorie.nom }} — Catégorie{% endblock %}
-{% block meta_description %}Explorez {{ categorie.nom }} : sous-catégories et formations associées.{% endblock %}
+{% block title %}Formations {{ categorie.nom }} | {{ brand.name }}{% endblock %}
+{% block meta_description %}Découvrez les formations {{ categorie.nom }} proposées sur {{ brand.name }}. Consultez les programmes, les prérequis et les prochaines sessions.{% endblock %}
+{% block structured_data %}
+  {% set crumbs = [{'@type': 'ListItem', position: 1, name: 'Accueil', item: seo.homeUrl}] %}
+  {% if categorie.parent %}
+    {% set crumbs = crumbs|merge([{'@type': 'ListItem', position: 2, name: categorie.parent.nom, item: seo.origin ~ path('app_public_categorie_show', {slug: categorie.parent.slug, _locale: 'fr'})}]) %}
+  {% endif %}
+  {% set crumbs = crumbs|merge([{'@type': 'ListItem', position: crumbs|length + 1, name: categorie.nom, item: seo.canonical}]) %}
+  <script type="application/ld+json">{{ {'@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: crumbs}|json_encode(15)|raw }}</script>
+  {% if showFormations %}
+    {% include 'public/partials/_course_list_schema.html.twig' with {listName: 'Formations ' ~ categorie.nom} %}
+  {% endif %}
+{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
@@ -317,7 +328,7 @@
 
         <div class="d-flex flex-wrap align-items-end gap-3">
           <div class="me-auto">
-            <h1 class="hero-title">{{ categorie.nom }}</h1>
+            <h1 class="hero-title">Formations {{ categorie.nom }}</h1>
             <p class="hero-sub">
               {% if showFormations %}
                 Découvrez les formations disponibles dans <strong>{{ categorie.nom }}</strong>.

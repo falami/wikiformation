@@ -1,1 +1,25 @@
-{% extends 'marketplace/base.html.twig' %}{% block content %}<section class="mk-hero"><div><span class="mk-kicker">Un cours de {{ offer.seller.legalName }}</span><h1>{{ offer.snapshot.title }}</h1><p>{{ offer.snapshot.minutes ?: '—' }} minutes · À votre rythme</p></div><div><div class="mk-price">{{ (offer.priceCents/100)|number_format(2,',',' ') }} € TTC</div>{% if app.user %}<form method="post" action="{{ path('app_market_cart_add',{id:offer.id}) }}" style="margin-top:20px"><input type="hidden" name="_token" value="{{ csrf_token('cart') }}"><button class="mk-button">Ajouter au panier →</button></form>{% else %}<a class="mk-button" href="{{ path('app_login') }}">Me connecter pour acheter</a>{% endif %}</div></section><div class="mk-two"><div class="mk-panel"><h2>Ce que vous allez apprendre</h2><p class="mk-break">{{ offer.snapshot.description }}</p><h2>Le programme</h2>{% for node in offer.snapshot.nodes %}<div class="mk-row"><span>{{ loop.index }}. {{ node.title }}</span><span class="mk-badge">{{ node.blocks|length }} contenu(s)</span></div>{% endfor %}</div><aside class="mk-panel"><h2>Un achat, un accès conservé.</h2><p>La version achetée reste dans votre bibliothèque lorsque le formateur retire son offre. L’accès nécessite un compte et le fonctionnement du service, selon les conditions de vente.</p><h3>Votre vendeur</h3><p>{{ offer.seller.legalName }}<br>{{ offer.seller.registration }}<br>{{ offer.seller.address }}<br>{{ offer.seller.email }}</p><p class="mk-note">Compatible avec un navigateur récent. Connexion internet nécessaire. Les vidéos et documents se consultent depuis votre bibliothèque.</p><a href="{{ path('app_market_terms') }}">Conditions de vente et droits du consommateur</a></aside></div>{% endblock %}
+{% extends 'marketplace/base.html.twig' %}
+{% block title %}{{ offer.snapshot.title }} | Cours en ligne WikiFormation{% endblock %}
+{% block meta_description %}{{ offer.snapshot.description|default('Découvrez le programme du cours « ' ~ offer.snapshot.title ~ ' », proposé par ' ~ offer.seller.legalName ~ '. Apprenez à votre rythme depuis votre bibliothèque WikiFormation.')|striptags|trim|u.truncate(160, '…', false) }}{% endblock %}
+{% block market_structured_data %}
+  {% set course = {
+    '@context': 'https://schema.org', '@type': 'Course',
+    '@id': marketSeo.canonical ~ '#course', url: marketSeo.canonical,
+    name: offer.snapshot.title,
+    description: offer.snapshot.description|default('')|striptags|trim,
+    provider: {'@type': 'Organization', name: offer.seller.legalName},
+    offers: {'@type': 'Offer', price: (offer.priceCents / 100)|number_format(2, '.', ''), priceCurrency: 'EUR', url: marketSeo.canonical}
+  } %}
+  {% if offer.snapshot.minutes|default(0) > 0 %}
+    {% set course = course|merge({timeRequired: 'PT' ~ offer.snapshot.minutes ~ 'M'}) %}
+  {% endif %}
+  <script type="application/ld+json">{{ course|json_encode(15)|raw }}</script>
+  <script type="application/ld+json">{{ {
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: [
+      {'@type': 'ListItem', position: 1, name: 'Cours en ligne', item: marketSeo.origin ~ path('app_market_catalogue', {_locale: 'fr'})},
+      {'@type': 'ListItem', position: 2, name: offer.snapshot.title, item: marketSeo.canonical}
+    ]
+  }|json_encode(15)|raw }}</script>
+{% endblock %}
+{% block content %}<section class="mk-hero"><div><span class="mk-kicker">Un cours de {{ offer.seller.legalName }}</span><h1>{{ offer.snapshot.title }}</h1><p>{{ offer.snapshot.minutes ?: '—' }} minutes · À votre rythme</p></div><div><div class="mk-price">{{ (offer.priceCents/100)|number_format(2,',',' ') }} € TTC</div>{% if app.user %}<form method="post" action="{{ path('app_market_cart_add',{id:offer.id}) }}" style="margin-top:20px"><input type="hidden" name="_token" value="{{ csrf_token('cart') }}"><button class="mk-button">Ajouter au panier →</button></form>{% else %}<a class="mk-button" href="{{ path('app_login') }}">Me connecter pour acheter</a>{% endif %}</div></section><div class="mk-two"><div class="mk-panel"><h2>Ce que vous allez apprendre</h2><p class="mk-break">{{ offer.snapshot.description }}</p><h2>Le programme</h2>{% for node in offer.snapshot.nodes %}<div class="mk-row"><span>{{ loop.index }}. {{ node.title }}</span><span class="mk-badge">{{ node.blocks|length }} contenu(s)</span></div>{% endfor %}</div><aside class="mk-panel"><h2>Un achat, un accès conservé.</h2><p>La version achetée reste dans votre bibliothèque lorsque le formateur retire son offre. L’accès nécessite un compte et le fonctionnement du service, selon les conditions de vente.</p><h3>Votre vendeur</h3><p>{{ offer.seller.legalName }}<br>{{ offer.seller.registration }}<br>{{ offer.seller.address }}<br>{{ offer.seller.email }}</p><p class="mk-note">Compatible avec un navigateur récent. Connexion internet nécessaire. Les vidéos et documents se consultent depuis votre bibliothèque.</p><a href="{{ path('app_market_terms') }}">Conditions de vente et droits du consommateur</a></aside></div>{% endblock %}

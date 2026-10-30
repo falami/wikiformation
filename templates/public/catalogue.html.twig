@@ -2,8 +2,11 @@
 {% extends 'base_public.html.twig' %}
 {% set brand = public_branding() %}
 
-{% block title %}Catalogue de nos formations{% endblock %}
-{% block meta_description %}Consultez l’ensemble de nos formations (même sans dates planifiées) et demandez l’ouverture d’une session.{% endblock %}
+{% block title %}Catalogue des formations professionnelles | {{ brand.name }}{% endblock %}
+{% block meta_description %}Découvrez les formations proposées sur {{ brand.name }} : programmes, objectifs, prérequis et tarifs. Consultez les sessions ou demandez une date adaptée.{% endblock %}
+{% block structured_data %}
+  {% include 'public/partials/_course_list_schema.html.twig' with {listName: 'Catalogue des formations professionnelles'} %}
+{% endblock %}
 
 {% block stylesheets %}
   {{ parent() }}
@@ -129,20 +132,19 @@
 
   <header class="hero bg-light text-center">
       <div class="container">
-          <img class="mb-1"
+          <img class="mb-1 img-fluid"
             src="{{ asset(brand.logo) }}"
             alt="Logo {{ brand.name }}"
-            class="img-fluid"
             width="200">
-          <h1 class="fw-bold fs-sm-2 fs-md-3 fs-lg-5 mt-5">{{ 'home.hero.h1'|trans }}</h1>
+          <h1 class="fw-bold fs-sm-2 fs-md-3 fs-lg-5 mt-5">Catalogue des formations professionnelles</h1>
       </div>
   </header>
   
 
   <section class="hero-cover d-flex align-items-end">
     <div class="container hero-inner text-center text-lg-start">
-      <h1 class="display-6 display-lg-4 mb-2">Catalogue de nos formations</h1>
-      <p class="mb-0">Toutes les formations disponibles.</p>
+      <h2 class="display-6 display-lg-4 mb-2">Trouvez votre prochaine formation</h2>
+      <p class="mb-0">Comparez les programmes, les niveaux et les prochaines sessions. Vous pouvez aussi demander une date lorsqu’aucune session n’est planifiée.</p>
     </div>
   </section>
 
@@ -154,7 +156,7 @@
         <div class="hint small">Clique sur “Voir la formation” pour les détails et faire une demande.</div>
       </div>
 
-      <a class="btn btn-outline-light" href="{{ path('app_public') }}">
+      <a class="btn btn-outline-light" href="{{ path('app_public_formation') }}">
         <i class="bi bi-calendar3 me-2"></i>Voir le calendrier
       </a>
     </div>
@@ -263,7 +265,7 @@
         <div class="empty-state text-center">
           <i class="bi bi-journal-x fs-1 d-block mb-3 text-white"></i>
           <h3 class="h5 text-white mb-2">Aucune formation disponible</h3>
-          <p class="mb-0 text-white-50">Active “Visible public” sur au moins une formation.</p>
+          <p class="mb-0 text-white-50">Les prochaines formations seront présentées ici. Revenez consulter le catalogue prochainement.</p>
         </div>
       {% endfor %}
     </div>

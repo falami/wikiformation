@@ -337,7 +337,7 @@ final class PaiementController extends AbstractController
             // ✅ une seule fois (tu l’avais en double)
             $this->enforceExclusivePayeur($p);
 
-            $this->handleJustificatifUpload($form->get('justificatif')->getData(), $p);
+            $this->handleJustificatifUpload($form->get('justificatif')->getData(), $p, $form->get('removeJustificatif')->getData());
 
             // ✅ snapshot ventilation
             $this->hydrateVentilation($p);
@@ -462,7 +462,7 @@ final class PaiementController extends AbstractController
             $this->enforceExclusivePayeur($paiement);
 
             $this->enforceExclusivePayeur($paiement);
-            $this->handleJustificatifUpload($form->get('justificatif')->getData(), $paiement);
+            $this->handleJustificatifUpload($form->get('justificatif')->getData(), $paiement, $form->get('removeJustificatif')->getData());
 
             // ✅ snapshot ventilation aussi en édition
             $this->hydrateVentilation($paiement);
@@ -645,9 +645,12 @@ final class PaiementController extends AbstractController
         }
     }
 
-    private function handleJustificatifUpload(?UploadedFile $file, Paiement $p): void
+    private function handleJustificatifUpload(?UploadedFile $file, Paiement $p, bool $remove = false): void
     {
-        if (!$file instanceof UploadedFile) return;
+        if (!$file instanceof UploadedFile) {
+            if ($remove) $p->setJustificatif(null);
+            return;
+        }
 
         @mkdir($this->proofDir, 0775, true);
 

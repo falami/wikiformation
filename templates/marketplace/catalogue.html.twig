@@ -1,1 +1,23 @@
-{% extends 'marketplace/base.html.twig' %}{% block content %}<section class="mk-hero"><div><span class="mk-kicker">Le catalogue WikiFormation</span><h1>Un nouveau savoir.<br><strong>À votre rythme.</strong></h1><p>Des cours conçus par des formateurs. Un accès personnel dans votre bibliothèque, pour avancer quand vous le souhaitez.</p></div><div><span class="mk-badge">Apprendre · Pratiquer · Progresser</span></div></section><div class="mk-toolbar"><h2>Explorez les cours</h2><form class="mk-search" method="get"><label class="visually-hidden" for="q">Rechercher un cours</label><input id="q" name="q" value="{{ q }}" placeholder="Une compétence, un sujet…"><button class="mk-button">Rechercher</button></form></div><div class="mk-grid">{% for offer in offers %}<article class="mk-card"><span class="mk-kicker">{{ offer.seller.legalName }}</span><h2>{{ offer.snapshot.title }}</h2><p>{{ offer.snapshot.description|slice(0,180) }}</p><div class="mk-spacer"><div class="mk-toolbar"><span class="mk-price">{{ (offer.priceCents/100)|number_format(2,',',' ') }} €</span><span class="mk-note">TTC · {{ offer.snapshot.minutes ?: '—' }} min</span></div><a class="mk-button" href="{{ path('app_market_show',{id:offer.id}) }}">Découvrir le cours →</a></div></article>{% else %}<div class="mk-empty"><h2>Les prochains cours arrivent.</h2><p>Revenez découvrir les nouvelles formations publiées.</p></div>{% endfor %}</div><div class="mk-toolbar">{% if page>1 %}<a href="{{ path('app_market_catalogue',{page:page-1,q:q}) }}">← Précédent</a>{% endif %}{% if next %}<a href="{{ path('app_market_catalogue',{page:page+1,q:q}) }}">Suivant →</a>{% endif %}</div>{% endblock %}
+{% extends 'marketplace/base.html.twig' %}
+{% block title %}Cours en ligne et formations à votre rythme{% if page > 1 %} — Page {{ page }}{% endif %} | WikiFormation{% endblock %}
+{% block meta_description %}Explorez les cours en ligne de WikiFormation : programmes détaillés, contenus de formateurs et accès personnel pour progresser à votre rythme.{% endblock %}
+{% block market_structured_data %}
+  {% set items = [] %}
+  {% for offer in offers %}
+    {% if offer.published and offer.publicVisible %}
+      {% set items = items|merge([{
+        '@type': 'ListItem', position: items|length + 1,
+        name: offer.snapshot.title,
+        url: marketSeo.origin ~ path('app_market_show', {id: offer.id, _locale: 'fr'})
+      }]) %}
+    {% endif %}
+  {% endfor %}
+  {% if items|length %}
+    <script type="application/ld+json">{{ {
+      '@context': 'https://schema.org', '@type': 'ItemList',
+      name: 'Cours en ligne WikiFormation', url: marketSeo.canonical,
+      numberOfItems: items|length, itemListElement: items
+    }|json_encode(15)|raw }}</script>
+  {% endif %}
+{% endblock %}
+{% block content %}<section class="mk-hero"><div><span class="mk-kicker">Le catalogue WikiFormation</span><h1>Un nouveau savoir.<br><strong>À votre rythme.</strong></h1><p>Des cours conçus par des formateurs. Un accès personnel dans votre bibliothèque, pour avancer quand vous le souhaitez.</p></div><div><span class="mk-badge">Apprendre · Pratiquer · Progresser</span></div></section><div class="mk-toolbar"><h2>Explorez les cours</h2><form class="mk-search" method="get"><label class="visually-hidden" for="q">Rechercher un cours</label><input id="q" name="q" value="{{ q }}" placeholder="Une compétence, un sujet…"><button class="mk-button">Rechercher</button></form></div><div class="mk-grid">{% for offer in offers %}<article class="mk-card"><span class="mk-kicker">{{ offer.seller.legalName }}</span><h2>{{ offer.snapshot.title }}</h2><p>{{ offer.snapshot.description|slice(0,180) }}</p><div class="mk-spacer"><div class="mk-toolbar"><span class="mk-price">{{ (offer.priceCents/100)|number_format(2,',',' ') }} €</span><span class="mk-note">TTC · {{ offer.snapshot.minutes ?: '—' }} min</span></div><a class="mk-button" href="{{ path('app_market_show',{id:offer.id}) }}">Découvrir le cours →</a></div></article>{% else %}<div class="mk-empty"><h2>Les prochains cours arrivent.</h2><p>Revenez découvrir les nouvelles formations publiées.</p></div>{% endfor %}</div><div class="mk-toolbar">{% if page>1 %}<a href="{{ path('app_market_catalogue',{page:page-1,q:q}) }}">← Précédent</a>{% endif %}{% if next %}<a href="{{ path('app_market_catalogue',{page:page+1,q:q}) }}">Suivant →</a>{% endif %}</div>{% endblock %}
