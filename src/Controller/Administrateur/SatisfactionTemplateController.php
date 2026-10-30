@@ -585,7 +585,7 @@ class SatisfactionTemplateController extends AbstractController
           . $lSite
           . $lReco
           . '</div>'
-          . '<div class="small text-muted">(' . $cnt . ' réponse' . ($cnt > 1 ? 's' : '') . ')</div>'
+          . '<a class="btn btn-sm btn-outline-secondary mt-2" href="' . htmlspecialchars($this->generateUrl('app_administrateur_satisfaction_attempt_responses', ['entite' => $entite->getId(), 'template' => $t->getId()]), ENT_QUOTES) . '">Voir les ' . $cnt . ' réponse' . ($cnt > 1 ? 's' : '') . ' →</a>'
           . '</div>';
       }
 
