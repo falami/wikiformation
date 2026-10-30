@@ -419,6 +419,8 @@ final class QcmController extends AbstractController
         $this->generateUrl('app_administrateur_qcm_edit', ['entite' => $entite->getId(), 'id' => $id])
       );
 
+      $actions = '<a class="btn btn-sm btn-outline-secondary me-2" href="' . $this->generateUrl('app_administrateur_questionnaire_responses', ['entite' => $entite->getId(), 'kind' => 'niveau', 'id' => $id]) . '"><i class="bi bi-chat-square-text"></i> Réponses</a>' . $actions;
+
       $titleHtml = sprintf(
         '<div class="qcm-title">%s</div>
              <div class="qcm-sub"><i class="bi bi-building"></i> %s <span class="mx-2">•</span><i class="bi bi-ui-checks"></i> Questionnaire</div>',

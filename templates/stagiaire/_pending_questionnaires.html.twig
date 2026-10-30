@@ -1,0 +1,13 @@
+<section class="learner-tasks mb-4" aria-labelledby="learner-tasks-title">
+  <header class="learner-tasks-header">
+    <div class="learner-tasks-heading"><span class="learner-tasks-icon"><i class="bi bi-clipboard-check" aria-hidden="true"></i></span><div><span class="learner-tasks-eyebrow">Votre parcours de formation</span><h2 id="learner-tasks-title">Questionnaires à compléter <span class="learner-tasks-count">{{ pendingQuestionnaires|length }}</span></h2><p>{% if pendingQuestionnaires|length %}Retrouvez vos questionnaires non soumis et accédez directement à la saisie.{% else %}Aucun questionnaire en attente pour le moment.{% endif %}</p></div></div>
+    <nav class="learner-tasks-links" aria-label="Tous mes questionnaires"><a href="{{ path('app_stagiaire_positioning_list', {entite:entite.id}) }}">Positionnements <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><a href="{{ path('app_stagiaire_qcm_index', {entite:entite.id}) }}">Questionnaires de niveau <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></nav>
+  </header>
+  {% if pendingQuestionnaires|length %}
+  <div class="learner-tasks-grid">
+    {% for task in pendingQuestionnaires|slice(0, 4) %}{% include 'stagiaire/_questionnaire_task.html.twig' %}{% endfor %}
+  </div>
+  {% if pendingQuestionnaires|length > 4 %}<details class="learner-tasks-more"><summary>Voir les {{ pendingQuestionnaires|length - 4 }} autres questionnaires à compléter</summary><div class="learner-tasks-grid">{% for task in pendingQuestionnaires|slice(4) %}{% include 'stagiaire/_questionnaire_task.html.twig' %}{% endfor %}</div></details>{% endif %}
+  <footer class="learner-tasks-footer"><i class="bi bi-info-circle" aria-hidden="true"></i> Une réponse enregistrée en brouillon reste à compléter jusqu’à sa validation finale.</footer>
+  {% endif %}
+</section>

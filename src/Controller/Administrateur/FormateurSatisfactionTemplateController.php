@@ -286,7 +286,8 @@ final class FormateurSatisfactionTemplateController extends AbstractController
       ]);
       $token = $csrf->getToken('del_fsat_tpl_' . $t->getId())->getValue();
 
-      $actions = '
+      $responsesUrl = $this->generateUrl('app_administrateur_questionnaire_responses', ['entite' => $entite->getId(), 'kind' => 'formateur', 'id' => $t->getId()]);
+      $actions = '<a class="btn btn-sm btn-outline-secondary" href="' . $responsesUrl . '"><i class="bi bi-chat-square-text"></i> Réponses</a>
               <a class="btn btn-sm btn-outline-secondary" href="' . $previewUrl . '"><i class="bi bi-eye"></i> Visualiser</a>
               <a class="btn btn-sm btn-outline-primary" href="' . $editUrl . '"><i class="bi bi-pencil"></i> Modifier</a>
               <form method="post" class="d-inline" action="' . $delUrl . '" onsubmit="return confirm(\'Supprimer ce template ?\');">

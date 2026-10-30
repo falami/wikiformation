@@ -5,11 +5,12 @@
 <style>
 .qcm-results{max-width:1250px;margin:auto;padding:32px 16px;color:#233342}.qcm-results .result-hero{background:#233342;color:white;border-left:6px solid #ffc107;padding:32px;border-radius:22px;margin-bottom:24px}.qcm-results .result-card{background:white;border:1px solid #e2e8f0;border-radius:18px;padding:24px;margin-bottom:18px}.qcm-results .score{font-size:2.5rem;font-weight:800}.qcm-results .answer-option{padding:12px 16px;border:1px solid #e2e8f0;border-radius:10px;margin-top:8px;display:flex;justify-content:space-between;gap:16px}.qcm-results .answer-correct{background:#edf9f3;border-color:#b5ddc7}.qcm-results .answer-wrong{background:#fff1f2;border-color:#fecdd3}
 </style>
+<link rel="stylesheet" href="{{ asset('dist/css/satisfaction-responses.css') }}">
 {% endblock %}
 {% block body %}
-<div class="qcm-results">
-<a class="btn btn-outline-secondary mb-3" href="{{ path('app_administrateur_qcm_assignment_index', {entite:entite.id}) }}">← Retour aux affectations</a>
-<header class="result-hero"><div class="small mb-2">{{ session.code }} · {{ phase.value == 'pre' ? 'Diagnostic initial · PRE' : 'Évaluation finale · POST' }}</div><h1 class="h3 fw-bold">{{ qcm.titre }}</h1><p class="mb-0">{{ stagiaire.prenom }} {{ stagiaire.nom }} · {{ session.formation ? session.formation.titre : 'Formation' }}</p></header>
+<div class="qcm-results sr-page">
+<a class="btn btn-outline-secondary mb-3" href="{{ path('app_administrateur_questionnaire_responses', {entite:entite.id, kind: 'niveau', id: qcm.id}) }}">← Toutes les réponses</a>
+<header class="result-hero sr-hero"><div><div class="small mb-2">{{ session.code }} · {{ phase.value == 'pre' ? 'Diagnostic initial · PRE' : 'Évaluation finale · POST' }}</div><h1 class="h3 fw-bold">{{ qcm.titre }}</h1><p class="mb-0">{{ stagiaire.prenom }} {{ stagiaire.nom }} · {{ session.formation ? session.formation.titre : 'Formation' }}</p></div></header>
 <div class="row g-3">
 <div class="col-md-4"><section class="result-card h-100"><div class="text-muted">Taux de réussite</div><div class="score">{{ attempt.submittedAt and attempt.maxPoints > 0 ? (attempt.scorePercent|number_format(1, ',', ' ') ~ ' %') : '—' }}</div><div>{{ attempt.submittedAt ? (attempt.scorePoints ~ ' / ' ~ attempt.maxPoints ~ ' points') : 'Tentative non soumise' }}</div></section></div>
 <div class="col-md-8"><section class="result-card h-100"><h2 class="h6 fw-bold">{{ assignment.status.label }}</h2><p class="small text-muted">{% if phase.value == 'pre' %}Le test PRE mesure le niveau initial : « Soumis » signifie que les réponses sont enregistrées. Il n’est pas soumis à la validation de progression du POST.{% else %}La validation vérifie la progression par rapport au PRE. Elle ne correspond pas à un seuil de réussite.{% endif %}</p><div class="small">Début : {{ attempt.startedAt|date('d/m/Y H:i') }}<br>Soumis : {{ attempt.submittedAt ? attempt.submittedAt|date('d/m/Y H:i') : 'En attente' }}</div></section></div>

@@ -36,10 +36,26 @@ final class FormateurSatisfactionAttemptController extends AbstractController
       throw $this->createNotFoundException();
     }
 
+    if ($assignment?->getTemplate()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+    $formationLabels = [];
+    $formationIds = [];
+    foreach ($assignment->getTemplate()->getChapters() as $chapter) {
+      foreach ($chapter->getQuestions() as $question) {
+        if ($question->getType() === \App\Enum\SatisfactionQuestionType::MULTI_FORMATIONS) {
+          foreach ((array) (($attempt->getAnswers() ?? [])[$question->getId()] ?? []) as $id) {
+            if (is_numeric($id)) $formationIds[] = (int) $id;
+          }
+        }
+      }
+    }
+    if ($formationIds) {
+      foreach ($em->getRepository(\App\Entity\Formation::class)->findBy(['entite' => $entite, 'id' => array_unique($formationIds)]) as $formation) $formationLabels[$formation->getId()] = $formation->getTitre();
+    }
     return $this->render('administrateur/formateur/satisfaction/attempt/show.html.twig', [
       'entite' => $entite,
       'utilisateurEntite' => $ue,
       'attempt' => $attempt,
+      'formationLabels' => $formationLabels,
       'assignment' => $assignment,
       'session' => $session,
       'formateur' => $assignment?->getFormateur(),

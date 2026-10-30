@@ -87,6 +87,7 @@ class DashboardStagiaireController extends AbstractController
         SatisfactionAccess $satisfactionAccess,
         \App\Service\Session\ParticipantQrAccess $qrAccess,
         \App\Service\Session\ParticipantQrPresenter $qrPresenter,
+        \App\Service\Stagiaire\PendingQuestionnaires $pendingQuestionnaires,
     ): Response {
         /** @var Utilisateur $user */
         $user = $this->getUser();
@@ -243,6 +244,7 @@ class DashboardStagiaireController extends AbstractController
             'entite' => $entite,
             'nextSession' => $nextSession,
             'participantQrCard' => $participantQrCard,
+            'pendingQuestionnaires' => $pendingQuestionnaires->forLearner($entite, $user),
         ]);
         $response->headers->set('Cache-Control', 'private, no-store');
         $response->headers->set('Referrer-Policy', 'no-referrer');
