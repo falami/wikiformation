@@ -39,7 +39,7 @@ class FormateurEspaceController extends AbstractController
     public function sessionShow(Entite $entite, Session $session, EntityManagerInterface $em): Response
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED');
-        if ($session->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($this->getUser())) {
+        if ($session->getStatus() === \App\Enum\StatusSession::DRAFT || $session->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($this->getUser())) {
             throw $this->createAccessDeniedException();
         }
 
@@ -67,7 +67,7 @@ class FormateurEspaceController extends AbstractController
     #[Route('/session/{id}/supports/upload', name: 'supports_upload', methods: ['POST'])]
     public function upload(Entite $entite, Session $session, Request $request, EntityManagerInterface $em, \Symfony\Component\Validator\Validator\ValidatorInterface $validator): JsonResponse
     {
-        if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if ($session->getStatus() === \App\Enum\StatusSession::DRAFT || $session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         if (!$this->isGranted(TenantPermission::ADMIN, $entite) && !$session->hasFormateurUtilisateur($this->getUser())) throw $this->createAccessDeniedException();
         if (!$this->isCsrfTokenValid('supports_upload_'.$session->getId(), $request->headers->get('X-CSRF-Token', $request->request->getString('_token')))) throw $this->createAccessDeniedException('Rechargez la page puis réessayez.');
         /** @var UploadedFile|null $file */
@@ -122,7 +122,7 @@ class FormateurEspaceController extends AbstractController
     #[Route('/session/{id}/emargement/export', name: 'emargement_export', methods: ['GET'])]
     public function export(Entite $entite, Session $session, EntityManagerInterface $em): StreamedResponse
     {
-        if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if ($session->getStatus() === \App\Enum\StatusSession::DRAFT || $session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         $link = $this->utilisateurEntiteManager->getUserEntiteLink($entite);
         if (!$link?->isTenantAdmin() && !$session->hasFormateurUtilisateur($this->getUser())) throw $this->createAccessDeniedException();
         $emargs = $em->getRepository(Emargement::class)->findBy(['session' => $session, 'entite' => $entite], ['dateJour' => 'ASC', 'signedAt' => 'ASC']);

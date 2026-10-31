@@ -118,6 +118,16 @@ class DashboardFormateurController extends AbstractController
         $user = $this->getUser();
 
         $utilisateurEntite = $this->utilisateurEntiteManager->getUserEntiteLink($entite);
+        if (!$utilisateurEntite) throw $this->createAccessDeniedException();
+        if ($request->isMethod('POST') && $request->request->get('travel_settings') === '1') {
+            $utilisateurEntite->setAutomaticTrainerTravel($request->request->getBoolean('automatic_travel'));
+            $em->flush();
+            return $this->redirectToRoute('app_formateur_dashboard', ['entite' => $entite->getId()]);
+        }
+        $automaticTravel = $utilisateurEntite->isAutomaticTrainerTravel();
+        $calculateTravel = $calculateTravel || $automaticTravel;
+        $travelSettings = \App\Service\Travel\TrainerTravel::settings($entite->getPreferences(), (float) $this->getParameter('KM_RATE_EUR'));
+
 
         // ============================
         // Prochaine session (à venir)
@@ -135,6 +145,7 @@ class DashboardFormateurController extends AbstractController
                 ->select('j', 's', 'fo', 'si')
                 ->from(SessionJour::class, 'j')
                 ->join('j.session', 's')
+                ->andWhere('s.status != :draftStatus')->setParameter('draftStatus', StatusSession::DRAFT)
                 ->leftJoin('s.formation', 'fo')
                 ->leftJoin('s.site', 'si')
                 ->andWhere('(j.formateur = :f OR (j.formateur IS NULL AND s.formateur = :f))')->setParameter('f', $formateur)
@@ -173,6 +184,7 @@ class DashboardFormateurController extends AbstractController
                 );
 
                 $nextSession = [
+                    'sousTraitance' => $s->isSousTraitance(),
                     'id'             => $s->getId(),
                     'code'           => $s->getCode(),
                     'formationTitre' => $s->getFormation()
@@ -200,10 +212,13 @@ class DashboardFormateurController extends AbstractController
                 // ==========================================
                 // ✅ Distance/Durée via ROUTES API (Directions v2)
                 // ==========================================
-                $origin = trim((string) ($user->getAdresseComplete() ?? ''));
+                $addressOwner = trim($formateur->getAdresse() ?? '') !== '' && trim($formateur->getVille() ?? '') !== '' ? $formateur : $user;
+                $origin = trim($addressOwner->getAdresse() ?? '') !== '' && trim($addressOwner->getVille() ?? '') !== ''
+                    ? implode(', ', array_filter([$addressOwner->getAdresse(), trim(($addressOwner->getCodePostal() ?? '').' '.($addressOwner->getVille() ?? '')), $addressOwner->getPays()])) : '';
                 $dest   = trim((string) ($nextSessionAddress ?? ''));
 
                 // $origin et $dest = adresses texte (ou mieux lat/lng, voir plus bas)
+                $meters = null;
                 $distanceText = null;
                 $durationText = null;
                 $gmapsError   = null;
@@ -227,6 +242,11 @@ class DashboardFormateurController extends AbstractController
                             // 'routeModifiers' => ['avoidTolls' => false, 'avoidHighways' => false],
                         ];
 
+                        $cacheKey = 'trainer_route_'.hash('sha256', $entite->getId().'|'.$user->getId().'|'.$origin.'|'.$dest);
+                        $cached = $request->getSession()->get($cacheKey);
+                        if (is_array($cached) && ($cached['until'] ?? 0) > time()) {
+                            $json = $cached['data'];
+                        } else {
                         $resp = $this->httpClient->request('POST', 'https://routes.googleapis.com/directions/v2:computeRoutes', [
                             'headers' => [
                                 'X-Goog-Api-Key'    => $serverKey,
@@ -240,16 +260,19 @@ class DashboardFormateurController extends AbstractController
                         ]);
 
                         $json = $resp->toArray(false);
+                        // Short session cache avoids repeated paid requests on dashboard refresh.
+                        $request->getSession()->set($cacheKey, ['until' => time() + (isset($json['routes'][0]) ? 900 : 60), 'data' => $json]);
+                        }
 
                         $route = $json['routes'][0] ?? null;
                         if (!$route) {
                             $gmapsError = 'Aucun itinéraire disponible pour ces adresses.';
                         } else {
-                            $meters = (int) ($route['distanceMeters'] ?? 0);
+                            $meters = isset($route['distanceMeters']) ? max(0, (int) $route['distanceMeters']) : null;
                             $dur    = (string) ($route['duration'] ?? '');
 
                             // distance formatée
-                            if ($meters > 0) {
+                            if ($meters !== null) {
                                 $km = $meters / 1000;
                                 $distanceText = ($km >= 10)
                                     ? number_format($km, 0, ',', ' ') . ' km'
@@ -310,6 +333,8 @@ class DashboardFormateurController extends AbstractController
                     : null;
 
                 $nextSession = array_merge($nextSession, [
+                    'sousTraitance' => $s->isSousTraitance(),
+                    'travelEstimate' => $meters !== null && $user->getFormateur($entite) ? \App\Service\Travel\TrainerTravel::estimate($s, $user->getFormateur($entite), $meters, $travelSettings) : null,
                     'originAddress' => $origin ?: null,
                     'destAddress'   => $dest ?: null,
                     'distanceText'  => $distanceText,
@@ -350,6 +375,8 @@ class DashboardFormateurController extends AbstractController
             'entite'            => $entite,
             'utilisateurEntite' => $utilisateurEntite,
             'nextSession'       => $nextSession,
+            'automaticTravel' => $automaticTravel,
+            'travelSettings' => $travelSettings,
             'pendingSessions' => $pendingSessions,
             'pendingReports' => $pendingReports,
             'pendingCharters' => $formateur ? $charters->pending($entite,$formateur) : [],
@@ -533,6 +560,7 @@ class DashboardFormateurController extends AbstractController
             }
             if ($stLabel) {
                 [$cls, $icon] = match ($st) {
+                    StatusSession::VALIDATED => ['bg-success text-white', 'bi-check-circle-fill'],
                     StatusSession::DONE => ['bg-success text-white', 'bi-check-circle-fill'],
                     StatusSession::CANCELED => ['bg-danger text-white', 'bi-x-circle-fill'],
                     StatusSession::DRAFT => ['bg-secondary text-white', 'bi-pencil'],

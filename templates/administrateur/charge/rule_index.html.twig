@@ -180,6 +180,7 @@
       .hero{ border-radius: 16px; }
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('dist/css/charge-rules.css') }}?v=1">
 {% endblock %}
 
 {% block javascripts %}
@@ -194,6 +195,7 @@
 {% endblock %}
 
 {% block body %}
+<div class="charge-rules-page">
 
 
   <div class="hero p-3 mb-4 d-flex gap-3">
@@ -210,13 +212,13 @@
       <div class="d-flex flex-wrap align-items-end gap-3">
         <div class="me-auto">
           <h2 class="fw-bold mb-1">Règles de charges</h2>
-          <div class="subtitle">Liste paginée, recherche, tri, exports.</div>
+          <div class="subtitle">Pilotez vos règles, leurs taux et leurs périodes de validité.</div>
         </div>
 
         <div class="d-flex flex-wrap gap-2">
           <a class="btn btn-light btn-sm fw-semibold"
              href="{{ path('app_administrateur_charge_preview', { entite: entite.id }) }}">
-            <i class="bi bi-eye"></i> Preview
+            <i class="bi bi-eye"></i> Aperçu
           </a>
 
           <a class="btn btn-warning btn-sm fw-semibold"
@@ -242,7 +244,7 @@
 
       <div class="d-flex gap-2 align-items-center">
         <button id="btnReset" class="btn btn-outline-secondary btn-sm fw-semibold" type="button">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset
+          <i class="bi bi-arrow-counterclockwise"></i> Réinitialiser
         </button>
 
         <div class="dropdown">
@@ -257,10 +259,10 @@
   </div>
 
   <div class="table-card mb-4 p-3">
+    <div class="rules-heading"><div><span>PARAMÉTRAGE FINANCIER</span><h3>Registre des règles</h3></div><i class="bi bi-sliders" aria-hidden="true"></i></div>
     <table id="tableauRules" class="table table-hover align-middle mb-0" style="width:100%">
       <thead>
         <tr>
-          <th style="width:80px">#</th>
           <th style="width:140px">Code</th>
           <th>Libellé</th>
           <th style="width:140px">Type</th>
@@ -271,11 +273,12 @@
           <th class="text-end action-column" style="width:170px">Actions</th>
         </tr>
       </thead>
-      <tbody><tr><td colspan="9"></td></tr></tbody>
+      <tbody><tr><td colspan="8"></td></tr></tbody>
     </table>
   </div>
 
 
+</div>
 <script>
 $(function () {
   function nowLabel(){
@@ -323,18 +326,17 @@ $(function () {
       + '<"dt-bottom-internal d-flex flex-wrap gap-2 align-items-center justify-content-between"lip>',
 
     buttons: [
-      { extend: 'copy',  title: 'Règles de charges', text: 'Copier' },
-      { extend: 'csv',   title: 'Règles de charges', text: 'CSV' },
-      { extend: 'excel', title: 'Règles de charges', text: 'Excel' },
-      { extend: 'pdf',   title: 'Règles de charges', text: 'PDF' },
-      { extend: 'print', title: 'Règles de charges', text: 'Imprimer' },
+      { extend: 'copy',  title: 'Règles de charges', text: 'Copier', exportOptions: {columns:[0,1,2,3,4,5,6]} },
+      { extend: 'csv',   title: 'Règles de charges', text: 'CSV', exportOptions: {columns:[0,1,2,3,4,5,6]} },
+      { extend: 'excel', title: 'Règles de charges', text: 'Excel', exportOptions: {columns:[0,1,2,3,4,5,6]} },
+      { extend: 'pdf',   title: 'Règles de charges', text: 'PDF', exportOptions: {columns:[0,1,2,3,4,5,6]} },
+      { extend: 'print', title: 'Règles de charges', text: 'Imprimer', exportOptions: {columns:[0,1,2,3,4,5,6]} },
     ],
 
     lengthMenu: [[10,25,50,100],[10,25,50,100]],
-    order: [[1, 'asc']], // code
+    order: [[0, 'asc']], // code
     pageLength: 100,
     columns: [
-      { data: 'id' },
       { data: 'code' },
       { data: 'label' },
       { data: 'kind' },
@@ -346,22 +348,22 @@ $(function () {
     ],
 
     columnDefs: [
-      { targets: [0], width:'80px' },
+      { targets: [0,1,2,3], render: $.fn.dataTable.render.text() },
 
-      { targets: [5], className: 'text-end mono', render: function(data){ return fmtRate(data); } },
-      { targets: [6], className: 'text-end mono', render: function(data){ return euroFromCents(data); } },
+      { targets: [4], className: 'text-end mono', render: function(data){ return fmtRate(data); } },
+      { targets: [5], className: 'text-end mono', render: function(data){ return euroFromCents(data); } },
 
-      { targets: [7], className: 'mono', render: function(_, __, row){
+      { targets: [6], className: 'mono', render: function(_, __, row){
           const from = row.validFrom ? row.validFrom : '—';
           const to   = row.validTo ? row.validTo : '∞';
           return `${from} → ${to}`;
         }
       },
 
-      { targets: [8], className: 'action-column text-end', orderable:false, searchable:false },
+      { targets: [7], className: 'action-column text-end', orderable:false, searchable:false },
 
       // évite de rechercher sur la colonne actions + validité construite
-      { targets: [7,8], searchable:false },
+      { targets: [6,7], searchable:false },
     ],
 
     language: { url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },

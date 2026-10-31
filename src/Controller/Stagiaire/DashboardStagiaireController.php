@@ -102,6 +102,7 @@ class DashboardStagiaireController extends AbstractController
             ->select('s, fo, f, fu, si')
             ->addSelect('(SELECT MIN(j2.dateDebut) FROM ' . SessionJour::class . ' j2 WHERE j2.session = s) AS HIDDEN firstStart')
             ->from(Session::class, 's')
+            ->andWhere('s.status != :draftStatus')->setParameter('draftStatus', \App\Enum\StatusSession::DRAFT)
             ->join(Inscription::class, 'i', 'WITH', 'i.session = s')
             ->andWhere('i.stagiaire = :me')->setParameter('me', $user)
             ->andWhere('s.entite = :entite AND i.entite = :entite')->setParameter('entite', $entite)
@@ -272,6 +273,7 @@ class DashboardStagiaireController extends AbstractController
             ->distinct()
             ->addSelect('(SELECT MIN(j2.dateDebut) FROM ' . SessionJour::class . ' j2 WHERE j2.session = s) AS HIDDEN firstStart')
             ->from(Session::class, 's')
+            ->andWhere('s.status != :draftStatus')->setParameter('draftStatus', \App\Enum\StatusSession::DRAFT)
 
             // joindre Inscription pour filtrer "mes sessions"
             ->join(Inscription::class, 'i', 'WITH', 'i.session = s')
@@ -283,7 +285,7 @@ class DashboardStagiaireController extends AbstractController
             ->leftJoin('f.utilisateur', 'fu')->addSelect('fu')
 
             // (optionnel mais conseillé) filtrer par entité si Session a bien un champ entite
-            // ->andWhere('s.entite = :entite')->setParameter('entite', $entite)
+            ->andWhere('s.entite = :entite')->setParameter('entite', $entite)
 
             ->addOrderBy('firstStart', 'DESC')
             ->getQuery()
@@ -559,6 +561,7 @@ class DashboardStagiaireController extends AbstractController
             ->select('s, fo, j')
             ->distinct()
             ->from(Session::class, 's')
+            ->andWhere('s.status != :draftStatus')->setParameter('draftStatus', \App\Enum\StatusSession::DRAFT)
             ->join(Inscription::class, 'i', 'WITH', 'i.session = s')
             ->andWhere('i.stagiaire = :me')
             ->setParameter('me', $user)

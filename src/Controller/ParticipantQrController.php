@@ -24,6 +24,7 @@ final class ParticipantQrController extends AbstractController
             || $trainer->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateur($trainer)) {
             throw $this->createNotFoundException();
         }
+        if ($session->isSousTraitance()) throw $this->createAccessDeniedException('Collecte gérée par le donneur d’ordre.');
         return $this->roster($entite, $session, $access, $presenter, 'app_formateur_dashboard');
     }
 
@@ -32,6 +33,7 @@ final class ParticipantQrController extends AbstractController
     public function admin(Entite $entite, Session $session, ParticipantQrAccess $access, ParticipantQrPresenter $presenter): Response
     {
         if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if ($session->isSousTraitance()) throw $this->createAccessDeniedException('Collecte gérée par le donneur d’ordre.');
         return $this->roster($entite, $session, $access, $presenter, 'app_administrateur_session_index');
     }
 
@@ -42,12 +44,14 @@ final class ParticipantQrController extends AbstractController
         if ($session->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         $inscription = $em->getRepository(Inscription::class)->findOneBy(['session' => $session, 'entite' => $entite, 'stagiaire' => $this->getUser()]);
         if (!$inscription || in_array($inscription->getStatus(), [StatusInscription::ANNULE, StatusInscription::ABSENT], true)) throw $this->createNotFoundException();
+        if ($session->isSousTraitance()) throw $this->createAccessDeniedException('Collecte gérée par le donneur d’ordre.');
         $cards = $session->getStatus() === StatusSession::CANCELED ? [] : [$presenter->card($access->forInscription($inscription))];
         return $this->page($entite, $session, $cards, 'app_stagiaire_dashboard', true);
     }
 
     private function roster(Entite $entite, Session $session, ParticipantQrAccess $access, ParticipantQrPresenter $presenter, string $back): Response
     {
+        if ($session->isSousTraitance()) throw $this->createAccessDeniedException('Collecte gérée par le donneur d’ordre.');
         $cards = $session->getStatus() === StatusSession::CANCELED ? [] : array_map($presenter->card(...), $access->roster($session));
         return $this->page($entite, $session, $cards, $back, false);
     }

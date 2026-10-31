@@ -230,4 +230,31 @@ final class TrainerComplianceTest extends KernelTestCase
         self::assertCount(1, $this->em->getRepository(\App\Entity\FormateurSatisfactionAssignment::class)->findAll());
     }
 
+    public function testTrainerCanRememberAndRevokeAutomaticTravelWithCsrf(): void
+    {
+        $a = $this->questionnaire();
+        foreach ($a->getSession()->getJours() as $day) {
+            $day->setDateDebut(new \DateTimeImmutable('+5 days 09:00'))->setDateFin(new \DateTimeImmutable('+5 days 17:00'));
+        }
+        $a->getSession()->getSite()->setAdresse('10 rue de Paris')->setVille('Paris');
+        $this->em->flush();
+        $this->login($this->userId);
+        $url = '/fr/formateur/'.$this->entiteId.'/dashboard';
+        $page = $this->client->request('GET', $url);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertCount(0, $page->filter('[data-map-autoload="true"]'));
+        $token = $page->filter('input[name="travel_settings"]')->ancestors()->filter('form')->first()->filter('input[name="_token"]')->attr('value');
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', $url, ['travel_settings'=>'1', 'automatic_travel'=>'1', '_token'=>'bad']);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->request('POST', $url, ['travel_settings'=>'1', 'automatic_travel'=>'1', '_token'=>$token]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $page = $this->client->request('GET', $url);
+        self::assertCount(1, $page->filter('[data-map-autoload="true"]'));
+        $this->client->request('POST', $url, ['travel_settings'=>'1', '_token'=>$token]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        $page = $this->client->request('GET', $url);
+        self::assertCount(0, $page->filter('[data-map-autoload="true"]'));
+    }
+
 }

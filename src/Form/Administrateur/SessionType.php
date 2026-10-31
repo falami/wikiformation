@@ -182,7 +182,7 @@ class SessionType extends AbstractType
             ->add('status', EnumType::class, [
                 'class' => StatusSession::class,
                 'label' => 'Statut',
-                'help' => 'En cours : démarrage automatique des sessions publiées ou complètes selon le planning. En attente : session suspendue. Documents manquants : suivi administratif à compléter. Ces deux derniers états restent manuels.',
+                'help' => 'En cours : démarrage automatique des sessions publiées ou complètes selon le planning. En attente : session suspendue. Documents manquants : suivi administratif à compléter. Ces deux derniers états restent manuels. Validée : confirmation manuelle de la formation ; ce statut reste inchangé automatiquement.',
                 'attr'  => ['class' => 'form-select'],
                 'choice_label' => fn($e) => match ($e) {
                     StatusSession::DRAFT        => 'Brouillon',

@@ -131,18 +131,11 @@ final class ChargesController extends AbstractController
 
         // Colonnes DataTables (doit matcher l'ordre dans le JS)
         $columns = [
-            0 => 'r.id',
-            1 => 'r.code',
-            2 => 'r.label',
-            3 => 'r.kind',
-            4 => 'r.base',
-            5 => 'r.rate',
-            6 => 'r.flatCents',
-            7 => 'r.validFrom',
-            8 => 'r.validTo',
+            0 => 'r.code', 1 => 'r.label', 2 => 'r.kind', 3 => 'r.base',
+            4 => 'r.rate', 5 => 'r.flatCents', 6 => 'r.validFrom',
         ];
 
-        $orderColIndex = (int) ($req->request->all('order')[0]['column'] ?? $req->query->all('order')[0]['column'] ?? 1);
+        $orderColIndex = (int) ($req->request->all('order')[0]['column'] ?? $req->query->all('order')[0]['column'] ?? 0);
         $orderDir      = strtolower((string) ($req->request->all('order')[0]['dir'] ?? $req->query->all('order')[0]['dir'] ?? 'asc'));
         $orderDir      = in_array($orderDir, ['asc', 'desc'], true) ? $orderDir : 'asc';
         $orderBy       = $columns[$orderColIndex] ?? 'r.code';

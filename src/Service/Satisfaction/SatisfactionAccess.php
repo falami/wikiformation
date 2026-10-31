@@ -9,7 +9,7 @@ final class SatisfactionAccess
   public function canFillTrainer(\App\Entity\FormateurSatisfactionAssignment $assignment): bool
   {
     $session = $assignment->getSession();
-    if (!$session || $assignment->getAttempt()?->isSubmitted()
+    if (!$session || $session->isSousTraitance() || $assignment->getAttempt()?->isSubmitted()
         || $session->getStatus() === \App\Enum\StatusSession::CANCELED) return false;
     $now = new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris'));
     return ($assignment->getReopenedUntil() !== null && $assignment->getReopenedUntil() >= $now)
@@ -22,6 +22,7 @@ final class SatisfactionAccess
    */
   public function canFill(Session $session, int $graceDaysAfterLastDay = 7): bool
   {
+    if ($session->isSousTraitance()) return false;
     $jours = $session->getJours();
     if ($jours->isEmpty()) return false;
 

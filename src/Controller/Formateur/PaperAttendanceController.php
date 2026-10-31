@@ -22,7 +22,7 @@ final class PaperAttendanceController extends AbstractController
     public function manage(Entite $entite, Session $session, Request $request, EntityManagerInterface $em, AssiduiteCalculator $calculator): Response
     {
         if ($session->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($this->getUser())) throw $this->createAccessDeniedException();
-        $pieces = $em->getRepository(SessionPiece::class)->findBy(['session'=>$session, 'entite'=>$entite, 'type'=>SessionPieceType::EMARGEMENT_SIGNE]);
+        $pieces = $em->getRepository(SessionPiece::class)->findBy(['session'=>$session, 'entite'=>$entite, 'type'=>$session->isSousTraitance() ? [SessionPieceType::EMARGEMENT_SIGNE, SessionPieceType::SATISFACTION_STAGIAIRE, SessionPieceType::SATISFACTION_FORMATEUR] : SessionPieceType::EMARGEMENT_SIGNE]);
         $rows = [];
         foreach ($session->getInscriptions() as $ins) {
             if ($ins->getEntite()?->getId() !== $entite->getId()) continue;
@@ -32,6 +32,11 @@ final class PaperAttendanceController extends AbstractController
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('trainer_paper_'.$session->getId(), $request->request->get('_token'))) throw $this->createAccessDeniedException('Formulaire expiré.');
             if ($request->request->get('action') === 'upload') {
+                $type = SessionPieceType::EMARGEMENT_SIGNE;
+                if ($session->isSousTraitance()) {
+                    $type = SessionPieceType::tryFrom($request->request->getString('type'));
+                    if (!in_array($type, [SessionPieceType::EMARGEMENT_SIGNE, SessionPieceType::SATISFACTION_STAGIAIRE, SessionPieceType::SATISFACTION_FORMATEUR], true)) throw $this->createAccessDeniedException('Type de justificatif invalide.');
+                }
                 $file = $request->files->get('file');
                 $mime = $file?->isValid() ? $file->getMimeType() : null;
                 $ext = ['application/pdf'=>'pdf', 'image/jpeg'=>'jpg', 'image/png'=>'png'][$mime ?? ''] ?? null;
@@ -41,11 +46,12 @@ final class PaperAttendanceController extends AbstractController
                     if (!is_dir($this->uploadDir)) mkdir($this->uploadDir, 0775, true);
                     $name = 'emargement-'.bin2hex(random_bytes(16)).'.'.$ext;
                     $file->move($this->uploadDir, $name);
-                    $piece = (new SessionPiece())->setSession($session)->setEntite($entite)->setCreateur($this->getUser())->setType(SessionPieceType::EMARGEMENT_SIGNE)->setFilename($name)->setMimeType($mime);
+                    $piece = (new SessionPiece())->setSession($session)->setEntite($entite)->setCreateur($this->getUser())->setType($type)->setFilename($name)->setMimeType($mime);
                     $em->persist($piece); $em->flush();
-                    $this->addFlash('success', 'Feuille déposée. Vous pouvez maintenant renseigner les présences.');
+                    $this->addFlash('success', $session->isSousTraitance() ? 'Justificatif archivé dans le dossier de la session.' : 'Feuille déposée. Vous pouvez maintenant renseigner les présences.');
                 }
             } else {
+                if ($session->isSousTraitance()) throw $this->createAccessDeniedException('Présences gérées par le donneur d’ordre.');
                 $row = $rows[$request->request->getInt('inscription')] ?? null;
                 $piece = null;
                 foreach ($pieces as $candidate) if ($candidate->getId() === $request->request->getInt('piece')) $piece = $candidate;
@@ -61,13 +67,13 @@ final class PaperAttendanceController extends AbstractController
             }
             return $this->redirectToRoute('app_formateur_paper_manage', ['entite'=>$entite->getId(), 'id'=>$session->getId()]);
         }
-        return $this->render('formateur/paper_attendance.html.twig', ['session'=>$session, 'entite'=>$entite, 'rows'=>$rows, 'pieces'=>$pieces]);
+        return $this->render($session->isSousTraitance() ? 'formateur/subcontract_evidence.html.twig' : 'formateur/paper_attendance.html.twig', ['session'=>$session, 'entite'=>$entite, 'rows'=>$rows, 'pieces'=>$pieces]);
     }
 
     #[Route('/document/{piece}', name: 'document', methods: ['GET'])]
     public function document(Entite $entite, Session $session, SessionPiece $piece): Response
     {
-        if ($session->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($this->getUser()) || $piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId() || $piece->getType() !== SessionPieceType::EMARGEMENT_SIGNE) throw $this->createAccessDeniedException();
+        if ($session->getEntite()?->getId() !== $entite->getId() || !$session->hasFormateurUtilisateur($this->getUser()) || $piece->getSession()?->getId() !== $session->getId() || $piece->getEntite()?->getId() !== $entite->getId() || !in_array($piece->getType(), $session->isSousTraitance() ? [SessionPieceType::EMARGEMENT_SIGNE, SessionPieceType::SATISFACTION_STAGIAIRE, SessionPieceType::SATISFACTION_FORMATEUR] : [SessionPieceType::EMARGEMENT_SIGNE], true)) throw $this->createAccessDeniedException();
         return $this->file($this->uploadDir.'/'.$piece->getFilename());
     }
 }

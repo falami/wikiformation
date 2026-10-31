@@ -54,7 +54,7 @@ final class PendingQuestionnaires
 
     private function active(?Session $session, ?Inscription $inscription, Entite $entite, Utilisateur $user): bool
     {
-        if ($session && ($session->getEntite()?->getId() !== $entite->getId() || $session->getStatus() === StatusSession::CANCELED)) return false;
+        if ($session && ($session->getEntite()?->getId() !== $entite->getId() || in_array($session->getStatus(), [StatusSession::DRAFT, StatusSession::CANCELED], true))) return false;
         if ($inscription && ($inscription->getEntite()?->getId() !== $entite->getId()
             || $inscription->getStagiaire()?->getId() !== $user->getId()
             || in_array($inscription->getStatus(), [StatusInscription::ANNULE, StatusInscription::ABSENT], true))) return false;

@@ -416,7 +416,7 @@ final class ParticipantQrPublicTest extends KernelTestCase
         $this->em->flush();
         $client = $this->client();
         $client->request('GET', $this->url($this->member, 'attendance'));
-        self::assertSame(403, $client->getResponse()->getStatusCode());
+        self::assertSame(404, $client->getResponse()->getStatusCode());
         self::assertSame(0, $this->em->getRepository(Emargement::class)->count([]));
     }
 

@@ -41,6 +41,12 @@
     const map = event.target;
     if (map.matches?.('[data-external-map]')) loadMap(map);
   });
+  function loadAuthorizedMaps(){
+    document.querySelectorAll('[data-external-map][data-map-autoload="true"]').forEach(map => loadMap(map));
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadAuthorizedMaps);
+  else loadAuthorizedMaps();
+  document.addEventListener('turbo:load', loadAuthorizedMaps);
   // Release embedded frames when the modal closes or the page is cached.
   document.addEventListener('turbo:before-cache', () => reset(document));
   document.addEventListener('hidden.bs.modal', event => reset(event.target));

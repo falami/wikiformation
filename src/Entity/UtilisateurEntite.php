@@ -9,6 +9,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_user_entite', columns: ['utilisateur_id', 'entite_id'])]
 class UtilisateurEntite
 {
+    #[ORM\Column(options: ['default' => false])]
+    private bool $automaticTrainerTravel = false;
+
+    public function isAutomaticTrainerTravel(): bool { return $this->automaticTrainerTravel; }
+    public function setAutomaticTrainerTravel(bool $enabled): static
+    {
+        $this->automaticTrainerTravel = $enabled;
+        return $this;
+    }
+
     // ✅ Rôles tenant (JSON)
     public const TENANT_STAGIAIRE   = 'TENANT_STAGIAIRE';
     public const TENANT_FORMATEUR   = 'TENANT_FORMATEUR';

@@ -29,7 +29,7 @@ final class ParticipantQrSatisfactionTemplateTest extends KernelTestCase
         $this->admin = (new Utilisateur())->setEmail('qr-template-admin@example.test')->setPassword('unused')->setPrenom('Alex')->setNom('Admin');
         $entite = (new Entite())->setNom('QR Test')->setCreateur($this->admin)->setPublic(false);
         $site = (new Site())->setEntite($entite)->setCreateur($this->admin)->setNom('Salle QR')->setSlug('salle-qr-template');
-        $this->session = (new Session())->setSite($site)->setEntite($entite)->setCreateur($this->admin)->setCode('QR-FREE')->setTypeFinancement(TypeFinancement::OUI)->setFormationIntituleLibre('Formation sans catalogue');
+        $this->session = (new Session())->setSite($site)->setEntite($entite)->setCreateur($this->admin)->setCode('QR-FREE')->setTypeFinancement(TypeFinancement::NON)->setFormationIntituleLibre('Formation sans catalogue');
         foreach ([$this->admin, $entite, $site, $this->session] as $entity) $this->em->persist($entity);
         $this->em->flush();
     }

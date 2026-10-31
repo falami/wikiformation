@@ -41,7 +41,7 @@ final class TrainerWorkflowTest extends KernelTestCase
         $formation = (new Formation())->setEntite($this->entite)->setCreateur($this->admin)->setTitre('Formation test')->setSlug('formation-test');
         $site = (new Site())->setEntite($this->entite)->setCreateur($this->admin)->setNom('Salle test')->setSlug('salle-test');
         $this->em->persist($formation); $this->em->persist($site);
-        $this->session = (new Session())->setEntite($this->entite)->setCreateur($this->admin)->setFormation($formation)->setSite($site)->setCode('SES-TEST')->setFormateur($this->morning);
+        $this->session = (new Session())->setEntite($this->entite)->setCreateur($this->admin)->setFormation($formation)->setSite($site)->setCode('SES-TEST')->setStatus(\App\Enum\StatusSession::PUBLISHED)->setFormateur($this->morning);
         $this->session->addJour($this->slot('2026-10-05 09:00', '2026-10-05 12:30'));
         $this->session->addJour($this->slot('2026-10-05 13:30', '2026-10-05 17:00', $this->afternoon));
         $this->em->persist($this->session); $this->em->flush();
@@ -58,6 +58,18 @@ final class TrainerWorkflowTest extends KernelTestCase
             if ($this->originalDatabase[$index] === null) unset($GLOBALS['_' . $type]['DATABASE_URL']);
             else $GLOBALS['_' . $type]['DATABASE_URL'] = $this->originalDatabase[$index];
         }
+    }
+
+    public function testDraftSessionsAreHiddenFromTrainerListsButRemainInAdminProfile(): void
+    {
+        $repo = $this->em->getRepository(Session::class);
+        $this->session->setStatus(\App\Enum\StatusSession::DRAFT);
+        $this->em->flush();
+        self::assertSame([], $repo->createForFormateurQueryBuilder($this->entite, $this->morning)->getQuery()->getResult());
+        self::assertContains($this->session, $repo->findForUserTrainerProfile($this->entite, $this->morning->getUtilisateur()));
+        $this->session->setStatus(\App\Enum\StatusSession::PUBLISHED);
+        $this->em->flush();
+        self::assertContains($this->session, $repo->createForFormateurQueryBuilder($this->entite, $this->morning)->getQuery()->getResult());
     }
 
     public function testProfileIncludesDirectSlotAndContractLinksWithoutDuplicates(): void
@@ -84,6 +96,39 @@ final class TrainerWorkflowTest extends KernelTestCase
         $rows = json_decode($client->getResponse()->getContent(), true)['data'];
         self::assertCount(1, $rows);
         self::assertStringContainsString('Titulaire du contrat', $rows[0]['rattachement']);
+    }
+
+    public function testSubcontractSessionOffersEvidenceInsteadOfQrCollection(): void
+    {
+        $this->session->setTypeFinancement(\App\Enum\TypeFinancement::OUI);
+        $this->em->flush();
+        $client = $this->client();
+        $client->loginUser($this->morning->getUtilisateur());
+        $base = '/fr/formateur/'.$this->entite->getId().'/session/'.$this->session->getId();
+        $client->request('GET', $base.'/presences-papier');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('satisfaction_formateur', $client->getResponse()->getContent());
+        self::assertStringContainsString('satisfaction_stagiaire', $client->getResponse()->getContent());
+        self::assertFalse((new \App\Service\Satisfaction\SatisfactionAccess())->canFill($this->session));
+        foreach (['emargement_signe', 'satisfaction_stagiaire', 'satisfaction_formateur'] as $type) {
+            $page = $client->request('GET', $base.'/presences-papier');
+            $tmp = tempnam(sys_get_temp_dir(), 'evidence-');
+            file_put_contents($tmp, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='));
+            $client->request('POST', $base.'/presences-papier', [
+                '_token' => $page->filter('[name="_token"]')->attr('value'),
+                'action' => 'upload', 'type' => $type,
+            ], ['file' => new \Symfony\Component\HttpFoundation\File\UploadedFile($tmp, 'justificatif.png', 'image/png', null, true)]);
+            self::assertSame(302, $client->getResponse()->getStatusCode());
+            $piece = $this->em->getRepository(\App\Entity\SessionPiece::class)->findOneBy(['session' => $this->session, 'type' => $type]);
+            self::assertNotNull($piece);
+            $client->request('GET', $base.'/presences-papier/document/'.$piece->getId());
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            @unlink(self::getContainer()->getParameter('session_piece_dir').'/'.$piece->getFilename());
+        }
+
+        $client->catchExceptions(true);
+        $client->request('GET', $base.'/qr-participants');
+        self::assertSame(403, $client->getResponse()->getStatusCode());
     }
 
     public function testGoogleRoutesRequiresExplicitCsrfProtectedRequest(): void

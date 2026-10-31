@@ -594,6 +594,7 @@
           </div>
           <div class="cardX-b">
             <div class="ut-scope-note"><i class="bi bi-diagram-3" aria-hidden="true"></i><div><strong>Une vue complète de ses documents</strong><p>Documents à son nom, liés à ses inscriptions ou adressés aux sociétés dont il est le représentant actuel. Le rattachement est précisé sur chaque ligne.</p></div></div>
+            <div class="ut-scope-note" aria-live="polite"><i class="bi bi-calculator" aria-hidden="true"></i><div><strong>Total HT des factures filtrées</strong><p id="userInvoiceHtTotal">Chargement…</p><small>Toutes les pages du tableau · somme des factures, avant déduction des avoirs.</small></div></div>
             <div class="table-responsive">
               <table id="tableUserFactures" class="table table-hover align-middle mb-0" style="width:100%">
                 <thead>
@@ -601,6 +602,7 @@
                     <th>Numéro</th>
                     <th>Destinataire & rattachement</th>
                     <th style="width:160px">Émise le</th>
+                    <th class="text-end" style="width:150px">HT</th>
                     <th class="text-end" style="width:150px">TTC</th>
                     <th style="width:160px">Statut</th>
                     <th class="text-end" style="width:220px">Actions</th>
@@ -1574,14 +1576,25 @@ document.addEventListener('DOMContentLoaded', () => {
         {data:'numero', render:$.fn.dataTable.render.text()},
         {data:'attachment', render:htmlAsIsOrStrip},
         {data:'date', render:(value,type,row)=>type==='sort'||type==='type' ? row.dateSort : $.fn.dataTable.render.text().display(value)},
+        {data:'ht', render:(value,type,row)=>type==='sort'||type==='type' ? row.htCents : $.fn.dataTable.render.text().display(value)},
         {data:'ttc', render:(value,type,row)=>type==='sort'||type==='type' ? row.ttcSort : $.fn.dataTable.render.text().display(value)},
         {data:'status'},
         {data:'actions'}
       ],
+      drawCallback:function(){
+        const totals = new Map();
+        this.api().rows({search:'applied'}).data().each(row => {
+          const currency = row.devise || 'EUR';
+          totals.set(currency, (totals.get(currency) || 0) + Number(row.htCents || 0));
+        });
+        document.getElementById('userInvoiceHtTotal').textContent = totals.size
+          ? Array.from(totals, ([currency,cents]) => new Intl.NumberFormat('fr-FR', {style:'currency',currency}).format(cents/100) + ' HT').join(' · ')
+          : '0,00 € HT';
+      },
       columnDefs:[
-        { targets:3, className:'text-end' },
-        { targets:5, className:'text-end dt-actions-compact' },
-        { targets:[4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+        { targets:[3,4], className:'text-end' },
+        { targets:6, className:'text-end dt-actions-compact' },
+        { targets:[5,6], orderable:false, searchable:false, render: htmlAsIsOrStrip },
       ]
     }));
   }

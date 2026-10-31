@@ -1,0 +1,19 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Justificatifs · {{ session.code }}{% endblock %}
+{% block body %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4"><div><h1>Justificatifs de sous-traitance</h1><p class="text-muted">{{ session.code }} · {{ session.formationIntituleLibre ?: session.formation.titre|default('Formation') }}</p></div><a class="btn btn-outline-secondary" href="{{ path('app_formateur_dashboard', {entite:entite.id}) }}">Retour</a></div>
+  {% include 'flagMessage.html.twig' %}
+  <div class="alert alert-info">Les émargements et les appréciations sont gérés par le donneur d’ordre. Déposez ici les documents reçus pour conserver une trace dans le dossier de la session.</div>
+  <section class="card rounded-4 mb-4"><div class="card-body p-4"><h2 class="h5">Déposer un justificatif</h2>
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="_token" value="{{ csrf_token('trainer_paper_' ~ session.id) }}"><input type="hidden" name="action" value="upload">
+      <label class="form-label" for="evidenceType">Type de document</label><select class="form-select mb-3" id="evidenceType" name="type" required><option value="emargement_signe">Émargements signés</option><option value="satisfaction_stagiaire">Appréciations stagiaires</option><option value="satisfaction_formateur">Appréciation formateur</option></select>
+      <label class="form-label" for="evidenceFile">Document reçu · PDF, JPG ou PNG, 15 Mo maximum</label><input class="form-control mb-3" id="evidenceFile" type="file" name="file" accept="application/pdf,image/jpeg,image/png" required>
+      <button class="btn btn-primary">Archiver le document</button>
+    </form></div></section>
+  <section class="card rounded-4"><div class="card-body p-4"><h2 class="h5">Documents archivés</h2>
+    <ul class="list-group list-group-flush">{% for piece in pieces %}<li class="list-group-item d-flex justify-content-between align-items-center"><span>{{ piece.type.label }}</span><a class="btn btn-outline-primary btn-sm" href="{{ path('app_formateur_paper_document',{entite:entite.id,id:session.id,piece:piece.id}) }}">Consulter</a></li>{% else %}<li class="list-group-item text-muted">Aucun justificatif déposé pour cette session.</li>{% endfor %}</ul>
+  </div></section>
+</div>
+{% endblock %}

@@ -1407,6 +1407,7 @@ final class SessionController extends AbstractController
       StatusSession::ON_HOLD => 'bg-warning text-dark',
       StatusSession::MISSING_DOCUMENTS => 'bg-danger text-white',
       StatusSession::DRAFT     => 'text-bg-secondary',
+            StatusSession::VALIDATED => 'text-bg-success',
             StatusSession::PUBLISHED => 'text-bg-success',
             StatusSession::FULL      => 'text-bg-warning',
             StatusSession::CANCELED  => 'text-bg-dark',

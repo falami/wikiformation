@@ -7,6 +7,7 @@ enum StatusSession: string
     case CANCELED  = 'canceled';
     case DRAFT     = 'draft';
     case FULL      = 'full';
+    case VALIDATED = 'validated';
     case PUBLISHED = 'published';
     case IN_PROGRESS = 'in_progress';
     case ON_HOLD = 'on_hold';
@@ -17,6 +18,7 @@ enum StatusSession: string
         return match ($this) {
             self::CANCELED     => 'Annulée',
             self::DRAFT        => 'Brouillon',
+            self::VALIDATED    => 'Validée',
             self::FULL         => 'Complet',
             self::PUBLISHED    => 'Publié',
             self::IN_PROGRESS => 'En cours',

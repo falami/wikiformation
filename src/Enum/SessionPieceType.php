@@ -22,6 +22,7 @@ enum SessionPieceType: string implements LabelledEnum
   case PREUVE_PAIEMENT             = 'preuve_paiement';
   case QCM_DEBUT_PAPIER            = 'qcm_debut_papier';
   case QCM_FIN_PAPIER              = 'qcm_fin_papier';
+  case SATISFACTION_FORMATEUR = 'satisfaction_formateur';
   case SATISFACTION_STAGIAIRE      = 'satisfaction_stagiaire';
   case POSITIONNEMENT_PAPIER       = 'positionnement_papier';
   case PROGRAMME                   = 'programme';
@@ -47,6 +48,7 @@ enum SessionPieceType: string implements LabelledEnum
       self::PREUVE_PAIEMENT         => 'Preuve de paiement',
       self::QCM_DEBUT_PAPIER        => 'QCM début',
       self::QCM_FIN_PAPIER          => 'QCM fin',
+      self::SATISFACTION_FORMATEUR => 'Appréciation formateur',
       self::SATISFACTION_STAGIAIRE  => 'Satisfaction stagiaire',
       self::POSITIONNEMENT_PAPIER   => 'Test de positionnement',
       self::PROGRAMME               => 'Programme détaillé',

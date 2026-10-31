@@ -111,7 +111,7 @@ final class ParticipantQrAccess
         $access = $this->em->getRepository(SessionParticipantAccess::class)->findOneBy(['publicId' => $publicId]);
         if (!$access || !$access->isActive() || $access->getVersion() !== (int) $version || (!$reminder && $access->getExpiresAt()->getTimestamp() < (int) $expiry)) return null;
         $session = $access->getSession();
-        if (!$session || $session->getStatus() === StatusSession::CANCELED || !$session->getEntite() || $session->getEntite()->isActive() === false || $access->getEntite()?->getId() !== $session->getEntite()->getId()) return null;
+        if (!$session || $session->isSousTraitance() || $session->getStatus() === StatusSession::CANCELED || !$session->getEntite() || $session->getEntite()->isActive() === false || $access->getEntite()?->getId() !== $session->getEntite()->getId()) return null;
         if (!$reminder && $session->getStatus() === StatusSession::DONE && $session->getDateFin() && $session->getDateFin()->modify('+90 days')->getTimestamp() <= time()) return null;
         // The source is checked again on every anonymous visit: a convention edit revokes links immediately.
         if ($access->isGuest()) {
@@ -150,6 +150,7 @@ final class ParticipantQrAccess
 
     private function requireSession(Session $session): void
     {
+        if ($session->isSousTraitance()) throw new \DomainException('Les émargements et appréciations sont gérés par le donneur d’ordre.');
         if (!$session->getId() || !$session->getEntite()?->getId()) throw new \InvalidArgumentException('La session doit être enregistrée.');
     }
 
