@@ -20,6 +20,8 @@ class FormateurInlineType extends AbstractType
 {
   public function buildForm(FormBuilderInterface $builder, array $options): void
   {
+    \App\Form\TrainerExpertiseField::attach($builder);
+
     $entite = $options['entite'];
     $builder
 
@@ -72,11 +74,7 @@ class FormateurInlineType extends AbstractType
                 'attr' => ['class' => 'form-control', 'maxlength' => 100],
                 'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 100)],
             ])
-            ->add('certifications', TextareaType::class, [
-        'label' => 'Certifications',
-        'required' => false,
-        'attr' => ['class' => 'form-control', 'rows' => 3, 'placeholder' => 'STCW, Médical, etc.'],
-      ])
+
       ->add('assujettiTva', CheckboxType::class, [
         'label' => 'Formateur assujetti à la TVA',
         'required' => false,

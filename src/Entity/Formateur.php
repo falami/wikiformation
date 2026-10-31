@@ -46,7 +46,7 @@ class Formateur
     #[ORM\JoinTable(name: 'formateur_sites')]
     private Collection $sitePreferes;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: 'text', nullable: true)]
     private ?string $certifications = null;
 
     /**
