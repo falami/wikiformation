@@ -1,12 +1,24 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Questionnaire rempli · {{ template.titre|default('Satisfaction') }}{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/satisfaction-responses.css') }}">{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/satisfaction-responses.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/satisfaction-detail.css') }}?v=1">{% endblock %}
 {% block body %}
 {% set answers = attempt.answers %}
-<div class="sr-page">
-<header class="sr-hero"><div><p class="sr-eyebrow">SATISFACTION · QUESTIONNAIRE INDIVIDUEL</p><h1>{{ stagiaire ? stagiaire.prenom ~ ' ' ~ stagiaire.nom : assignment.participantAccess.displayName|default('Participant') }}</h1><p>{{ template.titre|default('Questionnaire') }} · {{ session.code }}</p><div class="sr-chips"><span>{{ session.formation.titre|default('Formation') }}</span><span>{{ attempt.submittedAt ? 'Complété le ' ~ attempt.submittedAt|date('d/m/Y à H:i') : 'Questionnaire en cours' }}</span></div></div>{% if template %}<a class="sr-back" href="{{ path('app_administrateur_satisfaction_attempt_responses', {entite: entite.id, template: template.id}) }}">← Toutes les réponses</a>{% endif %}</header>
-<div class="sr-metrics">{% for label, value in {'Globale': attempt.noteGlobale, 'Formateur': attempt.noteFormateur, 'Organisme': attempt.noteOrganisme, 'Contenu': attempt.noteContenu, 'Site': attempt.noteSite, 'Recommandation': attempt.recommendationScore} %}<div><span>{{ label }}</span><strong>{{ value is not null ? value ~ ' / 10' : '—' }}</strong></div>{% endfor %}</div>
-<div class="sr-panel-head"><div><p class="sr-eyebrow">LE QUESTIONNAIRE REMPLI</p><h2>Notes & commentaires</h2></div><span class="sr-readonly">Consultation uniquement</span></div>
+{% set participantName = stagiaire ? stagiaire.prenom ~ ' ' ~ stagiaire.nom : assignment.participantAccess.displayName|default('Participant') %}
+<div class="sr-page sd-page">
+<div class="sd-topline"><span><i class="bi bi-chat-square-heart" aria-hidden="true"></i> Satisfaction stagiaire <span class="sd-divider">/</span> Réponse individuelle</span>{% if template %}<a href="{{ path('app_administrateur_satisfaction_attempt_responses', {entite: entite.id, template: template.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Toutes les réponses</a>{% endif %}</div>
+<header class="sd-hero">
+  <div class="sd-identity"><div class="sd-avatar" aria-hidden="true">{{ participantName|trim|first|upper }}</div><span class="sd-status"><i class="bi {{ attempt.submittedAt ? 'bi-check-circle-fill' : 'bi-clock' }}" aria-hidden="true"></i> {{ attempt.submittedAt ? 'Questionnaire complété' : 'Réponse en cours' }}</span></div>
+  <div class="sd-intro"><p class="sd-kicker">LA VOIX DE VOS STAGIAIRES</p><h1>{{ participantName }}</h1><p class="sd-subtitle">{{ template.titre|default('Questionnaire') }}</p>
+  <div class="sd-context"><span><i class="bi bi-mortarboard" aria-hidden="true"></i> {{ session.formation.titre|default('Formation') }}</span><span><i class="bi bi-calendar3" aria-hidden="true"></i> {{ session.code }}</span></div></div>
+  <div class="sd-overall"><span class="sd-kicker">SATISFACTION GLOBALE</span><div class="sd-rating">{{ attempt.noteGlobale is not null ? attempt.noteGlobale : '—' }}<small>/ 10</small></div><span class="sd-score-caption">{{ attempt.noteGlobale is not null ? 'Note attribuée par le participant' : 'Note non renseignée' }}</span></div>
+  <div class="sd-hero-footer"><span><i class="bi bi-clock-history" aria-hidden="true"></i> {{ attempt.submittedAt ? 'Complété le ' ~ attempt.submittedAt|date('d/m/Y à H:i') : 'Ce questionnaire n’a pas encore été soumis' }}</span><span><i class="bi bi-lock" aria-hidden="true"></i> Consultation uniquement</span></div>
+</header>
+<section class="sd-summary" aria-label="Notes par dimension">
+{% for label, value in {'Formateur': attempt.noteFormateur, 'Organisme': attempt.noteOrganisme, 'Contenu': attempt.noteContenu, 'Site': attempt.noteSite, 'Recommandation': attempt.recommendationScore} %}
+  <div class="sd-metric"><div class="sd-metric-label"><i class="bi {{ ['bi-person-video3','bi-buildings','bi-journal-text','bi-geo-alt','bi-hand-thumbs-up'][loop.index0] }}" aria-hidden="true"></i><span>{{ label }}</span></div><strong>{{ value is not null ? value : '—' }} <small>/ 10</small></strong><div class="sd-meter" aria-hidden="true"><span style="width:{{ value is not null ? min(100, max(0, value * 10)) : 0 }}%"></span></div></div>
+{% endfor %}
+</section>
+<div class="sd-section-title"><div><p class="sr-eyebrow">LE DÉTAIL DU RETOUR</p><h2>Notes & commentaires</h2></div><span>Les réponses du participant, rubrique par rubrique.</span></div>
 {% include 'administrateur/questionnaire/_answers.html.twig' %}
 <p class="sr-muted">Les réponses sont celles enregistrées par le participant. Les intitulés proviennent du modèle actuel du questionnaire.</p>
 </div>{% endblock %}

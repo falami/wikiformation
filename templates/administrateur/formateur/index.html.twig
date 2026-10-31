@@ -13,6 +13,10 @@
     }
 
 
+    #tableauFormateur .certification-badges{display:flex;flex-wrap:wrap;gap:7px;max-width:390px;padding:4px 0}
+    #tableauFormateur .certification-badge{display:inline-flex;align-items:baseline;gap:6px;padding:6px 10px;border:1px solid #e4d5b1;border-radius:8px;background:#fff8e8;color:#725a29;font-size:12px;font-weight:600;line-height:1.45;max-width:100%;overflow-wrap:anywhere}
+    #tableauFormateur .certification-badge i{color:#ab8438;flex-shrink:0}
+
     /* HERO */
     .hero{
       border-radius: 22px;
@@ -756,7 +760,14 @@ $(function(){
     columns:[
       {data:'id', visible:false, searchable:false},
       {data:'nom'},
-      {data:'certifications'},
+      {data:'certifications', render:function(data, type){
+        const labels = [...new Set(String(data || '').split(/[\r\n,;|]+/).map(value => value.trim()).filter(value => value && value !== '—'))];
+        if (type !== 'display') return labels.join(', ');
+        if (!labels.length) return '<span class="text-muted">—</span>';
+        return '<div class="certification-badges">' + labels.map(label =>
+          '<span class="certification-badge"><i class="bi bi-award" aria-hidden="true"></i><span>' + $('<div>').text(label).html() + '</span></span>'
+        ).join(' ') + '</div>';
+      }},
       {data:'enginsQualifies'},
       {data:'sitesPreferes'},
       {data:'nbSessions'},
