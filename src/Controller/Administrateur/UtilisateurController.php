@@ -1102,7 +1102,9 @@ final class UtilisateurController extends AbstractController
         'id'      => $d->getId(),
         'numero'  => $d->getNumero() ?? '—',
         'date'    => $d->getDateEmission()?->format('d/m/Y') ?? '—',
+        'dateSort' => $d->getDateEmission()?->format('Y-m-d') ?? '',
         'ttc'     => number_format(($d->getMontantTtcCents() ?? 0) / 100, 2, ',', ' ') . ' €',
+        'ttcSort' => $d->getMontantTtcCents() ?? 0,
         'status'  => $this->devisStatusBadge($d->getStatus()),
         'actions' => $this->renderView('administrateur/utilisateur/_dt_actions_devis.html.twig', [
           'entite' => $entite,
@@ -1138,7 +1140,9 @@ final class UtilisateurController extends AbstractController
         'id'      => $f->getId(),
         'numero'  => $f->getNumero() ?: '—',
         'date'    => $f->getDateEmission()?->format('d/m/Y') ?? '—',
+        'dateSort' => $f->getDateEmission()?->format('Y-m-d') ?? '',
         'ttc'     => number_format(($f->getMontantTtcCents() ?? 0) / 100, 2, ',', ' ') . ' €',
+        'ttcSort' => $f->getMontantTtcCents() ?? 0,
         'status'  => $this->factureStatusBadge($f->getStatus()),
         'actions' => $this->renderView('administrateur/utilisateur/_dt_actions_facture.html.twig', [
           'entite'  => $entite,
@@ -1172,10 +1176,9 @@ final class UtilisateurController extends AbstractController
 
       return [
         'id'        => $i->getId(),
-        'session'   => $s?->getLabel() ?? '—',
-        'dates'     => trim(
-          ($s?->getDateDebut()?->format('d/m/Y') ?? '') . ' → ' . ($s?->getDateFin()?->format('d/m/Y') ?? '')
-        ),
+        'session'   => $s ? $this->userSessionLabel($s) : '—',
+        'dateSort' => $s?->getDateDebut()?->format('Y-m-d') ?? '',
+        'dates'     => $this->userSessionDates($s),
         'statut'    => $this->inscriptionStatusBadge($i->getStatus()),
         'sessionSt' => $s ? $this->sessionStatusBadge($s->getStatus()) : '—',
         'actions'   => sprintf(
@@ -1211,8 +1214,9 @@ final class UtilisateurController extends AbstractController
         }
       }
       $data[] = [
-        'id' => $session->getId(), 'session' => $session->getLabel(),
-        'dates' => ($session->getDateDebut()?->format('d/m/Y') ?? '—').' → '.($session->getDateFin()?->format('d/m/Y') ?? '—'),
+        'id' => $session->getId(), 'session' => $this->userSessionLabel($session),
+        'dateSort' => $session->getDateDebut()?->format('Y-m-d') ?? '',
+        'dates' => $this->userSessionDates($session),
         'rattachement' => implode(' · ', array_unique($links)),
         'sessionSt' => $this->sessionStatusBadge($session->getStatus()),
         'actions' => sprintf('<a class="btn btn-outline-primary btn-sm" title="Consulter la session" href="%s"><i class="bi bi-calendar-event"></i></a>',
@@ -1223,6 +1227,24 @@ final class UtilisateurController extends AbstractController
   }
 
   /* ===================== HELPERS ===================== */
+
+  private function userSessionLabel(\App\Entity\Session $session): string
+  {
+    return implode(' · ', array_filter([
+      $session->getCode(),
+      $session->getFormation()?->getTitre(),
+      $session->getSite()?->getVille() ?: $session->getSite()?->getNom(),
+    ]));
+  }
+
+  private function userSessionDates(?\App\Entity\Session $session): string
+  {
+    $start = $session?->getDateDebut()?->format('d/m/Y');
+    $end = $session?->getDateFin()?->format('d/m/Y');
+    if (!$start && !$end) return '—';
+    if ($start === $end) return $start;
+    return ($start ?? '…').' → '.($end ?? '…');
+  }
 
   private function assertUtilisateurInEntite(Entite $entite, Utilisateur $utilisateur): void
   {

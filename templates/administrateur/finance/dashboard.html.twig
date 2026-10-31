@@ -720,6 +720,14 @@
     .dataTables_wrapper .dataTables_filter input,.dataTables_wrapper .dataTables_length select{min-height:36px;border-radius:10px !important;border-color:#e4e7ec !important;background:#fff !important;}
     .dataTables_wrapper .dataTables_info{font-size:.76rem;color:#667085;padding-top:.75rem !important;}
     .dataTables_wrapper .page-link{min-width:34px;height:34px;display:grid;place-items:center;padding:0 !important;font-size:.76rem;}
+    table.dataTable th.finance-date,
+    table.dataTable td.finance-date{
+      white-space:nowrap;
+      min-width:7.5rem;
+      word-break:normal;
+      overflow-wrap:normal;
+      font-variant-numeric:tabular-nums;
+    }
     .money{font-weight:850 !important;color:#101828;}
     code{font-size:.72rem;color:#475467;background:#f2f4f7;border-radius:7px;padding:.18rem .32rem;}
 
@@ -2421,6 +2429,12 @@ document.addEventListener('click', (e) => {
 
 
 
+  function renderFinanceDate(value, type){
+    if (type === 'sort' || type === 'type') return value || '';
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    return match ? match[3] + '/' + match[2] + '/' + match[1] : '—';
+  }
+
   function initDtDepenses(){
     if (dtDep) return;
     dtDep = $('#dtDepenses').DataTable(Object.assign(dtCommonOptions(),{
@@ -2431,6 +2445,7 @@ document.addEventListener('click', (e) => {
         data: dtFilters
       },
       columnDefs:[
+        { targets:0, className:'finance-date', width:'100px', render:renderFinanceDate },
         { targets:[4,5,6,9], className:'text-end' },
         { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
         { targets:[7], render:(d)=> badgeBool(!!d) },
@@ -2449,6 +2464,7 @@ document.addEventListener('click', (e) => {
         data: dtFilters
       },
       columnDefs:[
+        { targets:0, className:'finance-date', width:'100px', render:renderFinanceDate },
         { targets:[3,7], className:'text-end' },
         { targets:[3], render:(d)=> `<span class="money">${money(d)}</span>` },
         { targets:[5], render:(d)=> d ? `<code>${d}</code>` : '-' },
@@ -2468,6 +2484,7 @@ document.addEventListener('click', (e) => {
         data: dtFilters
       },
       columnDefs:[
+        { targets:0, className:'finance-date', width:'100px', render:renderFinanceDate },
         { targets:[4,5,6,8], className:'text-end' },
         { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
         { targets:[3], render:(d)=> d ? badgePill(labelFactureStatus(d)) : '-' },
@@ -2486,6 +2503,7 @@ document.addEventListener('click', (e) => {
         data: dtFilters
       },
       columnDefs:[
+        { targets:0, className:'finance-date', width:'100px', render:renderFinanceDate },
         { targets:[4,5,6,9], className:'text-end' },
         { targets:[4,5,6], render:(d)=> `<span class="money">${money(d)}</span>` },
         { targets:[3], render:(d)=> d ? badgePill(labelDevisStatus(d)) : '-' },
@@ -2505,6 +2523,7 @@ document.addEventListener('click', (e) => {
         data: dtFilters
       },
       columnDefs:[
+        { targets:0, className:'finance-date', width:'100px', render:renderFinanceDate },
         { targets:[3,4], className:'text-end' },
         { targets:[3], render:(d)=> `<span class="money">${money(d)}</span>` },
         { targets:[4], className:'text-end dt-actions', orderable:false, searchable:false },

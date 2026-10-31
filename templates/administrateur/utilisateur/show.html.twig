@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
+  <link rel="stylesheet" href="{{ asset('dist/css/user-detail-tables.css') }}?v=1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""/>
@@ -564,7 +565,7 @@
       </div>
 
       {# ===================== Devis (DT lazy) ===================== #}
-      <div class="tab-pane fade" id="pane-devis" role="tabpanel" aria-labelledby="tab-devis">
+      <div class="tab-pane fade" id="pane-devis" data-premium-tables role="tabpanel" aria-labelledby="tab-devis">
         <div class="cardX">
           <div class="cardX-h">
             <h5 class="titleX"><i class="bi bi-file-earmark-text"></i> Devis</h5>
@@ -575,7 +576,6 @@
               <table id="tableUserDevis" class="table table-hover align-middle mb-0" style="width:100%">
                 <thead>
                   <tr>
-                    <th style="width:70px">#</th>
                     <th>Numéro</th>
                     <th style="width:160px">Émis le</th>
                     <th class="text-end" style="width:150px">TTC</th>
@@ -591,7 +591,7 @@
       </div>
 
       {# ===================== Factures (DT lazy) ===================== #}
-      <div class="tab-pane fade" id="pane-factures" role="tabpanel" aria-labelledby="tab-factures">
+      <div class="tab-pane fade" id="pane-factures" data-premium-tables role="tabpanel" aria-labelledby="tab-factures">
         <div class="cardX">
           <div class="cardX-h">
             <h5 class="titleX"><i class="bi bi-receipt"></i> Factures</h5>
@@ -602,7 +602,6 @@
               <table id="tableUserFactures" class="table table-hover align-middle mb-0" style="width:100%">
                 <thead>
                   <tr>
-                    <th style="width:70px">#</th>
                     <th>Numéro</th>
                     <th style="width:160px">Émise le</th>
                     <th class="text-end" style="width:150px">TTC</th>
@@ -618,7 +617,7 @@
       </div>
 
       {# ===================== Inscriptions / Sessions (DT lazy) ===================== #}
-      <div class="tab-pane fade" id="pane-sessions" role="tabpanel" aria-labelledby="tab-sessions">
+      <div class="tab-pane fade" id="pane-sessions" data-premium-tables role="tabpanel" aria-labelledby="tab-sessions">
         <div class="cardX">
           <div class="cardX-h">
             <h5 class="titleX"><i class="bi bi-mortarboard"></i> Sessions stagiaire</h5>
@@ -629,11 +628,10 @@
               <table id="tableUserInscriptions" class="table table-hover align-middle mb-0" style="width:100%">
                 <thead>
                   <tr>
-                    <th style="width:70px">#</th>
                     <th>Session</th>
                     <th style="width:220px">Dates</th>
                     <th style="width:170px">Inscription</th>
-                    <th style="width:170px">Session</th>
+                    <th style="width:170px">Statut de session</th>
                     <th class="text-end" style="width:220px">Actions</th>
                   </tr>
                 </thead>
@@ -655,7 +653,7 @@
             <p class="small text-muted">Sessions rattachées directement, par un créneau d’intervention ou par un contrat. Chaque session apparaît une seule fois.</p>
             <div class="table-responsive">
               <table id="tableUserTrainerSessions" class="table table-hover align-middle mb-0" style="width:100%">
-                <thead><tr><th>#</th><th>Session</th><th>Dates</th><th>Rattachement</th><th>Statut</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Session</th><th>Dates</th><th>Rattachement</th><th>Statut</th><th>Actions</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
@@ -1531,7 +1529,7 @@ document.addEventListener('DOMContentLoaded', () => {
       searching:true,
       lengthChange:true,
       pageLength:10,
-      order:[[0,'desc']],
+      order:[[1,'desc']],
       language:{ url:'https://cdn.datatables.net/plug-ins/2.2.2/i18n/fr-FR.json' },
       ajax: { type: "POST", dataSrc: "data" },
     };
@@ -1551,17 +1549,16 @@ document.addEventListener('DOMContentLoaded', () => {
     devisDT = $t.DataTable(Object.assign(dtCommon(), {
       ajax:{ url:"{{ path('app_administrateur_utilisateur_devis_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
       columns:[
-        {data:'id'},
-        {data:'numero'},
-        {data:'date'},
-        {data:'ttc'},
+        {data:'numero', render:$.fn.dataTable.render.text()},
+        {data:'date', render:(value,type,row)=>type==='sort'||type==='type' ? row.dateSort : $.fn.dataTable.render.text().display(value)},
+        {data:'ttc', render:(value,type,row)=>type==='sort'||type==='type' ? row.ttcSort : $.fn.dataTable.render.text().display(value)},
         {data:'status'},
         {data:'actions'}
       ],
       columnDefs:[
-        { targets:3, className:'text-end' },
-        { targets:5, className:'text-end dt-actions-compact' },
-        { targets:[4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+        { targets:2, className:'text-end' },
+        { targets:4, className:'text-end dt-actions-compact' },
+        { targets:[3,4], orderable:false, searchable:false, render: htmlAsIsOrStrip },
       ]
     }));
   }
@@ -1574,17 +1571,16 @@ document.addEventListener('DOMContentLoaded', () => {
     facturesDT = $t.DataTable(Object.assign(dtCommon(), {
       ajax:{ url:"{{ path('app_administrateur_utilisateur_factures_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
       columns:[
-        {data:'id'},
-        {data:'numero'},
-        {data:'date'},
-        {data:'ttc'},
+        {data:'numero', render:$.fn.dataTable.render.text()},
+        {data:'date', render:(value,type,row)=>type==='sort'||type==='type' ? row.dateSort : $.fn.dataTable.render.text().display(value)},
+        {data:'ttc', render:(value,type,row)=>type==='sort'||type==='type' ? row.ttcSort : $.fn.dataTable.render.text().display(value)},
         {data:'status'},
         {data:'actions'}
       ],
       columnDefs:[
-        { targets:3, className:'text-end' },
-        { targets:5, className:'text-end dt-actions-compact' },
-        { targets:[4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+        { targets:2, className:'text-end' },
+        { targets:4, className:'text-end dt-actions-compact' },
+        { targets:[3,4], orderable:false, searchable:false, render: htmlAsIsOrStrip },
       ]
     }));
   }
@@ -1594,11 +1590,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (trainerSessionsDT) return;
     trainerSessionsDT = $('#tableUserTrainerSessions').DataTable(Object.assign(dtCommon(), {
       ajax: {url: "{{ path('app_administrateur_utilisateur_sessions_formateur_ajax', {entite: entite.id, id: u.id}) }}", type: "POST", dataSrc: "data"},
-      columns: [{data:'id'}, {data:'session'}, {data:'dates'}, {data:'rattachement'}, {data:'sessionSt'}, {data:'actions'}],
+      columns: [{data:'session', render:$.fn.dataTable.render.text()}, {data:'dates', render:(value,type,row)=>type==='sort'||type==='type' ? row.dateSort : $.fn.dataTable.render.text().display(value)}, {data:'rattachement'}, {data:'sessionSt'}, {data:'actions'}],
       columnDefs: [
-        {targets:[1,2,3], render: $.fn.dataTable.render.text()},
-        {targets:5, className:'text-end dt-actions-compact'},
-        {targets:[4,5], orderable:false, searchable:false, render:htmlAsIsOrStrip}
+        {targets:2, render: $.fn.dataTable.render.text()},
+        {targets:4, className:'text-end dt-actions-compact'},
+        {targets:[3,4], orderable:false, searchable:false, render:htmlAsIsOrStrip}
       ]
     }));
   }
@@ -1612,16 +1608,15 @@ document.addEventListener('DOMContentLoaded', () => {
     inscriptionsDT = $t.DataTable(Object.assign(dtCommon(), {
       ajax:{ url:"{{ path('app_administrateur_utilisateur_inscriptions_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
       columns:[
-        {data:'id'},
-        {data:'session'},
-        {data:'dates'},
+        {data:'session', render:$.fn.dataTable.render.text()},
+        {data:'dates', render:(value,type,row)=>type==='sort'||type==='type' ? row.dateSort : $.fn.dataTable.render.text().display(value)},
         {data:'statut'},
         {data:'sessionSt'},
         {data:'actions'}
       ],
       columnDefs:[
-        { targets:5, className:'text-end dt-actions-compact' },
-        { targets:[3,4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+        { targets:4, className:'text-end dt-actions-compact' },
+        { targets:[2,3,4], orderable:false, searchable:false, render: htmlAsIsOrStrip },
       ]
     }));
   }
