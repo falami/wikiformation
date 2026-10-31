@@ -750,12 +750,12 @@ body .facture-floating-dropdown{
           <div class="d-flex align-items-center gap-3">
             <div class="kpi-ico"><i class="bi bi-cash-stack fs-4"></i></div>
             <div class="flex-grow-1">
-              <div class="kpi-label">Total TTC</div>
-              <div class="kpi-value" id="kpi-ttc">—</div>
-              <div class="kpi-sub">Somme des factures</div>
+              <div class="kpi-label">Total HT</div>
+              <div class="kpi-value" id="kpi-ht">—</div>
+              <div class="kpi-sub">Factures hors taxes et hors débours</div>
             </div>
           </div>
-          <div class="mt-3 kpi-bar"><span id="kpi-bar-ttc"></span></div>
+          <div class="mt-3 kpi-bar"><span id="kpi-bar-ht"></span></div>
         </div>
       </div>
     </div>
@@ -766,9 +766,9 @@ body .facture-floating-dropdown{
           <div class="d-flex align-items-center gap-3">
             <div class="kpi-ico"><i class="bi bi-check2-circle fs-4"></i></div>
             <div class="flex-grow-1">
-              <div class="kpi-label">Total payé</div>
+              <div class="kpi-label">Total payé HT</div>
               <div class="kpi-value" id="kpi-paid">—</div>
-              <div class="kpi-sub">Somme des paiements</div>
+              <div class="kpi-sub">Part HT des règlements, au prorata</div>
             </div>
           </div>
           <div class="mt-3 kpi-bar"><span id="kpi-bar-paid"></span></div>
@@ -782,9 +782,9 @@ body .facture-floating-dropdown{
           <div class="d-flex align-items-center gap-3">
             <div class="kpi-ico"><i class="bi bi-exclamation-circle fs-4"></i></div>
             <div class="flex-grow-1">
-              <div class="kpi-label">Reste à payer</div>
+              <div class="kpi-label">Reste à payer HT</div>
               <div class="kpi-value" id="kpi-remaining">—</div>
-              <div class="kpi-sub">TTC - payé</div>
+              <div class="kpi-sub">Total HT − part HT réglée</div>
             </div>
           </div>
           <div class="mt-3 kpi-bar"><span id="kpi-bar-remaining"></span></div>
@@ -998,8 +998,8 @@ $(function () {
     function resetPayeurFilters(){
       $('.payeur-user-check').prop('checked', false);
       $('.payeur-ent-check').prop('checked', false);
-      $('#searchPayeurUsers').val('');
-      $('#searchPayeurEnt').val('');
+      $('#searchPayeurUsers').val('').trigger('input');
+      $('#searchPayeurEnt').val('').trigger('input');
       refreshPayeurBadges();
     }
 
@@ -1007,8 +1007,8 @@ $(function () {
       payeurUserMode = payeurEntrepriseMode = 'all';
       $('.payeur-user-check').prop('checked', true);
       $('.payeur-ent-check').prop('checked', true);
-      $('#searchPayeurUsers').val('');
-      $('#searchPayeurEnt').val('');
+      $('#searchPayeurUsers').val('').trigger('input');
+      $('#searchPayeurEnt').val('').trigger('input');
       refreshPayeurBadges();
     }
 
@@ -1077,31 +1077,31 @@ $(function () {
     }
 
     function applyKpis(k){
-      const ttc = k?.ttcCents || 0;
-      const paid = k?.paidCents || 0;
-      const remaining = k?.remainingCents || 0;
+      const ht = k?.htCents || 0;
+      const paid = k?.paidHtCents || 0;
+      const remaining = k?.remainingHtCents || 0;
       const count = k?.count || 0;
 
       // valeurs
       $('#kpi-count').text(count);
-      $('#kpi-ttc').text(euro(ttc));
+      $('#kpi-ht').text(euro(ht));
       $('#kpi-paid').text(euro(paid));
       $('#kpi-remaining').text(euro(remaining));
 
       // baseline (fallback sur filtré si baseline KO)
-      const baseTtc  = (baseline && typeof baseline.ttcCents === 'number') ? baseline.ttcCents : ttc;
-      const basePaid = (baseline && typeof baseline.paidCents === 'number') ? baseline.paidCents : paid;
-      const baseRem  = (baseline && typeof baseline.remainingCents === 'number') ? baseline.remainingCents : remaining;
+      const baseHt  = (baseline && typeof baseline.htCents === 'number') ? baseline.htCents : ht;
+      const basePaid = (baseline && typeof baseline.paidHtCents === 'number') ? baseline.paidHtCents : paid;
+      const baseRem  = (baseline && typeof baseline.remainingHtCents === 'number') ? baseline.remainingHtCents : remaining;
       const baseCnt  = (baseline && typeof baseline.count === 'number') ? baseline.count : count;
 
       // jauges par rapport au total général
-      const pctTtc   = pct(ttc, baseTtc);
+      const pctHt   = pct(ht, baseHt);
       const pctPaid  = pct(paid, basePaid);
       const pctRem   = pct(remaining, baseRem);
       const pctCount = pct(count, baseCnt);
 
       $('#kpi-bar-count').css('width', pctCount + '%');
-      $('#kpi-bar-ttc').css('width', pctTtc + '%');
+      $('#kpi-bar-ht').css('width', pctHt + '%');
       $('#kpi-bar-paid').css('width', pctPaid + '%');
       $('#kpi-bar-remaining').css('width', pctRem + '%');
 
@@ -1109,15 +1109,15 @@ $(function () {
       $('#kpi-bar-count').closest('.kpi-bar')
         .attr('data-bs-toggle','tooltip')
         .attr('title', `Filtré : ${pctCount}% du nombre total (${baseline ? baseline.count : count})`);
-      $('#kpi-bar-ttc').closest('.kpi-bar')
+      $('#kpi-bar-ht').closest('.kpi-bar')
         .attr('data-bs-toggle','tooltip')
-        .attr('title', `Filtré : ${pctTtc}% du TTC total (${euro(baseTtc)})`);
+        .attr('title', `Filtré : ${pctHt}% du HT total (${euro(baseHt)})`);
       $('#kpi-bar-paid').closest('.kpi-bar')
         .attr('data-bs-toggle','tooltip')
-        .attr('title', `Filtré : ${pctPaid}% du total payé (${euro(basePaid)})`);
+        .attr('title', `Filtré : ${pctPaid}% du total payé HT (${euro(basePaid)})`);
       $('#kpi-bar-remaining').closest('.kpi-bar')
         .attr('data-bs-toggle','tooltip')
-        .attr('title', `Filtré : ${pctRem}% du reste total (${euro(baseRem)})`);
+        .attr('title', `Filtré : ${pctRem}% du reste HT total (${euro(baseRem)})`);
 
       initTooltips();
     }
@@ -1406,18 +1406,36 @@ $(function () {
       reloadAll();
     });
 
+    function normalizePayeurSearch(value){
+      return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+    function filterPayeurOptions(input, selector){
+      const query = normalizePayeurSearch(input.value);
+      const options = document.querySelectorAll(selector);
+      let visible = 0;
+      options.forEach(option => {
+        const matches = normalizePayeurSearch(option.dataset.text).includes(query);
+        // Bootstrap d-flex uses !important; jQuery toggle() cannot override it.
+        if (matches) { option.style.removeProperty('display'); visible++; }
+        else option.style.setProperty('display', 'none', 'important');
+      });
+      const list = document.querySelector(selector.split(' ')[0]);
+      if (!list) return;
+      let empty = list.querySelector('.payeur-search-empty');
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.className = 'payeur-search-empty text-muted small px-3 py-3';
+        empty.setAttribute('role', 'status');
+        empty.textContent = 'Aucun résultat pour cette recherche.';
+        list.appendChild(empty);
+      }
+      empty.hidden = !query || visible > 0 || options.length === 0;
+    }
     $('#searchPayeurUsers').on('input', function(){
-      const q = ($(this).val() || '').toLowerCase();
-      $('#listPayeurUsers .user-item').each(function(){
-        $(this).toggle(($(this).data('text') || '').includes(q));
-      });
+      filterPayeurOptions(this, '#listPayeurUsers .user-item');
     });
-
     $('#searchPayeurEnt').on('input', function(){
-      const q = ($(this).val() || '').toLowerCase();
-      $('#listPayeurEnt .ent-item').each(function(){
-        $(this).toggle(($(this).data('text') || '').includes(q));
-      });
+      filterPayeurOptions(this, '#listPayeurEnt .ent-item');
     });
 
     $('#usersSelectAll').on('click', function(){

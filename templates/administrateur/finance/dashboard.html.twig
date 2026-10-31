@@ -1410,12 +1410,12 @@
         <div class="col-12">
           <section class="company-revenue">
             <div class="company-revenue__head">
-              <div><span class="company-revenue__eyebrow">PORTEFEUILLE CLIENTS</span><h3>Votre chiffre d’affaires par société</h3><p>Facturation HT sur la période sélectionnée · hors factures annulées, avant déduction des avoirs.</p></div>
+              <div><span class="company-revenue__eyebrow">PORTEFEUILLE CLIENTS</span><h3>Votre chiffre d’affaires HT par société</h3><p>Facturation HT sur la période sélectionnée · hors factures annulées, avant déduction des avoirs.</p></div>
               <label>Devise <select id="companyRevenueCurrency" aria-label="Devise du chiffre d’affaires par société"></select></label>
             </div>
-            <div class="company-revenue__summary"><div><span>Total facturé aux sociétés</span><strong id="companyRevenueTotal">—</strong></div><div><span>Sociétés clientes</span><strong id="companyRevenueCount">—</strong></div><div><span>Part de la première société</span><strong id="companyRevenueShare">—</strong></div></div>
+            <div class="company-revenue__summary"><div><span>Total facturé HT aux sociétés</span><strong id="companyRevenueTotal">—</strong></div><div><span>Sociétés clientes</span><strong id="companyRevenueCount">—</strong></div><div><span>Part de la première société</span><strong id="companyRevenueShare">—</strong></div></div>
             <div id="companyRevenueRows" class="company-revenue__rows" aria-live="polite"></div>
-            <p class="company-revenue__note">Les factures aux particuliers ne sont pas incluses. Survolez une barre pour consulter le détail.</p>
+            <p class="company-revenue__note">Montants facturés hors taxes, distincts des sommes déjà encaissées. Les factures aux particuliers ne sont pas incluses. Survolez une barre pour consulter le détail.</p>
           </section>
         </div>
         <div class="col-lg-6">
@@ -2193,7 +2193,7 @@ document.addEventListener('click', (e) => {
     const total = rows.reduce((sum,r) => sum + Number(r.ht), 0);
     const format = value => new Intl.NumberFormat('fr-FR', {style:'currency',currency:select.value || 'EUR'}).format(value/100);
     const percent = value => (total > 0 ? value/total*100 : 0).toLocaleString('fr-FR', {maximumFractionDigits:1}) + ' %';
-    document.getElementById('companyRevenueTotal').textContent = format(total);
+    document.getElementById('companyRevenueTotal').textContent = format(total) + ' HT';
     document.getElementById('companyRevenueCount').textContent = rows.length;
     document.getElementById('companyRevenueShare').textContent = percent(Number(rows[0]?.ht || 0));
     const container = document.getElementById('companyRevenueRows');
@@ -2208,7 +2208,7 @@ document.addEventListener('click', (e) => {
       const track = document.createElement('div'); track.className = 'company-revenue__track';
       const bar = document.createElement('div'); bar.className = 'company-revenue__bar'; bar.style.width = (Math.abs(Number(row.ht))/max*100)+'%';
       track.append(bar); detail.append(label,track);
-      const value = document.createElement('div'); value.className = 'company-revenue__value'; value.textContent = format(Number(row.ht));
+      const value = document.createElement('div'); value.className = 'company-revenue__value'; value.textContent = format(Number(row.ht)) + ' HT';
       const share = document.createElement('small'); share.textContent = percent(Number(row.ht)); value.append(share);
       item.title = row.label+' · '+row.invoices+' facture(s) · '+format(Number(row.ht))+' HT';
       item.tabIndex = 0; item.setAttribute('aria-label', item.title);

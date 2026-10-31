@@ -440,6 +440,7 @@ class FactureController extends AbstractController
     // =========================
     // KPIs (mêmes filtres) (✅ pas de GROUP BY)
     // =========================
+    $paidHtExpr = $this->paidHtExpression($htExpr, $ttcExpr, $paidExpr);
     $kpiSql = "
         SELECT
             COUNT(DISTINCT f.id) AS count,
@@ -448,7 +449,9 @@ class FactureController extends AbstractController
             COALESCE(SUM($deboursExpr),0) AS debours_cents,
             COALESCE(SUM($ttcExpr),0) AS ttc_cents,
             COALESCE(SUM($paidExpr),0) AS paid_cents,
-            COALESCE(SUM($remainingExpr),0) AS remaining_cents
+            COALESCE(SUM($remainingExpr),0) AS remaining_cents,
+      COALESCE(SUM($paidHtExpr),0) AS paid_ht_cents,
+      COALESCE(SUM(($htExpr) - ($paidHtExpr)),0) AS remaining_ht_cents
         FROM facture f
         LEFT JOIN utilisateur u ON u.id = f.destinataire_id
         LEFT JOIN entreprise e  ON e.id = f.entreprise_destinataire_id
@@ -467,6 +470,8 @@ class FactureController extends AbstractController
 
       // optionnels (si un jour tu affiches)
       'htCents'        => (int)($kpisRow['ht_cents'] ?? 0),
+      'paidHtCents' => (int)($kpisRow['paid_ht_cents'] ?? 0),
+      'remainingHtCents' => (int)($kpisRow['remaining_ht_cents'] ?? 0),
       'tvaCents'       => (int)($kpisRow['tva_cents'] ?? 0),
       'deboursCents'   => (int)($kpisRow['debours_cents'] ?? 0),
     ];
@@ -562,7 +567,7 @@ class FactureController extends AbstractController
   ";
 
     $paidExpr = 'COALESCE(p.paid_cents,0)';
-    [, , , $ttcExpr] = $this->issuedAmountExpressions();
+    [$htExpr, , , $ttcExpr] = $this->issuedAmountExpressions();
     $remainingExpr = 'GREATEST(0, ' . $ttcExpr . ' - ' . $paidExpr . ')';
     $where = ['f.entite_id = :entiteId'];
     $params = ['entiteId' => $entite->getId()];
@@ -585,12 +590,16 @@ class FactureController extends AbstractController
     }
     $whereSql = 'WHERE ' . implode(' AND ', $where);
 
+    $paidHtExpr = $this->paidHtExpression($htExpr, $ttcExpr, $paidExpr);
     $sql = "
     SELECT
       COUNT(DISTINCT f.id) AS count,
+      COALESCE(SUM($htExpr),0) AS ht_cents,
       COALESCE(SUM($ttcExpr),0) AS ttc_cents,
       COALESCE(SUM($paidExpr),0) AS paid_cents,
-      COALESCE(SUM($remainingExpr),0) AS remaining_cents
+      COALESCE(SUM($remainingExpr),0) AS remaining_cents,
+      COALESCE(SUM($paidHtExpr),0) AS paid_ht_cents,
+      COALESCE(SUM(($htExpr) - ($paidHtExpr)),0) AS remaining_ht_cents
     FROM facture f
     LEFT JOIN ($paidSub) p ON p.facture_id = f.id
     LEFT JOIN ($deboursSub) deb ON deb.facture_id = f.id
@@ -608,6 +617,9 @@ class FactureController extends AbstractController
     return new JsonResponse([
       'count' => $count,
       'ttcCents' => $ttc,
+      'htCents' => (int)($row['ht_cents'] ?? 0),
+      'paidHtCents' => (int)($row['paid_ht_cents'] ?? 0),
+      'remainingHtCents' => (int)($row['remaining_ht_cents'] ?? 0),
       'paidCents' => $paid,
       'remainingCents' => $remaining,
     ]);
@@ -845,6 +857,13 @@ class FactureController extends AbstractController
   }
 
   /** Keep legacy invoices unchanged; new tables and KPIs use the issuance snapshot. */
+  private function paidHtExpression(string $ht, string $ttc, string $paid): string
+  {
+    // Allocate receipts proportionally per invoice, capped at the invoiced HT.
+    // Remaining HT is the complement of this rounded amount to avoid rounding drift.
+    return "CASE WHEN ($ttc) > 0 THEN ROUND(($ht) * LEAST(GREATEST(($paid), 0), ($ttc)) * 1.0 / ($ttc)) ELSE 0 END";
+  }
+
   private function issuedAmountExpressions(): array
   {
     $issued = "JSON_EXTRACT(f.meta, '$.invoice_totals.version') = 1";
