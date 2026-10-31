@@ -567,8 +567,14 @@
 
       initTomSelect('select[data-trainer-expertise]', {
         plugins: ['remove_button'],
-        create: false,
-        maxItems: null,
+        create: true,
+        maxItems: 40,
+        maxOptions: 100,
+        createFilter: input => input.trim().length > 0 && input.length <= 255 && !/[\x00-\x1F\x7F]/.test(input),
+        render: {
+          option_create: (data, escape) => '<div class="create">Ajouter « ' + escape(data.input) + ' »</div>',
+          no_results: () => '<div class="no-results">Aucune spécialité correspondante. Vous pouvez ajouter la vôtre.</div>'
+        },
         placeholder: 'Rechercher une spécialité…'
       });
 

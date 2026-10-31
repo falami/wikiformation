@@ -24,14 +24,15 @@ final class TrainerExpertiseFieldTest extends TypeTestCase
         self::assertSame("AIPR\nBureautique", $form->getData()['certifications']);
     }
 
-    public function testFreeTextIsRejected(): void
+    public function testCustomSpecialtyIsAccepted(): void
     {
         $form = $this->expertiseForm();
         $form->submit(['certifications' => ['Invented arbitrary expertise']]);
-        self::assertFalse($form->isValid());
+        self::assertTrue($form->isValid());
+        self::assertSame('Invented arbitrary expertise', $form->getData()['certifications']);
     }
 
-    public function testLegacyValueIsPreservedButNotAvailableOnOtherRecords(): void
+    public function testLegacyValueIsPreserved(): void
     {
         $legacy = 'STCW, Médical, etc.';
         $form = $this->expertiseForm($legacy);
@@ -40,7 +41,7 @@ final class TrainerExpertiseFieldTest extends TypeTestCase
         self::assertSame($legacy."\nAIPR", $form->getData()['certifications']);
         $other = $this->expertiseForm();
         $other->submit(['certifications' => [$legacy]]);
-        self::assertFalse($other->isValid());
+        self::assertTrue($other->isValid());
     }
 
     public function testEntityMappingPreservesExistingSelection(): void
@@ -53,6 +54,18 @@ final class TrainerExpertiseFieldTest extends TypeTestCase
         $form->submit(['certifications' => ['Bureautique']]);
         self::assertTrue($form->isValid());
         self::assertSame('Bureautique', $trainer->getCertifications());
+    }
+
+    public function testMalformedCustomSpecialtiesAreRejected(): void
+    {
+        foreach (['   ', str_repeat('x', 256), "First\nSecond", ['nested']] as $value) {
+            $form = $this->expertiseForm();
+            $form->submit(['certifications' => [$value]]);
+            self::assertFalse($form->isValid());
+        }
+        $form = $this->expertiseForm();
+        $form->submit(['certifications' => array_map(fn ($n) => 'Specialty '.$n, range(1, 41))]);
+        self::assertFalse($form->isValid());
     }
 
     public function testSelectionCanBeCleared(): void

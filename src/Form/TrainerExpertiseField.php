@@ -14,20 +14,26 @@ final class TrainerExpertiseField
 {
     public static function attach(FormBuilderInterface $builder): void
     {
-        $builder->addEventListener(FormEvents::PRE_SET_DATA, static function (FormEvent $event): void {
+        $configure = static function (FormEvent $event): void {
             $data = $event->getData();
+            $submitted = $event instanceof \Symfony\Component\Form\Event\PreSubmitEvent;
             $stored = $data instanceof Formateur ? $data->getCertifications() : ($data['certifications'] ?? null);
+            $existing = $submitted ? (is_array($stored) ? $stored : []) : self::split($stored);
+            if ($submitted && (!is_array($stored ?? []) || count($existing) > 40)) {
+                $event->getForm()->addError(new \Symfony\Component\Form\FormError('Sélectionnez au maximum 40 spécialités.'));
+                $existing = [];
+            }
             $subjects = json_decode(file_get_contents(dirname(__DIR__, 2).'/public/dist/recruitment/subjects.json'), true, 512, JSON_THROW_ON_ERROR);
             $choices = [];
             foreach ($subjects as $subject) {
                 $choices[$subject['text']] = $subject['text'];
             }
-            // Only values already stored on this record may bypass the catalogue.
-            // They remain removable, but submitted arbitrary values never become choices.
-            $existing = self::split($stored);
             foreach ($existing as $value) {
+                if (!is_string($value) || ($submitted && (mb_strlen(trim($value)) < 1 || mb_strlen($value) > 255 || preg_match('/[\x00-\x1F\x7F]/u', $value)))) {
+                    continue;
+                }
                 if (!isset($choices[$value])) {
-                    $choices[$value.' (ancienne saisie)'] = $value;
+                    $choices[$value] = $value;
                 }
             }
             $field = $event->getForm()->getConfig()->getFormFactory()->createNamedBuilder('certifications', ChoiceType::class, null, [
@@ -36,16 +42,18 @@ final class TrainerExpertiseField
                 'required' => false,
                 'multiple' => true,
                 'choices' => $choices,
-                'invalid_message' => 'Sélectionnez uniquement des spécialités proposées dans la liste.',
-                'help' => 'Recherchez et sélectionnez une ou plusieurs spécialités du catalogue. Les anciennes saisies restent conservées jusqu’à leur retrait.',
+                'invalid_message' => 'Chaque spécialité doit contenir entre 1 et 255 caractères, sur une seule ligne.',
+                'help' => 'Recherchez une spécialité dans le catalogue ou saisissez la vôtre puis cliquez sur « Ajouter ». Jusqu’à 40 spécialités.',
                 'attr' => ['class' => 'form-select', 'data-trainer-expertise' => '', 'data-placeholder' => 'Rechercher une spécialité…'],
             ]);
             $field->addModelTransformer(new CallbackTransformer(
                 static fn (?string $value): array => self::split($value),
-                static fn (array $values): ?string => $values === [] ? null : implode("\n", $values),
+                static fn (array $values): ?string => $values === [] ? null : implode("\n", array_unique(array_map('trim', $values))),
             ));
             $event->getForm()->add($field->getForm());
-        });
+        };
+        $builder->addEventListener(FormEvents::PRE_SET_DATA, $configure);
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, $configure);
     }
 
     private static function split(?string $value): array
