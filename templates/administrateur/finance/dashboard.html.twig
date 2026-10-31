@@ -782,7 +782,31 @@
     }
 
 
-  </style>
+
+.company-revenue{border:1px solid #e4e9ee;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px #2033420a}
+.company-revenue__head{padding:28px 32px;background:linear-gradient(120deg,#203342,#304e60);color:white;display:flex;justify-content:space-between;gap:24px;align-items:center}
+.company-revenue__eyebrow{color:#e1bc70;font-size:10px;font-weight:800;letter-spacing:.18em}
+.company-revenue__head h3{font-size:23px;margin:10px 0;font-weight:800;letter-spacing:-.03em}
+.company-revenue__head p{font-size:12px;opacity:.8;margin:0;max-width:640px}
+.company-revenue__head label{font-size:11px;display:grid;gap:6px}
+.company-revenue__head select{border:1px solid #ffffff40;border-radius:10px;padding:8px 12px;background:#fff;color:#203342}
+.company-revenue__summary{display:grid;grid-template-columns:2fr 1fr 1fr;gap:24px;padding:24px 32px;background:#faf9f5;border-bottom:1px solid #e9e7e0}
+.company-revenue__summary span{display:block;font-size:11px;color:#74808b;margin-bottom:8px}
+.company-revenue__summary strong{font-size:26px;color:#203342;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.company-revenue__rows{padding:12px 32px;max-height:520px;overflow:auto}
+.company-revenue__row{display:flex;align-items:center;gap:18px;padding:18px 0;border-bottom:1px solid #f0f2f4}
+.company-revenue__row:hover,.company-revenue__row:focus-visible{background:#faf9f5}
+.company-revenue__rank{color:#a98a48;font-size:12px;font-weight:700}
+.company-revenue__detail{flex:1;min-width:0}
+.company-revenue__detail strong{display:block;font-size:13px;color:#203342;margin-bottom:10px;overflow-wrap:anywhere}
+.company-revenue__track{height:9px;border-radius:8px;background:#f0f3f6;overflow:hidden}
+.company-revenue__bar{height:100%;border-radius:8px;background:linear-gradient(90deg,#203342,#6b8999)}
+.company-revenue__row:first-child .company-revenue__bar{background:linear-gradient(90deg,#a98743,#e2c17b)}
+.company-revenue__value{text-align:right;min-width:125px;font-weight:800;font-size:14px;color:#203342;font-variant-numeric:tabular-nums}
+.company-revenue__value small{display:block;font-weight:500;font-size:11px;color:#7a8994;margin-top:5px}
+.company-revenue__note{font-size:11px;color:#7a8994;padding:12px 32px;margin:0}
+@media(max-width:600px){.company-revenue__head{padding:22px;align-items:flex-start}.company-revenue__summary{grid-template-columns:1fr;padding:22px;gap:14px}.company-revenue__rows{padding:8px 16px}.company-revenue__row{gap:10px}.company-revenue__value{min-width:95px;font-size:12px}}
+</style>
 {% endblock %}
 
 {% block javascripts %}
@@ -1206,7 +1230,7 @@
 
 
 
-  
+
 
 
   <div class="cardx mb-4 kpi-section">
@@ -1374,14 +1398,25 @@
         <div class="col-lg-12">
           <div class="cardx">
             <div class="cardx-h">
-              <h5 class="cardx-title"><i class="bi bi-activity text-warning"></i> Tendances (TTC)</h5>
+              <h5 class="cardx-title"><i class="bi bi-activity text-warning"></i> Tendances (HT)</h5>
               <span class="chip">Courbes</span>
             </div>
             <div class="p-3 p-md-4">
               <div class="chart-box"><canvas id="chTrend"></canvas></div>
-              <div class="small text-muted mt-2">Dépenses vs Factures vs Paiements (par mois).</div>
+              <div class="small text-muted mt-2">Montants hors taxes par mois. Encaissements : part HT ventilée, hors débours.</div>
             </div>
           </div>
+        </div>
+        <div class="col-12">
+          <section class="company-revenue">
+            <div class="company-revenue__head">
+              <div><span class="company-revenue__eyebrow">PORTEFEUILLE CLIENTS</span><h3>Votre chiffre d’affaires par société</h3><p>Facturation HT sur la période sélectionnée · hors factures annulées, avant déduction des avoirs.</p></div>
+              <label>Devise <select id="companyRevenueCurrency" aria-label="Devise du chiffre d’affaires par société"></select></label>
+            </div>
+            <div class="company-revenue__summary"><div><span>Total facturé aux sociétés</span><strong id="companyRevenueTotal">—</strong></div><div><span>Sociétés clientes</span><strong id="companyRevenueCount">—</strong></div><div><span>Part de la première société</span><strong id="companyRevenueShare">—</strong></div></div>
+            <div id="companyRevenueRows" class="company-revenue__rows" aria-live="polite"></div>
+            <p class="company-revenue__note">Les factures aux particuliers ne sont pas incluses. Survolez une barre pour consulter le détail.</p>
+          </section>
         </div>
         <div class="col-lg-6">
           <div class="cardx mb-4">
@@ -1983,7 +2018,7 @@ document.addEventListener('click', (e) => {
 
 
 
-  
+
 
 
 
@@ -2151,10 +2186,50 @@ document.addEventListener('click', (e) => {
   Chart.defaults.plugins.legend.labels.usePointStyle = true;
 
 
+  let companyRevenueRows = [];
+  function renderCompanyRevenue(){
+    const select = document.getElementById('companyRevenueCurrency');
+    const rows = companyRevenueRows.filter(r => r.currency === select.value);
+    const total = rows.reduce((sum,r) => sum + Number(r.ht), 0);
+    const format = value => new Intl.NumberFormat('fr-FR', {style:'currency',currency:select.value || 'EUR'}).format(value/100);
+    const percent = value => (total > 0 ? value/total*100 : 0).toLocaleString('fr-FR', {maximumFractionDigits:1}) + ' %';
+    document.getElementById('companyRevenueTotal').textContent = format(total);
+    document.getElementById('companyRevenueCount').textContent = rows.length;
+    document.getElementById('companyRevenueShare').textContent = percent(Number(rows[0]?.ht || 0));
+    const container = document.getElementById('companyRevenueRows');
+    container.replaceChildren();
+    if (!rows.length) { container.textContent = 'Aucune facture société sur cette période.'; return; }
+    const max = Math.max(...rows.map(r => Math.abs(Number(r.ht))), 1);
+    rows.forEach((row,i) => {
+      const item = document.createElement('div'); item.className = 'company-revenue__row';
+      const rank = document.createElement('span'); rank.className = 'company-revenue__rank'; rank.textContent = String(i+1).padStart(2,'0');
+      const detail = document.createElement('div'); detail.className = 'company-revenue__detail';
+      const label = document.createElement('strong'); label.textContent = row.label || 'Société sans nom';
+      const track = document.createElement('div'); track.className = 'company-revenue__track';
+      const bar = document.createElement('div'); bar.className = 'company-revenue__bar'; bar.style.width = (Math.abs(Number(row.ht))/max*100)+'%';
+      track.append(bar); detail.append(label,track);
+      const value = document.createElement('div'); value.className = 'company-revenue__value'; value.textContent = format(Number(row.ht));
+      const share = document.createElement('small'); share.textContent = percent(Number(row.ht)); value.append(share);
+      item.title = row.label+' · '+row.invoices+' facture(s) · '+format(Number(row.ht))+' HT';
+      item.tabIndex = 0; item.setAttribute('aria-label', item.title);
+      item.append(rank,detail,value); container.append(item);
+    });
+  }
+  document.getElementById('companyRevenueCurrency').addEventListener('change', renderCompanyRevenue);
+
   function applyCharts(c){
-    const dep = buildMonthIndex(c.depMonthly.map(x => ({ym:x.ym, total:x.ttc})));
-    const fac = buildMonthIndex(c.facMonthly.map(x => ({ym:x.ym, total:x.ttc})));
-    const pay = buildMonthIndex(c.payMonthly.map(x => ({ym:x.ym, total:x.total})));
+    companyRevenueRows = c.companyRevenue || [];
+    const currencySelect = document.getElementById('companyRevenueCurrency');
+    const previousCurrency = currencySelect.value;
+    currencySelect.replaceChildren();
+    const currencies = [...new Set(companyRevenueRows.map(r => r.currency))].sort();
+    (currencies.length ? currencies : ['EUR']).forEach(currency => currencySelect.add(new Option(currency,currency)));
+    if (currencies.includes(previousCurrency)) currencySelect.value = previousCurrency;
+    renderCompanyRevenue();
+
+    const dep = buildMonthIndex(c.depMonthly.map(x => ({ym:x.ym, total:x.ht})));
+    const fac = buildMonthIndex(c.facMonthly.map(x => ({ym:x.ym, total:x.ht})));
+    const pay = buildMonthIndex(c.payMonthly.map(x => ({ym:x.ym, total:x.ht})));
 
     const labels = Array.from(new Set([...dep.labels, ...fac.labels, ...pay.labels])).sort();
     const at = (s) => {
@@ -2167,9 +2242,9 @@ document.addEventListener('click', (e) => {
       data: {
         labels,
         datasets: [
-          { label: 'Dépenses TTC', data: at(dep), borderColor:'#d92d20', backgroundColor:'rgba(217,45,32,.08)', pointBackgroundColor:'#fff', pointBorderColor:'#d92d20', pointBorderWidth:2, pointRadius:3, pointHoverRadius:5, borderWidth:2.4, tension:.36, fill:false },
-          { label: 'Factures TTC', data: at(fac), borderColor:'#2970ff', backgroundColor:'rgba(41,112,255,.08)', pointBackgroundColor:'#fff', pointBorderColor:'#2970ff', pointBorderWidth:2, pointRadius:3, pointHoverRadius:5, borderWidth:2.4, tension:.36, fill:false },
-          { label: 'Paiements', data: at(pay), borderColor:'#079455', backgroundColor:'rgba(7,148,85,.08)', pointBackgroundColor:'#fff', pointBorderColor:'#079455', pointBorderWidth:2, pointRadius:3, pointHoverRadius:5, borderWidth:2.4, tension:.36, fill:false },
+          { label: 'Dépenses HT', data: at(dep), borderColor:'#d92d20', backgroundColor:'rgba(217,45,32,.08)', pointBackgroundColor:'#fff', pointBorderColor:'#d92d20', pointBorderWidth:2, pointRadius:3, pointHoverRadius:5, borderWidth:2.4, tension:.36, fill:false },
+          { label: 'Factures HT', data: at(fac), borderColor:'#2970ff', backgroundColor:'rgba(41,112,255,.08)', pointBackgroundColor:'#fff', pointBorderColor:'#2970ff', pointBorderWidth:2, pointRadius:3, pointHoverRadius:5, borderWidth:2.4, tension:.36, fill:false },
+          { label: 'Encaissements HT hors débours', data: at(pay), borderColor:'#079455', backgroundColor:'rgba(7,148,85,.08)', pointBackgroundColor:'#fff', pointBorderColor:'#079455', pointBorderWidth:2, pointRadius:3, pointHoverRadius:5, borderWidth:2.4, tension:.36, fill:false },
         ]
       },
       options: {

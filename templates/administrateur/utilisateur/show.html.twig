@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.2.2/datatables.min.css"/>
-  <link rel="stylesheet" href="{{ asset('dist/css/user-detail-tables.css') }}?v=1">
+  <link rel="stylesheet" href="{{ asset('dist/css/user-detail-tables.css') }}?v=2">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""/>
@@ -56,7 +56,7 @@
 /* ===================== Sticky Hero ===================== */
 .stickyHero{
   position: sticky;
-  top: 12px;
+  top: calc(var(--profile-header-height, var(--wn-header-height, 76px)) + 12px);
   z-index: 20;
   border-radius:24px;
   overflow:hidden;
@@ -115,13 +115,10 @@
   overflow: visible;
 }
 
-/*
-  ✅ On évite les calculs magiques (50px+86px) qui cassent selon header/viewport.
-  -> on colle les tabs juste sous la navbar sticky.
-*/
+/* Keep the tabs below the complete profile banner, including wrapped content. */
 .tabsHead{
   position: sticky;
-  top: 56px; /* hauteur standard navbar bootstrap */
+  top: calc(var(--profile-header-height, var(--wn-header-height, 76px)) + 12px + var(--profile-hero-height, 112px) + 8px);
   z-index: 15;
   padding: 10px 12px;
   background: rgba(255,255,255,.92);
@@ -131,10 +128,6 @@
   box-shadow: 0 10px 22px rgba(0,0,0,.06);
 }
 
-/* Si ta navbar est plus haute sur mobile */
-@media (max-width: 992px){
-  .tabsHead{ top: 64px; }
-}
 
 .nav-pills .nav-link{
   border-radius: 14px;
@@ -348,7 +341,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="container-fluid px-3 px-lg-4 pageWrap">
+<div class="container-fluid px-3 px-lg-4 pageWrap" data-user-profile>
 
   {% set initials = ((u.prenom|default('')|slice(0,1)) ~ (u.nom|default('')|slice(0,1)))|upper %}
 
@@ -569,14 +562,16 @@
         <div class="cardX">
           <div class="cardX-h">
             <h5 class="titleX"><i class="bi bi-file-earmark-text"></i> Devis</h5>
-            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> liés à l’utilisateur</span>
+            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> Personnels & sociétés représentées</span>
           </div>
           <div class="cardX-b">
+            <div class="ut-scope-note"><i class="bi bi-diagram-3" aria-hidden="true"></i><div><strong>Une vue complète de ses documents</strong><p>Documents à son nom, liés à ses inscriptions ou adressés aux sociétés dont il est le représentant actuel. Le rattachement est précisé sur chaque ligne.</p></div></div>
             <div class="table-responsive">
               <table id="tableUserDevis" class="table table-hover align-middle mb-0" style="width:100%">
                 <thead>
                   <tr>
                     <th>Numéro</th>
+                    <th>Destinataire & rattachement</th>
                     <th style="width:160px">Émis le</th>
                     <th class="text-end" style="width:150px">TTC</th>
                     <th style="width:160px">Statut</th>
@@ -595,14 +590,16 @@
         <div class="cardX">
           <div class="cardX-h">
             <h5 class="titleX"><i class="bi bi-receipt"></i> Factures</h5>
-            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> destinataire utilisateur</span>
+            <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> Personnelles & sociétés représentées</span>
           </div>
           <div class="cardX-b">
+            <div class="ut-scope-note"><i class="bi bi-diagram-3" aria-hidden="true"></i><div><strong>Une vue complète de ses documents</strong><p>Documents à son nom, liés à ses inscriptions ou adressés aux sociétés dont il est le représentant actuel. Le rattachement est précisé sur chaque ligne.</p></div></div>
             <div class="table-responsive">
               <table id="tableUserFactures" class="table table-hover align-middle mb-0" style="width:100%">
                 <thead>
                   <tr>
                     <th>Numéro</th>
+                    <th>Destinataire & rattachement</th>
                     <th style="width:160px">Émise le</th>
                     <th class="text-end" style="width:150px">TTC</th>
                     <th style="width:160px">Statut</th>
@@ -1547,18 +1544,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!$t.length) return;
 
     devisDT = $t.DataTable(Object.assign(dtCommon(), {
+      order:[[2,'desc']],
       ajax:{ url:"{{ path('app_administrateur_utilisateur_devis_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
       columns:[
         {data:'numero', render:$.fn.dataTable.render.text()},
+        {data:'attachment', render:htmlAsIsOrStrip},
         {data:'date', render:(value,type,row)=>type==='sort'||type==='type' ? row.dateSort : $.fn.dataTable.render.text().display(value)},
         {data:'ttc', render:(value,type,row)=>type==='sort'||type==='type' ? row.ttcSort : $.fn.dataTable.render.text().display(value)},
         {data:'status'},
         {data:'actions'}
       ],
       columnDefs:[
-        { targets:2, className:'text-end' },
-        { targets:4, className:'text-end dt-actions-compact' },
-        { targets:[3,4], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+        { targets:3, className:'text-end' },
+        { targets:5, className:'text-end dt-actions-compact' },
+        { targets:[4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
       ]
     }));
   }
@@ -1569,18 +1568,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!$t.length) return;
 
     facturesDT = $t.DataTable(Object.assign(dtCommon(), {
+      order:[[2,'desc']],
       ajax:{ url:"{{ path('app_administrateur_utilisateur_factures_ajax', { entite: entite.id, id: u.id }) }}", type:"POST", dataSrc:"data" },
       columns:[
         {data:'numero', render:$.fn.dataTable.render.text()},
+        {data:'attachment', render:htmlAsIsOrStrip},
         {data:'date', render:(value,type,row)=>type==='sort'||type==='type' ? row.dateSort : $.fn.dataTable.render.text().display(value)},
         {data:'ttc', render:(value,type,row)=>type==='sort'||type==='type' ? row.ttcSort : $.fn.dataTable.render.text().display(value)},
         {data:'status'},
         {data:'actions'}
       ],
       columnDefs:[
-        { targets:2, className:'text-end' },
-        { targets:4, className:'text-end dt-actions-compact' },
-        { targets:[3,4], orderable:false, searchable:false, render: htmlAsIsOrStrip },
+        { targets:3, className:'text-end' },
+        { targets:5, className:'text-end dt-actions-compact' },
+        { targets:[4,5], orderable:false, searchable:false, render: htmlAsIsOrStrip },
       ]
     }));
   }
@@ -1908,5 +1909,25 @@ async function __openUserDocEmailModal(url){
 
 }
 
+</script>
+<script>
+(() => {
+  const page = document.querySelector('[data-user-profile]');
+  const hero = page?.querySelector('.stickyHero');
+  const header = document.querySelector('.wn-topbar') || document.querySelector('.adminTopNav');
+  if (!page || !hero) return;
+  const updateOffsets = () => {
+    if (header) page.style.setProperty('--profile-header-height', header.getBoundingClientRect().height + 'px');
+    page.style.setProperty('--profile-hero-height', hero.getBoundingClientRect().height + 'px');
+  };
+  updateOffsets();
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(updateOffsets);
+    observer.observe(hero);
+    if (header) observer.observe(header);
+  } else {
+    window.addEventListener('resize', updateOffsets);
+  }
+})();
 </script>
 {% endblock %}

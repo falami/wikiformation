@@ -809,25 +809,13 @@ final class UtilisateurController extends AbstractController
 
     // ===================== KPI =====================
 
-    // Devis (même logique que devisAjax)
-    $kpiDevisQb = $this->em->getRepository(Devis::class)->createQueryBuilder('d')
-      ->select('COUNT(DISTINCT d.id) as cnt', 'COALESCE(SUM(d.montantTtcCents), 0) as sumCents')
-      ->andWhere('d.entite = :entite')->setParameter('entite', $entite)
-      ->leftJoin('d.inscriptions', 'i')
-      ->leftJoin('i.stagiaire', 's')
-      ->andWhere('(d.destinataire = :u OR s = :u)')->setParameter('u', $utilisateur);
-
-    $kpiDevis = $kpiDevisQb->getQuery()->getSingleResult();
-
-    // Factures (même logique que facturesAjax)
-    $kpiFactQb = $this->em->getRepository(Facture::class)->createQueryBuilder('f')
-      ->select('COUNT(DISTINCT f.id) as cnt', 'COALESCE(SUM(f.montantTtcCents), 0) as sumCents')
-      ->andWhere('f.entite = :entite')->setParameter('entite', $entite)
-      ->leftJoin('f.inscriptions', 'i2')
-      ->leftJoin('i2.stagiaire', 's2')
-      ->andWhere('(f.destinataire = :u OR s2 = :u)')->setParameter('u', $utilisateur);
-
-    $kpiFact = $kpiFactQb->getQuery()->getSingleResult();
+    // The same scope is used by the tables and totals; each document is counted once.
+    $kpiDevis = $this->userDocumentsQuery(Devis::class, 'd', $entite, $utilisateur)
+      ->select('COUNT(d.id) as cnt', 'COALESCE(SUM(d.montantTtcCents), 0) as sumCents')
+      ->getQuery()->getSingleResult();
+    $kpiFact = $this->userDocumentsQuery(Facture::class, 'f', $entite, $utilisateur)
+      ->select('COUNT(f.id) as cnt', 'COALESCE(SUM(f.montantTtcCents), 0) as sumCents')
+      ->getQuery()->getSingleResult();
 
     // Inscriptions (rapide)
     $kpiInsQb = $this->em->getRepository(Inscription::class)->createQueryBuilder('ins')
@@ -1085,21 +1073,14 @@ final class UtilisateurController extends AbstractController
   {
     $this->assertUtilisateurInEntite($entite, $utilisateur);
 
-    $qb = $this->em->getRepository(Devis::class)->createQueryBuilder('d')
-      ->andWhere('d.entite = :entite')
-      ->setParameter('entite', $entite)
-      ->leftJoin('d.inscriptions', 'i')
-      ->leftJoin('i.stagiaire', 's')
-      ->andWhere('(d.destinataire = :u OR s = :u)')
-      ->setParameter('u', $utilisateur)
-      ->orderBy('d.id', 'DESC')
-      ->distinct();
+    $qb = $this->userDocumentsQuery(Devis::class, 'd', $entite, $utilisateur)->orderBy('d.id', 'DESC');
 
     $items = $qb->getQuery()->getResult();
 
-    $data = array_map(function (Devis $d) use ($entite) {
+    $data = array_map(function (Devis $d) use ($entite, $utilisateur) {
       return [
         'id'      => $d->getId(),
+        'attachment' => $this->userDocumentAttachment($d, $utilisateur, $entite),
         'numero'  => $d->getNumero() ?? '—',
         'date'    => $d->getDateEmission()?->format('d/m/Y') ?? '—',
         'dateSort' => $d->getDateEmission()?->format('Y-m-d') ?? '',
@@ -1123,21 +1104,14 @@ final class UtilisateurController extends AbstractController
   {
     $this->assertUtilisateurInEntite($entite, $utilisateur);
 
-    $qb = $this->em->getRepository(Facture::class)->createQueryBuilder('f')
-      ->andWhere('f.entite = :e')
-      ->setParameter('e', $entite)
-      ->leftJoin('f.inscriptions', 'i')
-      ->leftJoin('i.stagiaire', 's')
-      ->andWhere('(f.destinataire = :u OR s = :u)')
-      ->setParameter('u', $utilisateur)
-      ->orderBy('f.id', 'DESC')
-      ->distinct();
+    $qb = $this->userDocumentsQuery(Facture::class, 'f', $entite, $utilisateur)->orderBy('f.id', 'DESC');
 
     $factures = $qb->getQuery()->getResult();
 
-    $data = array_map(function (Facture $f) use ($entite) {
+    $data = array_map(function (Facture $f) use ($entite, $utilisateur) {
       return [
         'id'      => $f->getId(),
+        'attachment' => $this->userDocumentAttachment($f, $utilisateur, $entite),
         'numero'  => $f->getNumero() ?: '—',
         'date'    => $f->getDateEmission()?->format('d/m/Y') ?? '—',
         'dateSort' => $f->getDateEmission()?->format('Y-m-d') ?? '',
@@ -1227,6 +1201,27 @@ final class UtilisateurController extends AbstractController
   }
 
   /* ===================== HELPERS ===================== */
+
+  private function userDocumentsQuery(string $class, string $alias, Entite $entite, Utilisateur $user): \Doctrine\ORM\QueryBuilder
+  {
+    return $this->em->getRepository($class)->createQueryBuilder($alias)
+      ->leftJoin($alias.'.entrepriseDestinataire', 'company')->addSelect('company')
+      ->andWhere($alias.'.entite = :documentEntite')->setParameter('documentEntite', $entite)
+      ->andWhere('('.$alias.'.destinataire = :documentUser OR (company.representant = :documentUser AND company.entite = :documentEntite) OR '.$alias.'.id IN (SELECT linked.id FROM '.$class.' linked JOIN linked.inscriptions registration WHERE registration.stagiaire = :documentUser))')
+      ->setParameter('documentUser', $user);
+  }
+
+  private function userDocumentAttachment(Devis|Facture $document, Utilisateur $user, Entite $entite): string
+  {
+    $company = $document->getEntrepriseDestinataire();
+    $represented = $company && $company->getEntite()?->getId() === $entite->getId()
+      && $company->getRepresentant()?->getId() === $user->getId();
+    $direct = $document->getDestinataire()?->getId() === $user->getId();
+    return $this->renderView('administrateur/utilisateur/_document_attachment.html.twig', [
+      'company' => $company && $company->getEntite()?->getId() === $entite->getId() ? $company : null,
+      'represented' => $represented, 'direct' => $direct,
+    ]);
+  }
 
   private function userSessionLabel(\App\Entity\Session $session): string
   {

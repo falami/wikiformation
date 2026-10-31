@@ -575,6 +575,57 @@ final class UtilisateurIdentityTest extends KernelTestCase
     }
     private function membership(Utilisateur $user, Entite $entity, string $role = UtilisateurEntite::TENANT_STAGIAIRE): void
     { $this->em->persist((new UtilisateurEntite())->setCreateur($this->admin)->setUtilisateur($user)->setEntite($entity)->setRoles([$role])); }
+    public function testDocumentsIncludeRepresentedCompaniesWithoutDuplicatesOrOtherTenants(): void
+    {
+        // Historical fixtures; no invoice issuance or external integration.
+        $this->em->getClassMetadata(\App\Entity\Facture::class)->entityListeners = [];
+        $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Philip <Frères>')->setRepresentant($this->learner);
+        $this->em->persist($company);
+        $other = (new Entite())->setNom('Other')->setCreateur($this->admin)->setPublic(false);
+        $this->em->persist($other);
+        $registrations = $this->em->getRepository(Inscription::class)->findBy(['stagiaire'=>$this->learner]);
+        foreach ([\App\Entity\Devis::class, \App\Entity\Facture::class] as $class) {
+            foreach (['company', 'personal', 'foreign', 'unrelated'] as $kind) {
+                $document = (new $class())->setEntite($kind === 'foreign' ? $other : $this->entite)->setCreateur($this->admin)
+                    ->setNumero((str_contains($class, 'Devis') ? 'DEV' : 'FAC').'-'.$kind)
+                    ->setDateEmission(new \DateTimeImmutable())->setMontantHtCents(10000)->setMontantTvaCents(0)->setMontantTtcCents(10000);
+                if ($kind === 'company') {
+                    $document->setEntrepriseDestinataire($company);
+                } elseif ($kind !== 'unrelated') {
+                    $document->setDestinataire($this->learner);
+                    if ($kind === 'personal') foreach ($registrations as $registration) $document->addInscription($registration);
+                }
+                else $document->setDestinataire($this->admin);
+                $this->em->persist($document);
+            }
+        }
+        $this->em->flush();
+        $client = $this->client();
+        foreach (['devis', 'factures'] as $kind) {
+            $client->request('POST', '/fr/administrateur/'.$this->entite->getId().'/utilisateur/'.$this->learner->getId().'/'.$kind.'/ajax');
+            self::assertSame(200, $client->getResponse()->getStatusCode());
+            $rows = json_decode($client->getResponse()->getContent(), true)['data'];
+            self::assertCount(2, $rows);
+            $companyRow = array_values(array_filter($rows, fn($row) => str_ends_with($row['numero'], '-company')))[0];
+            self::assertStringContainsString('Représentant de cette société', $companyRow['attachment']);
+            self::assertStringContainsString('Philip &lt;Frères&gt;', $companyRow['attachment']);
+        }
+        $controller = self::getContainer()->get(\App\Controller\Administrateur\UtilisateurController::class);
+        $queryMethod = new \ReflectionMethod($controller, 'userDocumentsQuery');
+        foreach ([\App\Entity\Devis::class, \App\Entity\Facture::class] as $class) {
+            $result = $queryMethod->invoke($controller, $class, 'd', $this->entite, $this->learner)
+                ->select('COUNT(d.id) as cnt', 'SUM(d.montantTtcCents) as amount')->getQuery()->getSingleResult();
+            self::assertSame(2, (int) $result['cnt']);
+            self::assertSame(20000, (int) $result['amount']);
+        }
+        // Changing the representative removes the company-only association; personal documents remain.
+        $company = $this->em->find(\App\Entity\Entreprise::class, $company->getId());
+        $company->setRepresentant($this->em->find(Utilisateur::class, $this->admin->getId())); $this->em->flush();
+        $client->request('POST', '/fr/administrateur/'.$this->entite->getId().'/utilisateur/'.$this->learner->getId().'/factures/ajax');
+        self::assertStringNotContainsString('Représentant de cette société', $client->getResponse()->getContent());
+        self::assertCount(1, json_decode($client->getResponse()->getContent(), true)['data']);
+    }
+
     private function client(): KernelBrowser
     { $client=self::getContainer()->get('test.client'); $client->disableReboot(); $client->catchExceptions(false); $client->loginUser($this->admin); return $client; }
     private function editUrl(int $id): string

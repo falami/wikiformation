@@ -137,21 +137,23 @@ final class FinanceDashboardController extends AbstractController
 
     // Dépenses / mois (courbe)
     $depMonthlyRows = (clone $depBase)
-      ->select('d.dateDepense as dt, d.montantTtcCents as ttc')
+      ->select('d.dateDepense as dt, d.montantTtcCents as ttc, d.montantHtCents as ht')
       ->getQuery()->getArrayResult();
 
     $depMonthlyMap = [];
+    $depMonthlyHt = [];
     foreach ($depMonthlyRows as $r) {
       $dt = $r['dt'];
       $ym = ($dt instanceof \DateTimeInterface)
         ? $dt->format('Y-m')
         : (new \DateTimeImmutable((string) $dt))->format('Y-m');
 
+      $depMonthlyHt[$ym] = ($depMonthlyHt[$ym] ?? 0) + (int) $r['ht'];
       $depMonthlyMap[$ym] = ($depMonthlyMap[$ym] ?? 0) + (int) $r['ttc'];
     }
     ksort($depMonthlyMap);
     $depMonthly = array_map(
-      fn($ym, $sum) => ['ym' => $ym, 'ttc' => $sum],
+      fn($ym, $sum) => ['ym' => $ym, 'ttc' => $sum, 'ht' => $depMonthlyHt[$ym] ?? 0],
       array_keys($depMonthlyMap),
       array_values($depMonthlyMap)
     );
@@ -195,21 +197,23 @@ final class FinanceDashboardController extends AbstractController
     $caHtHorsDebours = (int) $facKpi['ht'];
 
     $facMonthlyRows = (clone $facBase)
-      ->select('fa.dateEmission as dt, fa.montantTtcCents as ttc')
+      ->select('fa.dateEmission as dt, fa.montantTtcCents as ttc, fa.montantHtCents as ht')
       ->getQuery()->getArrayResult();
 
     $facMonthlyMap = [];
+    $facMonthlyHt = [];
     foreach ($facMonthlyRows as $r) {
       $dt = $r['dt'];
       $ym = ($dt instanceof \DateTimeInterface)
         ? $dt->format('Y-m')
         : (new \DateTimeImmutable((string)$dt))->format('Y-m');
 
+      $facMonthlyHt[$ym] = ($facMonthlyHt[$ym] ?? 0) + (int) $r['ht'];
       $facMonthlyMap[$ym] = ($facMonthlyMap[$ym] ?? 0) + (int)$r['ttc'];
     }
     ksort($facMonthlyMap);
     $facMonthly = array_map(
-      fn($ym, $sum) => ['ym' => $ym, 'ttc' => $sum],
+      fn($ym, $sum) => ['ym' => $ym, 'ttc' => $sum, 'ht' => $facMonthlyHt[$ym] ?? 0],
       array_keys($facMonthlyMap),
       array_values($facMonthlyMap)
     );
@@ -219,6 +223,15 @@ final class FinanceDashboardController extends AbstractController
       ->groupBy('label')
       ->orderBy('v', 'DESC')
       ->getQuery()->getArrayResult();
+
+    // Group by company identity (not its name); keep currencies separate.
+    $companyRevenue = (clone $facBase)
+      ->join('fa.entrepriseDestinataire', 'company')
+      ->andWhere('company.entite = :e')
+      ->andWhere('fa.status != :canceled')->setParameter('canceled', 'canceled')
+      ->select('company.id AS id, company.raisonSociale AS label, fa.devise AS currency, SUM(fa.montantHtCents) AS ht, COUNT(fa.id) AS invoices')
+      ->groupBy('company.id, company.raisonSociale, fa.devise')
+      ->orderBy('ht', 'DESC')->getQuery()->getArrayResult();
 
     // --- Devis
     $devisBase = $em->createQueryBuilder()
@@ -311,21 +324,23 @@ final class FinanceDashboardController extends AbstractController
     }
 
     $payMonthlyRows = (clone $payBase)
-      ->select('pa.datePaiement as dt, pa.montantCents as total')
+      ->select('pa.datePaiement as dt, pa.montantCents as total, pa.ventilationHtHorsDeboursCents as ht')
       ->getQuery()->getArrayResult();
 
     $payMonthlyMap = [];
+    $payMonthlyHt = [];
     foreach ($payMonthlyRows as $r) {
       $dt = $r['dt'];
       $ym = ($dt instanceof \DateTimeInterface)
         ? $dt->format('Y-m')
         : (new \DateTimeImmutable((string)$dt))->format('Y-m');
 
+      $payMonthlyHt[$ym] = ($payMonthlyHt[$ym] ?? 0) + (int) $r['ht'];
       $payMonthlyMap[$ym] = ($payMonthlyMap[$ym] ?? 0) + (int)$r['total'];
     }
     ksort($payMonthlyMap);
     $payMonthly = array_map(
-      fn($ym, $sum) => ['ym' => $ym, 'total' => $sum],
+      fn($ym, $sum) => ['ym' => $ym, 'total' => $sum, 'ht' => $payMonthlyHt[$ym] ?? 0],
       array_keys($payMonthlyMap),
       array_values($payMonthlyMap)
     );
@@ -392,6 +407,7 @@ final class FinanceDashboardController extends AbstractController
         ],
       ],
       'charts' => [
+        'companyRevenue' => $companyRevenue,
         'depMonthly' => $depMonthly,
         'depByCat' => $depByCat,
         'depByFour' => $depByFour,

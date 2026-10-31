@@ -57,6 +57,28 @@ final class FinanceNavigationTest extends KernelTestCase
         }
     }
 
+    public function testSummaryUsesHtAndGroupsCompanyRevenue(): void
+    {
+        $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Société exemple');
+        $this->em->persist($company);
+        $invoice = $this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-AUDIT']);
+        $invoice->setDestinataire(null)->setEntrepriseDestinataire($company);
+        $this->em->flush();
+        $client = $this->client();
+        $client->request('GET', $this->url('app_administrateur_finance_api_summary'), ['dateStart'=>'2026-09-01','dateEnd'=>'2026-09-30']);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $charts = json_decode($client->getResponse()->getContent(), true)['charts'];
+        self::assertSame(10000, $charts['facMonthly'][0]['ht']);
+        self::assertSame(12000, $charts['facMonthly'][0]['ttc']);
+        self::assertCount(1, $charts['companyRevenue']);
+        self::assertSame('Société exemple', $charts['companyRevenue'][0]['label']);
+        self::assertSame(10000, (int) $charts['companyRevenue'][0]['ht']);
+        $invoice->setStatus(\App\Enum\FactureStatus::CANCELED);
+        $this->em->flush();
+        $client->request('GET', $this->url('app_administrateur_finance_api_summary'), ['dateStart'=>'2026-09-01','dateEnd'=>'2026-09-30']);
+        self::assertSame([], json_decode($client->getResponse()->getContent(), true)['charts']['companyRevenue']);
+    }
+
     public function testIssuedInvoiceInternalSettingsPreserveDocument(): void
     {
         $invoice = $this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-AUDIT']);
