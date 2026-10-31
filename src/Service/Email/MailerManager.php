@@ -19,7 +19,7 @@ final class MailerManager
     private Environment $twig;
     private UrlGeneratorInterface $url;
 
-    public function __construct(MailerInterface $mailer, Environment $twig, UrlGeneratorInterface $url, private ?EmailHistoryRecorder $history = null)
+    public function __construct(MailerInterface $mailer, Environment $twig, UrlGeneratorInterface $url, private ?EmailHistoryRecorder $history = null, private ?\Symfony\Component\Mime\BodyRendererInterface $bodyRenderer = null)
     {
         $this->mailer = $mailer;
         $this->twig   = $twig;
@@ -357,7 +357,15 @@ final class MailerManager
     }
     private function sendRecorded(Email $email, ?Entite $entite): void
     {
-        $log = $entite ? $this->history?->prepare($entite, $email) : null;
+        // Render once before archiving: the transport receives this same rendered body.
+        $archiveBody = !($email instanceof TemplatedEmail && (
+            in_array($email->getHtmlTemplate(), ['emails/compte_nouveau.html.twig', 'emails/reset_password.html.twig', 'emails/account_created_validate.html.twig'], true)
+            || array_key_exists('plainPassword', $email->getContext())
+        ));
+        if ($entite && $this->history) {
+            ($this->bodyRenderer ?? new \Symfony\Bridge\Twig\Mime\BodyRenderer($this->twig))->render($email);
+        }
+        $log = $entite ? $this->history?->prepare($entite, $email, $archiveBody) : null;
         try {
             $this->mailer->send($email);
         } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {

@@ -1190,6 +1190,38 @@ final class UtilisateurController extends AbstractController
     return new JsonResponse(['data' => $data]);
   }
 
+  #[Route('/{id}/sessions-formateur/ajax', name: 'sessions_formateur_ajax', methods: ['POST'])]
+  public function trainerSessionsAjax(Entite $entite, Utilisateur $utilisateur, \App\Repository\SessionRepository $sessions): JsonResponse
+  {
+    $this->assertUtilisateurInEntite($entite, $utilisateur);
+    $matches = static fn ($f): bool => $f && $f->getUtilisateur()?->getId() === $utilisateur->getId()
+      && $f->getEntite()?->getId() === $entite->getId();
+    $data = [];
+    foreach ($sessions->findForUserTrainerProfile($entite, $utilisateur) as $session) {
+      $links = [];
+      if ($matches($session->getFormateur())) $links[] = 'Référent';
+      foreach ($session->getJours() as $jour) {
+        if ($matches($jour->getFormateur() ?? $session->getFormateur())) $links[] = 'Intervenant';
+      }
+      foreach ($session->getContratFormateurs() as $contract) {
+        if ($contract->getEntite()?->getId() !== $entite->getId()) continue;
+        if ($matches($contract->getFormateur())) $links[] = 'Titulaire du contrat';
+        foreach ($contract->getIntervenantsCouverts() as $trainer) {
+          if ($matches($trainer)) $links[] = 'Intervenant couvert par contrat';
+        }
+      }
+      $data[] = [
+        'id' => $session->getId(), 'session' => $session->getLabel(),
+        'dates' => ($session->getDateDebut()?->format('d/m/Y') ?? '—').' → '.($session->getDateFin()?->format('d/m/Y') ?? '—'),
+        'rattachement' => implode(' · ', array_unique($links)),
+        'sessionSt' => $this->sessionStatusBadge($session->getStatus()),
+        'actions' => sprintf('<a class="btn btn-outline-primary btn-sm" title="Consulter la session" href="%s"><i class="bi bi-calendar-event"></i></a>',
+          $this->generateUrl('app_administrateur_session_show', ['entite' => $entite->getId(), 'id' => $session->getId()])),
+      ];
+    }
+    return new JsonResponse(['data' => $data]);
+  }
+
   /* ===================== HELPERS ===================== */
 
   private function assertUtilisateurInEntite(Entite $entite, Utilisateur $utilisateur): void

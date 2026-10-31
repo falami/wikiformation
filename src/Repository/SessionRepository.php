@@ -19,6 +19,24 @@ final class SessionRepository extends ServiceEntityRepository
         parent::__construct($registry, Session::class);
     }
 
+    /** All direct and contractual links, scoped to the current organisation. */
+    public function findForUserTrainerProfile(Entite $entite, \App\Entity\Utilisateur $user): array
+    {
+        return $this->createQueryBuilder('s')->distinct()
+            ->leftJoin('s.formateur', 'referent')
+            ->leftJoin('s.jours', 'jour')->leftJoin('jour.formateur', 'intervenant')
+            ->leftJoin('s.contratFormateurs', 'contrat', 'WITH', 'contrat.entite = :entite')
+            ->leftJoin('contrat.formateur', 'titulaire')
+            ->leftJoin('contrat.intervenantsCouverts', 'couvert')
+            ->andWhere('s.entite = :entite')
+            ->andWhere('(referent.utilisateur = :user AND referent.entite = :entite)
+                OR (intervenant.utilisateur = :user AND intervenant.entite = :entite)
+                OR (titulaire.utilisateur = :user AND titulaire.entite = :entite)
+                OR (couvert.utilisateur = :user AND couvert.entite = :entite)')
+            ->setParameter('entite', $entite)->setParameter('user', $user)
+            ->orderBy('s.id', 'DESC')->getQuery()->getResult();
+    }
+
     /** Sessions effectivement confiées au formateur, avec leurs créneaux complets. */
     public function createForFormateurQueryBuilder(Entite $entite, Formateur $formateur): QueryBuilder
     {

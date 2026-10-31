@@ -442,6 +442,9 @@
                   <span class="badge {{ mail.status == 'FAILED' ? 'bg-danger' : (mail.status == 'SENT' ? 'bg-success' : 'bg-secondary') }}">{{ mail.status == 'FAILED' ? 'Échec' : (mail.status == 'SENT' ? 'Transmis' : 'En attente') }}</span>
                 </div>
                 <div class="tMeta mt-2">{{ mail.sentAt|date('d/m/Y H:i', 'Europe/Paris') }} · {{ mail.toEmail }} · {{ mail.actor ? mail.actor.prenom ~ ' ' ~ mail.actor.nom : 'Envoi automatique' }}</div>
+                {% if mail.bodyHtmlSnapshot %}
+                  <a class="btn btn-sm btn-outline-secondary mt-3" href="{{ path('app_administrateur_utilisateur_email_log_show', {entite: entite.id, id: u.id, log: mail.id}) }}"><i class="bi bi-envelope-open me-1" aria-hidden="true"></i> Consulter le mail</a>
+                {% else %}<div class="small text-muted mt-2">Contenu non archivé pour cet envoi.</div>{% endif %}
               </div>
             {% else %}<p class="text-muted mb-0">Aucun mail enregistré pour ce contact.</p>{% endfor %}
             </div>
@@ -618,7 +621,7 @@
       <div class="tab-pane fade" id="pane-sessions" role="tabpanel" aria-labelledby="tab-sessions">
         <div class="cardX">
           <div class="cardX-h">
-            <h5 class="titleX"><i class="bi bi-mortarboard"></i> Sessions / Inscriptions</h5>
+            <h5 class="titleX"><i class="bi bi-mortarboard"></i> Sessions stagiaire</h5>
             <span class="badge bg-light text-dark"><i class="bi bi-link-45deg"></i> stagiaire</span>
           </div>
           <div class="cardX-b">
@@ -639,7 +642,22 @@
             </div>
 
             <div class="small text-muted mt-2">
-              Colonne “Dates” = `dateDebut → dateFin` (préparé côté controller).
+              Sessions suivies en tant que stagiaire, avec le statut de chaque inscription.
+            </div>
+          </div>
+        </div>
+        <div class="cardX mt-4">
+          <div class="cardX-h">
+            <h5 class="titleX"><i class="bi bi-person-workspace"></i> Sessions formateur</h5>
+            <span class="badge bg-light text-dark">Interventions et contrats</span>
+          </div>
+          <div class="cardX-b">
+            <p class="small text-muted">Sessions rattachées directement, par un créneau d’intervention ou par un contrat. Chaque session apparaît une seule fois.</p>
+            <div class="table-responsive">
+              <table id="tableUserTrainerSessions" class="table table-hover align-middle mb-0" style="width:100%">
+                <thead><tr><th>#</th><th>Session</th><th>Dates</th><th>Rattachement</th><th>Statut</th><th>Actions</th></tr></thead>
+                <tbody></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1571,7 +1589,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
   }
 
+  let trainerSessionsDT = null;
+  function initUserTrainerSessionsDT(){
+    if (trainerSessionsDT) return;
+    trainerSessionsDT = $('#tableUserTrainerSessions').DataTable(Object.assign(dtCommon(), {
+      ajax: {url: "{{ path('app_administrateur_utilisateur_sessions_formateur_ajax', {entite: entite.id, id: u.id}) }}", type: "POST", dataSrc: "data"},
+      columns: [{data:'id'}, {data:'session'}, {data:'dates'}, {data:'rattachement'}, {data:'sessionSt'}, {data:'actions'}],
+      columnDefs: [
+        {targets:[1,2,3], render: $.fn.dataTable.render.text()},
+        {targets:5, className:'text-end dt-actions-compact'},
+        {targets:[4,5], orderable:false, searchable:false, render:htmlAsIsOrStrip}
+      ]
+    }));
+  }
+
   function initUserInscriptionsDT(){
+    initUserTrainerSessionsDT();
     if (inscriptionsDT) return;
     const $t = $('#tableUserInscriptions');
     if (!$t.length) return;

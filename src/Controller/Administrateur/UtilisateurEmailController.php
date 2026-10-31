@@ -252,15 +252,13 @@ final class UtilisateurEmailController extends AbstractController
     /** @var Utilisateur $user */
     $user = $this->getUser();
     if ($log->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
-    if ($log->getToUser()?->getId() !== $u->getId()) throw $this->createNotFoundException();
+    if ($log->getToUser()?->getId() !== $u->getId() && $log->getProspect()?->getLinkedUser()?->getId() !== $u->getId()) throw $this->createNotFoundException();
 
     // tu peux réutiliser le template d’affichage prospect si tu veux
     return $this->render('administrateur/utilisateur/email_log_show.html.twig', [
       'entite' => $entite,
       'u' => $u,
       'log' => $log,
-
-
-    ]);
+    ], new Response('', 200, ['Cache-Control' => 'private, no-store', 'X-Robots-Tag' => 'noindex, nofollow']));
   }
 }

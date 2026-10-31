@@ -113,6 +113,24 @@ final class PositioningQuestionnaireController extends AbstractController
     /** @var PositioningQuestionnaire[] $rows */
     $rows = $qb->getQuery()->getResult();
 
+    // Count submitted questionnaires in one query for the displayed page.
+    $responseCounts = [];
+    if ($rows !== []) {
+      $counts = $em->getRepository(\App\Entity\PositioningAttempt::class)->createQueryBuilder('a')
+        ->select('IDENTITY(a.questionnaire) AS questionnaireId, COUNT(a.id) AS responseCount')
+        ->leftJoin('a.session', 'session')
+        ->andWhere('a.questionnaire IN (:questionnaires)')
+        ->andWhere('a.submittedAt IS NOT NULL')
+        ->andWhere('(session.entite = :entite OR session.id IS NULL)')
+        ->setParameter('questionnaires', $rows)
+        ->setParameter('entite', $entite)
+        ->groupBy('a.questionnaire')
+        ->getQuery()->getArrayResult();
+      foreach ($counts as $count) {
+        $responseCounts[(int) $count['questionnaireId']] = (int) $count['responseCount'];
+      }
+    }
+
     $data = [];
     foreach ($rows as $q) {
       $published = (bool) $q->isPublished();
@@ -125,6 +143,7 @@ final class PositioningQuestionnaireController extends AbstractController
       $actionsHtml = $this->renderView('administrateur/positioning/questionnaire/_actions.html.twig', [
         'entite' => $entite,
         'q' => $q,
+        'responseCount' => $responseCounts[$q->getId()] ?? 0,
       ]);
 
       $data[] = [

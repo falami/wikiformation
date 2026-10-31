@@ -60,6 +60,32 @@ final class TrainerWorkflowTest extends KernelTestCase
         }
     }
 
+    public function testProfileIncludesDirectSlotAndContractLinksWithoutDuplicates(): void
+    {
+        $holder = $this->trainer('Titulaire');
+        $covered = $this->trainer('Couvert');
+        $contract = $this->contract($holder, 'CF-PROFILE');
+        $this->session->addContratFormateur($contract);
+        $contract->addIntervenantCouvert($covered)->addIntervenantCouvert($this->morning);
+        $this->em->flush();
+        $repo = $this->em->getRepository(Session::class);
+        foreach ([$this->morning, $this->afternoon, $holder, $covered] as $trainer) {
+            $rows = $repo->findForUserTrainerProfile($this->entite, $trainer->getUtilisateur());
+            self::assertCount(1, $rows);
+            self::assertSame($this->session->getId(), $rows[0]->getId());
+        }
+        self::assertSame([], $repo->findForUserTrainerProfile($this->entite, $this->admin));
+        $foreign = (new Entite())->setNom('Other')->setPublic(false)->setCreateur($this->admin);
+        $this->em->persist($foreign); $this->em->flush();
+        self::assertSame([], $repo->findForUserTrainerProfile($foreign, $holder->getUtilisateur()));
+        $client = $this->client();
+        $client->request('POST', '/fr/administrateur/'.$this->entite->getId().'/utilisateur/'.$holder->getUtilisateur()->getId().'/sessions-formateur/ajax');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $rows = json_decode($client->getResponse()->getContent(), true)['data'];
+        self::assertCount(1, $rows);
+        self::assertStringContainsString('Titulaire du contrat', $rows[0]['rattachement']);
+    }
+
     public function testGoogleRoutesRequiresExplicitCsrfProtectedRequest(): void
     {
         $old = [$_ENV['GOOGLE_MAPS_SERVER_KEY'] ?? null, $_SERVER['GOOGLE_MAPS_SERVER_KEY'] ?? null];
