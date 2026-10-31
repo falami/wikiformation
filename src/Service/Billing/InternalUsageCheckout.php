@@ -66,11 +66,13 @@ final class InternalUsageCheckout
             throw new \DomainException('Cette configuration est terminée ou expirée. Attendez la confirmation Stripe ou demandez son rapprochement avant de recommencer.');
         }
         $legacyExpiry = $setup->request['checkout']['expires_at'] ?? null;
-        $renewLegacy = is_int($legacyExpiry) && $legacyExpiry < time() - 300 && $setup->customerId !== null;
-        // Preserve uncertain operations. Only an expired legacy request with a known
-        // customer can be renewed, after read-only checks of the remote state below.
-        if (!$renewLegacy && (($legacyExpiry !== null && $legacyExpiry <= time() + 60)
-            || ($setup->attemptedAt && $setup->attemptedAt < new \DateTimeImmutable('-23 hours')))) {
+        $staleAttempt = $setup->attemptedAt && $setup->attemptedAt < new \DateTimeImmutable('-23 hours');
+        $renewExpired = $setup->customerId !== null
+            && ((is_int($legacyExpiry) && $legacyExpiry < time() - 300) || ($legacyExpiry === null && $staleAttempt));
+        // An old idempotency key must not be replayed blindly. A known customer
+        // permits renewal only after the complete remote history has been checked.
+        if (!$renewExpired && (($legacyExpiry !== null && $legacyExpiry <= time() + 60)
+            || $staleAttempt)) {
             throw new \DomainException('La tentative précédente a expiré. Un rapprochement Stripe est nécessaire avant toute nouvelle configuration.');
         }
         $setup->attemptedAt ??= new \DateTimeImmutable();
@@ -83,6 +85,11 @@ final class InternalUsageCheckout
             || ($setup->customerId && $customer['id'] !== $setup->customerId)
             || ($customer['metadata']['entite_id'] ?? null) !== (string) $entite->getId()
             || !in_array($customer['currency'] ?? null, [null, 'eur'], true)) throw new \DomainException('Le client Stripe doit être rattaché à cet organisme en euros.');
+        // Retain the verified customer even when a later preflight call fails.
+        // Otherwise an old attempt cannot be reconciled safely after key expiry.
+        $setup->customerId = $customer['id'];
+        $setup->subscription->setStripeCustomerId($customer['id']);
+        $this->em->flush();
         if (($customer['balance'] ?? null) !== 0) throw new \DomainException('Le solde Stripe existant doit être rapproché avant une configuration à 0 € de base.');
         // A zero-priced recurring line must not unexpectedly collect an earlier invoice or pending item.
         $pending = $this->request(fn() => $client->invoiceItems->all(['customer' => $customer['id'], 'pending' => true, 'limit' => 1])->toArray(), 'invoiceitems.list');
@@ -96,8 +103,8 @@ final class InternalUsageCheckout
         foreach ($subscriptions['data'] as $existing) {
             if (!in_array($existing['status'] ?? null, ['canceled', 'incomplete_expired'], true)) throw new \DomainException('Une souscription Stripe existe déjà pour ce client. Attendez sa confirmation ou demandez son rapprochement.');
         }
-        if ($renewLegacy) {
-            $this->renewLegacyRequest($client, $setup, $actor, $terms);
+        if ($renewExpired) {
+            $this->renewExpiredRequest($client, $setup, $actor, $terms);
         }
         $setup->customerId = $customer['id'];
         $setup->subscription->setStripeCustomerId($customer['id']);
@@ -115,10 +122,10 @@ final class InternalUsageCheckout
     }
 
     /**
-     * Recover the legacy 30-minute timestamp bug without replaying modified parameters
+     * Recover expired attempts without replaying modified parameters
      * under the old key, dropping evidence, or creating a second live Checkout.
      */
-    private function renewLegacyRequest(StripeClient $client, InternalUsageSetup $setup, Utilisateur $actor, array $terms): void
+    private function renewExpiredRequest(StripeClient $client, InternalUsageSetup $setup, Utilisateur $actor, array $terms): void
     {
         $frozenRequest = $setup->request;
         $sessions = $this->request(fn() => $client->checkout->sessions->all([
@@ -171,7 +178,7 @@ final class InternalUsageCheckout
                 ->setEntite($setup->entite)->setActor($actor)->setCreateur($actor)->setCreatedAt($setup->attemptedAt)
                 ->setPayload(['setupId' => $setup->id, 'previousKey' => $previousKey,
                     'previousAcceptance' => $previousAcceptance, 'acceptance' => $setup->acceptance,
-                    'reason' => 'legacy_expiry_verified_no_live_subscription_checkout']));
+                    'reason' => 'expired_attempt_verified_no_live_subscription_checkout']));
         });
     }
 

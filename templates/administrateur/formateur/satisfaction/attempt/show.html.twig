@@ -1,13 +1,24 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Questionnaire rempli · {{ template.titre|default('Satisfaction') }}{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/satisfaction-responses.css') }}">{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/satisfaction-responses.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/satisfaction-detail.css') }}?v=2">{% endblock %}
 {% block body %}
 {% set answers = attempt.answers %}
-<div class="sr-page">
-<header class="sr-hero"><div><p class="sr-eyebrow">SATISFACTION FORMATEUR · RETOUR D’EXPÉRIENCE</p><h1>{{ formateur ? formateur.prenom ~ ' ' ~ formateur.nom : 'Formateur' }}</h1><p>{{ template.titre|default('Questionnaire') }} · {{ session.code }}</p><div class="sr-chips"><span>{{ session.formation.titre|default('Formation') }}</span><span>{{ attempt.submittedAt ? 'Complété le ' ~ attempt.submittedAt|date('d/m/Y à H:i') : 'Questionnaire en cours' }}</span></div></div>{% if template %}<a class="sr-back" href="{{ path('app_administrateur_questionnaire_responses', {entite: entite.id, kind: 'formateur', id: template.id}) }}">← Toutes les réponses</a>{% endif %}</header>
-<div class="sr-metrics">{% for label, value in {'Globale': attempt.noteGlobale, 'Recommandation': attempt.recommendationScore} %}<div><span>{{ label }}</span><strong>{{ value is not null ? value : '—' }}</strong></div>{% endfor %}</div>
-<div class="sr-panel-head"><div><p class="sr-eyebrow">LE QUESTIONNAIRE REMPLI</p><h2>Notes & commentaires</h2></div><span class="sr-readonly">Consultation uniquement</span></div>
+{% set participantName = formateur ? formateur.prenom ~ ' ' ~ formateur.nom : 'Formateur' %}
+<div class="sr-page sd-page">
+<div class="sd-topline"><span><i class="bi bi-chat-square-heart" aria-hidden="true"></i> Satisfaction formateur <span class="sd-divider">/</span> Réponse individuelle</span>{% if template %}<a href="{{ path('app_administrateur_questionnaire_responses', {entite: entite.id, kind: 'formateur', id: template.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Toutes les réponses</a>{% endif %}</div>
+<header class="sd-hero">
+  <div class="sd-identity"><div class="sd-avatar" aria-hidden="true">{{ participantName|trim|first|upper }}</div><span class="sd-status"><i class="bi {{ attempt.submittedAt ? 'bi-check-circle-fill' : 'bi-clock' }}" aria-hidden="true"></i> {{ attempt.submittedAt ? 'Questionnaire complété' : 'Réponse en cours' }}</span></div>
+  <div class="sd-intro"><p class="sd-kicker">LE RETOUR DE VOTRE FORMATEUR</p><h1>{{ participantName }}</h1><p class="sd-subtitle">{{ template.titre|default('Questionnaire') }}</p>
+  <div class="sd-context"><span><i class="bi bi-mortarboard" aria-hidden="true"></i> {{ session.formation.titre|default('Formation') }}</span><span><i class="bi bi-calendar3" aria-hidden="true"></i> {{ session.code }}</span></div></div>
+  <div class="sd-overall"><span class="sd-kicker">SATISFACTION GLOBALE</span><div class="sd-rating">{{ attempt.noteGlobale is not null ? attempt.noteGlobale : '—' }}</div><span class="sd-score-caption">{{ attempt.noteGlobale is not null ? 'Note attribuée par le formateur' : 'Note non renseignée' }}</span></div>
+  <div class="sd-hero-footer"><span><i class="bi bi-clock-history" aria-hidden="true"></i> {{ attempt.submittedAt ? 'Complété le ' ~ attempt.submittedAt|date('d/m/Y à H:i') : 'Ce questionnaire n’a pas encore été soumis' }}</span><span><i class="bi bi-lock" aria-hidden="true"></i> Consultation uniquement</span></div>
+</header>
+<section class="sd-summary sd-summary--trainer" aria-label="Recommandation du formateur">
+  <div class="sd-metric"><div class="sd-metric-label"><i class="bi bi-hand-thumbs-up" aria-hidden="true"></i><span>Recommandation</span></div><strong>{{ attempt.recommendationScore is not null ? attempt.recommendationScore : '—' }}</strong></div>
+  <div class="sd-summary-note"><span class="sd-note-icon"><i class="bi bi-chat-square-quote" aria-hidden="true"></i></span><div><strong>Un retour pour améliorer vos formations</strong><p>{{ attempt.recommendationScore is not null ? 'Retrouvez ci-dessous les appréciations et les commentaires du formateur.' : 'Note de recommandation non renseignée. Les réponses détaillées restent disponibles ci-dessous.' }}</p></div></div>
+</section>
+<div class="sd-section-title"><div><p class="sr-eyebrow">LE DÉTAIL DU RETOUR</p><h2>Notes & commentaires</h2></div><span>Les réponses du formateur, rubrique par rubrique.</span></div>
 {% include 'administrateur/questionnaire/_answers.html.twig' with {trainerQuestionnaire: true} %}
-{% if attempt.objectiveEvaluations|length %}<section class="sr-panel sr-chapter"><header class="sr-panel-head"><h2>Acquisition des objectifs par stagiaire</h2></header>{% for evaluation in attempt.objectiveEvaluations %}<article class="sr-answer"><p class="sr-eyebrow">{{ evaluation.stagiaire.prenom }} {{ evaluation.stagiaire.nom }}</p><h3>{{ evaluation.objective.label }}</h3><span class="sr-score">{{ evaluation.level ? evaluation.level.label : 'Non renseigné' }}</span>{% if evaluation.comment %}<p class="sr-text mt-3">{{ evaluation.comment }}</p>{% endif %}</article>{% endfor %}</section>{% endif %}
-<p class="sr-muted">Les réponses sont celles enregistrées par le participant. Les intitulés proviennent du modèle actuel du questionnaire.</p>
+{% if attempt.objectiveEvaluations|length %}<section class="sr-panel sr-chapter"><header class="sr-panel-head"><h2>Acquisition des objectifs par stagiaire</h2></header>{% for evaluation in attempt.objectiveEvaluations %}<article class="sr-answer sd-objective"><p class="sr-eyebrow">{{ evaluation.stagiaire.prenom }} {{ evaluation.stagiaire.nom }}</p><h3>{{ evaluation.objective.label }}</h3><span class="sr-score">{{ evaluation.level ? evaluation.level.label : 'Non renseigné' }}</span>{% if evaluation.comment %}<p class="sr-text mt-3">{{ evaluation.comment }}</p>{% endif %}</article>{% endfor %}</section>{% endif %}
+<p class="sr-muted">Les réponses sont celles enregistrées par le formateur. Les intitulés proviennent du modèle actuel du questionnaire.</p>
 </div>{% endblock %}

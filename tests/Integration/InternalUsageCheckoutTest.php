@@ -268,16 +268,27 @@ final class InternalUsageCheckoutTest extends KernelTestCase
         $this->start();
     }
 
-    public function testOldNewFormatRequestStillNeedsReconciliationAfterIdempotencyWindow(): void
+    public function testOldNewFormatRequestRenewsAfterRemoteReconciliation(): void
     {
         $setup = $this->expiredLegacySetup();
         unset($setup->request['checkout']['expires_at']);
         $this->em->flush();
-        $http = $this->createMock(ClientInterface::class);
-        $http->expects(self::never())->method('request');
-        ApiRequestor::setHttpClient($http);
-        $this->expectException(\DomainException::class);
-        $this->start();
+        $this->mockStripe(fn($params) => self::sessionResponse($params),
+            sessions: ['object' => 'list', 'data' => [], 'has_more' => false]);
+        self::assertSame('https://checkout.stripe.com/c/pay/fixture', $this->start());
+        self::assertCount(1, $setup->request['checkout_history']);
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unsafeLegacyHistories')]
+    public function testOldNewFormatRequestRefusesAmbiguousRemoteHistory(array $history): void
+    {
+        $setup = $this->expiredLegacySetup();
+        unset($setup->request['checkout']['expires_at']);
+        $this->em->flush();
+        $before = $setup->request;
+        $this->mockStripe(static fn() => self::fail('Must not create checkout'), sessions: $history);
+        try { $this->start(); self::fail('Expected reconciliation block'); }
+        catch (\DomainException) { self::assertSame($before, $setup->request); }
     }
 
     public function testStripeValidationFailureLogsSafeDiagnosticsAndKeepsTheCause(): void
