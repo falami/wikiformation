@@ -337,6 +337,15 @@ final class PublicController extends AbstractController
                     ->replyTo((string) $data['email'])
                     ->to($recipient)
                     ->subject('Nouveau message de contact — ' . $data['nom'])
+                    ->html($this->renderView('emails/contact_notification.html.twig', [
+                        'organisation' => $this->publicContext->getPublicHost()?->getEntite()?->getNom() ?: 'WikiFormation',
+                        'contactName' => (string) $data['nom'],
+                        'contactEmail' => (string) $data['email'],
+                        'message' => (string) $data['message'],
+                        'sourceHost' => $request->getHost(),
+                        'receivedAt' => new \DateTimeImmutable(),
+                        'theme' => $this->publicContext->getContactEmailTheme(),
+                    ]))
                     ->text(
                         "Site : {$request->getHost()}\n" .
                         "Nom : {$data['nom']}\n" .

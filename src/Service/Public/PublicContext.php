@@ -117,6 +117,30 @@ final class PublicContext
         return true;
     }
 
+    public function getContactEmailTheme(): array
+    {
+        $host = $this->getPublicHost();
+        $entity = $host?->getEntite();
+        $normalize = static function (?string $value, string $fallback): string {
+            $value = trim((string) $value);
+            if (preg_match('/^#[0-9a-f]{3}$/i', $value)) {
+                return '#' . $value[1] . $value[1] . $value[2] . $value[2] . $value[3] . $value[3];
+            }
+            return preg_match('/^#[0-9a-f]{6}$/i', $value) ? $value : $fallback;
+        };
+        $primary = $normalize($entity?->getCouleurPrincipal(), $normalize($host?->getPrimaryColor(), '#142b39'));
+        $accent = $normalize($entity?->getCouleurSecondaire(), $normalize($host?->getSecondaryColor(), '#e7bd63'));
+        $contrast = static function (string $color): string {
+            $channels = array_map(static function (string $channel): float {
+                $value = hexdec($channel) / 255;
+                return $value <= 0.04045 ? $value / 12.92 : (($value + 0.055) / 1.055) ** 2.4;
+            }, str_split(substr($color, 1), 2));
+            $luminance = 0.2126 * $channels[0] + 0.7152 * $channels[1] + 0.0722 * $channels[2];
+            return $luminance > 0.179 ? '#000000' : '#ffffff';
+        };
+        return ['primary' => $primary, 'accent' => $accent, 'onPrimary' => $contrast($primary), 'onAccent' => $contrast($accent)];
+    }
+
     public function getBranding(): array
     {
         $host = $this->getPublicHost();

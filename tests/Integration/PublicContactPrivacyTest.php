@@ -120,7 +120,7 @@ final class PublicContactPrivacyTest extends KernelTestCase
     {
         $em = self::getContainer()->get('doctrine')->getManager();
         $user = (new \App\Entity\Utilisateur())->setEmail('owner@example.test')->setPassword('unused')->setNom('Test')->setPrenom('Owner');
-        $organisation = (new \App\Entity\Entite())->setNom('Organisme test')->setCreateur($user)->setPublic(false)->setEmail('organisation@example.test');
+        $organisation = (new \App\Entity\Entite())->setNom('Organisme test')->setCreateur($user)->setPublic(false)->setCouleurPrincipal('#abcdef')->setCouleurSecondaire('#123456')->setEmail('organisation@example.test');
         $host = (new \App\Entity\PublicHost())->setHost('training.example.test')->setName('Organisme test')->setEntite($organisation)->setCalendarEnabled(false);
         foreach ([$user, $organisation, $host] as $entity) $em->persist($entity);
         $em->flush();
@@ -129,7 +129,7 @@ final class PublicContactPrivacyTest extends KernelTestCase
         self::assertCount(1, $crawler->filter('form.footer-form'));
         $data = [
             'nom' => 'Visiteur', 'email' => 'visitor@example.test',
-            'message' => 'Je souhaite des informations sur vos formations.',
+            'message' => "Je souhaite des informations.\n<script>alert(1)</script>",
             'website' => '', 'startedAt' => (string) (time() - 3),
             '_token' => $crawler->filter('input[name="contact[_token]"]')->attr('value'),
         ];
@@ -138,6 +138,17 @@ final class PublicContactPrivacyTest extends KernelTestCase
         self::assertCount(1, $this->messages);
         self::assertSame('organisation@example.test', $this->messages[0]->getTo()[0]->getAddress());
         self::assertSame('visitor@example.test', $this->messages[0]->getReplyTo()[0]->getAddress());
+        $html = $this->messages[0]->getHtmlBody();
+        self::assertStringContainsString('Organisme test', $html);
+        self::assertStringContainsString('background-color:#abcdef', $html);
+        self::assertStringContainsString('bgcolor="#123456"', $html);
+        self::assertStringContainsString('color:#000000', $html);
+        self::assertStringContainsString('mailto:visitor@example.test', $html);
+        self::assertStringContainsString('Répondre au contact', $html);
+        self::assertStringContainsString('&lt;script&gt;', $html);
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringContainsString('<br', $html);
+        self::assertStringContainsString($data['message'], $this->messages[0]->getTextBody());
         $this->client->followRedirect();
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertStringContainsString('alert-success', $this->client->getResponse()->getContent());
