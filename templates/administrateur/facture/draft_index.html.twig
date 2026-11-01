@@ -1,0 +1,37 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Brouillons de factures{% endblock %}
+{% block stylesheets %}{{ parent() }}{% include 'administrateur/facture/_draft_styles.html.twig' %}{% endblock %}
+{% block body %}
+<div class="invoice-workspace">
+  <nav class="iw-tabs" aria-label="Facturation">
+    <a href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"><i class="bi bi-receipt me-2" aria-hidden="true"></i>Factures émises</a>
+    <a aria-current="page" href="{{ path('app_administrateur_facture_draft_index', {entite: entite.id}) }}"><i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Brouillons</a>
+  </nav>
+  <header class="iw-hero">
+    <div><div class="iw-eyebrow">Comptabilité · Préparation</div><h1>Vos factures, avant émission.</h1><p>Préparez, enregistrez et relisez vos factures. Vous gardez la main jusqu’à leur émission définitive.</p></div>
+    <a class="iw-btn iw-btn-primary" href="{{ path('app_administrateur_facture_new', {entite: entite.id}) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouveau brouillon</a>
+  </header>
+  {% include 'flagMessage.html.twig' %}
+  <div class="iw-notice" role="note"><i class="bi bi-shield-check" aria-hidden="true"></i><div><strong>Un espace de travail, sans émission de facture.</strong><p>Les brouillons n’ont pas de numéro définitif et ne sont pas comptabilisés dans vos factures émises. Ils ne déclenchent aucun envoi au client.</p></div></div>
+  <section class="iw-card" aria-labelledby="draft-list-heading">
+    <div class="iw-card-head"><h2 id="draft-list-heading">{{ archived|default(false) ? 'Brouillons archivés' : 'Brouillons à préparer' }}</h2><a class="iw-btn" href="{{ path('app_administrateur_facture_draft_index', {entite: entite.id, archived: archived|default(false) ? 0 : 1}) }}"><i class="bi bi-archive" aria-hidden="true"></i>{{ archived|default(false) ? 'Voir les brouillons actifs' : 'Voir les archives' }}</a></div>
+    {% if rows|length %}
+      <div class="iw-table-wrap"><table><thead><tr><th>Référence interne</th><th>Client et prestation</th><th>Dernière modification</th><th class="iw-number">Total TTC indicatif</th><th>Actions</th></tr></thead><tbody>
+      {% for row in rows %}
+        {% set draft = row.draft %}
+        <tr>
+          <td><span class="iw-row-title">{{ draft.reference }}</span><span class="iw-tag {{ archived|default(false) ? 'iw-tag-neutral' : '' }}">{{ archived|default(false) ? 'Archivé' : 'Brouillon' }} · v{{ draft.version }}</span></td>
+          <td><span class="iw-row-title">{{ row.clientLabel|default('Client à renseigner', true) }}</span><span class="iw-muted">{{ row.label|default('Prestation à renseigner', true) }}</span></td>
+          <td>{{ draft.updatedAt|date('d/m/Y') }}<br><span class="iw-muted">{{ draft.updatedAt|date('H:i') }}</span></td>
+          <td class="iw-number">{% if row.totalTtcCents is not null %}<strong>{{ (row.totalTtcCents / 100)|number_format(2, ',', ' ') }} €</strong>{% else %}<span class="iw-muted">À compléter</span>{% endif %}</td>
+          <td>{% if not archived|default(false) %}<div class="iw-actions"><a class="iw-btn" href="{{ path('app_administrateur_facture_draft_edit', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i>Reprendre</a><a class="iw-btn" href="{{ path('app_administrateur_facture_draft_review', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-eye" aria-hidden="true"></i>Vérifier</a></div>{% else %}<form method="post" action="{{ path('app_administrateur_facture_draft_restore', {entite: entite.id, draftId: draft.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('invoice_draft_restore_' ~ draft.id) }}"><input type="hidden" name="version" value="{{ draft.version }}"><button class="iw-btn" type="submit"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button></form>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody></table></div>
+      <div class="iw-pagination"><span class="iw-muted">Page {{ page|default(1) }} · Références internes, sans valeur de facture</span><div class="iw-actions">{% if page|default(1) > 1 %}<a class="iw-btn" href="{{ path('app_administrateur_facture_draft_index', {entite: entite.id, page: page - 1, archived: archived|default(false) ? 1 : 0}) }}">Précédente</a>{% endif %}{% if hasNext|default(false) %}<a class="iw-btn" href="{{ path('app_administrateur_facture_draft_index', {entite: entite.id, page: page|default(1) + 1, archived: archived|default(false) ? 1 : 0}) }}">Suivante</a>{% endif %}</div></div>
+    {% else %}
+      <div class="iw-empty"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><h2>{{ archived|default(false) ? 'Aucun brouillon archivé' : 'Votre prochain brouillon commence ici' }}</h2><p>{{ archived|default(false) ? 'Les brouillons que vous archivez restent séparés des factures émises.' : 'Préparez une facture directement, sans passer par un devis. Vous pourrez la corriger avant de confirmer son émission.' }}</p>{% if not archived|default(false) %}<a class="iw-btn iw-btn-primary" href="{{ path('app_administrateur_facture_new', {entite: entite.id}) }}">Créer un brouillon</a>{% endif %}</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

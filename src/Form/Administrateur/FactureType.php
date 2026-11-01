@@ -149,28 +149,39 @@ class FactureType extends AbstractType
             ->add('dateEmission', TextType::class, [
                 'label' => '*Date d’émission',
                 'attr'  => ['class' => 'form-control flatpickr-date', 'placeholder' => 'jj/mm/aaaa'],
+                'constraints' => [new \Symfony\Component\Validator\Constraints\NotNull(message: 'Renseignez la date d’émission.')],
+                'setter' => static function (Facture $invoice, ?\DateTimeImmutable $date): void {
+                    if ($date !== null) $invoice->setDateEmission($date);
+                },
             ])
 
             ->add('devise', CurrencyType::class, [
                 'label' => '*Devise',
                 'choices' => ['Euro' => 'EUR'],
                 'data' => 'EUR',
+                'setter' => static function (Facture $invoice, ?string $currency): void {
+                    if ($currency !== null) $invoice->setDevise($currency);
+                },
+                'constraints' => [new \Symfony\Component\Validator\Constraints\NotBlank()],
                 'attr' => ['class' => 'form-select'],
             ])
 
             ->add('montantHtCents', MoneyType::class, [
+                'mapped' => !$opt['draft_mode'],
                 'label' => 'Montant HT',
                 'divisor' => 100,
                 'currency' => false,
                 'attr' => ['class' => 'form-control text-end', 'placeholder' => '0,00'],
             ])
             ->add('montantTvaCents', MoneyType::class, [
+                'mapped' => !$opt['draft_mode'],
                 'label' => 'Montant TVA',
                 'divisor' => 100,
                 'currency' => false,
                 'attr' => ['class' => 'form-control text-end', 'placeholder' => '0,00'],
             ])
             ->add('montantTtcCents', MoneyType::class, [
+                'mapped' => !$opt['draft_mode'],
                 'label' => 'Montant TTC',
                 'divisor' => 100,
                 'currency' => false,
@@ -183,12 +194,15 @@ class FactureType extends AbstractType
                 'help' => 'L’état de paiement est calculé à partir des encaissements. Une correction de montant nécessite un avoir.',
                 'choice_label' => fn(FactureStatus $s) => $s->label(),
                 'choice_value' => fn(?FactureStatus $s) => $s?->value,
+                'setter' => static function (Facture $invoice, ?FactureStatus $status): void {
+                    if ($status !== null) $invoice->setStatus($status);
+                },
                 'attr' => ['class' => 'form-select'],
             ])
 
             ->add('lignes', CollectionType::class, [
                 'entry_type' => LigneFactureType::class,
-                'entry_options' => ['label' => false],
+                'entry_options' => ['label' => false, 'draft_mode' => $opt['draft_mode']],
                 'allow_add' => true,
                 'allow_delete' => true,
                 'by_reference' => false,
@@ -237,7 +251,9 @@ class FactureType extends AbstractType
         $r->setDefaults([
             'data_class' => Facture::class,
             'entite' => null, // IMPORTANT pour le query_builder
+            'draft_mode' => false,
         ]);
+        $r->setAllowedTypes('draft_mode', 'bool');
 
         $r->setAllowedTypes('entite', ['null', Entite::class, 'int']);
     }

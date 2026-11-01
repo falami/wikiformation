@@ -43,6 +43,26 @@
     return ink;
   }
 
+  // Keep the saved position in memory until the new menu has been restored.
+  // Layout/scroll events during startup must not replace it with zero.
+  function scrollMemory(scroll, read, write, fallback) {
+    var saved = read();
+    var target = saved === null ? NaN : Number(saved);
+    var ready = false;
+    return {
+      restore: function () {
+        if (!Number.isFinite(target) || target < 0) target = fallback();
+        scroll.scrollTop = target;
+        ready = true;
+      },
+      save: function () {
+        if (!ready) return;
+        target = scroll.scrollTop;
+        write(String(target));
+      }
+    };
+  }
+
   function init(doc, win) {
     var sidebar = doc.getElementById('workspaceSidebar');
     if (!sidebar || sidebar.dataset.navigationReady === 'true') return;
@@ -137,17 +157,22 @@
     }
     var activeLink = markCurrentPage();
 
+    var scrollState = scrollMemory(scroll,
+      function () { return read('sessionStorage', 'scroll'); },
+      function (value) { write('sessionStorage', 'scroll', value); },
+      function () { return activeLink ? Math.max(0, scroll.scrollTop + activeLink.getBoundingClientRect().top - scroll.getBoundingClientRect().top - scroll.clientHeight / 3) : 0; });
+    var restoringScroll = true;
     function restoreScroll() {
-      var saved = read('sessionStorage', 'scroll');
-      var value = saved === null ? NaN : Number(saved);
-      if (Number.isFinite(value) && value >= 0) scroll.scrollTop = value;
-      else if (activeLink) scroll.scrollTop = Math.max(0, scroll.scrollTop + activeLink.getBoundingClientRect().top - scroll.getBoundingClientRect().top - scroll.clientHeight / 3);
+      restoringScroll = true;
+      scrollState.restore();
+      win.requestAnimationFrame(function () { restoringScroll = false; });
     }
-    function saveScroll() { if (!searchSnapshot) write('sessionStorage', 'scroll', String(scroll.scrollTop)); }
+    function saveScroll() { if (!searchSnapshot && !restoringScroll) scrollState.save(); }
     listen(scroll, 'scroll', saveScroll, { passive: true });
     listen(tree, 'click', saveScroll, true);
     listen(win, 'pagehide', saveScroll);
-    listen(win, 'pageshow', restoreScroll);
+    listen(win, 'pageshow', function (event) { if (event.persisted) restoreScroll(); });
+    restoreScroll();
     win.requestAnimationFrame(restoreScroll);
 
     function focusables() {
@@ -292,6 +317,7 @@
         var group = groups.find(function (candidate) { return candidate.button === button; });
         if (!group) return;
         event.preventDefault(); event.stopPropagation();
+        saveScroll();
         setGroup(group, !group.panel.classList.contains('show'), !searchSnapshot);
       }
     }, true);
@@ -326,6 +352,7 @@
     applyContrast();
     listen(doc, 'theme:change', applyContrast);
     listen(doc, 'turbo:before-cache', function () {
+      saveScroll();
       closeDrawer(false);
       listeners.forEach(function (remove) { remove(); });
       delete sidebar.dataset.navigationReady;
@@ -333,5 +360,5 @@
     return { applyContrast: applyContrast, filter: filterNavigation, close: closeDrawer };
   }
 
-  return { init: init, normalize: normalize, contrast: contrast, readableInk: readableInk, readableAccent: readableAccent };
+  return { init: init, scrollMemory: scrollMemory, normalize: normalize, contrast: contrast, readableInk: readableInk, readableAccent: readableAccent };
 });

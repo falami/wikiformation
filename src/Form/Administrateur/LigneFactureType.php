@@ -15,6 +15,11 @@ class LigneFactureType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $b, array $opt): void
     {
+        if ($opt['draft_mode']) {
+            $b->addEventListener(\Symfony\Component\Form\FormEvents::PRE_SET_DATA, static function (\Symfony\Component\Form\FormEvent $event): void {
+                if ($event->getData() === null) $event->setData((new LigneFacture())->setQte(1)->setPuHtCents(0));
+            });
+        }
         $b
             ->add('label', TextareaType::class, [
                 'label' => '*Libellé / Détails',
@@ -25,8 +30,9 @@ class LigneFactureType extends AbstractType
                 ],
                 'constraints' => [
                     new Length(max: 2000),
-                    // optionnel: new NotBlank()
+                    new \Symfony\Component\Validator\Constraints\NotBlank(message: 'Renseignez la désignation de la prestation.'),
                 ],
+                'setter' => static function (LigneFacture $line, ?string $label): void { $line->setLabel($label ?? ''); },
             ])
 
 
@@ -36,13 +42,15 @@ class LigneFactureType extends AbstractType
                 'empty_data' => '1',
                 'attr' => ['class' => 'form-control', 'min' => 1, 'step' => 1, 'inputmode' => 'numeric'],
                 'constraints' => [new Positive()],
+                'setter' => static function (LigneFacture $line, ?int $quantity): void { if ($quantity !== null) $line->setQte($quantity); },
             ])
             ->add('puHtCents', MoneyType::class, [
                 'label' => 'PU HT',
                 'divisor' => 100,
                 'currency' => false,
                 'attr' => ['class' => 'form-control', 'placeholder' => '0,00'],
-                'constraints' => [new GreaterThanOrEqual(0)],
+                'constraints' => [new GreaterThanOrEqual(0), new \Symfony\Component\Validator\Constraints\NotNull(message: 'Renseignez le prix unitaire HT.')],
+                'setter' => static function (LigneFacture $line, ?int $amount): void { if ($amount !== null) $line->setPuHtCents($amount); },
             ])
             ->add('tvaBp', ChoiceType::class, [
                 'label' => 'TVA %',
@@ -56,6 +64,7 @@ class LigneFactureType extends AbstractType
                 'required' => true,          // 👈 conseillé
                 'empty_data' => '2000',      // 👈 IMPORTANT : ChoiceType renvoie une string
                 'attr' => ['class' => 'form-select'],
+                'setter' => static function (LigneFacture $line, ?int $rate): void { if ($rate !== null) $line->setTvaBp($rate); },
             ])
 
 
@@ -83,6 +92,7 @@ class LigneFactureType extends AbstractType
 
     public function configureOptions(OptionsResolver $r): void
     {
-        $r->setDefaults(['data_class' => LigneFacture::class]);
+        $r->setDefaults(['data_class' => LigneFacture::class, 'draft_mode' => false]);
+        $r->setAllowedTypes('draft_mode', 'bool');
     }
 }

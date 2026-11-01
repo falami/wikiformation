@@ -35,3 +35,28 @@ test('l’accent est adapté lorsqu’il se confond avec le fond du menu', () =>
     assert.ok(accent.every(channel => channel >= 0 && channel <= 255));
   }
 });
+
+test('le chargement du menu ne remplace pas la position précédente par zéro', () => {
+  const scroll = { scrollTop: 0 };
+  let saved = '940';
+  const state = navigation.scrollMemory(scroll, () => saved, value => { saved = value; }, () => 120);
+  state.save(); // Scroll/layout event before restoration.
+  assert.equal(saved, '940');
+  state.restore();
+  assert.equal(scroll.scrollTop, 940);
+  scroll.scrollTop = 1080;
+  state.save();
+  assert.equal(saved, '1080');
+  scroll.scrollTop = 0; // Returning from the browser cache.
+  state.restore();
+  assert.equal(scroll.scrollTop, 1080);
+});
+
+test('une position en haut est conservée et une position invalide utilise la rubrique active', () => {
+  for (const [saved, expected] of [['0', 0], [null, 300], ['invalid', 300], ['-1', 300]]) {
+    const scroll = { scrollTop: 0 };
+    const state = navigation.scrollMemory(scroll, () => saved, () => {}, () => 300);
+    state.restore();
+    assert.equal(scroll.scrollTop, expected);
+  }
+});

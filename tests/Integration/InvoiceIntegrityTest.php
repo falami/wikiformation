@@ -201,18 +201,26 @@ final class InvoiceIntegrityTest extends KernelTestCase
         $url = self::getContainer()->get('router')->generate('app_administrateur_facture_new', ['entite' => $this->entite->getId()]);
         $crawler = $client->request('GET', $url);
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        $client->request('POST', $url, ['facture' => [
-            '_token' => $crawler->filter('input[name="facture[_token]"]')->attr('value'),
+        $client->request('POST', $url, ['_draft_token' => $crawler->filter('input[name="_draft_token"]')->attr('value'),
+            '_draft_version' => '1', 'draft_action' => 'review', 'facture' => [
             'destinataire' => $this->admin->getId(), 'dateEmission' => '08/10/2026', 'devise' => 'EUR', 'status' => 'due',
             'montantHtCents' => '999', 'montantTvaCents' => '999', 'montantTtcCents' => '999',
             'remiseGlobaleMontantCents' => '1,00',
-            'invoiceTerms' => ['serviceDate' => '2026-10-07'],
+            'invoiceTerms' => ['serviceDate' => '2026-10-07', 'dueDate' => '2026-11-07', 'paymentMeans' => 'Virement',
+                'earlyPaymentDiscount' => 'Aucun', 'legalIdentity' => 'Identité juridique test', 'vatCategory' => 'S', 'vatOnDebits' => '0'],
             'lignes' => [
                 ['label' => 'Formation A', 'qte' => 1, 'puHtCents' => '10,00', 'tvaBp' => 2000],
                 ['label' => 'Formation B', 'qte' => 1, 'puHtCents' => '10,00', 'tvaBp' => 550],
             ],
         ]]);
-        self::assertSame(302, $client->getResponse()->getStatusCode(), substr(strip_tags($client->getResponse()->getContent()), -2000));
+        self::assertContains($client->getResponse()->getStatusCode(), [302, 303], substr(strip_tags($client->getResponse()->getContent()), -2000));
+        self::assertNull($this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-NEW-1']), 'Saving a draft must not issue the invoice.');
+        $review = $client->followRedirect();
+        self::assertSame(200, $client->getResponse()->getStatusCode(), strip_tags($client->getResponse()->getContent()));
+        $confirmation = $review->filter('#invoice-draft-issue')->form();
+        $confirmation['confirm_issue'] = '1';
+        $client->submit($confirmation);
+        self::assertContains($client->getResponse()->getStatusCode(), [302, 303]);
         $invoice = $this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-NEW-1']);
         self::assertNotNull($invoice);
         self::assertSame(1900, $invoice->getMontantHtCents());
@@ -255,9 +263,16 @@ final class InvoiceIntegrityTest extends KernelTestCase
         self::assertNull($quote->getFactureCreee(), 'Conversion must open an editable draft before issuance.');
         self::assertNull($this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-NEW-1']));
         $page = $client->followRedirect();
+        while ($client->getResponse()->isRedirect()) $page = $client->followRedirect();
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        $client->submit($page->selectButton('Valider et émettre la facture')->form());
-        self::assertSame(302, $client->getResponse()->getStatusCode(), strip_tags($client->getResponse()->getContent()));
+        $client->submit($page->selectButton('Vérifier avant émission')->form());
+        self::assertContains($client->getResponse()->getStatusCode(), [302, 303], strip_tags($client->getResponse()->getContent()));
+        $review = $client->followRedirect();
+        self::assertSame(200, $client->getResponse()->getStatusCode(), strip_tags($client->getResponse()->getContent()));
+        $confirmation = $review->filter('#invoice-draft-issue')->form();
+        $confirmation['confirm_issue'] = '1';
+        $client->submit($confirmation);
+        self::assertContains($client->getResponse()->getStatusCode(), [302, 303], strip_tags($client->getResponse()->getContent()));
         $invoice = $this->em->getRepository(Facture::class)->findOneBy(['numero' => 'FAC-NEW-1']);
         self::assertNotNull($invoice);
         self::assertSame(10800, $invoice->getTtcTotalCents());

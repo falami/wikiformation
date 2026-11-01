@@ -1,0 +1,114 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Vérifier le brouillon {{ draft.reference }}{% endblock %}
+{% block stylesheets %}{{ parent() }}{% include 'administrateur/facture/_draft_styles.html.twig' %}{% endblock %}
+{% block body %}
+{% set customer = snapshot.customer|default({}) %}
+{% set issuer = snapshot.issuer|default({}) %}
+{% set terms = snapshot.terms|default({}) %}
+{% set money = totals|default(snapshot.totals|default({})) %}
+{% set clientName = customer.type|default('person') == 'company' ? customer.raisonSociale|default('Client à renseigner', true) : ((customer.prenom|default('') ~ ' ' ~ customer.nom|default(''))|trim ?: 'Client à renseigner') %}
+{% set issueCount = issues|default([])|length %}
+<div class="invoice-workspace">
+  <header class="iw-hero">
+    <div><div class="iw-eyebrow">Comptabilité · Relecture</div><h1>Vérifiez, puis émettez.</h1><p>Relisez le destinataire, les prestations et les montants. Votre facture reste modifiable jusqu’à votre confirmation définitive.</p></div>
+    <div class="iw-actions"><a class="iw-btn iw-btn-quiet" href="{{ path('app_administrateur_facture_draft_edit', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier le brouillon</a><a class="iw-btn iw-btn-primary" href="{{ path('app_administrateur_facture_draft_index', {entite: entite.id}) }}">Mes brouillons</a></div>
+  </header>
+  <ol class="iw-steps" aria-label="Étapes de préparation"><li><span>01</span>Brouillon enregistré</li><li aria-current="step"><span>02</span>Vérification</li><li><span>03</span>Émission définitive</li></ol>
+  {% include 'flagMessage.html.twig' %}
+  {% if issueCount %}
+    <div class="iw-notice iw-notice-error" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i><div><strong>{{ issueCount }} point{{ issueCount > 1 ? 's' : '' }} à corriger avant émission</strong><ul>{% for issue in issues %}<li>{{ issue }}</li>{% endfor %}</ul><a class="iw-btn mt-3" href="{{ path('app_administrateur_facture_draft_edit', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i>Corriger le brouillon</a></div></div>
+  {% endif %}
+  {% if warnings|default([])|length %}
+    <div class="iw-notice iw-notice-warning" role="note"><i class="bi bi-eye" aria-hidden="true"></i><div><strong>Points d’attention à relire</strong><ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div></div>
+  {% endif %}
+  <div class="iw-grid">
+    <div>
+      <section class="iw-card" aria-labelledby="invoice-preview-title">
+        <div class="iw-card-head"><h2 id="invoice-preview-title">Votre facture en préparation</h2><span class="iw-tag">Brouillon · Non émis</span></div>
+        <div class="iw-card-body">
+          <div class="iw-parties">
+            <div><div class="iw-caption">Émetteur</div><h3>{{ issuer.nom|default(entite.nom) }}</h3><address>{{ issuer.adresse|default(entite.adresse)|default('Adresse à renseigner', true) }}{% if issuer.complement|default('') %}<br>{{ issuer.complement }}{% endif %}<br>{{ issuer.codePostal|default(entite.codePostal) }} {{ issuer.ville|default(entite.ville) }}{% if issuer.pays|default('') %}<br>{{ issuer.pays }}{% endif %}</address>{% if issuer.siret|default('') %}<div class="iw-muted mt-2">SIRET : {{ issuer.siret }}</div>{% endif %}{% if issuer.numeroTva|default('') %}<div class="iw-muted">TVA : {{ issuer.numeroTva }}</div>{% endif %}</div>
+            <div><div class="iw-caption">Destinataire</div><h3>{{ clientName }}</h3><address>{{ customer.adresse|default('Adresse à renseigner', true) }}{% if customer.complement|default('') %}<br>{{ customer.complement }}{% endif %}<br>{{ customer.codePostal|default('') }} {{ customer.ville|default('') }}{% if customer.pays|default('') %}<br>{{ customer.pays }}{% endif %}</address>{% if customer.emailFacturation|default(customer.email|default('')) %}<div class="iw-muted mt-2">{{ customer.emailFacturation|default(customer.email|default(''), true) }}</div>{% endif %}{% if customer.siret|default('') %}<div class="iw-muted">SIRET : {{ customer.siret }}</div>{% endif %}{% if customer.numeroTva|default('') %}<div class="iw-muted">TVA : {{ customer.numeroTva }}</div>{% endif %}</div>
+          </div>
+          <hr class="iw-rule">
+          <div class="iw-facts">
+            <div><span class="iw-muted">Émission prévue</span><strong>{{ facture.dateEmission ? facture.dateEmission|date('d/m/Y') : 'À renseigner' }}</strong></div>
+            <div><span class="iw-muted">Date de prestation</span><strong>{{ terms.serviceDate|default(null) ? terms.serviceDate|date('d/m/Y') : 'À renseigner' }}</strong></div>
+            <div><span class="iw-muted">Échéance</span><strong>{{ terms.dueDate|default(null) ? terms.dueDate|date('d/m/Y') : 'À renseigner' }}</strong></div>
+          </div>
+        </div>
+        <div class="iw-table-wrap"><table><thead><tr><th>Prestation</th><th class="iw-number">Quantité</th><th class="iw-number">Prix unitaire HT</th><th class="iw-number">TVA</th><th class="iw-number">Total HT net</th></tr></thead><tbody>
+          {% for line in facture.lignes %}
+            <tr><td class="iw-line-label">{{ line.label|default('Libellé à renseigner', true)|nl2br }}{% if line.debours %}<br><span class="iw-tag iw-tag-neutral">Débours</span>{% endif %}{% if line.remiseCents > 0 %}<div class="iw-muted">Remise : {{ (line.remiseCents / 100)|number_format(2, ',', ' ') }} €</div>{% endif %}</td><td class="iw-number">{{ line.qte }}</td><td class="iw-number">{{ (line.puHtCents / 100)|number_format(2, ',', ' ') }} €</td><td class="iw-number">{{ line.tva|number_format(2, ',', ' ') }} %</td><td class="iw-number"><strong>{{ ((money.lines[loop.index0].htCents ?? line.totalHtNetCents) / 100)|number_format(2, ',', ' ') }} €</strong></td></tr>
+          {% else %}<tr><td colspan="5" class="iw-muted">Ajoutez au moins une prestation à votre brouillon.</td></tr>{% endfor %}
+        </tbody></table></div>
+        <div class="iw-card-body">
+          {% if money.globalDiscountCents|default(0) > 0 %}<p class="iw-muted">La remise globale est répartie sur les lignes. Les montants HT nets et la TVA ci-dessus en tiennent compte.</p>{% endif %}
+          <div class="iw-totals">
+            {% if money.lineDiscountCents|default(0) > 0 %}<div><span>Remises sur les lignes</span><strong>− {{ (money.lineDiscountCents / 100)|number_format(2, ',', ' ') }} €</strong></div>{% endif %}
+            {% if money.globalDiscountCents|default(0) > 0 %}<div><span>Remise globale</span><strong>− {{ (money.globalDiscountCents / 100)|number_format(2, ',', ' ') }} €</strong></div>{% endif %}
+            <div><span>Total HT</span><strong>{{ (money.htCents|default(0) / 100)|number_format(2, ',', ' ') }} €</strong></div>
+            {% for rate, vat in money.rates|default({}) %}<div><span>TVA {{ rate|number_format(2, ',', ' ') }} %</span><strong>{{ (vat.tvaCents / 100)|number_format(2, ',', ' ') }} €</strong></div>{% else %}<div><span>TVA</span><strong>{{ (money.tvaCents|default(0) / 100)|number_format(2, ',', ' ') }} €</strong></div>{% endfor %}
+            <div class="iw-total"><span>Total TTC</span><strong>{{ (money.ttcCents|default(0) / 100)|number_format(2, ',', ' ') }} €</strong></div>
+          </div>
+          <hr class="iw-rule">
+          <div class="iw-terms"><h3>Conditions et mentions</h3>
+            <p><strong>Règlement :</strong> {{ terms.paymentMeans|default('À renseigner', true) }}</p>
+            {% if terms.purchaseOrderReference|default('') %}<p><strong>Bon de commande :</strong> {{ terms.purchaseOrderReference }}</p>{% endif %}
+            <p><strong>Escompte :</strong> {{ terms.earlyPaymentDiscount|default('À renseigner', true) }}</p>
+            {% if customer.type|default('person') == 'company' %}<p><strong>Pénalités de retard :</strong> {{ terms.latePaymentPenalty|default('À renseigner', true) }}</p><p><strong>Indemnité forfaitaire de recouvrement :</strong> {{ (terms.recoveryCompensationCents ?? null) is not null ? (terms.recoveryCompensationCents / 100)|number_format(2, ',', ' ') ~ ' €' : 'À renseigner' }}</p>{% endif %}
+            {% if terms.vatExemptionReason|default('') %}<p>{{ terms.vatExemptionReason|nl2br }}</p>{% endif %}{% if terms.vatOnDebits|default(false) %}<p>TVA acquittée d’après les débits.</p>{% endif %}
+            {% if terms.legalIdentity|default('') %}<p>{{ terms.legalIdentity|nl2br }}</p>{% endif %}
+            {% if facture.meta.note|default('') %}<p>{{ facture.meta.note|nl2br }}</p>{% endif %}
+          </div>
+          <div class="iw-actions mt-4"><a class="iw-btn" target="_blank" rel="noopener" href="{{ path('app_administrateur_facture_draft_pdf', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>Aperçu PDF du brouillon<span class="visually-hidden"> (nouvel onglet)</span></a></div>
+          <p class="iw-muted mt-3 mb-0">L’aperçu est marqué « Brouillon — Non émis ». Il ne constitue pas une facture à régler.</p>
+        </div>
+      </section>
+    </div>
+    <aside aria-label="Confirmation de l’émission">
+      <section class="iw-card" style="border-top:3px solid var(--iw-gold)">
+        <div class="iw-card-head"><h2>Dernière vérification</h2></div>
+        <div class="iw-card-body">
+          <span class="iw-tag {{ canIssue ? 'iw-tag-ready' : '' }}">{{ canIssue ? 'Contrôles réussis' : 'À compléter' }}</span>
+          <div class="iw-amount">{{ (money.ttcCents|default(0) / 100)|number_format(2, ',', ' ') }} €</div><div class="iw-muted">Montant total TTC</div>
+          <div class="iw-summary-row mt-3"><span>Client</span><strong>{{ clientName }}</strong></div>
+          <div class="iw-summary-row"><span>Référence interne</span><strong>{{ draft.reference }}</strong></div>
+          <div class="iw-summary-row"><span>Version relue</span><strong>{{ draft.version }}</strong></div>
+          <div class="iw-summary-row"><span>Émission prévue</span><strong>{{ facture.dateEmission ? facture.dateEmission|date('d/m/Y') : 'À renseigner' }}</strong></div>
+          <p class="iw-muted mt-3">À l’émission, un numéro définitif sera attribué et le contenu de la facture sera figé. Les modifications ultérieures nécessiteront un document de correction.</p>
+          {% if canIssue %}
+            <form id="invoice-draft-issue" method="post" action="{{ path('app_administrateur_facture_draft_issue', {entite: entite.id, draftId: draft.id}) }}">
+              <input type="hidden" name="_token" value="{{ csrf_token('invoice_draft_issue_' ~ draft.id) }}"><input type="hidden" name="version" value="{{ draft.version }}"><input type="hidden" name="review_token" value="{{ reviewToken }}">
+              <label class="iw-confirm" for="confirm-invoice-issue"><input id="confirm-invoice-issue" type="checkbox" name="confirm_issue" value="1" required><span>J’ai vérifié le client, les prestations et les montants. Je confirme l’émission définitive de cette facture.</span></label>
+              <button id="invoice-draft-issue-button" class="iw-btn iw-btn-primary iw-full" type="submit"><i class="bi bi-lock" aria-hidden="true"></i>Émettre définitivement</button>
+            </form>
+          {% else %}
+            <div class="iw-notice iw-notice-warning mt-4 mb-3"><div>Corrigez les points indiqués pour pouvoir confirmer l’émission.</div></div>
+          {% endif %}
+          <a class="iw-btn iw-full mt-2" href="{{ path('app_administrateur_facture_draft_edit', {entite: entite.id, draftId: draft.id}) }}">Revenir aux modifications</a>
+        </div>
+      </section>
+      <div class="iw-notice"><i class="bi bi-clock-history" aria-hidden="true"></i><div>Vous pouvez reprendre ce brouillon plus tard depuis « Facture → Brouillons ». Veillez à respecter la date d’émission applicable à votre prestation.</div></div>
+      <details class="iw-card"><summary class="iw-card-body iw-muted">Archiver ce brouillon</summary><div class="iw-card-body pt-0"><p class="iw-muted">Le brouillon quittera la liste des préparations actives. Aucune facture ne sera émise.</p><form method="post" action="{{ path('app_administrateur_facture_draft_archive', {entite: entite.id, draftId: draft.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('invoice_draft_archive_' ~ draft.id) }}"><input type="hidden" name="version" value="{{ draft.version }}"><button class="iw-btn iw-btn-danger" type="submit"><i class="bi bi-archive" aria-hidden="true"></i>Archiver le brouillon</button></form></div></details>
+    </aside>
+  </div>
+</div>
+<script>
+(() => {
+  const form = document.getElementById('invoice-draft-issue');
+  if (!form) return;
+  const consent = document.getElementById('confirm-invoice-issue');
+  const button = document.getElementById('invoice-draft-issue-button');
+  const sync = () => { button.disabled = !consent.checked; };
+  consent.addEventListener('change', sync);
+  window.addEventListener('pageshow', sync);
+  form.addEventListener('submit', (event) => {
+    if (!consent.checked || !form.checkValidity()) { event.preventDefault(); form.reportValidity(); return; }
+    button.disabled = true;
+    button.textContent = 'Émission en cours…';
+  });
+  sync();
+})();
+</script>
+{% endblock %}

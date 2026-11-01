@@ -1,6 +1,7 @@
 {% set studioSource = _context %}{% apply document_studio('facture', studioSource) %}{# templates/pdf/facture.html.twig #}
 {% import _self as m %}
-{% set issued = invoice_snapshot(facture) %}
+{% set invoiceDraft = invoiceDraft|default(false) %}
+{% set issued = invoiceDraft ? draftSnapshot|default(null) : invoice_snapshot(facture) %}
 {% if issued %}
   {% set invoiceTotals = issued.totals %}
   {% set entite = issued.issuer %}
@@ -27,7 +28,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Facture {{ facture.numero }}</title>
+  <title>{{ invoiceDraft ? 'Brouillon de facture — Non émis' : 'Facture ' ~ facture.numero }}</title>
 
   <style>
     @page { margin: 10mm 10mm 58mm; size: A4 portrait; }
@@ -68,6 +69,8 @@
     .stamp-paid{ border-color:#2a8f4a; color:#2a8f4a }
     .stamp-canceled{ border-color:#9b1c1c; color:#9b1c1c }
     .stamp-due{ border-color:#b45309; color:#b45309 }
+    .draft-watermark{position:fixed;top:42%;left:2%;width:96%;text-align:center;font-size:39px;font-weight:bold;letter-spacing:3px;color:#e4e9ed;transform:rotate(-28deg);z-index:-1}
+    .draft-banner{border:1px solid #d5b976;background:#fff8e7;color:#6f5420;padding:9px 12px;text-align:center;font-size:11px;font-weight:bold;margin-bottom:7mm}
 
     /* TABLE */
     table{ width:100%; border-collapse:collapse }
@@ -148,9 +151,11 @@
 </head>
 
 <body>
+{% if invoiceDraft %}<div class="draft-watermark">BROUILLON — NON ÉMIS</div>{% endif %}
 <div class="wrap">
 
   <div class="content">
+    {% if invoiceDraft %}<div class="draft-banner">BROUILLON — NON ÉMIS · Document de relecture, sans numéro définitif · Ne pas régler</div>{% endif %}
     <!-- HEADER -->
     <table class="header" cellspacing="0" cellpadding="0">
       <tr>
@@ -185,8 +190,13 @@
 
         <td class="right">
           <div class="doc-right">
-            <div class="doc-badge">FACTURE</div>
+            <div class="doc-badge">{{ invoiceDraft ? 'BROUILLON' : 'FACTURE' }}</div>
             <div class="doc-meta">
+              {% if invoiceDraft %}
+              <div>Facture en préparation</div>
+              <div><strong>Émission prévue le</strong> {{ facture.dateEmission|date('d/m/Y') }}</div>
+              <div class="stamp stamp-due">NON ÉMIS</div>
+              {% else %}
               <div><strong>N°</strong> {{ facture.numero }}</div>
               <div><strong>Émise le</strong> {{ facture.dateEmission|date('d/m/Y') }}</div>
 
@@ -197,6 +207,7 @@
                 <div class="stamp stamp-canceled">ANNULÉE</div>
               {% else %}
                 <div class="stamp stamp-due">MONTANT DÛ</div>
+              {% endif %}
               {% endif %}
             </div>
           </div>
@@ -221,7 +232,7 @@
             {% if e %}ENT-{{ e.id ?? '-' }}{% elseif u %}CLI-{{ u.id ?? '-' }}{% else %}-{% endif %}
             <br>
 
-            Paiement dû :
+            {{ invoiceDraft ? 'Échéance prévue' : 'Paiement dû' }} :
             {% if issued %}{{ issued.terms.dueDate ? issued.terms.dueDate|date('d/m/Y') : 'Non renseigné' }}{% else %}{{ facture.dateEmission|date_modify(meta.echeance ?? '+30 days')|date('d/m/Y') }}{% endif %}<br>
 
             Modalité paiement : {{ issued ? (issued.terms.paymentMeans ?: 'Non renseigné') : (meta.modalite ?? 'Virement') }}<br>
@@ -500,7 +511,7 @@
 
       <tr>
         <td style="border:none"></td>
-        <td class="label total titre">Total à payer</td>
+        <td class="label total titre">{{ invoiceDraft ? 'Total TTC prévisionnel' : 'Total à payer' }}</td>
         <td class="val total titre">{{ m.eur(total_a_payer_display) }}</td>
       </tr>
     </table>
@@ -547,7 +558,7 @@
         {% if entite.codeBanque or entite.numeroCompte %}<div>{% if entite.codeBanque %}Code banque : {{ entite.codeBanque }}{% endif %}{% if entite.numeroCompte %} &nbsp; · &nbsp; Compte : {{ entite.numeroCompte }}{% endif %}</div>{% endif %}
       </td>
     </tr></table>
-    <div class="footer-reference">Référence à rappeler lors du règlement : <strong>{{ facture.numero }}</strong></div>
+    <div class="footer-reference">{% if invoiceDraft %}<strong>BROUILLON — NON ÉMIS</strong> · Document de travail, sans valeur de facture. Aucun règlement demandé.{% else %}Référence à rappeler lors du règlement : <strong>{{ facture.numero }}</strong>{% endif %}</div>
   </div>
 </div>
 

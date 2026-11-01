@@ -43,6 +43,9 @@
 		'app_charter_tracking', 'app_charter_export', 'app_charter_version_pdf'
 	] %}
 	{% set isTrainerCharter = charterRoute in ['app_charter_mine', 'app_charter_open', 'app_charter_sign'] %}
+	{% set invoiceRoute = app.request.attributes.get('_canonical_route') ?: app.request.attributes.get('_route') %}
+	{% set isInvoiceSection = invoiceRoute starts with 'app_administrateur_facture_' %}
+	{% set isInvoiceDraft = invoiceRoute starts with 'app_administrateur_facture_draft_' %}
 
 	<ul class="nav flex-column" id="workspaceNavTree">
 {% if is_granted('ROLE_PARTNER') %}<li class="nav-item"><a href="{{ path('app_partner_dashboard') }}"><span class="text-white"><i class="bi bi-person-heart"></i> Espace partenaire</span></a></li>{% endif %}
@@ -600,28 +603,27 @@
 
 
 			<li class="nav-item">
-				<button type="button" class="nav-link dropdown-toggle {% if
-						app.request.attributes.get('_route') == 'app_administrateur_facture_index' or
-						app.request.attributes.get('_route') == 'app_administrateur_facture_new' %}text-theme-secondaire{% else %}text-white{% endif %}" data-bs-toggle="collapse" data-bs-target="#submenuFacture" aria-controls="submenuFacture" aria-expanded="{% if app.request.attributes.get('_route') in [
-						'app_administrateur_facture_index', 'app_administrateur_facture_new'
-						] %}true{% else %}false{% endif %}">
+				<button type="button" class="nav-link dropdown-toggle {{ isInvoiceSection ? 'text-theme-secondaire' : 'text-white' }}" data-bs-toggle="collapse" data-bs-target="#submenuFacture" aria-controls="submenuFacture" aria-expanded="{{ isInvoiceSection ? 'true' : 'false' }}">
 					<i class="bi bi-journal-bookmark"></i>
 
 					{{ 'navbar.invoice.title'|trans }}
 				</button>
 
-				<div class="collapse {% if
-						app.request.attributes.get('_route') == 'app_administrateur_facture_index' or
-						app.request.attributes.get('_route') == 'app_administrateur_facture_new' %}show{% endif %}" id="submenuFacture">
+				<div class="collapse {{ isInvoiceSection ? 'show' : '' }}" id="submenuFacture">
 					<ul class="wn-submenu list-unstyled">
 						<li>
 							<a href="{{ path('app_administrateur_facture_index', {'entite' : entite.id}) }}">
-								<span class="{% if app.request.attributes.get('_route') == 'app_administrateur_facture_index' %}text-theme-secondaire{% endif %}">{{ 'navbar.invoice.list'|trans }}</span>
+								<span class="{% if invoiceRoute == 'app_administrateur_facture_index' %}text-theme-secondaire{% endif %}">{{ 'navbar.invoice.list'|trans }}</span>
+							</a>
+						</li>
+						<li>
+							<a href="{{ path('app_administrateur_facture_draft_index', {'entite' : entite.id}) }}"{% if isInvoiceDraft %} aria-current="page"{% endif %}>
+								<span class="{{ isInvoiceDraft ? 'text-theme-secondaire' : '' }}">Brouillons</span>
 							</a>
 						</li>
 						<li>
 							<a href="{{ path('app_administrateur_facture_new', {'entite' : entite.id}) }}">
-								<span class="{% if app.request.attributes.get('_route') == 'app_administrateur_facture_new' %}text-theme-secondaire{% endif %}">{{ 'navbar.invoice.add'|trans }}</span>
+								<span class="{% if invoiceRoute == 'app_administrateur_facture_new' %}text-theme-secondaire{% endif %}">{{ 'navbar.invoice.add'|trans }}</span>
 							</a>
 						</li>
 					</ul>

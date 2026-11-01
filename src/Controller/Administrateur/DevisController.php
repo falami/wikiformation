@@ -14,7 +14,6 @@ use App\Form\Administrateur\EntrepriseModalType;
 use App\Form\Administrateur\DevisConventionLinkType;
 use App\Repository\ConventionContratRepository;
 use App\Service\Convention\DevisConventionLinker;
-use App\Service\Billing\InvoiceIssuer;
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -196,7 +195,7 @@ class DevisController extends AbstractController
   }
 
   #[Route('/{id}/facture-brouillon', name: 'invoice_draft', methods: ['GET', 'POST'])]
-  public function invoiceDraft(Entite $entite, Devis $devis, Request $request, EM $em, InvoiceIssuer $invoiceIssuer): Response
+  public function invoiceDraft(Entite $entite, Devis $devis, Request $request, EM $em, \App\Service\Billing\InvoiceDraftForm $draftForms, \App\Service\Billing\InvoiceDraftManager $drafts): Response
   {
     $this->denyAccessUnlessGranted(TenantPermission::FACTURE_MANAGE, $entite);
     if ($devis->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
@@ -204,112 +203,95 @@ class DevisController extends AbstractController
     if (!$devis->getStatus()->canBeInvoiced()) throw $this->createAccessDeniedException('Ce devis ne peut pas être facturé.');
     /** @var Utilisateur $user */
     $user = $this->getUser();
-    // 6) créer la facture
-    $f = new Facture();
-    $f->setEntite($entite);
-    $f->setCreateur($user);
-    $f->setDateEmission(new \DateTimeImmutable());
-    $f->setStatus(FactureStatus::DUE);
+    // One working document per quote, including legacy saved values. The old POST
+    // endpoint never emits; it sends the user through the same explicit review.
+    $draft = $em->getConnection()->transactional(function () use ($em, $devis, $entite, $user, $draftForms, $drafts) {
+      $em->refresh($devis, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+      if ($devis->getFactureCreee()) return $devis->getFactureCreee();
+      if (!$devis->getStatus()->canBeInvoiced()) throw $this->createAccessDeniedException('Ce devis ne peut plus être facturé.');
+      $existing = $em->getRepository(\App\Entity\FactureBrouillon::class)->findOneBy(['sourceDevis' => $devis, 'entite' => $entite]);
+      if ($existing) return $existing;
 
-    // ----- NOUVELLES DONNÉES / ALIGNEMENT -----
-    $f->setDevise($devis->getDevise());
-    $f->setMeta(['invoice_terms' => $devis->getMeta()['invoice_terms'] ?? []]);
+      // 6) créer la facture
+      $f = new Facture();
+      $f->setEntite($entite);
+      $f->setCreateur($user);
+      $f->setDateEmission(new \DateTimeImmutable());
+      $f->setStatus(FactureStatus::DUE);
 
-    // Destinataire : personne OU entreprise
-    // (tu as ajouté entrepriseDestinataire, donc on copie les deux)
-    $f->setDestinataire($devis->getDestinataire());
-    if (method_exists($f, 'setEntrepriseDestinataire')) {
-      $f->setEntrepriseDestinataire($devis->getEntrepriseDestinataire());
-    }
+      // ----- NOUVELLES DONNÉES / ALIGNEMENT -----
+      $f->setDevise($devis->getDevise());
+      $f->setMeta(['invoice_terms' => $devis->getMeta()['invoice_terms'] ?? []]);
 
-    foreach ($devis->getInscriptions() as $inscription) {
-      if (method_exists($f, 'addInscription')) {
-        $f->addInscription($inscription);
-      }
-    }
-
-    // Remise globale (si tes entités la portent aussi côté Devis)
-    if (method_exists($devis, 'getRemiseGlobalePourcent') && method_exists($f, 'setRemiseGlobalePourcent')) {
-      $f->setRemiseGlobalePourcent($devis->getRemiseGlobalePourcent());
-    }
-    if (method_exists($devis, 'getRemiseGlobaleMontantCents') && method_exists($f, 'setRemiseGlobaleMontantCents')) {
-      $f->setRemiseGlobaleMontantCents($devis->getRemiseGlobaleMontantCents());
-    }
-
-    // Montants
-    $f->setMontantHtCents($devis->getMontantHtCents());
-    $f->setMontantTvaCents($devis->getMontantTvaCents());
-    $f->setMontantTtcCents($devis->getMontantTtcCents());
-
-    // 7) copier les lignes (via addLigne => setFacture auto)
-    foreach ($devis->getLignes() as $ld) {
-      $lf = new LigneFacture();
-      $lf->setCreateur($user);
-      $lf->setEntite($entite);
-      $lf->setLabel($ld->getLabel());
-      $lf->setQte($ld->getQte());
-      $lf->setPuHtCents($ld->getPuHtCents());
-      $lf->setTva($ld->getTva());
-      $lf->setIsDebours($ld->isDebours());
-
-      // Remise par ligne (si tes lignes de devis ont ces champs)
-      if (method_exists($ld, 'getRemisePourcent') && method_exists($lf, 'setRemisePourcent')) {
-        $lf->setRemisePourcent($ld->getRemisePourcent());
-      }
-      if (method_exists($ld, 'getRemiseMontantCents') && method_exists($lf, 'setRemiseMontantCents')) {
-        $lf->setRemiseMontantCents($ld->getRemiseMontantCents());
+      // Destinataire : personne OU entreprise
+      // (tu as ajouté entrepriseDestinataire, donc on copie les deux)
+      $f->setDestinataire($devis->getDestinataire());
+      if (method_exists($f, 'setEntrepriseDestinataire')) {
+        $f->setEntrepriseDestinataire($devis->getEntrepriseDestinataire());
       }
 
-      $f->addLigne($lf);
-    }
+      foreach ($devis->getInscriptions() as $inscription) {
+        if (method_exists($f, 'addInscription')) {
+          $f->addInscription($inscription);
+        }
+      }
 
-    // (optionnel) si Facture est liée à Formation dans ton modèle
-    if (method_exists($devis, 'getFormation') && method_exists($f, 'setFormation')) {
-      $f->setFormation($devis->getFormation());
-    }
+      // Remise globale (si tes entités la portent aussi côté Devis)
+      if (method_exists($devis, 'getRemiseGlobalePourcent') && method_exists($f, 'setRemiseGlobalePourcent')) {
+        $f->setRemiseGlobalePourcent($devis->getRemiseGlobalePourcent());
+      }
+      if (method_exists($devis, 'getRemiseGlobaleMontantCents') && method_exists($f, 'setRemiseGlobaleMontantCents')) {
+        $f->setRemiseGlobaleMontantCents($devis->getRemiseGlobaleMontantCents());
+      }
 
-    $type = \App\Form\Administrateur\FactureType::class;
-    $saved = $devis->getMeta()['invoice_draft'] ?? [];
-    if ($saved) {
-      // Rehydrate the draft through the same tenant-scoped form transformers.
-      $restore = $this->createForm($type, $f, ['entite'=>$entite, 'csrf_protection'=>false]);
-      $restore->submit($saved);
+      // Montants
+      $f->setMontantHtCents($devis->getMontantHtCents());
+      $f->setMontantTvaCents($devis->getMontantTvaCents());
+      $f->setMontantTtcCents($devis->getMontantTtcCents());
+
+      // 7) copier les lignes (via addLigne => setFacture auto)
+      foreach ($devis->getLignes() as $ld) {
+        $lf = new LigneFacture();
+        $lf->setCreateur($user);
+        $lf->setEntite($entite);
+        $lf->setLabel($ld->getLabel());
+        $lf->setQte($ld->getQte());
+        $lf->setPuHtCents($ld->getPuHtCents());
+        $lf->setTva($ld->getTva());
+        $lf->setIsDebours($ld->isDebours());
+
+        // Remise par ligne (si tes lignes de devis ont ces champs)
+        if (method_exists($ld, 'getRemisePourcent') && method_exists($lf, 'setRemisePourcent')) {
+          $lf->setRemisePourcent($ld->getRemisePourcent());
+        }
+        if (method_exists($ld, 'getRemiseMontantCents') && method_exists($lf, 'setRemiseMontantCents')) {
+          $lf->setRemiseMontantCents($ld->getRemiseMontantCents());
+        }
+
+        $f->addLigne($lf);
+      }
+
+      // (optionnel) si Facture est liée à Formation dans ton modèle
+      if (method_exists($devis, 'getFormation') && method_exists($f, 'setFormation')) {
+        $f->setFormation($devis->getFormation());
+      }
+
+      $draft = (new \App\Entity\FactureBrouillon($entite, $user))->setSourceDevis($devis);
+      $form = $draftForms->build($entite, $user, invoice: $f);
+      $payload = $devis->getMeta()['invoice_draft'] ?? [];
+      if (!$payload) $payload = $draftForms->payloadFromForm($form);
+      $restored = $draftForms->build($entite, $user, $payload, false);
+      $drafts->save($draft, $payload, 1, $user, $draftForms->summary($restored));
+      return $draft;
+    });
+    if ($draft instanceof Facture) return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $draft->getId()]);
+    if ($draft->isArchived()) {
+      $this->addFlash('info', 'Le brouillon de ce devis est archivé. Restaurez-le pour reprendre la préparation de la facture.');
+      return $this->redirectToRoute('app_administrateur_facture_draft_index', ['entite' => $entite->getId(), 'archived' => 1]);
     }
-    $form = $this->createForm($type, $f, ['entite'=>$entite]);
-    $form->handleRequest($request);
-    if ($form->isSubmitted() && $form->isValid()) {
-      foreach ($f->getLignes() as $line) {
-        $line->setCreateur($user);
-        $line->setEntite($entite);
-        $line->setFacture($f);
-      }
-      $payload = $request->request->all($form->getName());
-      unset($payload['_token']);
-      if ($request->request->get('invoice_action') !== 'issue') {
-        $meta = $devis->getMeta() ?? [];
-        $meta['invoice_draft'] = $payload;
-        $devis->setMeta($meta);
-        $em->flush();
-        $this->addFlash('success', 'Brouillon de facture enregistré. Vous pouvez le reprendre depuis ce devis.');
-        return $this->redirectToRoute('app_administrateur_devis_invoice_draft', ['entite'=>$entite->getId(),'id'=>$devis->getId()]);
-      }
-      try {
-        $invoiceIssuer->persist($f, function () use ($em, $devis, $f) {
-          $em->refresh($devis, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
-          if ($devis->getFactureCreee()) throw new \DomainException('Ce devis a déjà été transformé en facture.');
-          $meta=$devis->getMeta() ?? []; unset($meta['invoice_draft']); $devis->setMeta($meta);
-          $devis->setFactureCreee($f)->setStatus(DevisStatus::INVOICED);
-        });
-        $this->addFlash('success', 'Facture validée et émise.');
-        return $this->redirectToRoute('app_administrateur_facture_show', ['entite'=>$entite->getId(),'id'=>$f->getId()]);
-      } catch (\DomainException $error) {
-        $form->addError(new \Symfony\Component\Form\FormError($error->getMessage()));
-      }
-    }
-    return $this->render('administrateur/facture/form.html.twig', [
-      'form'=>$form, 'entite'=>$entite, 'title'=>'Brouillon de facture · '.$devis->getNumero(), 'invoiceDraft'=>true,
-    ], new Response(status: $form->isSubmitted() ? 422 : 200));
+    return $this->redirectToRoute('app_administrateur_facture_draft_edit', ['entite' => $entite->getId(), 'draftId' => $draft->getId()]);
   }
+
 
 
   #[Route('/ajax', name: 'ajax', methods: ['POST'])]

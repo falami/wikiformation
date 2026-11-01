@@ -10,7 +10,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{Request, Response};
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use App\Service\Billing\InvoiceIssuer;
 use App\Service\Pdf\PdfManager;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Mailer\MailerInterface;
@@ -677,89 +676,6 @@ class FactureController extends AbstractController
     };
   }
 
-
-  #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
-  public function factureNew(
-    Entite $entite,
-    Request $req,
-    EM $em,
-    InvoiceIssuer $invoiceIssuer,
-  ): Response {
-    /** @var Utilisateur $user */
-    $user = $this->getUser();
-
-    $facture = new Facture();
-    $facture->setCreateur($user);
-    $facture->setEntite($entite);
-    $facture->setDateEmission(new \DateTimeImmutable());
-
-    // si chez toi ces champs sont obligatoires
-    if (method_exists($facture, 'setStatus') && !$facture->getStatus()) {
-      $facture->setStatus(FactureStatus::DUE);
-    }
-    if (method_exists($facture, 'setDevise') && !$facture->getDevise()) {
-      $facture->setDevise('EUR');
-    }
-
-    // Renewal starts a new invoice; issued snapshots and delivery history are never copied.
-    if ($sourceId = $req->query->getInt('renewalSource')) {
-      $source = $em->getRepository(Facture::class)->find($sourceId);
-      if (!$source || $source->getEntite()?->getId() !== $entite->getId()) throw $this->createAccessDeniedException();
-      $facture->setDestinataire($source->getDestinataire());
-      $facture->setEntrepriseDestinataire($source->getEntrepriseDestinataire());
-      $facture->setDevise($source->getDevise());
-      if (!$req->isMethod('POST')) $this->addFlash('info', 'Client repris de la facture '.$source->getNumero().'. Complétez les prestations et tarifs, puis marquez le rappel de renouvellement comme traité.');
-    }
-
-    $form = $this->createForm(FactureType::class, $facture, [
-      'entite' => $entite,
-    ])->handleRequest($req);
-
-    if ($form->isSubmitted() && $form->isValid()) {
-
-      // Optionnel mais conseillé : recalcul côté serveur depuis les lignes
-      $this->recalcFacture($facture);
-
-      foreach ($facture->getLignes() as $ligne) {
-        if (!$ligne->getCreateur()) {
-          $ligne->setCreateur($user);
-        }
-        if (!$ligne->getEntite()) {
-          $ligne->setEntite($entite);
-        }
-        // (optionnel) sécurité : rattacher la facture si jamais
-        if ($ligne->getFacture() !== $facture) {
-          $ligne->setFacture($facture);
-        }
-      }
-
-      // Optionnel : exclusivité destinataire / entrepriseDestinataire
-
-      try {
-        $invoiceIssuer->persist($facture);
-      } catch (\DomainException $error) {
-        $form->addError(new \Symfony\Component\Form\FormError($error->getMessage()));
-        return $this->render('administrateur/facture/form.html.twig', ['form' => $form, 'title' => 'Nouvelle facture', 'entite' => $entite]);
-      }
-
-      // ✅ sync montants sur inscriptions liées à cette facture
-      $this->inscSync->syncMany($facture->getInscriptions()->toArray());
-
-      $this->addFlash('success', 'Facture créée.');
-      foreach (\App\Service\Billing\InvoiceReadiness::issues($facture) as $issue) $this->addFlash('warning', $issue);
-
-      return $this->redirectToRoute('app_administrateur_facture_index', [
-        'entite' => $entite->getId(),
-      ]);
-    }
-
-    // ✅ ton template
-    return $this->render('administrateur/facture/form.html.twig', [
-      'form' => $form,
-      'title' => 'Nouvelle facture',
-      'entite' => $entite,
-    ]);
-  }
 
   #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
   public function factureEdit(
