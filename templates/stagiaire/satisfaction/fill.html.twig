@@ -253,9 +253,12 @@
 }
 
   </style>
+{% include 'satisfaction/_survey_style.html.twig' %}
 {% endblock %}
 
 {% block javascripts %}
+  <script src="{{ asset('dist/js/survey-rating.js') }}" defer></script>
+
   {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 {% endblock %}
@@ -311,6 +314,7 @@
 
             <div class="mb-3 q-block js-qblock {{ hasError ? 'is-invalid' : '' }}"
                  data-required="{{ q.required ? '1' : '0' }}">
+              {% if q.type.value not in ['scale', 'stars'] %}
               <div class="d-flex align-items-start justify-content-between gap-2">
                 <label class="form-label fw-semibold mb-1">
                   {{ q.libelle }}
@@ -324,25 +328,9 @@
                 {% endif %}
               </div>
 
-              {% if q.type.value == 'scale' %}
-                <div class="scale10 js-scale10" data-max="10">
-                  {# radios Symfony (cachés) + notre UI étoiles #}
-                  {{ form_widget(field) }}
-
-                  <div class="d-flex align-items-center gap-2 mt-1">
-                    <div class="stars-row js-scale10-ui" aria-hidden="true"></div>
-
-                    <div class="note-live">
-                      <span class="js-note">Note : —/10</span>
-                      <button type="button" class="btn-clear js-clear" title="Effacer">
-                        <i class="bi bi-x-lg"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {% if field.vars.help %}<div class="form-text">{{ field.vars.help }}</div>{% endif %}
-                {{ form_errors(field) }}
+              {% endif %}
+              {% if q.type.value in ['scale', 'stars'] %}
+                {% include 'satisfaction/_rating.html.twig' with {field: field} only %}
 
               {% elseif q.type.value == 'yes_no' %}
                 <div class="yn js-yesno">

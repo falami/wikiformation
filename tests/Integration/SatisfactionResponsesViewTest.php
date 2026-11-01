@@ -7,6 +7,31 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class SatisfactionResponsesViewTest extends KernelTestCase
 {
+    public function testRatingKeepsZeroNativeChoicesAndEscapesLabels(): void
+    {
+        self::bootKernel();
+        $template = (new SatisfactionTemplate())->setTitre('Satisfaction');
+        $chapter = (new SatisfactionChapter())->setTitre('Votre retour');
+        $template->addChapter($chapter);
+        $question = $this->id((new SatisfactionQuestion())->setLibelle('Accueil <script>')->setType(SatisfactionQuestionType::SCALE)->setRequired(true), 10);
+        $chapter->addQuestion($question);
+        $form = self::getContainer()->get('form.factory')->create(\App\Form\Satisfaction\SatisfactionFillType::class, ['q_10' => 0], ['template' => $template, 'csrf_protection' => false]);
+        $view = $form->createView();
+        self::getContainer()->get('twig')->getRuntime(\Symfony\Component\Form\FormRenderer::class)->setTheme($view, ['bootstrap_5_layout.html.twig']);
+        $html = self::getContainer()->get('twig')->render('satisfaction/_rating.html.twig', ['field' => $view['q_10']]);
+        $crawler = new \Symfony\Component\DomCrawler\Crawler($html);
+        self::assertCount(11, $crawler->filter('input[type="radio"]'));
+        self::assertCount(11, $crawler->filter('label'));
+        self::assertCount(0, $crawler->filter('label label'));
+        self::assertSame('0', $crawler->filter('input:checked')->attr('value'));
+        self::assertSame('0 sur 10', $crawler->filter('input:checked')->attr('aria-label'));
+        self::assertStringContainsString('Accueil &lt;script&gt;', $html);
+        self::assertTrue($view['q_10']->isRendered());
+        $form->submit(['q_10' => '0']);
+        self::assertTrue($form->isValid());
+        self::assertSame(0, $form->get('q_10')->getData());
+    }
+
     private function id(object $entity, int $id): object
     {
         $property = new \ReflectionProperty($entity, 'id');

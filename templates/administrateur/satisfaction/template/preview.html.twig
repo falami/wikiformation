@@ -2,44 +2,38 @@
 {% block title %}Aperçu — {{ template.titre }}{% endblock %}
 {% block stylesheets %}
 {{ parent() }}
-<style>
-.sat-preview{max-width:1050px;margin:24px auto 60px;color:#203647}
-.sat-preview header{background:#203647;color:white;border-radius:20px;padding:32px;margin-bottom:24px}
-.sat-preview h1{font-size:clamp(24px,3vw,36px);margin:12px 0 20px}
-.sat-preview .preview-label{font-size:11px;letter-spacing:.14em;color:#e8cb88;text-transform:uppercase}
-.sat-preview section{border:1px solid #dce5eb;border-radius:18px;margin-bottom:24px;background:#fff;overflow:hidden}
-.sat-preview h2{font-size:18px;padding:22px 26px;background:#f2f5f7;margin:0}
-.sat-preview .preview-question{padding:24px 26px;border-top:1px solid #e7edf1}
-.sat-preview legend,.sat-preview .form-label{font-size:15px;font-weight:600;margin-bottom:14px}
-.sat-preview .form-check{display:inline-block;margin:6px 20px 6px 0}
-.sat-preview .form-control,.sat-preview .form-select{border-radius:10px;border-color:#cfdbe4}
-.sat-preview .form-text{font-size:12px;color:#667e90}
-.sat-preview .preview-note{padding:18px 22px;border:1px solid #e7d7b0;border-radius:12px;background:#fcf8ee;margin-bottom:24px;font-size:14px}
-</style>
+{% include 'satisfaction/_survey_style.html.twig' %}
+{% endblock %}
+{% block javascripts %}{{ parent() }}
+  <script src="{{ asset('dist/js/survey-rating.js') }}" defer></script>
 {% endblock %}
 {% block body %}
 {% form_theme form 'bootstrap_5_layout.html.twig' %}
-<main class="sat-preview">
-<header>
-<span class="preview-label">Satisfaction stagiaire · Aperçu administrateur</span>
-<h1>{{ template.titre }}</h1>
-<div class="d-flex gap-2 flex-wrap">
-<a class="btn btn-light" href="{{ path('app_administrateur_satisfaction_template_index', {entite: entite.id}) }}">← Retour aux questionnaires</a>
-<a class="btn btn-warning" href="{{ path('app_administrateur_satisfaction_template_edit', {entite: entite.id, id: template.id}) }}">Modifier le questionnaire</a>
-</div>
+{% set questionCount = 0 %}
+{% for chapter in template.chapters %}{% set questionCount = questionCount + chapter.questions|length %}{% endfor %}
+<main class="sr-survey">
+<a class="sr-back" href="{{ path('app_administrateur_satisfaction_template_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Bibliothèque des questionnaires</a>
+<header class="sr-hero">
+<div><span class="sr-eyebrow">Votre expérience compte</span><h1>{{ template.titre }}</h1><p>Un moment pour partager votre ressenti et contribuer à la qualité de nos formations.</p></div>
+<div class="sr-hero-symbol" aria-hidden="true"><i class="bi bi-chat-square-heart"></i></div>
 </header>
-<p class="preview-note">Vous pouvez essayer les réponses ci-dessous. Cet aperçu ne crée aucune affectation et n’enregistre aucune réponse.</p>
+<div class="sr-toolbar"><div class="sr-meta"><span><i class="bi bi-list-check" aria-hidden="true"></i> {{ questionCount }} question{{ questionCount > 1 ? 's' : '' }}</span><span>{{ template.chapters|length }} rubrique{{ template.chapters|length > 1 ? 's' : '' }}</span><span>{{ entite.nom }}</span></div><a class="sr-edit" href="{{ path('app_administrateur_satisfaction_template_edit', {entite: entite.id, id: template.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i> Modifier le questionnaire</a></div>
+<div class="sr-notice"><i class="bi bi-eye" aria-hidden="true"></i><div><strong>Aperçu interactif</strong><p>Essayez le questionnaire comme un stagiaire. Aucune réponse ni affectation n’est enregistrée.</p></div></div>
 {% for chapter in template.chapters %}
-<section aria-labelledby="preview-chapter-{{ chapter.id }}">
-<h2 id="preview-chapter-{{ chapter.id }}">{{ loop.index }}. {{ chapter.titre }}</h2>
+<section class="sr-chapter" aria-labelledby="preview-chapter-{{ chapter.id }}">
+<div class="sr-chapter-head"><span class="sr-chapter-number">{{ '%02d'|format(loop.index) }}</span><div><small>VOTRE RETOUR D’EXPÉRIENCE</small><h2 id="preview-chapter-{{ chapter.id }}">{{ chapter.titre }}</h2></div></div>
 {% for question in chapter.questions %}
 {% set field = 'q_' ~ question.id %}
 {% if attribute(form, field) is defined %}
-<div class="preview-question">{{ form_row(attribute(form, field)) }}</div>
+<div class="preview-question"><div class="sr-question-meta">Question {{ '%02d'|format(loop.index) }}</div>
+{% if question.type.value in ['scale', 'stars'] %}
+{% include 'satisfaction/_rating.html.twig' with {field: attribute(form, field)} only %}
+{% else %}{{ form_row(attribute(form, field)) }}{% endif %}
+</div>
 {% endif %}
 {% else %}<p class="p-4 text-muted">Aucune question dans ce chapitre.</p>{% endfor %}
 </section>
-{% else %}<p class="preview-note">Ce questionnaire ne contient pas encore de chapitre.</p>{% endfor %}
-<p class="text-muted small text-end">Fin de l’aperçu · Aucune réponse n’est transmise.</p>
+{% else %}<p class="sr-notice">Ce questionnaire ne contient pas encore de chapitre.</p>{% endfor %}
+<p class="sr-end"><i class="bi bi-check2-circle" aria-hidden="true"></i> Fin de l’aperçu · Aucune réponse n’est transmise.</p>
 </main>
 {% endblock %}

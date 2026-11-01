@@ -1,0 +1,20 @@
+{# Native Symfony radios preserve the scale, submitted values and keyboard navigation. #}
+{% form_theme field 'form_div_layout.html.twig' %}
+{% set maximum = (field.children|last).vars.value %}
+<fieldset class="sr-rating" {% if field.vars.help %}aria-describedby="{{ field.vars.id }}_rating_help"{% endif %}>
+  <legend>{{ field.vars.label }}<span class="sr-required">{{ field.vars.required ? 'Obligatoire' : 'Facultatif' }}</span></legend>
+  <div class="sr-rating-caption"><span>Choisissez votre note</span><span>Sur {{ maximum }}</span></div>
+  <div class="sr-rating-options">
+    {% for choice in field %}
+      <label class="sr-rating-choice {{ choice.vars.value == '0' ? 'sr-rating-zero' : '' }}" for="{{ choice.vars.id }}">
+        {{ form_widget(choice, {attr: {'class': 'sr-native', 'aria-label': choice.vars.value ~ ' sur ' ~ maximum}}) }}
+        <span class="sr-rating-tile"><span class="sr-star" aria-hidden="true">{{ choice.vars.value == '0' ? '—' : '★' }}</span><span class="sr-number">{{ choice.vars.value }}</span></span>
+        <span class="sr-selected">Note sélectionnée : {{ choice.vars.value }} / {{ maximum }}</span>
+      </label>
+    {% endfor %}
+  </div>
+  {% if not field.vars.disabled %}<button type="button" class="sr-clear">Effacer la sélection</button>{% endif %}
+  {% if field.vars.help %}<div class="form-text" id="{{ field.vars.id }}_rating_help">{{ field.vars.help }}</div>{% endif %}
+  {{ form_errors(field) }}
+</fieldset>
+{% do field.setRendered() %}

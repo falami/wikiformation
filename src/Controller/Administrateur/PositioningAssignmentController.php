@@ -325,9 +325,10 @@ final class PositioningAssignmentController extends AbstractController
       </button>';
 
 
-      $actions .= '<button class="btn btn-sm btn-outline-warning fw-semibold js-toggle-required" data-url="' . $toggleUrl . '"><i class="bi bi-exclamation-diamond"></i></button>';
+      $requiredAction = $a->isRequired() ? 'Rendre la réponse optionnelle' : 'Rendre la réponse obligatoire';
+      $actions .= '<button type="button" class="btn btn-sm btn-outline-warning fw-semibold js-toggle-required" data-url="' . $toggleUrl . '" title="' . $requiredAction . '" aria-label="' . $requiredAction . '"><i class="bi bi-exclamation-diamond" aria-hidden="true"></i></button>';
 
-      $actions .= '<form class="m-0 p-0 d-inline" method="post" action="' . $deleteUrl . '" onsubmit="return confirm(\'Supprimer cette affectation ?\');">
+      $actions .= '<form class="m-0 p-0 d-inline" method="post" action="' . $deleteUrl . '" data-positioning-delete data-student="' . htmlspecialchars(trim(($u?->getPrenom() ?? '') . ' ' . ($u?->getNom() ?? '')), ENT_QUOTES, 'UTF-8') . '" data-questionnaire="' . htmlspecialchars($q?->getTitle() ?? '', ENT_QUOTES, 'UTF-8') . '">
           <input type="hidden" name="_token" value="' . $csrf . '">
           <button class="btn btn-sm btn-outline-danger fw-semibold" type="submit"><i class="bi bi-trash"></i></button>
         </form>';

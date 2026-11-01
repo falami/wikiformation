@@ -101,7 +101,7 @@ final class FormateurSatisfactionTemplateController extends AbstractController
 
     $form = $this->createForm(\App\Form\FormateurSatisfaction\FormateurSatisfactionFillType::class, null, [
       'template' => $t, 'stagiaires' => [], 'objectives' => [],
-      'disabled' => true, 'csrf_protection' => false,
+      'csrf_protection' => false,
     ]);
     return $this->render('administrateur/formateur/satisfaction/template/preview.html.twig', [
       'entite' => $entite, 'utilisateurEntite' => $ue,

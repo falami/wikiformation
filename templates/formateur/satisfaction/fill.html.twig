@@ -4,6 +4,7 @@
 
 {% block stylesheets %}
   {{ parent() }}
+  {% include 'satisfaction/_survey_style.html.twig' %}
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 
@@ -238,6 +239,8 @@
 {% endblock %}
 
 {% block javascripts %}
+  <script src="{{ asset('dist/js/survey-rating.js') }}" defer></script>
+
   {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 {% endblock %}
@@ -310,43 +313,13 @@
 
               <div class="mb-3 q-block js-qblock {{ hasError ? 'is-invalid' : '' }}"
                    data-required="{{ q.required ? '1' : '0' }}">
-                <div class="d-flex align-items-start justify-content-between gap-2">
-                  <label class="form-label fw-semibold mb-1">
-                    {{ q.libelle }}
-                    {% if q.required %}<span class="text-danger">*</span>{% endif %}
-                  </label>
-
-                  {% if q.type.value in ['scale','stars'] %}
-                    <span class="text-muted small">Échelle 0 → 10</span>
-                  {% elseif q.type.value == 'yes_no' %}
-                    <span class="text-muted small">Oui / Non</span>
-                  {% endif %}
-                </div>
-
-                {% if q.help %}
-                  <div class="small text-muted mt-1">{{ q.help }}</div>
-                {% endif %}
-
                 {% if q.type.value in ['scale','stars'] %}
-                  <div class="scale10 js-scale10" data-max="10">
-                    {{ form_widget(field) }}
-
-                    <div class="d-flex align-items-center gap-2 mt-1">
-                      <div class="stars-row js-scale10-ui" aria-hidden="true"></div>
-
-                      <div class="note-live">
-                        <span class="js-note">Note : —/10</span>
-                        <button type="button" class="btn-clear js-clear" title="Effacer">
-                          <i class="bi bi-x-lg"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {% if field.vars.help %}<div class="form-text">{{ field.vars.help }}</div>{% endif %}
-                  {{ form_errors(field) }}
-
-                {% elseif q.type.value == 'yes_no' %}
+                  {% include 'satisfaction/_rating.html.twig' with {field: field} only %}
+                {% else %}
+                  <label class="form-label fw-semibold mb-1" for="{{ field.vars.id }}">
+                    {{ q.libelle }}{% if q.required %}<span class="text-danger">*</span>{% endif %}
+                  </label>
+                {% if q.type.value == 'yes_no' %}
                   <div class="yn js-yesno">
                     {{ form_widget(field) }}
                     <div class="yn-row js-yesno-ui" aria-hidden="true"></div>
@@ -361,6 +334,7 @@
                     {% if field.vars.help %}<div class="form-text">{{ field.vars.help }}</div>{% endif %}
                     {{ form_errors(field) }}
                   </div>
+                {% endif %}
                 {% endif %}
               </div>
             {% endfor %}

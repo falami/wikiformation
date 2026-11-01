@@ -114,11 +114,17 @@
     }
     .grid-wrap{ overflow:auto; }
     .grid-table{
+      --choice-column-width: 56px;
       width:100%;
+      table-layout: fixed;
       border-collapse: separate;
       border-spacing: 0;
       min-width: 1050px;
     }
+    .grid-table col.choice-column{ width: var(--choice-column-width); }
+    .grid-table thead th[colspan]{ padding-left:0; padding-right:0; }
+    .choice-heading-grid{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); }
+    .choice-heading-grid-interest{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
     .grid-table thead th{
       position: sticky;
       top: 0;
@@ -150,7 +156,7 @@
     .row-chapter td{
       background: #eef0f3 !important;
       border-bottom: 1px solid rgba(0,0,0,.10) !important;
-      padding: .55rem .75rem !important;
+      padding: .55rem 0 !important;
     }
     .chapter-title{
       font-weight: 900;
@@ -248,7 +254,7 @@
  /* ===== Chapitre: grille alignée sur les colonnes du tableau ===== */
 .chapter-grid{
   display: grid;
-  grid-template-columns: minmax(520px, 1fr) repeat(7, 56px);
+  grid-template-columns: minmax(0, 1fr) repeat(7, var(--choice-column-width));
   grid-template-rows: auto auto;           /* ligne 1 = titres, ligne 2 = icônes */
   align-items: center;
   row-gap: .35rem;
@@ -257,6 +263,8 @@
 
 /* Colonne 1 : titre chapitre */
 .chapter-left{
+  min-width: 0;
+  padding: 0 .75rem;
   grid-column: 1;
   grid-row: 1 / span 2;                   /* prend les 2 lignes */
   display: flex;
@@ -496,13 +504,17 @@
 
     <div class="grid-wrap">
       <table class="grid-table">
+        <colgroup>
+          <col>
+          {% for column in 1..7 %}<col class="choice-column">{% endfor %}
+        </colgroup>
         <thead>
           <tr>
             <th>Compétence</th>
 
             <th colspan="4">
               <div class="fw-bold" style="text-transform:none; letter-spacing:0; font-size:.9rem;">Connaissance</div>
-              <div class="d-flex justify-content-center gap-3 mt-2">
+              <div class="choice-heading-grid mt-2">
                 <div class="text-center"><div class="h-ico">😶</div><div class="h-lbl">Aucun</div></div>
                 <div class="text-center"><div class="h-ico">🙂</div><div class="h-lbl">Base</div></div>
                 <div class="text-center"><div class="h-ico">😃</div><div class="h-lbl">Bon</div></div>
@@ -512,7 +524,7 @@
 
             <th colspan="3">
               <div class="fw-bold" style="text-transform:none; letter-spacing:0; font-size:.9rem;">Intérêt à l’étudier</div>
-              <div class="d-flex justify-content-center gap-3 mt-2">
+              <div class="choice-heading-grid choice-heading-grid-interest mt-2">
                 <div class="text-center"><div class="h-ico">✅</div><div class="h-lbl">Oui</div></div>
                 <div class="text-center"><div class="h-ico">🚫</div><div class="h-lbl">Non</div></div>
                 <div class="text-center"><div class="h-ico">❓</div><div class="h-lbl">NSP</div></div>

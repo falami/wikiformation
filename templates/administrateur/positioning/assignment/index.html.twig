@@ -238,6 +238,7 @@
   <div class="table-card premium-list mb-4">
     {% include 'components/_premium_list_heading.html.twig' with {title: "Affectations de positionnement", subtitle: "Retrouvez, filtrez et consultez les informations de votre liste.", mark: "Suivi des réponses"} only %}
 
+    <div id="assignmentRequirementFeedback" class="mx-4 mt-3" role="status" aria-live="polite" hidden></div>
     <table id="tableauAssignments" class="premium-table table table-hover align-middle mb-0 w-100">
       <thead>
         <tr>
@@ -319,6 +320,7 @@
     </div>
   </div>
 </div>
+{% include 'administrateur/positioning/assignment/_delete_modal.html.twig' %}
 {% endblock %}
 
 {% block javascripts %}
@@ -438,10 +440,27 @@
 
       // Toggle required
       $(document).on('click', '.js-toggle-required', async function(){
-        const url = $(this).data('url');
-        const res = await fetch(url, {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}});
-        if(res.ok){
+        if (this.disabled) return;
+        const button = this;
+        const feedback = document.getElementById('assignmentRequirementFeedback');
+        button.disabled = true;
+        try {
+          const res = await fetch(button.dataset.url, {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}});
+          if (!res.ok) throw new Error('Modification refusée');
+          const result = await res.json();
+          if (!result.ok) throw new Error('Modification refusée');
+          feedback.className = 'alert alert-success mx-4 mt-3';
+          feedback.textContent = result.required
+            ? 'Réponse désormais obligatoire : le stagiaire devra compléter ce questionnaire.'
+            : 'Réponse désormais optionnelle : le stagiaire peut compléter ce questionnaire sans obligation.';
+          feedback.hidden = false;
           table.ajax.reload(null, false);
+        } catch (error) {
+          feedback.className = 'alert alert-danger mx-4 mt-3';
+          feedback.textContent = 'Impossible de modifier le caractère obligatoire de la réponse. Veuillez réessayer.';
+          feedback.hidden = false;
+        } finally {
+          button.disabled = false;
         }
       });
 
