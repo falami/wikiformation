@@ -1,8 +1,8 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Affecter une évaluation · {{ entite.nom }}{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">{% include 'evaluation/_style.html.twig' %}{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}"><link rel="stylesheet" href="{{ asset('dist/recruitment/tom-select.css') }}">{% include 'evaluation/_style.html.twig' %}<link rel="stylesheet" href="{{ asset('dist/css/evaluation-selects.css') }}">{% endblock %}
 {% block body %}
-<div class="ev-shell">
+<div class="ev-shell ev-assignment">
   <header class="ev-hero"><span class="ev-eyebrow">De votre modèle à leurs acquis</span><h1>Un parcours pour chaque stagiaire.</h1><p class="ev-lead">Choisissez la session, le modèle et l’évaluateur. Chaque stagiaire sélectionné disposera de son propre dossier.</p><a class="ev-btn ev-btn-secondary" href="{{ path('app_administrateur_evaluation_index',{entite:entite.id}) }}">← Retour aux évaluations</a></header>
   {% for error in errors %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endfor %}
   <section class="ev-card"><div class="ev-card-head"><div><span class="ev-eyebrow">Étape 01</span><h2>Choisir la session</h2></div></div><form method="get" class="ev-card-body ev-actions"><input type="hidden" name="template" value="{{ templateId }}"><label class="ev-label mb-0" for="session-picker">Session de formation</label><select name="session" id="session-picker" required style="flex:1;min-width:220px"><option value="">Sélectionnez une session…</option>{% for item in sessions %}<option value="{{ item.id }}" {{ session and session.id == item.id ? 'selected' : '' }}>{{ item.code }} · {{ item.formationLabel }}</option>{% endfor %}</select><button type="submit" class="ev-btn ev-btn-primary">Afficher les stagiaires <i class="bi bi-arrow-right" aria-hidden="true"></i></button></form></section>
@@ -18,4 +18,4 @@
   {% endif %}
 </div>
 {% endblock %}
-{% block javascripts_bottom %}{{ parent() }}<script>document.querySelectorAll('[data-evaluation-check]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('input[name="inscriptions[]"]').forEach(input=>{input.checked=button.dataset.evaluationCheck==='true';});}));</script>{% endblock %}
+{% block javascripts_bottom %}{{ parent() }}<script src="{{ asset('dist/recruitment/tom-select.min.js') }}"></script><script src="{{ asset('dist/js/evaluation-selects.js') }}"></script><script>document.querySelectorAll('[data-evaluation-check]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('input[name="inscriptions[]"]').forEach(input=>{input.checked=button.dataset.evaluationCheck==='true';});}));</script>{% endblock %}

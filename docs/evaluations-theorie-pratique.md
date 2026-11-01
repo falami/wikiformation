@@ -18,6 +18,21 @@ La migration s’exécute une seule fois. L’éditeur utilise Asset Mapper (`as
 
 ## Utilisation
 
+### Créer le modèle Travail en hauteur en ligne de commande
+
+Après déploiement de `src/Command/CreateWorkAtHeightEvaluationCommand.php`, depuis la racine du projet :
+
+```sh
+php bin/console app:evaluations:creer-travail-hauteur 1 --env=prod
+php bin/console app:evaluations:creer-travail-hauteur 1 --execute --env=prod
+```
+
+La première commande simule ; la seconde crée et active le modèle intégré issu des trois documents fournis : 15 questions théoriques sur 20 avec corrigé, 8 critères pratiques sur 20. Aucun transfert du DOCX sur le serveur n’est nécessaire. Aucun seuil minimum n’est imposé ; les seuils restent configurables dans l’éditeur, les deux avis du formateur sont toujours obligatoires.
+
+L’auteur est le créateur de l’organisme, qui doit être un administrateur actif ; `--auteur=ID` permet de choisir un autre administrateur actif de cet organisme. Un modèle de même titre et contenu est réutilisé et activé ; un modèle personnalisé n’est jamais écrasé. Les affectations restent à réaliser depuis **Affecter une évaluation** : la commande ne choisit pas de session, de stagiaire ni de formateur et ne modifie pas les questionnaires PRE/POST.
+
+### Parcours dans l’interface
+
 1. Dans **Théorie & pratique**, créer un modèle vide, démarrer avec **Travail en hauteur**, ou copier un QCM de niveau existant. La copie ne modifie pas le QCM d’origine.
 2. Définir les questions théoriques, le corrigé et les points. Types disponibles : choix unique, choix multiples, classement et réponse libre.
 3. Définir les critères pratiques avec points, option « Non applicable » et éventuellement caractère éliminatoire.
