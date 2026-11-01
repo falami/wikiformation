@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Vos résultats d’évaluation</title></head>
+<body style="margin:0;background:#f4f6f8;font-family:Arial,sans-serif;color:#233342;padding:32px 16px">
+<div style="max-width:620px;margin:auto;background:white;border-radius:18px;border:1px solid #e2e7ec;overflow:hidden">
+  <div style="background:#233342;color:white;padding:32px"><p style="font-size:11px;letter-spacing:2px;color:#e6c66f">{{ record.entityName }}</p><h1 style="font-size:26px;margin-bottom:0">Votre bilan d’évaluation</h1></div>
+  <div style="padding:32px"><p>Bonjour {{ record.learnerName }},</p><p>{{ record.evaluatorName }} a validé votre évaluation <strong>{{ record.title }}</strong>, pour la session {{ record.sessionCode }}.</p>
+    <table style="width:100%;border-collapse:collapse"><tr><th style="text-align:left;padding:14px;background:#f4f6f8">Théorie</th><td style="padding:14px">{{ record.scores.theory.on20|number_format(2, ',', ' ') }} / 20</td><td>{{ record.theoryVerdict == 'favorable' ? 'Favorable' : 'Défavorable' }}</td></tr><tr><th style="text-align:left;padding:14px;background:#f4f6f8">Pratique</th><td style="padding:14px">{{ record.scores.practice.on20|number_format(2, ',', ' ') }} / 20</td><td>{{ record.practiceVerdict == 'favorable' ? 'Favorable' : 'Défavorable' }}</td></tr></table>
+    <p>{{ successful ? 'Vos deux avis sont favorables. Votre attestation de réussite est disponible dans votre espace.' : 'Les deux avis favorables ne sont pas réunis. Retrouvez le détail et les observations dans votre espace.' }}</p>
+    <p style="margin:28px 0"><a href="{{ url }}" style="display:inline-block;background:#233342;color:white;border-radius:9px;padding:14px 22px;text-decoration:none;font-weight:bold">Consulter mes résultats</a></p>
+    <p style="font-size:12px;color:#687988">Session {{ record.sessionCode }} · Évaluation validée le {{ record.publishedAt|date('d/m/Y à H:i', 'Europe/Paris') }}</p>
+  </div>
+</div></body></html>

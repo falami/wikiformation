@@ -1,0 +1,36 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Évaluations · Espace formateur{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">{% include 'evaluation/_style.html.twig' %}{% include 'evaluation/formateur/_form_style.html.twig' %}{% endblock %}
+{% block body %}
+<div class="ev-shell">
+  <section class="ev-hero">
+    <div class="ev-kicker">ESPACE FORMATEUR · VALIDATION DES ACQUIS</div>
+    <h1>Accompagner. Évaluer. Valider.</h1>
+    <p>Retrouvez les tests théoriques et les évaluations pratiques de vos stagiaires.</p>
+    <div class="ev-toolbar"><span class="ev-chip"><i class="bi bi-person-check"></i> {{ dossiers|length }} dossier{{ dossiers|length > 1 ? 's' : '' }} affecté{{ dossiers|length > 1 ? 's' : '' }}</span><span class="ev-chip">Théorie + pratique</span></div>
+  </section>
+  <div class="ev-searchbar"><input class="ev-input" id="evaluation-search" type="search" placeholder="Rechercher un stagiaire, une session…" aria-label="Rechercher un dossier"><select class="ev-select" id="evaluation-state" aria-label="Filtrer par statut"><option value="">Tous les dossiers</option value="assigned">Test à compléter</option><option value="to_review">À évaluer</option><option value="published">Résultats publiés</option></select></div>
+  <div class="ev-grid" id="evaluation-dossiers">
+    {% for dossier in dossiers %}
+      <article class="ev-card" data-evaluation-state="{{ dossier.state }}" data-evaluation-search="{{ (dossier.stagiaire.prenom ~ ' ' ~ dossier.stagiaire.nom ~ ' ' ~ dossier.session.code ~ ' ' ~ dossier.snapshot.title)|lower }}">
+        <div class="ev-card-body">
+          <div class="ev-dossier-title"><div><div class="ev-kicker">{{ dossier.session.code }}</div><h2>{{ dossier.stagiaire.prenom }} {{ dossier.stagiaire.nom }}</h2></div><span class="ev-badge">{{ dossier.state == 'published' ? 'Publié' : (dossier.state == 'to_review' ? 'À évaluer' : 'Test attendu') }}</span></div>
+          <p class="ev-muted mt-3">{{ dossier.snapshot.title }}</p>
+          <div class="ev-dossier-meta"><span><i class="bi bi-book"></i> {{ dossier.session.formation.titre|default('Formation') }}</span><span><i class="bi bi-calendar3"></i> {{ dossier.createdAt|date('d/m/Y') }}</span></div>
+          <a class="ev-btn {{ dossier.state == 'published' ? '' : 'ev-btn-primary' }}" href="{{ path('app_formateur_evaluation_show', {entite: entite.id, id: dossier.id}) }}">{{ dossier.state == 'published' ? 'Consulter les résultats' : 'Ouvrir l’évaluation' }} <i class="bi bi-arrow-right"></i></a>
+        </div>
+      </article>
+    {% else %}<div class="ev-card ev-empty ev-full"><i class="bi bi-clipboard-check fs-1"></i><h2>Aucune évaluation affectée</h2><p>Votre organisme vous attribuera ici les dossiers à évaluer.</p></div>{% endfor %}
+  </div>
+  <p id="evaluation-no-match" class="ev-empty" hidden>Aucun dossier ne correspond à votre recherche.</p>
+</div>
+{% endblock %}
+{% block javascripts_bottom %}{{ parent() }}<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const search = document.getElementById('evaluation-search'), state = document.getElementById('evaluation-state');
+  const rows = [...document.querySelectorAll('[data-evaluation-state]')];
+  const normal = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const filter = () => {let visible = 0; rows.forEach(row => {const show = (!state.value || row.dataset.evaluationState === state.value) && normal(row.dataset.evaluationSearch).includes(normal(search.value)); row.hidden = !show; if(show) visible++;}); document.getElementById('evaluation-no-match').hidden = visible > 0 || rows.length === 0;};
+  search.addEventListener('input', filter); state.addEventListener('change', filter);
+});
+</script>{% endblock %}
