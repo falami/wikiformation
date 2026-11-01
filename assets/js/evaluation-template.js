@@ -17,7 +17,7 @@
     const checked = input('checkbox', '1', {'aria-label': 'Bonne réponse'}); checked.className = 'ev-option-correct'; checked.checked = !!data.correct;
     const rank = input('number', data.rank || card.querySelectorAll('.ev-builder-option').length + 1, {min:1, step:1, 'aria-label':'Position dans l’ordre attendu'}); rank.className = 'ev-option-rank';
     const mark = element('label'); mark.append(checked, rank);
-    const label = input('text', data.label, {required:'required', maxlength:3000, placeholder:'Proposition de réponse', 'aria-label':'Proposition de réponse'}); label.className = 'ev-option-label';
+    const label = element('textarea', 'ev-option-label'); label.value = data.label || ''; label.rows = 1; label.required = true; label.maxLength = 3000; label.placeholder = 'Proposition de réponse'; label.setAttribute('aria-label', 'Proposition de réponse');
     wrap.append(mark, label, button('×', 'Retirer cette proposition', () => { wrap.remove(); update(); }));
     card.querySelector('.ev-builder-options').append(wrap);
     syncType(card); return wrap;
@@ -69,10 +69,19 @@
     });
   }
   function update() {
+    form.querySelectorAll('.ev-builder-option').forEach(row => {
+      const choice = row.querySelector('.ev-option-correct');
+      row.classList.toggle('is-selected', !choice.hidden && !choice.disabled && choice.checked);
+    });
     ['theory','practice'].forEach(kind=>{empty(kind);const items=collect(kind);document.querySelectorAll('#'+kind+'-items .ev-item-index').forEach((n,i)=>n.textContent=(kind==='theory'?'Question ':'Critère ')+String(i+1).padStart(2,'0'));document.getElementById(kind+'-count').textContent=items.length+(kind==='theory'?' question':' critère')+(items.length>1?'s':'');document.getElementById(kind+'-total').textContent=items.reduce((sum,i)=>sum+(Number.isFinite(i.points)?i.points:0),0).toLocaleString('fr-FR')+' points';});
   }
   (Array.isArray(initial.theory)?initial.theory:[]).forEach(x=>add('theory',x));(Array.isArray(initial.practice)?initial.practice:[]).forEach(x=>add('practice',x));update();
-  form.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>{const card=add(b.dataset.add);card.querySelector('textarea').focus();}));form.addEventListener('input',update);
+  const fitAnswer = control => { if (control.matches('.ev-option-label') && !control.disabled) { control.style.height = 'auto'; control.style.height = Math.max(28, control.scrollHeight) + 'px'; } };
+  const fitAnswers = () => form.querySelectorAll('.ev-option-label').forEach(fitAnswer);
+  requestAnimationFrame(fitAnswers);
+  if (globalThis.ResizeObserver) new ResizeObserver(fitAnswers).observe(form);
+  form.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>{const card=add(b.dataset.add);card.querySelector('textarea').focus();}));form.addEventListener('input',event=>{update();fitAnswer(event.target);});
+  form.addEventListener('change',()=>{update();fitAnswers();});
   form.addEventListener('submit',event=>{
     error.hidden=true;
     const schema={theory:collect('theory'),practice:collect('practice'),theoryThreshold:document.getElementById('theory-threshold').value===''?null:Number(document.getElementById('theory-threshold').value),practiceThreshold:document.getElementById('practice-threshold').value===''?null:Number(document.getElementById('practice-threshold').value)};
