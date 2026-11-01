@@ -1,3 +1,6 @@
+{% if contactCustomHost|default(false) and not contactRecipient %}
+  <p class="small">Le formulaire de contact sera disponible dès que les coordonnées de l’organisme seront renseignées.</p>
+{% else %}
 {{ form_start(contactForm, {
   action: path('app_public_contact'),
   method: 'POST',
@@ -36,10 +39,15 @@
 {{ form_widget(contactForm.startedAt) }}
 {{ form_rest(contactForm) }}
 
-{% include 'public/_contact_privacy_notice.html.twig' %}
+{% if contactCustomHost|default(false) %}
+  <p class="small mt-3">Votre nom, votre e-mail et votre message seront transmis à {{ contactOrganisation }} pour répondre à votre demande. Tous les champs sont obligatoires. Ce formulaire ne vous inscrit pas à des communications commerciales. Pour vos questions sur vos données, contactez <a href="mailto:{{ contactRecipient }}">{{ contactRecipient }}</a>.</p>
+{% else %}
+  {% include 'public/_contact_privacy_notice.html.twig' %}
+{% endif %}
 
 <button type="submit" class="btn btn-theme w-100 mt-2">
   <i class="bi bi-send me-1"></i> Envoyer
 </button>
 
 {{ form_end(contactForm) }}
+{% endif %}

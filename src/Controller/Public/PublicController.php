@@ -270,15 +270,16 @@ final class PublicController extends AbstractController
         #[Autowire(service: 'limiter.public_contact')] RateLimiterFactory $contactLimiter,
         #[Autowire(param: 'kernel.secret')] string $contactSecret,
     ): Response {
-        if ($this->publicContext->hasCustomHost()) {
-            return $this->redirectToRoute('app_public_formation');
-        }
+        $customHost = $this->publicContext->hasCustomHost();
+        $recipient = $this->publicContext->getContactEmail();
+        $contactReturn = $this->generateUrl($this->publicContext->isCalendarEnabled() ? 'app_public_formation' : 'app_public_catalogue') . '#footer-contact';
+        if ($customHost && $request->isMethod('GET')) return $this->redirect($contactReturn);
 
         $form = $this->createForm(ContactType::class);
         $form->handleRequest($request);
 
         // Never redirect to an untrusted Referer; it may disclose the contact outcome externally.
-        $fallbackRedirect = $this->generateUrl('app_public_contact');
+        $fallbackRedirect = $customHost ? $contactReturn : $this->generateUrl('app_public_contact');
 
         if ($form->isSubmitted()) {
             // A first-party anti-abuse control; no third-party script or raw IP cache key.
@@ -325,13 +326,19 @@ final class PublicController extends AbstractController
 
             $data = $form->getData();
 
+            if (!$recipient) {
+                $this->addFlash('danger', 'Le contact de cet organisme n’est pas encore configuré. Veuillez réessayer ultérieurement.');
+                return $this->redirect($fallbackRedirect);
+            }
+
             try {
                 $email = (new Email())
                     ->from(new Address('contact@wikiformation.fr', 'Wikiformation'))
                     ->replyTo((string) $data['email'])
-                    ->to('contact@wikiformation.fr')
+                    ->to($recipient)
                     ->subject('Nouveau message de contact — ' . $data['nom'])
                     ->text(
+                        "Site : {$request->getHost()}\n" .
                         "Nom : {$data['nom']}\n" .
                         "Email : {$data['email']}\n\n" .
                         "Message :\n{$data['message']}"
@@ -363,6 +370,9 @@ final class PublicController extends AbstractController
 
         return $this->render('public/_footer_contact_form.html.twig', [
             'contactForm' => $form->createView(),
+            'contactCustomHost' => $this->publicContext->hasCustomHost(),
+            'contactRecipient' => $this->publicContext->getContactEmail(),
+            'contactOrganisation' => $this->publicContext->getPublicHost()?->getEntite()?->getNom(),
         ]);
     }
 

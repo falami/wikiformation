@@ -37,6 +37,13 @@ final class PublicContext
         return $this->publicHost instanceof PublicHost;
     }
 
+    public function getContactEmail(): ?string
+    {
+        if (!$this->hasCustomHost()) return 'contact@wikiformation.fr';
+        $email = trim((string) $this->publicHost?->getEntite()?->getEmail());
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+    }
+
     public function isCatalogueEnabled(): bool
     {
         return $this->publicHost?->isCatalogueEnabled() ?? true;

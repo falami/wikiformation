@@ -116,4 +116,37 @@ final class PublicContactPrivacyTest extends KernelTestCase
         self::assertStringNotContainsString('recaptcha', strtolower($this->client->getResponse()->getContent()));
     }
 
+    public function testCustomHostContactIsDeliveredOnlyToItsOrganisation(): void
+    {
+        $em = self::getContainer()->get('doctrine')->getManager();
+        $user = (new \App\Entity\Utilisateur())->setEmail('owner@example.test')->setPassword('unused')->setNom('Test')->setPrenom('Owner');
+        $organisation = (new \App\Entity\Entite())->setNom('Organisme test')->setCreateur($user)->setPublic(false)->setEmail('organisation@example.test');
+        $host = (new \App\Entity\PublicHost())->setHost('training.example.test')->setName('Organisme test')->setEntite($organisation)->setCalendarEnabled(false);
+        foreach ([$user, $organisation, $host] as $entity) $em->persist($entity);
+        $em->flush();
+        $crawler = $this->client->request('GET', 'http://training.example.test/fr/catalogue');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertCount(1, $crawler->filter('form.footer-form'));
+        $data = [
+            'nom' => 'Visiteur', 'email' => 'visitor@example.test',
+            'message' => 'Je souhaite des informations sur vos formations.',
+            'website' => '', 'startedAt' => (string) (time() - 3),
+            '_token' => $crawler->filter('input[name="contact[_token]"]')->attr('value'),
+        ];
+        $this->client->request('POST', 'http://training.example.test/fr/contact', ['contact' => $data], [], ['HTTP_ORIGIN' => 'http://training.example.test']);
+        self::assertSame('/fr/catalogue#footer-contact', $this->client->getResponse()->headers->get('Location'));
+        self::assertCount(1, $this->messages);
+        self::assertSame('organisation@example.test', $this->messages[0]->getTo()[0]->getAddress());
+        self::assertSame('visitor@example.test', $this->messages[0]->getReplyTo()[0]->getAddress());
+        $this->client->followRedirect();
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('alert-success', $this->client->getResponse()->getContent());
+
+        $organisation = $em->find(\App\Entity\Entite::class, $organisation->getId());
+        $organisation->setEmail(null);
+        $em->flush();
+        $this->client->request('POST', 'http://training.example.test/fr/contact', ['contact' => $data], [], ['HTTP_ORIGIN' => 'http://training.example.test']);
+        self::assertCount(1, $this->messages, 'A missing organisation address must never fall back to another recipient.');
+    }
+
 }
