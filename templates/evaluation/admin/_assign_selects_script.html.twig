@@ -17,14 +17,18 @@
         allowEmptyOption: false,
         placeholder,
         searchField: ['text'],
-        hidePlaceholder: false,
+        hidePlaceholder: true,
+        closeAfterSelect: true,
         render: {
           option(data, escape) {
             return '<div class="ev-select-option"><span class="ev-select-icon"><i class="bi ' + icon + '" aria-hidden="true"></i></span><span>' + escape(data.text) + '</span></div>';
           },
           no_results() { return '<div class="no-results">Aucun résultat pour cette recherche.</div>'; },
         },
-        onDropdownOpen() { this.control_input.focus(); },
+        onChange() {
+          this.setTextboxValue('');
+          this.blur();
+        },
       });
       control.wrapper.classList.add('ev-premium-select');
       control.control_input.setAttribute('aria-label', select.labels?.[0]?.textContent.trim() || placeholder);
