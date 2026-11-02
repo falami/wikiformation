@@ -134,16 +134,12 @@ class AvoirController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
 
-            // ✅ Génération du numéro d'avoir (comme facture)
-            if (!$a->hasNumero()) {
-                $year = (int) $a->getDateEmission()->format('Y'); // ou null si tu veux laisser le generator décider
-                $a->setNumero(
-                    $this->avoirNumberGenerator->nextForEntite($entite->getId(), $year)
-                );
-            }
-
-            $em->persist($a);
-            $em->flush();
+            $em->wrapInTransaction(function () use ($em, $a, $entite): void {
+                if (!$a->hasNumero()) {
+                    $a->setNumero($this->avoirNumberGenerator->nextForEntite($entite->getId(), (int) $a->getDateEmission()->format('Y')));
+                }
+                $em->persist($a);
+            });
 
             $this->addFlash('success', 'Avoir créé.');
             return $this->redirectToRoute('app_administrateur_avoir_index', [

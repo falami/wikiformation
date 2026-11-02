@@ -50,7 +50,7 @@ class Session
     private ?Formateur $formateur = null;
 
     #[ORM\Column(length: 255)]
-    #[Assert\NotBlank]
+    // Generated only after form validation, during the persistence transaction.
     private ?string $code = null;
 
     #[ORM\Column(nullable: false, options: ['unsigned' => true])]

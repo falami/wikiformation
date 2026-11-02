@@ -92,72 +92,74 @@ final class CommercialDocuments
     }
     public function issue(UtilisateurEntite $membership, string $module, array $data, Utilisateur $actor, ?object $existing = null): object
     {
-        $this->assertCanIssue($membership->getEntite(), $module);
-        $data['lines'] = array_values($data['lines']);
-        $entite = $membership->getEntite();
-        $year = (int) $data['date']->format('Y');
-        $ht = $vat = 0;
-        foreach ($data['lines'] as $line) {
-            $base = $line['quantity'] * $line['price'];
-            $ht += $base;
-            $vat += (int) round($base * $line['vat'] / 100);
-        }
-        if ($module === 'conventions') {
-            $record = ($existing ?? new ConventionContrat())->setEntite($entite)->setCreateur($existing?->getCreateur() ?? $actor)->setNumero($existing?->getNumero() ?? $this->contracts->nextForEntite($entite->getId(), $year))->setSession($data['session'])->setEntreprise($data['company'])->setStagiaire($data['learner']?->getUtilisateur())->setIntituleFormation($data['session']->getFormation()?->getTitre() ?: $data['session']->getFormationIntituleLibre())->setMontantHtCents($ht)->setTauxTva((float) $data['lines'][0]['vat'])->setConditionsFinancieres(($existing ? '' : implode("\n", array_map(fn($l) => $l['label'] . ' · ' . $l['quantity'] . ' × ' . number_format($l['price'] / 100, 2, ',', ' ') . ' € HT', $data['lines'])) . "\n") . ($data['terms'] ?? ''));
-            foreach ($record->getInscriptions()->toArray() as $previous) {
-                $record->removeInscription($previous);
-            }
-            foreach ($data['participants'] as $i) {
-                $record->addInscription($i);
-            }
-        } else {
-            $record = $existing ?? ($module === 'devis' ? new Devis() : new Facture());
-            foreach ($record->getLignes()->toArray() as $previous) {
-                $record->removeLigne($previous);
-                $this->em->remove($previous);
-            }
-            $number = $existing?->getNumero() ?? ($module === 'devis' ? $this->quotes->nextForEntite($entite->getId(), $year) : '');
-            $record->setEntite($entite)->setCreateur($existing?->getCreateur() ?? $actor)->setNumero($number)->setDateEmission($data['date'])->setDevise('EUR')->setEntrepriseDestinataire($data['company'])->setDestinataire($data['learner']?->getUtilisateur())->setMontantHtCents($ht)->setMontantTvaCents($vat)->setMontantTtcCents($ht + $vat);
-            if ($record instanceof Devis) {
-                $record->setDateValidite($data['validity'])->setRemiseGlobalePourcent($data['discountPercent'] ?? null)->setRemiseGlobaleMontantCents($data['discountAmount'] ?? null);
-            }
-            foreach ($data['lines'] as $line) {
-                $item = $module === 'devis' ? new LigneDevis() : new LigneFacture();
-                $item->setEntite($entite)->setCreateur($actor)->setLabel($line['label'])->setQte($line['quantity'])->setPuHtCents($line['price']);
-                if ($item instanceof LigneDevis) {
-                    $item->setTva((float) $line['vat'])->setRemisePourcent($line['discountPercent'] ?? null)->setRemiseMontantCents($line['discountAmount'] ?? null)->setIsDebours($line['debours'] ?? false);
-                } else {
-                    $item->setTvaBp((int) round($line['vat'] * 100));
-                }
-                $record->addLigne($item);
-                $this->em->persist($item);
-            }
-        }
-        if ($record instanceof Devis) {
-            $lines = array_values(array_filter($record->getLignes()->toArray(), fn($line) => $line->getTotalHtNetCents() > 0));
-            $base = array_sum(array_map(fn($line) => $line->getTotalHtNetCents(), $lines));
-            $discount = $record->getRemiseGlobaleCents();
-            $remaining = $discount;
+        return $this->em->wrapInTransaction(function () use ($membership, $module, $data, $actor, $existing): object {
+            $this->assertCanIssue($membership->getEntite(), $module);
+            $data['lines'] = array_values($data['lines']);
+            $entite = $membership->getEntite();
+            $year = (int) $data['date']->format('Y');
             $ht = $vat = 0;
-            foreach ($lines as $index => $line) {
-                $net = $line->getTotalHtNetCents();
-                $share = $index === count($lines) - 1 ? $remaining : (int) round($discount * $net / $base);
-                $share = min($net, $remaining, max(0, $share));
-                $remaining -= $share;
-                $net -= $share;
-                $ht += $net;
-                $vat += (int) round($net * $line->getTva() / 100);
+            foreach ($data['lines'] as $line) {
+                $base = $line['quantity'] * $line['price'];
+                $ht += $base;
+                $vat += (int) round($base * $line['vat'] / 100);
             }
-            $record->setMontantHtCents($ht)->setMontantTvaCents($vat)->setMontantTtcCents($ht + $vat);
-        }
-        if ($record instanceof Facture || $record instanceof Devis) $record->setMeta(array_replace($record->getMeta() ?? [], ['invoice_terms' => $data['invoiceTerms'] ?? []]));
-        if ($record instanceof Facture) {
-            $this->invoices->persist($record);
-        } else {
-            $this->em->persist($record);
-            $this->em->flush();
-        }
-        $this->access->assign($membership, $module, $record->getId(), 'edit', $actor);
-        return $record;
+            if ($module === 'conventions') {
+                $record = ($existing ?? new ConventionContrat())->setEntite($entite)->setCreateur($existing?->getCreateur() ?? $actor)->setNumero($existing?->getNumero() ?? $this->contracts->nextForEntite($entite->getId(), $year))->setSession($data['session'])->setEntreprise($data['company'])->setStagiaire($data['learner']?->getUtilisateur())->setIntituleFormation($data['session']->getFormation()?->getTitre() ?: $data['session']->getFormationIntituleLibre())->setMontantHtCents($ht)->setTauxTva((float) $data['lines'][0]['vat'])->setConditionsFinancieres(($existing ? '' : implode("\n", array_map(fn($l) => $l['label'] . ' · ' . $l['quantity'] . ' × ' . number_format($l['price'] / 100, 2, ',', ' ') . ' € HT', $data['lines'])) . "\n") . ($data['terms'] ?? ''));
+                foreach ($record->getInscriptions()->toArray() as $previous) {
+                    $record->removeInscription($previous);
+                }
+                foreach ($data['participants'] as $i) {
+                    $record->addInscription($i);
+                }
+            } else {
+                $record = $existing ?? ($module === 'devis' ? new Devis() : new Facture());
+                foreach ($record->getLignes()->toArray() as $previous) {
+                    $record->removeLigne($previous);
+                    $this->em->remove($previous);
+                }
+                $number = $existing?->getNumero() ?? ($module === 'devis' ? $this->quotes->nextForEntite($entite->getId(), $year) : '');
+                $record->setEntite($entite)->setCreateur($existing?->getCreateur() ?? $actor)->setNumero($number)->setDateEmission($data['date'])->setDevise('EUR')->setEntrepriseDestinataire($data['company'])->setDestinataire($data['learner']?->getUtilisateur())->setMontantHtCents($ht)->setMontantTvaCents($vat)->setMontantTtcCents($ht + $vat);
+                if ($record instanceof Devis) {
+                    $record->setDateValidite($data['validity'])->setRemiseGlobalePourcent($data['discountPercent'] ?? null)->setRemiseGlobaleMontantCents($data['discountAmount'] ?? null);
+                }
+                foreach ($data['lines'] as $line) {
+                    $item = $module === 'devis' ? new LigneDevis() : new LigneFacture();
+                    $item->setEntite($entite)->setCreateur($actor)->setLabel($line['label'])->setQte($line['quantity'])->setPuHtCents($line['price']);
+                    if ($item instanceof LigneDevis) {
+                        $item->setTva((float) $line['vat'])->setRemisePourcent($line['discountPercent'] ?? null)->setRemiseMontantCents($line['discountAmount'] ?? null)->setIsDebours($line['debours'] ?? false);
+                    } else {
+                        $item->setTvaBp((int) round($line['vat'] * 100));
+                    }
+                    $record->addLigne($item);
+                    $this->em->persist($item);
+                }
+            }
+            if ($record instanceof Devis) {
+                $lines = array_values(array_filter($record->getLignes()->toArray(), fn($line) => $line->getTotalHtNetCents() > 0));
+                $base = array_sum(array_map(fn($line) => $line->getTotalHtNetCents(), $lines));
+                $discount = $record->getRemiseGlobaleCents();
+                $remaining = $discount;
+                $ht = $vat = 0;
+                foreach ($lines as $index => $line) {
+                    $net = $line->getTotalHtNetCents();
+                    $share = $index === count($lines) - 1 ? $remaining : (int) round($discount * $net / $base);
+                    $share = min($net, $remaining, max(0, $share));
+                    $remaining -= $share;
+                    $net -= $share;
+                    $ht += $net;
+                    $vat += (int) round($net * $line->getTva() / 100);
+                }
+                $record->setMontantHtCents($ht)->setMontantTvaCents($vat)->setMontantTtcCents($ht + $vat);
+            }
+            if ($record instanceof Facture || $record instanceof Devis) $record->setMeta(array_replace($record->getMeta() ?? [], ['invoice_terms' => $data['invoiceTerms'] ?? []]));
+            if ($record instanceof Facture) {
+                $this->invoices->persist($record);
+            } else {
+                $this->em->persist($record);
+                $this->em->flush();
+            }
+            $this->access->assign($membership, $module, $record->getId(), 'edit', $actor);
+            return $record;
+        });
     }
 }

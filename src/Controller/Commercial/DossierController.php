@@ -203,16 +203,14 @@ final class DossierController extends AbstractController
                 if ($record instanceof Formation || $record instanceof Site) {
                     $record->setSlug(strtolower($slugger->slug($this->registry->title($record)) . '-' . bin2hex(random_bytes(4))));
                 }
-                if ($record instanceof Session) {
-                    $record->setCode($numbers->nextForEntite($entite->getId()));
-                }
                 if ($record instanceof Formateur && $this->em->getRepository(Formateur::class)->findOneBy(['entite' => $entite, 'utilisateur' => $record->getUtilisateur()])) {
                     $form->addError(new FormError('Un formateur existe déjà pour ce compte. Demandez son attribution à votre administrateur.'));
                 } elseif ($record instanceof Inscription && $this->em->getRepository(Inscription::class)->findOneBy(['session' => $record->getSession(), 'stagiaire' => $record->getStagiaire()])) {
                     $form->addError(new FormError('Ce stagiaire est déjà inscrit à cette session.'));
                 } else {
-                    $this->em->wrapInTransaction(function () use ($record, $membership, $module, $form, $entite) {
+                    $this->em->wrapInTransaction(function () use ($record, $membership, $module, $form, $entite, $numbers) {
                         if ($record instanceof Session) {
+                            $record->setCode($numbers->nextForEntite($entite->getId()));
                             $day = (new \App\Entity\SessionJour())->setSession($record)->setEntite($entite)->setCreateur($this->getUser())->setDateDebut($form->get('start')->getData())->setDateFin($form->get('end')->getData())->setFormateur($record->getFormateur());
                             $record->addJour($day);
                             $this->em->persist($day);

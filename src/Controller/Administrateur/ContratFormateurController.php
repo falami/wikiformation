@@ -398,15 +398,11 @@ class ContratFormateurController extends AbstractController
         }
       }
 
-      if (!$contrat->getNumero()) {
-        $contrat->setNumero($this->contratNumberGenerator->nextForEntite($entite->getId()));
-      }
-
-
-      $this->em->persist($contrat);
-
       try {
-        $this->em->flush();
+        $this->em->wrapInTransaction(function () use ($contrat, $entite): void {
+          if (!$contrat->getNumero()) $contrat->setNumero($this->contratNumberGenerator->nextForEntite($entite->getId()));
+          $this->em->persist($contrat);
+        });
       } catch (UniqueConstraintViolationException $e) {
         $this->addFlash('warning', 'Ce contrat existe déjà (doublon session + formateur).');
         return $this->redirectToRoute('app_administrateur_formateurs_contrats_list', ['entite' => $entite->getId()]);

@@ -1791,11 +1791,6 @@ final class SessionController extends AbstractController
             $session->setCreateur($user);
             $session->setEntite($entite);
 
-            // ✅ Génération serveur dès la création (avant validation)
-            if (!$session->getCode() || !trim($session->getCode())) {
-                $year = (int) (new \DateTimeImmutable())->format('Y');
-                $session->setCode($sessionGen->nextForEntite($entite->getId(), $year));
-            }
         } else {
             if ($session->getEntite()?->getId() !== $entite->getId()) {
                 throw $this->createNotFoundException();
@@ -1846,100 +1841,103 @@ final class SessionController extends AbstractController
         }
 
         if ($form->isSubmitted() && $form->isValid()) {
-
-
-
-            // ✅ Normalise les journées
-            foreach ($session->getJours() as $jour) {
-                if ($jour->getSession() !== $session) {
-                    $jour->setSession($session);
-                }
-                if ($jour->getEntite() === null) {
-                    $jour->setEntite($entite);
-                }
-                if ($jour->getCreateur() === null) {
-                    $jour->setCreateur($user);
-                }
-                if ($jour->getDateCreation() === null) {
-                    $jour->setDateCreation(new \DateTimeImmutable());
-                }
-            }
-
-
-            // ✅ (Optionnel) Normalise les inscriptions uniquement si ton entity le nécessite
-            foreach ($session->getInscriptions() as $inscription) {
-                if ($inscription->getSession() !== $session) {
-                    $inscription->setSession($session);
+            return $em->wrapInTransaction(function () use ($session, $sessionGen, $entite, $user, $form, $em, $isEdit, $conventionGen, $previousTrainerUserIds): Response {
+                if (!$isEdit) {
+                    $session->setCode($sessionGen->nextForEntite($entite->getId()));
                 }
 
-                if (method_exists($inscription, 'getEntite') && $inscription->getEntite() === null) {
-                    $inscription->setEntite($entite);
-                }
-
-                if (method_exists($inscription, 'getCreateur') && $inscription->getCreateur() === null) {
-                    $inscription->setCreateur($user);
-                }
-
-                if (method_exists($inscription, 'getDateCreation') && $inscription->getDateCreation() === null) {
-                    $inscription->setDateCreation(new \DateTimeImmutable());
-                }
-
-                if (method_exists($inscription, 'getStagiaire') && !$inscription->getStagiaire()) {
-                    throw new \RuntimeException('Inscription sans stagiaire.');
-                }
-
-
-            }
-
-
-            if ($session->isEmargementRequis()) {
-                $this->syncEmargementsWithInscriptions($session, $em);
-            }
-
-
-            if ($session->getTypeFinancement() !== TypeFinancement::OUI) {
-                $session->setOrganismeFormation(null);
-                $session->setFormationIntituleLibre(null);
-            }
-
-
-
-            $createdConventions = [];
-            foreach ($form->get('inscriptions') as $entry) {
-                $inscription = $entry->getData();
-                if ($entry->get('createConvention')->getData()) {
-                    $company = $inscription->getEntreprise();
-                    $key = $company ? 'company-'.$company->getId() : 'learner-'.$inscription->getStagiaire()->getId();
-                    if (!isset($createdConventions[$key])) {
-                        $document = (new ConventionContrat())->setEntite($entite)->setCreateur($user)->setSession($session)
-                            ->setEntreprise($company)->setStagiaire($company ? null : $inscription->getStagiaire())
-                            ->setNumero($conventionGen->nextForEntite($entite->getId()));
-                        $createdConventions[$key] = $document;
-                        $em->persist($document);
+                // ✅ Normalise les journées
+                foreach ($session->getJours() as $jour) {
+                    if ($jour->getSession() !== $session) {
+                        $jour->setSession($session);
                     }
-                    $createdConventions[$key]->addInscription($inscription);
-                }
-                foreach ($entry->get('conventionsToAssociate')->getData() as $convention) {
-                    $convention->addInscription($entry->getData());
-                    if (!$entry->getData()->getEntreprise() && $convention->getEntreprise()) {
-                        $entry->getData()->setEntreprise($convention->getEntreprise());
+                    if ($jour->getEntite() === null) {
+                        $jour->setEntite($entite);
+                    }
+                    if ($jour->getCreateur() === null) {
+                        $jour->setCreateur($user);
+                    }
+                    if ($jour->getDateCreation() === null) {
+                        $jour->setDateCreation(new \DateTimeImmutable());
                     }
                 }
-            }
 
-            if ($isEdit) {
-                $this->formateurSatisfactionAssigner->synchronizeReplacement($session, $user, $entite, $previousTrainerUserIds);
-            }
-            $em->persist($session);
-            $em->flush(); // ✅ IMPORTANT : session doit avoir un id
 
-            $this->lifecycle->assignQuestionnaires($session);
-            $em->flush();
+                // ✅ (Optionnel) Normalise les inscriptions uniquement si ton entity le nécessite
+                foreach ($session->getInscriptions() as $inscription) {
+                    if ($inscription->getSession() !== $session) {
+                        $inscription->setSession($session);
+                    }
 
-            $this->addFlash('success', $isEdit ? 'Session modifiée.' : 'Session créée.');
-            return $this->redirectToRoute('app_administrateur_session_index', [
-                'entite' => $entite->getId(),
-            ]);
+                    if (method_exists($inscription, 'getEntite') && $inscription->getEntite() === null) {
+                        $inscription->setEntite($entite);
+                    }
+
+                    if (method_exists($inscription, 'getCreateur') && $inscription->getCreateur() === null) {
+                        $inscription->setCreateur($user);
+                    }
+
+                    if (method_exists($inscription, 'getDateCreation') && $inscription->getDateCreation() === null) {
+                        $inscription->setDateCreation(new \DateTimeImmutable());
+                    }
+
+                    if (method_exists($inscription, 'getStagiaire') && !$inscription->getStagiaire()) {
+                        throw new \RuntimeException('Inscription sans stagiaire.');
+                    }
+
+
+                }
+
+
+                if ($session->isEmargementRequis()) {
+                    $this->syncEmargementsWithInscriptions($session, $em);
+                }
+
+
+                if ($session->getTypeFinancement() !== TypeFinancement::OUI) {
+                    $session->setOrganismeFormation(null);
+                    $session->setFormationIntituleLibre(null);
+                }
+
+
+
+                $createdConventions = [];
+                foreach ($form->get('inscriptions') as $entry) {
+                    $inscription = $entry->getData();
+                    if ($entry->get('createConvention')->getData()) {
+                        $company = $inscription->getEntreprise();
+                        $key = $company ? 'company-'.$company->getId() : 'learner-'.$inscription->getStagiaire()->getId();
+                        if (!isset($createdConventions[$key])) {
+                            $document = (new ConventionContrat())->setEntite($entite)->setCreateur($user)->setSession($session)
+                                ->setEntreprise($company)->setStagiaire($company ? null : $inscription->getStagiaire())
+                                ->setNumero($conventionGen->nextForEntite($entite->getId()));
+                            $createdConventions[$key] = $document;
+                            $em->persist($document);
+                        }
+                        $createdConventions[$key]->addInscription($inscription);
+                    }
+                    foreach ($entry->get('conventionsToAssociate')->getData() as $convention) {
+                        $convention->addInscription($entry->getData());
+                        if (!$entry->getData()->getEntreprise() && $convention->getEntreprise()) {
+                            $entry->getData()->setEntreprise($convention->getEntreprise());
+                        }
+                    }
+                }
+
+                if ($isEdit) {
+                    $this->formateurSatisfactionAssigner->synchronizeReplacement($session, $user, $entite, $previousTrainerUserIds);
+                }
+                $em->persist($session);
+                $em->flush(); // ✅ IMPORTANT : session doit avoir un id
+
+                $this->lifecycle->assignQuestionnaires($session);
+                $em->flush();
+
+                $this->addFlash('success', $isEdit ? 'Session modifiée.' : 'Session créée.');
+                return $this->redirectToRoute('app_administrateur_session_index', [
+                    'entite' => $entite->getId(),
+                ]);
+            });
         }
 
         return $this->render('administrateur/session/form.html.twig', [
@@ -3001,7 +2999,7 @@ final class SessionController extends AbstractController
         // 👉 Sinon, on crée un contrat PRÉ-REMPLI pour ce formateur & cette session
 
         // 1) Numéro séquentiel
-        $numero = $this->contratNumberGenerator->nextForEntite($entite->getId());
+        // The number is allocated together with the saved contract.
 
 
         // La rémunération est celle du formateur sur ses créneaux, pas le prix vendu au client.
@@ -3019,7 +3017,6 @@ final class SessionController extends AbstractController
             ->setSession($session)
             ->setFormateur($formateur)
             ->setStatus(ContratFormateurStatus::BROUILLON)
-            ->setNumero($numero)
             ->setMontantPrevuCents($montantPrevu)
             ->setFraisMissionCents(0);
 
@@ -3065,8 +3062,10 @@ final class SessionController extends AbstractController
         }
 
 
-        $em->persist($contrat);
-        $em->flush();
+        $em->wrapInTransaction(function () use ($em, $contrat, $entite): void {
+            $contrat->setNumero($this->contratNumberGenerator->nextForEntite($entite->getId()));
+            $em->persist($contrat);
+        });
 
         $this->addFlash(
             'success',

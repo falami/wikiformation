@@ -88,9 +88,6 @@ class DevisController extends AbstractController
 
 
     if ($form->isSubmitted() && $form->isValid()) {
-      if (!$d->getNumero()) {
-        $d->setNumero($gen->nextForEntite($entite->getId(), (int) $d->getDateEmission()->format('Y')));
-      }
 
 
       // recalcul HT/TVA/TTC depuis lignes (comme tu voulais le faire sur Facture)
@@ -110,8 +107,10 @@ class DevisController extends AbstractController
         }
       }
 
-      $em->persist($d);
-      $em->flush();
+      $em->wrapInTransaction(function () use ($em, $d, $gen, $entite): void {
+        if (!$d->getNumero()) $d->setNumero($gen->nextForEntite($entite->getId(), (int) $d->getDateEmission()->format('Y')));
+        $em->persist($d);
+      });
 
       $this->addFlash('success', 'Devis créé.');
       return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $d->getId()]);
@@ -530,12 +529,6 @@ class DevisController extends AbstractController
 
     if ($form->isSubmitted() && $form->isValid()) {
 
-      // ✅ Filet de sécurité : si pas de numéro, on le génère
-      if (!$id->getNumero()) {
-        $year = (int) $id->getDateEmission()->format('Y');
-        $id->setNumero($gen->nextForEntite($entite->getId(), $year));
-      }
-
       $this->recalcDevis($id);
 
 
@@ -552,7 +545,9 @@ class DevisController extends AbstractController
         }
       }
 
-      $em->flush();
+      $em->wrapInTransaction(function () use ($id, $gen, $entite): void {
+        if (!$id->getNumero()) $id->setNumero($gen->nextForEntite($entite->getId(), (int) $id->getDateEmission()->format('Y')));
+      });
 
       $this->addFlash('success', 'Devis mis à jour.');
       return $this->redirectToRoute('app_administrateur_devis_index', ['entite' => $entite->getId()]);
@@ -810,7 +805,7 @@ class DevisController extends AbstractController
 
     // statut + numéro
     $copy->setStatus(DevisStatus::DRAFT);
-    $copy->setNumero($gen->nextForEntite($entite->getId()));
+
 
     // ne pas garder une facture liée
     if (method_exists($copy, 'setFactureCreee')) {
@@ -849,8 +844,10 @@ class DevisController extends AbstractController
     // recalcul montants (comme tu fais ailleurs)
     $this->recalcDevis($copy);
 
-    $em->persist($copy);
-    $em->flush();
+    $em->wrapInTransaction(function () use ($em, $copy, $gen, $entite): void {
+      $copy->setNumero($gen->nextForEntite($entite->getId(), (int) $copy->getDateEmission()->format('Y')));
+      $em->persist($copy);
+    });
 
     $this->addFlash('success', 'Devis dupliqué.');
 

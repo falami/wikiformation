@@ -169,7 +169,7 @@ class SessionType extends AbstractType
                         ->addOrderBy('u.prenom', 'ASC');
                 },
             ])
-            ->add('code', HiddenType::class, [])
+            ->add('code', HiddenType::class, ['disabled' => true, 'required' => false])
             ->add('capacite', IntegerType::class, [
                 'label' => 'Capacité',
                 'attr' => ['class' => 'form-control', 'min' => 1],

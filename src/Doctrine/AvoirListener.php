@@ -6,11 +6,14 @@ use App\Entity\Avoir;
 use App\Service\Sequence\AvoirNumberGenerator;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
+use Doctrine\ORM\Event\PostPersistEventArgs;
+use App\Service\Sequence\DeferredDocumentNumber;
 
 #[AsEntityListener(event: Events::prePersist, entity: Avoir::class)]
+#[AsEntityListener(event: Events::postPersist, entity: Avoir::class)]
 class AvoirListener
 {
-    public function __construct(private AvoirNumberGenerator $generator) {}
+    public function __construct(private AvoirNumberGenerator $generator, private DeferredDocumentNumber $deferred) {}
 
     public function prePersist(Avoir $a): void
     {
@@ -31,6 +34,12 @@ class AvoirListener
             throw new \LogicException("Impossible de générer le numéro d’avoir : entité/émetteur manquant.");
         }
 
-        $a->setNumero($this->generator->nextForEntite($entite->getId()));
+        $a->setNumero($this->deferred->prepare($a));
+    }
+
+    public function postPersist(Avoir $a, PostPersistEventArgs $event): void
+    {
+        $this->deferred->complete($a, $event->getObjectManager(),
+            fn(): string => $this->generator->nextForEntite(($a->getEntite() ?? $a->getFactureOrigine()?->getEntite())->getId(), (int) $a->getDateEmission()->format('Y')));
     }
 }

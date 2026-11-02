@@ -225,7 +225,7 @@ final class WorkflowActionHandler
             $hours = $realisation['hours'];
             if ($hours <= 0) return $this->blocked('La durée pédagogique de la session doit être renseignée.');
             $attestation = (new Attestation())->setEntite($w->getEntite())->setCreateur($w->getCreateur())->setInscription($i)
-                ->setNumero($this->numbers->nextForEntite($w->getEntite()->getId()))->setDureeHeures(round($hours, 2))
+                ->setDureeHeures(round($hours, 2))
                 ->setDateDelivrance(new \DateTimeImmutable())->setReussi($i->isReussi());
             $i->setAttestation($attestation);
             $this->em->persist($attestation);

@@ -57,6 +57,134 @@ final class FinanceNavigationTest extends KernelTestCase
         }
     }
 
+    public function testOpeningAndRejectingCreationFormsDoesNotAllocateNumbers(): void
+    {
+        $client = $this->client();
+        foreach (['app_administrateur_session_ajouter', 'app_administrateur_devis_new', 'app_administrateur_avoir_new', 'app_administrateur_attestation_new', 'app_administrateur_convention_new', 'app_administrateur_formateurs_contrats_new'] as $route) {
+            $url = $this->url($route);
+            for ($attempt = 0; $attempt < 2; ++$attempt) {
+                $client->request('GET', $url);
+                self::assertSame(200, $client->getResponse()->getStatusCode(), $route);
+            }
+            $client->request('POST', $url, []);
+            foreach (['session', 'devis', 'avoir', 'attestation', 'convention_contrat', 'contrat_formateur', 'facture'] as $type) {
+                self::assertSame(0, (int) $this->em->getConnection()->fetchOne("SELECT COUNT(*) FROM {$type}_sequence"), $route . ': ' . $type);
+            }
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('certificateOutcomes')]
+    public function testSessionNumberIsAssignedOnSaveAndCannotBePostedByTheBrowser(bool $fail): void
+    {
+        $site = (new \App\Entity\Site())->setEntite($this->entite)->setCreateur($this->admin)->setNom('Salle')->setSlug('numbering');
+        $formation = (new \App\Entity\Formation())->setEntite($this->entite)->setCreateur($this->admin)->setTitre('Test')->setSlug('numbering');
+        $this->em->persist($site); $this->em->persist($formation); $this->em->flush();
+        $client = $this->client();
+        $url = $this->url('app_administrateur_session_ajouter');
+        $page = $client->request('GET', $url);
+        $data = $page->filter('form[name="session"]')->form()->getPhpValues();
+        $data['session']['site'] = $site->getId();
+        $data['session']['formation'] = $formation->getId();
+        $data['session']['code'] = 'FORGED-NUMBER';
+        $data['session']['capacite'] = '8';
+        $data['session']['jours'] = [['dateDebut' => '15/01/2030 09:00', 'dateFin' => '15/01/2030 12:00', 'pauseMinutes' => '0']];
+        $invalid = $data;
+        $invalid['session']['capacite'] = '0';
+        $client->request('POST', $url, $invalid);
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM session_sequence'));
+        if ($fail) {
+            $this->em->getEventManager()->addEventListener(['postPersist'], new class {
+                public function postPersist(\Doctrine\ORM\Event\PostPersistEventArgs $event): void {
+                    if ($event->getObject() instanceof \App\Entity\Session) throw new \RuntimeException('Simulated session failure');
+                }
+            });
+            try { $client->request('POST', $url, $data); self::fail('Expected failure'); }
+            catch (\RuntimeException $error) { self::assertSame('Simulated session failure', $error->getMessage()); }
+            self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM session_sequence'));
+            self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM session'));
+            return;
+        }
+        $client->request('POST', $url, $data);
+        self::assertSame(302, $client->getResponse()->getStatusCode(), implode(' | ', $client->getCrawler()->filter('[id*="_error"]')->each(fn($node) => $node->text())));
+        $db = $this->em->getConnection();
+        $code = $db->fetchOne('SELECT code FROM session WHERE site_id = ?', [$site->getId()]);
+        self::assertSame('SES-E' . $this->entite->getId() . '-' . date('Y') . '-0001', $code);
+        self::assertSame(1, (int) $db->fetchOne('SELECT last FROM session_sequence'));
+    }
+
+    public function testAutomaticCreditNumberWaitsForFlushAndRollsBackWithDocument(): void
+    {
+        $avoir = (new Avoir())->setEntite($this->entite)->setCreateur($this->admin)->setDateEmission(new \DateTimeImmutable('2026-09-21'))->setMontantTtcCents(100);
+        $this->em->persist($avoir);
+        $db = $this->em->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM avoir_sequence'));
+        $db->beginTransaction();
+        $this->em->flush();
+        self::assertStringEndsWith('-0001', $avoir->getNumero());
+        self::assertSame($avoir->getNumero(), $db->fetchOne('SELECT numero FROM avoir WHERE id = ?', [$avoir->getId()]));
+        $db->rollBack();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM avoir_sequence'));
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM avoir WHERE id = ?', [$avoir->getId()]));
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('certificateOutcomes')]
+    public function testCertificateNumberIsAtomicWithItsFlush(bool $fail): void
+    {
+        $site = (new \App\Entity\Site())->setEntite($this->entite)->setCreateur($this->admin)->setNom('Salle')->setSlug('certificate');
+        $session = (new \App\Entity\Session())->setEntite($this->entite)->setCreateur($this->admin)->setSite($site)->setCode('SES-CERTIFICATE');
+        $registration = (new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)->setSession($session)->setStagiaire($this->admin);
+        foreach ([$site, $session, $registration] as $record) $this->em->persist($record);
+        $this->em->flush();
+        $attestation = (new \App\Entity\Attestation())->setEntite($this->entite)->setCreateur($this->admin)->setInscription($registration)->setDateDelivrance(new \DateTimeImmutable())->setDureeHeures(3)->setReussi(true);
+        $this->em->persist($attestation);
+        $db = $this->em->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM attestation_sequence'));
+        if ($fail) {
+            $this->em->getEventManager()->addEventListener(['postPersist'], new class {
+                public function postPersist(\Doctrine\ORM\Event\PostPersistEventArgs $event): void {
+                    if ($event->getObject() instanceof \App\Entity\Attestation) throw new \RuntimeException('Simulated persistence failure');
+                }
+            });
+            try { $this->em->flush(); self::fail('Expected rollback'); }
+            catch (\RuntimeException $error) { self::assertSame('Simulated persistence failure', $error->getMessage()); }
+            self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM attestation_sequence'));
+            self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM attestation'));
+        } else {
+            $this->em->flush();
+            $number = $attestation->getNumero();
+            self::assertStringEndsWith('-0001', $number);
+            self::assertSame($number, $db->fetchOne('SELECT numero FROM attestation WHERE id = ?', [$attestation->getId()]));
+            $attestation->setDureeHeures(4);
+            $this->em->flush();
+            self::assertSame($number, $attestation->getNumero());
+            self::assertSame(1, (int) $db->fetchOne('SELECT last FROM attestation_sequence'));
+            self::assertFalse($db->isTransactionActive());
+        }
+    }
+
+    public function testCertificateCreatedDuringFlushReceivesACommittedNumber(): void
+    {
+        $site = (new \App\Entity\Site())->setEntite($this->entite)->setCreateur($this->admin)->setNom('Salle')->setSlug('automatic');
+        $session = (new \App\Entity\Session())->setEntite($this->entite)->setCreateur($this->admin)->setSite($site)->setCode('SES-AUTOMATIC')->setStatus(\App\Enum\StatusSession::DONE);
+        $slot = (new \App\Entity\SessionJour())->setSession($session)->setEntite($this->entite)->setCreateur($this->admin)->setDateDebut(new \DateTimeImmutable('2025-01-01 09:00'))->setDateFin(new \DateTimeImmutable('2025-01-01 12:00'))->setPauseMinutes(0);
+        $session->addJour($slot);
+        $registration = (new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)->setSession($session)->setStagiaire($this->admin)->setStatus(\App\Enum\StatusInscription::CONFIRME);
+        $registration->enregistrerPresenceManuelle('2025-01-01:AM', 'paper', 'Feuille signée', $this->admin);
+        $session->addInscription($registration);
+        foreach ([$site, $session, $slot, $registration] as $record) $this->em->persist($record);
+        $this->em->flush();
+        self::assertNotNull($registration->getAttestation());
+        self::assertStringEndsWith('-0001', $registration->getAttestation()->getNumero());
+        self::assertSame($registration->getAttestation()->getNumero(), $this->em->getConnection()->fetchOne('SELECT numero FROM attestation'));
+        self::assertFalse($this->em->getConnection()->isTransactionActive());
+    }
+
+    public static function certificateOutcomes(): iterable
+    {
+        yield 'committed' => [false];
+        yield 'rolled back after allocation' => [true];
+    }
+
     public function testSummaryUsesHtAndGroupsCompanyRevenue(): void
     {
         $company = (new \App\Entity\Entreprise())->setEntite($this->entite)->setCreateur($this->admin)->setRaisonSociale('Société exemple');
