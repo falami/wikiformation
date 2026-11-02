@@ -287,6 +287,22 @@ final class InvoiceDraftTest extends KernelTestCase
         $this->drafts->issue($draft, $draft->getVersion(), $this->user, fn(): Facture => $this->invoice()->setEntite($other));
     }
 
+    public function testDeletionRejectsStaleVersionsAndIssuedInvoices(): void
+    {
+        $draft = $this->draft();
+        try {
+            $this->drafts->delete($draft, $draft->getVersion() - 1);
+            self::fail('Stale deletion must fail.');
+        } catch (\DomainException $error) { self::assertStringContainsString('autre onglet', $error->getMessage()); }
+        $invoice = $this->drafts->issue($draft, $draft->getVersion(), $this->user, fn(): Facture => $this->invoice());
+        try {
+            $this->drafts->delete($draft, $draft->getVersion());
+            self::fail('Issued invoices must remain.');
+        } catch (\DomainException $error) { self::assertStringContainsString('déjà émise', $error->getMessage()); }
+        self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
+        self::assertSame($invoice, $draft->getFactureEmise());
+    }
+
     private function draft(): FactureBrouillon
     {
         $draft = new FactureBrouillon($this->entity, $this->user);

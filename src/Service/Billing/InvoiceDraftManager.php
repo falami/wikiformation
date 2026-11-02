@@ -31,6 +31,17 @@ final class InvoiceDraftManager
         });
     }
 
+    public function delete(FactureBrouillon $draft, int $expectedVersion): void
+    {
+        $this->em->getConnection()->transactional(function () use ($draft, $expectedVersion): void {
+            $this->refreshLocked($draft);
+            $this->assertVersion($draft, $expectedVersion);
+            if ($draft->getFactureEmise()) throw new \DomainException('Une facture déjà émise ne peut pas être supprimée depuis les brouillons.');
+            $this->em->remove($draft);
+            $this->em->flush();
+        });
+    }
+
     public function archive(FactureBrouillon $draft, int $expectedVersion, Utilisateur $actor): void
     {
         $this->em->getConnection()->transactional(function () use ($draft, $expectedVersion, $actor): void {

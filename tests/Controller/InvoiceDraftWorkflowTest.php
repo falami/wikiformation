@@ -307,7 +307,7 @@ final class InvoiceDraftWorkflowTest extends KernelTestCase
         $this->em->persist($foreign);
         $this->em->flush();
         $this->client->catchExceptions(true);
-        foreach ([['GET', 'draft_edit'], ['GET', 'draft_review'], ['GET', 'draft_pdf'], ['POST', 'draft_edit'], ['POST', 'draft_issue'], ['POST', 'draft_archive']] as [$method, $route]) {
+        foreach ([['GET', 'draft_edit'], ['GET', 'draft_review'], ['GET', 'draft_pdf'], ['POST', 'draft_edit'], ['POST', 'draft_issue'], ['POST', 'draft_archive'], ['POST', 'draft_delete']] as [$method, $route]) {
             $this->client->request($method, $this->url($route, $foreign));
             self::assertSame(404, $this->client->getResponse()->getStatusCode(), $route);
             self::assertStringNotContainsString('Confidential foreign draft', $this->client->getResponse()->getContent());
@@ -463,6 +463,22 @@ final class InvoiceDraftWorkflowTest extends KernelTestCase
         self::assertCount(1, $form);
         $this->client->request('POST', $action, ['_token' => $form->filter('[name="_token"]')->attr('value')]);
         $this->assertRedirect();
+    }
+
+    public function testDeleteButtonRemovesOnlyTheDraftAndAllowsConventionConversionAgain(): void
+    {
+        $convention = $this->convention();
+        $this->openConventionDraft($convention);
+        $draft = $this->lastDraft();
+        $page = $this->client->request('GET', $this->url('draft_index'));
+        $form = $page->filter('form[action="'.$this->url('draft_delete', $draft).'"]')->form();
+        $this->client->submit($form);
+        $this->assertRedirect();
+        self::assertSame(0, $this->em->getRepository(FactureBrouillon::class)->count([]));
+        self::assertNotNull($this->em->find(\App\Entity\ConventionContrat::class, $convention->getId()));
+        $this->assertNoInvoice();
+        $this->openConventionDraft($convention);
+        self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
     }
 
     private function saveNew(array $payload): FactureBrouillon

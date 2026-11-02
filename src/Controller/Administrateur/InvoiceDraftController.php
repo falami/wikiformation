@@ -186,6 +186,18 @@ final class InvoiceDraftController extends AbstractController
         return $this->privateResponse($this->pdf->createPortrait($dom->saveHTML(), 'BROUILLON_'.$draft->getReference()));
     }
 
+    #[Route('/brouillons/{draftId}/supprimer', name: 'draft_delete', methods: ['POST'])]
+    public function delete(Entite $entite, int $draftId, Request $request): Response
+    {
+        $draft = $this->find($entite, $draftId);
+        if (!$this->isCsrfTokenValid('invoice_draft_delete_'.$draftId, $request->request->getString('_token'))) throw $this->createAccessDeniedException();
+        try {
+            $this->drafts->delete($draft, $request->request->getInt('version'));
+            $this->addFlash('success', 'Brouillon supprimé. Aucune facture n’a été émise.');
+        } catch (\DomainException $error) { $this->addFlash('warning', $error->getMessage()); }
+        return $this->redirectToRoute('app_administrateur_facture_draft_index', ['entite' => $entite->getId()], 303);
+    }
+
     #[Route('/brouillons/{draftId}/archiver', name: 'draft_archive', methods: ['POST'])]
     public function archive(Entite $entite, int $draftId, Request $request): Response
     {
