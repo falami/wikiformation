@@ -67,6 +67,11 @@ final class InvoiceDraftManager
             if ($draft->getFactureEmise()) return $draft->getFactureEmise();
             $this->assertVersion($draft, $expectedVersion);
             $draft->assertEditable();
+            if ($convention = $draft->getSourceConvention()) {
+                $this->em->refresh($convention, LockMode::PESSIMISTIC_WRITE);
+                if ($convention->getEntite()?->getId() !== $draft->getEntite()->getId()) throw new \DomainException('La convention appartient à un autre organisme.');
+                if ($convention->getDevis()) throw new \DomainException('La convention a été rattachée à un devis. Reprenez le brouillon du devis pour éviter une double facturation.');
+            }
             $devis = $draft->getSourceDevis();
             if ($devis) {
                 $this->em->refresh($devis, LockMode::PESSIMISTIC_WRITE);

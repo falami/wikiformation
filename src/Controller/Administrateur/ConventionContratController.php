@@ -31,6 +31,35 @@ use Symfony\Component\Form\FormError;
 #[IsGranted(TenantPermission::CONVENTION_MANAGE, subject: 'entite')]
 final class ConventionContratController extends AbstractController
 {
+    #[Route('/{id}/facture-brouillon', name: 'invoice_draft', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function invoiceDraft(Entite $entite, ConventionContrat $c, Request $request, EM $em, \App\Service\Billing\ConventionInvoiceDraft $builder): Response
+    {
+        $this->denyAccessUnlessGranted(TenantPermission::FACTURE_MANAGE, $entite);
+        $this->assertConventionTenant($entite, $c);
+        if (!$this->isCsrfTokenValid('convention_invoice_draft_'.$c->getId(), $request->request->getString('_token'))) {
+            throw $this->createAccessDeniedException('Jeton invalide.');
+        }
+        $existing = $em->getRepository(\App\Entity\FactureBrouillon::class)->findOneBy(['sourceConvention' => $c, 'entite' => $entite]);
+        if (!$existing && $c->getDevis()) {
+            if ($c->getDevis()->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+            $this->addFlash('info', 'Cette convention est liée à un devis : reprise de sa facture ou de son brouillon, avec les prestations et montants du devis, pour éviter une double facturation.');
+            return $this->redirectToRoute('app_administrateur_devis_invoice_draft', ['entite' => $entite->getId(), 'id' => $c->getDevis()->getId()], 303);
+        }
+        try {
+            $draft = $existing ?? $builder->prepare($c, $this->getUser());
+        } catch (\DomainException $error) {
+            $this->addFlash('warning', $error->getMessage());
+            return $this->redirectToRoute('app_administrateur_convention_show', ['entite' => $entite->getId(), 'id' => $c->getId()], 303);
+        }
+        if ($draft->getFactureEmise()) return $this->redirectToRoute('app_administrateur_facture_show', ['entite' => $entite->getId(), 'id' => $draft->getFactureEmise()->getId()], 303);
+        if ($draft->isArchived()) {
+            $this->addFlash('info', 'Le brouillon de cette convention est archivé. Restaurez-le depuis les brouillons archivés pour le reprendre.');
+            return $this->redirectToRoute('app_administrateur_facture_draft_index', ['entite' => $entite->getId(), 'archived' => 1], 303);
+        }
+        $this->addFlash('info', 'Vérifiez et complétez le brouillon. Aucune facture n’est émise avant votre relecture et votre confirmation définitive.');
+        return $this->redirectToRoute('app_administrateur_facture_draft_edit', ['entite' => $entite->getId(), 'draftId' => $draft->getId()], 303);
+    }
+
     public function __construct(
         private readonly PdfManager $pdf,
         private readonly string $projectDir,
@@ -304,6 +333,7 @@ final class ConventionContratController extends AbstractController
                     $em->refresh($c->getSession(), LockMode::PESSIMISTIC_WRITE);
                 }
             }
+            $originalDevis = $c->getDevis();
             $linkSigned = $c->isSigned();
             $expectedToken = $history->token($c);
             $revision = null;
@@ -337,6 +367,10 @@ final class ConventionContratController extends AbstractController
 
             if ($form->isSubmitted() && $form->isValid()) {
                 try {
+                    if ($c->getDevis() !== $originalDevis && (
+                        $em->getRepository(\App\Entity\FactureBrouillon::class)->findOneBy(['sourceConvention' => $c])
+                        || ($originalDevis && ($originalDevis->getFactureCreee() || $em->getRepository(\App\Entity\FactureBrouillon::class)->findOneBy(['sourceDevis' => $originalDevis])))
+                    )) throw new \DomainException('Le devis d’origine ne peut plus être changé après la préparation d’une facture.');
                     $participants->persist($c, $user, $linkSigned);
                     if (!$c->hasNumero()) {
                         $c->setNumero($this->ccNumber->nextForEntite($entite->getId()));

@@ -61,6 +61,28 @@ class FactureBrouillon
     #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
     private ?Devis $sourceDevis = null;
 
+    #[ORM\OneToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?ConventionContrat $sourceConvention = null;
+
+    public function getSourceConvention(): ?ConventionContrat { return $this->sourceConvention; }
+
+    public function setSourceConvention(ConventionContrat $convention): self
+    {
+        $this->assertEditable();
+        if ($this->sourceConvention && $this->sourceConvention !== $convention) {
+            throw new \DomainException('La convention d’origine ne peut pas être remplacée.');
+        }
+        if ($convention->getEntite()?->getId() !== $this->entite->getId()) {
+            throw new \DomainException('La convention appartient à un autre organisme.');
+        }
+        if ($this->sourceDevis || $convention->getDevis()) {
+            throw new \DomainException('Utilisez le brouillon du devis lié à cette convention.');
+        }
+        $this->sourceConvention = $convention;
+        return $this;
+    }
+
     /** Timestamped workflow events; no duplicated customer details or form secrets. */
     #[ORM\Column(type: 'json')]
     private array $history = [];
@@ -99,6 +121,7 @@ class FactureBrouillon
         if ($devis->getEntite()?->getId() !== $this->entite->getId()) {
             throw new \DomainException('Le devis appartient à un autre organisme.');
         }
+        if ($this->sourceConvention) throw new \DomainException('Ce brouillon provient déjà d’une convention.');
         $this->sourceDevis = $devis;
         return $this;
     }

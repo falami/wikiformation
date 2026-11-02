@@ -25,6 +25,9 @@ final class DevisConventionLinker
                 || $session?->getFormation()?->getEntite()?->getId() !== $entiteId) {
                 throw new \DomainException('La convention et sa session doivent appartenir au même organisme que le devis.');
             }
+            if ($this->em->getRepository(\App\Entity\FactureBrouillon::class)->findOneBy(['sourceConvention' => $convention])) {
+                throw new \DomainException('Cette convention possède déjà un brouillon de facture ou une facture. Son rattachement à un devis créerait un second circuit de facturation.');
+            }
             if ($convention->getDevis()) {
                 if ($convention->getDevis()->getId() === $devis->getId()) return;
                 throw new \DomainException('Cette convention est déjà rattachée à un autre devis.');

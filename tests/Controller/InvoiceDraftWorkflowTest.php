@@ -318,6 +318,153 @@ final class InvoiceDraftWorkflowTest extends KernelTestCase
         $this->assertNoInvoice();
     }
 
+    public function testConventionCreatesOneDraftAndOnlyIssuesAfterExplicitReview(): void
+    {
+        $convention = $this->convention();
+        $this->openConventionDraft($convention);
+        $draft = $this->lastDraft();
+        self::assertSame($convention->getId(), $draft->getSourceConvention()->getId());
+        self::assertSame((string) $this->customer->getId(), $draft->getPayload()['entrepriseDestinataire']);
+        self::assertSame('1', (string) $draft->getPayload()['lignes'][0]['qte']);
+        self::assertSame(12000, $draft->getSummary()['totalTtcCents']);
+        self::assertCount(1, $draft->getPayload()['inscriptions']);
+        $this->assertNoInvoice();
+        $page = $this->client->followRedirect();
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('CONV-DRAFT-TEST', $page->text());
+        $this->openConventionDraft($convention);
+        self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
+        $page = $this->client->followRedirect();
+        $payload = $draft->getPayload();
+        $payload['invoiceTerms'] = $this->payload()['invoiceTerms'];
+        $this->postDraft($this->url('draft_edit', $draft), $page, $payload, 'review');
+        $review = $this->client->followRedirect();
+        self::assertSame(200, $this->client->getResponse()->getStatusCode(), $review->text());
+        $this->assertNoInvoice();
+        $form = $review->filter('#invoice-draft-issue')->form();
+        $values = $form->getPhpValues();
+        $values['confirm_issue'] = '1';
+        $this->client->request('POST', $this->url('draft_issue', $draft), $values);
+        $this->assertRedirect();
+        self::assertSame(1, $this->em->getRepository(Facture::class)->count([]));
+        $invoice = $this->em->getRepository(Facture::class)->findOneBy([]);
+        self::assertSame(12000, $invoice->getMontantTtcCents());
+        self::assertCount(1, $invoice->getInscriptions());
+        $this->openConventionDraft($convention);
+        self::assertStringContainsString('/facture/'.$invoice->getId(), $this->client->getResponse()->headers->get('Location'));
+        self::assertSame(1, $this->em->getRepository(Facture::class)->count([]));
+    }
+
+    public function testConventionWithoutPriceRequiresCompletionAndArchivedDraftIsReused(): void
+    {
+        $convention = $this->convention();
+        $convention->setMontantHtCents(null);
+        $this->em->flush();
+        $this->openConventionDraft($convention);
+        $draft = $this->lastDraft();
+        self::assertSame('', $draft->getPayload()['lignes'][0]['puHtCents']);
+        $this->client->request('GET', $this->url('draft_review', $draft));
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        $draft = $this->em->find(FactureBrouillon::class, $draft->getId());
+        self::getContainer()->get(\App\Service\Billing\InvoiceDraftManager::class)->archive($draft, $draft->getVersion(), $this->em->find(Utilisateur::class, $this->admin->getId()));
+        $this->openConventionDraft($convention);
+        self::assertStringContainsString('archived=1', $this->client->getResponse()->headers->get('Location'));
+        self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
+        $this->assertNoInvoice();
+    }
+
+    public function testConventionConversionRejectsGetInvalidCsrfAndForeignTenant(): void
+    {
+        $convention = $this->convention();
+        $this->client->catchExceptions(true);
+        $url = $this->conventionUrl($convention, 'invoice_draft');
+        $this->client->request('GET', $url);
+        self::assertSame(405, $this->client->getResponse()->getStatusCode());
+        $this->client->request('POST', $url, ['_token' => 'invalid']);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $convention = $this->em->find(\App\Entity\ConventionContrat::class, $convention->getId());
+        $convention->setEntite($this->em->find(Entite::class, $this->other->getId()));
+        $this->em->flush();
+        $this->client->request('POST', $url);
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
+        self::assertSame(0, $this->em->getRepository(FactureBrouillon::class)->count([]));
+        $this->assertNoInvoice();
+    }
+
+    public function testIndividualConventionCopiesTheLearnerAndLearnerCannotConvertIt(): void
+    {
+        $convention = $this->convention();
+        $learner = (new Utilisateur())->setEmail('convention-learner@example.test')->setPassword('unused')
+            ->setPrenom('Stagiaire')->setNom('Convention')->setEntite($this->entite);
+        $this->em->persist($learner);
+        $this->em->persist((new UtilisateurEntite())->setCreateur($this->admin)->setUtilisateur($learner)->setEntite($this->entite)
+            ->setRoles(['TENANT_STAGIAIRE'])->setStatus('active'));
+        $convention->setEntreprise(null)->setStagiaire($learner);
+        $convention->getInscriptions()->first()->setEntreprise(null)->setStagiaire($learner);
+        $this->em->flush();
+        $this->openConventionDraft($convention);
+        $draft = $this->lastDraft();
+        self::assertSame((string) $learner->getId(), $draft->getPayload()['destinataire']);
+        self::assertEmpty($draft->getPayload()['entrepriseDestinataire']);
+        $this->assertNoInvoice();
+        $this->client->loginUser($learner);
+        $this->client->catchExceptions(true);
+        $this->client->request('POST', $this->conventionUrl($convention, 'invoice_draft'));
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
+    }
+
+    public function testConventionWithQuoteReusesTheQuoteDraft(): void
+    {
+        $convention = $this->convention();
+        $quote = (new \App\Entity\Devis())->setEntite($this->entite)->setCreateur($this->admin)->setNumero('DEV-CONVENTION')
+            ->setStatus(\App\Enum\DevisStatus::ACCEPTED)->setEntrepriseDestinataire($this->customer)
+            ->setMontantHtCents(10000)->setMontantTvaCents(2000)->setMontantTtcCents(12000);
+        $this->em->persist($quote);
+        $convention->setDevis($quote);
+        $this->em->flush();
+        $this->openConventionDraft($convention);
+        self::assertStringContainsString('/devis/'.$quote->getId().'/facture-brouillon', $this->client->getResponse()->headers->get('Location'));
+        $this->client->followRedirect();
+        $this->assertRedirect();
+        $draft = $this->lastDraft();
+        self::assertSame($quote->getId(), $draft->getSourceDevis()->getId());
+        $this->openConventionDraft($convention);
+        $this->client->followRedirect();
+        self::assertSame(1, $this->em->getRepository(FactureBrouillon::class)->count([]));
+        $this->assertNoInvoice();
+    }
+
+    private function convention(): \App\Entity\ConventionContrat
+    {
+        $site = (new \App\Entity\Site())->setEntite($this->entite)->setCreateur($this->admin)->setNom('Site')->setSlug('site');
+        $session = (new \App\Entity\Session())->setEntite($this->entite)->setCreateur($this->admin)->setSite($site)->setCode('SES-CONVENTION');
+        $registration = (new \App\Entity\Inscription())->setEntite($this->entite)->setCreateur($this->admin)
+            ->setSession($session)->setStagiaire($this->admin)->setEntreprise($this->customer);
+        $convention = (new \App\Entity\ConventionContrat())->setEntite($this->entite)->setCreateur($this->admin)->setSession($session)
+            ->setEntreprise($this->customer)->setNumero('CONV-DRAFT-TEST')->setIntituleFormation('Formation convention')
+            ->setMontantHtCents(10000)->setTauxTva(20)->addInscription($registration);
+        foreach ([$site, $session, $registration, $convention] as $record) $this->em->persist($record);
+        $this->em->flush();
+        return $convention;
+    }
+
+    private function conventionUrl(\App\Entity\ConventionContrat $convention, string $route): string
+    {
+        return self::getContainer()->get('router')->generate('app_administrateur_convention_'.$route, ['entite' => $this->entite->getId(), 'id' => $convention->getId()]);
+    }
+
+    private function openConventionDraft(\App\Entity\ConventionContrat $convention): void
+    {
+        $page = $this->client->request('GET', $this->conventionUrl($convention, 'show'));
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $action = $this->conventionUrl($convention, 'invoice_draft');
+        $form = $page->filter('form[action="'.$action.'"]');
+        self::assertCount(1, $form);
+        $this->client->request('POST', $action, ['_token' => $form->filter('[name="_token"]')->attr('value')]);
+        $this->assertRedirect();
+    }
+
     private function saveNew(array $payload): FactureBrouillon
     {
         $page = $this->client->request('GET', $this->url('new'));

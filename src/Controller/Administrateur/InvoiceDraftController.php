@@ -114,6 +114,7 @@ final class InvoiceDraftController extends AbstractController
         try { $this->issuer->assertCanIssue($entite); }
         catch (\DomainException $error) { $issues[] = $error->getMessage(); }
         if ($draft->getSourceDevis() && !$draft->getSourceDevis()->getStatus()->canBeInvoiced()) $issues[] = 'Le devis d’origine ne peut plus être facturé.';
+        if ($draft->getSourceConvention()?->getDevis()) $issues[] = 'La convention est désormais liée à un devis : utilisez son brouillon de facture.';
         $warnings = $this->duplicateWarnings($facture);
         if ($facture->getDateEmission()->format('Y-m-d') < (new \DateTimeImmutable('today'))->format('Y-m-d')) $warnings[] = 'La date d’émission est antérieure à aujourd’hui : vérifiez sa justification et les délais applicables avant de confirmer.';
         return $this->privateResponse($this->render('administrateur/facture/draft_review.html.twig', [
