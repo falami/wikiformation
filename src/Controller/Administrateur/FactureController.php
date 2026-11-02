@@ -717,6 +717,10 @@ class FactureController extends AbstractController
         'label' => 'Inscriptions rattachées',
         'help' => 'Recherchez un stagiaire, un numéro de session ou une formation. Plusieurs inscriptions peuvent être sélectionnées. Ce rattachement met à jour leur suivi financier.',
         'attr' => ['data-invoice-enrollments' => '', 'size' => 8],
+        'choice_attr' => static fn(\App\Entity\Inscription $i): array => [
+          'data-session-id' => $i->getSession()?->getId() ?? '',
+          'data-session-label' => ($i->getSession()?->getCode() ?? '') . ' — ' . ($i->getSession()?->getFormationLabel() ?? ''),
+        ],
         'query_builder' => static fn(\App\Repository\InscriptionRepository $repo) => $repo->createQueryBuilder('i')
           ->innerJoin('i.session', 's')->addSelect('s')
           ->leftJoin('i.stagiaire', 'u')->addSelect('u')

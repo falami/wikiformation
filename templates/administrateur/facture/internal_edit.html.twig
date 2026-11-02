@@ -30,6 +30,14 @@
     {{ form_row(form.note) }}
     <h2 class="h5 mt-4">Inscriptions de la facture</h2>
     {{ form_row(form.inscriptions) }}
+    <div class="mt-3 p-3 rounded border bg-light">
+      <label for="invoice-session-selection" class="form-label fw-semibold">Ajouter toutes les inscriptions d’une session</label>
+      <div class="row g-2">
+        <div class="col-md-9"><select id="invoice-session-selection" class="form-select"><option value="">Rechercher une session ou une formation…</option></select></div>
+        <div class="col-md-3"><button type="button" id="invoice-add-session" class="btn btn-warning w-100" disabled>Ajouter la session</button></div>
+      </div>
+      <div class="form-text" id="invoice-session-feedback" role="status" aria-live="polite">Les inscriptions déjà sélectionnées seront conservées. Vous pourrez retirer chaque stagiaire individuellement.</div>
+    </div>
     <h2 class="h5 mt-4">Renouvellement et relances</h2>
     {{ form_widget(form.followUp) }}
     <div class="d-flex justify-content-end mt-4"><button class="btn btn-warning" type="submit">Enregistrer le suivi</button></div>
@@ -48,11 +56,35 @@ document.addEventListener('DOMContentLoaded', function () {
     new TomSelect(select, {
       plugins: ['remove_button'],
       maxItems: null,
-      placeholder: 'Rechercher une inscription…',
+      placeholder: 'Formation, session ou stagiaire…',
       hideSelected: true,
       render: {no_results: function () { return '<div class="no-results">Aucune inscription trouvée</div>'; }}
     });
   }
+  const sessionSelect = document.getElementById('invoice-session-selection');
+  const button = document.getElementById('invoice-add-session');
+  const groups = new Map();
+  Array.from(select?.options || []).forEach(option => {
+    const id = option.dataset.sessionId;
+    if (!id || !option.value || option.disabled) return;
+    if (!groups.has(id)) groups.set(id, {label: option.dataset.sessionLabel, ids: []});
+    groups.get(id).ids.push(option.value);
+  });
+  groups.forEach((group, id) => sessionSelect.add(new Option(`${group.label} · ${group.ids.length} inscription(s)`, id)));
+  if (typeof TomSelect !== 'undefined') new TomSelect(sessionSelect, {create: false, maxItems: 1});
+  sessionSelect.addEventListener('change', () => { button.disabled = !groups.has(sessionSelect.value); });
+  button.addEventListener('click', () => {
+    const group = groups.get(sessionSelect.value);
+    if (!group) return;
+    const previous = Array.from(select.selectedOptions, option => option.value);
+    const ids = [...new Set([...previous, ...group.ids])];
+    if (select.tomselect) select.tomselect.setValue(ids);
+    else {
+      Array.from(select.options).forEach(option => { option.selected = ids.includes(option.value); });
+      select.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+    document.getElementById('invoice-session-feedback').textContent = `${ids.length - previous.length} inscription(s) ajoutée(s) · ${ids.length} sélectionnée(s). Cliquez sur « Enregistrer le suivi » pour conserver ces changements.`;
+  });
 });
 </script>
 {% endblock %}
