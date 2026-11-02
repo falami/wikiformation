@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Inscription, Entite, Utilisateur, SessionJour, Session, Formateur, Site, Formation};
 use App\Enum\StatusSession; // ⚠️ adapte si ton enum s'appelle autrement
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
@@ -67,8 +69,8 @@ final class PlanningFormateursController extends AbstractController
     $start = (string)$request->query->get('start', '');
     $end   = (string)$request->query->get('end', '');
 
-    $formationId = $request->query->getInt('formation', 0);
-    $siteId      = $request->query->getInt('site', 0);
+    $formationId = $request->query->get('formation', 'all');
+    $siteId      = $request->query->get('site', 'all');
     $statusRaw   = (string)$request->query->get('status', '');
 
     if (!$start || !$end) {
@@ -80,16 +82,6 @@ final class PlanningFormateursController extends AbstractController
       $dtEnd   = new \DateTimeImmutable($end);
     } catch (\Throwable) {
       return $this->json(['resources' => [], 'events' => []], 400);
-    }
-
-    // Filtre statut enum (robuste)
-    $statusEnum = null;
-    if ($statusRaw !== '') {
-      try {
-        $statusEnum = StatusSession::from($statusRaw);
-      } catch (\ValueError) {
-        $statusEnum = null; // ignore
-      }
     }
 
     // 1) Récupérer les jours (évite doublons)
@@ -110,9 +102,9 @@ final class PlanningFormateursController extends AbstractController
       ->setParameter('end', $dtEnd)
       ->orderBy('j.dateDebut', 'ASC');
 
-    if ($formationId > 0) $qb->andWhere('f.id = :fid')->setParameter('fid', $formationId);
-    if ($siteId > 0)      $qb->andWhere('si.id = :sid')->setParameter('sid', $siteId);
-    if ($statusEnum)      $qb->andWhere('s.status = :st')->setParameter('st', $statusEnum);
+    ChoiceFilter::equals($qb, $formationId === '0' ? 'all' : $formationId, 'f.id', 'fid');
+    ChoiceFilter::equals($qb, $siteId === '0' ? 'all' : $siteId, 'si.id', 'sid');
+    ChoiceFilter::equals($qb, $statusRaw, 's.status', 'st');
 
     /** @var SessionJour[] $jours */
     $jours = $qb->getQuery()->getResult();
@@ -203,7 +195,7 @@ final class PlanningFormateursController extends AbstractController
     // 4) Resources :
     // - si un filtre est actif, n’afficher que les formateurs qui ont au moins 1 event
     // - sinon : tu peux choisir d’afficher tout le monde OU seulement ceux avec events.
-    $filterActive = ($formationId > 0) || ($siteId > 0) || ($statusRaw !== '');
+    $filterActive = (ChoiceFilter::values($formationId) !== null) || (ChoiceFilter::values($siteId) !== null) || (ChoiceFilter::values($statusRaw) !== null);
 
     $resources = [];
     if ($filterActive && empty($usedFormateurIds)) {

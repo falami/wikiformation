@@ -279,10 +279,12 @@
       text-align: left;
     }
   </style>
+{% include 'administrateur/facture/_detail_styles.html.twig' %}
 {% endblock %}
 
 {% block body %}
-<div class="d-flex justify-content-end mb-3"><a class="btn btn-outline-secondary" href="{{ path('app_invoice_follow_up', {entite: entite.id, id: f.id}) }}"><i class="bi bi-bell"></i> Renouvellement et relances</a></div>
+<div class="invoice-detail">
+<nav class="invoice-detail-nav" aria-label="Navigation facture"><a href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Toutes les factures</a><div><a class="btn btn-outline-secondary" href="{{ path('app_invoice_follow_up', {entite: entite.id, id: f.id}) }}"><i class="bi bi-bell"></i> Renouvellement et relances</a></div></nav>
 {% set num = f.numero ?: ('#' ~ f.id) %}
 {% set st = f.status.value ?? '' %}
 {% set paidEur = (paidCents|default(0) / 100) %}
@@ -299,10 +301,11 @@
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
 
         <div>
-          <h2 class="m-0 fw-bold">
+          <div class="invoice-eyebrow">Comptabilité · Document émis</div>
+          <h1 class="m-0 fw-bold">
             <i class="fa fa-file-invoice-dollar me-2" style="color:var(--theme-color-secondaire)"></i>
             Facture {{ num }}
-          </h2>
+          </h1>
 
           <div class="opacity-75 mt-1">
             Facturation pour
@@ -344,12 +347,7 @@
           </div>
         </div>
 
-        <div class="d-flex gap-2">
-
-          <a href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"
-            class="btn btn-outline-light btn-sm fw-semibold">
-            <i class="fa fa-arrow-left me-1"></i> Retour
-          </a>
+        <div class="invoice-detail-actions d-flex gap-2">
 
           <a href="{{ path('app_administrateur_avoir_new', {entite: entite.id}) }}"
             class="btn btn-outline-light btn-sm fw-semibold">
@@ -358,13 +356,13 @@
 
           <a href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}"
             class="btn btn-light btn-sm fw-semibold">
-            <i class="fa fa-file-pdf me-1"></i> PDF
+            <i class="fa fa-file-pdf me-1"></i> Télécharger le PDF
           </a>
 
           {% if (remainingCents|default(0)) > 0 and st != 'canceled' %}
             <a href="{{ path('app_administrateur_paiement_new', {entite: entite.id, facture: f.id}) }}"
               class="btn btn-light btn-sm fw-semibold">
-              <i class="fa fa-plus me-1"></i> Paiement
+              <i class="fa fa-plus me-1"></i> Enregistrer un paiement
             </a>
           {% endif %}
           {% set connect = entite.connect ?? null %}
@@ -391,7 +389,7 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ===== KPIs ===== #}
-  <div class="row g-3 mb-3">
+  <div class="row g-3 mb-3 invoice-metrics">
     <div class="col-12 col-md-6 col-xl-3">
       <div class="kpi">
         <div class="ico"><i class="bi bi-cash-stack fs-4"></i></div>
@@ -429,7 +427,7 @@
       <div class="kpi">
         <div class="ico"><i class="bi bi-exclamation-circle fs-4"></i></div>
         <div class="flex-grow-1">
-          <div class="label">Reste</div>
+          <div class="label">Solde restant</div>
           <div class="val mono">{{ remainingEur|number_format(2, ',', ' ') }}&nbsp;€</div>
           <div class="sub">TTC − payé</div>
         </div>
@@ -672,12 +670,12 @@
         </div>
         <div class="panel-bd d-grid gap-2">
           <p class="small text-muted mb-2">Facture émise et conservée. Toute correction de montant passe par un avoir référencé à cette facture.</p>
-          <a class="btn btn-outline-secondary btn-pill"
+          <a class="btn btn-outline-secondary btn-pill border border-secondary"
              href="{{ path('app_administrateur_avoir_new', {entite: entite.id}) }}">
             <i class="bi bi-file-earmark-minus"></i> Établir un avoir
           </a>
 
-          <a class="btn btn-outline-danger btn-pill"
+          <a class="btn btn-outline-danger btn-pill border border-secondary"
              href="{{ path('app_administrateur_facture_pdf', {entite: entite.id, id: f.id}) }}">
             <i class="bi bi-file-earmark-pdf"></i> Télécharger le PDF
           </a>
@@ -755,4 +753,5 @@
       </a>
     {% endif %}
   </div>
+</div>
 {% endblock %}

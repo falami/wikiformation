@@ -48,10 +48,20 @@ when@prod:
                 buffer_size: 50 # How many messages should be saved? Prevent memory leaks
                 channels: ["!doctrine"] # SQL parameters may contain personal data.
             nested:
+                type: group
+                members: [server_errors, application_errors]
+            server_errors:
                 type: stream
                 path: php://stderr
                 level: debug
                 formatter: monolog.formatter.json
+            application_errors:
+                type: rotating_file
+                path: "%kernel.logs_dir%/prod.log"
+                max_files: 14
+                level: error
+                formatter: monolog.formatter.json
+                channels: ["!doctrine"]
             console:
                 type: console
                 process_psr_3_messages: false

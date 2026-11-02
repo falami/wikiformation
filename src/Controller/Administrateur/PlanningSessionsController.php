@@ -2,6 +2,8 @@
 
 namespace App\Controller\Administrateur;
 
+use App\Service\Filter\ChoiceFilter;
+
 use App\Entity\{Inscription, Entite, Utilisateur, Formation, Site, Formateur, Session, SessionJour};
 use Doctrine\ORM\EntityManagerInterface as EM;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -67,9 +69,9 @@ final class PlanningSessionsController extends AbstractController
     $start = (string)$request->query->get('start', '');
     $end   = (string)$request->query->get('end', '');
 
-    $formationId = $request->query->getInt('formation', 0);
-    $siteId      = $request->query->getInt('site', 0);
-    $formateurId = $request->query->getInt('formateur', 0);
+    $formationId = $request->query->get('formation', 'all');
+    $siteId      = $request->query->get('site', 'all');
+    $formateurId = $request->query->get('formateur', 'all');
     $status      = (string)$request->query->get('status', ''); // enum value string
 
     if (!$start || !$end) {
@@ -101,15 +103,12 @@ final class PlanningSessionsController extends AbstractController
       ->distinct();
 
 
-    // Filtres
-    if ($formationId > 0) {
-      // ⚠️ formationId ne peut filtrer que les sessions qui ont une formation
-      $qb->andWhere('f.id = :fid')->setParameter('fid', $formationId);
-    }
-
-    if ($siteId > 0)      $qb->andWhere('si.id = :sid')->setParameter('sid', $siteId);
-    if ($formateurId > 0) $qb->andWhere('(jf.id = :foid OR (jf.id IS NULL AND fo.id = :foid))')->setParameter('foid', $formateurId);
-    if ($status !== '')   $qb->andWhere('s.status = :st')->setParameter('st', $status);
+    ChoiceFilter::equals($qb, $formationId === '0' ? 'all' : $formationId, 'f.id', 'fid');
+    ChoiceFilter::equals($qb, $siteId === '0' ? 'all' : $siteId, 'si.id', 'sid');
+    ChoiceFilter::any($qb, $formateurId === '0' ? 'all' : $formateurId, static function ($branch, $value) {
+      $branch->andWhere('(jf.id = :foid OR (jf.id IS NULL AND fo.id = :foid))')->setParameter('foid', $value);
+    });
+    ChoiceFilter::equals($qb, $status, 's.status', 'st');
 
     /** @var Session[] $sessions */
     $sessions = $qb->getQuery()->getResult();

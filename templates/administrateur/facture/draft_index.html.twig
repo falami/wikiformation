@@ -1,8 +1,8 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Brouillons de factures{% endblock %}
-{% block stylesheets %}{{ parent() }}{% include 'administrateur/facture/_draft_styles.html.twig' %}{% endblock %}
+{% block stylesheets %}{{ parent() }}{% include 'administrateur/facture/_draft_styles.html.twig' %}{% include 'administrateur/facture/_draft_list_styles.html.twig' %}{% endblock %}
 {% block body %}
-<div class="invoice-workspace">
+<div class="invoice-workspace invoice-draft-list">
   <nav class="iw-tabs" aria-label="Facturation">
     <a href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}"><i class="bi bi-receipt me-2" aria-hidden="true"></i>Factures émises</a>
     <a aria-current="page" href="{{ path('app_administrateur_facture_draft_index', {entite: entite.id}) }}"><i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Brouillons</a>
@@ -24,12 +24,13 @@
           <td><span class="iw-row-title">{{ row.clientLabel|default('Client à renseigner', true) }}</span><span class="iw-muted">{{ row.label|default('Prestation à renseigner', true) }}</span></td>
           <td>{{ draft.updatedAt|date('d/m/Y') }}<br><span class="iw-muted">{{ draft.updatedAt|date('H:i') }}</span></td>
           <td class="iw-number">{% if row.totalTtcCents is not null %}<strong>{{ (row.totalTtcCents / 100)|number_format(2, ',', ' ') }} €</strong>{% else %}<span class="iw-muted">À compléter</span>{% endif %}</td>
-          <td>{% if not archived|default(false) %}<div class="iw-actions"><a class="iw-btn" href="{{ path('app_administrateur_facture_draft_edit', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i>Reprendre</a><a class="iw-btn" href="{{ path('app_administrateur_facture_draft_review', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-eye" aria-hidden="true"></i>Vérifier</a></div>{% else %}<form method="post" action="{{ path('app_administrateur_facture_draft_restore', {entite: entite.id, draftId: draft.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('invoice_draft_restore_' ~ draft.id) }}"><input type="hidden" name="version" value="{{ draft.version }}"><button class="iw-btn" type="submit"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button></form>{% endif %}
-            <form class="mt-2" method="post" action="{{ path('app_administrateur_facture_draft_delete', {entite: entite.id, draftId: draft.id}) }}" onsubmit="return confirm('Supprimer définitivement ce brouillon ? Les modifications seront perdues. Le devis ou la convention d’origine sera conservé.');">
+          <td class="iw-action-cell"><div class="iw-row-actions" role="group" aria-label="Actions du brouillon {{ draft.reference }}">{% if not archived|default(false) %}<div class="iw-actions"><a class="iw-btn iw-btn-resume" href="{{ path('app_administrateur_facture_draft_edit', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-pencil" aria-hidden="true"></i>Reprendre</a><a class="iw-btn" href="{{ path('app_administrateur_facture_draft_review', {entite: entite.id, draftId: draft.id}) }}"><i class="bi bi-eye" aria-hidden="true"></i>Vérifier</a></div>{% else %}<form method="post" action="{{ path('app_administrateur_facture_draft_restore', {entite: entite.id, draftId: draft.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('invoice_draft_restore_' ~ draft.id) }}"><input type="hidden" name="version" value="{{ draft.version }}"><button class="iw-btn iw-btn-resume" type="submit"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button></form>{% endif %}
+            <form class="iw-delete-action" method="post" action="{{ path('app_administrateur_facture_draft_delete', {entite: entite.id, draftId: draft.id}) }}" onsubmit="return confirm('Supprimer définitivement ce brouillon ? Les modifications seront perdues. Le devis ou la convention d’origine sera conservé.');">
               <input type="hidden" name="_token" value="{{ csrf_token('invoice_draft_delete_' ~ draft.id) }}">
               <input type="hidden" name="version" value="{{ draft.version }}">
-              <button class="iw-btn text-danger" type="submit"><i class="bi bi-trash" aria-hidden="true"></i>Supprimer</button>
+              <button class="iw-btn iw-btn-delete" type="submit"><i class="bi bi-trash" aria-hidden="true"></i>Supprimer</button>
             </form>
+            </div>
           </td>
         </tr>
       {% endfor %}

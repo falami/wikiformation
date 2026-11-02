@@ -257,6 +257,8 @@
       #closeInscriptionModal .modal-footer .btn { flex:1 1 auto; }
     }
   </style>
+{% include 'administrateur/facture/_detail_styles.html.twig' %}
+{% include 'administrateur/inscription/_detail_styles.html.twig' %}
 {% endblock %}
 
 {% block javascripts %}
@@ -303,6 +305,7 @@
 {% endblock %}
 
 {% block body %}
+<div class="invoice-detail inscription-detail">
 
 {% set dossier        = ins.dossier %}
 {% set requiredPieces = ins.session.piecesObligatoires|default([]) %}
@@ -326,61 +329,17 @@
 
   {# ===== HERO ===== #}
   <div class="hero mb-3">
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <span class="chip"><i class="bi bi-person-badge"></i> Inscription n°{{ ins.id }}</span>
-      <span class="chip"><i class="bi bi-mortarboard"></i> 
-        {% if ins.session.formation is defined and ins.session.formation %}
-          {{ ins.session.formation.titre }}
-        {% else %}
-        {{ ins.session.formationIntituleLibre }}
-        {% endif %}
-        
-      </span>
-      <span class="chip"><i class="bi bi-calendar3"></i>{{ ins.session.code }}</span>
-
-      {% if st == 'termine' %}
-        <span class="chip" style="border-color: rgba(25,135,84,.35); background: rgba(25,135,84,.16);">
-          <i class="bi bi-check2-circle"></i> {{ ins.status.label() }}
-        </span>
-      {% elseif st == 'confirme' %}
-        <span class="chip" style="border-color: rgba(13,110,253,.35); background: rgba(13,110,253,.16);">
-          <i class="bi bi-patch-check"></i> {{ ins.status.label() }}
-        </span>
-      {% elseif st == 'en_cours' %}
-        <span class="chip" style="border-color: rgba(13,202,240,.40); background: rgba(13,202,240,.18); color:#fff;">
-          <i class="bi bi-lightning-charge"></i> {{ ins.status.label() }}
-        </span>
-      {% elseif st == 'annule' or st == 'absent' %}
-        <span class="chip" style="border-color: rgba(220,53,69,.35); background: rgba(220,53,69,.16);">
-          <i class="bi bi-x-circle"></i> {{ ins.status.label() }}
-        </span>
-      {% else %}
-        <span class="chip" style="border-color: rgba(108,117,125,.35); background: rgba(108,117,125,.16);">
-          <i class="bi bi-question-circle"></i> {{ ins.status.label() }}
-        </span>
-      {% endif %}
-
-      {% if ins.reussi %}
-        <span class="chip" style="border-color: rgba(25,135,84,.35); background: rgba(25,135,84,.16);">
-          <i class="bi bi-award"></i> Réussite
-        </span>
-      {% endif %}
-    </div>
-
-    <div class="d-flex flex-wrap gap-3 align-items-start justify-content-between mt-2">
-      <div>
-        <h1 class="mb-0">Inscription #{{ ins.id }}</h1>
-        <div class="sub">
-          Stagiaire :
-          <span class="fw-semibold text-white">
-            {{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}
-          </span>
-          {% if ins.stagiaire.email %}
-            <span class="ms-2 chip"><i class="bi bi-envelope"></i> {{ ins.stagiaire.email }}</span>
-          {% endif %}
+    <div class="enrollment-topline"><span class="invoice-eyebrow">Dossier stagiaire · N°{{ ins.id }}</span><span class="enrollment-status">{{ ins.status.label() }}</span></div>
+    <div class="enrollment-heading">
+      <div class="enrollment-person">
+        <div class="enrollment-avatar" aria-hidden="true">{{ ins.stagiaire.prenom|slice(0,1)|upper }}{{ ins.stagiaire.nom|slice(0,1)|upper }}</div>
+        <div><h1>{{ ins.stagiaire.prenom }} {{ ins.stagiaire.nom }}</h1>
+          {% if ins.stagiaire.email %}<div class="enrollment-email"><i class="bi bi-envelope" aria-hidden="true"></i> {{ ins.stagiaire.email }}</div>{% endif %}
         </div>
       </div>
-
+      <div class="enrollment-course"><span>Formation suivie</span><strong>{{ ins.session.formation ? ins.session.formation.titre : ins.session.formationIntituleLibre }}</strong><small>{{ ins.session.code }}{% if ins.reussi %} · Réussite validée{% endif %}</small></div>
+    </div>
+    <div class="enrollment-toolbar"><span class="enrollment-toolbar-label">Gérer cette inscription</span>
       <div class="hero-actions">
         <a class="btn btn-pill btn-ghost btn-sm"
            href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">
@@ -414,14 +373,14 @@
   {% include 'flagMessage.html.twig' %}
 
   {# ===== KPIs ===== #}
-  <div class="row g-3 mb-3">
+  <div class="row g-3 mb-3 inscription-metrics">
     <div class="col-12 col-md-6 col-xl-3">
       <div class="kpi">
         <div class="ico"><i class="bi bi-cash-coin fs-4"></i></div>
         <div class="flex-grow-1">
           <div class="label">Montant dû</div>
           <div class="val mono">
-            {{ montantDu is not null ? (montantDu|number_format(2, ',', ' ') ~ ' €') : '-' }}
+            {{ montantDu is not null ? (montantDu|number_format(2, ',', ' ') ~ ' €') : 'Non renseigné' }}
           </div>
           <div class="sub">Total inscription</div>
         </div>
@@ -443,9 +402,9 @@
       <div class="kpi">
         <div class="ico"><i class="bi bi-exclamation-circle fs-4"></i></div>
         <div class="flex-grow-1">
-          <div class="label">Reste</div>
+          <div class="label">Solde restant</div>
           <div class="val mono">
-            {{ resteAPayer is not null ? (resteAPayer|number_format(2, ',', ' ') ~ ' €') : '-' }}
+            {{ resteAPayer is not null ? (resteAPayer|number_format(2, ',', ' ') ~ ' €') : 'Non renseigné' }}
           </div>
           <div class="sub">Dû − payé</div>
         </div>
@@ -461,7 +420,7 @@
             {% if totalRequired > 0 %}
               {{ validRequired }}/{{ totalRequired }}
             {% else %}
-              -
+              {{ dossierComplet ? 'Complet' : 'À vérifier' }}
             {% endif %}
           </div>
           <div class="sub">
@@ -479,7 +438,7 @@
   </div>
 
   <section id="presences-papier" class="panel mb-4 paper-attendance">
-    <div class="panel-hd"><h2 class="panel-title h5"><i class="bi bi-journal-check"></i> Présences & émargements papier</h2>
+    <div class="panel-hd"><div><span class="enrollment-section-label">01 · Suivi pédagogique</span><h2 class="panel-title h5">Présences & émargements</h2></div>
       <span class="badge-soft">{{ ins.session.sousTraitance ? 'Suivi de l’organisme principal' : (ins.tauxAssiduite is not null ? ins.tauxAssiduite ~ ' %' : 'Assiduité non calculée') }}</span>
     </div>
     <div class="panel-bd">
@@ -489,7 +448,7 @@
       <p class="text-muted">Renseignez les présences à partir des feuilles papier déposées dans les documents de la session. Un dépôt seul ne permet pas de déduire les présences individuelles. Une saisie papier ne crée pas de signature électronique.</p>
       <form method="post" action="{{ path('app_administrateur_inscription_paper_attendance', {entite: entite.id, id: ins.id}) }}">
         <input type="hidden" name="_token" value="{{ csrf_token('paper_attendance_' ~ ins.id) }}">
-        <div class="table-responsive"><table class="table align-middle">
+        <div class="table-responsive"><table class="table table-premium align-middle">
           <thead><tr><th>Demi-journée</th><th>Présence</th><th>Référence de la feuille / motif</th></tr></thead>
           <tbody>
           {% for key, period in presencePeriods %}
@@ -516,7 +475,7 @@
           {% else %}<tr><td colspan="3">Aucune demi-journée planifiée.</td></tr>{% endfor %}
           </tbody>
         </table></div>
-        {% if presencePeriods|length %}<button class="btn btn-primary" type="submit">Enregistrer les présences</button>{% endif %}
+        {% if presencePeriods|length %}<button class="btn btn-primary" type="submit"><i class="bi bi-check2" aria-hidden="true"></i> Enregistrer les présences</button>{% endif %}
         <p class="small text-muted mt-3 mb-0">Hors sous-traitance, le taux est calculé quand toutes les demi-journées sont renseignées. Après une correction, clôturez à nouveau pour mettre à jour l’attestation.</p>
       </form>
     </div>
@@ -918,7 +877,7 @@
                 action="{{ path('app_administrateur_inscription_delete', {entite: entite.id, id: ins.id}) }}"
                 onsubmit="return confirm('Supprimer définitivement cette inscription et l’ensemble du dossier associé ?');">
             <input type="hidden" name="_token" value="{{ csrf_token('del' ~ ins.id) }}">
-            <button class="btn btn-outline-danger btn-pill w-100">
+            <button class="btn btn-outline-danger btn-pill w-100 border border-danger">
               <i class="bi bi-trash me-1"></i> Supprimer l’inscription
             </button>
           </form>
@@ -982,4 +941,5 @@
       </div>
     </div>
   </div>
+</div>
 {% endblock %}
