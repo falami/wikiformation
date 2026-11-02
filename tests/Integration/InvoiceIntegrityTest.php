@@ -59,6 +59,41 @@ final class InvoiceIntegrityTest extends KernelTestCase
         }
     }
 
+    public function testInternalFollowUpCanLinkAndUnlinkOnlyTenantEnrollments(): void
+    {
+        $records = [];
+        foreach ([$this->entite, $this->other] as $entity) {
+            $site = (new \App\Entity\Site())->setEntite($entity)->setCreateur($this->admin)->setNom('Site')->setSlug('site-' . $entity->getId());
+            $session = (new \App\Entity\Session())->setEntite($entity)->setCreateur($this->admin)->setSite($site)->setCode('SESSION-' . $entity->getId());
+            $enrollment = (new \App\Entity\Inscription())->setEntite($entity)->setCreateur($this->admin)->setSession($session)->setStagiaire($this->admin);
+            foreach ([$site, $session, $enrollment] as $record) $this->em->persist($record);
+            $records[] = $enrollment;
+        }
+        $this->em->flush();
+        [$local, $foreign] = $records;
+        $client = $this->client();
+        $url = $this->url('internal_edit');
+        $crawler = $client->request('GET', $url);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertSame(0, $crawler->filter('select[name="form[inscriptions][]"] option[value="' . $foreign->getId() . '"]')->count());
+        $token = $crawler->filter('input[name="form[_token]"]')->attr('value');
+        $before = $this->em->getConnection()->fetchAssociative('SELECT numero, montant_ttc_cents, date_emission FROM facture WHERE id = ?', [$this->invoice->getId()]);
+        $data = ['_token' => $token, 'note' => 'Suivi', 'followUp' => ['renewalMonths' => '0', 'reminderMonths' => '0']];
+        $client->request('POST', $url, ['form' => $data + ['inscriptions' => [$foreign->getId()]]]);
+        self::assertSame(422, $client->getResponse()->getStatusCode());
+        self::assertTrue($this->invoice->getInscriptions()->isEmpty());
+        $client->request('POST', $url, ['form' => $data + ['inscriptions' => [$local->getId()]]]);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture_inscription WHERE facture_id = ? AND inscription_id = ?', [$this->invoice->getId(), $local->getId()]));
+        self::assertSame(12000, (int) $this->em->getConnection()->fetchOne('SELECT montant_du_cents FROM inscription WHERE id = ?', [$local->getId()]));
+        self::assertSame($before, $this->em->getConnection()->fetchAssociative('SELECT numero, montant_ttc_cents, date_emission FROM facture WHERE id = ?', [$this->invoice->getId()]));
+        $client->request('POST', $url, ['form' => $data + ['inscriptions' => []]]);
+        self::assertSame(302, $client->getResponse()->getStatusCode());
+        self::assertTrue($this->invoice->getInscriptions()->isEmpty());
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM facture_inscription WHERE facture_id = ?', [$this->invoice->getId()]));
+        self::assertNull($this->em->getConnection()->fetchOne('SELECT montant_du_cents FROM inscription WHERE id = ?', [$local->getId()]));
+    }
+
     public function testIssuedInvoiceCannotBeRewrittenThroughLegacyEditRoute(): void
     {
         $client = $this->client();

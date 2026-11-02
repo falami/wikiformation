@@ -116,9 +116,10 @@ class FactureType extends AbstractType
                         ? trim(($i->getStagiaire()->getNom() ?? '') . ' ' . ($i->getStagiaire()->getPrenom() ?? ''))
                         : '-';
                     return sprintf(
-                        'Inscription #%d - %s - %s',
+                        'Inscription #%d - %s - %s - %s',
                         $i->getId(),
                         $sess ? $sess->getCode() : '-',
+                        $sess?->getFormationLabel() ?? '-',
                         $nomComplet ?: '-'
                     );
                 },
@@ -127,7 +128,11 @@ class FactureType extends AbstractType
                     foreach ($i->getSession()?->getJours() ?? [] as $day) {
                         if ($day->getDateFin() && (!$last || $day->getDateFin() > $last)) $last = $day->getDateFin();
                     }
-                    return ['data-service-date'=>$last?->format('Y-m-d') ?? ''];
+                    return [
+                        'data-service-date' => $last?->format('Y-m-d') ?? '',
+                        'data-session-id' => $i->getSession()?->getId() ?? '',
+                        'data-session-label' => ($i->getSession()?->getCode() ?? '') . ' — ' . ($i->getSession()?->getFormationLabel() ?? ''),
+                    ];
                 },
                 'label' => 'Inscriptions rattachées (optionnel)',
                 'attr' => ['class' => 'form-select'],
@@ -135,6 +140,7 @@ class FactureType extends AbstractType
                     $qb = $repo->createQueryBuilder('i')
                         ->leftJoin('i.session', 's')
                         ->addSelect('s')
+                        ->leftJoin('s.formation', 'formation')->addSelect('formation')
                         ->orderBy('i.id', 'DESC');
 
                     // adapte selon ton modèle : inscription -> session -> entite

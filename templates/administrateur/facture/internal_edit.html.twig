@@ -14,23 +14,45 @@
 
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.bootstrap5.min.css">
 {% endblock %}
 {% block body %}
 <div class="container py-4" style="max-width:1000px">
   <a class="btn btn-outline-secondary mb-4" href="{{ path('app_administrateur_facture_index', {entite: entite.id}) }}">← Toutes les factures</a>
   <div class="rounded-4 p-4 mb-4 text-white" style="background:#243746;border-left:6px solid #ffc107">
     <h1 class="h3">Suivi interne · {{ facture.numero }}</h1>
-    <p class="mb-0">Mettez à jour votre note et les rappels associés à cette facture.</p>
+    <p class="mb-0">Gérez les inscriptions, votre note et les rappels associés à cette facture.</p>
   </div>
   <div class="card border-0 shadow-sm rounded-4"><div class="card-body p-4">
     <p class="text-muted">Ces réglages concernent votre suivi. Le PDF émis, les montants et les mentions de la facture restent conservés.</p>
     {{ form_start(form) }}
     {{ form_errors(form) }}
     {{ form_row(form.note) }}
+    <h2 class="h5 mt-4">Inscriptions de la facture</h2>
+    {{ form_row(form.inscriptions) }}
     <h2 class="h5 mt-4">Renouvellement et relances</h2>
     {{ form_widget(form.followUp) }}
     <div class="d-flex justify-content-end mt-4"><button class="btn btn-warning" type="submit">Enregistrer le suivi</button></div>
     {{ form_end(form) }}
   </div></div>
 </div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const select = document.querySelector('[data-invoice-enrollments]');
+  if (select && !select.tomselect && typeof TomSelect !== 'undefined') {
+    new TomSelect(select, {
+      plugins: ['remove_button'],
+      maxItems: null,
+      placeholder: 'Rechercher une inscription…',
+      hideSelected: true,
+      render: {no_results: function () { return '<div class="no-results">Aucune inscription trouvée</div>'; }}
+    });
+  }
+});
+</script>
 {% endblock %}

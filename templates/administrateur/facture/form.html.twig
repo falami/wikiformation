@@ -526,7 +526,15 @@
 
             <div class="col-md-12">
               {{ form_row(form.inscriptions) }}
-              <div class="form-text">Sélection multiple possible (TomSelect).</div>
+              <div class="form-text">Recherchez par formation, code de session ou nom du stagiaire. Vous pouvez retirer chaque inscription individuellement.</div>
+              <div class="mt-3 p-3 rounded border bg-light">
+                <label for="invoice-session-selection" class="form-label">Ajouter toutes les inscriptions d’une session</label>
+                <div class="row g-2 align-items-start">
+                  <div class="col-md-9"><select id="invoice-session-selection" class="form-select"><option value="">Rechercher une session ou une formation…</option></select></div>
+                  <div class="col-md-3"><button type="button" id="invoice-add-session" class="btn btn-outline-secondary w-100" disabled>Ajouter la session</button></div>
+                </div>
+                <div class="form-text" id="invoice-session-feedback" role="status" aria-live="polite">Les inscriptions déjà sélectionnées seront conservées.</div>
+              </div>
             </div>
 
             <div class="col-md-4">{{ form_row(form.dateEmission) }}</div>
@@ -1164,7 +1172,27 @@ document.addEventListener('DOMContentLoaded', function(){
 
   initTomSelect(idFormation);
   initTomSelect(idDestinataire);
-  initTomSelect(idInscriptions);
+  const inscriptionSelect = initTomSelect(idInscriptions, {placeholder: 'Formation, session ou stagiaire…'});
+  const sessionSelect = document.getElementById('invoice-session-selection');
+  const addSession = document.getElementById('invoice-add-session');
+  const sessionGroups = new Map();
+  Array.from(inscriptionSelect?.options || []).forEach(option => {
+    const sessionId = option.dataset.sessionId;
+    if (!sessionId || !option.value || option.disabled) return;
+    if (!sessionGroups.has(sessionId)) sessionGroups.set(sessionId, {label: option.dataset.sessionLabel, ids: []});
+    sessionGroups.get(sessionId).ids.push(option.value);
+  });
+  sessionGroups.forEach((group, id) => sessionSelect.add(new Option(`${group.label} · ${group.ids.length} inscription(s)`, id)));
+  initTomSelect('#invoice-session-selection');
+  sessionSelect.addEventListener('change', () => { addSession.disabled = !sessionGroups.has(sessionSelect.value); });
+  addSession.addEventListener('click', () => {
+    const group = sessionGroups.get(sessionSelect.value);
+    if (!group || !inscriptionSelect?.tomselect) return;
+    const control = inscriptionSelect.tomselect;
+    const previous = control.items.length;
+    control.setValue([...new Set([...control.items, ...group.ids])]);
+    document.getElementById('invoice-session-feedback').textContent = `${control.items.length - previous} inscription(s) ajoutée(s) · ${control.items.length} sélectionnée(s) au total.`;
+  });
   initTomSelect(idDevise);
   initTomSelect(idStatus);
   initTomSelect(idEntreprise, { allowEmptyOption:true });

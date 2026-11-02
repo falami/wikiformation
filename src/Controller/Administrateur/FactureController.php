@@ -695,7 +695,7 @@ class FactureController extends AbstractController
   }
 
   #[Route('/{id}/suivi-interne', name: 'internal_edit', methods: ['GET', 'POST'])]
-  public function internalEdit(Entite $entite, Facture $facture, Request $request, EM $em): Response
+  public function internalEdit(Entite $entite, Facture $facture, Request $request, EM $em, \App\Service\Billing\InscriptionBillingSync $billingSync): Response
   {
     if ($facture->getEntite()?->getId() !== $entite->getId()) {
       throw $this->createAccessDeniedException('Facture non autorisée pour cette entité.');
@@ -703,6 +703,7 @@ class FactureController extends AbstractController
     // Use an isolated form: issued document fields must never be mapped here.
     $form = $this->createFormBuilder([
       'note' => $facture->getNote(),
+      'inscriptions' => $facture->getInscriptions()->toArray(),
       'followUp' => \App\Service\Billing\InvoiceFollowUp::settings($facture),
     ])
       ->add('note', \Symfony\Component\Form\Extension\Core\Type\TextareaType::class, [
@@ -710,11 +711,43 @@ class FactureController extends AbstractController
         'constraints' => [new \Symfony\Component\Validator\Constraints\Length(max: 255)],
         'attr' => ['rows' => 3],
       ])
+      ->add('inscriptions', \Symfony\Bridge\Doctrine\Form\Type\EntityType::class, [
+        'class' => \App\Entity\Inscription::class,
+        'multiple' => true, 'required' => false,
+        'label' => 'Inscriptions rattachées',
+        'help' => 'Recherchez un stagiaire, un numéro de session ou une formation. Plusieurs inscriptions peuvent être sélectionnées. Ce rattachement met à jour leur suivi financier.',
+        'attr' => ['data-invoice-enrollments' => '', 'size' => 8],
+        'query_builder' => static fn(\App\Repository\InscriptionRepository $repo) => $repo->createQueryBuilder('i')
+          ->innerJoin('i.session', 's')->addSelect('s')
+          ->leftJoin('i.stagiaire', 'u')->addSelect('u')
+          ->leftJoin('s.formation', 'f')->addSelect('f')
+          ->andWhere('s.entite = :entite')->andWhere('i.entite = :entite')->setParameter('entite', $entite)
+          ->orderBy('i.id', 'DESC'),
+        'choice_label' => static function (\App\Entity\Inscription $i): string {
+          $student = $i->getStagiaire();
+          return sprintf('%s — %s — %s (#%d)',
+            trim(($student?->getNom() ?? '') . ' ' . ($student?->getPrenom() ?? '')),
+            $i->getSession()?->getCode() ?? '',
+            $i->getSession()?->getFormationLabel() ?? '', $i->getId());
+        },
+      ])
       ->add('followUp', \App\Form\Administrateur\InvoiceFollowUpType::class, ['label' => false])
       ->getForm();
     $form->handleRequest($request);
     if ($form->isSubmitted() && $form->isValid()) {
       $data = $form->getData();
+      $previous = $facture->getInscriptions()->toArray();
+      foreach ($previous as $inscription) {
+        $facture->removeInscription($inscription);
+        $inscription->removeFacture($facture);
+      }
+      foreach ($data['inscriptions'] as $inscription) {
+        $facture->addInscription($inscription);
+        $inscription->addFacture($facture);
+      }
+      foreach (array_merge($previous, $facture->getInscriptions()->toArray()) as $inscription) {
+        $billingSync->syncOne($inscription);
+      }
       $facture->setNote($data['note']);
       $meta = $facture->getMeta() ?? [];
       // Retain delivery history, renewal counters and the original invoice snapshot.
