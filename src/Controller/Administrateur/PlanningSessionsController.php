@@ -177,7 +177,7 @@ final class PlanningSessionsController extends AbstractController
 
         if ($startJour >= $dtEnd || $endJour <= $dtStart) continue;
         $effectiveFormateur = $jour->getFormateur() ?? $session->getFormateur();
-        if ($formateurId > 0 && $effectiveFormateur?->getId() !== $formateurId) continue;
+        if (!ChoiceFilter::matches($formateurId === '0' ? 'all' : $formateurId, $effectiveFormateur?->getId())) continue;
         $trainerUser = $effectiveFormateur?->getUtilisateur();
 
         $eventId = 's' . $sid . '-j' . (int)$jour->getId();

@@ -22,6 +22,12 @@ final class ChoiceFilter
             static fn($value) => is_string($value) || is_int($value)))));
     }
 
+    public static function matches(mixed $raw, string|int|null $value): bool
+    {
+        $values = self::values($raw);
+        return $values === null || ($value !== null && in_array((string) $value, $values, true));
+    }
+
     public static function equals(QueryBuilder $qb, mixed $raw, string $field, string $parameter): void
     {
         $values = self::values($raw);
