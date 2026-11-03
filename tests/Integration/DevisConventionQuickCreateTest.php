@@ -65,6 +65,29 @@ final class DevisConventionQuickCreateTest extends KernelTestCase
         }
     }
 
+    public function testLinkedDraftCanBePublishedForInvoicingWithoutDuplicatingQuote(): void
+    {
+        $session = (new Session())->setEntite($this->entite)->setCreateur($this->user)->setSite($this->site)->setCode('SESSION-PUBLISH');
+        $convention = (new \App\Entity\ConventionContrat())->setEntite($this->entite)->setCreateur($this->user)->setSession($session)->setDevis($this->devis)->setNumero('CONV-PUBLISH');
+        $this->em->persist($session);
+        $this->em->persist($convention);
+        $this->em->flush();
+        $url = '/fr/administrateur/'.$this->entite->getId().'/devis/'.$this->devis->getId();
+        $crawler = $this->client->request('GET', $url.'/facture-brouillon');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame(\App\Enum\DevisStatus::DRAFT, $this->devis->getStatus());
+        $form = $crawler->selectButton('Passer à Envoyé et préparer la facture')->form();
+        $this->client->submit($form);
+        self::assertTrue($this->client->getResponse()->isRedirect($url.'/facture-brouillon'));
+        $this->devis = $this->em->find(Devis::class, $this->devis->getId());
+        $convention = $this->em->find(\App\Entity\ConventionContrat::class, $convention->getId());
+        self::assertSame(\App\Enum\DevisStatus::SENT, $this->devis->getStatus());
+        self::assertSame('DEV-TEST', $this->devis->getNumero());
+        self::assertSame($this->devis->getId(), $convention->getDevis()->getId());
+        self::assertSame(1, $this->em->getRepository(Devis::class)->count([]));
+        self::assertNull($this->devis->getFactureCreee());
+    }
+
     public function testSiteCreationIsCsrfProtectedAndReplayDoesNotDuplicate(): void
     {
         $form = $this->openForm('site');

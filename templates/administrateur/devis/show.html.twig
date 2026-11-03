@@ -390,7 +390,11 @@
         <div class="flex-grow-1">
           <div class="label">Facture liée</div>
           <div class="val">
-            {% if d.factureCreee %}
+            {% if not d.factureCreee and (d.status.value in ['sent', 'accepted'] or (d.status.value == 'draft' and not d.meta.enterprise_signature|default(false))) %}
+            <a class="btn btn-warning btn-pill" href="{{ path('app_administrateur_devis_invoice_draft', {entite: entite.id, id: d.id}) }}">Préparer la facture</a>
+          {% endif %}
+
+          {% if d.factureCreee %}
               <span class="badge-soft pill-success">OUI</span>
             {% else %}
               <span class="badge-soft pill-muted">NON</span>

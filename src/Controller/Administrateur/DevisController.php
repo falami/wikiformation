@@ -199,6 +199,9 @@ class DevisController extends AbstractController
     $this->denyAccessUnlessGranted(TenantPermission::FACTURE_MANAGE, $entite);
     if ($devis->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
     if ($devis->getFactureCreee()) return $this->redirectToRoute('app_administrateur_facture_show', ['entite'=>$entite->getId(), 'id'=>$devis->getFactureCreee()->getId()]);
+    if ($devis->getStatus() === DevisStatus::DRAFT) {
+      return $this->render('administrateur/devis/pdf_confirmation.html.twig', ['entite' => $entite, 'd' => $devis, 'prepareInvoice' => true]);
+    }
     if (!$devis->getStatus()->canBeInvoiced()) throw $this->createAccessDeniedException('Ce devis ne peut pas être facturé.');
     /** @var Utilisateur $user */
     $user = $this->getUser();
@@ -519,7 +522,7 @@ class DevisController extends AbstractController
     }
 
     if (!empty($id->getMeta()['enterprise_signature']) || !$id->getConventions()->isEmpty()) {
-      $this->addFlash('warning', 'Ce devis est signé ou lié à une convention. Dupliquez-le pour préparer une nouvelle proposition sans modifier les documents existants.');
+      $this->addFlash('warning', 'Le contenu de ce devis est protégé car il est signé ou lié à une convention. Pour facturer ce même devis, utilisez « Préparer la facture » sur sa fiche. La duplication sert uniquement à créer une nouvelle proposition.');
       return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
     }
 
@@ -629,8 +632,13 @@ class DevisController extends AbstractController
       $this->addFlash('warning', 'Seul un devis brouillon non signé et non facturé peut être publié.');
       return $this->redirectToRoute('app_administrateur_devis_show', ['entite' => $entite->getId(), 'id' => $id->getId()]);
     }
+    $prepareInvoice = $request->request->get('next') === 'invoice';
+    if ($prepareInvoice) $this->denyAccessUnlessGranted(TenantPermission::FACTURE_MANAGE, $entite);
     $id->setStatus(DevisStatus::SENT);
     $em->flush();
+    if ($prepareInvoice) {
+      return $this->redirectToRoute('app_administrateur_devis_invoice_draft', ['entite' => $entite->getId(), 'id' => $id->getId()]);
+    }
     return $this->redirectToRoute('app_administrateur_devis_pdf', ['entite' => $entite->getId(), 'id' => $id->getId()]);
   }
 
