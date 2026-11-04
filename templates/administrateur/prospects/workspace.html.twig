@@ -1,6 +1,6 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Pilotage de la prospection{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/recruitment/tom-select.css') }}"><link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/prospect-workspace.css') }}?v=9">{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/recruitment/tom-select.css') }}"><link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/prospect-workspace.css') }}?v=10">{% endblock %}
 {% block body %}
 <div class="crm">
   <header class="crm-hero">
@@ -39,10 +39,10 @@
     </div>
     {% endif %}
     {% if view == 'pipeline' and rows|length %}
-      <p class="crm-help">Pipeline des contacts de cette page · utilisez « Suivi » pour changer d’étape.</p>
+      <p class="crm-help">Glissez les cartes avec la poignée pour changer d’étape. Au clavier, utilisez le bouton « Déplacer » ou le menu « Suivi ».</p>
       <div class="crm-board">{% for step in statuses %}{% if step.value != 'converted' %}
-        <section class="crm-column"><h3><span class="crm-dot" data-stage="{{ step.value }}"></span>{{ step.label }} <small>{{ rows|filter(row => row.p.status == step)|length }}</small></h3>
-        {% for row in rows|filter(row => row.p.status == step) %}{% include 'administrateur/prospects/_workspace_card.html.twig' with {row:row} %}{% else %}<div class="crm-column-empty">Aucun contact</div>{% endfor %}</section>
+        <section class="crm-column" data-kanban-stage="{{ step.value }}" data-kanban-label="{{ step.label }}"><h3><span class="crm-dot" data-stage="{{ step.value }}"></span>{{ step.label }} <small>{{ rows|filter(row => row.p.status == step)|length }}</small></h3>
+        <div class="crm-kanban-cards">{% for row in rows|filter(row => row.p.status == step) %}{% include 'administrateur/prospects/_workspace_card.html.twig' with {row:row} %}{% else %}<div class="crm-column-empty">Aucun contact</div>{% endfor %}</div></section>
       {% endif %}{% endfor %}</div>
     {% elseif rows|length %}
       <div class="crm-list">{% for row in rows %}{% include 'administrateur/prospects/_workspace_card.html.twig' with {row:row} %}{% endfor %}</div>
@@ -91,4 +91,5 @@
 <script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}" defer></script>
 <script src="{{ asset('dist/js/prospect-workspace.js') }}?v=5" defer></script>
 <script src="{{ asset('dist/js/prospect-bulk.js') }}?v=1" defer></script>
+{% if view == 'pipeline' %}<script src="{{ asset('dist/vendors/sortablejs/Sortable.min.js') }}" defer></script><script src="{{ asset('dist/js/prospect-kanban.js') }}?v=1" defer></script>{% endif %}
 {% endblock %}

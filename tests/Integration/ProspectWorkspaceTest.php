@@ -200,6 +200,25 @@ final class ProspectWorkspaceTest extends KernelTestCase
         self::assertSame(['first@example.test', 'second@example.test'], $recipients);
     }
 
+    public function testKanbanStatusChangePersistsHistoryAndClearsClosedReminder(): void
+    {
+        $p = $this->prospect('Kanban')->setNextActionAt(new \DateTimeImmutable('tomorrow'));
+        $this->em->flush();
+        $controller = new ProspectWorkspaceController(); $controller->setContainer($this->actionContainer());
+        $request = new Request([], ['_token'=>'valid', 'action'=>'status', 'status'=>'won']);
+        $request->headers->set('X-Requested-With', 'XMLHttpRequest');
+        self::assertSame(200, $controller->followup($this->tenant, $p, $request, $this->em)->getStatusCode());
+        $this->em->refresh($p);
+        self::assertSame(ProspectStatus::WON, $p->getStatus());
+        self::assertNull($p->getNextActionAt());
+        $history = $this->em->getRepository(ProspectInteraction::class)->findOneBy(['prospect'=>$p]);
+        self::assertSame('Étape : Nouveau → Gagné', $history->getTitle());
+        $request->request->set('status', 'converted');
+        self::assertSame(422, $controller->followup($this->tenant, $p, $request, $this->em)->getStatusCode());
+        self::assertSame(ProspectStatus::WON, $p->getStatus());
+        self::assertSame(1, $this->em->getRepository(ProspectInteraction::class)->count(['prospect'=>$p]));
+    }
+
     private function emailController(\Symfony\Component\Mailer\MailerInterface $transport): \App\Controller\Administrateur\ProspectEmailController
     {
         $container = $this->actionContainer();
