@@ -11,18 +11,29 @@ document.addEventListener('DOMContentLoaded', () => {
   let original = null;
   const apply = values => Object.entries(values).forEach(([name, value]) => {
     const input = field(name);
-    if (input) input.value = value ?? '';
+    if (!input) return;
+    if (input.tomselect) input.tomselect.setValue(value ?? '', true);
+    else if (input._flatpickr) input._flatpickr.setDate(value || null, false, 'Y-m-d');
+    else input.value = value ?? '';
   });
   const restore = () => {
     if (original) apply(original);
     original = null;
-    root.querySelectorAll('input, select').forEach(input => { input.disabled = false; });
+    root.querySelectorAll('input, select').forEach(input => { input.disabled = false;
+      input.tomselect?.enable();
+      if (input._flatpickr?.altInput) input._flatpickr.altInput.disabled = false; });
   };
   const fill = () => {
     if (!reuse.checked || !found) { restore(); return; }
     original ??= Object.fromEntries(Object.keys(found).map(name => [name, field(name)?.value ?? '']));
     apply(found);
-    Object.keys(found).forEach(name => { if (field(name)) field(name).disabled = true; });
+    Object.keys(found).forEach(name => {
+      const input = field(name);
+      if (!input) return;
+      input.disabled = true;
+      input.tomselect?.disable();
+      if (input._flatpickr?.altInput) input._flatpickr.altInput.disabled = true;
+    });
   };
   reuse.addEventListener('change', fill);
   async function lookup() {

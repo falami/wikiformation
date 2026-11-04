@@ -1,11 +1,13 @@
 {# templates/administrateur/formateur/form.html.twig #}
 {% extends 'base_admin.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
 
 {% set is_edit = modeEdition ?? false %}
 
 {% block title %}{{ is_edit ? 'Modifier un formateur' : 'Ajouter un formateur' }}{% endblock %}
 
 {% block stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="{{ asset('dist/css/trainer-photo.css') }}">
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/learner-ratings.css') }}">
@@ -196,6 +198,17 @@
     .ts-dropdown{ border-radius: 14px !important; overflow:hidden; border-color: var(--stroke) !important; z-index: 9999 !important; }
     .ts-wrapper.focus, .ts-wrapper.dropdown-active{ z-index: 9999; }
 
+    [data-trainer-identity] .form-label{display:block;margin-bottom:.5rem;font-size:.9rem}
+    [data-trainer-identity] .form-control{min-height:48px;background:#fff}
+    [data-trainer-identity] .form-check{padding:1rem 1rem 1rem 2.75rem;background:#f7f9fb;border:1px solid var(--stroke);border-radius:14px;margin:1rem 0 1.5rem}
+    [data-trainer-identity] .form-check-input:checked{background-color:var(--theme-color-principal);border-color:var(--theme-color-principal)}
+    .trainer-datepicker{border:1px solid var(--stroke);border-radius:18px;box-shadow:0 16px 44px #23324226;padding:10px;width:328px}
+    .trainer-datepicker .flatpickr-months{padding:8px 0 14px}
+    .trainer-datepicker .flatpickr-day{border-radius:10px}
+    .trainer-datepicker .flatpickr-day.selected{background:var(--theme-color-principal);border-color:var(--theme-color-principal)}
+    .trainer-datepicker .flatpickr-day.today{border-color:var(--theme-color-secondaire)}
+    .trainer-datepicker .flatpickr-weekday{color:var(--muted);font-weight:600}
+
     .tva-panel[hidden], .remu-panel[hidden]{ display:none !important; }
 
     .sticky-actions{
@@ -324,7 +337,15 @@
               {{ form_row(form.identity.reuse) }}
               <div class="row g-3">
                 {% for field in form.identity %}
-                  {% if field.vars.name not in ['email', 'reuse'] %}<div class="col-md-6">{{ form_row(field) }}</div>{% endif %}
+                  {% if field.vars.name not in ['email', 'reuse'] %}
+                    <div class="{{ field.vars.name == 'adresse' ? 'col-12' : 'col-12 col-md-6' }}">
+                      {% if field.vars.name == 'adresse' %}
+                        {{ form_row(field, {attr: {'data-google-inline': '', autocomplete: 'off'}}) }}
+                      {% else %}
+                        {{ form_row(field) }}
+                      {% endif %}
+                    </div>
+                  {% endif %}
                 {% endfor %}
               </div>
             </div>
@@ -539,10 +560,12 @@
 
 {% block javascripts %}
 <script src="{{ asset('dist/js/trainer-photo.js') }}" defer></script>
-<script src="{{ asset('dist/js/trainer-identity.js') }}" defer></script>
+<script src="{{ asset('dist/js/trainer-identity.js') }}?v=2" defer></script>
   {{ parent() }}
   <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -590,6 +613,31 @@
           no_results: () => '<div class="no-results">Aucune spécialité correspondante. Vous pouvez ajouter la vôtre.</div>'
         },
         placeholder: 'Rechercher une spécialité…'
+      });
+
+      initTomSelect('#{{ form.vars.id }} select:not(.tomselected)', {
+        create: false,
+        plugins: ['dropdown_input'],
+        placeholder: 'Sélectionner…'
+      });
+
+      document.querySelectorAll('#{{ form.vars.id }} input[type="date"]').forEach(el => {
+        if (!window.flatpickr || el._flatpickr) return;
+        flatpickr(el, {
+          locale: 'fr',
+          dateFormat: 'Y-m-d',
+          altInput: true,
+          altFormat: 'd/m/Y',
+          allowInput: false,
+          disableMobile: true,
+          maxDate: el.name.endsWith('[dateNaissance]') ? 'today' : undefined,
+          onReady: (dates, value, instance) => {
+            instance.calendarContainer.classList.add('trainer-datepicker');
+            instance.altInput.placeholder = 'Choisir une date';
+            instance.altInput.autocomplete = 'off';
+            instance.altInput.setAttribute('aria-label', 'Date de naissance (jour/mois/année)');
+          }
+        });
       });
 
       // ===== TVA panel =====
