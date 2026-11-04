@@ -1,9 +1,40 @@
 {% extends 'base_admin.html.twig' %}
 {% block title %}Mes évaluations · Théorie et pratique{% endblock %}
-{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">{% include 'evaluation/_style.html.twig' %}{% include 'evaluation/formateur/_form_style.html.twig' %}{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">{% include 'evaluation/_style.html.twig' %}{% include 'evaluation/formateur/_form_style.html.twig' %}
+<style>
+  /* Même traitement visuel que le bandeau des habilitations. */
+  .ev-shell .ev-hero--habilitation {
+    background: radial-gradient(ellipse at 95% 0, rgba(236,183,41,.22), transparent 52%), linear-gradient(115deg, #182b3b, #344957);
+    border: 1px solid #ffffff20;
+    border-radius: 26px;
+    padding: 38px 40px;
+    box-shadow: 0 16px 40px #20344418;
+  }
+  .ev-hero--habilitation::after { display: none; }
+  .ev-hero--habilitation::before {
+    content: ''; position: absolute; top: 32px; bottom: 32px; left: 0;
+    width: 5px; background: #efb928; border-radius: 8px;
+  }
+  .ev-shell .ev-hero--habilitation h1 {
+    font-size: clamp(26px, 2.8vw, 43px); font-weight: 750;
+    line-height: 1.16; letter-spacing: -1.4px; margin: 13px 0 16px;
+  }
+  .ev-hero--habilitation .ev-kicker {
+    font-size: 10px; letter-spacing: 1.8px; font-weight: 750;
+    color: #edd189; margin-bottom: 10px;
+  }
+  .ev-shell .ev-hero--habilitation p {
+    color: #d1dce6; max-width: 790px; font-size: 16px;
+    line-height: 1.7; margin: 8px 0 15px;
+  }
+  @media (max-width: 767px) {
+    .ev-shell .ev-hero--habilitation { padding: 28px 24px; }
+  }
+</style>
+{% endblock %}
 {% block body %}
 <div class="ev-shell">
-  <section class="ev-hero"><div class="ev-kicker">MON PARCOURS · VALIDATION DES ACQUIS</div><h1>Mes évaluations</h1><p>Votre test théorique, votre mise en pratique et vos résultats réunis au même endroit.</p><span class="ev-chip"><i class="bi bi-clipboard-check"></i> {{ dossiers|length }} évaluation{{ dossiers|length > 1 ? 's' : '' }}</span></section>
+  <section class="ev-hero ev-hero--habilitation"><div class="ev-kicker">MON PARCOURS · VALIDATION DES ACQUIS</div><h1>Mes évaluations</h1><p>Votre test théorique, votre mise en pratique et vos résultats réunis au même endroit.</p><span class="ev-chip"><i class="bi bi-clipboard-check"></i> {{ dossiers|length }} évaluation{{ dossiers|length > 1 ? 's' : '' }}</span></section>
   <div class="ev-grid mt-4">
     {% for dossier in dossiers %}
       <article class="ev-card"><div class="ev-card-body">
