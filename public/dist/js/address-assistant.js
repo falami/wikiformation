@@ -73,6 +73,8 @@
           assign('adresse', [value('street_number'), value('route')].filter(Boolean).join(' ') || place.formatted_address || '');
           assign('codePostal', value('postal_code'));
           assign('ville', value('locality') || value('postal_town') || value('administrative_area_level_3'));
+          assign('departement', value('administrative_area_level_2'));
+          assign('region', value('administrative_area_level_1'));
           assign('pays', value('country'));
           status.textContent = 'Adresse sélectionnée. Le code postal et la ville ont été complétés.';
         });

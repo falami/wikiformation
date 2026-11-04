@@ -33,7 +33,7 @@
 
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/trainee-planning.css') }}">
-  <link rel="stylesheet" href="{{ asset('dist/css/trainer-planning.css') }}?v=2">
+  <link rel="stylesheet" href="{{ asset('dist/css/trainer-planning.css') }}?v=3">
 {% endblock %}
 
 {% block javascripts %}
@@ -618,7 +618,31 @@
       return {domNodes: [wrap]};
     }}];
   }
-  function getResourceAreaWidth(){ return isTablet() ? '270px' : '310px'; }
+  let trainerColumnWidth = 260;
+  let trainerSizingFrame;
+  function getResourceAreaWidth(){ return trainerColumnWidth + 'px'; }
+  function sizeTrainerColumn(){
+    cancelAnimationFrame(trainerSizingFrame);
+    trainerSizingFrame = requestAnimationFrame(() => {
+      if (isMobile() || !calendarEl.clientWidth) return;
+      const labels = calendarEl.querySelectorAll('.trainer-identity strong, .trainer-identity small');
+      if (!labels.length) return;
+      const context = document.createElement('canvas').getContext('2d');
+      if (!context) return;
+      let textWidth = 0;
+      labels.forEach(label => {
+        const style = getComputedStyle(label);
+        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        textWidth = Math.max(textWidth, context.measureText(label.textContent).width);
+      });
+      // Avatar (40), gap (12), padding (28), borders/expander (12).
+      const desired = Math.ceil(textWidth + 92);
+      const width = Math.min(Math.max(200, desired), 360, Math.floor(calendarEl.clientWidth * 0.45));
+      if (width === trainerColumnWidth) return;
+      trainerColumnWidth = width;
+      calendar.setOption('resourceAreaWidth', getResourceAreaWidth());
+    });
+  }
 
   const calendar = new FullCalendar.Calendar(calendarEl, {
     schedulerLicenseKey: schedulerKey || 'CC-Attribution-NonCommercial-NoDerivatives',
@@ -633,6 +657,7 @@
     selectable: false,
     stickyHeaderDates: true,
 
+    resourcesSet: sizeTrainerColumn,
     resourceAreaWidth: getResourceAreaWidth(),
     resourceAreaColumns: getResourceColumns(),
     slotMinWidth: isTablet() ? 62 : 70,
@@ -786,6 +811,9 @@
   // ---------------------------
   initTomSelect();
   calendar.render();
+  const trainerResizeObserver = new ResizeObserver(sizeTrainerColumn);
+  trainerResizeObserver.observe(calendarEl);
+  document.fonts?.ready.then(sizeTrainerColumn);
   initPeriodPicker(calendar);
 
   $lastRefresh.textContent = 'Maj : ' + nowLabel();
