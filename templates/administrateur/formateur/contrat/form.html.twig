@@ -203,6 +203,28 @@
       justify-content: center;
     }
 
+    .btn.contract-action {
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      min-height:44px; padding:11px 20px; border-radius:11px;
+      font-size:14px; font-weight:650; line-height:1.4;
+      transition:background-color .15s, border-color .15s, box-shadow .15s;
+    }
+    .btn.contract-action-primary {
+      --bs-btn-bg:var(--theme-color-principal); --bs-btn-color:#fff;
+      --bs-btn-border-color:var(--theme-color-principal);
+      --bs-btn-hover-bg:color-mix(in srgb,var(--theme-color-principal) 85%,#000);
+      --bs-btn-hover-color:#fff; --bs-btn-hover-border-color:var(--theme-color-principal);
+      --bs-btn-active-bg:var(--theme-color-principal); --bs-btn-active-color:#fff;
+      --bs-btn-disabled-bg:var(--theme-color-principal); --bs-btn-disabled-color:#fff;
+    }
+    .btn.contract-action-secondary {
+      --bs-btn-bg:#fff; --bs-btn-color:var(--theme-color-principal); --bs-btn-border-color:#dce3eb;
+      --bs-btn-hover-bg:#f4f7f9; --bs-btn-hover-color:var(--theme-color-principal); --bs-btn-hover-border-color:#b8c6d3;
+      --bs-btn-active-bg:#edf2f6; --bs-btn-active-color:var(--theme-color-principal);
+    }
+    .btn.contract-action:focus-visible { outline:3px solid var(--theme-color-secondaire); outline-offset:3px; box-shadow:none; }
+    .btn.contract-action i { font-size:16px; line-height:1; }
+    @media(prefers-reduced-motion:reduce) { .btn.contract-action { transition:none; } }
   </style>
 {% endblock %}
 
@@ -228,12 +250,12 @@
         </div>
 
         <div class="d-flex gap-2">
-          <a class="btn btn-outline-theme btn-sm fw-semibold"
+          <a class="btn contract-action contract-action-secondary"
              href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}">
-            <i class="bi bi-arrow-left"></i> Retour
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> Annuler
           </a>
 
-          <button form="contratForm" type="submit" class="btn btn-light btn-sm fw-semibold" id="btnHeroSubmit">
+          <button form="contratForm" type="submit" class="btn contract-action contract-action-primary" id="btnHeroSubmit">
             <i class="bi bi-check2"></i> Enregistrer
           </button>
         </div>
@@ -446,11 +468,11 @@
 
       {# ===== Actions bas ===== #}
       <div class="d-flex justify-content-end gap-2 mt-3">
-        <a href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}" class="btn btn-secondary">
-          <i class="bi bi-arrow-left"></i> Retour
+        <a href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}" class="btn contract-action contract-action-secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i> Annuler
         </a>
-        <button type="submit" class="btn btn-gradient" id="btnBottomSubmit">
-          <i class="bi bi-check"></i> {{ is_edit ? 'Modifier & Terminer' : 'Créer & Terminer' }}
+        <button type="submit" class="btn contract-action contract-action-primary" id="btnBottomSubmit">
+          <i class="bi bi-check2" aria-hidden="true"></i> Enregistrer
         </button>
       </div>
 
@@ -518,9 +540,9 @@
           </div>
 
           <div class="d-flex gap-2">
-            <a class="btn btn-light w-50" href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}">Annuler</a>
-            <button type="submit" class="btn btn-primary w-50" id="btnRightSubmit">
-              <i class="bi bi-check"></i> Enregistrer
+            <a class="btn contract-action contract-action-secondary w-50" href="{{ path('app_administrateur_formateurs_contrats_list', { entite: entite.id }) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Annuler</a>
+            <button type="submit" class="btn contract-action contract-action-primary w-50" id="btnRightSubmit">
+              <i class="bi bi-check2" aria-hidden="true"></i> Enregistrer
             </button>
           </div>
         </div>
@@ -531,7 +553,7 @@
           <div class="small text-muted">
             <strong class="text-dark">Astuce :</strong> formateur + session + statut.
           </div>
-          <button type="submit" class="btn btn-sm btn-outline-secondary">
+          <button type="submit" class="btn contract-action contract-action-primary" aria-label="Enregistrer le contrat" title="Enregistrer le contrat">
             <i class="bi bi-check2"></i>
           </button>
         </div>

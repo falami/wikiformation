@@ -23,3 +23,14 @@
 {% for diploma in diplomas %}<div class="tp-file"><div><strong>{{ diploma.title }}</strong><small>Déposé le {{ diploma.uploadedAt|date('d/m/Y') }}</small><div><a class="btn btn-sm btn-light mt-2" href="{{ path('app_trainer_diploma_download',{entite:entite.id,id:diploma.id}) }}"><i class="bi bi-download me-1"></i>Télécharger</a></div></div><form method="post" onsubmit="return confirm('Supprimer ce diplôme de votre profil ?')"><input type="hidden" name="_token" value="{{ token }}"><input type="hidden" name="diplomaId" value="{{ diploma.id }}"><button class="btn btn-sm btn-outline-danger" name="action" value="deleteDiploma" aria-label="Supprimer {{ diploma.title }}"><i class="bi bi-trash"></i></button></form></div>{% else %}<div class="tp-status"><i class="bi bi-file-earmark-plus me-2"></i>Votre premier diplôme apparaîtra ici.</div>{% endfor %}</section></div></div>
 <script>document.addEventListener('DOMContentLoaded',()=>{new TomSelect('#tp-subjects',{plugins:['remove_button'],maxItems:50,create:input=>input.trim().length<=100?{value:input.trim(),text:input.trim()}:false,persist:false,closeAfterSelect:true,placeholder:'Rechercher ou ajouter une matière…',render:{no_results:()=>'<div class="no-results">Aucune matière trouvée. Saisissez son nom pour l’ajouter.</div>'}});});</script>
 {% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}">
+<link rel="stylesheet" href="{{ asset('dist/css/profile-datepickers.css') }}?v=1">
+{% endblock %}
+{% block javascripts %}
+{{ parent() }}
+<script defer src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}"></script>
+<script defer src="{{ asset('dist/js/profile-datepickers.js') }}?v=1"></script>
+{% endblock %}

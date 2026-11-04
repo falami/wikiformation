@@ -29,7 +29,7 @@ class ContratFormateurRepository extends ServiceEntityRepository
             ->andWhere('c.signatureAt IS NULL')
             ->andWhere("c.signatureDataUrl IS NULL OR c.signatureDataUrl = ''")
             ->setParameter('entite', $entite)->setParameter('trainer', $trainer)
-            ->setParameter('statuses', ['BROUILLON', 'ENVOYE'])
+            ->setParameter('statuses', ['ENVOYE'])
             ->orderBy('c.dateCreation', 'ASC')->addOrderBy('c.id', 'ASC')
             ->getQuery()->getResult();
     }

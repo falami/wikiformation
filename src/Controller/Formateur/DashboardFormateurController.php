@@ -820,7 +820,8 @@ class DashboardFormateurController extends AbstractController
             ->from(ContratFormateur::class, 'c')
             ->select('COUNT(c.id)')
             ->andWhere('c.entite = :e')->setParameter('e', $entite)
-            ->andWhere('c.formateur = :f')->setParameter('f', $formateur);
+            ->andWhere('c.formateur = :f')->setParameter('f', $formateur)
+            ->andWhere('c.status != :hiddenDraft')->setParameter('hiddenDraft', ContratFormateurStatus::BROUILLON);
 
         $statusFilter = $request->query->get('statusFilter', 'all');
         \App\Service\Filter\ChoiceFilter::any($qb, $statusFilter, static function ($qb, $value) {
@@ -1319,7 +1320,8 @@ class DashboardFormateurController extends AbstractController
 
         $qbBase = $em->getRepository(ContratFormateur::class)->createQueryBuilder('c')
             ->andWhere('c.entite = :e')->setParameter('e', $entite)
-            ->andWhere('c.formateur = :f')->setParameter('f', $formateur);
+            ->andWhere('c.formateur = :f')->setParameter('f', $formateur)
+            ->andWhere('c.status != :hiddenDraft')->setParameter('hiddenDraft', ContratFormateurStatus::BROUILLON);
 
         // recordsTotal
         $recordsTotal = (int)(clone $qbBase)
@@ -1394,6 +1396,8 @@ class DashboardFormateurController extends AbstractController
         ContratFormateur $contrat,
         \App\Service\Pdf\ContratFormateurDocument $document
     ): Response {
+        if ($contrat->getStatus() === ContratFormateurStatus::BROUILLON) throw $this->createNotFoundException();
+
         /** @var Utilisateur $user */
         $user = $this->getUser();
 
@@ -1412,7 +1416,7 @@ class DashboardFormateurController extends AbstractController
             'entite' => $entite,
             'contrat' => $contrat,
             'hasSavedSignature' => $hasSavedSignature,
-            'canSign' => !$contrat->getSignatureAt() && !$contrat->getSignatureDataUrl() && in_array($contrat->getStatus(), [ContratFormateurStatus::BROUILLON, ContratFormateurStatus::ENVOYE], true),
+            'canSign' => !$contrat->getSignatureAt() && !$contrat->getSignatureDataUrl() && in_array($contrat->getStatus(), [ContratFormateurStatus::ENVOYE], true),
             'documentAvailable' => !$document->isFrozen($contrat) || $document->storedPath($contrat) !== null,
             'documentFrozen' => $document->isFrozen($contrat),
 
@@ -1423,6 +1427,8 @@ class DashboardFormateurController extends AbstractController
     #[Route('/contrat/{contrat}/document', name: 'contrat_document', methods: ['GET'])]
     public function contratDocument(Entite $entite, ContratFormateur $contrat, \App\Service\Pdf\ContratFormateurDocument $document): Response
     {
+        if ($contrat->getStatus() === ContratFormateurStatus::BROUILLON) throw $this->createNotFoundException();
+
         $formateur = $this->getUser()->getFormateur($entite);
         if (!$formateur || $contrat->getFormateur()?->getId() !== $formateur->getId()) throw $this->createAccessDeniedException();
         if ($contrat->getEntite()?->getId() !== $entite->getId() || $formateur->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
@@ -1446,6 +1452,8 @@ class DashboardFormateurController extends AbstractController
         EntityManagerInterface $em,
         \App\Service\Pdf\ContratFormateurDocument $document
     ): Response {
+        if ($contrat->getStatus() === ContratFormateurStatus::BROUILLON) throw $this->createNotFoundException();
+
         /** @var Utilisateur $user */
         $user = $this->getUser();
         $formateur = $user->getFormateur($entite);
@@ -1463,8 +1471,7 @@ class DashboardFormateurController extends AbstractController
 
         // Seuls les contrats en attente de signature peuvent être signés.
         if (
-            ($contrat->getStatus() !== ContratFormateurStatus::ENVOYE
-            && $contrat->getStatus() !== ContratFormateurStatus::BROUILLON)
+            $contrat->getStatus() !== ContratFormateurStatus::ENVOYE
             || $contrat->getSignatureAt() || $contrat->getSignatureDataUrl()
         ) {
             $this->addFlash('warning', 'Ce contrat n’est pas en attente de signature.');
@@ -1537,6 +1544,8 @@ class DashboardFormateurController extends AbstractController
         EntityManagerInterface $em,
         \App\Service\Pdf\ContratFormateurDocument $document
     ): Response {
+        if ($contrat->getStatus() === ContratFormateurStatus::BROUILLON) throw $this->createNotFoundException();
+
         /** @var Utilisateur $user */
         $user = $this->getUser();
 

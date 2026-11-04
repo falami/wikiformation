@@ -307,6 +307,32 @@ final class TrainerContractVersionTest extends KernelTestCase
     {
         return $this->em->getRepository(\App\Entity\ContratFormateurRevision::class)->findOneBy(['contrat' => $this->contract]);
     }
+    public function testDraftIsHiddenAndInaccessibleUntilSent(): void
+    {
+        $client = $this->client();
+        $router = self::getContainer()->get('router');
+        $params = ['entite'=>$this->entite->getId(), 'contrat'=>$this->contract->getId()];
+        foreach (['contrat_sign', 'contrat_document', 'contrat_regen_pdf'] as $route) {
+            $client->request('GET', $router->generate('app_formateur_'.$route, $params));
+            self::assertSame(404, $client->getResponse()->getStatusCode());
+        }
+        $client->request('POST', $this->signUrl());
+        self::assertSame(404, $client->getResponse()->getStatusCode());
+        $listUrl = $router->generate('app_formateur_contrats_ajax', ['entite'=>$this->entite->getId()]);
+        $client->request('POST', $listUrl);
+        self::assertSame(0, json_decode($client->getResponse()->getContent(), true)['recordsTotal']);
+        $repo = $this->em->getRepository(ContratFormateur::class);
+        self::assertCount(0, $repo->findAwaitingTrainerSignature($this->entite, $this->contract->getFormateur()));
+        $this->reloadContract();
+        $this->contract->setStatus(ContratFormateurStatus::ENVOYE);
+        $this->em->flush();
+        $client->request('GET', $this->signUrl());
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $client->request('POST', $listUrl);
+        self::assertSame(1, json_decode($client->getResponse()->getContent(), true)['recordsTotal']);
+        self::assertCount(1, $repo->findAwaitingTrainerSignature($this->entite, $this->contract->getFormateur()));
+    }
+
     private function client(): KernelBrowser
     {
         $client = new KernelBrowser(self::$kernel); $client->disableReboot(); $client->loginUser($this->user); return $client;

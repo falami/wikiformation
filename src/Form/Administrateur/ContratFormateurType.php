@@ -89,6 +89,7 @@ final class ContratFormateurType extends AbstractType
         'class' => ContratFormateurStatus::class,
         'choices' => [ContratFormateurStatus::BROUILLON, ContratFormateurStatus::ENVOYE],
         'label' => 'Statut',
+        'help' => 'Brouillon : visible uniquement par l’organisme. Envoyé : accessible au formateur. Le statut Signé est attribué automatiquement après signature.',
         'row_attr' => $rowAttr,
         'attr' => $selectAttr,
         'choice_label' => fn(ContratFormateurStatus $s) => method_exists($s, 'label') ? $s->label() : $s->value,
