@@ -7,7 +7,7 @@ namespace App\Controller\Administrateur;
 use App\Entity\{Entite, EvaluationDossier, EvaluationTemplate, Inscription, Qcm, Session, Utilisateur, UtilisateurEntite};
 use App\Enum\StatusInscription;
 use App\Security\Permission\TenantPermission;
-use App\Service\Evaluation\{EvaluationWorkflow, WorkAtHeightPreset};
+use App\Service\Evaluation\{EvaluationWorkflow, WorkAtHeightPreset, EvaluationLibrary};
 use App\Service\UtilisateurEntite\UtilisateurEntiteManager;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,7 +20,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted(TenantPermission::QCM_MANAGE, subject: 'entite')]
 final class EvaluationController extends AbstractController
 {
-    public function __construct(private EntityManagerInterface $em, private EvaluationWorkflow $workflow, private UtilisateurEntiteManager $uem) {}
+    public function __construct(private EntityManagerInterface $em, private EvaluationWorkflow $workflow, private UtilisateurEntiteManager $uem, private EvaluationLibrary $library) {}
 
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Entite $entite, Request $request): Response
@@ -39,7 +39,7 @@ final class EvaluationController extends AbstractController
         $page = min($page, max(1, (int) ceil($total / 25)));
         $dossiers = $query->orderBy('d.id', 'DESC')->setFirstResult(($page - 1) * 25)->setMaxResults(25)->getQuery()->getResult();
         return $this->page('index', $entite, [
-            'templates' => $this->em->getRepository(EvaluationTemplate::class)->findBy(['entite' => $entite], ['id' => 'DESC']),
+            'templates' => $this->library->catalog($entite),
             'qcms' => $this->em->getRepository(Qcm::class)->findBy(['entite' => $entite], ['titre' => 'ASC']),
             'dossiers' => $dossiers, 'search' => $search, 'state' => $state, 'total' => $total, 'page' => $page, 'pages' => max(1, (int) ceil($total / 25)),
         ]);
@@ -60,11 +60,34 @@ final class EvaluationController extends AbstractController
         return $this->editModel($entite, $template, $request);
     }
 
+    #[Route('/modeles/{id}/consulter', name: 'template_show', requirements: ['id'=>'\\d+'], methods: ['GET'])]
+    public function templateShow(Entite $entite, int $id): Response
+    {
+        $template = $this->em->getRepository(EvaluationTemplate::class)->find($id);
+        if (!$template || !((!$template->getTrainerOwner() && $template->getEntite()?->getId() === $entite->getId()) || $this->library->available($template, $entite))) throw $this->createNotFoundException();
+        return $this->page('template_preview', $entite, ['template'=>$template]);
+    }
+
     #[Route('/modeles/{id}/modifier', name: 'template_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function templateEdit(Entite $entite, EvaluationTemplate $template, Request $request): Response
     {
-        if ($template->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if ($template->getTrainerOwner() || $template->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if ($this->library->locked($template) || $template->getArchivedAt()) return $this->page('template_locked', $entite, ['template'=>$template]);
         return $this->editModel($entite, $template, $request);
+    }
+
+    #[Route('/modeles/{id}/{action}', name: 'template_lifecycle', requirements: ['id'=>'\\d+', 'action'=>'archiver|dupliquer'], methods: ['POST'])]
+    public function lifecycle(Entite $entite, EvaluationTemplate $template, string $action, Request $request): Response
+    {
+        if ($template->getTrainerOwner() || $template->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if (!$this->isCsrfTokenValid('evaluation_lifecycle_'.$template->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException();
+        if ($action === 'dupliquer') {
+            $copy = $this->library->duplicate($template, $this->actor());
+            return $this->redirectToRoute('app_administrateur_evaluation_template_edit', ['entite'=>$entite->getId(), 'id'=>$copy->getId()]);
+        }
+        $this->library->archive($template);
+        $this->addFlash('success', 'Modèle archivé. Les dossiers existants restent disponibles.');
+        return $this->redirectToRoute('app_administrateur_evaluation_index', ['entite'=>$entite->getId()]);
     }
 
     private function editModel(Entite $entite, EvaluationTemplate $template, Request $request): Response
@@ -83,18 +106,7 @@ final class EvaluationController extends AbstractController
                 $values['schema'] = $schema;
                 if ($values['title'] === '' || mb_strlen($values['title']) > 180) throw new \InvalidArgumentException('Le nom du modèle doit contenir entre 1 et 180 caractères.');
                 $schema = $this->workflow->validateTemplate($schema);
-                $saved = $this->em->wrapInTransaction(function () use ($template, $request, $values, $schema): bool {
-                    if ($template->getId()) {
-                        $this->em->lock($template, LockMode::PESSIMISTIC_WRITE);
-                        $this->em->refresh($template);
-                        if ($request->request->getInt('modelVersion') !== $template->getVersion()) return false;
-                        $template->setVersion($template->getVersion() + 1);
-                    }
-                    $template->setTitle($values['title'])->setSchema($schema)->setActive($values['active']);
-                    $this->em->persist($template);
-                    return true;
-                });
-                if (!$saved) throw new \InvalidArgumentException('Ce modèle a été modifié depuis l’ouverture de la page. Vos saisies sont conservées : comparez avec la version enregistrée avant de valider à nouveau.');
+                $this->library->save($template, $request->request->getInt('modelVersion'), $values['title'], $schema, $values['active']);
                 $this->addFlash('success', 'Modèle enregistré. Les évaluations déjà affectées conservent leur version.');
                 return $this->redirectToRoute('app_administrateur_evaluation_index', ['entite' => $entite->getId()]);
             } catch (\InvalidArgumentException|\JsonException $exception) { $errors[] = $exception->getMessage(); }
@@ -117,15 +129,18 @@ final class EvaluationController extends AbstractController
         $selected = $request->isMethod('POST') ? $request->request->all('inscriptions') : [];
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('evaluation_assign_'.$entite->getId(), $request->request->getString('_token'))) throw $this->createAccessDeniedException('Le formulaire a expiré.');
-            $template = $this->em->getRepository(EvaluationTemplate::class)->findOneBy(['id' => $templateId, 'entite' => $entite, 'active' => true]);
+            $template = $this->em->getRepository(EvaluationTemplate::class)->find($templateId);
             $evaluator = $evaluators[$request->request->getInt('evaluator')] ?? null;
-            if (!$session || !$template || !$evaluator) $errors[] = 'Choisissez un modèle actif, une session et un formateur intervenant sur cette session.';
+            if (!$session || !$template || !$this->library->available($template, $entite) || !$evaluator) $errors[] = 'Choisissez un modèle actif, une session et un formateur intervenant sur cette session.';
             $allowed = []; foreach ($inscriptions as $inscription) $allowed[$inscription->getId()] = $inscription;
             if (!$selected || count($selected) > 500) $errors[] = 'Sélectionnez entre 1 et 500 stagiaires.';
             foreach ($selected as $id) if (!is_scalar($id) || !ctype_digit((string) $id) || !isset($allowed[(int) $id])) { $errors[] = 'Une inscription sélectionnée ne correspond pas à cette session.'; break; }
             if (!$errors) {
-                $snapshot = $this->workflow->snapshotTemplate($template);
-                $created = $this->em->wrapInTransaction(function () use ($selected, $allowed, $template, $evaluator, $entite, $snapshot): int {
+                $created = $this->em->wrapInTransaction(function () use ($selected, $allowed, $template, $evaluator, $entite): int {
+                    $this->em->lock($template, LockMode::PESSIMISTIC_WRITE);
+                    $this->em->refresh($template);
+                    if (!$this->library->available($template, $entite)) return -1;
+                    $snapshot = $this->workflow->snapshotTemplate($template);
                     $created = 0;
                     $ids = array_unique(array_map('intval', $selected)); sort($ids);
                     foreach ($ids as $id) {
@@ -135,14 +150,16 @@ final class EvaluationController extends AbstractController
                         $dossier = (new EvaluationDossier())->setEntite($entite)->setTemplate($template)->setInscription($inscription)->setEvaluator($evaluator)->setCreateur($this->actor())->setSnapshot($snapshot);
                         $this->em->persist($dossier); ++$created;
                     }
+                    if ($created > 0) $template->markAssigned();
                     return $created;
                 });
+                if ($created < 0) { $this->addFlash('warning', 'Ce modèle n’est plus disponible.'); return $this->redirectToRoute('app_administrateur_evaluation_assign', ['entite'=>$entite->getId()]); }
                 $this->addFlash('success', sprintf('%d dossier(s) créé(s). Les affectations déjà existantes ont été conservées.', $created));
                 return $this->redirectToRoute('app_administrateur_evaluation_index', ['entite' => $entite->getId()]);
             }
         }
         return $this->page('assign', $entite, ['sessions' => $this->em->getRepository(Session::class)->findBy(['entite' => $entite], ['id' => 'DESC']), 'session' => $session,
-            'templates' => $this->em->getRepository(EvaluationTemplate::class)->findBy(['entite' => $entite, 'active' => true], ['title' => 'ASC']), 'templateId' => $templateId,
+            'templates' => $this->library->catalog($entite, true), 'templateId' => $templateId,
             'inscriptions' => $inscriptions, 'evaluators' => $evaluators, 'evaluatorId' => $request->request->getInt('evaluator'), 'selected' => $selected, 'errors' => $errors]);
     }
 
@@ -196,7 +213,8 @@ final class EvaluationController extends AbstractController
 
     private function assertDossier(Entite $entite, EvaluationDossier $dossier): void
     {
-        foreach ([$dossier->getEntite(), $dossier->getInscription()?->getEntite(), $dossier->getSession()?->getEntite(), $dossier->getTemplate()?->getEntite()] as $tenant) if ($tenant?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        if (!$dossier->getTemplate()?->getTrainerOwner() && $dossier->getTemplate()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        foreach ([$dossier->getEntite(), $dossier->getInscription()?->getEntite(), $dossier->getSession()?->getEntite()] as $tenant) if ($tenant?->getId() !== $entite->getId()) throw $this->createNotFoundException();
     }
 
     /** @return array<int, Utilisateur> */

@@ -1,0 +1,12 @@
+{% set canManage = trainerMode|default(false) or not template.trainerOwner %}
+{% set locked = template.assignedAt is not null %}
+<article class="ev-card ev-library-model"><div class="ev-card-body">
+  <div class="ev-actions mb-3"><span class="ev-badge {{ template.active and not template.archivedAt ? 'ev-badge-success' : '' }}">{{ template.archivedAt ? 'Archivé' : (template.active ? (template.trainerOwner ? 'Publié aux organismes partenaires' : 'Disponible') : 'Brouillon privé') }}</span><span class="ev-muted">Version {{ template.version }}</span></div>
+  <h3>{{ template.title }}</h3>
+  <p class="ev-muted">{{ template.schema.theory|default([])|length }} question{{ template.schema.theory|default([])|length > 1 ? 's' : '' }} théorique{{ template.schema.theory|default([])|length > 1 ? 's' : '' }} · {{ template.schema.practice|default([])|length }} critère{{ template.schema.practice|default([])|length > 1 ? 's' : '' }} pratique{{ template.schema.practice|default([])|length > 1 ? 's' : '' }}</p>
+  <div class="ev-model-owner"><i class="bi {{ template.trainerOwner ? 'bi-person-badge' : 'bi-building' }}" aria-hidden="true"></i><div><small>PROPRIÉTÉ {{ template.trainerOwner ? 'DU FORMATEUR' : 'DE L’ORGANISME' }}</small><strong>{{ template.ownerLabel }}</strong></div></div>
+  {% if template.sourceTemplate %}<p class="ev-muted">Nouvelle version issue du modèle #{{ template.sourceTemplate.id }}.</p>{% endif %}
+  {% if locked %}<p class="ev-model-lock"><i class="bi bi-lock" aria-hidden="true"></i> Déjà attribué · contenu verrouillé</p>{% endif %}
+  {% if not canManage %}<p class="ev-muted">Utilisable pour vos formations. Seul le propriétaire peut gérer ce modèle.</p>{% endif %}
+  {% include 'evaluation/_model_actions.html.twig' %}
+</div></article>

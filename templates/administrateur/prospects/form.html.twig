@@ -610,15 +610,7 @@
                 <div class="soft-box">
                   <div class="fw-semibold mb-2"><i class="bi bi-geo-alt me-2"></i>Adresse</div>
                   <div class="row g-3">
-                    {% if form.googleAddressSearch is defined %}
-                      <div class="col-12">
-                        {{ form_row(form.googleAddressSearch) }}
-                        <div class="form-text">
-                          Sélectionnez une adresse proposée par Google pour remplir automatiquement les champs.
-                        </div>
-                      </div>
-                    {% endif %}
-                    {% if form.adresse is defined %}<div class="col-12">{{ form_row(form.adresse) }}</div>{% endif %}
+                    {% if form.adresse is defined %}<div class="col-12">{{ form_row(form.adresse, {attr: {'data-google-inline': '', placeholder: 'Commencez à saisir une adresse…'}}) }}</div>{% endif %}
                     {% if form.complement is defined %}<div class="col-12">{{ form_row(form.complement) }}</div>{% endif %}
 
                     {% if form.codePostal is defined %}<div class="col-12 col-md-4">{{ form_row(form.codePostal) }}</div>{% endif %}
@@ -1741,85 +1733,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script>
 window.__entreprisePlacesInited = false;
-window.__prospectPlacesInited = false;
 
 window.__initGooglePlaces = function () {
-  initProspectAddressAutocomplete();
   initEntrepriseModalPlaces();
 };
-
-function initProspectAddressAutocomplete() {
-  if (window.__prospectPlacesInited) return;
-  if (!window.google?.maps?.places) return;
-
-  const searchId = {{ form.googleAddressSearch is defined ? form.googleAddressSearch.vars.id|json_encode|raw : 'null' }};
-  const adresseId = {{ form.adresse is defined ? form.adresse.vars.id|json_encode|raw : 'null' }};
-  const cpId = {{ form.codePostal is defined ? form.codePostal.vars.id|json_encode|raw : 'null' }};
-  const villeId = {{ form.ville is defined ? form.ville.vars.id|json_encode|raw : 'null' }};
-  const departementId = {{ form.departement is defined ? form.departement.vars.id|json_encode|raw : 'null' }};
-  const regionId = {{ form.region is defined ? form.region.vars.id|json_encode|raw : 'null' }};
-  const paysId = {{ form.pays is defined ? form.pays.vars.id|json_encode|raw : 'null' }};
-
-  const searchEl = searchId ? document.getElementById(searchId) : null;
-  const adresseEl = adresseId ? document.getElementById(adresseId) : null;
-  const cpEl = cpId ? document.getElementById(cpId) : null;
-  const villeEl = villeId ? document.getElementById(villeId) : null;
-  const departementEl = departementId ? document.getElementById(departementId) : null;
-  const regionEl = regionId ? document.getElementById(regionId) : null;
-  const paysEl = paysId ? document.getElementById(paysId) : null;
-
-  if (!searchEl) return;
-
-  const autocomplete = new google.maps.places.Autocomplete(searchEl, {
-    types: ['address'],
-    componentRestrictions: { country: ['fr'] },
-    fields: ['address_components', 'formatted_address', 'geometry', 'name']
-  });
-
-  function getComponent(components, type, short = false) {
-    const comp = components.find(c => c.types.includes(type));
-    if (!comp) return '';
-    return short ? (comp.short_name || '') : (comp.long_name || '');
-  }
-
-  autocomplete.addListener('place_changed', function () {
-    const place = autocomplete.getPlace();
-    if (!place || !place.address_components) return;
-
-    const components = place.address_components;
-
-    const streetNumber = getComponent(components, 'street_number');
-    const route = getComponent(components, 'route');
-    const postalCode = getComponent(components, 'postal_code');
-
-    const locality =
-      getComponent(components, 'locality') ||
-      getComponent(components, 'postal_town') ||
-      getComponent(components, 'administrative_area_level_3');
-
-    const department = getComponent(components, 'administrative_area_level_2');
-    const region = getComponent(components, 'administrative_area_level_1');
-    const country = getComponent(components, 'country');
-
-    const street = [streetNumber, route].filter(Boolean).join(' ').trim();
-
-    if (adresseEl) adresseEl.value = street;
-    if (cpEl) cpEl.value = postalCode;
-    if (villeEl) villeEl.value = locality;
-    if (departementEl) departementEl.value = department;
-    if (regionEl) regionEl.value = region;
-    if (paysEl) paysEl.value = country;
-
-    [adresseEl, cpEl, villeEl, departementEl, regionEl, paysEl].forEach(el => {
-      if (el) {
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-  });
-
-  window.__prospectPlacesInited = true;
-}
 
 function initEntrepriseModalPlaces() {
   if (!window.google?.maps?.places) return;

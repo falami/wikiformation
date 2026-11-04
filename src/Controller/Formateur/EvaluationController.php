@@ -38,7 +38,7 @@ final class EvaluationController extends AbstractController
         $user = $this->getUser();
         if (!$user instanceof Utilisateur || $dossier->getEntite()?->getId() !== $entite->getId()
             || $dossier->getInscription()?->getEntite()?->getId() !== $entite->getId()
-            || $dossier->getTemplate()?->getEntite()?->getId() !== $entite->getId()
+            || (!$dossier->getTemplate()?->getTrainerOwner() && $dossier->getTemplate()?->getEntite()?->getId() !== $entite->getId())
             || $dossier->getSession()?->getEntite()?->getId() !== $entite->getId()
             || $dossier->getEvaluator()?->getId() !== $user->getId()) {
             throw $this->createNotFoundException();

@@ -44,7 +44,8 @@ final class EvaluationDocumentController extends AbstractController
 
     private function checkAccess(Entite $entite, EvaluationDossier $dossier, bool $staffOnly = false): void
     {
-        foreach ([$dossier->getEntite(), $dossier->getSession()?->getEntite(), $dossier->getInscription()?->getEntite(), $dossier->getTemplate()?->getEntite()] as $tenant) {
+        if (!$dossier->getTemplate()?->getTrainerOwner() && $dossier->getTemplate()?->getEntite()?->getId() !== $entite->getId()) throw $this->createNotFoundException();
+        foreach ([$dossier->getEntite(), $dossier->getSession()?->getEntite(), $dossier->getInscription()?->getEntite()] as $tenant) {
             if ($tenant?->getId() !== $entite->getId()) throw $this->createNotFoundException();
         }
         $user = $this->getUser();

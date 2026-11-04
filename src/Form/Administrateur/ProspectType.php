@@ -333,16 +333,6 @@ final class ProspectType extends AbstractType
         'attr' => ['class' => 'form-select js-ts'], // ou js-tomselect selon ton init
       ])
 
-      ->add('googleAddressSearch', TextType::class, [
-          'label' => 'Recherche d’adresse',
-          'mapped' => false,
-          'required' => false,
-          'attr' => [
-              'class' => 'form-control',
-              'placeholder' => 'Commencez à saisir une adresse…',
-              'autocomplete' => 'off',
-          ],
-      ])
     ;
 
 

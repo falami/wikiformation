@@ -36,6 +36,28 @@ class EvaluationTemplate
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\ManyToOne, ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?Utilisateur $trainerOwner = null;
+
+    #[ORM\ManyToOne(targetEntity: self::class), ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?self $sourceTemplate = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $assignedAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $archivedAt = null;
+
+    public function getTrainerOwner(): ?Utilisateur { return $this->trainerOwner; }
+    public function setTrainerOwner(?Utilisateur $owner): static { $this->trainerOwner = $owner; return $this; }
+    public function getSourceTemplate(): ?self { return $this->sourceTemplate; }
+    public function setSourceTemplate(self $source): static { $this->sourceTemplate = $source; return $this; }
+    public function getAssignedAt(): ?\DateTimeImmutable { return $this->assignedAt; }
+    public function markAssigned(): void { $this->assignedAt ??= new \DateTimeImmutable(); }
+    public function getArchivedAt(): ?\DateTimeImmutable { return $this->archivedAt; }
+    public function archive(): void { $this->archivedAt ??= new \DateTimeImmutable(); $this->active = false; }
+    public function getOwnerLabel(): string { return $this->trainerOwner ? trim($this->trainerOwner->getPrenom().' '.$this->trainerOwner->getNom()) : ($this->entite?->getNom() ?? 'Organisme'); }
+
     public function __construct() { $this->createdAt = new \DateTimeImmutable(); }
     public function getId(): ?int { return $this->id; }
     public function getEntite(): ?Entite { return $this->entite; }

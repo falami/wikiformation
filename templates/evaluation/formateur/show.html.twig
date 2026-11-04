@@ -8,6 +8,7 @@
 {% set learnerName = published ? record.learnerName : dossier.stagiaire.prenom ~ ' ' ~ dossier.stagiaire.nom %}
 {% set evaluatorName = published ? record.evaluatorName : dossier.evaluator.prenom ~ ' ' ~ dossier.evaluator.nom %}
 <div class="ev-shell">
+  {% if dossier.snapshot.owner is defined %}<p class="ev-muted">Modèle pédagogique · Propriété : <strong>{{ dossier.snapshot.owner }}</strong> · Version {{ dossier.snapshot.version }}</p>{% endif %}
   <div class="ev-toolbar mb-3"><a class="ev-tab-link" href="{{ path('app_formateur_evaluation_index', {entite: entite.id}) }}"><i class="bi bi-arrow-left"></i> Mes évaluations</a></div>
   <section class="ev-hero"><div class="ev-kicker">{{ published ? 'RÉSULTATS VALIDÉS' : 'ESPACE ÉVALUATEUR' }} · {{ dossier.session.code }}</div><h1>{{ learnerName }}</h1><p>{{ dossier.snapshot.title }}</p><div class="ev-toolbar"><span class="ev-chip"><i class="bi bi-book"></i> {{ dossier.session.formation.titre|default('Formation') }}</span><span class="ev-chip"><i class="bi bi-person-check"></i> {{ evaluatorName }}</span>{% if published %}<span class="ev-chip">Publié le {{ dossier.publishedAt|date('d/m/Y à H:i') }}</span>{% endif %}</div></section>
   {% for type,messages in app.flashes %}{% for message in messages %}<div class="alert alert-{{ type }} mt-3" role="status">{{ message }}</div>{% endfor %}{% endfor %}

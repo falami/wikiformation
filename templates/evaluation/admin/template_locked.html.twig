@@ -1,0 +1,11 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Modèle protégé · {{ template.title }}{% endblock %}
+{% block stylesheets %}{{ parent() }}{% include 'evaluation/_style.html.twig' %}{% endblock %}
+{% block body %}
+<div class="ev-shell">
+  <header class="ev-hero"><span class="ev-eyebrow">PATRIMOINE PÉDAGOGIQUE · VERSION CONSERVÉE</span><h1>{{ template.title }}</h1><p class="ev-lead">Ce modèle est {{ template.archivedAt ? 'archivé' : 'déjà attribué' }}. Son questionnaire, son corrigé et son barème sont protégés.</p><span class="ev-badge">Propriété : {{ template.ownerLabel }} · Version {{ template.version }}</span></header>
+  <section class="ev-card"><div class="ev-card-body"><h2>Préparer la suite, préserver l’existant.</h2><p>Dupliquez ce modèle pour créer une nouvelle version modifiable. L’archivage retire le modèle des nouvelles affectations, sans modifier les dossiers déjà créés.</p>{% include 'evaluation/_model_actions.html.twig' with {canManage:true, locked:true} %}</div></section>
+  {% include 'evaluation/_model_content.html.twig' %}
+  <a class="ev-btn" href="{{ path(trainerMode|default(false) ? 'app_formateur_evaluation_template_index' : 'app_administrateur_evaluation_index', {entite:entite.id}) }}">Retour à la bibliothèque</a>
+</div>
+{% endblock %}

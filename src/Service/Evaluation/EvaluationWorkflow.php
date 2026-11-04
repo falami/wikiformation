@@ -16,7 +16,7 @@ final class EvaluationWorkflow
     public function snapshotTemplate(EvaluationTemplate $template): array
     {
         if (!$template->isActive()) throw new \DomainException('Ce modèle est archivé.');
-        return ['title' => $this->schema->text($template->getTitle(), 180), 'version' => $template->getVersion(), 'schema' => $this->validateTemplate($template->getSchema())];
+        return ['title' => $this->schema->text($template->getTitle(), 180), 'version' => $template->getVersion(), 'owner' => $template->getOwnerLabel(), 'trainerOwnerId' => $template->getTrainerOwner()?->getId(), 'schema' => $this->validateTemplate($template->getSchema())];
     }
 
     public function submitTheory(EvaluationDossier $dossier, array $answers): void
@@ -120,7 +120,7 @@ final class EvaluationWorkflow
     private function dossierSchema(EvaluationDossier $dossier): array
     {
         $tenant = $dossier->getEntite();
-        if ($tenant === null || !$this->sameTenant($tenant, $dossier->getInscription()?->getEntite()) || !$this->sameTenant($tenant, $dossier->getSession()?->getEntite()) || !$this->sameTenant($tenant, $dossier->getTemplate()?->getEntite())) throw new \DomainException('Le dossier, la session, l’inscription et le modèle doivent appartenir au même organisme.');
+        if ($tenant === null || !$this->sameTenant($tenant, $dossier->getInscription()?->getEntite()) || !$this->sameTenant($tenant, $dossier->getSession()?->getEntite()) || (!$dossier->getTemplate()?->getTrainerOwner() && !$this->sameTenant($tenant, $dossier->getTemplate()?->getEntite()))) throw new \DomainException('Le dossier, la session, l’inscription et le modèle doivent appartenir au même organisme.');
         if ($dossier->getStagiaire() === null || $dossier->getEvaluator() === null) throw new \DomainException('Le stagiaire et le formateur évaluateur sont requis.');
         $snapshot = $dossier->getSnapshot();
         if (!is_array($snapshot['schema'] ?? null) || !is_string($snapshot['title'] ?? null) || !is_int($snapshot['version'] ?? null) || $snapshot['version'] < 1) throw new \DomainException('Le modèle figé de ce dossier est incomplet.');

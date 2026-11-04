@@ -63,7 +63,7 @@ final class CreateWorkAtHeightEvaluationCommand extends Command
         try {
             // Serialize repeated CLI imports for the same organisation.
             if ($write) $this->em->lock($tenant, LockMode::PESSIMISTIC_WRITE);
-            $existing = $this->em->getRepository(EvaluationTemplate::class)->findBy(['entite' => $tenant, 'title' => self::TITLE]);
+            $existing = $this->em->getRepository(EvaluationTemplate::class)->findBy(['entite' => $tenant, 'title' => self::TITLE, 'trainerOwner' => null]);
             if (count($existing) > 1) {
                 $io->error('Plusieurs modèles portent déjà ce titre. Vérifiez-les dans Théorie & pratique ; aucun changement effectué.');
                 if ($write) $this->em->rollback();
