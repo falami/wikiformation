@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Email envoyé — {{ log.subject }}</title>
+  <title>Journal e-mail — {{ log.subject }}</title>
   <style>
     body{ margin:0; background:#f2f4f7; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     .top{ padding:12px 14px; background:#111827; color:#fff; font-size:13px; }
@@ -17,7 +17,7 @@
 <body>
   <div class="top">
     <div class="meta">
-      À: <b>{{ log.toEmail }}</b> — Envoyé: <b>{{ log.createdAt ? log.createdAt|date('d/m/Y H:i') : '—' }}</b>
+      À: <b>{{ log.toEmail }}</b> — Créé : <b>{{ log.createdAt ? log.createdAt|date('d/m/Y H:i') : '—' }}</b> — <b>{{ log.status == 'SENT' ? 'Envoyé' : (log.status == 'FAILED' ? 'Échec de l’envoi' : 'Résultat à vérifier') }}</b>
     </div>
   </div>
 
@@ -27,7 +27,7 @@
         <div class="subject">{{ log.subject }}</div>
       </div>
       <div>
-        {{ log.bodyHtmlSnapshot|raw }}
+        <iframe title="Contenu du message" sandbox="" srcdoc="{{ log.bodyHtmlSnapshot|e('html_attr') }}" style="width:100%;min-height:650px;border:0"></iframe>
       </div>
     </div>
   </div>

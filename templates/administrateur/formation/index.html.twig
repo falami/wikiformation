@@ -499,6 +499,28 @@
     }
 
 
+    /* Priorité au programme ; les classifications restent secondaires. */
+    .formation-catalogue table .formation-title-column {
+      min-width:360px; width:420px; white-space:normal !important;
+    }
+    .formation-catalogue .formation-title-column .ledger-primary {
+      font-size:1rem; font-weight:700; line-height:1.55;
+      color:var(--theme-color-principal,#233342);
+      white-space:normal; overflow-wrap:anywhere; max-width:520px;
+    }
+    .formation-catalogue table .formation-category-column { width:150px; min-width:130px; }
+    .formation-catalogue table .formation-subcategory-column { width:210px; min-width:160px; }
+    .formation-catalogue .formation-category-column .ledger-pill,
+    .formation-catalogue .formation-subcategory-column .ledger-pill {
+      display:inline-block; white-space:normal !important; overflow-wrap:anywhere;
+      text-align:left; line-height:1.5; font-size:.75rem; font-weight:500;
+      padding:5px 8px; color:#647487; background:#f2f5f8;
+    }
+    .formation-catalogue .formation-category-column .ledger-pill { max-width:150px; }
+    .formation-catalogue .formation-subcategory-column .ledger-pill { max-width:210px; }
+    @media(max-width:768px) {
+      .formation-catalogue table .formation-title-column { min-width:280px; width:320px; }
+    }
   </style>
   <link rel="stylesheet" href="{{ asset('dist/css/premium-lists.css') }}">
 
@@ -718,7 +740,7 @@
   </div>
 
   {# TABLE #}
-  <div class="table-card premium-list mb-4">
+  <div class="table-card premium-list formation-catalogue mb-4">
     <div class="ledger-heading"><div><h3>Catalogue des formations</h3><p>Vos programmes et leurs tarifs, réunis dans une vue claire.</p></div><span class="ledger-mark"><i class="bi bi-collection" aria-hidden="true"></i>Tarifs du catalogue</span></div>
     <table id="tableauFormation" class="table table-hover align-middle mb-0 w-100">
       <thead>
@@ -897,9 +919,9 @@ $(function(){
     pageLength: 100,
     columns:[
       {data:'id', name:'id', visible:false},
-      {data:'titre', name:'titre'},
-      {data:'categorie', name:'categorie'},
-      {data:'sousCategorie', name:'sousCategorie'},
+      {data:'titre', name:'titre', width:'420px', className:'formation-title-column'},
+      {data:'categorie', name:'categorie', width:'150px', className:'formation-category-column'},
+      {data:'sousCategorie', name:'sousCategorie', width:'210px', className:'formation-subcategory-column'},
       {data:'niveau', name:'niveau'},
       {data:'prixBase', name:'prixBase'},
       {data:'tauxTva', name:'tauxTva'},

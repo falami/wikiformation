@@ -4,6 +4,9 @@ namespace App\Controller\Administrateur;
 
 use App\Entity\{Entite, Prospect, EmailLog, ProspectInteraction, Utilisateur};
 use App\Enum\InteractionChannel;
+use App\Enum\ProspectStatus;
+use App\Service\Prospect\ProspectFollowUp;
+use Symfony\Component\Lock\LockFactory;
 use App\Form\Administrateur\ProspectSendEmailType;
 use App\Repository\EmailLogRepository;
 use App\Repository\EmailTemplateRepository;
@@ -26,6 +29,7 @@ final class ProspectEmailController extends AbstractController
     private EmailTemplateRepository $templates,
     private EmailLogRepository $logs,
     private MailerManager $mailer,
+    private LockFactory $locks,
   ) {}
 
   private function guardOwnership(Entite $entite, Prospect $prospect): void
@@ -78,7 +82,7 @@ final class ProspectEmailController extends AbstractController
     $message = (string)$request->request->get('message', '');
 
     $tpl = $tplId ? $this->templates->find($tplId) : null;
-    if (!$tpl || $tpl->getEntite()?->getId() !== $entite->getId()) {
+    if ($tplId && (!$tpl || !$tpl->isActive() || $tpl->getEntite()?->getId() !== $entite->getId())) {
       return $this->json(['ok' => false, 'error' => 'Template invalide.'], 400);
     }
 
@@ -89,14 +93,14 @@ final class ProspectEmailController extends AbstractController
     ];
 
     // ✅ subject dynamique depuis DB (Twig string)
-    $renderedSubject = trim($this->mailer->renderTwigString((string)$tpl->getSubject(), $ctx));
+    $renderedSubject = trim($this->mailer->renderTwigString((string)$tpl?->getSubject(), $ctx));
     $finalSubject = trim($subject) !== '' ? trim($subject) : $renderedSubject;
     if ($finalSubject === '') $finalSubject = 'Message';
 
     // ✅ body dynamique depuis DB (Twig string) si tu stockes body dans ta table
-    $renderedBody = $tpl->getBodyHtml()
-      ? $this->mailer->renderTwigString((string)$tpl->getBodyHtml(), $ctx)
-      : $message;
+    $renderedBody = $tpl?->getBodyHtml()
+      ? $this->mailer->renderTwigString((string)$tpl?->getBodyHtml(), $ctx)
+      : nl2br(htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 
     // ✅ Template email générique prospect
     $html = $this->renderView('emails/prospect_generic_send.html.twig', [
@@ -134,23 +138,35 @@ final class ProspectEmailController extends AbstractController
     $message = (string)$request->request->get('message', '');
     $idemKey = trim((string)$request->request->get('idemKey', ''));
 
-    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+    if ($to === '' || mb_strlen($to) > 180 || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
       return $this->json(['ok' => false, 'error' => 'Email destinataire invalide.'], 400);
     }
-    if ($tplId <= 0) {
-      return $this->json(['ok' => false, 'error' => 'Template manquant.'], 400);
+    if (mb_strlen($subjectOverride) > 200 || preg_match('/[\r\n]/', $subjectOverride) || mb_strlen($message) > 50000) {
+      return $this->json(['ok' => false, 'error' => 'Objet limité à 200 caractères sur une ligne, message à 50 000 caractères.'], 400);
+    }
+    if (!$tplId && ($subjectOverride === '' || trim($message) === '')) {
+      return $this->json(['ok' => false, 'error' => 'Renseignez un objet et un message.'], 400);
+    }
+    $followupDays = $request->request->getInt('followupDays', 0);
+    if (!in_array($followupDays, [0, 3, 7, 14, 30], true)) {
+      return $this->json(['ok' => false, 'error' => 'Délai de relance invalide.'], 400);
     }
     if ($idemKey === '' || mb_strlen($idemKey) > 64) {
       return $this->json(['ok' => false, 'error' => 'Clé d’envoi invalide.'], 400);
     }
 
-    // ✅ Idempotence
+    $lock = $this->locks->createLock('prospect-mail-'.$entite->getId().'-'.$prospect->getId().'-'.$idemKey, 300);
+    if (!$lock->acquire()) return $this->json(['ok' => false, 'error' => 'Cet envoi est déjà en cours.'], 409);
+    try {
+    // A persisted pending log prevents a second send after a transport timeout.
+
     $existing = $this->logs->findOneBy([
       'entite' => $entite,
       'prospect' => $prospect,
       'idemKey' => $idemKey,
     ]);
     if ($existing) {
+      if ($existing->getStatus() !== 'SENT') return $this->json(['ok' => false, 'error' => 'Cet envoi a échoué ou son résultat est incertain. Vérifiez l’historique et votre messagerie avant de préparer un nouvel envoi.'], 409);
       return $this->json([
         'ok' => true,
         'logId' => $existing->getId(),
@@ -163,8 +179,8 @@ final class ProspectEmailController extends AbstractController
       ]);
     }
 
-    $tpl = $this->templates->find($tplId);
-    if (!$tpl || $tpl->getEntite()?->getId() !== $entite->getId()) {
+    $tpl = $tplId ? $this->templates->find($tplId) : null;
+    if ($tplId && (!$tpl || !$tpl->isActive() || $tpl->getEntite()?->getId() !== $entite->getId())) {
       return $this->json(['ok' => false, 'error' => 'Template invalide.'], 400);
     }
 
@@ -174,13 +190,14 @@ final class ProspectEmailController extends AbstractController
       'message'  => $message,
     ];
 
-    $renderedSubject = trim($this->mailer->renderTwigString((string)$tpl->getSubject(), $ctx));
+    $renderedSubject = trim($this->mailer->renderTwigString((string)$tpl?->getSubject(), $ctx));
     $subject = $subjectOverride !== '' ? $subjectOverride : $renderedSubject;
     if ($subject === '') $subject = 'Message';
+    if (mb_strlen($subject) > 200 || preg_match('/[\r\n]/', $subject)) return $this->json(['ok' => false, 'error' => 'L’objet du modèle doit tenir sur une ligne de 200 caractères maximum.'], 400);
 
-    $renderedBody = $tpl->getBodyHtml()
-      ? $this->mailer->renderTwigString((string)$tpl->getBodyHtml(), $ctx)
-      : $message;
+    $renderedBody = $tpl?->getBodyHtml()
+      ? $this->mailer->renderTwigString((string)$tpl?->getBodyHtml(), $ctx)
+      : nl2br(htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 
     $html = $this->renderView('emails/prospect_generic_send.html.twig', [
       'entite'   => $entite,
@@ -204,6 +221,7 @@ final class ProspectEmailController extends AbstractController
       ->setStatus('PENDING');
 
     $this->em->persist($log);
+    $this->em->flush();
 
     try {
       $this->mailer->sendHtml($entite, $to, $subject, $html, $text);
@@ -223,12 +241,16 @@ final class ProspectEmailController extends AbstractController
       ->setActor($this->getUser())
       ->setOccurredAt(new \DateTimeImmutable())
       ->setChannel(InteractionChannel::EMAIL)
-      ->setTitle('Email envoyé : ' . $subject)
-      ->setContent("À : {$to}\nModèle : " . ($tpl->getName() ?? $tpl->getCode() ?? '—'))
+      ->setTitle(mb_substr('Email envoyé : ' . $subject, 0, 120))
+      ->setContent("À : {$to}\nModèle : " . ($tpl?->getName() ?? $tpl?->getCode() ?? 'Message personnalisé'))
       ->setEmailLog($log);
 
     $this->em->persist($interaction);
 
+    if (ProspectFollowUp::isOpen($prospect)) {
+      if ($prospect->getStatus() === ProspectStatus::NEW) $prospect->setStatus(ProspectStatus::CONTACTED);
+      if ($followupDays > 0) $prospect->setNextActionAt((new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->modify('+'.$followupDays.' days')->setTime(9, 0));
+    }
     $prospect->touch();
     $this->em->flush();
 
@@ -241,6 +263,9 @@ final class ProspectEmailController extends AbstractController
         'id' => $log->getId(),
       ]),
     ]);
+    } finally {
+      $lock->release();
+    }
   }
 
   #[Route('/log/{id}', name: 'log_show', methods: ['GET'], requirements: ['id' => '\d+'])]

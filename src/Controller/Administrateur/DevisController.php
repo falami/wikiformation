@@ -82,6 +82,15 @@ class DevisController extends AbstractController
     $d->setDateEmission(new \DateTimeImmutable());
     $d->setDevise('EUR');
 
+    if ($req->query->has('prospect')) {
+      $prospect = $em->getRepository(\App\Entity\Prospect::class)->findOneBy([
+        'id' => $req->query->getInt('prospect'),
+        'entite' => $entite,
+      ]);
+      if (!$prospect) throw $this->createNotFoundException('Prospect introuvable.');
+      $d->setProspect($prospect);
+    }
+
     $form = $this->createForm(DevisType::class, $d, [
       'entite' => $entite,
     ])->handleRequest($req);

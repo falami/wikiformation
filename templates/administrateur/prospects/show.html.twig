@@ -3,6 +3,7 @@
 {% block title %}Prospect #{{ p.id }} — {{ p.prenom }} {{ p.nom|upper }}{% endblock %}
 
 {% block stylesheets %}
+  <link rel="stylesheet" href="{{ asset('dist/css/prospect-workspace.css') }}?v=5">
   {{ parent() }}
   <link rel="stylesheet" href="{{ asset('dist/css/style.css') }}">
   <link rel="stylesheet" href="{{ asset('dist/css/style-table.css') }}">
@@ -374,6 +375,17 @@
           </div>
 
           <div class="cardX-b">
+            {% if is_granted('PROSPECT_EMAIL_MANAGE', entite) and p.emailLogs|length %}
+              <details class="border rounded-3 p-3 mb-3">
+                <summary class="fw-semibold">Journal des e-mails · {{ p.emailLogs|length }} envoi(s)</summary>
+                <div class="table-responsive mt-3"><table class="table table-sm align-middle"><thead><tr><th>Date</th><th>Destinataire / objet</th><th>Résultat</th><th></th></tr></thead><tbody>
+                {% for log in p.emailLogs|sort((a,b) => b.createdAt <=> a.createdAt) %}<tr>
+                  <td>{{ log.createdAt|date('d/m/Y H:i') }}</td><td>{{ log.toEmail }}<br><small>{{ log.subject }}</small></td>
+                  <td><span class="badge {{ log.status == 'SENT' ? 'bg-success' : (log.status == 'FAILED' ? 'bg-danger' : 'bg-warning text-dark') }}">{{ log.status == 'SENT' ? 'Envoyé' : (log.status == 'FAILED' ? 'Échec' : 'À vérifier') }}</span>{% if log.status != 'SENT' %}<div class="small text-muted">Vérifiez la messagerie avant tout nouvel envoi.</div>{% endif %}</td>
+                  <td><button class="btn btn-sm btn-outline-secondary" type="button" data-email-view-url="{{ path('app_administrateur_prospect_email_log_show', {entite:entite.id,prospect:p.id,id:log.id}) }}" onclick="openEmailLog(this)">Consulter</button></td>
+                </tr>{% endfor %}</tbody></table></div>
+              </details>
+            {% endif %}
             {% if p.interactions|length == 0 %}
               <div class="text-muted">Aucune interaction.</div>
             {% else %}
@@ -518,6 +530,7 @@
 
 {# Zone où on injecte la modale email #}
 <div id="emailModalHost"></div>
+<script src="{{ asset('dist/js/prospect-workspace.js') }}?v=5" defer></script>
 
 {# Modal email log #}
 <div class="modal fade" id="emailLogModal" tabindex="-1" aria-hidden="true">
@@ -674,6 +687,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnConfirmConvert = document.getElementById('btnConfirmConvert');
   const chkConfirmConvert = document.getElementById('confirmConvertCheck');
   const convertForm       = document.getElementById('convertProspectForm');
+  {% if app.request.query.get('conversion') == '1' and p.active and p.status.value != 'converted' and not p.linkedUser %}
+    const conversionModal = document.getElementById('convertProspectModal');
+    if (conversionModal) bootstrap.Modal.getOrCreateInstance(conversionModal).show();
+  {% endif %}
+
 
   if (btnConfirmConvert && chkConfirmConvert && convertForm) {
     const initiallyDisabled = btnConfirmConvert.disabled;
@@ -694,91 +712,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-  async function openEmailModal(){
-    const url = "{{ path('app_administrateur_prospect_email_modal', { entite: entite.id, prospect: p.id }) }}";
-    const res = await fetch(url, { headers: { 'X-Requested-With':'XMLHttpRequest' }});
-    const html = await res.text();
-    document.getElementById('emailModalHost').innerHTML = html;
-
-    const modalEl = document.getElementById('emailModal');
-    const bsModal = new bootstrap.Modal(modalEl);
-    bsModal.show();
-
-    modalEl.querySelectorAll('.js-tomselect').forEach(el => {
-      if (!el || el.tomselect) return;
-      new TomSelect(el, { create:false, allowEmptyOption:true, maxItems:1, plugins:['clear_button'] });
-    });
-
-    const templateSel = modalEl.querySelector('select[name$="[template]"]');
-    const toInput     = modalEl.querySelector('input[name$="[toEmail]"]');
-    const subjectInput= modalEl.querySelector('input[name$="[subject]"]');
-    const msgInput    = modalEl.querySelector('textarea[name$="[message]"]');
-
-    const previewZone = document.getElementById('emailPreviewZone');
-    const statusEl    = document.getElementById('emailSendStatus');
-
-    async function doPreview(){
-      const tplId = templateSel?.value;
-      if(!tplId){ previewZone.innerHTML = '<div class="text-muted">Choisis un modèle.</div>'; return; }
-
-      const fd = new URLSearchParams();
-      fd.set('templateId', tplId);
-      fd.set('subject', subjectInput?.value || '');
-      fd.set('message', msgInput?.value || '');
-      fd.set('to', toInput?.value || '');
-
-      const urlPreview = "{{ path('app_administrateur_prospect_email_preview', { entite: entite.id, prospect: p.id }) }}";
-      const r = await fetch(urlPreview, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' }});
-      const j = await r.json().catch(() => null);
-
-      if(!j || !j.ok){ previewZone.innerHTML = '<div class="text-danger">'+((j && j.error) ? j.error : 'Erreur preview')+'</div>'; return; }
-      if (j.subject && subjectInput) subjectInput.value = j.subject;
-      previewZone.innerHTML = j.html;
-    }
-
-    modalEl.querySelector('#btnPreview')?.addEventListener('click', doPreview);
-    templateSel?.addEventListener('change', doPreview);
-
-    let sendingEmail = false;
-    modalEl.querySelector('#btnSend')?.addEventListener('click', async (e) => {
-      const btnSend = e.currentTarget;
-      if (sendingEmail) return;
-      sendingEmail = true;
-
-      const oldHtml = btnSend.innerHTML;
-      btnSend.disabled = true;
-      btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Envoi…';
-      statusEl.textContent = '';
-
-      try{
-        const tplId = templateSel?.value;
-        if(!tplId){ statusEl.textContent = 'Choisis un modèle.'; return; }
-
-        const fd = new URLSearchParams();
-        fd.set('templateId', tplId);
-        fd.set('to', toInput?.value || '');
-        fd.set('subject', subjectInput?.value || '');
-        fd.set('message', msgInput?.value || '');
-        fd.set('idemKey', modalEl.querySelector('input[name$="[idemKey]"]')?.value || '');
-        fd.set('_token', modalEl.querySelector('input[name="_token"]')?.value || '');
-
-        const urlSend = "{{ path('app_administrateur_prospect_email_send', { entite: entite.id, prospect: p.id }) }}";
-        const r = await fetch(urlSend, { method:'POST', body: fd, headers:{ 'X-Requested-With':'XMLHttpRequest' }});
-        const j = await r.json().catch(() => null);
-
-        if(!j || !j.ok){ statusEl.textContent = (j && j.error) ? j.error : 'Erreur envoi'; return; }
-
-        statusEl.textContent = '✅ Email envoyé.';
-        setTimeout(() => bsModal.hide(), 600);
-        setTimeout(() => window.location.reload(), 900);
-      } finally {
-        sendingEmail = false;
-        btnSend.disabled = false;
-        btnSend.innerHTML = oldHtml;
-      }
-    });
-
-    await doPreview();
+  function openEmailModal(){
+    window.openProspectEmail("{{ path('app_administrateur_prospect_email_modal', {entite:entite.id, prospect:p.id}) }}");
   }
 
   document.getElementById('btnOpenEmail')?.addEventListener('click', openEmailModal);

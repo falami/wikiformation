@@ -1,0 +1,32 @@
+{% set p = row.p %}
+<article class="crm-contact {{ row.due ? 'is-due' : '' }}">
+  <div class="crm-identity"><input type="checkbox" class="crm-select-contact" aria-label="Sélectionner {{ p.fullName }}" value="{{ p.id }}" data-name="{{ p.fullName }}" data-email="{{ p.email }}" data-active="{{ p.active ? '1' : '0' }}" data-stage="{{ p.status.value }}"
+    {% if is_granted('PROSPECT_EMAIL_MANAGE', entite) %}data-send-url="{{ path('app_administrateur_prospect_email_send', {entite:entite.id, prospect:p.id}) }}" data-preview-url="{{ path('app_administrateur_prospect_email_preview', {entite:entite.id, prospect:p.id}) }}" data-send-token="{{ csrf_token('send_email_prospect_' ~ entite.id ~ '_' ~ p.id) }}"{% endif %}>
+    <span class="crm-avatar" aria-hidden="true">{{ p.prenom|slice(0,1)|upper }}{{ p.nom|slice(0,1)|upper }}</span><div><a class="crm-name" href="{{ path('app_administrateur_prospect_show', {entite:entite.id, prospect:p.id}) }}">{{ p.fullName }}</a><div class="crm-company">{{ p.societe ?: p.raisonSociale ?: 'Entreprise à renseigner' }}</div><small>{{ p.poste ?: 'Fonction à renseigner' }}</small></div></div>
+  <div class="crm-details">{% if p.email %}<a href="mailto:{{ p.email }}"><i class="bi bi-envelope"></i> {{ p.email }}</a>{% else %}<small>E-mail à renseigner</small>{% endif %}{% if p.telephone %}<a href="tel:{{ p.telephone }}"><i class="bi bi-telephone"></i> {{ p.telephone }}</a>{% endif %}</div>
+  <div class="crm-progress"><span class="crm-stage" data-stage="{{ p.status.value }}">{{ p.status.label }}</span>{% if not p.active %}<small>Contact inactif</small>{% endif %}{% if row.waiting %}<small class="crm-waiting">Sans réponse enregistrée · {{ row.lastSent|date('d/m/Y') }}</small>{% elseif row.lastReply %}<small>Réponse enregistrée le {{ row.lastReply|date('d/m/Y') }}</small>{% endif %}{% if p.estimatedValueCents %}<small>{{ (p.estimatedValueCents / 100)|number_format(0, ',', ' ') }} {{ p.devise }} · potentiel</small>{% endif %}</div>
+  <div class="crm-next"><small>PROCHAINE ACTION</small><strong>{{ p.nextActionAt ? p.nextActionAt|date('d/m/Y', 'Europe/Paris') : 'À planifier' }}</strong>{% if row.due %}<span>À traiter</span>{% endif %}</div>
+  <div class="crm-actions wf-table-actions">
+    <div class="btn-group btn-group-sm wf-row-actions" role="group" aria-label="Actions pour {{ p.fullName }}">
+      <a class="btn btn-light wf-action-first" href="{{ path('app_administrateur_prospect_edit', {entite:entite.id, prospect:p.id}) }}" title="Modifier le prospect" aria-label="Modifier le prospect {{ p.fullName }}"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
+      <button class="btn btn-light dropdown-toggle dropdown-toggle-split wf-action-last" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions pour {{ p.fullName }}"><span class="visually-hidden">Actions</span></button>
+      <ul class="dropdown-menu dropdown-menu-end wf-action-menu">
+        <li><h6 class="dropdown-header">Actions du prospect</h6></li>
+        <li><a class="dropdown-item" href="{{ path('app_administrateur_prospect_show', {entite:entite.id, prospect:p.id}) }}"><i class="bi bi-eye" aria-hidden="true"></i> Ouvrir la fiche</a></li>
+        <li><a class="dropdown-item" href="{{ path('app_administrateur_prospect_edit', {entite:entite.id, prospect:p.id}) }}"><i class="bi bi-pencil-square" aria-hidden="true"></i> Modifier le prospect</a></li>
+        <li><hr class="dropdown-divider"></li>
+        {% if is_granted('PROSPECT_EMAIL_MANAGE', entite) %}
+        <li><button class="dropdown-item" type="button" data-email-url="{{ path('app_administrateur_prospect_email_modal', {entite:entite.id, prospect:p.id}) }}" {{ not p.email ? 'disabled' : '' }} title="{{ p.email ? 'Rédiger un e-mail' : 'Ajoutez un e-mail dans la fiche du contact' }}"><i class="bi bi-envelope"></i> {{ row.waiting ? 'Relancer par e-mail' : 'Écrire un e-mail' }}</button></li>
+        {% endif %}
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#crmFollowup" data-followup-url="{{ path('app_administrateur_prospect_followup', {entite:entite.id, prospect:p.id}) }}" data-token="{{ csrf_token('prospect_followup_' ~ p.id) }}" data-name="{{ p.fullName }}" data-company="{{ p.societe ?: p.raisonSociale ?: 'Contact prospect' }}" data-stage-label="{{ p.status.label }}" data-date="{{ p.nextActionAt ? p.nextActionAt|date('Y-m-d', 'Europe/Paris') : '' }}" data-stage="{{ p.status.value }}"><i class="bi bi-arrow-repeat"></i> Mettre à jour le suivi</button></li>
+        {% if is_granted('DEVIS_MANAGE', entite) %}
+        <li><a class="dropdown-item" href="{{ path('app_administrateur_devis_new', {entite:entite.id, prospect:p.id}) }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Créer un devis</a></li>
+        {% endif %}
+        {% if p.active and p.status.value != 'converted' and not p.linkedUser %}
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-success" href="{{ path('app_administrateur_prospect_show', {entite:entite.id, prospect:p.id, conversion:1}) }}" title="Conserver les informations et l’historique"><i class="bi bi-person-check" aria-hidden="true"></i> Convertir en client</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</article>

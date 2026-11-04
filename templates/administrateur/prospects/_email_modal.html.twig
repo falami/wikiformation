@@ -1,53 +1,35 @@
-<div class="modal fade" id="emailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content" style="border-radius:18px;">
+<div class="modal fade" id="emailModal" data-preview-url="{{ path('app_administrateur_prospect_email_preview', {entite:entite.id, prospect:p.id}) }}" data-send-url="{{ path('app_administrateur_prospect_email_send', {entite:entite.id, prospect:p.id}) }}" data-company="{{ p.societe ?: 'votre entreprise' }}" data-sender="{{ entite.nom }}" tabindex="-1" aria-hidden="true" aria-labelledby="crmComposeTitle">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
       <div class="modal-header">
-        <div>
-          <h5 class="modal-title fw-bold mb-0"><i class="bi bi-envelope"></i> Envoyer un email</h5>
-          <div class="small text-muted">Prospect #{{ p.id }} — {{ p.prenom }} {{ p.nom|upper }}</div>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        <div class="crm-compose-heading"><span class="crm-compose-icon"><i class="bi bi-envelope-paper" aria-hidden="true"></i></span><div><span class="crm-compose-eyebrow">VOTRE PROCHAINE CONVERSATION</span><h2 id="crmComposeTitle">Un message qui crée du lien.</h2><p>Un échange personnalisé, une relation qui avance.</p></div></div>
+        <button type="button" class="crm-compose-close" data-bs-dismiss="modal" aria-label="Fermer"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        <div class="crm-compose-contact"><span class="crm-compose-avatar">{{ p.prenom|slice(0,1)|upper }}{{ p.nom|slice(0,1)|upper }}</span><div><strong>{{ p.fullName }}</strong><small>{{ p.societe ?: 'Contact prospect' }}</small></div><span class="crm-compose-from"><i class="bi bi-building" aria-hidden="true"></i> {{ entite.nom }}</span></div>
       </div>
-
       <div class="modal-body">
         {{ form_start(emailForm, { attr: { id: 'sendEmailForm', novalidate:'novalidate' } }) }}
-          <div class="row g-3">
-            <div class="col-12 col-lg-4">
-              <div class="border rounded-4 p-3 bg-light">
-                <div class="fw-bold mb-2"><i class="bi bi-sliders"></i> Paramètres</div>
-
-                <div class="mb-2">{{ form_row(emailForm.toEmail) }}</div>
-                <div class="mb-2">{{ form_row(emailForm.template) }}</div>
-                <div class="mb-2">{{ form_row(emailForm.subject) }}</div>
-                <div class="mb-2">{{ form_row(emailForm.message) }}</div>
-
-                <div class="d-grid gap-2 mt-3">
-                  <button type="button" class="btn btn-outline-secondary fw-semibold" id="btnPreview">
-                    <i class="bi bi-eye"></i> Prévisualiser
-                  </button>
-
-                  <button type="button" class="btn btn-warning fw-semibold" id="btnSend">
-                    <i class="bi bi-send"></i> Envoyer
-                  </button>
-
-                  <div id="emailSendStatus" class="small text-muted"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-12 col-lg-8">
-              <div id="emailPreviewZone">
-                <div class="border rounded-4 p-3 bg-white text-muted">
-                  Choisis un modèle puis clique sur <b>Prévisualiser</b>.
-                </div>
-              </div>
-            </div>
-          </div>
-          {{ form_widget(emailForm.idemKey) }}
-          <input type="hidden" name="_token" value="{{ csrf_token('send_email_prospect_' ~ entite.id ~ '_' ~ p.id) }}">
-
+        <div class="crm-compose-layout">
+          <section class="crm-compose-editor" aria-label="Rédaction du message">
+            <div class="crm-compose-section"><span>01</span><h3>Votre message</h3><small>À votre image</small></div>
+            <div class="crm-compose-starter"><label for="crmEmailStarter"><i class="bi bi-magic" aria-hidden="true"></i> Un point de départ ?</label><select class="form-select" id="crmEmailStarter"><option value="">Rédaction libre</option><option value="intro">Prise de contact RH</option><option value="followup">Relance sans réponse</option><option value="meeting">Proposer un rendez-vous</option><option value="proposal">Suivi d’une proposition</option></select></div>
+            <div class="crm-compose-field">{{ form_row(emailForm.toEmail, {label:'À', attr:{class:'form-control', autocomplete:'email'}}) }}</div>
+            <div class="crm-compose-field">{{ form_row(emailForm.subject, {label:'Objet', attr:{class:'form-control', maxlength:200, placeholder:'Donnez envie d’ouvrir votre message…'}}) }}</div>
+            <div class="crm-compose-message">{{ form_row(emailForm.message, {label:'Votre message', help:false, attr:{class:'form-control', rows:8, maxlength:50000, placeholder:'Écrivez quelques mots pour engager la conversation…'}}) }}<div class="crm-compose-message-meta"><span>Personnalisez votre message pour ce contact.</span><span id="crmComposeCount">0 caractère</span></div></div>
+            <details class="crm-compose-options"><summary><i class="bi bi-palette2" aria-hidden="true"></i> Utiliser un modèle de l’organisme <i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div>{{ form_row(emailForm.template) }}<p>Avec un modèle, vérifiez l’aperçu : votre texte est ajouté uniquement si le modèle le prévoit.</p></div></details>
+            <div class="crm-compose-reminder"><span class="crm-compose-reminder-icon"><i class="bi bi-calendar2-check" aria-hidden="true"></i></span><div><label for="crmEmailFollowup">Garder le fil</label><small>Prévoir votre prochaine relance</small></div><select class="form-select" id="crmEmailFollowup"><option value="0">Échéance actuelle</option><option value="3">Dans 3 jours</option><option value="7" selected>Dans 7 jours</option><option value="14">Dans 14 jours</option><option value="30">Dans 30 jours</option></select></div>
+            <p class="crm-compose-reminder-help">Un rappel dans vos priorités. Aucun envoi automatique.</p>
+          </section>
+          <aside class="crm-compose-preview" aria-label="Aperçu du message">
+            <div class="crm-compose-section"><span>02</span><h3>Avant d’envoyer</h3><small id="crmPreviewState" role="status" aria-live="polite">Aperçu automatique</small></div>
+            <div class="crm-compose-paper"><div class="crm-compose-paper-top"><span></span><span></span><span></span><small>VOTRE E-MAIL</small></div><div id="emailPreviewZone"><div class="crm-compose-empty"><span><i class="bi bi-envelope-open" aria-hidden="true"></i></span><h4>Le début d’un bel échange.</h4><p>Votre aperçu s’actualise automatiquement pendant la rédaction.</p><div class="crm-compose-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></div></div></div>
+            <p class="crm-compose-preview-tip"><i class="bi bi-check2-circle" aria-hidden="true"></i> Un objet précis et une prochaine étape claire font la différence.</p>
+          </aside>
+        </div>
+        {{ form_widget(emailForm.idemKey) }}
+        <input type="hidden" name="_token" value="{{ csrf_token('send_email_prospect_' ~ entite.id ~ '_' ~ p.id) }}">
         {{ form_end(emailForm) }}
       </div>
+      <div class="modal-footer"><div class="crm-compose-status"><span><i class="bi bi-clock-history" aria-hidden="true"></i> L’envoi sera conservé dans l’historique</span><div id="emailSendStatus" role="status" aria-live="polite"></div></div><button type="button" class="crm-compose-secondary" id="btnPreview" hidden><i class="bi bi-eye" aria-hidden="true"></i> Réessayer l’aperçu</button><button type="button" class="crm-compose-send" id="btnSend">Envoyer le message <i class="bi bi-send" aria-hidden="true"></i></button></div>
     </div>
   </div>
 </div>

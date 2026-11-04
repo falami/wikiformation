@@ -1,0 +1,94 @@
+{% extends 'base_admin.html.twig' %}
+{% block title %}Pilotage de la prospection{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('dist/recruitment/tom-select.css') }}"><link rel="stylesheet" href="{{ asset('dist/vendors/flatpickr/flatpickr.min.css') }}"><link rel="stylesheet" href="{{ asset('dist/css/prospect-workspace.css') }}?v=9">{% endblock %}
+{% block body %}
+<div class="crm">
+  <header class="crm-hero">
+    <div><span class="crm-eyebrow">RELATIONS & DÉVELOPPEMENT</span><h1>Chaque contact compte.</h1><p>Les bonnes personnes. Le bon message. Le bon moment.</p><span class="crm-org"><i class="bi bi-building"></i> {{ entite.nom }}</span></div>
+    <a class="crm-primary" href="{{ path('app_administrateur_prospect_new', {entite: entite.id}) }}"><i class="bi bi-plus-lg"></i> Nouveau contact</a>
+  </header>
+  <div class="crm-metrics">
+    <a href="{{ path('app_administrateur_prospect_workspace', {entite: entite.id, view: 'contacts'}) }}"><span><i class="bi bi-people"></i> Carnet de contacts</span><strong>{{ stats.total|default(0) }}</strong><small>Tous vos interlocuteurs</small></a>
+    <a href="{{ path('app_administrateur_prospect_workspace', {entite: entite.id, view: 'pipeline'}) }}"><span><i class="bi bi-bullseye"></i> Prospects actifs</span><strong>{{ stats.active|default(0) }}</strong><small>Opportunités en cours</small></a>
+    <a class="crm-metric-due" href="{{ path('app_administrateur_prospect_workspace', {entite: entite.id, filter: 'due'}) }}"><span><i class="bi bi-alarm"></i> À relancer</span><strong>{{ stats.due|default(0) }}</strong><small>Aujourd’hui et en retard</small></a>
+    <a href="{{ path('app_administrateur_prospect_workspace', {entite: entite.id, filter: 'unplanned'}) }}"><span><i class="bi bi-calendar-plus"></i> À planifier</span><strong>{{ stats.unplanned|default(0) }}</strong><small>Sans prochaine action</small></a>
+  </div>
+  <nav class="crm-tabs" aria-label="Vues de prospection">
+    {% for key, label in {priorities:'Mes priorités', pipeline:'Pipeline commercial', contacts:'Contacts & RH'} %}<a class="{{ view == key ? 'is-active' : '' }}" {% if view == key %}aria-current="page"{% endif %} href="{{ path('app_administrateur_prospect_workspace', {entite: entite.id, view:key}) }}">{{ label }}</a>{% endfor %}
+    <a class="crm-directory" href="{{ path('app_administrateur_prospect_directory', {entite:entite.id}) }}">Répertoire détaillé <i class="bi bi-arrow-up-right"></i></a>
+  </nav>
+  <section class="crm-panel">
+    <div class="crm-section-heading"><div><h2>{{ view == 'pipeline' ? 'Votre activité, étape par étape' : (view == 'contacts' ? 'Un carnet de relations, toujours à portée de main' : 'Votre prochaine conversation commence ici') }}</h2><p>{{ view == 'priorities' ? 'Traitez les échéances les plus proches, puis préparez la suite.' : 'Retrouvez vos contacts et accédez à tout leur historique.' }}</p></div></div>
+    <form class="crm-filters" method="get">
+      <input type="hidden" name="view" value="{{ view }}">
+      <label class="crm-search"><i class="bi bi-search"></i><input type="search" name="q" value="{{ q }}" placeholder="Nom, entreprise, e-mail, fonction…" aria-label="Rechercher un contact"></label>
+      <select data-crm-select name="status" aria-label="Filtrer par étape"><option value="">Toutes les étapes</option>{% for step in statuses %}<option value="{{ step.value }}" {{ status == step ? 'selected' : '' }}>{{ step.label }}</option>{% endfor %}</select>
+      <input type="hidden" name="filter" value="{{ filter }}"><button class="crm-button" type="submit">Rechercher</button>
+    </form>
+    <div class="crm-chips" aria-label="Filtres rapides">{% for key,label in {all:'Tous', due:'À relancer', waiting:'Sans réponse enregistrée', unplanned:'Sans prochaine action', rh:'Contacts RH'} %}<a class="{{ filter == key ? 'is-active' : '' }}" href="{{ path('app_administrateur_prospect_workspace', {entite:entite.id, view:view, filter:key, q:q, status:status ? status.value : ''}) }}">{{ label }}</a>{% endfor %}</div>
+    {% if filter == 'waiting' %}<p class="crm-help"><i class="bi bi-info-circle"></i> E-mails envoyés sans réponse enregistrée depuis. Signalez les réponses reçues via « Suivi » ; votre boîte mail n’est pas synchronisée.</p>{% endif %}
+    {% if rows|length %}
+    <div class="crm-bulk-bar">
+      <label class="crm-bulk-select"><input type="checkbox" id="crmSelectAll"> Sélectionner la page</label>
+      <span id="crmSelectionCount" role="status" aria-live="polite">Aucun contact sélectionné</span>
+      <div class="crm-bulk-buttons">
+        {% if is_granted('PROSPECT_EMAIL_MANAGE', entite) %}<button type="button" class="crm-button crm-write" data-bulk-open="email" disabled><i class="bi bi-envelope"></i> E-mail groupé</button>{% endif %}
+        <button type="button" class="crm-button" data-bulk-open="schedule" disabled><i class="bi bi-arrow-repeat"></i> Mettre à jour le suivi</button>
+        <button type="button" class="crm-button" id="crmClearSelection" disabled>Effacer</button>
+      </div>
+    </div>
+    {% endif %}
+    {% if view == 'pipeline' and rows|length %}
+      <p class="crm-help">Pipeline des contacts de cette page · utilisez « Suivi » pour changer d’étape.</p>
+      <div class="crm-board">{% for step in statuses %}{% if step.value != 'converted' %}
+        <section class="crm-column"><h3><span class="crm-dot" data-stage="{{ step.value }}"></span>{{ step.label }} <small>{{ rows|filter(row => row.p.status == step)|length }}</small></h3>
+        {% for row in rows|filter(row => row.p.status == step) %}{% include 'administrateur/prospects/_workspace_card.html.twig' with {row:row} %}{% else %}<div class="crm-column-empty">Aucun contact</div>{% endfor %}</section>
+      {% endif %}{% endfor %}</div>
+    {% elseif rows|length %}
+      <div class="crm-list">{% for row in rows %}{% include 'administrateur/prospects/_workspace_card.html.twig' with {row:row} %}{% endfor %}</div>
+    {% else %}
+      <div class="crm-empty"><i class="bi bi-check2-circle"></i><h3>{{ filter == 'due' ? 'Vous êtes à jour !' : 'Aucun contact dans cette vue' }}</h3><p>{{ filter == 'due' ? 'Vos prochaines relances apparaîtront ici à leur échéance.' : 'Ajustez vos filtres ou ajoutez votre premier contact.' }}</p><a class="crm-button" href="{{ path('app_administrateur_prospect_new', {entite:entite.id}) }}">Ajouter un contact</a></div>
+    {% endif %}
+    <footer class="crm-pagination"><span>{{ rows|length }} contacts affichés · Page {{ page }} · 60 par page</span><div>{% if page > 1 %}<a class="crm-button" href="{{ path('app_administrateur_prospect_workspace', {entite:entite.id, view:view, filter:filter, q:q, status:status ? status.value : '', page:page-1}) }}">Précédente</a>{% endif %}{% if hasNext %}<a class="crm-button" href="{{ path('app_administrateur_prospect_workspace', {entite:entite.id, view:view, filter:filter, q:q, status:status ? status.value : '', page:page+1}) }}">Suivante</a>{% endif %}</div></footer>
+  </section>
+  <p class="crm-footnote"><i class="bi bi-shield-check"></i> Les actions et les messages envoyés sont conservés dans l’historique de chaque prospect.</p>
+</div>
+<div class="modal fade" id="crmFollowup" tabindex="-1" aria-labelledby="crmFollowupTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <form method="post" class="modal-content" id="crmFollowupForm">
+      <div class="modal-header crm-followup-header">
+        <div class="crm-followup-heading"><span class="crm-followup-symbol"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span><div><span class="crm-followup-eyebrow">RELATION CLIENT</span><h2 class="modal-title" id="crmFollowupTitle">Faites avancer la conversation.</h2><p>Une action claire pour garder le lien.</p></div></div>
+        <button type="button" class="crm-followup-close" data-bs-dismiss="modal" aria-label="Fermer"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        <div class="crm-followup-person"><span id="crmFollowupAvatar" aria-hidden="true"></span><div><strong id="crmFollowupName"></strong><small id="crmFollowupCompany"></small></div><span class="crm-followup-current" id="crmFollowupCurrent"></span></div>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="_token" id="crmFollowupToken">
+        <input type="hidden" name="action" id="crmAction" value="schedule">
+        <div class="crm-followup-label">Quelle est la prochaine étape ?</div>
+        <div class="crm-followup-actions" role="group" aria-label="Action de suivi">
+          <button type="button" data-followup-action="schedule" aria-pressed="true"><i class="bi bi-calendar2-plus" aria-hidden="true"></i><strong>Relancer</strong><small>Garder le contact</small></button>
+          <button type="button" data-followup-action="reply" aria-pressed="false"><i class="bi bi-chat-left-text" aria-hidden="true"></i><strong>Réponse reçue</strong><small>Noter son retour</small></button>
+          <button type="button" data-followup-action="status" aria-pressed="false"><i class="bi bi-signpost-split" aria-hidden="true"></i><strong>Changer d’étape</strong><small>Faire avancer le projet</small></button>
+          <button type="button" data-followup-action="note" aria-pressed="false"><i class="bi bi-pencil-square" aria-hidden="true"></i><strong>Ajouter une note</strong><small>Conserver l’essentiel</small></button>
+        </div>
+        <div class="crm-followup-fields">
+          <div id="crmDateGroup">
+            <div class="crm-followup-label-row"><label class="form-label" for="crmDate">Prochaine action</label><span id="crmDateOptional">Date requise</span></div>
+            <div class="crm-followup-date-row"><input class="form-control" type="date" name="date" id="crmDate" aria-describedby="crmDateHelp"><div class="crm-followup-shortcuts" role="group" aria-label="Choisir une date rapidement"><button type="button" data-followup-days="1">Demain</button><button type="button" data-followup-days="3">Dans 3 jours</button><button type="button" data-followup-days="7">Dans 1 semaine</button></div></div>
+            <p id="crmDateHelp" class="crm-followup-help">Un rappel dans vos priorités, sans envoi automatique.</p>
+          </div>
+          <div id="crmStageGroup" hidden><label class="form-label" for="crmStage">Nouvelle étape du prospect</label><select class="form-select" name="status" id="crmStage" data-crm-select>{% for step in statuses %}{% if step.value != 'converted' %}<option value="{{ step.value }}">{{ step.label }}</option>{% endif %}{% endfor %}</select></div>
+          <div class="crm-followup-note"><div class="crm-followup-label-row"><label class="form-label" for="crmNote">L’essentiel de votre échange</label><span id="crmNoteOptional">Facultatif</span></div><textarea class="form-control" name="note" id="crmNote" rows="3" maxlength="10000" placeholder="Un besoin identifié, un retour du contact, un point à ne pas oublier…"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><span class="crm-followup-save-hint"><i class="bi bi-clock-history" aria-hidden="true"></i> Conservé dans l’historique</span><button type="button" class="crm-followup-cancel" data-bs-dismiss="modal">Annuler</button><button type="submit" class="crm-followup-submit"><span id="crmFollowupSubmitLabel">Planifier la relance</span><i class="bi bi-arrow-right" aria-hidden="true"></i></button></div>
+    </form>
+  </div>
+</div>
+{% include 'administrateur/prospects/_bulk_modal.html.twig' %}
+<div id="emailModalHost"></div><div id="crmFeedback" role="status" aria-live="polite"></div>
+<script src="{{ asset('dist/recruitment/tom-select.min.js') }}" defer></script>
+<script src="{{ asset('dist/vendors/flatpickr/flatpickr.min.js') }}" defer></script>
+<script src="{{ asset('dist/js/prospect-workspace.js') }}?v=5" defer></script>
+<script src="{{ asset('dist/js/prospect-bulk.js') }}?v=1" defer></script>
+{% endblock %}

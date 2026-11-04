@@ -30,8 +30,8 @@ final class ProspectSendEmailType extends AbstractType
         'class' => EmailTemplate::class,
         'choices' => $o['templates'] ?? [],
         'choice_label' => fn(EmailTemplate $t) => $t->getName(),
-        'placeholder' => 'Choisir…',
-        'required' => true,
+        'placeholder' => 'Message personnalisé (sans modèle)',
+        'required' => false,
         'attr' => ['class' => 'form-select js-tomselect'],
       ])
       ->add('subject', TextType::class, [
@@ -44,8 +44,8 @@ final class ProspectSendEmailType extends AbstractType
       ])
 
       ->add('message', TextareaType::class, [
-        'label' => 'Message (optionnel)',
-        'help' => 'Ajouté à ton modèle si tu l’utilises dans le template (ex: {{ message }}).',
+        'label' => 'Votre message',
+        'help' => 'Texte libre sans modèle. Avec un modèle, le texte est inséré seulement si celui-ci prévoit un champ message.',
         'required' => false,
         'attr' => ['class' => 'form-control', 'rows' => 5],
       ]);

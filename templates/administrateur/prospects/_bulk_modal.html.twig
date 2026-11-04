@@ -1,0 +1,34 @@
+<div class="modal fade crm-bulk-modal" id="crmBulkModal" tabindex="-1" aria-labelledby="crmBulkTitle" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <form class="modal-content" id="crmBulkForm">
+      <div class="modal-header">
+        <div><span class="crm-eyebrow">ACTIONS GROUPÉES</span><h2 id="crmBulkTitle">Une action, plusieurs contacts.</h2><p id="crmBulkSummary"></p></div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <fieldset id="crmBulkFields">
+          <div id="crmBulkFollowup">
+            <label for="crmBulkAction">Action de suivi</label>
+            <select id="crmBulkAction" aria-label="Action de suivi" class="form-select" data-crm-select>
+              <option value="schedule">Planifier une relance</option><option value="status">Changer d’étape</option><option value="note">Ajouter une note</option>
+            </select>
+            <div id="crmBulkDateGroup"><label for="crmBulkDate">Date de relance</label><input type="date" class="form-control" id="crmBulkDate"><small>Un rappel dans vos priorités, sans envoi automatique.</small></div>
+            <div id="crmBulkStageGroup" hidden><label for="crmBulkStage">Nouvelle étape</label><select class="form-select" id="crmBulkStage" data-crm-select>{% for step in statuses %}{% if step.value != 'converted' %}<option value="{{ step.value }}">{{ step.label }}</option>{% endif %}{% endfor %}</select><small>Les relances sont retirées pour les étapes Gagné et Perdu.</small></div>
+            <label for="crmBulkNote">Note commune <span id="crmBulkNoteHint">· facultative</span></label><textarea id="crmBulkNote" class="form-control" rows="3" maxlength="10000" placeholder="À conserver dans l’historique de chaque contact…"></textarea>
+          </div>
+          <div id="crmBulkEmail" hidden>
+            <p class="crm-bulk-info"><i class="bi bi-envelope-check"></i> Un e-mail individuel par prospect, avec sa formule de salutation. Les autres destinataires ne sont pas visibles.</p>
+            <label for="crmBulkSubject">Objet commun</label><input id="crmBulkSubject" class="form-control" maxlength="200" placeholder="Un échange sur vos besoins de formation ?">
+            <label for="crmBulkMessage">Votre message</label><textarea id="crmBulkMessage" class="form-control" rows="6" maxlength="50000" placeholder="Rédigez votre message et votre signature. La salutation est ajoutée automatiquement."></textarea>
+            <label for="crmBulkDays">Prévoir une relance après l’envoi</label><select id="crmBulkDays" aria-label="Délai de relance" class="form-select" data-crm-select><option value="0">Ne pas ajouter de relance</option><option value="3">Dans 3 jours</option><option value="7" selected>Dans 7 jours</option><option value="14">Dans 14 jours</option><option value="30">Dans 30 jours</option></select>
+            <label for="crmBulkPreviewContact">Aperçu pour</label><select id="crmBulkPreviewContact" class="form-select"></select>
+            <div id="crmBulkPreview" class="crm-bulk-preview" aria-live="polite"></div>
+          </div>
+        </fieldset>
+        <div class="crm-bulk-recipients"><h3>Contacts concernés</h3><p>La sélection concerne uniquement cette page. Les contacts non éligibles sont indiqués ci-dessous.</p><ul id="crmBulkRecipients"></ul></div>
+        <p id="crmBulkResult" role="status" aria-live="polite"></p>
+      </div>
+      <div class="modal-footer"><button class="crm-button" type="button" data-bs-dismiss="modal" id="crmBulkClose">Annuler</button><button class="crm-primary" type="submit" id="crmBulkSubmit">Appliquer à la sélection</button></div>
+    </form>
+  </div>
+</div>

@@ -38,6 +38,12 @@ final class ProspectController extends AbstractController
   {
     /** @var Utilisateur $user */
     $user = $this->getUser();
+    return $this->redirectToRoute('app_administrateur_prospect_workspace', ['entite' => $entite->getId()]);
+  }
+
+  #[Route('/repertoire', name: 'directory', methods: ['GET'], priority: 10)]
+  public function directory(Entite $entite): Response
+  {
     return $this->render('administrateur/prospects/index.html.twig', [
       'entite' => $entite,
 
