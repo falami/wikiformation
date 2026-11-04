@@ -537,6 +537,10 @@
         <div class="mt-3 small muted">
           Renseignez les informations du formateur puis enregistrez sa fiche.
         </div>
+        <button type="submit" class="btn btn-gradient w-100 mt-3" data-trainer-submit>
+          <i class="fa fa-check me-1" aria-hidden="true"></i>
+          {{ is_edit ? 'Enregistrer les modifications' : 'Créer le formateur' }}
+        </button>
       </div>
     </div>
   </div>
@@ -547,7 +551,7 @@
         <i class="fa fa-arrow-left me-1"></i> Retour
       </a>
 
-      <button type="submit" class="btn btn-gradient" id="submit_btn">
+      <button type="submit" class="btn btn-gradient" id="submit_btn" data-trainer-submit>
         <i class="fa fa-check me-1"></i>
         {{ is_edit ? 'Enregistrer' : 'Créer le formateur' }}
       </button>
@@ -718,7 +722,7 @@
       const userEl = document.querySelector('select.js-ts[data-ts="user"]') || document.getElementById('{{ form.utilisateur is defined ? form.utilisateur.vars.id : form.identity.email.vars.id }}');
       const resumeUser = document.getElementById('resume_user');
       const pillUser = document.getElementById('pill_user');
-      const submitBtn = document.getElementById('submit_btn');
+      const submitButtons = document.querySelectorAll('[data-trainer-submit]');
       const statusPill = document.getElementById('resume_status');
 
       function getUserLabel(){
@@ -759,7 +763,7 @@
 
         const ok = okUser && okRemu;
 
-        if (submitBtn) submitBtn.disabled = !ok;
+        submitButtons.forEach(button => { button.disabled = !ok; });
         if (statusPill){
           if (ok){
             statusPill.textContent = '✅ Complet';
